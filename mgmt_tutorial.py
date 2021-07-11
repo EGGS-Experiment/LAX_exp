@@ -1,5 +1,5 @@
 from artiq.experiment import *
-#import numpy as np
+import numpy as np
 #import time
 
 class MgmtTutorial(EnvExperiment):
