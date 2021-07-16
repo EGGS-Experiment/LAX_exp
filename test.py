@@ -3,7 +3,7 @@ from artiq.experiment import *
 import time
 
 class Interferometer(EnvExperiment):
-    """Record Interferometer Data"""
+    """Testing"""
 
     def build(self):
         # self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))
@@ -28,7 +28,7 @@ class Interferometer(EnvExperiment):
         self.core.reset()
         self.suservo0.init()
         self.suservo0.set_config(1)
-        self.suservo0.set_pgia_mu(self.record_channel, 0)
+        self.suservo0.set_pgia_mu(0, 0)
 
         # #interferometer_data = np.full(self.num_samples, np.nan)
         #
