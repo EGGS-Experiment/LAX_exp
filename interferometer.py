@@ -1,23 +1,38 @@
 from artiq.experiment import *
 import numpy as np
-import time
+#import time
 
-class UrukulTest(EnvExperiment):
-    """Urukul Test"""
+class Interferometer(EnvExperiment):
+    """Record Interferometer Data"""
 
     def build(self):
+        self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))
+        #make delay time and recordchannel arguments as well
         self.setattr_device("core")
-        self.setattr_device("ttl4")
-        self.setattr_device("urukul2_cpld")
-        self.setattr_device("urukul2_ch1")
+        self.setattr_device("core_dma")
+        self.setattr_device("suservo0")
+        self.setattr_device("suservo0_ch0")
+
+    def prepare(self):
+        self.set_dataset("interferometer_data", np.full(num_samples, np.nan))
+
+    @kernel
+    def record(self):
+        with self.core_dma.record("record"):
+            for i in range(num_samples):
+                self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(record_channel))
+                delay(delay_time)
 
     @kernel
     def run(self):
+        #initialize components
         self.core.reset()
-        #initialize urukul
-        self.urukul2_cpld.init()
+        self.suservo0.init()
 
-        #initialize channel
-        self.urukul2_ch1.cfg_sw(0, 1)
-        self.urukul2_ch1.init()
+        #build record sequence
+        self.record()
+        record_handle = self.core_dma.get_handle("record")
+        self.core.break_realtime()
 
+        #record data
+        self.core_dma.playback_handle(record_handle)
