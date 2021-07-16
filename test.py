@@ -27,7 +27,7 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.suservo0.init()
-        self.suservo0.set_config(1)
+        # self.suservo0.set_config(1)
         self.suservo0.set_pgia_mu(0, 0)
         self.core.break_realtime()
         # #interferometer_data = np.full(self.num_samples, np.nan)
