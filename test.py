@@ -18,7 +18,7 @@ class Interferometer(EnvExperiment):
     # @kernel
     # def record(self):
     #     with self.core_dma.record("record"):
-    #         for i in range(self.num_samples):
+    #         for i in range(10):
     #             self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(self.record_channel))
     #             delay(self.delay_time * us)
 
@@ -43,4 +43,4 @@ class Interferometer(EnvExperiment):
         self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
         for i in range(10):
             self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-            delay(5*us)
+            delay(100*us)
