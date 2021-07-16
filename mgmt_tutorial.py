@@ -7,7 +7,6 @@ class MgmtTutorial(EnvExperiment):
     def build(self):
         #pass #nothing
         self.setattr_argument("count", NumberValue(ndecimals=0, step=1))
-        self.setattr_argument("count2", NumberValue(ndecimals=0, step=1))
 
     def run(self):
         self.set_dataset("parabola", np.full(self.count, np.nan), broadcast=True)
