@@ -6,12 +6,12 @@ class UrukulTest(EnvExperiment):
     """Urukul Test"""
 
     def build(self):
-        #self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))
-        #self.setattr_argument("delay_time", NumberValue(ndecimals=0, step=1))
-        #self.setattr_argument("record_channel", NumberValue(ndecimals=0, step=1))
+        #self.setattr_argument("frequency", NumberValue(ndecimals=0, step=1))
+        #self.setattr_argument("amplitude", NumberValue(ndecimals=0, step=1))
+        #self.setattr_argument("phase", NumberValue(ndecimals=0, step=1))
+        #self.setattr_argument("channel", NumberValue(ndecimals=0, step=1))
 
         self.setattr_device("core")
-        self.setattr_device("ttl4")
         self.setattr_device("urukul2_cpld")
         self.setattr_device("urukul2_ch0")
 
