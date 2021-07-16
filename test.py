@@ -14,13 +14,14 @@ class Interferometer(EnvExperiment):
         self.setattr_device("suservo0")
         self.setattr_device("suservo0_ch0")
         #self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
+        self.set_dataset("interferometer_data", np.full(100, np.nan), broadcast=True)
 
-    # @kernel
-    # def record(self):
-    #     with self.core_dma.record("record"):
-    #         for i in range(10):
-    #             self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(self.record_channel))
-    #             delay(self.delay_time * us)
+    @kernel
+    def record(self):
+        with self.core_dma.record("record"):
+            for i in range(100):
+                self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
+                delay(51 * us)
 
     @kernel
     def run(self):
@@ -30,17 +31,11 @@ class Interferometer(EnvExperiment):
         # self.suservo0.set_config(1)
         self.suservo0.set_pgia_mu(0, 0)
         self.core.break_realtime()
-        # #interferometer_data = np.full(self.num_samples, np.nan)
-        #
-        # #build record sequence
-        # self.record()
-        # record_handle = self.core_dma.get_handle("record")
-        # self.core.break_realtime()
-        #
-        # #record data
-        # self.core_dma.playback_handle(record_handle)
 
-        self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
-        for i in range(100):
-            self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-            delay(51*us)
+        #build record sequence
+        self.record()
+        record_handle = self.core_dma.get_handle("record")
+        self.core.break_realtime()
+
+        #record data
+        self.core_dma.playback_handle(record_handle)
