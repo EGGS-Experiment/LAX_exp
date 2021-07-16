@@ -43,4 +43,4 @@ class Interferometer(EnvExperiment):
         self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
         for i in range(10):
             self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-            print(self.suservo0.get_adc(0))
+            delay(5*us)
