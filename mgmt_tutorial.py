@@ -7,8 +7,8 @@ class MgmtTutorial(EnvExperiment):
     def build(self):
         #pass #nothing
         self.setattr_argument("count", NumberValue(ndecimals=0, step=1))
-        #self.setattr_argument("var1", NumberValue(ndecimals=0, step=1))
-        #print(self.var1)
+        self.setattr_argument("var1", NumberValue(ndecimals=0, step=1))
+        print(self.var1)
 
 
     def run(self):
