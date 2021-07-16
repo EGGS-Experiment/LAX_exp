@@ -16,12 +16,12 @@ class Interferometer(EnvExperiment):
         #self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
 
     def prepare(self):
-        self.set_dataset("interferometer_data", np.full(100, np.nan), broadcast=True)
+        self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
 
     @kernel
     def record(self):
         with self.core_dma.record("record"):
-            for i in range(100):
+            for i in range(10):
                 self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
                 delay(51 * us)
 
@@ -32,7 +32,7 @@ class Interferometer(EnvExperiment):
         self.suservo0.init()
         # self.suservo0.set_config(1)
         self.suservo0.set_pgia_mu(0, 0)
-        self.core.break_realtime()
+        #self.core.break_realtime()
 
         #build record sequence
         self.record()
