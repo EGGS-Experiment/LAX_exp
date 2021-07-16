@@ -21,6 +21,7 @@ class Interferometer(EnvExperiment):
     @kernel
     def record(self):
         with self.core_dma.record("record"):
+            print("thkim")
             for i in range(10):
                 self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
                 delay(51 * us)
