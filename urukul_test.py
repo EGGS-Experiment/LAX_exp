@@ -18,7 +18,7 @@ class UrukulTest(EnvExperiment):
         self.urukul2_cpld.init()
 
         #initialize channel
-        self.urukul2_ch0.cfg_sw(0, 1)
+        self.urukul2_ch0.cfg_sw(1)
         self.urukul2_ch0.init()
 
         #set frequency and amplitude
