@@ -34,10 +34,10 @@ class Interferometer(EnvExperiment):
         # self.suservo0.set_config(1)
         self.suservo0.set_pgia_mu(0, 0)
         #self.core.break_realtime()
-        print("first")
 
         #build record sequence
         self.record()
+        print("first")
         record_handle = self.core_dma.get_handle("record")
         self.core.break_realtime()
 
