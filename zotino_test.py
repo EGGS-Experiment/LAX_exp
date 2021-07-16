@@ -2,8 +2,8 @@ from artiq.experiment import *
 import numpy as np
 import time
 
-class UrukulTest(EnvExperiment):
-    """Urukul Test"""
+class ZotinoTest(EnvExperiment):
+    """Zotino Test"""
 
     def build(self):
         #self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))

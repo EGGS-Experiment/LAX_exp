@@ -26,6 +26,7 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.suservo0.init()
+        self.suservo0.set_pgia_mu(self.record_channel, 0)
 
         #build record sequence
         self.record()
