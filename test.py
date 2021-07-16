@@ -14,6 +14,8 @@ class Interferometer(EnvExperiment):
         self.setattr_device("suservo0")
         self.setattr_device("suservo0_ch0")
         #self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
+
+    def prepare(self):
         self.set_dataset("interferometer_data", np.full(100, np.nan), broadcast=True)
 
     @kernel
