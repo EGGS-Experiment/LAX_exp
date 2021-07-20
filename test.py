@@ -47,4 +47,4 @@ class Interferometer(EnvExperiment):
 
         for i in range(10):
             self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-            delay(51 * us)
+            delay(100 * us)
