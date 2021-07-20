@@ -22,21 +22,20 @@ class Interferometer(EnvExperiment):
     def record(self):
         with self.core_dma.record("record"):
             for i in range(10):
-                print(self.suservo0.get_adc(0))
-                # self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-                # delay(51 * us)
+                #print(self.suservo0.get_adc(0))
+                self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
+                delay(51 * us)
 
     @kernel
     def run(self):
         #initialize devices
         self.core.reset()
         self.suservo0.init()
+
+        self.core.break_realtime()
         # self.suservo0.set_config(1)
         self.suservo0.set_pgia_mu(0, 0)
         #self.core.break_realtime()
-
-        for i in range(10):
-            print(self.suservo0.get_adc(0))
 
         #build record sequence
         self.record()
