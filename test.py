@@ -20,7 +20,7 @@ class Interferometer(EnvExperiment):
 
     @kernel
     def record(self):
-        with self.core_dma.record("record"):
+        with self.core_dma.record("thkim"):
             for i in range(10):
                 #print(self.suservo0.get_adc(0))
                 self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
@@ -39,7 +39,7 @@ class Interferometer(EnvExperiment):
 
         #build record sequence
         self.record()
-        record_handle = self.core_dma.get_handle("record")
+        record_handle = self.core_dma.get_handle("thkim")
         self.core.break_realtime()
 
         #record data
