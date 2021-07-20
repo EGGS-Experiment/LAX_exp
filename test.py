@@ -37,10 +37,14 @@ class Interferometer(EnvExperiment):
         self.suservo0.set_pgia_mu(0, 0)
         #self.core.break_realtime()
 
-        #build record sequence
-        self.record()
-        record_handle = self.core_dma.get_handle("thkim")
-        self.core.break_realtime()
+        # #build record sequence
+        # self.record()
+        # record_handle = self.core_dma.get_handle("thkim")
+        # self.core.break_realtime()
+        #
+        # #record data
+        # self.core_dma.playback_handle(record_handle)
 
-        #record data
-        self.core_dma.playback_handle(record_handle)
+        for i in range(10):
+            self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
+            delay(51 * us)
