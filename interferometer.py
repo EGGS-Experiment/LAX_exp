@@ -11,7 +11,7 @@ class Interferometer(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("sampler0")
-        self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
+        self.setattr_dataset("interferometer_data", np.full(100, 0))
 
     # @kernel
     # def record(self):
@@ -26,7 +26,7 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.sampler0.init()
-        self.sampler0.set_gain_mu(self.record_channel, 2)
+        self.sampler0.set_gain_mu(0, 2)
         self.core.break_realtime()
 
         self.sampler0.sample(self.interferometer_data)
