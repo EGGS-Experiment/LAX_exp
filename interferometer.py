@@ -11,7 +11,7 @@ class Interferometer(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("sampler0")
-        self.setattr_dataset("interferometer_data", np.full(100, 0))
+        self.setattr_dataset("interferometer_data", np.full(100, np.nan))
 
     # @kernel
     # def record(self):
