@@ -2,7 +2,7 @@ import numpy as np
 from artiq.experiment import *
 import time
 
-class Interferometer(EnvExperiment):
+class Testing(EnvExperiment):
     """Testing"""
 
     def build(self):
