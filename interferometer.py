@@ -10,8 +10,7 @@ class Interferometer(EnvExperiment):
         self.setattr_argument("record_channel", NumberValue(ndecimals=0, step=1))
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr_device("suservo0")
-        self.setattr_device("suservo0_ch0")
+        #setattr adc
         self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
 
     @kernel
@@ -25,9 +24,7 @@ class Interferometer(EnvExperiment):
     def run(self):
         #initialize devices
         self.core.reset()
-        self.suservo0.init()
-        self.suservo0.set_config(1)
-        self.suservo0.set_pgia_mu(self.record_channel, 0)
+        #initialize adc
 
         #build record sequence
         self.record()
