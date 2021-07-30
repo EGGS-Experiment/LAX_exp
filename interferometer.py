@@ -26,7 +26,7 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.sampler0.init()
-        self.set_gain_mu(self.record_channel, 2)
+        self.sampler0.set_gain_mu(self.record_channel, 2)
         print("thkim")
         self.sampler0.sample(self.interferometer_data)
 
