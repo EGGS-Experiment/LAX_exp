@@ -11,14 +11,15 @@ class Interferometer(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("sampler0")
-        self.setattr_dataset("interferometer_data", np.full(100, np.nan))
+        self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
 
     @kernel
     def record(self):
         with self.core_dma.record("record"):
-            for i in range(100):
-                self.mutate_dataset("interferometer_data", i, self.sampler0.sample(self.record_channel))
-                delay(5 * us)
+            self.sampler0.sample(self.record_channel)
+            # for i in range(100):
+            #     self.mutate_dataset("interferometer_data", i, self.sampler0.sample(self.record_channel))
+            #     delay(self.delay_time * us)
 
     @kernel
     def run(self):
