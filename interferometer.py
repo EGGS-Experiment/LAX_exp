@@ -10,7 +10,7 @@ class Interferometer(EnvExperiment):
         self.setattr_argument("record_channel", NumberValue(ndecimals=0, step=1))
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr("sampler0")
+        self.setattr_device("sampler0")
         self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
 
     @kernel
