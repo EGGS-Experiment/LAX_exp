@@ -5,9 +5,7 @@ class Interferometer(EnvExperiment):
     """Record Interferometer Data"""
 
     def build(self):
-        # self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))
-        # self.setattr_argument("delay_time", NumberValue(ndecimals=0, step=1))
-        # self.setattr_argument("record_channel", NumberValue(ndecimals=0, step=1))
+        self.setattr_device("core")
         self.setattr_device("sampler0")
         self.setattr_dataset("interferometer_data", np.full(10, np.nan))
 
