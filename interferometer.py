@@ -16,9 +16,9 @@ class Interferometer(EnvExperiment):
     @kernel
     def record(self):
         with self.core_dma.record("record"):
+            print("scde1")
             for i in range(self.num_samples):
                 self.mutate_dataset("interferometer_data", i, self.sampler0.sample(self.record_channel))
-                print("scde")
                 delay(self.delay_time * us)
 
     @kernel
@@ -26,11 +26,12 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.sampler0.init()
-
+        print("scde 2")
         #build record sequence
         self.record()
         record_handle = self.core_dma.get_handle("record")
         self.core.break_realtime()
+        print("scde3")
 
         #record data
         self.core_dma.playback_handle(record_handle)
