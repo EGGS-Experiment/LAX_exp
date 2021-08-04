@@ -26,7 +26,7 @@ class Interferometer(EnvExperiment):
 
         for ind in range(10):
             self.sampler0.sample_mu(holder)
-            self.mutate_dataset("interferometer_data", ind, holder[0])
+            #self.mutate_dataset("interferometer_data", ind, holder[0])
             delay(59*us)
 
         print("done")
