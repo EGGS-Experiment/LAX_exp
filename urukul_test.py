@@ -19,22 +19,14 @@ class UrukulTest(EnvExperiment):
     def run(self):
         self.core.reset()
 
-        print("ok")
-
         #initialize urukul
         self.urukul2_cpld.init()
-
-        print("h1")
 
         #initialize channel
         self.urukul2_ch0.init()
         self.urukul2_ch0.cfg_sw(1)
         self.urukul2_ch0.set_att_mu(255)
 
-        print("h2")
-
         #set frequency and amplitude
         self.urukul2_ch0.set(1e8)
         self.urukul2_ch0.set_asf(0x3fff)
-
-        print("h3")
