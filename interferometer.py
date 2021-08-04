@@ -18,7 +18,7 @@ class Interferometer(EnvExperiment):
         self.sampler0.set_gain_mu(0, 2)
 
         self.core.break_realtime()
-        holder = [0]*8
+        holder = [0.]*8
 
         for ind in range(100):
             self.sampler0.sample(holder)
