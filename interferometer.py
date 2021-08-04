@@ -15,6 +15,7 @@ class Interferometer(EnvExperiment):
         self.core.reset()
         self.sampler0.init()
         self.sampler0.set_gain_mu(0, 2)
+
         self.core.break_realtime()
 
         self.sampler0.sample(self.interferometer_data)
