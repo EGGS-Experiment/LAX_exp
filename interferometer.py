@@ -28,6 +28,6 @@ class Interferometer(EnvExperiment):
             with parallel:
                 self.sampler0.sample_mu(holder)
                 self.mutate_dataset("interferometer_data", ind, holder[0])
-                delay(25*us)
+                delay(40*us)
 
         print("done")
