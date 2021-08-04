@@ -12,7 +12,7 @@ class Interferometer(EnvExperiment):
     def run(self):
         #initialize
         self.core.reset()
-        self.set_dataset("samples", np.full(10, np.nan), broadcast=True)
+        self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
 
         self.core.break_realtime()
 
@@ -26,7 +26,7 @@ class Interferometer(EnvExperiment):
 
         for ind in range(10):
             #self.sampler0.sample_mu(holder)
-            self.mutate_dataset("samples", ind, ind^2)
+            self.mutate_dataset("interferometer_data", ind, ind^2)
             delay(10*us)
 
         print("done")
