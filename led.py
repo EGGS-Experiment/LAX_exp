@@ -8,16 +8,10 @@ class LED(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("zotino0")
         self.setattr_device("ttl4")
-        self.setattr_device("led0")
-        self.setattr_device("led1")
 
     @kernel
     def run(self):
         self.core.reset()
-        self.led0.output()
-        self.led1.output()
-        self.led0.on()
-        self.led1.on()
         self.ttl4.output()
         th1 = input_led_state()
         self.core.break_realtime()
