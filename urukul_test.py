@@ -20,7 +20,7 @@ class UrukulTest(EnvExperiment):
         self.core.reset()
 
         #initialize urukul
-        self.urukul2_ch0.cpld.init()
+        self.urukul2_cpld.init()
         self.urukul2_ch0.init()
         self.core.break_realtime()
 
