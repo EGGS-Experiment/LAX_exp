@@ -12,7 +12,7 @@ class Interferometer(EnvExperiment):
     def run(self):
         #initialize
         self.core.reset()
-        self.set_dataset("interferometer_data", np.full(self.count, np.nan), broadcast=True)
+        self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
 
         self.sampler0.init()
         self.sampler0.set_gain_mu(0, 2)
