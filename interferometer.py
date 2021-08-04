@@ -19,8 +19,6 @@ class Interferometer(EnvExperiment):
         holder = [0]*8
         self.sampler0.init()
 
-        print("h1")
-
         for i in range(8):
             self.sampler0.set_gain_mu(7-i, 0)
 
