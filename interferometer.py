@@ -15,14 +15,14 @@ class Interferometer(EnvExperiment):
         self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
 
         self.core.break_realtime()
+
+        holder = [0.]*8
         self.sampler0.init()
         self.sampler0.set_gain_mu(0, 2)
 
         self.core.break_realtime()
-        holder = [0.]*8
 
         for ind in range(100):
-            delay(10*us)
             self.sampler0.sample(holder)
             self.mutate_dataset("interferometer_data", ind, holder[0])
             delay(10*us)
