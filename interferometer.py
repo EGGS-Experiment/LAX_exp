@@ -14,8 +14,10 @@ class Interferometer(EnvExperiment):
         #initialize devices
         self.core.reset()
         self.sampler0.init()
+        print("h1")
         self.sampler0.set_gain_mu(0, 2)
-
+        print("h2")
         self.core.break_realtime()
-
+        print("h3")
         self.sampler0.sample(self.interferometer_data)
+        print("h4")

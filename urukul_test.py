@@ -18,6 +18,7 @@ class UrukulTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+
         #initialize urukul
         self.urukul2_cpld.init()
 
