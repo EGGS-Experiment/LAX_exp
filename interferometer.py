@@ -14,6 +14,7 @@ class Interferometer(EnvExperiment):
         self.core.reset()
         self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=True)
 
+        self.core.break_realtime()
         self.sampler0.init()
         self.sampler0.set_gain_mu(0, 2)
 
