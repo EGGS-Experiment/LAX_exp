@@ -12,21 +12,21 @@ class UrukulTest(EnvExperiment):
         #self.setattr_argument("channel", NumberValue(ndecimals=0, step=1))
 
         self.setattr_device("core")
-        self.setattr_device("urukul0_cpld")
-        self.setattr_device("urukul0_ch0")
+        self.setattr_device("urukul2_cpld")
+        self.setattr_device("urukul2_ch0")
 
     @kernel
     def run(self):
         self.core.reset()
 
         #initialize urukul
-        self.urukul0_cpld.init()
-        self.urukul0_ch0.init()
+        self.urukul2_cpld.init()
+        self.urukul2_ch0.init()
         self.core.break_realtime()
 
-        self.urukul0_ch0.cfg_sw(1)
-        self.urukul0_ch0.set_att_mu(255)
+        self.urukul2_ch0.cfg_sw(1)
+        self.urukul2_ch0.set_att_mu(255)
 
         #set frequency and amplitude
-        self.urukul0_ch0.set(1e8)
-        self.urukul0_ch0.set_asf(0x3fff)
+        self.urukul2_ch0.set(1e8)
+        self.urukul2_ch0.set_asf(0x3fff)
