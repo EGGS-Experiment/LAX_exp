@@ -13,6 +13,7 @@ class LED(EnvExperiment):
     def run(self):
         self.core.reset()
         self.ttl4.output()
+        self.ttl4.on()
         th1 = input_led_state()
         self.core.break_realtime()
         if th1:
