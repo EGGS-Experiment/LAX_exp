@@ -22,12 +22,17 @@ class UrukulTest(EnvExperiment):
         #initialize urukul
         self.urukul1_cpld.init()
 
+        print("h1")
+
         #initialize channel
         self.urukul1_ch0.init()
         self.urukul1_ch0.cfg_sw(1)
         self.urukul1_ch0.set_att_mu(255)
 
+        print("h2")
+
         #set frequency and amplitude
         self.urukul1_ch0.set(1e8)
         self.urukul1_ch0.set_asf(0x3fff)
 
+        print("h2")
