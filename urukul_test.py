@@ -25,7 +25,7 @@ class UrukulTest(EnvExperiment):
         self.core.break_realtime()
 
         self.urukul0_ch0.cfg_sw(1)
-        self.urukul_ch0.set_att_mu(255)
+        self.urukul0_ch0.set_att_mu(255)
 
         #set frequency and amplitude
         self.urukul0_ch0.set(1e8)
