@@ -25,7 +25,7 @@ class Interferometer(EnvExperiment):
         self.core.break_realtime()
 
         for ind in range(10):
-            self.sampler0.sample_mu(holder)
+            #self.sampler0.sample_mu(holder)
             self.mutate_dataset("interferometer_data", ind, ind**2)
             delay(200*us)
 
