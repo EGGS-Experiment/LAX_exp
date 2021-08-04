@@ -7,21 +7,20 @@ class Interferometer(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("sampler0")
-        self.setattr_dataset("interferometer_data", np.full(10, 1))
 
     @kernel
     def run(self):
-        #initialize devices
+        #initialize
         self.core.reset()
+        self.set_dataset("interferometer_data", np.full(self.count, np.nan), broadcast=True)
 
         self.sampler0.init()
         self.sampler0.set_gain_mu(0, 2)
 
-        print(self.interferometer_data)
         self.core.break_realtime()
+        holder = [0]*8
 
-        #sample
-        self.sampler0.sample(self.interferometer_data)
-
-        print("h4")
-        self.core.break_realtime()
+        for ind in range(100):
+            self.sampler0.sample(holder)
+            self.core.mutate_dataset("interferometer_data", ind, holder[0])
+            delay(100*us)
