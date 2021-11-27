@@ -1,49 +1,31 @@
-import numpy as np
 from artiq.experiment import *
-import time
+from artiq.master.databases import DeviceDB
+from artiq.master.worker_db import DeviceManager
+from sipyco.pc_rpc import Client
 
-class Testing(EnvExperiment):
-    """Testing"""
+from labrad.server import LabradServer, setting
+from twisted.internet.threads import deferToThread
+# print('th1')
+# from artiq.coredevice.ad9910 import AD9910
+# ad9910=AD9910()
+# print(ad9910.frequency_to_ftw(10000))
+print('th2')
+devices=DeviceDB('C:\\Users\\EGGS1\\Documents\\ARTIQ\\artiq-master\\device_db.py')
+dm=DeviceManager(devices)
+core=dm.get('core')
+ttl4=dm.get('ttl4')
+print(core)
+print(ttl4)
 
-    def build(self):
-        # self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))
-        # self.setattr_argument("delay_time", NumberValue(ndecimals=0, step=1))
-        # self.setattr_argument("record_channel", NumberValue(ndecimals=0, step=1))
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-        self.setattr_device("suservo0")
-        self.setattr_device("suservo0_ch0")
-        #self.setattr_dataset("interferometer_data", np.full(self.num_samples, np.nan))
-
-    def prepare(self):
-        self.set_dataset("interferometer_data", np.full(10, np.nan), broadcast=False)
-
-    @kernel
-    def record(self):
-        with self.core_dma.record("thkim"):
-            for i in range(10):
-                #print(self.suservo0.get_adc(0))
-                self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-                delay(51 * us)
+class api(object):
+    def __init__(self):
+        self.core=core
 
     @kernel
-    def run(self):
-        #initialize devices
-        self.core.reset()
-        self.suservo0.init()
+    def on(self):
+        core.reset()
+        ttl4.on()
+        print('thkim')
 
-        # self.suservo0.set_config(1)
-        self.suservo0.set_pgia_mu(0, 0)
-        self.core.break_realtime()
-
-        # #build record sequence
-        # self.record()
-        # record_handle = self.core_dma.get_handle("thkim")
-        # self.core.break_realtime()
-        #
-        # #record data
-        # self.core_dma.playback_handle(record_handle)
-
-        for i in range(10):
-            self.mutate_dataset("interferometer_data", i, self.suservo0.get_adc(0))
-            delay(100 * us)
+api_obj=api()
+api_obj.on()

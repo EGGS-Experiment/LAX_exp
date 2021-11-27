@@ -14,9 +14,9 @@ class LED(EnvExperiment):
         self.core.reset()
         self.ttl4.output()
         self.ttl4.on()
-        th1 = input_led_state()
+        led_state = input_led_state()
         self.core.break_realtime()
-        if th1:
+        if led_state:
             self.ttl4.on()
             self.zotino0.set_leds(0b11111111)
         else:
