@@ -10,7 +10,7 @@ from twisted.internet.threads import deferToThread
 # ad9910=AD9910()
 # print(ad9910.frequency_to_ftw(10000))
 print('th2')
-devices=DeviceDB('C:\\Users\\EGGS1\\Documents\\ARTIQ\\artiq-master\\device_db.py')
+devices=DeviceDB('/device_db.py')
 dm=DeviceManager(devices)
 core=dm.get('core')
 ttl4=dm.get('ttl4')

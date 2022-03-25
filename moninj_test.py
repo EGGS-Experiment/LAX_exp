@@ -1,3 +1,6 @@
+"""
+moninj: first try
+"""
 from artiq.dashboard import moninj
 from sipyco.asyncio_tools import atexit_register_coroutine
 from qasync import QEventLoop
