@@ -25,11 +25,11 @@ class UrukulTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.urukul0_cpld.init()
-        self.urukul0_ch0.init()
-        #self.urukul0_ch0.set_mu(self.th1, 0, self.th2)
+        #self.urukul0_cpld.init()
+        #self.urukul0_ch0.init()
+        self.urukul0_ch0.set_mu(self.th1, 0, self.th2)
         #self.core.reset()
-        #self.urukul0_ch0.cfg_sw(0)
+        #self.urukul0_ch0.cfg_sw(1)
         #self.urukul0_ch0.set_att_mu(0xff)
         #self.urukul0_ch0.set_att()
         #self.urukul0_ch0.set_mu(self.th1)
