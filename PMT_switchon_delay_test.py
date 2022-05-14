@@ -61,5 +61,3 @@ class PMTSwitchonTest(EnvExperiment):
     def analyze(self):
         th1 = self.get_dataset(self.dataset_name)
         print(th1)
-        th2 = np.where(th1 > 0)
-        print(th2)
