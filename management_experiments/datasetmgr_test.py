@@ -11,7 +11,7 @@ print(ds2)
 sleep(2)
 """
 
-dataset_db = DatasetDB('C:\\Users\\EGGS1\\Documents\\ARTIQ\\artiq-master\\dataset_db.pyon')
+dataset_db = DatasetDB('/dataset_db.pyon')
 ds = DatasetManager(dataset_db)
 ds2 = ds.get('pmt_test_dataset', archive=False)
 print(ds2)

@@ -43,7 +43,7 @@ class UrukulTest(EnvExperiment):
         self.core.break_realtime()
         self.urukul1_ch1.set_mu(self.frequency_mu, 0, self.amplitude_mu)     # uncomment this line when you want to change frequency
         #self.urukul1_ch0.cfg_sw(1)
-        self.urukul1_ch1.set_att(13 * dB)                   # set channel attenuation; has a range between 0dB and 31.5dB attenuation
+        self.urukul1_ch1.set_att(30 * dB)                   # set channel attenuation; has a range between 0dB and 31.5dB attenuation
         #self.urukul1_ch0.set_att(4 * dB)                     # 0dB attenuation corresponds to +2.1dBm
 
         #self.urukul1_ch2.cfg_sw(1)
