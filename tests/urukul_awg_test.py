@@ -3,7 +3,9 @@ from numpy import int32, int64
 
 
 class Urukul_AWG(EnvExperiment):
-    """Urukul AWG Test"""
+    """
+    Urukul AWG Test.
+    """
 
     def build(self):
         """
