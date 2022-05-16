@@ -1,5 +1,4 @@
 from artiq.experiment import *
-from numpy import int32, int64
 import numpy as np
 
 
