@@ -6,6 +6,7 @@ class TemperatureMeasurement(EnvExperiment):
     """
     Measures ion fluorescence for a single detuning.
     """
+    # todo: set relevant kernel invariants for constant values
 
     def build(self):
         """
