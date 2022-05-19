@@ -64,7 +64,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.ampl_pump_asf = self.dds_pump.amplitude_to_asf(0.5)
         self.freq_probe_ftw = self.dds_probe.frequency_to_ftw(self.freq_probe_mhz * 1e6)
         self.ampl_probe_asf = self.dds_probe.amplitude_to_asf(0.5)
-        # todo: set parameters
+        # todo: set parameters (importantly frequency)
+        # todo: make more agnostic by aliasing all device names
 
     @kernel
     def run(self):
