@@ -1,12 +1,16 @@
-from artiq.experiment import *
 import numpy as np
+from artiq.experiment import *
 
 
 class TemperatureMeasurement(EnvExperiment):
     """
     Measures ion fluorescence for a single detuning.
     """
-    # todo: set relevant kernel invariants for constant values
+
+    kernel_invariants = {
+        "time_reset_mu",
+        "dataset_name"
+    }
 
     def build(self):
         """
@@ -28,7 +32,11 @@ class TemperatureMeasurement(EnvExperiment):
         # PMT
         self.setattr_device("ttl0")             # PMT signal
         self.setattr_device("ttl4")             # PMT power
+        self.setattr_device("ttl_counter0")     # PMT signal
         self.edge_method = "rising"             # read rising events
+        # photodiode
+        self.setattr_device("sampler0")
+        self.photodiode_channel = 2
 
     def prepare(self):
         """
@@ -42,21 +50,13 @@ class TemperatureMeasurement(EnvExperiment):
         # PMT devices
         self.ttl_signal = self.get_device('ttl0')
         self.ttl_power = self.get_device('ttl1')
-
-        # check TTLs are input
-        if self.ttl_signal.__class__.__name__ != 'TTLInOut':
-            raise Exception('Error: TTL must be input.')
-        # check edge gating input valid
-        elif self.edge_method not in ('rising', 'falling', 'both'):
-            raise Exception('Error: invalid edge method.')
+        self.pmt_counter = self.get_device('ttl_counter0')
         # get edge gating method
-        self.gate_edge = getattr(self.ttl_signal, 'gate_{:s}_mu'.format(self.edge_method))
+        self.gate_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.edge_method))
 
-        # set up dataset
-        #date = datetime.now()
-        #self.dataset_name = 'pmt_{:s}_{:02d}_{:02d}_{:02d}:{:02d}'.format(str(date.year), date.month, date.day, date.hour, date.minute)
-        self.dataset_name = "tmp_exp_res"
-        self.set_dataset(self.dataset_name, np.zeros(self.num_bins), broadcast=True)
+        # set up datasets
+        self.set_dataset("pmt_dataset", np.zeros(self.repetitions), broadcast=True)
+        self.set_dataset("photodiode_reading", np.zeros(self.repetitions), broadcast=True)
 
         # convert time values to machine units
         self.time_pump_mu = self.core.seconds_to_mu(self.time_pump_us * us)
@@ -68,6 +68,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.ampl_pump_asf = self.dds_pump.amplitude_to_asf(0.5)
         self.freq_probe_ftw = self.dds_probe.frequency_to_ftw(self.freq_probe_mhz * 1e6)
         self.ampl_probe_asf = self.dds_probe.amplitude_to_asf(0.5)
+        # todo: set parameters
 
     @kernel
     def run(self):
@@ -78,46 +79,43 @@ class TemperatureMeasurement(EnvExperiment):
         # prepare devices
         self.prepareDevices()
         self.core.break_realtime()
+        # program pulse sequence onto core DMA
+        self.DMArecord()
+        self.core.break_realtime()
+        # retrieve pulse sequence handle
+        handle = self.core_dma.get_handle("tmp")
+        self.core.break_realtime()
+        # read photodiode
+        self.readPhotodiode()
+        self.core.break_realtime()
         # run the experiment
         for trial_num in range(self.repetitions):
-            # turn on pump beam and turn off probe beam (if it wasn't already off)
-            with parallel:
-                self.dds_pump.cfg_sw(1)
-                self.dds_probe.cfg_sw(0)
-            # wait to cool
-            delay_mu(self.time_pump_us)
-            # turn on probe beam and turn off pump beam
-            with parallel:
-                self.dds_pump.cfg_sw(0)
-                self.dds_probe.cfg_sw(1)
-            # record pmt counts
-            self.mutate_dataset(self.dataset_name, i, self.ttl_signal.count(self.gate_edge(self.time_probe_mu)))
-            # turn off probe beam
-            self.dds_probe.cfg_sw(0)
-            # turn on pump
-            self.dds_pump.cfg_sw(1)
+            # run pulse sequence from core DMA
+            self.core_dma.playback_handle(handle)
+            # record pmt counts to dataset
+            self.mutate_dataset("pmt_dataset", trial_num, self.pmt_counter.fetch_counts())
             delay_mu(self.time_reset_mu)
 
     @kernel
     def DMArecord(self):
         """
-        Record the 397nm sequence for a single data point
-        onto core DMA.
+        Record the 397nm sequence for a single data point onto core DMA.
         """
         with self.core_dma.record("tmp"):
             # pump on, probe off
             with parallel:
                 self.dds_pump.cfg_sw(1)
                 self.dds_probe.cfg_sw(0)
-            delay_mu(self.time_pump_us)
+                delay_mu(self.time_pump_us)
             # probe on, pump off, PMT start recording
             with parallel:
                 self.dds_pump.cfg_sw(0)
                 self.dds_probe.cfg_sw(1)
                 self.pmt_counter.gate_edge(self.time_probe_us)
             with parallel:
+                self.dds_pump.cfg_sw(0)
                 self.dds_probe.cfg_sw(0)
-            # todo: implement edge counter to read out
+
 
     @kernel
     def prepareDevices(self):
@@ -127,24 +125,44 @@ class TemperatureMeasurement(EnvExperiment):
         self.core.break_realtime()
         # set signal TTL to correct direction for PMT
         self.ttl_signal.input()
-        # set pump beam waveform
+        # turn PMT on and wait for turn-on time
+        self.ttl_power.on()
+        delay_mu(560000)
+        # initialize dds board
+        self.dds_board.init()
+        self.core.break_realtie()
+        # initialize pump beam and set waveform
+        self.dds_pump.init()
+        self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
+        self.dds_pump.set_att(10)
         self.core.break_realtime()
-        # set probe beam waveform
+        # initialize probe beam and set waveform
+        self.dds_probe.init()
+        self.core.break_realtime()
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
+        self.dds_probe.set_att(10)
         self.core.break_realtime()
+        # set up sampler
+        self.sampler0.init()
+        self.core.break_realtime()
+        self.sampler0.set_gain_mu(self.photodiode_channel, 1)
 
     @kernel
-    def prepareTrial(self):
-        """
-        Prepare an individual trial.
-        Set the lasers to their correct frequencies and turn on the PMT
-        """
-        pass
+    def readPhotodiode(self):
+        photodiode_buffer = np.zeros(self.photodiode_channel + 1)
+        self.sampler0.sample(photodiode_buffer)
+        self.core.break_realtime()
+        photodiode_value = photodiode_buffer[self.photodiode_channel]
+        self.mutate_dataset("photodiode_reading", 0, photodiode_value)
+        self.core.break_realtime()
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        # todo: try to upload to labrad
+        # todo: upload data to labrad
+        import labrad
+        cxn = labrad.connect()
+        print(cxn)
         pass
