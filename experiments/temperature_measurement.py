@@ -7,20 +7,16 @@ class TemperatureMeasurement(EnvExperiment):
     Measures ion fluorescence for a single detuning.
     """
 
-    kernel_invariants = {
-        "time_reset_mu",
-        "dataset_name"
-    }
-
     def build(self):
         """
         Set devices and arguments for the experiment.
         """
         self.setattr_device("core")             # always needed
+        self.setattr_device("core_dma")
         # experiment arguments
         self.setattr_argument("repetitions", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
         # timing arguments
-        self.setattr_argument("time_delay_us", NumberValue(ndecimals=2, step=1, min=1, max=1000))
+        self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
         # 397nm
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch0")      # 397nm pump
@@ -56,12 +52,12 @@ class TemperatureMeasurement(EnvExperiment):
 
         # set up datasets
         self.set_dataset("pmt_dataset", np.zeros(self.repetitions), broadcast=True)
-        self.set_dataset("photodiode_reading", np.zeros(self.repetitions), broadcast=True)
+        self.set_dataset("photodiode_reading", 0, broadcast=True)
 
         # convert time values to machine units
         self.time_pump_mu = self.core.seconds_to_mu(self.time_pump_us * us)
         self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
-        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_mu * us)
+        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
 
         # convert dds values to machine units
         self.freq_pump_ftw = self.dds_pump.frequency_to_ftw(self.freq_pump_mhz * 1e6)
@@ -93,8 +89,8 @@ class TemperatureMeasurement(EnvExperiment):
             # run pulse sequence from core DMA
             self.core_dma.playback_handle(handle)
             # record pmt counts to dataset
-            self.mutate_dataset("pmt_dataset", trial_num, self.pmt_counter.fetch_counts())
-            delay_mu(self.time_reset_mu)
+            self.mutate_dataset("pmt_dataset", trial_num, self.pmt_counter.fetch_count())
+            delay_mu(self.time_delay_mu)
 
     @kernel
     def DMArecord(self):
@@ -106,12 +102,12 @@ class TemperatureMeasurement(EnvExperiment):
             with parallel:
                 self.dds_pump.cfg_sw(1)
                 self.dds_probe.cfg_sw(0)
-                delay_mu(self.time_pump_us)
+                delay_mu(self.time_pump_mu)
             # probe on, pump off, PMT start recording
             with parallel:
                 self.dds_pump.cfg_sw(0)
                 self.dds_probe.cfg_sw(1)
-                self.pmt_counter.gate_edge(self.time_probe_us)
+                self.gate_edge(self.time_probe_mu)
             with parallel:
                 self.dds_pump.cfg_sw(0)
                 self.dds_probe.cfg_sw(0)
@@ -130,18 +126,18 @@ class TemperatureMeasurement(EnvExperiment):
         delay_mu(560000)
         # initialize dds board
         self.dds_board.init()
-        self.core.break_realtie()
+        self.core.break_realtime()
         # initialize pump beam and set waveform
         self.dds_pump.init()
         self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
-        self.dds_pump.set_att(10)
+        self.dds_pump.set_att(10 * dB)
         self.core.break_realtime()
         # initialize probe beam and set waveform
         self.dds_probe.init()
         self.core.break_realtime()
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
-        self.dds_probe.set_att(10)
+        self.dds_probe.set_att(10 * dB)
         self.core.break_realtime()
         # set up sampler
         self.sampler0.init()
@@ -150,11 +146,11 @@ class TemperatureMeasurement(EnvExperiment):
 
     @kernel
     def readPhotodiode(self):
-        photodiode_buffer = np.zeros(self.photodiode_channel + 1)
+        photodiode_buffer = [0.0] * 8
         self.sampler0.sample(photodiode_buffer)
         self.core.break_realtime()
         photodiode_value = photodiode_buffer[self.photodiode_channel]
-        self.mutate_dataset("photodiode_reading", 0, photodiode_value)
+        self.set_dataset("photodiode_reading", photodiode_value, broadcast=True)
         self.core.break_realtime()
 
     def analyze(self):
@@ -162,7 +158,12 @@ class TemperatureMeasurement(EnvExperiment):
         Analyze the results from the experiment.
         """
         # todo: upload data to labrad
-        import labrad
-        cxn = labrad.connect()
-        print(cxn)
-        pass
+        th1 = self.get_dataset("photodiode_reading")
+        print('photodiode reading:', th1)
+        th2 = self.get_dataset("pmt_dataset")
+        print("pmt counts:")
+        print(th2)
+        # import labrad
+        # cxn = labrad.connect()
+        # print(cxn)
+        # pass

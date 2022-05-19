@@ -16,9 +16,6 @@ class sampler_exp(EnvExperiment):
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_ch0')
         self.setattr_device('urukul1_cpld')
-        self.setattr_device('urukul2_ch0')
-        self.setattr_device('urukul2_cpld')
-        self.setattr_device('zotino0')
         self.setattr_device('sampler0')
 
     @kernel
