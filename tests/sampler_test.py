@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.sampler import adc_mu_to_volt
 
 
 class sampler_exp(EnvExperiment):
@@ -12,9 +13,12 @@ class sampler_exp(EnvExperiment):
         self.setattr_device('sampler0')
 
     def prepare(self):
+        # values
         self.samples = 1000
         self.set_data("sampler_readout", np.zeros(self.samples), broadcast=True)
+        # sampler
         self.readout_channel = 0
+        self.readout_gain = 1
 
     @kernel
     def run(self):
@@ -24,7 +28,7 @@ class sampler_exp(EnvExperiment):
         self.core.reset()
         # set up ADC
         self.sampler0.init()
-        self.sampler0.set_gain_mu(self.readout_channel, 1)
+        self.sampler0.set_gain_mu(self.readout_channel, self.readout_gain)
         self.core.break_realtime()
         # create buffer
         sampler_buffer = [0] * 8
@@ -37,5 +41,9 @@ class sampler_exp(EnvExperiment):
         """
         todo:
         """
-        # todo: convert from machine units to volts
+        dataset = self.get_dataset("sampler_readout")
+        for val in dataset:
+            val = adc_mu_to_volt(val, gain=self.readout_gain)
+        print(type(dataset))
+        print(len(dataset))
         pass
