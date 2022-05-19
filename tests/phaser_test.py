@@ -5,8 +5,7 @@ from numpy import int32, int64
 class PhaserTest(EnvExperiment):
     """
     Phaser Test.
-    Try to generate an 80MHz wave with an erf window
-    like we simulated in EGGS.
+    Try to generate an 80MHz wave with an erf window just like we simulated in EGGS.
     """
 
     def build(self):
@@ -24,3 +23,6 @@ class PhaserTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+
+    def analyze(self):
+        pass

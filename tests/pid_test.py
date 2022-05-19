@@ -84,6 +84,7 @@ class PIDTest(EnvExperiment):
         # update fastino voltage
         self.fastino0.set_dac_mu(self.channel_output, np.int32(err_signal))
         # todo: manage break_realtimes and delays better to be more consistent
+        # todo: could use with parallel and delay
 
     def analyze(self):
         """
