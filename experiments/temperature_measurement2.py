@@ -14,7 +14,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("core")             # always needed
         self.setattr_device("core_dma")
         # experiment arguments
-        self.setattr_argument("repetitions", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
+        self.setattr_argument("repetitions", NumberValue(default=10000, ndecimals=0, step=1, min=1, max=1000))
         # timing arguments
         self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
         # 397nm
@@ -88,10 +88,9 @@ class TemperatureMeasurement(EnvExperiment):
         self.core.break_realtime()
         # run the experiment
         for trial_num in range(self.repetitions):
-            # run pulse sequence from core DMA
             self.core_dma.playback_handle(handle)
             # record pmt counts to dataset
-            self.mutate_dataset("pmt_dataset", trial_num, self.pmt_counter.fetch_count())
+            #self.mutate_dataset("pmt_dataset", trial_num, self.pmt_counter.fetch_count())
             delay_mu(self.time_delay_mu)
 
     @kernel
@@ -102,17 +101,12 @@ class TemperatureMeasurement(EnvExperiment):
         with self.core_dma.record("tmp"):
             # pump on, probe off
             with parallel:
-                self.dds_pump.cfg_sw(1)
-                self.dds_probe.cfg_sw(0)
-                delay(self.time_pump_mu)
+                self.dds_board.cfg_switches(0b0010)
+                delay_mu(self.time_pump_mu)
             # probe on, pump off, PMT start recording
             with parallel:
-                self.dds_pump.cfg_sw(0)
-                self.dds_probe.cfg_sw(1)
+                self.dds_board.cfg_switches(0b0001)
                 self.gate_edge(self.time_probe_mu)
-            with parallel:
-                self.dds_pump.cfg_sw(0)
-                self.dds_probe.cfg_sw(0)
 
 
     @kernel
@@ -135,7 +129,6 @@ class TemperatureMeasurement(EnvExperiment):
         self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
         self.dds_pump.set_att(12 * dB)
         self.core.break_realtime()
-        self.dds_pump.cfg_sw(1)
         # initialize probe beam and set waveform
         self.dds_probe.init()
         self.core.break_realtime()
@@ -162,10 +155,10 @@ class TemperatureMeasurement(EnvExperiment):
         """
         # todo: upload data to labrad
         th1 = self.get_dataset("photodiode_reading")
-        print('photodiode reading:', th1)
+        #print('photodiode reading:', th1)
         th2 = self.get_dataset("pmt_dataset")
-        print("pmt counts:")
-        print(th2)
+        #print("pmt counts:")
+        #print(th2)
         # import labrad
         # cxn = labrad.connect()
         # print(cxn)

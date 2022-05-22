@@ -21,10 +21,10 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch0")      # 397nm pump
         self.setattr_device("urukul0_ch1")      # 397nm probe
-        self.setattr_argument("freq_probe_mhz", NumberValue(default=0, ndecimals=2, step=1, min=-100, max=100))
-        self.setattr_argument("freq_pump_mhz", NumberValue(default=80, ndecimals=2, step=1, min=10, max=200))
-        self.setattr_argument("time_pump_us", NumberValue(default=150, ndecimals=150, step=1, min=1, max=1000))
-        self.setattr_argument("time_probe_us", NumberValue(default=50, ndecimals=50, step=1, min=1, max=1000))
+        self.setattr_argument("freq_probe_mhz", NumberValue(default=110, ndecimals=2, step=1, min=-100, max=100))
+        self.setattr_argument("freq_pump_mhz", NumberValue(default=140, ndecimals=2, step=1, min=10, max=200))
+        self.setattr_argument("time_pump_us", NumberValue(default=500, ndecimals=150, step=1, min=1, max=1000))
+        self.setattr_argument("time_probe_us", NumberValue(default=500, ndecimals=50, step=1, min=1, max=1000))
         # PMT
         self.setattr_device("ttl0")             # PMT signal
         self.setattr_device("ttl4")             # PMT power
@@ -39,10 +39,11 @@ class TemperatureMeasurement(EnvExperiment):
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
         """
+        #todo: make more programmatic
         # DDS devices
-        self.dds_board = self.get_device('urukul0_cpld')
-        self.dds_probe = self.get_device('urukul0_ch0')
-        self.dds_pump = self.get_device('urukul0_ch1')
+        self.dds_board = self.get_device('urukul1_cpld')
+        self.dds_probe = self.get_device('urukul1_ch0')
+        self.dds_pump = self.get_device('urukul1_ch1')
         # PMT devices
         self.ttl_signal = self.get_device('ttl0')
         self.ttl_power = self.get_device('ttl1')
@@ -132,13 +133,14 @@ class TemperatureMeasurement(EnvExperiment):
         self.dds_pump.init()
         self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
-        self.dds_pump.set_att(10 * dB)
+        self.dds_pump.set_att(12 * dB)
         self.core.break_realtime()
+        self.dds_pump.cfg_sw(1)
         # initialize probe beam and set waveform
         self.dds_probe.init()
         self.core.break_realtime()
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
-        self.dds_probe.set_att(10 * dB)
+        self.dds_probe.set_att(3 * dB)
         self.core.break_realtime()
         # set up sampler
         self.sampler0.init()
