@@ -13,43 +13,47 @@ class TemperatureMeasurement(EnvExperiment):
         """
         self.setattr_device("core")             # always needed
         self.setattr_device("core_dma")
-        # experiment arguments
-        self.setattr_argument("repetitions", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
-        # timing arguments
-        self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
-        # 397nm
-        self.setattr_device("urukul0_cpld")
-        self.setattr_device("urukul0_ch0")      # 397nm pump
-        self.setattr_device("urukul0_ch1")      # 397nm probe
-        self.setattr_argument("freq_probe_mhz", NumberValue(default=110, ndecimals=2, step=1, min=-100, max=100))
-        self.setattr_argument("freq_pump_mhz", NumberValue(default=140, ndecimals=2, step=1, min=10, max=200))
-        self.setattr_argument("time_pump_us", NumberValue(default=500, ndecimals=150, step=1, min=1, max=1000))
-        self.setattr_argument("time_probe_us", NumberValue(default=500, ndecimals=50, step=1, min=1, max=1000))
+        # experiment runs
+        self.setattr_argument("repetitions",            NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
+
+        # timing
+        self.setattr_argument("time_delay_us",          NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
+
+        # AOM DDSs
+        self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
+        self.setattr_argument("dds_probe_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("dds_pump_channel",       NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+
+        # AOM parameters
+        self.setattr_argument("freq_probe_mhz",         NumberValue(default=110, ndecimals=2, step=1, min=-100, max=100))
+        self.setattr_argument("time_probe_us",          NumberValue(default=500, ndecimals=50, step=1, min=1, max=1000))
+        self.setattr_argument("freq_pump_mhz",          NumberValue(default=140, ndecimals=2, step=1, min=10, max=200))
+        self.setattr_argument("time_pump_us",           NumberValue(default=500, ndecimals=150, step=1, min=1, max=1000))
+
         # PMT
-        self.setattr_device("ttl0")             # PMT signal
-        self.setattr_device("ttl4")             # PMT power
-        self.setattr_device("ttl_counter0")     # PMT signal
-        self.edge_method = "rising"             # read rising events
+        self.setattr_argument("pmt_input_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("pmt_power_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("pmt_gating_edge",        EnumerationValue(["rising", "falling", "both"], default="rising"))
+
         # photodiode
         self.setattr_device("sampler0")
-        self.photodiode_channel = 2
+        self.setattr_argument("photodiode_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
 
     def prepare(self):
         """
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
         """
-        #todo: make more programmatic
         # DDS devices
-        self.dds_board = self.get_device('urukul1_cpld')
-        self.dds_probe = self.get_device('urukul1_ch0')
-        self.dds_pump = self.get_device('urukul1_ch1')
+        self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_probe = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+
         # PMT devices
-        self.ttl_signal = self.get_device('ttl0')
-        self.ttl_power = self.get_device('ttl1')
-        self.pmt_counter = self.get_device('ttl_counter0')
-        # get edge gating method
-        self.gate_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.edge_method))
+        self.pmt_counter = self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.ttl_signal = self.get_device("ttl{:d}".format(self.pmt_input_channel))
+        self.ttl_power = self.get_device("ttl{:d}".format(self.pmt_power_channel))
 
         # set up datasets
         self.set_dataset("pmt_dataset", np.zeros(self.repetitions), broadcast=True)
@@ -65,8 +69,10 @@ class TemperatureMeasurement(EnvExperiment):
         self.ampl_pump_asf = self.dds_pump.amplitude_to_asf(0.5)
         self.freq_probe_ftw = self.dds_probe.frequency_to_ftw(self.freq_probe_mhz * 1e6)
         self.ampl_probe_asf = self.dds_probe.amplitude_to_asf(0.5)
-        # todo: set parameters (importantly frequency)
-        # todo: make more agnostic by aliasing all device names
+
+        # get DDS board switch states
+        self.dds_switch_pump_states = 0b0000 | (0b1 << self.dds_pump_channel)
+        self.dds_switch_probe_states = 0b0000 | (0b1 << self.dds_probe_channel)
 
     @kernel
     def run(self):
@@ -97,23 +103,17 @@ class TemperatureMeasurement(EnvExperiment):
     @kernel
     def DMArecord(self):
         """
-        Record the 397nm sequence for a single data point onto core DMA.
+        Record onto core DMA the AOM sequence for a single data point.
         """
         with self.core_dma.record("tmp"):
             # pump on, probe off
             with parallel:
-                self.dds_pump.cfg_sw(1)
-                self.dds_probe.cfg_sw(0)
+                self.dds_board.cfg_switches(self.dds_switch_pump_states)
                 delay_mu(self.time_pump_mu)
             # probe on, pump off, PMT start recording
             with parallel:
-                self.dds_pump.cfg_sw(0)
-                self.dds_probe.cfg_sw(1)
-                self.gate_edge(self.time_probe_mu)
-            with parallel:
-                self.dds_pump.cfg_sw(0)
-                self.dds_probe.cfg_sw(0)
-
+                self.dds_board.cfg_switches(self.dds_switch_probe_states)
+                self.pmt_gating_edge(self.time_probe_mu)
 
     @kernel
     def prepareDevices(self):
@@ -162,11 +162,12 @@ class TemperatureMeasurement(EnvExperiment):
         """
         # todo: upload data to labrad
         th1 = self.get_dataset("photodiode_reading")
-        print('photodiode reading:', th1)
+        #print('photodiode reading:', th1)
         th2 = self.get_dataset("pmt_dataset")
-        print("pmt counts:")
-        print(th2)
+        #print("pmt counts:")
+        #print(th2)
         # import labrad
         # cxn = labrad.connect()
         # print(cxn)
         # pass
+
