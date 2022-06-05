@@ -15,16 +15,21 @@ class Testing(EnvExperiment):
         self.setattr_device("urukul0_ch2")
         self.setattr_device("urukul0_ch3")
 
+        self.setattr_device("urukul1_cpld")
         self.setattr_device("urukul1_ch0")
+        self.setattr_device("urukul1_ch1")
+        self.setattr_device("urukul1_ch2")
+        self.setattr_device("urukul1_ch3")
 
     def prepare(self):
-        self.asf = self.urukul0_ch0.amplitude_to_asf(0.5)
-        self.ftw = self.urukul0_ch0.frequency_to_ftw(50 * MHz)
-        self.amplitude = 0
-        self.frequency = 0
-        self.phase = 0
-        self.regval = np.int64(0)
-        self.regval2 = 0
+        # self.asf = self.urukul0_ch0.amplitude_to_asf(0.5)
+        # self.ftw = self.urukul0_ch0.frequency_to_ftw(50 * MHz)
+        # self.amplitude = 0
+        # self.frequency = 0
+        # self.phase = 0
+        # self.regval = np.int64(0)
+        # self.regval2 = 0
+        pass
 
     @kernel
     def run(self):
@@ -33,15 +38,13 @@ class Testing(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.urukul0_ch0.init()
-        self.core.break_realtime()
-        self.urukul0_ch0.set_mu(self.ftw, asf=self.asf)
-        self.core.break_realtime()
-        self.regval = self.urukul0_ch0.read64(0x0e)
-        self.core.break_realtime()
+        self.urukul1_cpld.init()
+        self.core.reset()
+        self.urukul1_ch3.init()
 
     def analyze(self):
-        ftw = np.int32(self.regval & 0xffffffff)
-        ampl = np.int32((self.regval >> 48) & 0xffff)
-        print('ftw:', ftw)
-        print('ampl:', ampl)
+        pass
+        # ftw = np.int32(self.regval & 0xffffffff)
+        # ampl = np.int32((self.regval >> 48) & 0xffff)
+        # print('ftw:', ftw)
+        # print('ampl:', ampl)

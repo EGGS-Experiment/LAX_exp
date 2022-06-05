@@ -18,11 +18,19 @@ class Urukul_AWG(EnvExperiment):
 
     def prepare(self):
         # todo: get amplitude RAM data
-        self.ram_values = np.linspace(0, 0x3FFF, 0x2FF, dtype=np.int32)
+        #self.ram_values = np.linspace(0x0FF, 0x3FFF, 1024, dtype=np.int32)
+        pass
 
     @kernel
     def run(self):
         self.core.reset()
+
+        # create data
+        ram_values = [0] * 1024
+        for i in range(len(ram_values)):
+            ram_values[i] = 13 * i
+
+        self.core.break_realtime()
 
         # initialize devices
         self.urukul0_cpld.init()
@@ -32,28 +40,35 @@ class Urukul_AWG(EnvExperiment):
 
         # set ram profile
         self.urukul0_ch0.set_profile_ram(
-            start=0, end=len(self.ram_values)-1, step=0xFFFFFFFF, mode=RAM_MODE_BIDIR_RAMP
+            start=0, end=len(ram_values)-1, step=1, mode=RAM_MODE_BIDIR_RAMP
         )
 
         # set profile & update
         self.urukul0_ch0.cpld.set_profile(0)
-        self.urukul0_ch0.io_update.pulse(20 * ns)
-        self.core.break_realtime()
+        self.urukul0_ch0.cpld.io_update.pulse_mu(8)
+        delay(1 * ms)
 
         # write ram
-        self.urukul0_ch0.write_ram(self.ram_values)
-        delay(10 * ms)
+        self.urukul0_ch0.write_ram(ram_values)
+        delay(100 * ms)
 
         # write to CFR1 to enable RAM modulation
         self.urukul0_ch0.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_ASF)
-        self.urukul0_ch0.cpld.io_update.pulse(20 * ns)
+        self.urukul0_ch0.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
         # set waveform
-        self.set_frequency(100 * MHz)
-        self.set_att(10 * dB)
+        self.urukul0_ch0.set_frequency(100 * MHz)
+        self.urukul0_ch0.set_att(5 * dB)
         self.urukul0_ch0.cfg_sw(1)
         self.core.break_realtime()
+
+        while True:
+            self.core.break_realtime()
+            self.urukul0_ch0.cpld.set_profile(0)
+            delay(2 * us)
+            self.urukul0_ch0.cpld.set_profile(1)
+            self.core.break_realtime()
 
     def analyze(self):
         pass
