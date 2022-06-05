@@ -1,50 +1,83 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.sampler import adc_mu_to_volt
+from artiq.coredevice.ad9910 import RAM_DEST_FTW, RAM_MODE_DIRECTSWITCH
 
 
-class sampler_exp(EnvExperiment):
+class urukul_frequency_switch(EnvExperiment):
     """
-    Read out data from the Sampler.
+    Switch Urukul frequency quickly by switching profile.
     """
 
     def build(self):
         self.setattr_device('core')
-        self.setattr_device('sampler0')
+        self.setattr_argument("device", StringValue(default="dds"))
 
     def prepare(self):
-        # values
-        self.samples = 1000
-        self.set_dataset("sampler_readout", np.zeros(self.samples), broadcast=True)
-        # sampler
-        self.readout_channel = 0
-        self.readout_gain = 1
-        # readout interval
-        self.time_delay_mu = self.core.seconds_to_mu(100 * us)
+        # devices
+        self.setattr_device(self.device)
+        self.dds = self.get_device(self.device)
+        # waveform
+        self.waveform_att = self.dds.amplitude_to_asf(0.5)
+        self.waveform_asf = self.dds.amplitude_to_asf(0.5)
+        self.waveform_ampl = self.dds.amplitude_to_asf(0.5)
+        # frequencies
+        self.waveform_freq0 = self.dds.frequency_to_ftw(100 * MHz)
+        self.waveform_freq1 = self.dds.frequency_to_ftw(200 * MHz)
+        # timing
+        self.time_delay_mu = self.core.seconds_to_mu(2000 * ms)
+        self.time_profile_mu = self.core.seconds_to_mu(1 * ms)
+        self.time_ram_mu = self.core.seconds_to_mu(10 * ms)
 
     @kernel
     def run(self):
-        """
-        todo
-        """
         self.core.reset()
-        # set up ADC
-        self.sampler0.init()
-        self.sampler0.set_gain_mu(self.readout_channel, self.readout_gain)
+
+        # initialize devices
+        self.dds.cpld.init()
         self.core.break_realtime()
-        # create buffer
-        sampler_buffer = [0] * 2
-        for i in range(self.samples):
-            with parallel:
-                delay_mu(self.time_delay_mu)
-                with sequential:
-                    self.sampler0.sample_mu(sampler_buffer)
-                    self.mutate_dataset("sampler_readout", i, sampler_buffer[self.readout_channel])
+        self.dds.init()
+        self.core.break_realtime()
+
+        # set up waveforms on each profile
+        self._setup_ram()
+
+        # set up rf switch and attenuator
+        self.dds.set_att_mu(0x00)
+        self.dds.cfg_sw(1)
+        self.core.break_realtime()
+
+        # switch profiles periodically
+        while True:
+            delay_mu(self.time_delay_mu)
+            self.dds.cpld.set_profile(0)
+            delay_mu(self.time_delay_mu)
+            self.dds.cpld.set_profile(1)
+
+
+    @kernel
+    def _setup_ram(self):
+        # set ram profile 0
+        self.dds.set_profile_ram(start=0, end=1, profile=0, mode=RAM_MODE_DIRECTSWITCH)
+        self.dds.cpld.set_profile(0)
+        self.dds.cpld.io_update.pulse_mu(8)
+        delay_mu(self.time_profile_mu)
+        self.dds.write_ram(self.waveform_freq0)
+        delay_mu(self.time_ram_mu)
+
+        # set ram profile 1
+        self.dds.set_profile_ram(start=2, end=3, profile=1, mode=RAM_MODE_DIRECTSWITCH)
+        self.dds.cpld.set_profile(1)
+        self.dds.cpld.io_update.pulse_mu(8)
+        delay_mu(self.time_profile_mu)
+        self.dds.write_ram(self.waveform_freq1)
+        delay_mu(self.time_ram_mu)
+
+        # set cfr
+        self.dds.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_FTW)
+
+        # set amplitude
+        self.dds.set_asf(self.waveform_asf)
+        self.dds.cpld.io_update.pulse_mu(8)
 
     def analyze(self):
-        """
-        Convert values from machine units to volts.
-        """
-        dataset = self.get_dataset("sampler_readout")
-        for i, val in enumerate(dataset):
-            self.mutate_dataset("sampler_readout", i, adc_mu_to_volt(val))
+        pass
