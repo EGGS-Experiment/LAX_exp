@@ -33,6 +33,7 @@ class Testing(EnvExperiment):
 
     @kernel
     def run(self):
+        self.urukul0_ch3.init()
         pass
 
     @kernel

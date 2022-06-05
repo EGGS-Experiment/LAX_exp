@@ -10,7 +10,7 @@ class urukul_frequency_switch(EnvExperiment):
 
     def build(self):
         self.setattr_device('core')
-        self.setattr_argument("device", StringValue(default="dds"))
+        self.setattr_argument("device", StringValue(default="urukul0_ch3"))
 
     def prepare(self):
         # devices
@@ -33,9 +33,9 @@ class urukul_frequency_switch(EnvExperiment):
         self.core.reset()
 
         # initialize devices
-        self.dds.cpld.init()
+        #self.dds.cpld.init()
         self.core.break_realtime()
-        self.dds.init()
+        #self.dds.init()
         self.core.break_realtime()
 
         # set up waveforms on each profile
@@ -61,7 +61,7 @@ class urukul_frequency_switch(EnvExperiment):
         self.dds.cpld.set_profile(0)
         self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(self.time_profile_mu)
-        self.dds.write_ram(self.waveform_freq0)
+        self.dds.write_ram([self.waveform_freq0])
         delay_mu(self.time_ram_mu)
 
         # set ram profile 1
@@ -69,7 +69,7 @@ class urukul_frequency_switch(EnvExperiment):
         self.dds.cpld.set_profile(1)
         self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(self.time_profile_mu)
-        self.dds.write_ram(self.waveform_freq1)
+        self.dds.write_ram([self.waveform_freq1])
         delay_mu(self.time_ram_mu)
 
         # set cfr
