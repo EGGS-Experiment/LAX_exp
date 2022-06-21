@@ -3,9 +3,9 @@ from numpy import int32, int64
 import numpy as np
 
 
-class PMTActual(EnvExperiment):
+class PMTSwitchonTest(EnvExperiment):
     """
-    Actual PMT Testing.
+    PMT Switch On Test.
     """
 
     def build(self):
@@ -19,8 +19,9 @@ class PMTActual(EnvExperiment):
         self.setattr_device("ttl1")
         self.setattr_device("ttl4")
         self.setattr_device("ttl5")
-        self.num_bins = 100
+        self.num_bins = 1000
         self.time_step = self.core.seconds_to_mu(1000 * ns)
+        self.switchon_delay = self.core.seconds_to_mu(1000 * ns)
         #self.reset_time = 1 * ms
         #ttl0 count read
         #ttl1 over light
@@ -42,9 +43,12 @@ class PMTActual(EnvExperiment):
         #self.ttl0.input()
         #self.core.reset()
         for i in range(self.num_bins):
+            self.core.break_realtime()
             self.ttl4.on()
-            self.core.reset()
+            delay_mu(i * self.switchon_delay)
             self.mutate_dataset(self.dataset_name, i, self.ttl0.count(self.ttl0.gate_rising_mu(self.time_step)))
+            self.core.break_realtime()
+            self.ttl4.off()
             self.core.break_realtime()
             # get over light
             #self.ttl1.sample_input()

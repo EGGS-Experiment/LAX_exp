@@ -22,8 +22,8 @@ class Testing(EnvExperiment):
         self.setattr_device("urukul1_ch3")
 
     def prepare(self):
-        # self.asf = self.urukul0_ch0.amplitude_to_asf(0.5)
-        # self.ftw = self.urukul0_ch0.frequency_to_ftw(50 * MHz)
+        self.asf = self.urukul0_ch0.amplitude_to_asf(1)
+        self.ftw = self.urukul0_ch0.frequency_to_ftw(50 * MHz)
         # self.amplitude = 0
         # self.frequency = 0
         # self.phase = 0
@@ -33,15 +33,14 @@ class Testing(EnvExperiment):
 
     @kernel
     def run(self):
-        self.urukul0_ch3.init()
+        self.core.break_realtime()
+        self.urukul0_ch0.set_mu(self.ftw, asf=self.asf)
+        self.core.break_realtime()
+        self.core.break_realtime()
+        #self.urukul0_ch0.cfg_sw(1)
+        self.urukul0_ch0.set_att_mu(0xff)
         pass
 
-    @kernel
-    def run(self):
-        self.core.reset()
-        self.urukul1_cpld.init()
-        self.core.reset()
-        self.urukul1_ch3.init()
 
     def analyze(self):
         pass

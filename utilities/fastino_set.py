@@ -17,7 +17,7 @@ class FastinoSet(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.fastino0.set_dac(0, 0)
+        self.fastino0.set_dac(0, 1)
 
     def analyze(self):
         pass

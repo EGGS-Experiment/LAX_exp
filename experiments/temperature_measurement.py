@@ -1,6 +1,8 @@
 import numpy as np
 from artiq.experiment import *
 
+_DMA_HANDLE = "temperature_measurement"
+
 
 class TemperatureMeasurement(EnvExperiment):
     """
@@ -87,7 +89,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.DMArecord()
         self.core.break_realtime()
         # retrieve pulse sequence handle
-        handle = self.core_dma.get_handle("tmp")
+        handle = self.core_dma.get_handle(_DMA_HANDLE)
         self.core.break_realtime()
         # read photodiode
         self.readPhotodiode()
@@ -105,7 +107,7 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        with self.core_dma.record("tmp"):
+        with self.core_dma.record(_DMA_HANDLE):
             # pump on, probe off
             with parallel:
                 self.dds_board.cfg_switches(self.dds_switch_pump_states)
@@ -120,15 +122,18 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Prepare devices for the experiment.
         """
-        self.core.break_realtime()
         # set signal TTL to correct direction for PMT
+        self.core.break_realtime()
         self.ttl_signal.input()
+
         # turn PMT on and wait for turn-on time
         self.ttl_power.on()
         delay_mu(560000)
+
         # initialize dds board
         self.dds_board.init()
         self.core.break_realtime()
+
         # initialize pump beam and set waveform
         self.dds_pump.init()
         self.core.break_realtime()
@@ -136,12 +141,14 @@ class TemperatureMeasurement(EnvExperiment):
         self.dds_pump.set_att(12 * dB)
         self.core.break_realtime()
         self.dds_pump.cfg_sw(1)
+
         # initialize probe beam and set waveform
         self.dds_probe.init()
         self.core.break_realtime()
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
         self.dds_probe.set_att(3 * dB)
         self.core.break_realtime()
+
         # set up sampler
         self.sampler0.init()
         self.core.break_realtime()
@@ -149,9 +156,12 @@ class TemperatureMeasurement(EnvExperiment):
 
     @kernel
     def readPhotodiode(self):
+        # get sampler value
         photodiode_buffer = [0.0] * 8
         self.sampler0.sample(photodiode_buffer)
         self.core.break_realtime()
+
+        # record value
         photodiode_value = photodiode_buffer[self.photodiode_channel]
         self.set_dataset("photodiode_reading", photodiode_value, broadcast=True)
         self.core.break_realtime()
@@ -160,14 +170,16 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
+        photodiode_value = self.get_dataset("photodiode_reading")
+        # print('photodiode value:')
+        # print(photodiode_value)
+
+        pmt_counts = self.get_dataset("pmt_dataset")
+        print("pmt counts:")
+        print(pmt_counts)
+
         # todo: upload data to labrad
-        th1 = self.get_dataset("photodiode_reading")
-        #print('photodiode reading:', th1)
-        th2 = self.get_dataset("pmt_dataset")
-        #print("pmt counts:")
-        #print(th2)
         # import labrad
         # cxn = labrad.connect()
         # print(cxn)
         # pass
-
