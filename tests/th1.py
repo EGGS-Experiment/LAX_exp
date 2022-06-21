@@ -10,15 +10,13 @@ class AD9910RAM(EnvExperiment):
 
     def build(self):  # this code runs on the host computer
         self.setattr_device("core")  # sets core device drivers as attributes
-        self.setattr_device("ttl6")  # sets ttl channel 6 device drivers as attributes
-        self.u = self.get_device(
-            "urukul0_ch0")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.u
+        self.u = self.get_device("urukul0_ch0")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.u
 
     @kernel  # this code runs on the FPGA
     def run(self):
 
         # produce data to be loaded to RAM
-        n = 10  # defines variable n for list length exponent
+        n = 9  # defines variable n for list length exponent
         data = [0] * (1 << n)  # declares list as 2^n integer values
         for i in range(len(data) // 2):  # splits list into 2 halves and defines each separately
             data[i] = i << (32 - (n - 1))  # first half ramps up to maximum amplitude in machine units
@@ -28,8 +26,10 @@ class AD9910RAM(EnvExperiment):
         self.core.reset()  # resets core device
 
         # initialise
-        self.u.cpld.init()  # initialises CPLD
-        self.u.init()  # initialises urukul channel
+        #self.u.cpld.init()  # initialises CPLD
+        self.core.break_realtime()
+        #self.u.init()  # initialises urukul channel
+        self.core.break_realtime()
         delay(1 * ms)  # 1ms delay
 
         # set ram profile
@@ -41,11 +41,15 @@ class AD9910RAM(EnvExperiment):
         self.u.cpld.set_profile(0)  # sets CPLD profile pins
         self.u.cpld.io_update.pulse_mu(
             8)  # I think this clocks all the CPLD registers so they take the values written to them
-        delay(1 * ms)  # 1ms delay
+        delay(10 * ms)  # 1ms delay
 
         # write to ram
+        self.core.break_realtime()
         self.u.write_ram(data)  # writes data list to ram
-        delay(10 * ms)  # 10ms delay
+        delay(100 * ms)  # 10ms delay
+        self.core.break_realtime()
+        self.core.break_realtime()
+        self.core.break_realtime()
 
         # write to cfr
         self.u.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_ASF)  # writes to CFR1 (control function register 1)
@@ -61,7 +65,6 @@ class AD9910RAM(EnvExperiment):
         self.core.break_realtime()  # moves timestamp forward to prevent underflow
         # this can alse be achieved with a fixed delay
 
-        self.ttl6.output()  # sets   TTL channel as an output
 
         self.core.break_realtime()  # moves timestamp forward to prevent underflow
         # this can alse be achieved with a fixed delay
@@ -69,12 +72,8 @@ class AD9910RAM(EnvExperiment):
         while True:  # loops until manually broken
             delay(1 * ms)  # 1ms delay
 
-            with parallel:  # runs indented code in parallel
-                self.ttl6.pulse(1 * us)  # 1us TTL pulse for triggering oscilloscope
-                self.u.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
+            self.u.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
 
             delay(2 * us)  # 2us delay
 
-            with parallel:  # runs indented code in parallel
-                self.ttl6.pulse(1 * us)  # 1us TTL pulse
-                self.u.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
+            self.u.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
