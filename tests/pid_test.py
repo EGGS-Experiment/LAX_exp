@@ -77,8 +77,8 @@ class PIDTest(EnvExperiment):
                 with sequential:
                     # get error from sampler
                     self.sampler0.sample_mu(sampler_buffer)
-                    setpoint_val = int(sampler_buffer[self.channel_setpoint] / 20) + 0x8000
-                    err_val_mu = sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]
+                    setpoint_mu = int(sampler_buffer[self.channel_setpoint] / 10) + 0x8000
+                    err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]) / 10
 
                     # create and record error signal
                     self.error_integral += np.int32(err_val_mu * self.time_constant)
@@ -86,9 +86,9 @@ class PIDTest(EnvExperiment):
                     with parallel:
                         # update fastino voltage
                         with sequential:
-                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral)
+                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral) # todo: properly convert to volt_mu
                             self.core.break_realtime()
-                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_val)
+                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_mu) # todo: properly convert to volt_mu
 
                         # store data
                         self.mutate_dataset('pid_dataset', i, err_val_mu)

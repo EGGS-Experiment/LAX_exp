@@ -10,9 +10,7 @@ class AD9910RAM(EnvExperiment):
 
     def build(self):  # this code runs on the host computer
         self.setattr_device("core")  # sets core device drivers as attributes
-        self.setattr_device("ttl6")  # sets ttl channel 6 device drivers as attributes
-        self.u = self.get_device(
-            "urukul0_ch0")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.u
+        self.u = self.get_device("urukul0_ch0")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.u
 
     @kernel  # this code runs on the FPGA
     def run(self):
@@ -69,12 +67,8 @@ class AD9910RAM(EnvExperiment):
         while True:  # loops until manually broken
             delay(1 * ms)  # 1ms delay
 
-            with parallel:  # runs indented code in parallel
-                self.ttl6.pulse(1 * us)  # 1us TTL pulse for triggering oscilloscope
-                self.u.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
+            self.u.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
 
             delay(2 * us)  # 2us delay
 
-            with parallel:  # runs indented code in parallel
-                self.ttl6.pulse(1 * us)  # 1us TTL pulse
-                self.u.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
+            self.u.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
