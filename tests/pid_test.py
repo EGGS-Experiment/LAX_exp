@@ -20,12 +20,12 @@ class PIDTest(EnvExperiment):
         self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
 
         # PID
-        self.setattr_argument("param_p", NumberValue(default=0.1, ndecimals=3, step=0.001, min=-100, max=100))
-        self.setattr_argument("param_i", NumberValue(default=-0.2, ndecimals=3, step=1, min=-100, max=100))
+        self.setattr_argument("param_p", NumberValue(default=0.1, ndecimals=5, step=0.001, min=-100, max=100))
+        self.setattr_argument("param_i", NumberValue(default=6.0, ndecimals=5, step=1, min=-100, max=100))
         self.setattr_argument("param_d", NumberValue(default=0, ndecimals=0, step=1, min=1, max=1000))
 
         # num points
-        self.setattr_argument("num_points", NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("num_points", NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
 
     def prepare(self):
         """
@@ -77,6 +77,7 @@ class PIDTest(EnvExperiment):
                 with sequential:
                     # get error from sampler
                     self.sampler0.sample_mu(sampler_buffer)
+                    setpoint_val = int(sampler_buffer[self.channel_setpoint] / 20) + 0x8000
                     err_val_mu = sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]
 
                     # create and record error signal
@@ -85,9 +86,9 @@ class PIDTest(EnvExperiment):
                     with parallel:
                         # update fastino voltage
                         with sequential:
-                            self.err_signal = np.int32(self.param_p * err_val_mu - self.param_i * self.error_integral)
+                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral)
                             self.core.break_realtime()
-                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + 0x8000)
+                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_val)
 
                         # store data
                         self.mutate_dataset('pid_dataset', i, err_val_mu)
