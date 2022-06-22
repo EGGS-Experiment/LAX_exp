@@ -10,6 +10,9 @@ class PIDTest(EnvExperiment):
     # todo: convert all values to appropriate voltage
 
     def build(self):
+        """
+        # todo
+        """
         # devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -17,19 +20,19 @@ class PIDTest(EnvExperiment):
         self.setattr_device("sampler0")
 
         # timing
-        self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=1000))
+        self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
 
         # PID
-        self.setattr_argument("param_p", NumberValue(default=0.1, ndecimals=5, step=0.001, min=-100, max=100))
-        self.setattr_argument("param_i", NumberValue(default=6.0, ndecimals=5, step=1, min=-100, max=100))
+        self.setattr_argument("param_p", NumberValue(default=0.7, ndecimals=5, step=0.001, min=-100, max=100))
+        self.setattr_argument("param_i", NumberValue(default=0, ndecimals=5, step=1, min=-100, max=100))
         self.setattr_argument("param_d", NumberValue(default=0, ndecimals=0, step=1, min=1, max=1000))
 
         # num points
-        self.setattr_argument("num_points", NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("num_points", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
 
     def prepare(self):
         """
-        todo
+        # todo
         """
         # reassign device names
         self.adc = self.sampler0
@@ -86,9 +89,10 @@ class PIDTest(EnvExperiment):
                     with parallel:
                         # update fastino voltage
                         with sequential:
-                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral) # todo: properly convert to volt_mu
+                            # todo: convert fastino output to % amplitude
+                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral)
                             self.core.break_realtime()
-                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_mu) # todo: properly convert to volt_mu
+                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_mu)
 
                         # store data
                         self.mutate_dataset('pid_dataset', i, err_val_mu)
@@ -114,9 +118,9 @@ class PIDTest(EnvExperiment):
         #self.fastino0.set_continuous(0)
         #self.dac.write(0x25, self.channel_output)
         # tmp remove
-        self.dac.set_dac(0, 0.1)
+        #self.dac.set_dac(0, 0.1)
         self.core.break_realtime()
-        self.dac.set_dac(1, 0.2)
+        self.dac.set_dac(1, 0.16)
         self.core.break_realtime()
         # tmp remove
         self.core.break_realtime()
