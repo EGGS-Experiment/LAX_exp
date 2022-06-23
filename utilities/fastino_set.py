@@ -5,6 +5,7 @@ import numpy as np
 
 class FastinoSet(EnvExperiment):
     """
+    Fastino Set
     Set a value on the Fastino.
     """
 
