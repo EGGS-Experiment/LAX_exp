@@ -20,15 +20,15 @@ class PIDTest(EnvExperiment):
         self.setattr_device("sampler0")
 
         # timing
-        self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # PID
-        self.setattr_argument("param_p", NumberValue(default=0.7, ndecimals=5, step=0.001, min=-100, max=100))
-        self.setattr_argument("param_i", NumberValue(default=0, ndecimals=5, step=1, min=-100, max=100))
+        self.setattr_argument("param_p", NumberValue(default=0.5, ndecimals=5, step=0.001, min=-100, max=100))
+        self.setattr_argument("param_i", NumberValue(default=3, ndecimals=5, step=1, min=-100, max=100))
         self.setattr_argument("param_d", NumberValue(default=0, ndecimals=0, step=1, min=1, max=1000))
 
         # num points
-        self.setattr_argument("num_points", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("num_points", NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000))
 
     def prepare(self):
         """
@@ -46,7 +46,6 @@ class PIDTest(EnvExperiment):
         self.channel_output = 0
 
         # timing
-        # split time_delay_mu into two
         self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
 
         # PID
@@ -73,15 +72,17 @@ class PIDTest(EnvExperiment):
 
         # PID loop
         sampler_buffer = [0] * 8
-        for i in range(self.num_points):
+        while True:
+        #for i in range(self.num_points):
             with parallel:
                 delay_mu(self.time_delay_mu)
 
                 with sequential:
                     # get error from sampler
                     self.sampler0.sample_mu(sampler_buffer)
-                    setpoint_mu = int(sampler_buffer[self.channel_setpoint] / 10) + 0x8000
-                    err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]) / 10
+                    #err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]) / 10
+                    # todo: correctly grab values and calculate conversion factors in prepare
+                    err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback])
 
                     # create and record error signal
                     self.error_integral += np.int32(err_val_mu * self.time_constant)
@@ -90,15 +91,16 @@ class PIDTest(EnvExperiment):
                         # update fastino voltage
                         with sequential:
                             # todo: convert fastino output to % amplitude
-                            self.err_signal = np.int32(self.param_p * err_val_mu + self.param_i * self.error_integral)
+                            self.err_signal = np.int32(-self.param_p * err_val_mu + self.param_i * self.error_integral)
                             self.core.break_realtime()
-                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + setpoint_mu)
+                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + 0x8000)
 
                         # store data
-                        self.mutate_dataset('pid_dataset', i, err_val_mu)
-                        self.mutate_dataset('err_dataset', i, self.err_signal)
+                        #self.mutate_dataset('pid_dataset', i, err_val_mu)
+                        #self.mutate_dataset('err_dataset', i, self.err_signal)
 
                     # todo: consider async storing error value for display
+                    # todo: only periodically sow values
 
     @kernel
     def prepareDevices(self):
@@ -118,9 +120,9 @@ class PIDTest(EnvExperiment):
         #self.fastino0.set_continuous(0)
         #self.dac.write(0x25, self.channel_output)
         # tmp remove
-        #self.dac.set_dac(0, 0.1)
+        self.dac.set_dac(0, 0.0)
         self.core.break_realtime()
-        self.dac.set_dac(1, 0.16)
+        self.dac.set_dac(1, 0.08)
         self.core.break_realtime()
         # tmp remove
         self.core.break_realtime()
@@ -129,8 +131,9 @@ class PIDTest(EnvExperiment):
         """
         Print results.
         """
-        print("Sampler error:")
-        print(self.pid_dataset)
-
-        print("PID Output Signal:")
-        print(self.err_dataset)
+        pass
+        # print("Sampler error:")
+        # print(self.pid_dataset)
+        #
+        # print("PID Output Signal:")
+        # print(self.err_dataset)
