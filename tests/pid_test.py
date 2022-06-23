@@ -1,17 +1,29 @@
 import numpy as np
 from artiq.experiment import *
 
+# todo: look into faster ways of writing and doing math; borrow suservo machinery for r/w
+# todo: speed things up somehow; may have to put r/w onto core dma
+# todo: only periodically store values
+# todo: move sampler to
+
 
 class PIDTest(EnvExperiment):
     """
+    PID Test
     Test voltage PID servo.
     """
-    # todo: set relevant kernel invariants for constant values
-    # todo: convert all values to appropriate voltage
 
+    kernel_invariants = {
+        "time_delay_mu", "error_time_constant_us",
+        "param_p", "param_i", "param_d",
+        "dac_frac_to_fvolts_mu"
+    }
+
+
+    # MAIN
     def build(self):
         """
-        # todo
+        Get experiment arguments and set devices.
         """
         # devices
         self.setattr_device("core")
@@ -19,49 +31,48 @@ class PIDTest(EnvExperiment):
         self.setattr_device("fastino0")
         self.setattr_device("sampler0")
 
+        # ADC
+        self.setattr_argument("adc_gain_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("adc_channel_feedback", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("adc_channel_setpoint", NumberValue(default=1, ndecimals=0, step=1, min=0, max=7))
+
+        # DAC
+        self.setattr_argument("dac_channel_output", NumberValue(default=0, ndecimals=0, step=1, min=0, max=31))
+
         # timing
         self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # PID
-        self.setattr_argument("param_p", NumberValue(default=0.5, ndecimals=5, step=0.001, min=-100, max=100))
-        self.setattr_argument("param_i", NumberValue(default=3, ndecimals=5, step=1, min=-100, max=100))
-        self.setattr_argument("param_d", NumberValue(default=0, ndecimals=0, step=1, min=1, max=1000))
-
-        # num points
-        self.setattr_argument("num_points", NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("param_p", NumberValue(default=1, ndecimals=5, step=0.1, min=-100, max=100))
+        self.setattr_argument("param_i", NumberValue(default=0, ndecimals=5, step=0.1, min=-100, max=100))
+        self.setattr_argument("param_d", NumberValue(default=0, ndecimals=5, step=0.1, min=-100, max=100))
 
     def prepare(self):
         """
-        # todo
+        Prepare variables and datasets for the experiment.
+        Convert all values to machine units to reduce overhead.
         """
-        # reassign device names
-        self.adc = self.sampler0
-        self.dac = self.fastino0
-
         # ADC
-        self.channel_feedback = 0
-        self.channel_setpoint = 1
+        self.adc = self.sampler0
+        self.adc_mu_to_volts = (10 ** (1 - self.adc_gain_10dB)) / (2 << 15)
 
-        # DAC channels
-        self.channel_output = 0
+        # DAC
+        self.dac = self.fastino0
+        self.dac_frac_to_volts_mu = (2 << 15) / 100
 
         # timing
         self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
 
         # PID
-        self.error_integral = 0
-        self.err_signal = 0
-        self.time_constant = self.time_delay_us * us
+        self.error_signal_mu = 0
+        self.error_integral_mu = 0
+        self.error_time_constant_us = self.time_delay_us * us
 
         # datasets
-        self.set_dataset('pid_dataset', np.zeros(self.num_points), broadcast=True)
-        self.setattr_dataset('pid_dataset')
-
-        self.set_dataset('err_dataset', np.zeros(self.num_points), broadcast=True)
-        self.setattr_dataset('err_dataset')
-
-        # todo: look into faster ways of writing and doing math; borrow suservo machinery for r/w
-        # todo: may have to put r/w onto core dma
+        self.set_dataset('error_value_mu', [], broadcast=True)
+        self.setattr_dataset('error_value_mu')
+        self.set_dataset('output_signal_mu', [], broadcast=True)
+        self.setattr_dataset('output_signal_mu')
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -73,35 +84,40 @@ class PIDTest(EnvExperiment):
         # PID loop
         sampler_buffer = [0] * 8
         while True:
-        #for i in range(self.num_points):
             with parallel:
                 delay_mu(self.time_delay_mu)
 
                 with sequential:
-                    # get error from sampler
+                    # get signals from sampler and calculate error
                     self.sampler0.sample_mu(sampler_buffer)
-                    #err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback]) / 10
-                    # todo: correctly grab values and calculate conversion factors in prepare
-                    err_val_mu = (sampler_buffer[self.channel_setpoint] - sampler_buffer[self.channel_feedback])
+                    err_val_frac = (sampler_buffer[self.adc_channel_feedback] / sampler_buffer[self.adc_channel_setpoint] - 1)
 
-                    # create and record error signal
-                    self.error_integral += np.int32(err_val_mu * self.time_constant)
+                    # calculate error and PID
+                    self.error_integral_mu += err_val_frac * self.error_time_constant_us
+                    self.error_signal_mu = self.param_p * err_val_frac - self.param_i * self.error_integral_mu
 
-                    with parallel:
-                        # update fastino voltage
-                        with sequential:
-                            # todo: convert fastino output to % amplitude
-                            self.err_signal = np.int32(-self.param_p * err_val_mu + self.param_i * self.error_integral)
-                            self.core.break_realtime()
-                            self.fastino0.set_dac_mu(self.channel_output, self.err_signal + 0x8000)
+                    # update fastino voltage
+                    # todo: try shorter delay than break_realtime
+                    self.core.break_realtime()
+                    self.fastino0.set_dac_mu(self.dac_channel_output, np.int32(self.error_signal_mu * self.dac_frac_to_fvolts_mu) + 0x8000)
 
-                        # store data
-                        #self.mutate_dataset('pid_dataset', i, err_val_mu)
-                        #self.mutate_dataset('err_dataset', i, self.err_signal)
+                    # store data
+                    self.recordValues(err_val_frac, self.error_signal_mu)
 
-                    # todo: consider async storing error value for display
-                    # todo: only periodically sow values
+    def analyze(self):
+        """
+        Print results.
+        """
+        # todo: averaged statistics
+        # print("Sampler Error:")
+        # print(self.error_value_mu)
+        #
+        # print("PID Output Signal:")
+        # print(self.output_signal_mu)
+        pass
 
+
+    # HELPERS
     @kernel
     def prepareDevices(self):
         """
@@ -110,30 +126,25 @@ class PIDTest(EnvExperiment):
         # set up sampler
         self.adc.init()
         self.core.break_realtime()
-        self.adc.set_gain_mu(self.channel_feedback, 1)
-        self.adc.set_gain_mu(self.channel_setpoint, 1)
+        self.adc.set_gain_mu(self.adc_channel_feedback, self.adc_gain_10dB)
+        self.adc.set_gain_mu(self.adc_channel_setpoint, self.adc_gain_10dB)
         self.core.break_realtime()
 
         # set up fastino
         self.dac.init()
         self.core.break_realtime()
         #self.fastino0.set_continuous(0)
-        #self.dac.write(0x25, self.channel_output)
-        # tmp remove
-        self.dac.set_dac(0, 0.0)
+        #self.dac.write(0x25, self.dac_channel_output)
+        self.dac.set_dac(self.dac_channel_output, 0.0)
         self.core.break_realtime()
         self.dac.set_dac(1, 0.08)
         self.core.break_realtime()
-        # tmp remove
-        self.core.break_realtime()
 
-    def analyze(self):
+    @rpc(flags={"async"})
+    def recordValues(self, error, output):
         """
-        Print results.
+        Records values via rpc to minimize kernel overhead.
         """
+        self.error_value_mu.append(error)
+        self.output_signal_mu.append(output)
         pass
-        # print("Sampler error:")
-        # print(self.pid_dataset)
-        #
-        # print("PID Output Signal:")
-        # print(self.err_dataset)
