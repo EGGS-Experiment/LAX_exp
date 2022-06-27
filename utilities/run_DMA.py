@@ -1,10 +1,9 @@
 from artiq.experiment import *
-from numpy import int32, int64
-import numpy as np
 
 
 class DMARun(EnvExperiment):
     """
+    DMA Run
     Run a DMA Exp by handle.
     """
 

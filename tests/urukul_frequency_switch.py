@@ -5,6 +5,7 @@ from artiq.coredevice.ad9910 import RAM_DEST_FTW, RAM_MODE_DIRECTSWITCH
 
 class urukul_frequency_switch(EnvExperiment):
     """
+    Urukul Frequency Shift Keying
     Switch Urukul frequency quickly by switching profile.
     """
 

@@ -2,8 +2,11 @@ import numpy as np
 from artiq.experiment import *
 import time
 
-class Testing(EnvExperiment):
-    """Testing"""
+class InterferometerTest(EnvExperiment):
+    """
+    Interferometer Test
+    Tests the interferometer.
+    """
 
     def build(self):
         # self.setattr_argument("num_samples", NumberValue(ndecimals=0, step=1))

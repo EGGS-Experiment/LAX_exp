@@ -6,6 +6,7 @@ _DMA_HANDLE = "temperature_measurement"
 
 class TemperatureMeasurement(EnvExperiment):
     """
+    Temperature Measurement
     Measures ion fluorescence for a single detuning.
     """
 

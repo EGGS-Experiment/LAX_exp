@@ -3,7 +3,13 @@ from artiq.coredevice.rtio import *
 from artiq.coredevice.core import rtio_get_counter
 
 
-class OscillatorDeterminism(EnvExperiment):
+class PhaserTest(EnvExperiment):
+    """
+    Phaser Test
+    Test the phaser.
+    """
+
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("phaser")

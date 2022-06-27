@@ -5,7 +5,8 @@ import numpy as np
 
 class PMTSwitchonTest(EnvExperiment):
     """
-    PMT Switch On Test.
+    PMT Switchon Test
+    Tests how long it takes for the PMT to switch on.
     """
 
     def build(self):

@@ -1,7 +1,6 @@
 from artiq.experiment import *
 from numpy import int32, int64
 import numpy as np
-import labrad
 
 
 class FastinoSet(EnvExperiment):
@@ -26,9 +25,7 @@ class FastinoSet(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        #self.fastino0.set_dac(self.channel, self.voltage)
+        self.fastino0.set_dac(self.channel, self.voltage)
 
     def analyze(self):
-        cxn=labrad.connect()
-        print(cxn.servers)
         pass

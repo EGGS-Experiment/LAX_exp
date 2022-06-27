@@ -1,9 +1,16 @@
 from artiq.experiment import *
 
+
 def input_led_state() -> TBool:
     return input("LED state: ") == "1"
 
+
 class LED(EnvExperiment):
+    """
+    LED
+    Switch on some LEDs according to input.
+    """
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("zotino0")

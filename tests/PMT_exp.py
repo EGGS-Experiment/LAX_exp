@@ -10,6 +10,7 @@ _DATASET_NAME = 'pmt_test_dataset'
 
 class PMT_experiment(EnvExperiment):
     """
+    PMT Experiment
     Programs and runs a PMT recording sequence onto ARTIQ.
     """
 

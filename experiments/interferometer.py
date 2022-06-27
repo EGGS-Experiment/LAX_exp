@@ -2,7 +2,10 @@ import numpy as np
 from artiq.experiment import *
 
 class Interferometer(EnvExperiment):
-    """Record Interferometer Data"""
+    """
+    Interferometer Run
+    Records the data from the interferometer.
+    """
 
     def build(self):
         self.setattr_device("core")

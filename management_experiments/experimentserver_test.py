@@ -1,5 +1,3 @@
-import numpy as np
-
 from artiq.experiment import *
 from sipyco.pc_rpc import simple_server_loop
 from sipyco.pc_rpc import Server

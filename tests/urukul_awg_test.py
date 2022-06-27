@@ -5,7 +5,8 @@ from artiq.coredevice.ad9910 import RAM_MODE_BIDIR_RAMP, RAM_DEST_ASF
 
 class Urukul_AWG(EnvExperiment):
     """
-    Urukul AWG Test.
+    Urukul AWG Test
+    Test the use of the Urukul as an AWG.
     """
 
     def build(self):

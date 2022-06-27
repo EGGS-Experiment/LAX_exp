@@ -4,6 +4,7 @@ from artiq.experiment import *
 
 class PIDTest(EnvExperiment):
     """
+    PID Test
     Test voltage PID servo.
     """
     # todo: set relevant kernel invariants for constant values
