@@ -15,8 +15,8 @@ class sampler_exp(EnvExperiment):
         self.setattr_device('sampler0')
 
         # arguments
-        self.setattr_argument("channel_readout", NumberValue(default=1, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("channel_gain_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("channel_readout", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("channel_gain_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("num_samples", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=20000))
 
