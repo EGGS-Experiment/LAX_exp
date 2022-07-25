@@ -22,7 +22,7 @@ class PMT_experiment(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions", NumberValue(default=30000, ndecimals=0, step=1, min=1, max=30000))
+        self.setattr_argument("repetitions", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=30000))
 
         # timing
         self.setattr_argument('time_bin_us', NumberValue(default=500, ndecimals=3, step=1, min=0.01, max=100))
