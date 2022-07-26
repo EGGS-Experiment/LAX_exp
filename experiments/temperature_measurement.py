@@ -4,11 +4,10 @@ from artiq.experiment import *
 #_DMA_HANDLE = "temperature_measurement"
 _DMA_HANDLE_ON = "temperature_measurement_on"
 _DMA_HANDLE_OFF = "temperature_measurement_off"
-# todo: 40mV from photodiode
 # todo: make repump status more general
 # todo: upload data to labrad
-# todo: convert reading to actual volts, will be 400mV
-# todo: check synchronization of cycle
+# todo: check synchronization of cycle with now_mu()
+# todo: check scannable works correctly
 
 
 class TemperatureMeasurement(EnvExperiment):
