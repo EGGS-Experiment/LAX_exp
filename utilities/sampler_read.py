@@ -15,9 +15,9 @@ class sampler_exp(EnvExperiment):
         self.setattr_device('sampler0')
 
         # arguments
-        self.setattr_argument("channel_readout", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("channel_gain_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("time_delay_us", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("channel_readout", NumberValue(default=1, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("channel_gain_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("time_delay_us", NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("num_samples", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=20000))
 
 
@@ -40,15 +40,15 @@ class sampler_exp(EnvExperiment):
         # set up ADC
         self.sampler0.init()
         self.sampler0.set_gain_mu(self.channel_readout, self.channel_gain_10dB)
+        sampler_buffer = [0] * 8
         self.core.break_realtime()
 
-        sampler_buffer = [0] * 8
         # sampling loop
         for i in range(self.num_samples):
             with parallel:
                 delay_mu(self.time_delay_mu)
                 self.sampler0.sample_mu(sampler_buffer)
-            self.mutate_dataset("sampler_readout", i, sampler_buffer[self.channel_readout])
+            self.mutate_dataset("sampler_readout", i, sampler_buffer[self.channel_readout] * self.adc_mu_to_volts)
 
     def analyze(self):
-        print('sampler avg v:', np.average(self.sampler_readout) * self.adc_mu_to_volts)
+        print("sampler ch{:d}: {:.4f} +/- {:.5f}".format(self.channel_readout, np.average(self.sampler_readout), np.std(self.sampler_readout)))
