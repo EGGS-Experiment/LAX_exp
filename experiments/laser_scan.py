@@ -28,7 +28,7 @@ class LaserScan(EnvExperiment):
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_qubit_channel",      NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("dds_qubit_channel",      NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
 
         # qubit frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 4001),
