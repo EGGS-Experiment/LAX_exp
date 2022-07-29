@@ -1,7 +1,6 @@
 import numpy as np
 from artiq.experiment import *
 
-_DMA_HANDLE = "laser_scan"
 # todo: upload data to labrad
 # todo: check scannable works correctly
 
@@ -29,14 +28,10 @@ class LaserScan(EnvExperiment):
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-
-        # AOM DDS parameters
-        self.setattr_argument("freq_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-
+        self.setattr_argument("dds_qubit_channel",      NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # qubit frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 0.005),
+        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 4001),
                                                                   global_min=60, global_max=200, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=3))
 
@@ -65,11 +60,13 @@ class LaserScan(EnvExperiment):
         self.freq_qubit_scan_mhz2 = list(self.freq_qubit_scan_mhz)
 
         # convert dds values to machine units - everything else
-        self.freq_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(0.5)
 
         # set up datasets
         self.set_dataset("laser_scan", [], broadcast=True)
+
+        # tmp remove:
+        self.setattr_device('urukul0_ch0')
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -81,30 +78,21 @@ class LaserScan(EnvExperiment):
         # prepare devices
         self.prepareDevices()
         self.core.break_realtime()
-
-        # program pulse sequence onto core DMA
-        self.DMArecord()
-        self.core.break_realtime()
-
-        # retrieve pulse sequence handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE)
-        self.core.break_realtime()
+        delay(2.0)
 
         # MAIN SEQUENCE
-        for trial_num in range(self.reptitions):
+        for trial_num in range(self.repetitions):
             # scan frequency
             for freq_mhz in self.freq_qubit_scan_mhz2:
-                self.core.break_realtime()
-
                 # set freq and ampl for qubit
-                freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz)
-                self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
+                freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
                 self.core.break_realtime()
+                self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
 
                 # record fluorescence
-                self.dds_qubit.on()
+                self.dds_qubit.cfg_sw(1)
                 self.pmt_gating_edge(self.time_qubit_mu)
-                self.dds_qubit.off()
+                self.dds_qubit.cfg_sw(0)
                 self.update_dataset(trial_num, freq_mhz, self.pmt_counter.fetch_count())
 
     @kernel(flags={"fast-math"})
@@ -120,12 +108,13 @@ class LaserScan(EnvExperiment):
 
         # initialize qubit AOM and set waveform
         #self.dds_qubit.init()
-        self.core.break_realtime()
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
-        self.core.break_realtime()
-        self.dds_qubit.set_att(8 * dB)
+        # tmp remove: dds set_att cfg sw stuff
+        #self.dds_qubit.set_att(2 * dB)
         self.core.break_realtime()
         self.dds_qubit.cfg_sw(1)
+
+        # tmp remove: urukul0_ch0
+        self.urukul0_ch0.cfg_sw(1)
 
     @rpc(flags={"async"})
     def update_dataset(self, trial_num, freq_mhz, pmt_counts):
