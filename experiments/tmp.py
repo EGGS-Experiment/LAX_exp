@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.language import *
 
 #_DMA_HANDLE = "temperature_measurement"
 _DMA_HANDLE_ON = "temperature_measurement_on"
@@ -26,7 +27,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=750, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=7500, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_delay_us",          NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
@@ -42,7 +43,7 @@ class TemperatureMeasurement(EnvExperiment):
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(65, 85, 5),
                                                                   global_min=60, global_max=110, global_step=1,
-                                                                  unit="MHz", scale=1, ndecimals=1))
+                                                                  unit = "MHz", scale = 1, ndecimals = 1))
 
         # AOM parameters
         self.setattr_argument("freq_pump_mhz",          NumberValue(default=140, ndecimals=3, step=1, min=10, max=200))
@@ -54,7 +55,7 @@ class TemperatureMeasurement(EnvExperiment):
 
         # photodiode
         self.setattr_argument("photodiode_channel",     NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("photodiode_gain",        NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("photodiode_gain",        NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
     def prepare(self):
         """
@@ -76,11 +77,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.dds_pump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
         self.dds_repump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_channel))
 
-        # convert dds values to machine units - probe
+        # convert dds values to machine units
         self.ftw_to_frequency = 1e9 / (2**32 - 1)
-        self.freq_probe_scan_mhz2 = list(self.freq_probe_scan_mhz)
-
-        # convert dds values to machine units - everything else
         self.freq_pump_ftw = self.dds_pump.frequency_to_ftw(self.freq_pump_mhz * MHz)
         self.freq_repump_ftw = self.dds_probe.frequency_to_ftw(self.freq_repump_mhz * MHz)
         self.ampl_pump_asf = self.dds_pump.amplitude_to_asf(0.5)
@@ -99,7 +97,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.adc_mu_to_volts = (10 ** (1 - self.photodiode_gain)) / (2 ** 15)
 
         # set up datasets
-        self.set_dataset("temperature_measurement", [], broadcast=True)
+        self.set_dataset("temperature_measurement_repump_on", np.zeros([len(self.freq_probe_scan_mhz) * self.repetitions, 3]), broadcast=True)
+        self.set_dataset("temperature_measurement_repump_off", np.zeros([len(self.freq_probe_scan_mhz) * self.repetitions, 3]), broadcast=True)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -109,7 +108,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.core.reset()
 
         # prepare devices
-        self.prepareDevices()
+        #self.prepareDevices()
         self.core.break_realtime()
 
         # program pulse sequence onto core DMA
@@ -121,13 +120,12 @@ class TemperatureMeasurement(EnvExperiment):
         handle_off = self.core_dma.get_handle(_DMA_HANDLE_OFF)
         self.core.break_realtime()
 
-        # MAIN SEQUENCE
-        for freq_mhz in self.freq_probe_scan_mhz2:
-            self.core.break_realtime()
 
-            # set freq and ampl for probe
+        # MAIN SEQUENCE
+        for freq_mhz in self.freq_probe_scan_mhz:
+            set freq and ampl for probe
             freq_mu = self.dds_probe.frequency_to_ftw(freq_mhz)
-            self.dds_probe.set_mu(freq_mu, asf=self.ampl_probe_asf)
+            #self.dds_probe.set_mu(freq_mu, asf=self.ampl_probe_asf)
             self.core.break_realtime()
 
             # run the experiment (repump on)
@@ -135,12 +133,16 @@ class TemperatureMeasurement(EnvExperiment):
             for trial_num in range(self.repetitions):
                 # run pulse sequence from core DMA
                 self.core_dma.playback_handle(handle_on)
-                self.adc.sample_mu(self.adc_buffer)
+                #self.core.break_realtime()
+
+                # get data
+                with parallel:
+                    count = self.pmt_counter.fetch_count()
+                    self.adc.sample_mu(self.adc_buffer)
 
                 # update dataset
-                with parallel:
-                    self.update_dataset(freq_mhz, 1, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
-                    self.core.break_realtime()
+                self.update_dataset(trial_num, freq_mhz, 1, count, self.adc_buffer[self.photodiode_channel])
+                self.core.break_realtime()
                 #delay_mu(self.time_delay_mu)
 
             # run the experiment (repump off)
@@ -148,12 +150,16 @@ class TemperatureMeasurement(EnvExperiment):
             for trial_num in range(self.repetitions):
                 # run pulse sequence from core DMA
                 self.core_dma.playback_handle(handle_off)
-                self.adc.sample_mu(self.adc_buffer)
+                #self.core.break_realtime()
+
+                # record data
+                with parallel:
+                    count = self.pmt_counter.fetch_count()
+                    self.adc.sample_mu(self.adc_buffer)
 
                 # update dataset
-                with parallel:
-                    self.update_dataset(freq_mhz, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
-                    self.core.break_realtime()
+                self.update_dataset(trial_num, freq_mhz, 0, count, self.adc_buffer[self.photodiode_channel])
+                self.core.break_realtime()
                 #delay_mu(self.time_delay_mu)
 
             # after sequence, set all dds channels to trapping state
@@ -165,6 +171,7 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
+        # tmp remove: bring back parallel
         with self.core_dma.record(_DMA_HANDLE_ON):
             # pump on, probe off
             with parallel:
@@ -209,6 +216,7 @@ class TemperatureMeasurement(EnvExperiment):
         # initialize probe beam and set waveform
         #self.dds_probe.init()
         self.core.break_realtime()
+        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
         self.dds_probe.set_att(8 * dB)
         self.core.break_realtime()
         self.dds_pump.cfg_sw(0)
@@ -227,21 +235,30 @@ class TemperatureMeasurement(EnvExperiment):
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):
+    def thkim(self, yz):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('temperature_measurement', [freq_mhz, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        print(yz)
+
+    @rpc(flags={"async"})
+    def update_dataset(self, i, freq_mu, repump_status, pmt_counts, sampler_mu):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        if repump_status == 1:
+            self.mutate_dataset("temperature_measurement_repump_on", i, [freq_mu * self.ftw_to_frequency, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        else:
+            self.mutate_dataset("temperature_measurement_repump_off", i, [freq_mu * self.ftw_to_frequency, pmt_counts, sampler_mu * self.adc_mu_to_volts])
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        pass
-        # data = self.get_dataset("temperature_measurement_repump_on")
-        # pmt_data = data[2500:, 1]
-        # pd_data = data[2500:, 2]
-        #
-        # print("repump on:")
-        # print("\tpmt counts: {:.2f} +/- {:.2f}".format(np.mean(pmt_data), np.std(pmt_data)))
-        # print("\tphotodiode value: {:.2f} +/- {:.2f}".format(np.mean(pd_data), np.std(pd_data)))
+        data = self.get_dataset("temperature_measurement")
+        pmt_data = data[2500:, 2]
+        pd_data = data[2500:, 3]
+
+        print("repump off:")
+        print("\tpmt counts: {:.2f} +/- {:.2f}".format(np.mean(pmt_data), np.std(pmt_data)))
+        print("\tphotodiode value: {:.2f} +/- {:.2f}".format(np.mean(pd_data), np.std(pd_data)))
