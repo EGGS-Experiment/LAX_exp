@@ -12,7 +12,7 @@ class AD9910RAM(EnvExperiment):
 
     def build(self):  # this code runs on the host computer
         self.setattr_device("core")  # sets core device drivers as attributes
-        self.u = self.get_device("urukul0_ch0")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.u
+        self.u = self.get_device("urukul0_ch3")  # sets urukul 0, channel 3 device drivers as attributes and renames object self.u
 
     @kernel  # this code runs on the FPGA
     def run(self):
@@ -36,7 +36,7 @@ class AD9910RAM(EnvExperiment):
 
         # set ram profile
         self.u.set_profile_ram(  # sets profile in RAM to be used
-            start=0, end=0 + len(data) - 1, step=0xfffff,
+            start=0, end=0 + len(data) - 1, step=0x01,
             # start/end give addresses of ends of ram data, step gives step length
             profile=0, mode=RAM_MODE_BIDIR_RAMP)  # mode: bidirectional ramp
 
@@ -58,10 +58,10 @@ class AD9910RAM(EnvExperiment):
         # enables ram, sets ram data as amplitude scale factor
 
         # set urukuln parameters and turn channel on
-        self.u.set_frequency(25 * MHz)  # sets frequency
+        self.u.set_frequency(50 * MHz)  # sets frequency
         self.u.cpld.io_update.pulse_mu(
             8)  # I think this clocks all the CPLD registers so they take the values written to them
-        self.u.set_att(2 * dB)  # sets attenuation
+        self.u.set_att(10 * dB)  # sets attenuation
         self.u.sw.on()  # turns urukul channel on
 
         self.core.break_realtime()  # moves timestamp forward to prevent underflow
@@ -76,6 +76,6 @@ class AD9910RAM(EnvExperiment):
 
             self.u.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
 
-            delay(2 * us)  # 2us delay
+            delay(2 * ms)  # 2us delay
 
             self.u.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
