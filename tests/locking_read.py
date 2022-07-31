@@ -38,8 +38,13 @@ class locking_read(EnvExperiment):
         print(self.repetitions)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, 2]), broadcast=True)
+        self.set_dataset('locking_readout', np.zeros([self.repetitions, 6]), broadcast=True)
+        #self.set_dataset('locking_readout', np.zeros([self.repetitions, 2]), broadcast=True)
         self.setattr_dataset('locking_readout')
+
+        # tmp remove:
+        th0 = 10 / (2 ** 15)
+        self.scaling_array = np.array([self.adc_mu_to_volts_error, self.adc_mu_to_volts_dac, th0, th0/10, th0/100, th0/1000])
 
     @kernel
     def run(self):
@@ -49,6 +54,17 @@ class locking_read(EnvExperiment):
         self.adc.init()
         self.adc.set_gain_mu(self.channel_error, self.gain_error_10dB)
         self.adc.set_gain_mu(self.channel_dac, self.gain_dac_10dB)
+
+        # tmp remove: start
+        self.core.break_realtime()
+        self.adc.set_gain_mu(2, 0)
+        self.adc.set_gain_mu(3, 1)
+        self.core.break_realtime()
+        self.adc.set_gain_mu(4, 2)
+        self.adc.set_gain_mu(5, 3)
+        self.core.break_realtime()
+        # tmp remove: end
+
         sampler_buffer = [0] * 8
         self.core.break_realtime()
 
@@ -58,15 +74,18 @@ class locking_read(EnvExperiment):
                 delay_mu(self.time_delay_mu)
                 with sequential:
                     self.adc.sample_mu(sampler_buffer)
-                    self.update_dataset(i, sampler_buffer[self.channel_error], sampler_buffer[self.channel_dac])
+                    self.update_dataset(i, sampler_buffer[:6])
 
     @rpc(flags={"async"})
-    def update_dataset(self, i, error_mu, dac_mu):
+    #def update_dataset(self, i, error_mu, dac_mu):
+    def update_dataset(self, i, sampler_buffer):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.mutate_dataset("locking_readout", i,
-                            [error_mu * self.adc_mu_to_volts_error, dac_mu * self.adc_mu_to_volts_dac])
+        self.mutate_dataset("locking_readout", i, np.array(sampler_buffer) * self.scaling_array)
+
+        # self.mutate_dataset("locking_readout", i,
+        #                     [error_mu * self.adc_mu_to_volts_error, dac_mu * self.adc_mu_to_volts_dac])
 
     def analyze(self):
         print(self.locking_readout)

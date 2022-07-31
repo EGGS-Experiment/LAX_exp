@@ -1,6 +1,5 @@
 import numpy as np
 from artiq.experiment import *
-
 # todo: upload data to labrad
 # todo: check scannable works correctly
 
@@ -78,7 +77,6 @@ class LaserScan(EnvExperiment):
         # prepare devices
         self.prepareDevices()
         self.core.break_realtime()
-        delay(2.0)
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
