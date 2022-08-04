@@ -52,10 +52,9 @@ class locking_read(EnvExperiment):
 
         # set up ADC
         self.adc.init()
-        self.adc.set_gain_mu(self.channel_error, 2)
+        self.adc.set_gain_mu(self.channel_error, self.gain_error_10dB)
         self.adc.set_gain_mu(self.channel_dac, self.gain_dac_10dB)
-        self.adc.set_gain_mu(2, 2)
-        self.adc.set_gain_mu(2, 1)
+        self.adc.set_gain_mu(2, self.gain_error_10dB)
         self.core.break_realtime()
 
         sampler_buffer = [0] * 8
