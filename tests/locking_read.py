@@ -22,8 +22,8 @@ class locking_read(EnvExperiment):
         self.setattr_argument("gain_dac_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
 
         # timing
-        self.setattr_argument("time_delay_ms", NumberValue(default=10, ndecimals=3, step=1, min=0.2, max=100))
-        self.setattr_argument("time_total_s", NumberValue(default=10800, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("time_delay_us", NumberValue(default=500, ndecimals=3, step=1, min=0.2, max=100))
+        self.setattr_argument("time_total_s", NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
 
 
     def prepare(self):
@@ -33,18 +33,18 @@ class locking_read(EnvExperiment):
         self.adc_mu_to_volts_dac = (10 ** (1 - self.gain_dac_10dB)) / (2 ** 15)
 
         # timing
-        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_ms * ms)
-        self.repetitions = np.int32(self.time_total_s / self.time_delay_ms * 1e3)
-        print(self.repetitions)
+        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
+        self.repetitions = np.int32(self.time_total_s / self.time_delay_us * 1e6)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, 6]), broadcast=True)
         #self.set_dataset('locking_readout', np.zeros([self.repetitions, 2]), broadcast=True)
+        self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]), broadcast=True)
         self.setattr_dataset('locking_readout')
+
+        #self.yz1 = np.array([self.adc_mu_to_volts_error, self.adc_mu_to_volts_dac, ])
 
         # tmp remove:
         th0 = 10 / (2 ** 15)
-        self.scaling_array = np.array([self.adc_mu_to_volts_error, self.adc_mu_to_volts_dac, th0, th0/10, th0/100, th0/1000])
 
     @kernel
     def run(self):
@@ -52,18 +52,11 @@ class locking_read(EnvExperiment):
 
         # set up ADC
         self.adc.init()
-        self.adc.set_gain_mu(self.channel_error, self.gain_error_10dB)
+        self.adc.set_gain_mu(self.channel_error, 2)
         self.adc.set_gain_mu(self.channel_dac, self.gain_dac_10dB)
-
-        # tmp remove: start
+        self.adc.set_gain_mu(2, 2)
+        self.adc.set_gain_mu(2, 1)
         self.core.break_realtime()
-        self.adc.set_gain_mu(2, 0)
-        self.adc.set_gain_mu(3, 1)
-        self.core.break_realtime()
-        self.adc.set_gain_mu(4, 2)
-        self.adc.set_gain_mu(5, 3)
-        self.core.break_realtime()
-        # tmp remove: end
 
         sampler_buffer = [0] * 8
         self.core.break_realtime()
@@ -74,18 +67,18 @@ class locking_read(EnvExperiment):
                 delay_mu(self.time_delay_mu)
                 with sequential:
                     self.adc.sample_mu(sampler_buffer)
-                    self.update_dataset(i, sampler_buffer[:6])
+                    #self.update_dataset(i, sampler_buffer[self.channel_error], sampler_buffer[self.channel_dac], sampler_buffer[2])
+                    self.update_dataset(i, sampler_buffer[:3])
 
     @rpc(flags={"async"})
-    #def update_dataset(self, i, error_mu, dac_mu):
-    def update_dataset(self, i, sampler_buffer):
+    #def update_dataset(self, i, error_mu, dac_mu, val2):
+    def update_dataset(self, i, arr):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.mutate_dataset("locking_readout", i, np.array(sampler_buffer) * self.scaling_array)
-
-        # self.mutate_dataset("locking_readout", i,
-        #                     [error_mu * self.adc_mu_to_volts_error, dac_mu * self.adc_mu_to_volts_dac])
+        self.mutate_dataset("locking_readout", i,
+                            [arr[0] * self.adc_mu_to_volts_error, arr[1] * self.adc_mu_to_volts_dac, arr[2] * self.adc_mu_to_volts_error])
+        #self.mutate_dataset("locking_readout", i, [arr[0] * [self.adc_mu_to_volts_error], arr[1] * [self.adc_mu_to_volts_dac], arr[2] * self.adc_mu_to_volts_error])
 
     def analyze(self):
         print(self.locking_readout)

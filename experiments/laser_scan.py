@@ -20,17 +20,17 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=23, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_qubit_us",          NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_qubit_channel",      NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # qubit frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 4001),
+        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(109.4, 109.8, 401),
                                                                   global_min=60, global_max=200, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=3))
 
@@ -63,9 +63,12 @@ class LaserScan(EnvExperiment):
 
         # set up datasets
         self.set_dataset("laser_scan", [], broadcast=True)
+        self.set_dataset("tmp", [], broadcast=True)
 
         # tmp remove:
-        self.setattr_device('urukul0_ch0')
+        self.setattr_device('urukul1_cpld')
+        self.yzde = self.core.seconds_to_mu(500 * us)
+        #print(len(self.freq_qubit_scan_mhz2))
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -82,16 +85,30 @@ class LaserScan(EnvExperiment):
         for trial_num in range(self.repetitions):
             # scan frequency
             for freq_mhz in self.freq_qubit_scan_mhz2:
+                self.core.break_realtime()
+
+                # turn on 854 to pump back down
+                self.urukul1_cpld.cfg_switches(0b1111)
+                delay(400 * us)
+                self.urukul1_cpld.cfg_switches(0b0111)
+                self.core.break_realtime()
+
+                # get pmt counts to calibrate
+                self.pmt_gating_edge(self.yzde)
+                val = self.pmt_counter.fetch_count()
+                delay(1 * ms)
+
                 # set freq and ampl for qubit
                 freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                self.core.break_realtime()
                 self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
 
                 # record fluorescence
                 self.dds_qubit.cfg_sw(1)
                 self.pmt_gating_edge(self.time_qubit_mu)
+                self.core.break_realtime()
                 self.dds_qubit.cfg_sw(0)
-                self.update_dataset(trial_num, freq_mhz, self.pmt_counter.fetch_count())
+                self.update_dataset(trial_num, freq_mhz, self.pmt_counter.fetch_count(), val)
+
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -111,15 +128,13 @@ class LaserScan(EnvExperiment):
         self.core.break_realtime()
         self.dds_qubit.cfg_sw(1)
 
-        # tmp remove: urukul0_ch0
-        self.urukul0_ch0.cfg_sw(1)
-
     @rpc(flags={"async"})
-    def update_dataset(self, trial_num, freq_mhz, pmt_counts):
+    def update_dataset(self, trial_num, freq_mhz, pmt_counts, pmt_calib):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan', [trial_num, freq_mhz, pmt_counts])
+        self.append_to_dataset('laser_scan', [trial_num, freq_mhz, pmt_counts, pmt_calib])
+        #self.append_to_dataset('tmp', pmt_counts)
 
     def analyze(self):
         """

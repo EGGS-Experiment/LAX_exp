@@ -6,7 +6,7 @@ from artiq.experiment import *
 
 class PIDTest2(EnvExperiment):
     """
-    PID Test2
+    PID Test RDX
     Test voltage PID servo.
     """
 
