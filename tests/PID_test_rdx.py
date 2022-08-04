@@ -4,7 +4,7 @@ from artiq.experiment import *
 # todo: look into faster ways of writing and doing math; borrow suservo machinery for r/w
 
 
-class PIDTest2(EnvExperiment):
+class PIDTestRDX(EnvExperiment):
     """
     PID Test RDX
     Test voltage PID servo.
