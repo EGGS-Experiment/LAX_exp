@@ -8,6 +8,9 @@ _DMA_HANDLE_OFF = "temperature_measurement_off"
 # todo: upload data to labrad
 # todo: check synchronization of cycle with now_mu()
 # todo: check scannable works correctly
+# todo: set up ion calibration properly
+# todo: fix ADC
+# todo: set attenuations problem
 
 
 class TemperatureMeasurement(EnvExperiment):
@@ -40,12 +43,12 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("dds_repump_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(65, 85, 5),
+        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(63, 90, 10),
                                                                   global_min=60, global_max=110, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=1))
 
         # AOM parameters
-        self.setattr_argument("freq_pump_mhz",          NumberValue(default=140, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
 
         # PMT
@@ -101,6 +104,14 @@ class TemperatureMeasurement(EnvExperiment):
         # set up datasets
         self.set_dataset("temperature_measurement", [], broadcast=True)
 
+        # attenuations:
+        self.att_probe = [7, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11]
+        self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
+        self.att_reg = 0x00000000
+
+        # tmp remove
+        self.setattr_device('urukul1_ch3')
+
     @kernel(flags={"fast-math"})
     def run(self):
         """
@@ -122,12 +133,19 @@ class TemperatureMeasurement(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for freq_mhz in self.freq_probe_scan_mhz2:
+        # for freq_mhz in self.freq_probe_scan_mhz2:
+        for i in range(len(self.freq_probe_scan_mhz2)):
             self.core.break_realtime()
 
             # set freq and ampl for probe
-            freq_mu = self.dds_probe.frequency_to_ftw(freq_mhz)
+            freq_mhz = self.freq_probe_scan_mhz2[i]
+            freq_mu = self.dds_probe.frequency_to_ftw(freq_mhz * MHz)
             self.dds_probe.set_mu(freq_mu, asf=self.ampl_probe_asf)
+            self.core.break_realtime()
+
+            # set att for probe
+            att_reg_tmp = self.att_reg | (self.att_probe[i] << (self.dds_probe_channel * 8))
+            self.dds_board.set_all_att_mu(att_reg_tmp)
             self.core.break_realtime()
 
             # run the experiment (repump on)
@@ -193,38 +211,29 @@ class TemperatureMeasurement(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # initialize dds board
-        #self.dds_board.init()
-        self.core.break_realtime()
+        # get current attenuation register status
+        self.att_reg = np.int32(self.dds_board.get_att_mu())
+        self.att_reg &= ~(0xFF << (8 * self.dds_probe_channel))
 
-        # initialize pump beam and set waveform
-        #self.dds_pump.init()
+        # set pump waveform
         self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
         self.core.break_realtime()
-        self.dds_pump.set_att(13 * dB)
-        self.core.break_realtime()
         self.dds_pump.cfg_sw(1)
 
-        # initialize probe beam and set waveform
-        #self.dds_probe.init()
-        self.core.break_realtime()
-        self.dds_probe.set_att(8 * dB)
-        self.core.break_realtime()
-        self.dds_pump.cfg_sw(0)
-
         # initialize repump beam and set waveform
-        #self.dds_repump.init()
         self.core.break_realtime()
         self.dds_repump.set_mu(self.freq_repump_ftw, asf=self.ampl_repump_asf)
-        self.dds_repump.set_att(6.5 * dB)
-        self.core.break_realtime()
         self.dds_repump.cfg_sw(1)
+        self.core.break_realtime()
 
         # set up sampler
-        #self.adc.init()
         self.core.break_realtime()
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
+
+        # todo: remove
+        self.urukul1_ch3.set_att(7 * dB)
+        self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):
@@ -232,6 +241,13 @@ class TemperatureMeasurement(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.append_to_dataset('temperature_measurement', [freq_mhz, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+
+    @rpc(flags={"async"})
+    def update_dataset2(self, freq_mhz, repump_status, pmt_counts):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        self.append_to_dataset('ion_calibration', [freq_mhz, repump_status, pmt_counts])
 
     def analyze(self):
         """

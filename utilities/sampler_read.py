@@ -16,14 +16,14 @@ class sampler_exp(EnvExperiment):
 
         # arguments
         self.setattr_argument("channel_readout", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("channel_gain_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("time_delay_us", NumberValue(default=75, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_samples", NumberValue(default=10000, ndecimals=0, step=1, min=1, max=20000))
+        self.setattr_argument("channel_gain_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("time_delay_us", NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("num_samples", NumberValue(default=1000, ndecimals=0, step=1, min=1, max=20000))
 
     def prepare(self):
         # ADC
         self.adc = self.sampler0
-        self.adc_buffer = [0] * 2
+        self.adc_buffer = [0] * 8
         self.adc_mu_to_volts = (10 ** (1 - self.channel_gain_10dB)) / (2 ** 15)
 
         # timing
@@ -48,7 +48,7 @@ class sampler_exp(EnvExperiment):
                 delay_mu(self.time_delay_mu)
                 with sequential:
                     self.sampler0.sample_mu(self.adc_buffer)
-                    self.update_dataset(self.adc_buffer[0])
+                    self.update_dataset(self.adc_buffer[self.channel_readout])
 
     @rpc(flags={"async"})
     def update_dataset(self, adc_mu):
