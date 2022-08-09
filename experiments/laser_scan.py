@@ -30,7 +30,7 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # qubit frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(109.4, 109.8, 401),
+        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(95, 125, 401),
                                                                   global_min=60, global_max=200, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=3))
 

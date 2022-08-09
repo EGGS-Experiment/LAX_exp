@@ -47,7 +47,7 @@ class TemperatureMeasurement(EnvExperiment):
                                                                   unit="MHz", scale=1, ndecimals=1))
 
         # AOM parameters
-        self.setattr_argument("freq_pump_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_mhz",          NumberValue(default=120, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
 
         # PMT
@@ -173,6 +173,7 @@ class TemperatureMeasurement(EnvExperiment):
             # after sequence, set all dds channels to trapping state
             self.dds_repump.cfg_sw(1)
             self.dds_pump.cfg_sw(1)
+            self.dds_probe.cfg_sw(0)
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):

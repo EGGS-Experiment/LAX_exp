@@ -2,6 +2,7 @@ import numpy as np
 from artiq.experiment import *
 # todo: upload data to labrad
 # todo: check scannable works correctly
+_DMA_HANDLE_READOUT = "time_sweep_readout"
 
 
 class TimeSweep(EnvExperiment):
@@ -20,11 +21,11 @@ class TimeSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=23, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_qubit_us",          NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_readout_us",        NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_854_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
@@ -89,6 +90,11 @@ class TimeSweep(EnvExperiment):
         self.prepareDevices()
         self.core.break_realtime()
 
+        # record dma and get handle
+        self.DMArecord()
+        handle = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        self.core.break_realtime()
+
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
@@ -97,8 +103,8 @@ class TimeSweep(EnvExperiment):
                 self.core.break_realtime()
 
                 # set freq and ampl for qubit
-                freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
+                #freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                #self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
                 self.core.break_realtime()
 
                 # sweep time
@@ -111,27 +117,37 @@ class TimeSweep(EnvExperiment):
                     self.urukul1_cpld.cfg_switches(0b0100)
 
                     # get pmt counts w/397 onto calibrate
-                    with parallel:
-                        self.urukul1_cpld.cfg_switches(0b0110)
-                        self.pmt_gating_edge(self.time_readout_mu)
-                    with parallel:
-                        pmt_calib = self.pmt_counter.fetch_count()
-                        self.urukul1_cpld.cfg_switches(0b0100)
+                    self.core_dma.playback_handle(handle)
+                    pmt_calib = self.pmt_counter.fetch_count()
+                    self.core.break_realtime()
 
                     # rabi flopping w/qubit laser
                     with parallel:
                         self.dds_qubit.cfg_sw(1)
-                        self.pmt_gating_edge(time_mu)
+                        delay_mu(time_mu)
                     self.dds_qubit.cfg_sw(0)
 
                     # get pmt counts (actual)
+                    self.core_dma.playback_handle(handle)
+
+                    # update dataset
                     with parallel:
-                        self.urukul1_cpld.cfg_switches(0b0110)
-                        self.pmt_gating_edge(self.time_readout_mu)
-                    self.urukul1_cpld.cfg_switches(0b0100)
+                        self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+                        self.core.break_realtime()
 
-                    self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+        # reset after experiment
+        self.urukul1_cpld.cfg_switches(0b1110)
+        self.dds_qubit.cfg_sw(0)
 
+    @kernel(flags={"fast-math"})
+    def DMArecord(self):
+        """
+        Record onto core DMA the AOM sequence for a single data point.
+        """
+        with self.core_dma.record(_DMA_HANDLE_READOUT):
+            self.urukul1_cpld.cfg_switches(0b0110)
+            self.pmt_gating_edge(self.time_readout_mu)
+            self.urukul1_cpld.cfg_switches(0b0100)
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -151,7 +167,7 @@ class TimeSweep(EnvExperiment):
         self.dds_qubit.cfg_sw(1)
 
         # turn all core lasers on
-        self.urukul1_cpld.cfg_switches.cfg_switches(0b1110)
+        self.urukul1_cpld.cfg_switches(0b1110)
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, freq_mhz, pmt_counts, pmt_calib):
