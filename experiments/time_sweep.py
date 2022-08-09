@@ -14,6 +14,7 @@ class TimeSweep(EnvExperiment):
     #kernel_invariants = {}
 
     def build(self):
+        print('kk123')
         """
         Set devices and arguments for the experiment.
         """
@@ -21,23 +22,23 @@ class TimeSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_854_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_readout_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_854_us",            NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_us",        NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
-        self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
+        self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
         self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
-        # qubit frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 5),
-                                                                  global_min=60, global_max=200, global_step=1,
-                                                                  unit="MHz", scale=1, ndecimals=3))
-
+        # qubit frequency scan  #RangeScan(100, 120, 5)
+        # self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 21)
+        #                                                           global_min=60, global_max=200, global_step=1,
+        #                                                           unit="MHz", scale=1, ndecimals=3))
+        self.freq_qubit_scan_mhz = [109.4]
         # qubit time scan
-        self.setattr_argument("time_sweep_us",          Scannable(default=RangeScan(1, 1000, 21),
+        self.setattr_argument("time_sweep_us",          Scannable(default=RangeScan(1, 5000, 1001, randomize=True),
                                                                   global_min=1, global_max=10000, global_step=1,
                                                                   unit="us", scale=1, ndecimals=0))
 
@@ -60,7 +61,8 @@ class TimeSweep(EnvExperiment):
 
         # DDS devices
         self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_qubit_channel))
+        #self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_qubit_channel))
+        self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(0, 0))
 
         # convert dds values to machine units - qubit
         self.ftw_to_frequency = 1e9 / (2**32 - 1)
@@ -129,10 +131,12 @@ class TimeSweep(EnvExperiment):
 
                     # get pmt counts (actual)
                     self.core_dma.playback_handle(handle)
+                    pmt_actual = self.pmt_counter.fetch_count()
 
                     # update dataset
                     with parallel:
-                        self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+                        #self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+                        self.update_dataset(time_mu, freq_mhz, pmt_actual, pmt_calib)
                         self.core.break_realtime()
 
         # reset after experiment
@@ -147,7 +151,7 @@ class TimeSweep(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             self.urukul1_cpld.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
-            self.urukul1_cpld.cfg_switches(0b0100)
+            self.urukul1_cpld.cfg_switches(0b0110)
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
