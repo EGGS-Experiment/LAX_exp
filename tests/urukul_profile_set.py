@@ -11,14 +11,18 @@ class urukul_profile_switch(EnvExperiment):
 
     def build(self):
         self.setattr_device('core')
+        self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch0")
         self.setattr_device("urukul0_ch1")
         self.setattr_device("urukul0_ch2")
         self.setattr_device("urukul0_ch3")
+        self.setattr_device("urukul1_cpld")
         self.setattr_device("urukul1_ch0")
         self.setattr_device("urukul1_ch1")
         self.setattr_device("urukul1_ch2")
         self.setattr_device("urukul1_ch3")
+
+        self.setattr_device("ttl8")
 
     def prepare(self):
         self.dds = self.urukul0_ch3
@@ -35,11 +39,12 @@ class urukul_profile_switch(EnvExperiment):
         self.time_profile_mu = self.core.seconds_to_mu(1 * ms)
         self.time_ram_mu = self.core.seconds_to_mu(10 * ms)
 
-        self.asf = self.urukul0_ch0.amplitude_to_asf(1)
+        self.asf = self.urukul0_ch0.amplitude_to_asf(0.8)
+
         self.ftw = self.urukul0_ch0.frequency_to_ftw(50 * MHz)
-        self.ftw2 = self.urukul0_ch0.frequency_to_ftw(45 * MHz)
+        self.ftw2 = self.urukul0_ch0.frequency_to_ftw(60 * MHz)
         self.ftw3 = self.urukul0_ch0.frequency_to_ftw(55 * MHz)
-        self.ftw4 = self.urukul0_ch0.frequency_to_ftw(42 * MHz)
+        self.ftw4 = self.urukul0_ch0.frequency_to_ftw(100 * MHz)
 
     @kernel
     def run(self):
@@ -47,8 +52,22 @@ class urukul_profile_switch(EnvExperiment):
 
         self.core.break_realtime()
 
-        self.dds.sw.on()
-        delay(3*s)
+        # self.urukul0_ch2.sw.on()
+        # self.urukul0_ch3.sw.on()
+        # self.core.break_realtime()
+        # self.urukul0_ch2.set_mu(self.ftw, asf=self.asf, profile=0)
+        # self.core.break_realtime()
+        # self.urukul0_ch3.set_mu(self.ftw2, asf=self.asf, profile=0)
+        #
+        # delay(1*s)
+        #
+        # self.urukul0_ch2.set_mu(self.ftw3, asf=self.asf, profile=1)
+        # self.core.break_realtime()
+        #self.urukul0_ch3.set_mu(self.ftw4, asf=self.asf, profile=1)
+        #self.ttl8.off()
+        with parallel:
+            self.urukul0_cpld.set_profile(1)
+            self.ttl8.on()
 
         # self.dds.cpld.set_profile(0)
         # #self.dds.set_mu(self.ftw, asf=0x3fff, profile=0)
@@ -58,12 +77,12 @@ class urukul_profile_switch(EnvExperiment):
         # self.dds.cpld.set_profile(1)
         # #self.dds.set_mu(self.ftw2, asf=0x1fff, profile=1)
         # #self.dds.sw.on()
-       # self.dds.set_mu(self.ftw3, asf=self.asf, profile=2)
-        self.dds.cpld.set_profile(2)
-        delay(3 * s)
+        # self.dds.set_mu(self.ftw3, asf=self.asf, profile=2)
+        # self.dds.cpld.set_profile(2)
+        # delay(3 * s)
         #self.dds.set_mu(self.ftw4, asf=self.asf, profile=3)
-        self.dds.cpld.set_profile(3)
-        delay(3*s)
+        # self.dds.cpld.set_profile(3)
+        # delay(3*s)
 
 
     def analyze(self):
