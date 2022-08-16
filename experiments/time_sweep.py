@@ -14,7 +14,6 @@ class TimeSweep(EnvExperiment):
     #kernel_invariants = {}
 
     def build(self):
-        print('kk123')
         """
         Set devices and arguments for the experiment.
         """
