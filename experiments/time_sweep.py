@@ -14,6 +14,7 @@ class TimeSweep(EnvExperiment):
     #kernel_invariants = {}
 
     def build(self):
+        print('kk123')
         """
         Set devices and arguments for the experiment.
         """
@@ -21,23 +22,23 @@ class TimeSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_854_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_readout_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_854_us",            NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_us",        NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
-        self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
+        self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
         self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
-        # qubit frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(100, 120, 5),
-                                                                  global_min=60, global_max=200, global_step=1,
-                                                                  unit="MHz", scale=1, ndecimals=3))
-
+        # qubit frequency scan  #RangeScan(100, 120, 5)
+       # self.setattr_argument("freq_qubit_scan_mhz",    Scannable(default=RangeScan(109, 111, 401),
+         #                                                         global_min=60, global_max=200, global_step=1,
+           #                                                        unit="MHz", scale=1, ndecimals=3))
+        self.freq_qubit_scan_mhz = [110]
         # qubit time scan
-        self.setattr_argument("time_sweep_us",          Scannable(default=RangeScan(1, 1000, 21),
+        self.setattr_argument("time_sweep_us",          Scannable(default=RangeScan(1, 2000, 200, randomize=True),
                                                                   global_min=1, global_max=10000, global_step=1,
                                                                   unit="us", scale=1, ndecimals=0))
 
@@ -60,7 +61,8 @@ class TimeSweep(EnvExperiment):
 
         # DDS devices
         self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_qubit_channel))
+        #self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_qubit_channel))
+        self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(0, 0))
 
         # convert dds values to machine units - qubit
         self.ftw_to_frequency = 1e9 / (2**32 - 1)
@@ -72,8 +74,8 @@ class TimeSweep(EnvExperiment):
         # convert dds values to machine units - everything else
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(0.5)
 
-        # set up datasets
-        self.set_dataset("laser_scan", [], broadcast=True)
+        # set up datasets\
+        #self.set_dataset("tmp", [], broadcast=True)
 
         # tmp remove:
         self.setattr_device('urukul1_cpld')
@@ -102,8 +104,8 @@ class TimeSweep(EnvExperiment):
                 self.core.break_realtime()
 
                 # set freq and ampl for qubit
-                #freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                #self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
+                freq_mu = self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                self.dds_qubit.set_mu(freq_mu, asf=self.ampl_qubit_asf)
                 self.core.break_realtime()
 
                 # sweep time
@@ -128,10 +130,12 @@ class TimeSweep(EnvExperiment):
 
                     # get pmt counts (actual)
                     self.core_dma.playback_handle(handle)
+                    pmt_actual = self.pmt_counter.fetch_count()
 
                     # update dataset
                     with parallel:
-                        self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+                        #self.update_dataset(time_mu, freq_mhz, self.pmt_counter.fetch_count(), pmt_calib)
+                        self.update_dataset(time_mu, freq_mhz, pmt_actual, pmt_calib)
                         self.core.break_realtime()
 
         # reset after experiment
