@@ -1,14 +1,13 @@
 import numpy as np
 from artiq.experiment import *
-# todo: upload data to labrad
-# todo: check scannable works correctly
 _DMA_HANDLE_READOUT = "time_sweep_readout"
 
 
-class TimeSweep(EnvExperiment):
+class TimeSweepCoolingSwitch(EnvExperiment):
     """
-    729nm Laser Time Sweep
-    Measures ion fluorescence vs AOM detuning
+    729nm Laser Time Sweep w/Fast Switching of 397nm
+    Measures ion fluorescence vs AOM detuning.
+    397nm changes parameters between cooling and readout.
     """
 
     #kernel_invariants = {}
@@ -28,7 +27,8 @@ class TimeSweep(EnvExperiment):
         self.setattr_argument("time_readout_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
-        self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
+        self.setattr_argument("dds_board_num",          NumberValue(default=0, ndecimals=0, step=1, min=0, max=1))
+        self.setattr_argument("dds_qubit_board_num",    NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("dds_qubit_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # qubit frequency scan
