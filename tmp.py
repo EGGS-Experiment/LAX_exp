@@ -36,13 +36,12 @@ class Testing(EnvExperiment):
 
     @kernel
     def run(self):
-        self.core.break_realtime()
-        self.urukul0_ch0.set_mu(self.ftw, asf=self.asf)
-        self.core.break_realtime()
-        self.core.break_realtime()
-        #self.urukul0_ch0.cfg_sw(1)
-        self.urukul0_ch0.set_att_mu(0xff)
-        pass
+        self.core.reset()
+
+        self.urukul0_ch2.init()
+        #self.core.break_realtime()
+
+
 
 
     def analyze(self):
