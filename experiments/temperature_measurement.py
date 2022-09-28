@@ -43,8 +43,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("dds_repump_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(63, 90, 10),
-                                                                  global_min=60, global_max=110, global_step=1,
+        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(90, 130, 11),
+                                                                  global_min=80, global_max=140, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=1))
 
         # AOM parameters

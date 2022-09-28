@@ -14,8 +14,9 @@ _DMA_HANDLE_OFF = "temperature_measurement_off"
 
 class TemperatureMeasurement(EnvExperiment):
     """
-    Temperature Measurement
+    Temperature Measurement - Transpose
     Measures ion fluorescence for a single detuning.
+    Sweeps frequency within each trial.
     """
 
     #kernel_invariants = {}
@@ -42,8 +43,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("dds_repump_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(63, 96, 12),
-                                                                  global_min=60, global_max=110, global_step=1,
+        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(90, 130, 11),
+                                                                  global_min=80, global_max=140, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=1))
 
         # AOM parameters
@@ -106,7 +107,7 @@ class TemperatureMeasurement(EnvExperiment):
         #self.set_dataset("ion_calibration", [], broadcast=True)
 
         # attenuations:
-        self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6]
+        self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6] + 15
         self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
 
@@ -229,8 +230,8 @@ class TemperatureMeasurement(EnvExperiment):
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
 
         # todo: remove
-        self.urukul1_ch3.set_att(7 * dB)
-        self.core.break_realtime()
+        # self.urukul1_ch3.set_att(7 * dB)
+        # self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):
