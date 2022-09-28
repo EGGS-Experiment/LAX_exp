@@ -19,8 +19,8 @@ class locking_read(EnvExperiment):
         self.setattr_argument("channel_blank", NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
 
         # gain
-        self.setattr_argument("gain_error_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("gain_dac_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("gain_error_10dB", NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("gain_dac_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("gain_blank_10dB", NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
 
         # timing
@@ -40,7 +40,7 @@ class locking_read(EnvExperiment):
         self.repetitions = np.int32(self.time_total_s / self.time_delay_us * 1e6)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]), broadcast=True)
+        self.set_dataset('locking_readout', np.zeros([self.repetitions, 2]), broadcast=True)
         self.setattr_dataset('locking_readout')
 
 
@@ -74,14 +74,8 @@ class locking_read(EnvExperiment):
         """
         self.mutate_dataset("locking_readout",
                             i,
-                            [arr[self.channel_error] * self.adc_mu_to_volts_error,
-                             arr[self.channel_dac] * self.adc_mu_to_volts_dac,
-                             arr[self.channel_blank] * self.adc_mu_to_volts_blank])
+                            [i, arr[self.channel_error] * self.adc_mu_to_volts_error])
 
 
     def analyze(self):
-        print(self.locking_readout)
-        for channel_num in range(len(self.locking_readout[0])):
-            dataset_tmp = self.locking_readout[:, channel_num]
-            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(channel_num, np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
-        #pass
+        pass
