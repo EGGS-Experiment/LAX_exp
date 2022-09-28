@@ -107,8 +107,9 @@ class TemperatureMeasurement(EnvExperiment):
         #self.set_dataset("ion_calibration", [], broadcast=True)
 
         # attenuations:
-        self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6] + 15
-        self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
+        self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6]
+        #self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
+        self.att_probe = [np.int32(0xFF) - np.int32(round((att_dB + 15) * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
 
         # tmp remove
