@@ -2,12 +2,15 @@ import numpy as np
 from artiq.experiment import *
 
 # todo: turn relevant lasers off before switching and delay, then turn on
-_DMA_HANDLE_READOUT = "sideband_cooling"
+_DMA_HANDLE_COOLING = "rabi_flopping_cooling"
+_DMA_HANDLE_READOUT = "rabi_flopping_readout"
+_DMA_HANDLE_REPUMP = "rabi_flopping_repump"
 
 
-class SidebandCooling(EnvExperiment):
+class RabiFlopping(EnvExperiment):
     """
-    Sideband cooling of Ca-40+.
+    Rabi Flopping
+    Measures ion fluorescence vs 729nm on time
     """
 
     # kernel_invariants = {}

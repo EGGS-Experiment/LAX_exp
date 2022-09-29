@@ -8,7 +8,7 @@ _DMA_HANDLE_READOUT = "time_sweep_readout"
 class TimeSweep(EnvExperiment):
     """
     729nm Laser Time Sweep
-    Measures ion fluorescence vs AOM detuning
+    Measures ion fluorescence vs 729nm Time (i.e. Rabi Flopping)
     """
 
     #kernel_invariants = {}
