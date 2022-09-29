@@ -29,7 +29,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=3750, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_delay_us",          NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
@@ -43,12 +43,12 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("dds_repump_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(90, 130, 11),
+        self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(70, 146, 20, randomize=True),
                                                                   global_min=80, global_max=140, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=1))
 
         # AOM parameters
-        self.setattr_argument("freq_pump_mhz",          NumberValue(default=120, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
 
         # PMT
@@ -82,6 +82,7 @@ class TemperatureMeasurement(EnvExperiment):
         # convert dds values to machine units - probe
         self.ftw_to_frequency = 1e9 / (2**32 - 1)
         self.freq_probe_scan_mhz2 = list(self.freq_probe_scan_mhz)
+        print(self.freq_probe_scan_mhz2)
         self.freq_probe_scan_ftw = [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz2]
 
         # convert dds values to machine units - everything else
@@ -92,10 +93,10 @@ class TemperatureMeasurement(EnvExperiment):
         self.ampl_repump_asf = self.dds_probe.amplitude_to_asf(0.5)
 
         # get DDS board switch states, on/off signifies repump on/off
-        self.dds_switch_pump_states_on = 0b1100 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_on = 0b1100 | (0b1 << self.dds_probe_channel)
-        self.dds_switch_pump_states_off = 0b1000 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_off = 0b1000 | (0b1 << self.dds_probe_channel)
+        self.dds_switch_pump_states_on = 0b0100 | (0b1 << self.dds_pump_channel)
+        self.dds_switch_probe_states_on = 0b0100 | (0b1 << self.dds_probe_channel)
+        self.dds_switch_pump_states_off = 0b0000 | (0b1 << self.dds_pump_channel)
+        self.dds_switch_probe_states_off = 0b0000 | (0b1 << self.dds_probe_channel)
 
         # ADC
         self.adc = self.get_device("sampler0")
@@ -107,9 +108,20 @@ class TemperatureMeasurement(EnvExperiment):
         #self.set_dataset("ion_calibration", [], broadcast=True)
 
         # attenuations:
-        self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6]
-        #self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
-        self.att_probe = [np.int32(0xFF) - np.int32(round((att_dB + 15) * 8)) for att_dB in self.att_probe]
+        # original
+        #self.att_probe = [6.5, 8.5, 10, 11.5, 12.5, 13, 13, 13, 12.5, 11, 8.5, 6]
+        # below is for 30uW @729nm setting
+        #self.att_probe = [25.0, 24.5, 24.0, 22.0, 23.5, 24.5, 24.5, 24.0, 24.0, 23.5, 22.5]
+        # below is for 30uW @729nm setting, but with more points (4MHz steps, 70 to 146 MHz)
+        #self.att_probe = [24.5, 24.0, 24.0, 24.0, 24.5, 25.0, 24.5, 24.0, 22.0, 23.5, 24.5, 24.5, 24.0, 24.0, 23.5, 22.5, 21.5, 19.5, 16.5, 13.0]
+        # below is for 5uW @729nm setting
+        att_freqs = np.linspace(70,146,20)
+        att_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])
+        att_dict = dict(np.concatenate([[att_freqs], [att_vals]]).transpose())
+        print(att_dict)
+        self.att_probe = [att_dict[freq] for freq in self.freq_probe_scan_mhz2]
+        print(self.att_probe)
+        self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
 
         # tmp remove
