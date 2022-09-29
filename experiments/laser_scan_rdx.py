@@ -1,19 +1,17 @@
 import numpy as np
 from artiq.experiment import *
-
-# todo: turn relevant lasers off before switching and delay, then turn on
-_DMA_HANDLE_COOLING = "rabi_flopping_cooling"
-_DMA_HANDLE_READOUT = "rabi_flopping_readout"
-_DMA_HANDLE_REPUMP = "rabi_flopping_repump"
+# todo: upload data to labrad
+# todo: check scannable works correctly
+_DMA_HANDLE_TIMESWEEP = "timesweep"
 
 
-class RabiFlopping(EnvExperiment):
+class LaserScanRDX(EnvExperiment):
     """
-    Rabi Flopping
-    Measures ion fluorescence vs 729nm on time
+    729nm Laser Scan but better
+    Gets 729nm Spectrum
     """
 
-    # kernel_invariants = {}
+    #kernel_invariants = {}
 
     def build(self):
         """
@@ -27,7 +25,9 @@ class RabiFlopping(EnvExperiment):
 
         # timing
         self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_cooling_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_readout_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
@@ -55,14 +55,6 @@ class RabiFlopping(EnvExperiment):
         self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
-        self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=18, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=14, ndecimals=1, step=0.5, min=8, max=31.5))
-
-        # qubit time scan
-        self.setattr_argument("time_sweep_us",                  Scannable(default=RangeScan(1, 1000, 21),
-                                                                    global_min=1, global_max=10000, global_step=1,
-                                                                    unit="us", scale=1, ndecimals=0))
-
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(109, 111, 401),
                                                                     global_min=60, global_max=200, global_step=1,
@@ -83,7 +75,9 @@ class RabiFlopping(EnvExperiment):
 
         # convert time values to machine units
         self.time_profileswitch_delay_mu = self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_cooling_mu = self.core.seconds_to_mu(self.time_cooling_us * us)
         self.time_readout_mu = self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
         self.time_repump_qubit_mu = self.core.seconds_to_mu(self.time_repump_qubit_us * us)
 
         # DDS devices
@@ -131,7 +125,7 @@ class RabiFlopping(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        handle = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -145,58 +139,67 @@ class RabiFlopping(EnvExperiment):
                 self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
                 self.core.break_realtime()
 
-                # sweep time
-                for rabi_time_mu in self.time_sweep_mu:
-                    # turn on qubit repump (854) to pump back down
-                    with parallel:
-                        self.dds_board.cfg_switches(0b1100)
-                        delay_mu(self.time_repump_qubit_mu)
-                    self.dds_board.cfg_switches(0b0100)
+                # run sequence
+                self.core_dma.playback_handle(handle)
 
-                    # get pmt counts w/397 on for calibration
-                    self.core_dma.playback_handle(handle)
-                    pmt_calib = self.pmt_counter.fetch_count()
+                # update dataset
+                with parallel:
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
-
-                    # rabi flopping w/qubit laser
-                    with parallel:
-                        self.dds_qubit.cfg_sw(1)
-                        delay_mu(rabi_time_mu)
-                    self.dds_qubit.cfg_sw(0)
-
-                    # get pmt counts (actual)
-                    self.core_dma.playback_handle(handle)
-
-                    # update dataset
-                    with parallel:
-                        self.update_dataset(rabi_time_mu, freq_ftw, self.pmt_counter.fetch_count(), pmt_calib)
-                        self.core.break_realtime()
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
+
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        with self.core_dma.record(_DMA_HANDLE_READOUT):
+        # cooling sequence
+        with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
+            # turn on qubit repump for given time
+            with parallel:
+                self.dds_board.cfg_switches(0b1100)
+                delay_mu(self.time_repump_qubit_mu)
+
+            # turn off repump
+            self.dds_board.cfg_switches(0b0100)
+
+            # cooling
+            with sequential:
+                # turn on cooling light
+                with parallel:
+                    self.dds_board.set_profile(0)
+                    self.dds_board.cfg_switches(0b1110)
+                    delay_mu(self.time_profileswitch_delay_mu)
+
+                # cool for given time
+                delay_mu(self.time_cooling_mu)
+
+                # turn off cooling light
+                self.dds_board.cfg_switches(0b1100)
+
+            # 729
+            with parallel:
+                self.dds_qubit.cfg_sw(1)
+                delay_mu(self.time_729_mu)
+            self.dds_qubit.cfg_sw(0)
+
+            # readout
             with sequential:
                 # change profile to allow readout light
                 with parallel:
                     self.dds_board.set_profile(1)
-                    self.dds_qubit_board.set_profile(1)
+                    self.dds_board.cfg_switches(0b1110)
                     delay_mu(self.time_profileswitch_delay_mu)
 
-                # read PMT counts
+                # read PMT counts for given time
                 self.pmt_gating_edge(self.time_readout_mu)
 
                 # change profile to stop readout light
-                with parallel:
-                    self.dds_board.set_profile(0)
-                    self.dds_qubit_board.set_profile(0)
-                    delay_mu(self.time_profileswitch_delay_mu)
+                self.dds_board.cfg_switches(0b1100)
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -248,11 +251,11 @@ class RabiFlopping(EnvExperiment):
         self.core.break_realtime()
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, freq_ftw, pmt_counts, pmt_calib):
+    def update_dataset(self, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts, pmt_calib])
+        self.append_to_dataset('laser_scan_rdx', [freq_ftw * self.ftw_to_mhz, pmt_counts])
 
     def analyze(self):
         """
