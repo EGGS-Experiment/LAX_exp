@@ -55,8 +55,8 @@ class RabiFlopping(EnvExperiment):
         self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
-        self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=18, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=14, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # qubit time scan
         self.setattr_argument("time_sweep_us",                  Scannable(default=RangeScan(1, 1000, 21),
@@ -115,6 +115,10 @@ class RabiFlopping(EnvExperiment):
         self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_cooling_pct / 100))
         self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_qubit_pct / 100))
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+
+        # sort out attenuation
+        self.att_cooling = np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        self.att_readout = np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("laser_scan", [], broadcast=True)
@@ -183,6 +187,9 @@ class RabiFlopping(EnvExperiment):
         """
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             with sequential:
+                # set cooling attenuation
+                self.dds_board.set_all_att_mu(self.att_reg_cooling)
+
                 # change profile to allow readout light
                 with parallel:
                     self.dds_board.set_profile(1)
@@ -191,6 +198,9 @@ class RabiFlopping(EnvExperiment):
 
                 # read PMT counts
                 self.pmt_gating_edge(self.time_readout_mu)
+
+                # set readout attenuation
+                self.dds_board.set_all_att_mu(self.att_reg_readout)
 
                 # change profile to stop readout light
                 with parallel:
@@ -210,6 +220,13 @@ class RabiFlopping(EnvExperiment):
         self.core.break_realtime()
         # self.dds_qubit_board.init()
         self.core.break_realtime()
+
+        # sort out att reg
+        att_reg_old = np.int32(self.dds_board.get_att_mu())
+        att_reg_old &= ~(0xFF << (8 * self.dds_pump_channel))
+
+        self.att_reg_cooling = att_reg_old | (self.att_reg_cooling << (self.dds_pump_channel * 8))
+        self.att_reg_readout = att_reg_old | (self.att_reg_readout << (self.dds_pump_channel * 8))
 
         # set AOM DDS waveforms
         # profile 0 is block, profile 1 is pass

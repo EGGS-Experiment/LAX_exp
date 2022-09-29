@@ -38,7 +38,7 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("dds_repump_qubit_channel",       NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
 
         # AOM DDS channels - qubit
-        self.setattr_argument("dds_qubit_board_num",            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("dds_board_qubit_num",            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("dds_qubit_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # AOM DDS parameters
@@ -54,6 +54,9 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("ampl_repump_cooling_pct",        NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
+
+        self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(109, 111, 401),
@@ -82,7 +85,7 @@ class LaserScanRDX(EnvExperiment):
 
         # DDS devices
         self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board = self.get_device("urukul{:d}_cpld".format(self.dds_qubit_board_num))
+        self.dds_qubit_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
         self.dds_probe = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
@@ -110,8 +113,12 @@ class LaserScanRDX(EnvExperiment):
         self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_qubit_pct / 100))
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
+        # sort out attenuation
+        self.att_cooling = np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        self.att_readout = np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+
         # set up datasets
-        self.set_dataset("laser_scan", [], broadcast=True)
+        self.set_dataset("laser_scan_rdx", [], broadcast=True)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -169,6 +176,9 @@ class LaserScanRDX(EnvExperiment):
 
             # cooling
             with sequential:
+                # set cooling attenuation
+                self.dds_board.set_all_att_mu(self.att_reg_cooling)
+
                 # turn on cooling light
                 with parallel:
                     self.dds_board.set_profile(0)
@@ -182,6 +192,8 @@ class LaserScanRDX(EnvExperiment):
                 self.dds_board.cfg_switches(0b1100)
 
             # 729
+            # ensure 854 and cooling are off
+            self.dds_board.cfg_switches(0b0100)
             with parallel:
                 self.dds_qubit.cfg_sw(1)
                 delay_mu(self.time_729_mu)
@@ -189,10 +201,13 @@ class LaserScanRDX(EnvExperiment):
 
             # readout
             with sequential:
+                # set cooling attenuation
+                self.dds_board.set_all_att_mu(self.att_reg_readout)
+
                 # change profile to allow readout light
                 with parallel:
                     self.dds_board.set_profile(1)
-                    self.dds_board.cfg_switches(0b1110)
+                    self.dds_board.cfg_switches(0b0110)
                     delay_mu(self.time_profileswitch_delay_mu)
 
                 # read PMT counts for given time
@@ -213,6 +228,14 @@ class LaserScanRDX(EnvExperiment):
         self.core.break_realtime()
         # self.dds_qubit_board.init()
         self.core.break_realtime()
+
+        # sort out att reg
+        att_reg_old = np.int32(self.dds_board.get_att_mu())
+        att_reg_old &= ~(0xFF << (8 * self.dds_pump_channel))
+
+        self.att_reg_cooling = att_reg_old | (self.att_reg_cooling << (self.dds_pump_channel * 8))
+        self.att_reg_readout = att_reg_old | (self.att_reg_readout << (self.dds_pump_channel * 8))
+
 
         # set AOM DDS waveforms
         # profile 0 is block, profile 1 is pass
