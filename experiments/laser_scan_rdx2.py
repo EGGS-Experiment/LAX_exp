@@ -24,7 +24,6 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=500, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_cooling_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_readout_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_729_us",                    NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
@@ -77,7 +76,6 @@ class LaserScanRDX(EnvExperiment):
         self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_profileswitch_delay_mu = self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
         self.time_cooling_mu = self.core.seconds_to_mu(self.time_cooling_us * us)
         self.time_readout_mu = self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
@@ -133,8 +131,8 @@ class LaserScanRDX(EnvExperiment):
         self.prepareDevices()
 
         # record dma and get handle
-        self.DMArecord()
-        handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
+        #self.DMArecord()
+        #handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -149,7 +147,41 @@ class LaserScanRDX(EnvExperiment):
                 self.core.break_realtime()
 
                 # run sequence
-                self.core_dma.playback_handle(handle)
+                #self.core_dma.playback_handle(handle)
+
+                # repump pulse
+                self.dds_board.cfg_switches(0b1100)
+                delay_mu(self.time_repump_qubit_mu)
+                self.dds_board.cfg_switches(0b0100)
+                print('yzde')
+
+                # cooling
+                # set cooling waveform
+                with parallel:
+                    self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
+                    self.dds_pump.set_att_mu(self.att_cooling_mu)
+
+                # cooling pulse
+                self.dds_board.cfg_switches(0b0110)
+                delay_mu(self.time_cooling_mu)
+                self.dds_board.cfg_switches(0b0100)
+
+                # 729
+                # ensure 854 and cooling are off
+                self.dds_qubit.cfg_sw(1)
+                delay_mu(self.time_729_mu)
+                self.dds_qubit.cfg_sw(0)
+
+                # readout
+                # set readout waveform
+                #with parallel:
+                self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
+                self.dds_pump.set_att_mu(self.att_readout_mu)
+
+                # readout pulse
+                self.dds_board.cfg_switches(0b0110)
+                self.pmt_gating_edge(self.time_readout_mu)
+                self.dds_board.cfg_switches(0b0100)
 
                 # update dataset
                 with parallel:
@@ -158,7 +190,6 @@ class LaserScanRDX(EnvExperiment):
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
-        #self.dds_board.set_profile(0)
         self.dds_qubit.cfg_sw(0)
 
 
@@ -169,51 +200,37 @@ class LaserScanRDX(EnvExperiment):
         """
         # cooling sequence
         with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
-            # turn on qubit repump for given time
-            with parallel:
-                self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_qubit_mu)
-
-            # turn off repump
+            # repump pulse
+            self.dds_board.cfg_switches(0b1100)
+            delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # cooling
-            # set cooling attenuation
-            self.dds_pump.set_att_mu(self.att_cooling_mu)
-
-            # turn on cooling light
+            # set cooling waveform
             with parallel:
-                #self.dds_board.set_profile(0)
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_profileswitch_delay_mu)
+                self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
+                self.dds_pump.set_att_mu(self.att_cooling_mu)
 
-            # cool for given time
+            # cooling pulse
+            self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_cooling_mu)
-
-            # turn off cooling light
             self.dds_board.cfg_switches(0b0100)
 
             # 729
             # ensure 854 and cooling are off
-            with parallel:
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(self.time_729_mu)
-
+            self.dds_qubit.cfg_sw(1)
+            delay_mu(self.time_729_mu)
             self.dds_qubit.cfg_sw(0)
 
-            # set readout attenuation
-            self.dds_pump.set_att_mu(self.att_readout_mu)
-
-            # change profile to allow readout light
+            # readout
+            # set readout waveform
             with parallel:
-                #self.dds_board.set_profile(1)
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_profileswitch_delay_mu)
+                self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
+                self.dds_pump.set_att_mu(self.att_readout_mu)
 
-            # read PMT counts for given time
+            # readout pulse
+            self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
-
-            # change profile to stop readout light
             self.dds_board.cfg_switches(0b0100)
 
     @kernel(flags={"fast-math"})
@@ -224,9 +241,6 @@ class LaserScanRDX(EnvExperiment):
         self.core.break_realtime()
 
         # initialize dds boards
-        # self.dds_board.init()
-        self.core.break_realtime()
-        # self.dds_qubit_board.init()
         self.core.break_realtime()
 
         # sort out att reg
@@ -235,39 +249,24 @@ class LaserScanRDX(EnvExperiment):
         self.core.break_realtime()
 
         # set AOM DDS waveforms
-        # profile 0 is block, profile 1 is pass
-        # self.dds_probe.init()
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
-        #self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
         self.dds_probe.cfg_sw(0)
         self.core.break_realtime()
 
-        # self.dds_pump.init()
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf, profile=0)
-        #self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
         self.dds_pump.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_repump_cooling.init()
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
-        #self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf)
         self.dds_repump_cooling.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_repump_qubit.init()
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
-        #self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf)
         self.dds_repump_qubit.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_qubit.init()
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.dds_qubit.cfg_sw(0)
-        self.core.break_realtime()
-
-        # set correct profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
         self.core.break_realtime()
 
     @rpc(flags={"async"})
