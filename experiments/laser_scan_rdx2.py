@@ -24,10 +24,10 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_cooling_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_729_us",                    NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_cooling_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_readout_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",                  NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
@@ -97,18 +97,18 @@ class LaserScanRDX(EnvExperiment):
         # todo: check that list comprehension works
         self.freq_qubit_scan_ftw = [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
-        self.freq_probe_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_probe_mhz * MHz))
-        self.freq_pump_cooling_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_pump_cooling_mhz * MHz))
-        self.freq_pump_readout_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_pump_readout_mhz * MHz))
-        self.freq_repump_cooling_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_repump_cooling_mhz * MHz))
-        self.freq_repump_qubit_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_repump_qubit_mhz * MHz))
+        self.freq_probe_ftw = self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_pump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_probe_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_probe_pct / 100))
-        self.ampl_pump_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_pump_pct / 100))
-        self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_cooling_pct / 100))
-        self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_qubit_pct / 100))
+        self.ampl_probe_asf = self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_pump_asf = self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
@@ -130,9 +130,12 @@ class LaserScanRDX(EnvExperiment):
         # prepare devices
         self.prepareDevices()
 
-        # record dma and get handle
-        #self.DMArecord()
-        #handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
+        # record dma
+        self.DMArecord()
+        self.core.break_realtime()
+
+        # get dma handle
+        handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -147,41 +150,7 @@ class LaserScanRDX(EnvExperiment):
                 self.core.break_realtime()
 
                 # run sequence
-                #self.core_dma.playback_handle(handle)
-
-                # repump pulse
-                self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_qubit_mu)
-                self.dds_board.cfg_switches(0b0100)
-                print('yzde')
-
-                # cooling
-                # set cooling waveform
-                with parallel:
-                    self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-                    self.dds_pump.set_att_mu(self.att_cooling_mu)
-
-                # cooling pulse
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_cooling_mu)
-                self.dds_board.cfg_switches(0b0100)
-
-                # 729
-                # ensure 854 and cooling are off
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(self.time_729_mu)
-                self.dds_qubit.cfg_sw(0)
-
-                # readout
-                # set readout waveform
-                #with parallel:
-                self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
-                self.dds_pump.set_att_mu(self.att_readout_mu)
-
-                # readout pulse
-                self.dds_board.cfg_switches(0b0110)
-                self.pmt_gating_edge(self.time_readout_mu)
-                self.dds_board.cfg_switches(0b0100)
+                self.core_dma.playback_handle(handle)
 
                 # update dataset
                 with parallel:
@@ -192,13 +161,11 @@ class LaserScanRDX(EnvExperiment):
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
 
-
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        # cooling sequence
         with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
             # repump pulse
             self.dds_board.cfg_switches(0b1100)
@@ -207,9 +174,8 @@ class LaserScanRDX(EnvExperiment):
 
             # cooling
             # set cooling waveform
-            with parallel:
-                self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-                self.dds_pump.set_att_mu(self.att_cooling_mu)
+            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
+            self.dds_pump.set_att_mu(self.att_cooling_mu)
 
             # cooling pulse
             self.dds_board.cfg_switches(0b0110)
@@ -224,9 +190,8 @@ class LaserScanRDX(EnvExperiment):
 
             # readout
             # set readout waveform
-            with parallel:
-                self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
-                self.dds_pump.set_att_mu(self.att_readout_mu)
+            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
+            self.dds_pump.set_att_mu(self.att_readout_mu)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
