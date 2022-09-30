@@ -21,12 +21,12 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_cooling_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_729_us",                    NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=4000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
 
         # AOM DDS channels
@@ -42,8 +42,8 @@ class LaserScanRDX(EnvExperiment):
 
         # AOM DDS parameters
         self.setattr_argument("freq_probe_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
@@ -55,10 +55,10 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
         self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=19.5, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(109, 111, 401),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 4001),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
