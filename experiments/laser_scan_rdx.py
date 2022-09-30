@@ -185,6 +185,7 @@ class LaserScanRDX(EnvExperiment):
             with parallel:
                 self.dds_qubit.cfg_sw(1)
                 delay_mu(self.time_729_mu)
+
             self.dds_qubit.cfg_sw(0)
 
             # readout
