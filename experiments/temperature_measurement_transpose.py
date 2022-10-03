@@ -10,9 +10,10 @@ _DMA_HANDLE_OFF = "temperature_measurement_off"
 # todo: set up ion calibration properly
 # todo: fix ADC
 # todo: set attenuations problem
+# todo: remove freq_probe_scan_mhz2 and fix scannables problem
 
 
-class TemperatureMeasurement(EnvExperiment):
+class TemperatureMeasurementTranspose(EnvExperiment):
     """
     Temperature Measurement - Transpose
     Measures ion fluorescence for a single detuning.
@@ -29,7 +30,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_delay_us",          NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
@@ -82,7 +83,6 @@ class TemperatureMeasurement(EnvExperiment):
         # convert dds values to machine units - probe
         self.ftw_to_frequency = 1e9 / (2**32 - 1)
         self.freq_probe_scan_mhz2 = list(self.freq_probe_scan_mhz)
-        print(self.freq_probe_scan_mhz2)
         self.freq_probe_scan_ftw = [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz2]
 
         # convert dds values to machine units - everything else
@@ -104,8 +104,10 @@ class TemperatureMeasurement(EnvExperiment):
         self.adc_mu_to_volts = (10 ** (1 - self.photodiode_gain)) / (2 ** 15)
 
         # set up datasets
-        self.set_dataset("temperature_measurement", [], broadcast=True)
-        #self.set_dataset("ion_calibration", [], broadcast=True)
+        self.set_dataset("temperature_measurement", [])
+        self.setattr_dataset("temperature_measurement")
+        self.set_dataset("temperature_measurement_processed", np.zeros([len(self.freq_probe_scan_mhz), 3]))
+        self.setattr_dataset("temperature_measurement_processed")
 
         # attenuations:
         # original
@@ -115,12 +117,10 @@ class TemperatureMeasurement(EnvExperiment):
         # below is for 30uW @729nm setting, but with more points (4MHz steps, 70 to 146 MHz)
         #self.att_probe = [24.5, 24.0, 24.0, 24.0, 24.5, 25.0, 24.5, 24.0, 22.0, 23.5, 24.5, 24.5, 24.0, 24.0, 23.5, 22.5, 21.5, 19.5, 16.5, 13.0]
         # below is for 5uW @729nm setting
-        att_freqs = np.linspace(70,146,20)
+        att_freqs = np.linspace(70, 146, 20)
         att_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])
         att_dict = dict(np.concatenate([[att_freqs], [att_vals]]).transpose())
-        print(att_dict)
         self.att_probe = [att_dict[freq] for freq in self.freq_probe_scan_mhz2]
-        print(self.att_probe)
         self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
 
@@ -166,19 +166,16 @@ class TemperatureMeasurement(EnvExperiment):
                 self.dds_repump.cfg_sw(1)
                 # run pulse sequence from core DMA
                 self.core_dma.playback_handle(handle_on)
-                #self.update_dataset2(freq_mhz, 1, self.pmt_counter.fetch_count())
 
                 # update dataset
                 with parallel:
                     self.update_dataset(freq_mhz, 1, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
-                #delay_mu(self.time_delay_mu)
 
                 # run the experiment (repump off)
                 self.dds_repump.cfg_sw(0)
                 # run pulse sequence from core DMA
                 self.core_dma.playback_handle(handle_off)
-                #self.update_dataset2(freq_mhz, 0, self.pmt_counter.fetch_count())
                 with parallel:
                     self.update_dataset(freq_mhz, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
@@ -252,23 +249,26 @@ class TemperatureMeasurement(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.append_to_dataset('temperature_measurement', [freq_mhz, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
-    #
-    # @rpc(flags={"async"})
-    # def update_dataset2(self, freq_mhz, repump_status, pmt_counts):
-    #     """
-    #     Records values via rpc to minimize kernel overhead.
-    #     """
-    #     self.append_to_dataset('ion_calibration', [freq_mhz, repump_status, pmt_counts])
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        pass
-        # data = self.get_dataset("temperature_measurement_repump_on")
-        # pmt_data = data[2500:, 1]
-        # pd_data = data[2500:, 2]
-        #
-        # print("repump on:")
-        # print("\tpmt counts: {:.2f} +/- {:.2f}".format(np.mean(pmt_data), np.std(pmt_data)))
-        # print("\tphotodiode value: {:.2f} +/- {:.2f}".format(np.mean(pd_data), np.std(pd_data)))
+        # turn dataset into numpy array for ease of use
+        self.temperature_measurement = np.array(self.temperature_measurement)
+
+        # get sorted x-values (frequency)
+        freq_list_mhz = sorted(set(self.temperature_measurement[:, 0]))
+
+        # collate results
+        collated_results = {
+            # two lists, one for w/repump (index 1), and one for w/o repump (index 0)
+            freq: [[], []]
+            for freq in freq_list_mhz
+        }
+        for freq_mhz, repump_status, pmt_counts, sampler_volts in self.temperature_measurement:
+            collated_results[freq_mhz][int(repump_status)].append(pmt_counts)
+
+        # process counts for mean and std and put into processed dataset
+        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+            self.temperature_measurement_processed[i] = np.array([freq_mhz, np.mean(count_list[1]) - np.mean(count_list[0]), np.std(count_list[1])])

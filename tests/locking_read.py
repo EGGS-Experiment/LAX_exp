@@ -24,8 +24,8 @@ class locking_read(EnvExperiment):
         self.setattr_argument("gain_blank_10dB", NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
 
         # timing
-        self.setattr_argument("time_delay_us", NumberValue(default=500, ndecimals=3, step=1, min=0.2, max=100))
-        self.setattr_argument("time_total_s", NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("time_delay_us", NumberValue(default=100, ndecimals=3, step=1, min=0.2, max=100))
+        self.setattr_argument("time_total_s", NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
 
 
     def prepare(self):
@@ -40,7 +40,7 @@ class locking_read(EnvExperiment):
         self.repetitions = np.int32(self.time_total_s / self.time_delay_us * 1e6)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]), broadcast=True)
+        self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]))
         self.setattr_dataset('locking_readout')
 
 

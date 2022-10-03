@@ -21,14 +21,13 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=500, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_cooling_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_729_us",                    NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=1000000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
 
         # AOM DDS channels
         self.setattr_argument("dds_board_num",                  NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
@@ -43,8 +42,8 @@ class LaserScanRDX(EnvExperiment):
 
         # AOM DDS parameters
         self.setattr_argument("freq_probe_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
@@ -56,10 +55,10 @@ class LaserScanRDX(EnvExperiment):
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
         self.setattr_argument("att_pump_cooling_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=21.5, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_readout_dB",          NumberValue(default=19.5, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(109, 111, 401),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 201),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
@@ -77,7 +76,6 @@ class LaserScanRDX(EnvExperiment):
         self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_profileswitch_delay_mu = self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
         self.time_cooling_mu = self.core.seconds_to_mu(self.time_cooling_us * us)
         self.time_readout_mu = self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
@@ -93,24 +91,23 @@ class LaserScanRDX(EnvExperiment):
         self.dds_repump_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
-        # convert dds values to machine units - frequency
+        # process scan frequencies
         self.ftw_to_mhz = 1e3 / (2 ** 32 - 1)
-        #self.freq_qubit_scan_mu = list(self.freq_qubit_scan_mhz)
-        # todo: check that list comprehension works
         self.freq_qubit_scan_ftw = [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
-        self.freq_probe_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_probe_mhz * MHz))
-        self.freq_pump_cooling_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_pump_cooling_mhz * MHz))
-        self.freq_pump_readout_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_pump_readout_mhz * MHz))
-        self.freq_repump_cooling_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_repump_cooling_mhz * MHz))
-        self.freq_repump_qubit_ftw = self.dds_qubit.frequency_to_ftw(np.int32(self.freq_repump_qubit_mhz * MHz))
+        # convert dds values to machine units - frequency
+        self.freq_probe_ftw = self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_pump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_probe_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_probe_pct / 100))
-        self.ampl_pump_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_pump_pct / 100))
-        self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_cooling_pct / 100))
-        self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(np.int32(self.ampl_repump_qubit_pct / 100))
+        self.ampl_probe_asf = self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_pump_asf = self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
@@ -120,7 +117,10 @@ class LaserScanRDX(EnvExperiment):
         self.att_readout_mu = np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("laser_scan_rdx", [], broadcast=True)
+        self.set_dataset("laser_scan_rdx", [])
+        self.setattr_dataset("laser_scan_rdx")
+        self.set_dataset("laser_scan_rdx_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("laser_scan_rdx_processed")
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -132,8 +132,11 @@ class LaserScanRDX(EnvExperiment):
         # prepare devices
         self.prepareDevices()
 
-        # record dma and get handle
+        # record dma
         self.DMArecord()
+        self.core.break_realtime()
+
+        # get dma handle
         handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
         self.core.break_realtime()
 
@@ -158,62 +161,43 @@ class LaserScanRDX(EnvExperiment):
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
-        #self.dds_board.set_profile(0)
         self.dds_qubit.cfg_sw(0)
-
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        # cooling sequence
         with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
-            # turn on qubit repump for given time
-            with parallel:
-                self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_qubit_mu)
-
-            # turn off repump
+            # repump pulse
+            self.dds_board.cfg_switches(0b1100)
+            delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # cooling
-            # set cooling attenuation
+            # set cooling waveform
+            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
             self.dds_pump.set_att_mu(self.att_cooling_mu)
 
-            # turn on cooling light
-            with parallel:
-                #self.dds_board.set_profile(0)
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # cool for given time
+            # cooling pulse
+            self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_cooling_mu)
-
-            # turn off cooling light
             self.dds_board.cfg_switches(0b0100)
 
             # 729
             # ensure 854 and cooling are off
-            with parallel:
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(self.time_729_mu)
-
+            self.dds_qubit.cfg_sw(1)
+            delay_mu(self.time_729_mu)
             self.dds_qubit.cfg_sw(0)
 
-            # set readout attenuation
+            # readout
+            # set readout waveform
+            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
             self.dds_pump.set_att_mu(self.att_readout_mu)
 
-            # change profile to allow readout light
-            with parallel:
-                #self.dds_board.set_profile(1)
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # read PMT counts for given time
+            # readout pulse
+            self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
-
-            # change profile to stop readout light
             self.dds_board.cfg_switches(0b0100)
 
     @kernel(flags={"fast-math"})
@@ -224,9 +208,6 @@ class LaserScanRDX(EnvExperiment):
         self.core.break_realtime()
 
         # initialize dds boards
-        # self.dds_board.init()
-        self.core.break_realtime()
-        # self.dds_qubit_board.init()
         self.core.break_realtime()
 
         # sort out att reg
@@ -235,39 +216,24 @@ class LaserScanRDX(EnvExperiment):
         self.core.break_realtime()
 
         # set AOM DDS waveforms
-        # profile 0 is block, profile 1 is pass
-        # self.dds_probe.init()
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
-        #self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
         self.dds_probe.cfg_sw(0)
         self.core.break_realtime()
 
-        # self.dds_pump.init()
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf, profile=0)
-        #self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
         self.dds_pump.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_repump_cooling.init()
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
-        #self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf)
         self.dds_repump_cooling.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_repump_qubit.init()
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
-        #self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf)
         self.dds_repump_qubit.cfg_sw(1)
         self.core.break_realtime()
 
-        # self.dds_qubit.init()
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.dds_qubit.cfg_sw(0)
-        self.core.break_realtime()
-
-        # set correct profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
         self.core.break_realtime()
 
     @rpc(flags={"async"})
@@ -281,5 +247,22 @@ class LaserScanRDX(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        pass
-        # todo: see if we can process data here instead, e.g. converting units
+        # turn dataset into numpy array for ease of use
+        self.laser_scan_rdx = np.array(self.laser_scan_rdx)
+
+        # get sorted x-values (frequency)
+        freq_list_mhz = sorted(set(self.laser_scan_rdx[:, 0]))
+
+        # collate results
+        collated_results = {
+            freq: []
+            for freq in freq_list_mhz
+        }
+        for freq_mhz, pmt_counts in self.laser_scan_rdx:
+            collated_results[freq_mhz].append(pmt_counts)
+
+        # process counts for mean and std and put into processed dataset
+        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+            self.laser_scan_rdx_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
+
+        print(self.laser_scan_rdx_processed)

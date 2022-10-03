@@ -7,10 +7,10 @@ _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 _DMA_HANDLE_REPUMP = "rabi_flopping_repump"
 
 
-class RabiFlopping(EnvExperiment):
+class RabiFloppingRDX(EnvExperiment):
     """
-    Rabi Flopping
-    Measures ion fluorescence vs 729nm on time
+    Rabi Flopping RDX
+    Measures ion fluorescence vs 729nm pulse time and frequency, but better than before
     """
 
     # kernel_invariants = {}
