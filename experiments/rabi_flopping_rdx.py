@@ -160,11 +160,6 @@ class RabiFloppingRDX(EnvExperiment):
                         delay_mu(self.time_repump_qubit_mu)
                     self.dds_board.cfg_switches(0b0100)
 
-                    # get pmt counts w/397 on for calibration
-                    self.core_dma.playback_handle(handle)
-                    pmt_calib = self.pmt_counter.fetch_count()
-                    self.core.break_realtime()
-
                     # rabi flopping w/qubit laser
                     with parallel:
                         self.dds_qubit.cfg_sw(1)
@@ -176,7 +171,7 @@ class RabiFloppingRDX(EnvExperiment):
 
                     # update dataset
                     with parallel:
-                        self.update_dataset(rabi_time_mu, freq_ftw, self.pmt_counter.fetch_count(), pmt_calib)
+                        self.update_dataset(rabi_time_mu, freq_ftw, self.pmt_counter.fetch_count())
                         self.core.break_realtime()
 
         # reset after experiment
@@ -266,11 +261,11 @@ class RabiFloppingRDX(EnvExperiment):
         self.core.break_realtime()
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, freq_ftw, pmt_counts, pmt_calib):
+    def update_dataset(self, time_mu, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts, pmt_calib])
+        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts])
 
     def analyze(self):
         """

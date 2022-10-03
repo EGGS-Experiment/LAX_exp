@@ -43,6 +43,9 @@ class locking_read(EnvExperiment):
         self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]))
         self.setattr_dataset('locking_readout')
 
+        self.set_dataset('locking_readout_processed', np.zeros([self.repetitions, 4]))
+        self.setattr_dataset('locking_readout_processed')
+
 
     @kernel
     def run(self):
@@ -80,8 +83,10 @@ class locking_read(EnvExperiment):
 
 
     def analyze(self):
-        print(self.locking_readout)
         for channel_num in range(len(self.locking_readout[0])):
             dataset_tmp = self.locking_readout[:, channel_num]
             print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(channel_num, np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
+
+        self.locking_readout_processed[:, 0] = np.linspace(0, self.time_total_s, self.repetitions)
+        self.locking_readout_processed[:, 1:] = np.array(self.locking_readout)
         #pass
