@@ -1,7 +1,6 @@
 import numpy as np
 from artiq.experiment import *
 
-# todo: turn relevant lasers off before switching and delay, then turn on
 _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
@@ -48,7 +47,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_argument("dds_qubit_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # AOM DDS parameters
-        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=86, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))

@@ -27,6 +27,7 @@ class LaserScan(EnvExperiment):
 
         # timing
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_probe_us",                  NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
@@ -43,7 +44,7 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("dds_qubit_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
 
         # AOM DDS parameters
-        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=86, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
@@ -75,43 +76,44 @@ class LaserScan(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter = self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =              self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_cooling_mu = self.core.seconds_to_mu(self.time_cooling_us * us)
-        self.time_readout_mu = self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
-        self.time_repump_qubit_mu = self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_cooling_us * us)
+        self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
+        self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
+        self.time_repump_qubit_mu =     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
 
         # DDS devices
-        self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_probe =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
         self.ftw_to_mhz = 1e3 / (2 ** 32 - 1)
         self.freq_qubit_scan_ftw = [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
-        self.freq_probe_ftw = self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
-        self.freq_pump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw = self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
-        self.freq_qubit_ftw = self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
+        self.freq_probe_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_pump_cooling_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.freq_qubit_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_probe_asf = self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
-        self.ampl_pump_asf = self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
-        self.ampl_repump_cooling_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
-        self.ampl_qubit_asf = self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.ampl_probe_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
         self.att_probe_mu =     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
@@ -184,6 +186,11 @@ class LaserScan(EnvExperiment):
             # cooling pulse
             self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_cooling_mu)
+            self.dds_board.cfg_switches(0b0100)
+
+            # do spin depolarization using probe
+            self.dds_board.cfg_switches(0b0101)
+            delay_mu(self.time_probe_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729

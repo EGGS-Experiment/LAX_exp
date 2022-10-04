@@ -1,11 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
-# todo: turn relevant lasers off before switching and delay, then turn on
 _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 # todo: readout at end of sequence
+# todo: readout: do sidebands and check counts
+# todo: need to adjust rabi freq each cycle
 
 
 class SidebandCooling(EnvExperiment):
