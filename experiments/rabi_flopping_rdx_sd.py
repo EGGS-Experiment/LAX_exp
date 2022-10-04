@@ -88,14 +88,14 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.time_probe_mu =                    self.core.seconds_to_mu(self.time_probe_us * us)
 
         # rabi flopping timing
-        self.time_rabi_mu_list =    [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
+        self.time_rabi_mu_list =        [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
         max_time_us = np.max(list(self.time_rabi_us_list))
-        self.time_delay_mu_list =   [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
-        self.num_time_points_list = list(range(len(self.time_rabi_mu_list)))
+        self.time_delay_mu_list =       [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
+        self.num_time_points_list =     list(range(len(self.time_rabi_mu_list)))
 
         # DDS devices
-        self.dds_board =            self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =      self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
         self.dds_probe =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
