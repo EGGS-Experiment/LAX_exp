@@ -28,7 +28,6 @@ class RabiFloppingRDX(EnvExperiment):
         self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_cooling_readout_delay_us",  NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM DDS channels
@@ -46,7 +45,7 @@ class RabiFloppingRDX(EnvExperiment):
         self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=105, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110.771, ndecimals=3, step=1, min=10, max=200))
 
         self.setattr_argument("ampl_pump_pct",                  NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_repump_cooling_pct",        NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
@@ -58,7 +57,7 @@ class RabiFloppingRDX(EnvExperiment):
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
-                                                                          RangeScan(5, 1000, 200),
+                                                                          RangeScan(0, 200, 1001, randomize=True),
                                                                           global_min=1, global_max=100000, global_step=1,
                                                                           unit="us", scale=1, ndecimals=0
                                                                           ))
@@ -84,7 +83,8 @@ class RabiFloppingRDX(EnvExperiment):
 
         # rabi flopping timing
         self.time_rabi_mu_list =    [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
-        self.time_delay_mu_list =   [self.core.seconds_to_mu((self.time_cooling_readout_delay_us - time_us) * us) for time_us in self.time_rabi_us_list]
+        max_time_us = np.max(list(self.time_rabi_us_list))
+        self.time_delay_mu_list =   [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
         self.num_time_points_list = list(range(len(self.time_rabi_mu_list)))
 
         # DDS devices
@@ -116,10 +116,12 @@ class RabiFloppingRDX(EnvExperiment):
         self.att_readout_mu = np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("rabi_flopping_rdx", [], broadcast=True)
+        self.set_dataset("rabi_flopping_rdx", [])
         self.setattr_dataset("rabi_flopping_rdx")
         self.set_dataset("rabi_flopping_rdx_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_rdx_processed")
+
+        self.set_dataset("parameters", [self.freq_qubit_ftw, self.att_cooling_mu, self.att_readout_mu])
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -154,10 +156,9 @@ class RabiFloppingRDX(EnvExperiment):
                 delay_mu(time_delay_mu)
 
                 # rabi flopping w/qubit laser
-                with sequential:
-                    self.dds_qubit.cfg_sw(1)
-                    delay_mu(time_rabi_mu)
-                    self.dds_qubit.cfg_sw(0)
+                self.dds_qubit.cfg_sw(1)
+                delay_mu(time_rabi_mu)
+                self.dds_qubit.cfg_sw(0)
 
                 # do readout
                 self.core_dma.playback_handle(handle_readout)

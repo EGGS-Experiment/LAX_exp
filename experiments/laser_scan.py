@@ -21,7 +21,7 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
