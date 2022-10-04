@@ -22,7 +22,7 @@ class RabiFloppingRDX(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
