@@ -27,7 +27,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_argument("pmt_gating_edge",                EnumerationValue(["rising", "falling", "both"], default="rising"))
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
@@ -55,12 +55,13 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110.771, ndecimals=3, step=1, min=10, max=200))
 
+        self.setattr_argument("ampl_probe_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_pump_pct",                  NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_repump_cooling_pct",        NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
-        self.setattr_argument("att_probe_dB",                   NumberValue(default=23, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_probe_dB",                   NumberValue(default=24, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=23, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
 
@@ -89,7 +90,7 @@ class RabiFloppingRDXSD(EnvExperiment):
 
         # rabi flopping timing
         self.time_rabi_mu_list =    [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
-        max_time_us = np.max(list(self.time_rabi_us_list))
+        max_time_us =               np.max(list(self.time_rabi_us_list))
         self.time_delay_mu_list =   [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
         self.num_time_points_list = list(range(len(self.time_rabi_mu_list)))
 
@@ -119,7 +120,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_cooling_dB * 8))
+        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
         self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
         self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
