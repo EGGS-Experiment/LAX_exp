@@ -7,7 +7,7 @@ _DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
 # todo: add probe
 
 
-class LaserScan(EnvExperiment):
+class LaserScanSD(EnvExperiment):
     """
     729nm Laser Scan but better
     Gets 729nm Spectrum
@@ -23,7 +23,7 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
@@ -57,12 +57,12 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
-        self.setattr_argument("att_probe_dB",                   NumberValue(default=23, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_probe_dB",                   NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=23, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 1000),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 201),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
@@ -121,10 +121,10 @@ class LaserScan(EnvExperiment):
         self.att_readout_mu =   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("laser_scan_rdx", [])
-        self.setattr_dataset("laser_scan_rdx")
-        self.set_dataset("laser_scan_rdx_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("laser_scan_rdx_processed")
+        self.set_dataset("laser_scan_rdx_sd", [])
+        self.setattr_dataset("laser_scan_rdx_sd")
+        self.set_dataset("laser_scan_rdx_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("laser_scan_rdx_sd_processed")
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -251,28 +251,28 @@ class LaserScan(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan_rdx', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('laser_scan_rdx_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.laser_scan_rdx = np.array(self.laser_scan_rdx)
+        self.laser_scan_rdx_sd = np.array(self.laser_scan_rdx_sd)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan_rdx[:, 0]))
+        freq_list_mhz = sorted(set(self.laser_scan_rdx_sd[:, 0]))
 
         # collate results
         collated_results = {
             freq: []
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts in self.laser_scan_rdx:
+        for freq_mhz, pmt_counts in self.laser_scan_rdx_sd:
             collated_results[freq_mhz].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            self.laser_scan_rdx_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
+            self.laser_scan_rdx_sd_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
 
-        print(self.laser_scan_rdx_processed)
+        print(self.laser_scan_rdx_sd_processed)

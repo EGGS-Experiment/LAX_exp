@@ -21,7 +21,7 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=500, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
@@ -58,7 +58,7 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 1000),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 1001),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
