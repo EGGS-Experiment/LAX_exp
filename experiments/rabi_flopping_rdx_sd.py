@@ -205,7 +205,7 @@ class RabiFloppingRDXSD(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
                 # do spin depolarization using probe
-                self.dds_board.cfg_switches(0b01001)
+                self.dds_board.cfg_switches(0b0101)
                 delay_mu(self.time_probe_mu)
                 self.dds_board.cfg_switches(0b0100)
 
