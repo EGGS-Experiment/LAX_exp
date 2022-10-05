@@ -3,11 +3,8 @@ from artiq.experiment import *
 
 _DMA_HANDLE_DOPPLER = "sideband_cooling_doppler"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
-_DMA_HANDLE_READOUT = "sideband_cooling_readout"
-
-# todo: readout at end of sequence
-# todo: readout: do sidebands and check counts
-# todo: need to adjust rabi freq each cycle
+_DMA_HANDLE_READOUT_RED = "sideband_cooling_readout_red"
+_DMA_HANDLE_READOUT_BLUE = "sideband_cooling_readout_blue"
 
 
 class SidebandCooling(EnvExperiment):
@@ -56,7 +53,8 @@ class SidebandCooling(EnvExperiment):
         # AOM DDS parameters
         self.setattr_argument("freq_probe_redist_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_readout_red_mhz",      NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_pump_readout_blue_mhz",     NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110.771, ndecimals=3, step=1, min=10, max=200))
@@ -100,7 +98,8 @@ class SidebandCooling(EnvExperiment):
         # convert frequency to ftw
         self.freq_probe_redist_ftw =        self.dds_qubit.frequency_to_ftw(self.freq_probe_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =        self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =        self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_readout_blue_ftw =   self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_blue_mhz * MHz)
+        self.freq_pump_readout_red_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_red_mhz * MHz)
         self.freq_repump_cooling_ftw =      self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =        self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw =               self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
@@ -135,7 +134,8 @@ class SidebandCooling(EnvExperiment):
         self.DMArecord()
         handle_doppler = self.core_dma.get_handle(_DMA_HANDLE_DOPPLER)
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
-        handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        handle_readout_red = self.core_dma.get_handle(_DMA_HANDLE_READOUT_RED)
+        handle_readout_blue = self.core_dma.get_handle(_DMA_HANDLE_READOUT_BLUE)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -147,13 +147,15 @@ class SidebandCooling(EnvExperiment):
             for cycle_num in range(self.sideband_cycles):
                 self.core_dma.playback_handle(handle_sideband)
 
-            # do readout
-            self.core_dma.playback_handle(handle_readout)
+            # do readout - blue sideband
+            self.core_dma.playback_handle(handle_readout_blue)
+            counts_blue = self.pmt_counter.fetch_count()
+
+            # do readout - red sideband
+            self.core_dma.playback_handle(handle_readout_red)
 
             # record data
-            with parallel:
-                self.update_dataset(self.pmt_counter.fetch_count())
-                self.core.break_realtime()
+            self.update_dataset("sideband_cooling", [counts_blue, self.pmt_counter.fetch_count()])
 
             # wait for ion to reheat
             delay_mu(self.time_repetition_delay_mu)
@@ -201,11 +203,22 @@ class SidebandCooling(EnvExperiment):
                 delay_mu(self.time_redist_mu)
                 self.dds_board.cfg_switches(0b0100)
 
-        # readout sequence
-        with self.core_dma.record(_DMA_HANDLE_READOUT):
+        # readout sequence - blue
+        with self.core_dma.record(_DMA_HANDLE_READOUT_BLUE):
             with sequential:
-                # set readout waveform
-                self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
+                # set readout waveform - blue
+                self.dds_pump.set_mu(self.freq_pump_readout_blue_ftw, asf=self.ampl_pump_asf)
+
+                # readout pulse
+                self.dds_board.cfg_switches(0b0110)
+                self.pmt_gating_edge(self.time_readout_mu)
+                self.dds_board.cfg_switches(0b0100)
+
+        # readout sequence - red
+        with self.core_dma.record(_DMA_HANDLE_READOUT_RED):
+            with sequential:
+                # set readout waveform - red
+                self.dds_pump.set_mu(self.freq_pump_readout_red_ftw, asf=self.ampl_pump_asf)
 
                 # readout pulse
                 self.dds_board.cfg_switches(0b0110)
