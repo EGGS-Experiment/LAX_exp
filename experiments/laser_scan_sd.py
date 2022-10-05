@@ -23,13 +23,13 @@ class LaserScanSD(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=400, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_probe_us",                  NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=10000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
 
         # AOM DDS channels
@@ -58,11 +58,11 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
 
         self.setattr_argument("att_probe_dB",                   NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=23, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",            NumberValue(default=20, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=22, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_pump_readout_dB",            NumberValue(default=18, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(116.34, 119.06, 501),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.593, 104.618, 201),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
