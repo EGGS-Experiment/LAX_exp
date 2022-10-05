@@ -126,6 +126,9 @@ class LaserScanSD(EnvExperiment):
         self.set_dataset("laser_scan_rdx_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_rdx_sd_processed")
 
+        self.set_dataset("parameters", [self.repetitions, self.time_729_us, self.att_probe_dB, self.att_cooling_dB, self.att_readout_dB])
+
+
     @kernel(flags={"fast-math"})
     def run(self):
         """
