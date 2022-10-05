@@ -62,7 +62,7 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=20, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(113.75, 114.25, 501),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(116.34, 119.06, 501),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 

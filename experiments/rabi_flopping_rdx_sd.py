@@ -26,7 +26,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_argument("pmt_gating_edge",                EnumerationValue(["rising", "falling", "both"], default="rising"))
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
@@ -52,7 +52,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
         self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=114, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=105.016, ndecimals=3, step=1, min=10, max=200))
 
         self.setattr_argument("ampl_probe_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
         self.setattr_argument("ampl_pump_pct",                  NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
@@ -66,7 +66,7 @@ class RabiFloppingRDXSD(EnvExperiment):
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
-                                                                          RangeScan(0, 400, 201, randomize=True),
+                                                                          RangeScan(0, 200, 2001, randomize=True),
                                                                           global_min=1, global_max=100000, global_step=1,
                                                                           unit="us", scale=1, ndecimals=0
                                                                           ))
