@@ -62,7 +62,7 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=18, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.593, 104.618, 201),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.793, 104.818, 201),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
@@ -126,7 +126,7 @@ class LaserScanSD(EnvExperiment):
         self.set_dataset("laser_scan_rdx_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_rdx_sd_processed")
 
-        self.set_dataset("parameters", [self.repetitions, self.time_729_us, self.att_probe_dB, self.att_cooling_dB, self.att_readout_dB])
+        self.set_dataset("parameters", [self.repetitions, self.time_729_us, self.att_probe_dB, self.att_pump_cooling_dB, self.att_pump_readout_dB])
 
 
     @kernel(flags={"fast-math"})
