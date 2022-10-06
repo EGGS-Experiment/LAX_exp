@@ -26,10 +26,10 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_cooling_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_cooling_us",                NumberValue(default=800, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_probe_us",                  NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_729_us",                    NumberValue(default=10000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_readout_us",                NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
 
         # AOM DDS channels
@@ -62,7 +62,7 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("att_pump_readout_dB",            NumberValue(default=18, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.793, 104.818, 201),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(103.207, 106.007, 801),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
