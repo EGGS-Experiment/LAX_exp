@@ -13,6 +13,36 @@ class RabiFloppingRDXSD(EnvExperiment):
     """
 
     # kernel_invariants = {}
+    global_parameters = [
+        "pmt_input_channel",
+        "pmt_gating_edge",
+        "time_profileswitch_delay_us",
+        "time_repump_qubit_us",
+        "time_doppler_cooling_us",
+        "time_readout_us",
+        "time_probe_us",
+        "dds_board_num",
+        "dds_board_qubit_num",
+        "dds_probe_channel",
+        "dds_pump_channel",
+        "dds_repump_cooling_channel",
+        "dds_repump_qubit_channel",
+        "dds_qubit_channel",
+        "freq_probe_mhz",
+        "freq_pump_cooling_mhz",
+        "freq_pump_readout_mhz",
+        "freq_repump_cooling_mhz",
+        "freq_repump_qubit_mhz",
+        "freq_qubit_mhz",
+        "ampl_probe_pct",
+        "ampl_pump_pct",
+        "ampl_repump_cooling_pct",
+        "ampl_repump_qubit_pct",
+        "ampl_qubit_pct",
+        "att_probe_dB",
+        "att_pump_cooling_dB",
+        "att_pump_readout_dB"
+    ]
 
     def build(self):
         """
@@ -21,48 +51,8 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
-        # PMT
-        self.setattr_argument("pmt_input_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("pmt_gating_edge",                EnumerationValue(["rising", "falling", "both"], default="rising"))
-
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-
-        # timing
-        self.setattr_argument("time_profileswitch_delay_us",    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_cooling_us",                NumberValue(default=800, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=500, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_probe_us",                  NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000))
-
-        # AOM DDS channels
-        self.setattr_argument("dds_board_num",                  NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_probe_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_pump_channel",               NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_repump_cooling_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_repump_qubit_channel",       NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
-
-        # AOM DDS channels - qubit
-        self.setattr_argument("dds_board_qubit_num",            NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_qubit_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-
-        # AOM DDS parameters
-        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=95, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=95, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=104.67, ndecimals=5, step=1, min=10, max=200))
-
-        self.setattr_argument("ampl_probe_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_pump_pct",                  NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_repump_cooling_pct",        NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-
-        self.setattr_argument("att_probe_dB",                   NumberValue(default=20, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=22, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",            NumberValue(default=19, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
@@ -71,14 +61,19 @@ class RabiFloppingRDXSD(EnvExperiment):
                                                                           unit="us", scale=1, ndecimals=0
                                                                           ))
 
+        # get global parameters
+        for param_name in self.global_parameters:
+            self.setattr_dataset(param_name, archive=True)
+
+
     def prepare(self):
         """
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter = self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                      self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
         self.time_profileswitch_delay_mu =      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
@@ -88,40 +83,40 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.time_probe_mu =                    self.core.seconds_to_mu(self.time_probe_us * us)
 
         # rabi flopping timing
-        self.time_rabi_mu_list =        [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
-        max_time_us =                   np.max(list(self.time_rabi_us_list))
-        self.time_delay_mu_list =       [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
-        self.num_time_points_list =     list(range(len(self.time_rabi_mu_list)))
+        self.time_rabi_mu_list =                [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
+        max_time_us =                           np.max(list(self.time_rabi_us_list))
+        self.time_delay_mu_list =               [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
+        self.num_time_points_list =             list(range(len(self.time_rabi_mu_list)))
 
         # DDS devices
-        self.dds_board =                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling =       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit =         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_probe =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
-        self.freq_probe_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
-        self.freq_pump_cooling_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
-        self.freq_qubit_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
+        self.freq_probe_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_pump_cooling_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.freq_qubit_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_probe_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
-        self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
-        self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
-        self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.ampl_probe_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_pump_asf =                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
-        self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        self.att_probe_mu =                     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
+        self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("rabi_flopping_rdx", [])
@@ -129,7 +124,6 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.set_dataset("rabi_flopping_rdx_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_rdx_processed")
 
-        self.set_dataset("parameters", [self.repetitions, self.freq_qubit_mhz, self.att_probe_dB, self.att_pump_cooling_dB, self.att_pump_readout_dB])
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -179,6 +173,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
+
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
@@ -289,3 +284,4 @@ class RabiFloppingRDXSD(EnvExperiment):
             self.rabi_flopping_rdx_processed[i] = np.array([time_s, np.mean(count_list)])
 
         print(self.rabi_flopping_rdx_processed)
+

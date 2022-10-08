@@ -14,6 +14,34 @@ class LaserScanSD(EnvExperiment):
     """
 
     #kernel_invariants = {}
+    global_parameters = [
+        "pmt_input_channel",
+        "pmt_gating_edge",
+        "time_repump_qubit_us",
+        "time_doppler_cooling_us",
+        "time_readout_us",
+        "time_probe_us",
+        "dds_board_num",
+        "dds_board_qubit_num",
+        "dds_pump_channel",
+        "dds_repump_cooling_channel",
+        "dds_repump_qubit_channel",
+        "dds_qubit_channel",
+        "freq_probe_mhz",
+        "freq_pump_cooling_mhz",
+        "freq_pump_readout_mhz",
+        "freq_repump_cooling_mhz",
+        "freq_repump_qubit_mhz",
+        "freq_qubit_mhz",
+        "ampl_probe_pct",
+        "ampl_pump_pct",
+        "ampl_repump_cooling_pct",
+        "ampl_repump_qubit_pct",
+        "ampl_qubit_pct",
+        "att_probe_dB",
+        "att_pump_cooling_dB",
+        "att_pump_readout_dB"
+    ]
 
     def build(self):
         """
@@ -26,49 +54,12 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=300, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_cooling_us",                NumberValue(default=800, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_probe_us",                  NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_readout_us",                NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_repump_qubit_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000000))
-
-        # AOM DDS channels
-        self.setattr_argument("dds_board_num",                  NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_probe_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_pump_channel",               NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_repump_cooling_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_repump_qubit_channel",       NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
-
-        # AOM DDS channels - qubit
-        self.setattr_argument("dds_board_qubit_num",            NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_qubit_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-
-        # AOM DDS parameters
-        self.setattr_argument("freq_probe_mhz",                 NumberValue(default=95, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_cooling_mhz",          NumberValue(default=95, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_pump_readout_mhz",          NumberValue(default=95, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_repump_cooling_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_repump_qubit_mhz",          NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-
-        self.setattr_argument("ampl_probe_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_pump_pct",                  NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_repump_cooling_pct",        NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_repump_qubit_pct",          NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-        self.setattr_argument("ampl_qubit_pct",                 NumberValue(default=50, ndecimals=3, step=1, min=1, max=100))
-
-        self.setattr_argument("att_probe_dB",                   NumberValue(default=21, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_cooling_dB",            NumberValue(default=22, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_pump_readout_dB",            NumberValue(default=19, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
-
-        # PMT
-        self.setattr_argument("pmt_input_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("pmt_gating_edge",                EnumerationValue(["rising", "falling", "both"], default="rising"))
 
     def prepare(self):
         """
@@ -80,7 +71,7 @@ class LaserScanSD(EnvExperiment):
         self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_cooling_us * us)
+        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling * us)
         self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
         self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
@@ -97,8 +88,8 @@ class LaserScanSD(EnvExperiment):
         self.dds_qubit =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
-        self.ftw_to_mhz = 1e3 / (2 ** 32 - 1)
-        self.freq_qubit_scan_ftw = [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
+        self.ftw_to_mhz =               1e3 / (2 ** 32 - 1)
+        self.freq_qubit_scan_ftw =      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
         self.freq_probe_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
@@ -116,18 +107,15 @@ class LaserScanSD(EnvExperiment):
         self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_probe_mu =     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
-        self.att_cooling_mu =   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        self.att_readout_mu =   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
+        self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("laser_scan_rdx_sd", [])
         self.setattr_dataset("laser_scan_rdx_sd")
         self.set_dataset("laser_scan_rdx_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_rdx_sd_processed")
-
-        self.set_dataset("parameters", [self.repetitions, self.time_729_us, self.att_probe_dB, self.att_pump_cooling_dB, self.att_pump_readout_dB])
-
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -279,3 +267,4 @@ class LaserScanSD(EnvExperiment):
             self.laser_scan_rdx_sd_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
 
         print(self.laser_scan_rdx_sd_processed)
+

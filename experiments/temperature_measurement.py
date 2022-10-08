@@ -33,28 +33,12 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_delay_us",          NumberValue(default=100, ndecimals=2, step=1, min=1, max=1000))
         self.setattr_argument("time_probe_us",          NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
-        self.setattr_argument("time_pump_us",           NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
-
-        # AOM DDS channels
-        self.setattr_argument("dds_board_num",          NumberValue(default=1, ndecimals=0, step=1, min=0, max=1))
-        self.setattr_argument("dds_probe_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_pump_channel",       NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("dds_repump_channel",     NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(70, 146, 20, randomize=True),
                                                                   global_min=80, global_max=140, global_step=1,
                                                                   unit="MHz", scale=1, ndecimals=1))
-
-        # AOM parameters
-        self.setattr_argument("freq_pump_mhz",          NumberValue(default=90, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_repump_mhz",        NumberValue(default=110, ndecimals=3, step=1, min=10, max=200))
-
-        # PMT
-        self.setattr_argument("pmt_input_channel",      NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("pmt_gating_edge",        EnumerationValue(["rising", "falling", "both"], default="rising"))
 
         # photodiode
         self.setattr_argument("photodiode_channel",     NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
@@ -66,37 +50,35 @@ class TemperatureMeasurement(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter = self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge = getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =              self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_pump_mu = self.core.seconds_to_mu(self.time_pump_us * us)
-        self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
-        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
+        self.time_pump_mu =                 self.core.seconds_to_mu(self.time_doppler_cooling * us)
+        self.time_probe_mu =                self.core.seconds_to_mu(self.time_probe_us * us)
 
         # DDS devices
-        self.dds_board = self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_probe = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump = self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_channel))
+        self.dds_board =                    self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_probe =                    self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                     self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump =                   self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_channel))
 
         # convert dds values to machine units - probe
-        self.ftw_to_frequency = 1e9 / (2**32 - 1)
-        self.freq_probe_scan_mhz2 = list(self.freq_probe_scan_mhz)
-        self.freq_probe_scan_ftw = [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz2]
+        self.ftw_to_frequency =             1e9 / (2**32 - 1)
+        self.freq_probe_scan_mhz2 =         list(self.freq_probe_scan_mhz)
+        self.freq_probe_scan_ftw =          [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz2]
 
         # convert dds values to machine units - everything else
-        self.freq_pump_ftw = self.dds_pump.frequency_to_ftw(self.freq_pump_mhz * MHz)
-        self.freq_repump_ftw = self.dds_probe.frequency_to_ftw(self.freq_repump_mhz * MHz)
-        self.ampl_pump_asf = self.dds_pump.amplitude_to_asf(0.5)
-        self.ampl_probe_asf = self.dds_probe.amplitude_to_asf(0.5)
-        self.ampl_repump_asf = self.dds_probe.amplitude_to_asf(0.5)
+        self.freq_repump_ftw =              self.dds_probe.frequency_to_ftw(self.freq_repump_mhz * MHz)
+        self.ampl_pump_asf =                self.dds_pump.amplitude_to_asf(0.5)
+        self.ampl_probe_asf =               self.dds_probe.amplitude_to_asf(0.5)
+        self.ampl_repump_asf =              self.dds_probe.amplitude_to_asf(0.5)
 
         # get DDS board switch states, on/off signifies repump on/off
-        self.dds_switch_pump_states_on = 0b0100 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_on = 0b0100 | (0b1 << self.dds_probe_channel)
-        self.dds_switch_pump_states_off = 0b0000 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_off = 0b0000 | (0b1 << self.dds_probe_channel)
+        self.dds_switch_pump_states_on =    0b0100 | (0b1 << self.dds_pump_channel)
+        self.dds_switch_probe_states_on =   0b0100 | (0b1 << self.dds_probe_channel)
+        self.dds_switch_pump_states_off =   0b0000 | (0b1 << self.dds_pump_channel)
+        self.dds_switch_probe_states_off =  0b0000 | (0b1 << self.dds_probe_channel)
 
         # ADC
         self.adc = self.get_device("sampler0")
@@ -179,7 +161,6 @@ class TemperatureMeasurement(EnvExperiment):
                 with parallel:
                     self.update_dataset(freq_mhz, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
-                #delay_mu(self.time_delay_mu)
 
             # after sequence, set all dds channels to trapping state
             self.dds_repump.cfg_sw(1)
@@ -196,6 +177,7 @@ class TemperatureMeasurement(EnvExperiment):
             with parallel:
                 self.dds_board.cfg_switches(self.dds_switch_pump_states_on)
                 delay_mu(self.time_pump_mu)
+
             # probe on, pump off, PMT start recording
             with parallel:
                 self.dds_board.cfg_switches(self.dds_switch_probe_states_on)
@@ -207,6 +189,7 @@ class TemperatureMeasurement(EnvExperiment):
             with parallel:
                 self.dds_board.cfg_switches(self.dds_switch_pump_states_off)
                 delay_mu(self.time_pump_mu)
+
             # probe on, pump off, PMT start recording
             with parallel:
                 self.dds_board.cfg_switches(self.dds_switch_probe_states_off)
@@ -223,12 +206,6 @@ class TemperatureMeasurement(EnvExperiment):
         self.att_reg = np.int32(self.dds_board.get_att_mu())
         self.att_reg &= ~(0xFF << (8 * self.dds_probe_channel))
 
-        # set pump waveform
-        self.core.break_realtime()
-        self.dds_pump.set_mu(self.freq_pump_ftw, asf=self.ampl_pump_asf)
-        self.core.break_realtime()
-        self.dds_pump.cfg_sw(1)
-
         # initialize repump beam and set waveform
         self.core.break_realtime()
         self.dds_repump.set_mu(self.freq_repump_ftw, asf=self.ampl_repump_asf)
@@ -238,10 +215,6 @@ class TemperatureMeasurement(EnvExperiment):
         # set up sampler
         self.core.break_realtime()
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
-
-        # todo: remove
-        # self.urukul1_ch3.set_att(7 * dB)
-        # self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):

@@ -28,6 +28,10 @@ class ParameterSet(EnvExperiment):
 
             "dds_board_qubit_num":          0,
             "dds_qubit_channel":            0,
+
+            # photodiode
+            "photodiode_channel":           0,
+            "photodiode_gain":              1
         }
 
         # timing
@@ -40,7 +44,10 @@ class ParameterSet(EnvExperiment):
             "time_doppler_cooling_us":      100,
 
             # readout
-            "time_readout_us":              100
+            "time_readout_us":              100,
+
+            # general
+            "time_profileswitch_delay_us":  1
         }
 
         # DDS waveforms
@@ -56,6 +63,8 @@ class ParameterSet(EnvExperiment):
             # amplitude
             "ampl_probe_pct":           50,
             "ampl_pump_pct":            50,
+            "ampl_pump_cooling_pct":    50,
+            "ampl_pump_readout_pct":    50,
             "ampl_repump_cooling_pct":  50,
             "ampl_repump_qubit_pct":    50,
             "ampl_qubit_pct":           50,
@@ -63,6 +72,8 @@ class ParameterSet(EnvExperiment):
             # attenuation
             "att_probe_dB":             21,
             "att_pump_dB":              22,
+            "att_pump_cooling_dB":      22,
+            "att_pump_readout_dB":      22,
             "att_repump_cooling_dB":    22,
             "att_repump_qubit_dB":      22,
             "att_qubit_dB":             18
