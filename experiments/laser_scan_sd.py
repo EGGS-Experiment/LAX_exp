@@ -61,6 +61,10 @@ class LaserScanSD(EnvExperiment):
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=3))
 
+        # get global parameters
+        for param_name in self.global_parameters:
+            self.setattr_dataset(param_name, archive=True)
+
     def prepare(self):
         """
         Set up the dataset and prepare things such that

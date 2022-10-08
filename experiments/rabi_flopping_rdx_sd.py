@@ -78,7 +78,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         # convert time values to machine units
         self.time_profileswitch_delay_mu =      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
         self.time_repump_qubit_mu =             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
-        self.time_cooling_mu =                  self.core.seconds_to_mu(self.time_cooling_us * us)
+        self.time_cooling_mu =                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_readout_mu =                  self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_probe_mu =                    self.core.seconds_to_mu(self.time_probe_us * us)
 

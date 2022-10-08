@@ -39,6 +39,7 @@ class ParameterSet(EnvExperiment):
             # preparation
             "time_repump_qubit_us":         100,
             "time_redist_us":               500,
+            "time_probe_us":                500,
 
             # cooling
             "time_doppler_cooling_us":      100,
