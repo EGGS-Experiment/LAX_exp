@@ -52,7 +52,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=400, ndecimals=0, step=1, min=1, max=10000))
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
