@@ -150,7 +150,7 @@ class StatePreparation(EnvExperiment):
 
             # update dataset
             with parallel:
-                self.mutate_dataset("state_preparation", self.pmt_counter.fetch_count())
+                self.mutate_dataset("state_preparation", trial_num, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
 
         # reset after experiment

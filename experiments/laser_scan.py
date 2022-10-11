@@ -28,12 +28,11 @@ class LaserScan(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "ampl_pump_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -93,7 +92,8 @@ class LaserScan(EnvExperiment):
         self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_pump_cooling_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
@@ -160,28 +160,23 @@ class LaserScan(EnvExperiment):
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # cooling
             # set cooling waveform
-            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_cooling_mu)
+            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf)
 
-            # cooling pulse
+            # cooling
             self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729
-            # ensure 854 and cooling are off
             self.dds_qubit.cfg_sw(1)
             delay_mu(self.time_729_mu)
             self.dds_qubit.cfg_sw(0)
 
-            # readout
             # set readout waveform
-            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_readout_mu)
+            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf)
 
-            # readout pulse
+            # readout
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
@@ -193,28 +188,13 @@ class LaserScan(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # initialize dds boards
-        self.core.break_realtime()
-
-        # sort out att reg
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
-        self.core.break_realtime()
-
         # set AOM DDS waveforms
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-        self.dds_pump.cfg_sw(1)
-        self.core.break_realtime()
-
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf)
-        self.dds_repump_cooling.cfg_sw(1)
         self.core.break_realtime()
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf)
-        self.dds_repump_qubit.cfg_sw(1)
         self.core.break_realtime()
 
-        self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, pmt_counts):
@@ -222,6 +202,7 @@ class LaserScan(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.append_to_dataset('laser_scan_rdx', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+
 
     def analyze(self):
         """

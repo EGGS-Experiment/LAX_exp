@@ -31,7 +31,7 @@ class TemperatureMeasurement(EnvExperiment):
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
-        "ampl_pump_pct",
+        "ampl_pump_cooling_pct",
         "ampl_repump_cooling_pct",
         "att_pump_cooling_dB",
         "att_pump_readout_dB"
@@ -41,7 +41,7 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Set devices and arguments for the experiment.
         """
-        self.setattr_device("core")             # always needed
+        self.setattr_device("core")
         self.setattr_device("core_dma")
 
         # experiment runs
@@ -49,6 +49,9 @@ class TemperatureMeasurement(EnvExperiment):
 
         # timing
         self.setattr_argument("time_probe_us",          NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
+
+        # probe parameters
+        self.setattr_argument("ampl_probe_pct",         NumberValue(default=50, ndecimals=3, step=1, min=10, max=100))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(70, 146, 20, randomize=True),
@@ -74,7 +77,7 @@ class TemperatureMeasurement(EnvExperiment):
         self.pmt_gating_edge =              getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_pump_mu =                 self.core.seconds_to_mu(self.time_doppler_cooling * us)
+        self.time_cooling_mu =              self.core.seconds_to_mu(self.time_doppler_cooling * us)
         self.time_probe_mu =                self.core.seconds_to_mu(self.time_probe_us * us)
 
         # DDS devices
@@ -88,10 +91,12 @@ class TemperatureMeasurement(EnvExperiment):
         self.freq_probe_scan_ftw =          [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz]
 
         # convert dds values to machine units - everything else
+        self.freq_pump_cooling =            self.dds_probe.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_repump_ftw =              self.dds_probe.frequency_to_ftw(self.freq_repump_mhz * MHz)
-        self.ampl_pump_asf =                self.dds_pump.amplitude_to_asf(self.ampl_pump_pct)
-        self.ampl_probe_asf =               self.dds_probe.amplitude_to_asf(self.ampl_probe_pct)
-        self.ampl_repump_asf =              self.dds_probe.amplitude_to_asf(self.ampl_repump_pct)
+
+        self.ampl_probe_asf =               self.dds_probe.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_pump_cooling_asf =        self.dds_probe.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_repump_asf =              self.dds_probe.amplitude_to_asf(self.ampl_repump_pct / 100)
 
         # ADC
         self.adc = self.get_device("sampler0")
@@ -118,9 +123,6 @@ class TemperatureMeasurement(EnvExperiment):
         self.att_probe = [att_dict[freq] for freq in self.freq_probe_scan_mhz]
         self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
-
-        # tmp remove
-        self.setattr_device('urukul1_ch3')
 
 
     @kernel(flags={"fast-math"})
@@ -190,14 +192,12 @@ class TemperatureMeasurement(EnvExperiment):
             # pump on, probe off
             with parallel:
                 self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_pump_mu)
+                delay_mu(self.time_cooling_mu)
 
             # probe on, pump off, PMT start recording
             with parallel:
                 self.dds_board.cfg_switches(0b0101)
                 self.pmt_gating_edge(self.time_probe_mu)
-
-        self.core.break_realtime()
 
         # sequence w/866 (cooling repump) off
         with self.core_dma.record(_DMA_HANDLE_OFF):
@@ -207,7 +207,7 @@ class TemperatureMeasurement(EnvExperiment):
             # pump on, probe off
             with parallel:
                 self.dds_board.cfg_switches(0b0010)
-                delay_mu(self.time_pump_mu)
+                delay_mu(self.time_cooling_mu)
 
             # probe on, pump off, PMT start recording
             with parallel:
@@ -226,16 +226,20 @@ class TemperatureMeasurement(EnvExperiment):
         self.att_reg = np.int32(self.dds_board.get_att_mu())
         self.att_reg &= ~(0xFF << (8 * self.dds_probe_channel))
         self.dds_board.set_all_att_mu(self.att_reg)
+        self.core.break_realtime()
+
+        # set pump waveform
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf)
+        self.core.break_realtime()
 
         # initialize repump beam and set waveform
-        self.core.break_realtime()
         self.dds_repump.set_mu(self.freq_repump_ftw, asf=self.ampl_repump_asf)
-        self.dds_repump.cfg_sw(1)
         self.core.break_realtime()
 
         # set up sampler
-        self.core.break_realtime()
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
+        self.core.break_realtime()
+
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):

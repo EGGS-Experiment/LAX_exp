@@ -19,10 +19,8 @@ class RabiFloppingRDX(EnvExperiment):
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
-        "time_probe_us",
         "dds_board_num",
         "dds_board_qubit_num",
-        "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
@@ -32,14 +30,11 @@ class RabiFloppingRDX(EnvExperiment):
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
         "freq_qubit_mhz",
-        "ampl_probe_pct",
-        "ampl_pump_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-        "att_probe_dB",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -101,7 +96,8 @@ class RabiFloppingRDX(EnvExperiment):
         self.freq_qubit_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_pump_asf =                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_pump_cooling_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
@@ -116,7 +112,6 @@ class RabiFloppingRDX(EnvExperiment):
         self.set_dataset("rabi_flopping_rdx_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_rdx_processed")
 
-        self.set_dataset("parameters", [self.repetitions, self.freq_qubit_ftw, self.att_cooling_mu, self.att_readout_mu])
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -218,8 +213,8 @@ class RabiFloppingRDX(EnvExperiment):
 
         # set AOM DDS waveforms
         # profile 0 is cooling, profile 1 is readout
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf, profile=0)
-        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
+        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)

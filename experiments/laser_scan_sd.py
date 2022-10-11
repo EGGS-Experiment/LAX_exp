@@ -33,13 +33,11 @@ class LaserScanSD(EnvExperiment):
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
         "ampl_probe_pct",
-        "ampl_pump_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-        "att_probe_dB",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -167,8 +165,9 @@ class LaserScanSD(EnvExperiment):
         """
         with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
             # set cooling waveform
-            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_cooling_mu)
+            with parallel:
+                self.dds_board.set_profile(0)
+                delay_mu(self.time_profileswitch_delay_mu)
 
             # repump pulse
             self.dds_board.cfg_switches(0b1100)
@@ -191,8 +190,9 @@ class LaserScanSD(EnvExperiment):
             self.dds_qubit.cfg_sw(0)
 
             # set readout waveform
-            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_readout_mu)
+            with parallel:
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
@@ -206,30 +206,21 @@ class LaserScanSD(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # initialize dds boards
-        self.core.break_realtime()
-
-        # sort out att reg
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
-        self.core.break_realtime()
-
         # set AOM DDS waveforms
-        self.dds_probe.set_att_mu(self.att_probe_mu)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
-        self.dds_probe.cfg_sw(0)
+        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
+        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-        self.dds_pump.cfg_sw(1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
+        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf)
-        self.dds_repump_cooling.cfg_sw(1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf)
-        self.dds_repump_qubit.cfg_sw(1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
 

@@ -35,13 +35,11 @@ class RabiFloppingRDXSD(EnvExperiment):
         "freq_repump_qubit_mhz",
         "freq_qubit_mhz",
         "ampl_probe_pct",
-        "ampl_pump_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-        "att_probe_dB",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -108,15 +106,11 @@ class RabiFloppingRDXSD(EnvExperiment):
 
         # convert amplitude to asf
         self.ampl_probe_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
-        self.ampl_pump_asf =                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_pump_cooling_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
-
-        # sort out attenuation
-        self.att_probe_mu =                     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
-        self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("rabi_flopping_rdx", [])
@@ -180,6 +174,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
+        # reset sequence
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
                 # qubit repump (854) pulse
@@ -188,7 +183,6 @@ class RabiFloppingRDXSD(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
                 # set cooling waveform
-                self.dds_pump.set_att_mu(self.att_cooling_mu)
                 with parallel:
                     self.dds_board.set_profile(0)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -207,7 +201,6 @@ class RabiFloppingRDXSD(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             with sequential:
                 # set readout waveform
-                self.dds_pump.set_att_mu(self.att_readout_mu)
                 with parallel:
                     self.dds_board.set_profile(1)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -225,20 +218,13 @@ class RabiFloppingRDXSD(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # set attenuations for now so we can change them later
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
-        self.core.break_realtime()
-
-        # set AOM DDS waveforms
-        # profile 0 is cooling, profile 1 is readout
-        self.dds_probe.set_att_mu(self.att_probe_mu)
+        # set AOM DDS waveforms; profile 0 is cooling, profile 1 is readout
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
         self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf, profile=0)
-        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
+        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
@@ -249,7 +235,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.core.break_realtime()
 
 
@@ -284,4 +270,3 @@ class RabiFloppingRDXSD(EnvExperiment):
             self.rabi_flopping_rdx_processed[i] = np.array([time_s, np.mean(count_list)])
 
         print(self.rabi_flopping_rdx_processed)
-
