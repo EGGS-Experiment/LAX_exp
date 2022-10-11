@@ -9,7 +9,7 @@ _DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
 
 class LaserScanSD(EnvExperiment):
     """
-    729nm Laser Scan but better
+    729nm Laser Scan but better w spin polarization
     Gets 729nm Spectrum
     """
 

@@ -7,7 +7,7 @@ _DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
 
 class LaserScan(EnvExperiment):
     """
-    729nm Laser Scan but better
+    729nm Laser Scan
     Gets 729nm Spectrum
     """
 
