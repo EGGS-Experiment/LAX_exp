@@ -4,7 +4,6 @@ from artiq.experiment import *
 _DMA_HANDLE_ON = "temperature_measurement_on"
 _DMA_HANDLE_OFF = "temperature_measurement_off"
 # todo: make repump status more general
-# todo: upload data to labrad
 # todo: check synchronization of cycle with now_mu()
 # todo: check scannable works correctly
 # todo: set up ion calibration properly
@@ -16,11 +15,27 @@ _DMA_HANDLE_OFF = "temperature_measurement_off"
 class TemperatureMeasurement(EnvExperiment):
     """
     Temperature Measurement - Transpose
-    Measures ion fluorescence for a single detuning.
-    Sweeps frequency within each trial.
+        Measures ion fluorescence for a single detuning.
+        Sweeps frequency within each trial.
     """
 
     #kernel_invariants = {}
+    global_parameters = [
+        "pmt_input_channel",
+        "pmt_gating_edge",
+        "time_doppler_cooling_us",
+        "time_readout_us",
+        "dds_board_num",
+        "dds_pump_channel",
+        "dds_repump_cooling_channel",
+        "freq_pump_cooling_mhz",
+        "freq_pump_readout_mhz",
+        "freq_repump_cooling_mhz",
+        "ampl_pump_pct",
+        "ampl_repump_cooling_pct",
+        "att_pump_cooling_dB",
+        "att_pump_readout_dB"
+    ]
 
     def build(self):
         """
@@ -44,14 +59,19 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_argument("photodiode_channel",     NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("photodiode_gain",        NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
 
+        # get global parameters
+        for param_name in self.global_parameters:
+            self.setattr_dataset(param_name, archive=True)
+
+
     def prepare(self):
         """
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter =              self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                  self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =              getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
         self.time_pump_mu =                 self.core.seconds_to_mu(self.time_doppler_cooling * us)
@@ -65,20 +85,13 @@ class TemperatureMeasurement(EnvExperiment):
 
         # convert dds values to machine units - probe
         self.ftw_to_frequency =             1e9 / (2**32 - 1)
-        self.freq_probe_scan_mhz2 =         list(self.freq_probe_scan_mhz)
-        self.freq_probe_scan_ftw =          [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz2]
+        self.freq_probe_scan_ftw =          [self.dds_probe.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz]
 
         # convert dds values to machine units - everything else
         self.freq_repump_ftw =              self.dds_probe.frequency_to_ftw(self.freq_repump_mhz * MHz)
-        self.ampl_pump_asf =                self.dds_pump.amplitude_to_asf(0.5)
-        self.ampl_probe_asf =               self.dds_probe.amplitude_to_asf(0.5)
-        self.ampl_repump_asf =              self.dds_probe.amplitude_to_asf(0.5)
-
-        # get DDS board switch states, on/off signifies repump on/off
-        self.dds_switch_pump_states_on =    0b0100 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_on =   0b0100 | (0b1 << self.dds_probe_channel)
-        self.dds_switch_pump_states_off =   0b0000 | (0b1 << self.dds_pump_channel)
-        self.dds_switch_probe_states_off =  0b0000 | (0b1 << self.dds_probe_channel)
+        self.ampl_pump_asf =                self.dds_pump.amplitude_to_asf(self.ampl_pump_pct)
+        self.ampl_probe_asf =               self.dds_probe.amplitude_to_asf(self.ampl_probe_pct)
+        self.ampl_repump_asf =              self.dds_probe.amplitude_to_asf(self.ampl_repump_pct)
 
         # ADC
         self.adc = self.get_device("sampler0")
@@ -102,12 +115,13 @@ class TemperatureMeasurement(EnvExperiment):
         att_freqs = np.linspace(70, 146, 20)
         att_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])
         att_dict = dict(np.concatenate([[att_freqs], [att_vals]]).transpose())
-        self.att_probe = [att_dict[freq] for freq in self.freq_probe_scan_mhz2]
+        self.att_probe = [att_dict[freq] for freq in self.freq_probe_scan_mhz]
         self.att_probe = [np.int32(0xFF) - np.int32(round(att_dB * 8)) for att_dB in self.att_probe]
         self.att_reg = 0x00000000
 
         # tmp remove
         self.setattr_device('urukul1_ch3')
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -131,69 +145,75 @@ class TemperatureMeasurement(EnvExperiment):
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
-            for i in range(len(self.freq_probe_scan_mhz2)):
+
+            # sweep frequencies
+            for i in range(len(self.freq_probe_scan_mhz)):
                 self.core.break_realtime()
 
                 # set freq and ampl for probe
-                freq_mhz = self.freq_probe_scan_mhz2[i]
-                self.dds_probe.set_mu(self.freq_probe_scan_ftw[i], asf=self.ampl_probe_asf)
+                freq_ftw = self.freq_probe_scan_ftw[i]
+                self.dds_probe.set_mu(freq_ftw, asf=self.ampl_probe_asf)
                 self.core.break_realtime()
 
                 # set att for probe
-                att_reg_tmp = self.att_reg | (self.att_probe[i] << (self.dds_probe_channel * 8))
-                self.dds_board.set_all_att_mu(att_reg_tmp)
+                self.dd_probe.set_att_mu(self.att_probe[i])
                 self.core.break_realtime()
 
-                # run the trial (repump on)
-                self.dds_repump.cfg_sw(1)
-                # run pulse sequence from core DMA
+                # run pulse sequence from core DMA (repump on)
                 self.core_dma.playback_handle(handle_on)
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_mhz, 1, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
+                    self.update_dataset(freq_ftw, 1, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
 
-                # run the experiment (repump off)
-                self.dds_repump.cfg_sw(0)
-                # run pulse sequence from core DMA
+                # run pulse sequence from core DMA (repump off)
                 self.core_dma.playback_handle(handle_off)
                 with parallel:
-                    self.update_dataset(freq_mhz, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
+                    self.update_dataset(freq_ftw, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
 
-            # after sequence, set all dds channels to trapping state
-            self.dds_repump.cfg_sw(1)
-            self.dds_pump.cfg_sw(1)
-            self.dds_probe.cfg_sw(0)
+        # after sequence, set all dds channels to trapping state
+        self.dds_board.cfg_switches(0b1110)
+
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
+        # sequence w/866 (cooling repump) on
         with self.core_dma.record(_DMA_HANDLE_ON):
+            # turn cooling repump on
+            self.dds_repump.cfg_sw(1)
+
             # pump on, probe off
             with parallel:
-                self.dds_board.cfg_switches(self.dds_switch_pump_states_on)
+                self.dds_board.cfg_switches(0b0110)
                 delay_mu(self.time_pump_mu)
 
             # probe on, pump off, PMT start recording
             with parallel:
-                self.dds_board.cfg_switches(self.dds_switch_probe_states_on)
+                self.dds_board.cfg_switches(0b0101)
                 self.pmt_gating_edge(self.time_probe_mu)
 
         self.core.break_realtime()
+
+        # sequence w/866 (cooling repump) off
         with self.core_dma.record(_DMA_HANDLE_OFF):
+            # turn cooling repump off
+            self.dds_repump.cfg_sw(0)
+
             # pump on, probe off
             with parallel:
-                self.dds_board.cfg_switches(self.dds_switch_pump_states_off)
+                self.dds_board.cfg_switches(0b0010)
                 delay_mu(self.time_pump_mu)
 
             # probe on, pump off, PMT start recording
             with parallel:
-                self.dds_board.cfg_switches(self.dds_switch_probe_states_off)
+                self.dds_board.cfg_switches(0b0001)
                 self.pmt_gating_edge(self.time_probe_mu)
+
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -205,6 +225,7 @@ class TemperatureMeasurement(EnvExperiment):
         # get current attenuation register status
         self.att_reg = np.int32(self.dds_board.get_att_mu())
         self.att_reg &= ~(0xFF << (8 * self.dds_probe_channel))
+        self.dds_board.set_all_att_mu(self.att_reg)
 
         # initialize repump beam and set waveform
         self.core.break_realtime()
@@ -221,7 +242,8 @@ class TemperatureMeasurement(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('temperature_measurement', [freq_mhz, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        self.append_to_dataset('temperature_measurement', [freq_mhz * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+
 
     def analyze(self):
         """

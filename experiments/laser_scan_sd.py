@@ -32,7 +32,6 @@ class LaserScanSD(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
         "ampl_probe_pct",
         "ampl_pump_pct",
         "ampl_repump_cooling_pct",
@@ -101,7 +100,6 @@ class LaserScanSD(EnvExperiment):
         self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
-        self.freq_qubit_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
         self.ampl_probe_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
@@ -237,9 +235,6 @@ class LaserScanSD(EnvExperiment):
         self.dds_repump_qubit.cfg_sw(1)
         self.core.break_realtime()
 
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
-        self.dds_qubit.cfg_sw(0)
-        self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, pmt_counts):
