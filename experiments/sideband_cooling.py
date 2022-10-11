@@ -9,9 +9,8 @@ _DMA_HANDLE_READOUT_BLUE = "sideband_cooling_readout_blue"
 
 class SidebandCooling(EnvExperiment):
     """
-    Rabi Flopping RDX SD
-    Measures ion fluorescence vs 729nm pulse time and frequency, but better than before
-    Now also does spin depolarization
+    Sideband Cooling
+    Measures temperature after a given number of RSB pulses.
     """
 
     # kernel_invariants = {}
