@@ -166,33 +166,30 @@ class LaserScanSD(EnvExperiment):
         Record onto core DMA the AOM sequence for a single data point.
         """
         with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
+            # set cooling waveform
+            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
+            self.dds_pump.set_att_mu(self.att_cooling_mu)
+
             # repump pulse
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
-
-            # cooling
-            # set cooling waveform
-            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_cooling_mu)
 
             # cooling pulse
             self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # do spin depolarization using probe
+            # state preparation
             self.dds_board.cfg_switches(0b0101)
             delay_mu(self.time_probe_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729
-            # ensure 854 and cooling are off
             self.dds_qubit.cfg_sw(1)
             delay_mu(self.time_729_mu)
             self.dds_qubit.cfg_sw(0)
 
-            # readout
             # set readout waveform
             self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
             self.dds_pump.set_att_mu(self.att_readout_mu)
