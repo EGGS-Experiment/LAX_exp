@@ -30,7 +30,8 @@ class LaserScan(EnvExperiment):
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct"
+        "ampl_qubit_pct",
+        "pmt_discrimination"
     ]
 
     def build(self):
@@ -223,6 +224,8 @@ class LaserScan(EnvExperiment):
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
+            # bin into 0 or 1
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
         print(self.laser_scan_processed)

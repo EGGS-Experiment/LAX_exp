@@ -31,6 +31,7 @@ class StatePreparation(EnvExperiment):
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
+        "pmt_discrimination"
     ]
 
     def build(self):

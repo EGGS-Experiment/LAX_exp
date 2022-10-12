@@ -34,7 +34,8 @@ class RabiFlopping(EnvExperiment):
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct"
+        "ampl_qubit_pct",
+        "pmt_discrimination"
     ]
 
     def build(self):
@@ -255,6 +256,7 @@ class RabiFlopping(EnvExperiment):
 
         # process counts for mean and std and put into processed dataset
         for i, (time_s, count_list) in enumerate(collated_results.items()):
-            self.rabi_flopping_processed[i] = np.array([time_s, np.mean(count_list)])
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.rabi_flopping_processed[i] = np.array([time_s, np.mean(binned_count_list)])
 
         print(self.rabi_flopping_processed)

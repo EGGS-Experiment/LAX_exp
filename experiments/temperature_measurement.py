@@ -270,4 +270,7 @@ class TemperatureMeasurement(EnvExperiment):
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            self.temperature_measurement_processed[i] = np.array([freq_mhz, np.mean(count_list[1]) - np.mean(count_list[0]), np.std(count_list[1])])
+            binned_count_list = np.heaviside(np.array(count_list[1]) - self.pmt_discrimination, 1)
+            self.temperature_measurement_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+
+        print(self.temperature_measurement_processed)

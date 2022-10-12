@@ -38,6 +38,7 @@ class SidebandCooling(EnvExperiment):
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
+        "pmt_discrimination"
     ]
 
     def build(self):
@@ -94,6 +95,7 @@ class SidebandCooling(EnvExperiment):
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
+        self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
@@ -270,11 +272,30 @@ class SidebandCooling(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling', [freq_ftw * self.ftw_to_frequency, pmt_counts])
+        self.append_to_dataset('sideband_cooling', [freq_ftw * self.ftw_to_mhz, pmt_counts])
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
+        # turn dataset into numpy array for ease of use
         self.sideband_cooling = np.array(self.sideband_cooling)
+
+        # get sorted x-values (frequency)
+        freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
+
+        # collate results
+        collated_results = {
+            freq: []
+            for freq in freq_list_mhz
+        }
+        for freq_mhz, pmt_counts in self.sideband_cooling:
+            collated_results[freq_mhz].append(pmt_counts)
+
+        # process counts for mean and std and put into processed dataset
+        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+
+        print(self.sideband_cooling_processed)
