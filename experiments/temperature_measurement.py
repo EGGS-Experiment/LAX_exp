@@ -14,9 +14,8 @@ _DMA_HANDLE_OFF = "temperature_measurement_off"
 
 class TemperatureMeasurement(EnvExperiment):
     """
-    Temperature Measurement - Transpose
-        Measures ion fluorescence for a single detuning.
-        Sweeps frequency within each trial.
+    Temperature Measurement
+    Measures ion fluorescence for a single detuning and sweeps frequency within each trial.
     """
 
     #kernel_invariants = {}
