@@ -45,16 +45,15 @@ class StatePreparation(EnvExperiment):
         self.setattr_argument("num_loops",                      NumberValue(default=1, ndecimals=0, step=1, min=1, max=20))
 
         # qubit (729) waveforms
-        self.setattr_argument("freq_qubit_loop_mhz",            NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("freq_qubit_shelving_mhz",        NumberValue(default=92, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("freq_qubit_loop_mhz",            NumberValue(default=92, ndecimals=5, step=1, min=10, max=200))
+        self.setattr_argument("freq_qubit_shelving_mhz",        NumberValue(default=92, ndecimals=5, step=1, min=10, max=200))
 
-        self.setattr_argument("ampl_qubit_loop_pct",            NumberValue(default=50, ndecimals=3, step=1, min=10, max=200))
-        self.setattr_argument("ampl_qubit_shelving_pct",        NumberValue(default=50, ndecimals=3, step=1, min=10, max=200))
+        self.setattr_argument("ampl_qubit_loop_pct",            NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
+        self.setattr_argument("ampl_qubit_shelving_pct",        NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # timing
-        self.setattr_argument("time_loop_us",                   NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_shelving_us",               NumberValue(default=5, ndecimals=5, step=1, min=1, max=10000))
-
+        self.setattr_argument("time_loop_us",                   NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_shelving_us",               NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -67,45 +66,45 @@ class StatePreparation(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter =                      self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                      self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_profileswitch_delay_mu =      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
-        self.time_repump_qubit_mu =             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
-        self.time_cooling_mu =                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_readout_mu =                  self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_cooling_mu =                                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
+        self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
 
         # DDS devices
-        self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =                                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_pump =                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling =               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_pump =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =                               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
-        self.freq_pump_cooling_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_pump_cooling_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
-        self.ampl_pump_readout_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
-        self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # novel parameters
-        self.freq_qubit_loop_ftw =              self.dds_qubit.frequency_to_ftw(self.freq_qubit_loop_mhz)
-        self.freq_qubit_shelving_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_qubit_shelving_mhz)
+        self.freq_qubit_loop_ftw =                              self.dds_qubit.frequency_to_ftw(self.freq_qubit_loop_mhz)
+        self.freq_qubit_shelving_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_qubit_shelving_mhz)
 
-        self.ampl_qubit_loop_asf =              self.dds_qubit.amplitude_to_asf(self.ampl_qubit_loop_pct / 100)
-        self.ampl_qubit_shelving_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_qubit_shelving_pct / 100)
+        self.ampl_qubit_loop_asf =                              self.dds_qubit.amplitude_to_asf(self.ampl_qubit_loop_pct / 100)
+        self.ampl_qubit_shelving_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_qubit_shelving_pct / 100)
 
-        self.time_loop_mu =                     self.core.seconds_to_mu(self.time_loop_us * us)
-        self.time_shelving_mu =                 self.core.seconds_to_mu(self.time_shelving_us * us)
+        self.time_loop_mu =                                     self.core.seconds_to_mu(self.time_loop_us * us)
+        self.time_shelving_mu =                                 self.core.seconds_to_mu(self.time_shelving_us * us)
 
         # set up datasets
         self.set_dataset("state_preparation", np.zeros(self.repetitions))
@@ -250,14 +249,6 @@ class StatePreparation(EnvExperiment):
         self.dds_qubit.set_mu(self.freq_qubit_loop_ftw, asf=self.ampl_qubit_loop_asf, profile=0)
         self.dds_qubit.set_mu(self.freq_qubit_shelving_ftw, asf=self.ampl_qubit_shelving_asf, profile=1)
         self.core.break_realtime()
-
-
-    @rpc(flags={"async"})
-    def update_dataset(self, pmt_counts):
-        """
-        Records values via rpc to minimize kernel overhead.
-        """
-        self.append_to_dataset('rabi_flopping_rdx', pmt_counts)
 
 
     def analyze(self):

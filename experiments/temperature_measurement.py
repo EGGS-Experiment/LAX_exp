@@ -55,8 +55,8 @@ class TemperatureMeasurement(EnvExperiment):
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(default=RangeScan(70, 146, 20, randomize=True),
-                                                                  global_min=80, global_max=140, global_step=1,
-                                                                  unit="MHz", scale=1, ndecimals=1))
+                                                                  global_min=10, global_max=200, global_step=1,
+                                                                  unit="MHz", scale=1, ndecimals=5))
 
         # photodiode
         self.setattr_argument("photodiode_channel",     NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
@@ -242,11 +242,11 @@ class TemperatureMeasurement(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_mhz, repump_status, pmt_counts, sampler_mu):
+    def update_dataset(self, freq_ftw, repump_status, pmt_counts, sampler_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('temperature_measurement', [freq_mhz * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        self.append_to_dataset('temperature_measurement', [freq_ftw * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
 
 
     def analyze(self):

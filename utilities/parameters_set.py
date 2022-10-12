@@ -38,7 +38,6 @@ class ParameterSet(EnvExperiment):
         timing_parameters = {
             # preparation
             "time_repump_qubit_us":         100,
-            "time_probe_us":                500,
             "time_redist_us":               500,
 
             # cooling

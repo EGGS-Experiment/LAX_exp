@@ -1,14 +1,12 @@
 import numpy as np
 from artiq.experiment import *
-# todo: upload data to labrad
-# todo: check scannable works correctly
-_DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
+_DMA_HANDLE_LASERSCAN = "laserscan_sequence"
 
 
 class LaserScan(EnvExperiment):
     """
-    729nm Laser Scan but better
-    Gets 729nm Spectrum
+    729nm Laser Scan
+    Gets the number of counts as a function of frequency for a fixed time.
     """
 
     #kernel_invariants = {}
@@ -49,9 +47,10 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(100, 120, 1001),
-                                                                    global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=3))
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=
+                                                                          RangeScan(100, 120, 1001),
+                                                                          global_min=30, global_max=200, global_step=1,
+                                                                          unit="MHz", scale=1, ndecimals=5))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -103,10 +102,10 @@ class LaserScan(EnvExperiment):
         self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("laser_scan_rdx", [])
-        self.setattr_dataset("laser_scan_rdx")
-        self.set_dataset("laser_scan_rdx_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("laser_scan_rdx_processed")
+        self.set_dataset("laser_scan", [])
+        self.setattr_dataset("laser_scan")
+        self.set_dataset("laser_scan_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("laser_scan_processed")
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -123,7 +122,7 @@ class LaserScan(EnvExperiment):
         self.core.break_realtime()
 
         # get dma handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
+        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -154,7 +153,7 @@ class LaserScan(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
+        with self.core_dma.record(_DMA_HANDLE_LASERSCAN):
             # repump pulse
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
@@ -201,7 +200,7 @@ class LaserScan(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan_rdx', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, pmt_counts])
 
 
     def analyze(self):
@@ -209,21 +208,21 @@ class LaserScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.laser_scan_rdx = np.array(self.laser_scan_rdx)
+        self.laser_scan = np.array(self.laser_scan)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan_rdx[:, 0]))
+        freq_list_mhz = sorted(set(self.laser_scan[:, 0]))
 
         # collate results
         collated_results = {
             freq: []
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts in self.laser_scan_rdx:
+        for freq_mhz, pmt_counts in self.laser_scan:
             collated_results[freq_mhz].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            self.laser_scan_rdx_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
+            self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
 
-        print(self.laser_scan_rdx_processed)
+        print(self.laser_scan_processed)

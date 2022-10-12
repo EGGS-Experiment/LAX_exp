@@ -5,10 +5,10 @@ _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 
-class RabiFloppingRDX(EnvExperiment):
+class RabiFlopping(EnvExperiment):
     """
-    Rabi Flopping RDX
-    Measures ion fluorescence vs 729nm pulse time and frequency, but better than before
+    Rabi Flopping
+    Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
     # kernel_invariants = {}
@@ -51,7 +51,7 @@ class RabiFloppingRDX(EnvExperiment):
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
                                                                           RangeScan(0, 200, 1001, randomize=True),
                                                                           global_min=1, global_max=100000, global_step=1,
-                                                                          unit="us", scale=1, ndecimals=0
+                                                                          unit="us", scale=1, ndecimals=5
                                                                           ))
         # get global parameters
         for param_name in self.global_parameters:
@@ -107,10 +107,10 @@ class RabiFloppingRDX(EnvExperiment):
         self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("rabi_flopping_rdx", [])
-        self.setattr_dataset("rabi_flopping_rdx")
-        self.set_dataset("rabi_flopping_rdx_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
-        self.setattr_dataset("rabi_flopping_rdx_processed")
+        self.set_dataset("rabi_flopping", [])
+        self.setattr_dataset("rabi_flopping")
+        self.set_dataset("rabi_flopping_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
+        self.setattr_dataset("rabi_flopping_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -233,28 +233,28 @@ class RabiFloppingRDX(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('rabi_flopping_rdx', [self.core.mu_to_seconds(time_mu), pmt_counts])
+        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), pmt_counts])
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.rabi_flopping_rdx = np.array(self.rabi_flopping_rdx)
+        self.rabi_flopping = np.array(self.rabi_flopping)
 
         # get sorted x-values (time, seconds)
-        time_list_s = sorted(set(self.rabi_flopping_rdx[:, 0]))
+        time_list_s = sorted(set(self.rabi_flopping[:, 0]))
 
         # collate results
         collated_results = {
             time: []
             for time in time_list_s
         }
-        for time_s, pmt_counts in self.rabi_flopping_rdx:
+        for time_s, pmt_counts in self.rabi_flopping:
             collated_results[time_s].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (time_s, count_list) in enumerate(collated_results.items()):
-            self.rabi_flopping_rdx_processed[i] = np.array([time_s, np.mean(count_list)])
+            self.rabi_flopping_processed[i] = np.array([time_s, np.mean(count_list)])
 
-        print(self.rabi_flopping_rdx_processed)
+        print(self.rabi_flopping_processed)
