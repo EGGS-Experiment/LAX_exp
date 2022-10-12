@@ -23,6 +23,7 @@ class LaserScanSD(EnvExperiment):
         "time_probe_us",
         "dds_board_num",
         "dds_board_qubit_num",
+        "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
@@ -75,7 +76,7 @@ class LaserScanSD(EnvExperiment):
         self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling * us)
+        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
         self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)

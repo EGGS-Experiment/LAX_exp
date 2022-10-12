@@ -27,7 +27,7 @@ class ParameterSet(EnvExperiment):
             "dds_repump_qubit_channel":     3,
 
             "dds_board_qubit_num":          0,
-            "dds_qubit_channel":            0,
+            "dds_qubit_channel":            1,
 
             # photodiode
             "photodiode_channel":           0,
@@ -39,13 +39,13 @@ class ParameterSet(EnvExperiment):
             # preparation
             "time_repump_qubit_us":         100,
             "time_redist_us":               500,
-            "time_probe_us":                500,
+            "time_probe_us":                50,
 
             # cooling
-            "time_doppler_cooling_us":      100,
+            "time_doppler_cooling_us":      800,
 
             # readout
-            "time_readout_us":              100,
+            "time_readout_us":              500,
 
             # general
             "time_profileswitch_delay_us":  1
@@ -54,9 +54,9 @@ class ParameterSet(EnvExperiment):
         # DDS waveforms
         dds_parameters = {
             # frequency
-            "freq_probe_mhz":           90,
-            "freq_pump_cooling_mhz":    90,
-            "freq_pump_readout_mhz":    92,
+            "freq_probe_mhz":           110,
+            "freq_pump_cooling_mhz":    110,
+            "freq_pump_readout_mhz":    110,
             "freq_repump_cooling_mhz":  110,
             "freq_repump_qubit_mhz":    110,
             "freq_qubit_mhz":           110.771,
@@ -71,13 +71,13 @@ class ParameterSet(EnvExperiment):
             "ampl_qubit_pct":           50,
 
             # attenuation
-            "att_probe_dB":             21,
-            "att_pump_dB":              22,
-            "att_pump_cooling_dB":      22,
-            "att_pump_readout_dB":      22,
-            "att_repump_cooling_dB":    22,
-            "att_repump_qubit_dB":      22,
-            "att_qubit_dB":             18
+            "att_probe_dB":             17.5,
+            "att_pump_dB":              21.5,
+            "att_pump_cooling_dB":      21.5,
+            "att_pump_readout_dB":      20.5,
+            "att_repump_cooling_dB":    25.5,
+            "att_repump_qubit_dB":      25.5,
+            "att_qubit_dB":             8.5
         }
 
         # consolidate parameter dictionaries
