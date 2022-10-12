@@ -16,7 +16,7 @@ class ParameterSet(EnvExperiment):
         # devices
         device_parameters = {
             # PMT
-            "pmt_input_channel":            1,
+            "pmt_input_channel":            0,
             "pmt_gating_edge":              "rising",
 
             # DDS - boards & channels
@@ -38,8 +38,8 @@ class ParameterSet(EnvExperiment):
         timing_parameters = {
             # preparation
             "time_repump_qubit_us":         100,
-            "time_redist_us":               500,
             "time_probe_us":                500,
+            "time_redist_us":               500,
 
             # cooling
             "time_doppler_cooling_us":      100,
@@ -54,7 +54,7 @@ class ParameterSet(EnvExperiment):
         # DDS waveforms
         dds_parameters = {
             # frequency
-            "freq_probe_mhz":           90,
+            "freq_redist_mhz":          90,
             "freq_pump_cooling_mhz":    90,
             "freq_pump_readout_mhz":    92,
             "freq_repump_cooling_mhz":  110,
@@ -62,7 +62,7 @@ class ParameterSet(EnvExperiment):
             "freq_qubit_mhz":           110.771,
 
             # amplitude
-            "ampl_probe_pct":           50,
+            "ampl_redist_pct":          50,
             "ampl_pump_pct":            50,
             "ampl_pump_cooling_pct":    50,
             "ampl_pump_readout_pct":    50,
@@ -71,7 +71,7 @@ class ParameterSet(EnvExperiment):
             "ampl_qubit_pct":           50,
 
             # attenuation
-            "att_probe_dB":             21,
+            "att_redist_dB":            21,
             "att_pump_dB":              22,
             "att_pump_cooling_dB":      22,
             "att_pump_readout_dB":      22,

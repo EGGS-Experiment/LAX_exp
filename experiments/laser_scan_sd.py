@@ -4,8 +4,6 @@ from artiq.experiment import *
 # todo: check scannable works correctly
 _DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
 
-# todo: add probe
-
 
 class LaserScanSD(EnvExperiment):
     """
@@ -20,19 +18,19 @@ class LaserScanSD(EnvExperiment):
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
-        "time_probe_us",
+        "time_redist_us",
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
-        "freq_probe_mhz",
+        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "ampl_probe_pct",
+        "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
@@ -73,7 +71,7 @@ class LaserScanSD(EnvExperiment):
 
         # convert time values to machine units
         self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling * us)
-        self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
+        self.time_redist_mu =           self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
         self.time_repump_qubit_mu =     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
@@ -93,21 +91,21 @@ class LaserScanSD(EnvExperiment):
         self.freq_qubit_scan_ftw =      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
-        self.freq_probe_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_redist_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_probe_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_redist_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
         self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
+        self.att_redist_mu =            np.int32(0xFF) - np.int32(round(self.att_redist_dB * 8))
         self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
         self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
@@ -181,7 +179,7 @@ class LaserScanSD(EnvExperiment):
 
             # state preparation
             self.dds_board.cfg_switches(0b0101)
-            delay_mu(self.time_probe_mu)
+            delay_mu(self.time_redist_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729
@@ -207,8 +205,8 @@ class LaserScanSD(EnvExperiment):
         self.core.break_realtime()
 
         # set AOM DDS waveforms
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)

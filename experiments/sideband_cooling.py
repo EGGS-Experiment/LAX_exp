@@ -29,12 +29,12 @@ class SidebandCooling(EnvExperiment):
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
-        "freq_probe_mhz",
+        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
         "freq_qubit_mhz",
-        "ampl_probe_pct",
+        "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
@@ -89,7 +89,7 @@ class SidebandCooling(EnvExperiment):
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
-        self.freq_probe_ftw =                                   self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_blue_ftw =                       self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_blue_mhz * MHz)
         self.freq_pump_readout_red_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_red_mhz * MHz)
@@ -98,7 +98,7 @@ class SidebandCooling(EnvExperiment):
         self.freq_qubit_ftw =                                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_probe_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_red_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_red_pct / 100)
         self.ampl_pump_readout_blue_asf =                       self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_blue_pct / 100)
@@ -232,9 +232,9 @@ class SidebandCooling(EnvExperiment):
 
         # set AOM DDS waveforms
         # profile 0 = cooling; profile 1 = readout (red-detuned); profile 2 = readout (blue-detuned)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=0)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=1)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf, profile=2)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)

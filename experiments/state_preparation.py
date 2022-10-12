@@ -22,10 +22,9 @@ class StatePreparation(EnvExperiment):
         "time_doppler_cooling_us",
         "time_readout_us",
         "dds_board_num",
-        "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
-        "freq_probe_mhz",
+        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
@@ -81,7 +80,6 @@ class StatePreparation(EnvExperiment):
         self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
         self.dds_qubit_board =                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump =                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
         self.dds_repump_cooling =               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
