@@ -5,10 +5,10 @@ _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 
-class RabiFlopping(EnvExperiment):
+class RabiFloppingSD(EnvExperiment):
     """
-    Rabi Flopping
-    Measures ion fluorescence vs 729nm pulse time and frequency, but better than before
+    Rabi Flopping (w/spin depolarization)
+    Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
     # kernel_invariants = {}
@@ -19,7 +19,7 @@ class RabiFlopping(EnvExperiment):
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
-        "time_probe_us",
+        "time_redist_us",
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_probe_channel",
@@ -27,19 +27,19 @@ class RabiFlopping(EnvExperiment):
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
+        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
-        "ampl_probe_pct",
-        "ampl_pump_pct",
+
+        "ampl_redist_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
         "ampl_qubit_pct",
-        "att_probe_dB",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "pmt_discrimination"
     ]
 
     def build(self):
@@ -50,14 +50,22 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=400, ndecimals=0, step=1, min=1, max=10000))
+
+        #
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
-                                                                          RangeScan(0, 200, 1001, randomize=True),
+                                                                          RangeScan(0, 400, 1001, randomize=True),
                                                                           global_min=1, global_max=100000, global_step=1,
-                                                                          unit="us", scale=1, ndecimals=0
+                                                                          unit="us", scale=1, ndecimals=5
                                                                           ))
+
+        # AOM values
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
@@ -77,6 +85,11 @@ class RabiFlopping(EnvExperiment):
         self.time_repump_qubit_mu =             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
         self.time_cooling_mu =                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_readout_mu =                  self.core.seconds_to_mu(self.time_readout_us * us)
+<<<<<<< HEAD:experiments/rabi_flopping_rdx_sd.py
+        self.time_redist_mu =                   self.core.seconds_to_mu(self.time_redist_us * us)
+=======
+        self.time_redist_mu =                    self.core.seconds_to_mu(self.time_redist_us * us)
+>>>>>>> 24925ba842a07aa75eb1337ad419208bff2be44d:experiments/rabi_flopping_sd.py
 
         # rabi flopping timing
         self.time_rabi_mu_list =                [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
@@ -88,12 +101,14 @@ class RabiFlopping(EnvExperiment):
         self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
         self.dds_qubit_board =                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
+        self.dds_probe =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump =                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
         self.dds_repump_cooling =               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
+        self.freq_redist_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
@@ -101,22 +116,28 @@ class RabiFlopping(EnvExperiment):
         self.freq_qubit_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_pump_asf =                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
+        self.ampl_redist_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_pump_cooling_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
+<<<<<<< HEAD:experiments/rabi_flopping_rdx_sd.py
         # sort out attenuation
+        self.att_probe_mu =                     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
         self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
         self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        self.att_qubit_mu =                     np.int32(0xFF) - np.int32(round(self.att_qubit_dB * 8))
 
+=======
+>>>>>>> 24925ba842a07aa75eb1337ad419208bff2be44d:experiments/rabi_flopping_sd.py
         # set up datasets
-        self.set_dataset("rabi_flopping_rdx", [])
-        self.setattr_dataset("rabi_flopping_rdx")
-        self.set_dataset("rabi_flopping_rdx_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
-        self.setattr_dataset("rabi_flopping_rdx_processed")
+        self.set_dataset("rabi_flopping_sd", [])
+        self.setattr_dataset("rabi_flopping_sd")
+        self.set_dataset("rabi_flopping_sd_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
+        self.setattr_dataset("rabi_flopping_sd_processed")
 
-        self.set_dataset("parameters", [self.repetitions, self.freq_qubit_ftw, self.att_cooling_mu, self.att_readout_mu])
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -167,11 +188,13 @@ class RabiFlopping(EnvExperiment):
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
 
+
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
+        # reset sequence
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
                 # qubit repump (854) pulse
@@ -180,7 +203,6 @@ class RabiFlopping(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
                 # set cooling waveform
-                self.dds_pump.set_att_mu(self.att_cooling_mu)
                 with parallel:
                     self.dds_board.set_profile(0)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -190,11 +212,15 @@ class RabiFlopping(EnvExperiment):
                 delay_mu(self.time_cooling_mu)
                 self.dds_board.cfg_switches(0b0100)
 
+                # do spin depolarization using probe
+                self.dds_board.cfg_switches(0b0101)
+                delay_mu(self.time_redist_mu)
+                self.dds_board.cfg_switches(0b0100)
+
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             with sequential:
                 # set readout waveform
-                self.dds_pump.set_att_mu(self.att_readout_mu)
                 with parallel:
                     self.dds_board.set_profile(1)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -204,6 +230,7 @@ class RabiFlopping(EnvExperiment):
                 self.pmt_gating_edge(self.time_readout_mu)
                 self.dds_board.cfg_switches(0b0100)
 
+
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
         """
@@ -211,15 +238,13 @@ class RabiFlopping(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # set attenuations for now so we can change them later
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
+        # set AOM DDS waveforms; profile 0 is cooling, profile 1 is readout
+        self.dds_redist.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
+        self.dds_redist.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
         self.core.break_realtime()
 
-        # set AOM DDS waveforms
-        # profile 0 is cooling, profile 1 is readout
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf, profile=0)
-        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
+        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
@@ -230,36 +255,44 @@ class RabiFlopping(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
+<<<<<<< HEAD:experiments/rabi_flopping_rdx_sd.py
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_att_mu(self.att_qubit_mu)
+=======
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
+>>>>>>> 24925ba842a07aa75eb1337ad419208bff2be44d:experiments/rabi_flopping_sd.py
         self.core.break_realtime()
+
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('rabi_flopping_rdx', [self.core.mu_to_seconds(time_mu), pmt_counts])
+        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), pmt_counts])
+
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.rabi_flopping_rdx = np.array(self.rabi_flopping_rdx)
+        self.rabi_flopping_sd = np.array(self.rabi_flopping_sd)
 
         # get sorted x-values (time, seconds)
-        time_list_s = sorted(set(self.rabi_flopping_rdx[:, 0]))
+        time_list_s = sorted(set(self.rabi_flopping_sd[:, 0]))
 
         # collate results
         collated_results = {
             time: []
             for time in time_list_s
         }
-        for time_s, pmt_counts in self.rabi_flopping_rdx:
+        for time_s, pmt_counts in self.rabi_flopping_sd:
             collated_results[time_s].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (time_s, count_list) in enumerate(collated_results.items()):
-            self.rabi_flopping_rdx_processed[i] = np.array([time_s, np.mean(count_list)])
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.rabi_flopping_sd_processed[i] = np.array([time_s, np.mean(binned_count_list)])
 
-        print(self.rabi_flopping_rdx_processed)
+        print(self.rabi_flopping_sd_processed)

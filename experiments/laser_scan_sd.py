@@ -1,16 +1,12 @@
 import numpy as np
 from artiq.experiment import *
-# todo: upload data to labrad
-# todo: check scannable works correctly
-_DMA_HANDLE_TIMESWEEP = "timesweep_rdx"
-
-# todo: add probe
+_DMA_HANDLE_LASERSCAN_SD = "laserscan_sd_sequence"
 
 
 class LaserScanSD(EnvExperiment):
     """
-    729nm Laser Scan but better w spin polarization
-    Gets 729nm Spectrum
+    729nm Laser Scan (w/spin depolarization)
+    Gets the number of counts as a function of frequency for a fixed time.
     """
 
     #kernel_invariants = {}
@@ -28,21 +24,20 @@ class LaserScanSD(EnvExperiment):
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
-        "freq_probe_mhz",
+        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
-        "ampl_probe_pct",
-        "ampl_pump_pct",
+        "ampl_redist_pct",
+        "ampl_pump_cooling_pct",
+        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
         "ampl_qubit_pct",
-        "att_probe_dB",
-        "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "pmt_discrimination"
     ]
+
 
     def build(self):
         """
@@ -60,11 +55,12 @@ class LaserScanSD(EnvExperiment):
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=3))
+                                                                    unit="MHz", scale=1, ndecimals=5))
 
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
+
 
     def prepare(self):
         """
@@ -76,7 +72,7 @@ class LaserScanSD(EnvExperiment):
         self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
+        self.time_doppler_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_redist_mu =           self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
@@ -97,30 +93,30 @@ class LaserScanSD(EnvExperiment):
         self.freq_qubit_scan_ftw =      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
-        self.freq_probe_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_probe_mhz * MHz)
+        self.freq_redist_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
-        self.freq_qubit_ftw =           self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_probe_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_probe_pct / 100)
+        self.ampl_redist_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
         self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_probe_mu =             np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
+        self.att_redist_mu =            np.int32(0xFF) - np.int32(round(self.att_redist_dB * 8))
         self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
         self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
-        self.set_dataset("laser_scan_rdx_sd", [])
-        self.setattr_dataset("laser_scan_rdx_sd")
-        self.set_dataset("laser_scan_rdx_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("laser_scan_rdx_sd_processed")
+        self.set_dataset("laser_scan_sd", [])
+        self.setattr_dataset("laser_scan_sd")
+        self.set_dataset("laser_scan_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("laser_scan_sd_processed")
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -137,7 +133,7 @@ class LaserScanSD(EnvExperiment):
         self.core.break_realtime()
 
         # get dma handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE_TIMESWEEP)
+        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN_SD)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -163,47 +159,48 @@ class LaserScanSD(EnvExperiment):
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
 
+
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        with self.core_dma.record(_DMA_HANDLE_TIMESWEEP):
+        with self.core_dma.record(_DMA_HANDLE_LASERSCAN_SD):
+            # set cooling waveform
+            with parallel:
+                self.dds_board.set_profile(0)
+                delay_mu(self.time_profileswitch_delay_mu)
+
             # repump pulse
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # cooling
-            # set cooling waveform
-            self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_cooling_mu)
-
             # cooling pulse
             self.dds_board.cfg_switches(0b0110)
-            delay_mu(self.time_cooling_mu)
+            delay_mu(self.time_doppler_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # do spin depolarization using probe
+            # state preparation
             self.dds_board.cfg_switches(0b0101)
             delay_mu(self.time_redist_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729
-            # ensure 854 and cooling are off
             self.dds_qubit.cfg_sw(1)
             delay_mu(self.time_729_mu)
             self.dds_qubit.cfg_sw(0)
 
-            # readout
             # set readout waveform
-            self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_asf)
-            self.dds_pump.set_att_mu(self.att_readout_mu)
+            with parallel:
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
+
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -212,64 +209,53 @@ class LaserScanSD(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # initialize dds boards
-        self.core.break_realtime()
-
-        # sort out att reg
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
-        self.core.break_realtime()
-
         # set AOM DDS waveforms
-        self.dds_probe.set_att_mu(self.att_probe_mu)
-        self.dds_probe.set_mu(self.freq_probe_ftw, asf=self.ampl_probe_asf)
-        self.dds_probe.cfg_sw(0)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_asf)
-        self.dds_pump.cfg_sw(1)
+        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
+        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf)
-        self.dds_repump_cooling.cfg_sw(1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf)
-        self.dds_repump_qubit.cfg_sw(1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
-        self.dds_qubit.cfg_sw(0)
-        self.core.break_realtime()
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan_rdx_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('laser_scan_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.laser_scan_rdx_sd = np.array(self.laser_scan_rdx_sd)
+        self.laser_scan_sd = np.array(self.laser_scan_sd)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan_rdx_sd[:, 0]))
+        freq_list_mhz = sorted(set(self.laser_scan_sd[:, 0]))
 
         # collate results
         collated_results = {
             freq: []
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts in self.laser_scan_rdx_sd:
+        for freq_mhz, pmt_counts in self.laser_scan_sd:
             collated_results[freq_mhz].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            self.laser_scan_rdx_sd_processed[i] = np.array([freq_mhz, np.mean(count_list), np.std(count_list)])
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.laser_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        print(self.laser_scan_rdx_sd_processed)
-
+        print(self.laser_scan_sd_processed)
