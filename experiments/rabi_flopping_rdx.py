@@ -5,9 +5,9 @@ _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 
-class RabiFloppingRDX(EnvExperiment):
+class RabiFlopping(EnvExperiment):
     """
-    Rabi Flopping RDX
+    Rabi Flopping
     Measures ion fluorescence vs 729nm pulse time and frequency, but better than before
     """
 

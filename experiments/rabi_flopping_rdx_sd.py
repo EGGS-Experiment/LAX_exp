@@ -33,7 +33,6 @@ class RabiFloppingRDXSD(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
         "ampl_probe_pct",
         "ampl_pump_pct",
         "ampl_repump_cooling_pct",
@@ -53,6 +52,10 @@ class RabiFloppingRDXSD(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=400, ndecimals=0, step=1, min=1, max=10000))
+
+        #
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
