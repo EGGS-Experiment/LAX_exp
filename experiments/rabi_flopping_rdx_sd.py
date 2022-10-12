@@ -33,7 +33,6 @@ class RabiFloppingRDXSD(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
@@ -58,6 +57,9 @@ class RabiFloppingRDXSD(EnvExperiment):
                                                                           global_min=1, global_max=100000, global_step=1,
                                                                           unit="us", scale=1, ndecimals=0
                                                                           ))
+
+        # AOM values
+        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
