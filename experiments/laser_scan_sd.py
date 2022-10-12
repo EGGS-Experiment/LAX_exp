@@ -20,7 +20,7 @@ class LaserScanSD(EnvExperiment):
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
-        "time_probe_us",
+        "time_redist_us",
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_probe_channel",
@@ -77,7 +77,7 @@ class LaserScanSD(EnvExperiment):
 
         # convert time values to machine units
         self.time_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
+        self.time_redist_mu =           self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
         self.time_repump_qubit_mu =     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
@@ -186,7 +186,7 @@ class LaserScanSD(EnvExperiment):
 
             # do spin depolarization using probe
             self.dds_board.cfg_switches(0b0101)
-            delay_mu(self.time_probe_mu)
+            delay_mu(self.time_redist_mu)
             self.dds_board.cfg_switches(0b0100)
 
             # 729
