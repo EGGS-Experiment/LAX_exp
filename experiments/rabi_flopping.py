@@ -46,7 +46,7 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
 
         # qubit time scan
         self.setattr_argument("time_rabi_us_list",              Scannable(default=
@@ -104,8 +104,8 @@ class RabiFlopping(EnvExperiment):
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        #self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        #self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("rabi_flopping", [])
@@ -176,7 +176,6 @@ class RabiFlopping(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
                 # set cooling waveform
-                self.dds_pump.set_att_mu(self.att_cooling_mu)
                 with parallel:
                     self.dds_board.set_profile(0)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -190,7 +189,6 @@ class RabiFlopping(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             with sequential:
                 # set readout waveform
-                self.dds_pump.set_att_mu(self.att_readout_mu)
                 with parallel:
                     self.dds_board.set_profile(1)
                     delay_mu(self.time_profileswitch_delay_mu)
@@ -207,13 +205,7 @@ class RabiFlopping(EnvExperiment):
         """
         self.core.break_realtime()
 
-        # set attenuations for now so we can change them later
-        att_reg_old = np.int32(self.dds_board.get_att_mu())
-        self.dds_board.set_all_att_mu(att_reg_old)
-        self.core.break_realtime()
-
-        # set AOM DDS waveforms
-        # profile 0 is cooling, profile 1 is readout
+        # set AOM DDS waveforms; profile 0 is cooling, profile 1 is readout
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()

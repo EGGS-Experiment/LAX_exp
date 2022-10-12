@@ -17,6 +17,7 @@ class LaserScanSD(EnvExperiment):
         "time_doppler_cooling_us",
         "time_readout_us",
         "time_redist_us",
+        "time_profileswitch_delay_us",
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_probe_channel",
@@ -68,48 +69,50 @@ class LaserScanSD(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter =              self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                      self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_doppler_cooling_mu =          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_redist_mu =           self.core.seconds_to_mu(self.time_redist_us * us)
-        self.time_readout_mu =          self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_729_mu =              self.core.seconds_to_mu(self.time_729_us * us)
-        self.time_repump_qubit_mu =     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
+        self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
+        self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_729_mu =                                      self.core.seconds_to_mu(self.time_729_us * us)
+        self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
 
         # DDS devices
-        self.dds_board =                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =                                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump =                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling =       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit =         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit =                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_probe =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =                               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
-        self.ftw_to_mhz =               1e3 / (2 ** 32 - 1)
-        self.freq_qubit_scan_ftw =      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
+        self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
+        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
-        self.freq_redist_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
-        self.freq_pump_cooling_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw =  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw =    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
+        self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_redist_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
-        self.ampl_pump_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_pct / 100)
-        self.ampl_repump_cooling_asf =  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf =    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
-        self.ampl_qubit_asf =           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # sort out attenuation
-        self.att_redist_mu =            np.int32(0xFF) - np.int32(round(self.att_redist_dB * 8))
-        self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        # self.att_redist_mu =            np.int32(0xFF) - np.int32(round(self.att_redist_dB * 8))
+        # self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
+        # self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
 
         # set up datasets
         self.set_dataset("laser_scan_sd", [])
