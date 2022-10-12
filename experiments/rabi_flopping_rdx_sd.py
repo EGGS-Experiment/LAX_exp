@@ -40,7 +40,8 @@ class RabiFloppingRDXSD(EnvExperiment):
         "ampl_qubit_pct",
         "att_probe_dB",
         "att_pump_cooling_dB",
-        "att_pump_readout_dB"
+        "att_pump_readout_dB",
+        "att_qubit_dB"
     ]
 
     def build(self):
@@ -120,6 +121,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.att_probe_mu =                     np.int32(0xFF) - np.int32(round(self.att_probe_dB * 8))
         self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
         self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        self.att_qubit_mu =                     np.int32(0xFF) - np.int32(round(self.att_qubit_dB * 8))
 
         # set up datasets
         self.set_dataset("rabi_flopping_rdx", [])
@@ -253,6 +255,7 @@ class RabiFloppingRDXSD(EnvExperiment):
         self.core.break_realtime()
 
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
 
 
