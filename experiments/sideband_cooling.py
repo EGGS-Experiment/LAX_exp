@@ -49,7 +49,7 @@ class SidebandCooling(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("sideband_cycles",                NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
@@ -69,6 +69,10 @@ class SidebandCooling(EnvExperiment):
                                                                           global_min=30, global_max=200, global_step=1,
                                                                           unit="MHz", scale=1, ndecimals=5))
 
+        # get global parameters
+        for param_name in self.global_parameters:
+            self.setattr_dataset(param_name, archive=True)
+
 
     def prepare(self):
         """
@@ -83,6 +87,7 @@ class SidebandCooling(EnvExperiment):
         self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
         self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
 
         # DDS devices
         self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -93,6 +98,9 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_cooling =                               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+
+        # process scan frequencies
+        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert frequency to ftw
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
@@ -120,7 +128,8 @@ class SidebandCooling(EnvExperiment):
         # set up datasets
         self.set_dataset("sideband_cooling", [])
         self.setattr_dataset("sideband_cooling")
-
+        self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("sideband_cooling_processed")
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -263,7 +272,7 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_qubit.set_mu(self.freq_sideband_cooling_mhz, asf=self.ampl_sideband_cooling_mhz, profile=0)
+        self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw, asf=self.ampl_sideband_cooling_asf, profile=0)
         self.core.break_realtime()
 
 

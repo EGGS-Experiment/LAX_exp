@@ -17,20 +17,31 @@ class StatePreparation(EnvExperiment):
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
+
         "time_profileswitch_delay_us",
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
+
         "dds_board_num",
+        "dds_board_qubit_num",
+        "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
-        "freq_redist_mhz",
+        "dds_repump_qubit_channel",
+        "dds_qubit_channel",
+
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
+        "freq_repump_qubit_mhz",
+
+        "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
+        "ampl_repump_qubit_pct",
+
         "pmt_discrimination"
     ]
 
@@ -209,9 +220,9 @@ class StatePreparation(EnvExperiment):
                     delay_mu(self.time_profileswitch_delay_mu)
 
                 # shelving pulse
-                self.dds_.cfg_switches(0b0110)
+                self.dds_qubit.cfg_sw(1)
                 delay_mu(self.time_shelving_mu)
-                self.dds_board.cfg_switches(0b0100)
+                self.dds_qubit.cfg_sw(0)
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
