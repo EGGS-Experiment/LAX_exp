@@ -1,8 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-_DMA_HANDLE_RESET = "rabi_flopping_reset"
-_DMA_HANDLE_READOUT = "rabi_flopping_readout"
+_DMA_HANDLE_SEQUENCE = "sideband_comparison_sequence"
 
 
 class SidebandComparison(EnvExperiment):
@@ -57,13 +56,11 @@ class SidebandComparison(EnvExperiment):
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
-        # micromotion values
-
         # qubit time scan
         self.setattr_argument("time_rabi_us",                   NumberValue(default=8, ndecimals=5, step=1, min=1, max=1000000))
 
         # AOM values
-        self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_micromotion_mhz",           NumberValue(default=19, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -87,10 +84,7 @@ class SidebandComparison(EnvExperiment):
         self.time_redist_mu =                   self.core.seconds_to_mu(self.time_redist_us * us)
 
         # rabi flopping timing
-        self.time_rabi_mu_list =                [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
-        max_time_us =                           np.max(list(self.time_rabi_us_list))
-        self.time_delay_mu_list =               [self.core.seconds_to_mu((max_time_us - time_us) * us) for time_us in self.time_rabi_us_list]
-        self.num_time_points_list =             list(range(len(self.time_rabi_mu_list)))
+        self.time_rabi_mu =                     self.core.seconds_to_mu(self.time_rabi_mu * us)
 
         # DDS devices
         self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -109,9 +103,10 @@ class SidebandComparison(EnvExperiment):
         self.freq_repump_cooling_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
+        self.freq_bsb_ftw =                     self.dds_qubit.frequency_to_ftw((0.5 * self.freq_micromotion_mhz + self.qubit_mhz) * MHz)
 
         # convert amplitude to asf
-        self.ampl_redist_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_redist_asf =                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
@@ -119,10 +114,8 @@ class SidebandComparison(EnvExperiment):
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # set up datasets
-        self.set_dataset("rabi_flopping_sd", [])
-        self.setattr_dataset("rabi_flopping_sd")
-        self.set_dataset("rabi_flopping_sd_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
-        self.setattr_dataset("rabi_flopping_sd_processed")
+        self.set_dataset("sideband_comparison", np.zeros([self.repetitions, 2]))
+        self.setattr_dataset("sideband_comparison")
 
 
     @kernel(flags={"fast-math"})
@@ -137,38 +130,33 @@ class SidebandComparison(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        handle_reset = self.core_dma.get_handle(_DMA_HANDLE_RESET)
-        handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        handle_sequence = self.core_dma.get_handle(_DMA_HANDLE_SEQUENCE)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
+            # set carrier waveform
+            with parallel:
+                self.dds_board.set_profile(0)
+                delay_mu(self.time_profileswitch_delay_mu)
 
-            # sweep time
-            for i in self.num_time_points_list:
+            # run sequence
+            self.core_dma.playback_handle(handle_sequence)
 
-                # get timings
-                time_delay_mu = self.time_delay_mu_list[i]
-                time_rabi_mu = self.time_rabi_mu_list[i]
+            # set bsb waveform
+            with parallel:
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
 
-                # run repump and cooling
-                self.core_dma.playback_handle(handle_reset)
+            # run sequence
+            self.core_dma.playback_handle(handle_sequence)
 
-                # wait given time
-                delay_mu(time_delay_mu)
+            # add data to dataset
+            self.mutate_dataset("sideband_comparison", trial_num, [self.pmt_counter.fetch_counts(), self.pmt_counter.fetch_counts()])
 
-                # rabi flopping w/qubit laser
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(time_rabi_mu)
-                self.dds_qubit.cfg_sw(0)
-
-                # do readout
-                self.core_dma.playback_handle(handle_readout)
-
-                # update dataset
-                with parallel:
-                    self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count())
-                    self.core.break_realtime()
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
@@ -181,7 +169,7 @@ class SidebandComparison(EnvExperiment):
         Record onto core DMA the AOM sequence for a single data point.
         """
         # reset sequence
-        with self.core_dma.record(_DMA_HANDLE_RESET):
+        with self.core_dma.record(_DMA_HANDLE_SEQUENCE):
             with sequential:
                 # qubit repump (854) pulse
                 self.dds_board.cfg_switches(0b1100)
@@ -203,13 +191,15 @@ class SidebandComparison(EnvExperiment):
                 delay_mu(self.time_redist_mu)
                 self.dds_board.cfg_switches(0b0100)
 
-        # readout sequence
-        with self.core_dma.record(_DMA_HANDLE_READOUT):
-            with sequential:
                 # set readout waveform
                 with parallel:
                     self.dds_board.set_profile(1)
                     delay_mu(self.time_profileswitch_delay_mu)
+
+                # rabi flopping w/qubit laser
+                self.dds_qubit.cfg_sw(1)
+                delay_mu(self.time_rabi_mu)
+                self.dds_qubit.cfg_sw(0)
 
                 # readout pulse
                 self.dds_board.cfg_switches(0b0110)
@@ -241,21 +231,15 @@ class SidebandComparison(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
+        # profile 0 is carrier, profile 1 is bsb
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.dds_qubit.set_mu(self.freq_bsb_ftw, asf=self.ampl_qubit_asf, profile=1)
         self.core.break_realtime()
-
-
-    @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts):
-        """
-        Records values via rpc to minimize kernel overhead.
-        """
-        self.append_to_dataset('sideband_comparison', [self.core.mu_to_seconds(time_mu), pmt_counts])
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        # turn dataset into numpy array for ease of use
-        pass
+        print("carrier counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison), np.std(self.sideband_comparison)))
+        print("bsb counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison), np.std(self.sideband_comparison)))
