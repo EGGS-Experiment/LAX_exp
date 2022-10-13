@@ -5,15 +5,7 @@ from artiq.experiment import *
 _DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_readout"
-
-# adjust either power or time; hao wants time
 # assume 5 phonons @ wsec=1.3MHz
-
-# do they cool all modes or just one?
-# closer to roos
-
-# do it goeder's way since it sweeps time
-# linear fit assuming linear
 
 
 class SidebandCooling(EnvExperiment):
@@ -69,7 +61,8 @@ class SidebandCooling(EnvExperiment):
 
         # timing
         self.setattr_argument("time_sideband_cooling_us",       NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_pipulse_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_max_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_min_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
 
         # AOM
         self.setattr_argument("freq_sideband_cooling_mhz",      NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
@@ -141,7 +134,8 @@ class SidebandCooling(EnvExperiment):
 
         # novel parameters
         self.time_sideband_cooling_mu =                         self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
-        self.time_pipulse_mu =                                  self.core.seconds_to_mu(self.time_pipulse_us * us)
+        self.time_pipulse_list_mu =                             [self.core.seconds_to_mu(time_us * us)
+                                                                 for time_us in np.linspace(self.time_min_pipulse_us, 2 * self.time_max_pipulse_us, self.sideband_cycles)]
 
         self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
 
@@ -185,8 +179,7 @@ class SidebandCooling(EnvExperiment):
                 self.core_dma.playback_handle(handle_initialize)
 
                 # run sideband cooling cycles
-                for cycle_num in range(self.sideband_cycles):
-                    self.core_dma.playback_handle(handle_sideband)
+                self.core_dma.playback_handle(handle_sideband)
 
                 # repump qubit
                 self.dds_board.cfg_switches(0b1100)
@@ -237,20 +230,17 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
-            with sequential:
-                # sideband cooling (729)
+            # sweep pi-pulse times
+            for time_mu in range(self.time_pipulse_list_mu):
+
+                # qubit pi-pulse
                 self.dds_qubit.cfg_sw(1)
-                delay_mu(self.time_sideband_cooling_mu)
+                delay_mu(time_mu)
                 self.dds_qubit.cfg_sw(0)
 
-                # qubit repump (854) pulse
+                # qubit repump
                 self.dds_board.cfg_switches(0b1100)
                 delay_mu(self.time_repump_qubit_mu)
-                self.dds_board.cfg_switches(0b0100)
-
-                # spin depolarization/redistribute S-1/2 (397)
-                self.dds_board.cfg_switches(0b0101)
-                delay_mu(self.time_redist_mu)
                 self.dds_board.cfg_switches(0b0100)
 
         # readout sequence
