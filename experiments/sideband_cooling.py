@@ -192,6 +192,10 @@ class SidebandCooling(EnvExperiment):
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
 
+        # tmp remove
+        self.dds_board.set_profile(0)
+
+
     @kernel(flags={"fast-math"})
     def DMArecord(self):
         """
