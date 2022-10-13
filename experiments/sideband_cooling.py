@@ -5,6 +5,17 @@ _DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_readout"
 
+# readout: sweep two separate frequency ranges, red, blue center
+# readout: join red and blue, then randomize
+# adjust either power or time; hao wants time
+# assume 5 phonons @ wsec=1.3MHz
+
+# do they cool all modes or just one?
+# closer to roos
+
+# do it goeder's way since it sweeps time
+# linear fit assuming linear
+
 
 class SidebandCooling(EnvExperiment):
     """
