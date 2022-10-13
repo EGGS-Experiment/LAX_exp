@@ -48,7 +48,7 @@ class LaserScanSD(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
@@ -161,6 +161,9 @@ class LaserScanSD(EnvExperiment):
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
+
+        # tmp remove
+        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})
