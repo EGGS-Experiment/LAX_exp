@@ -1,12 +1,11 @@
 import numpy as np
+from random import shuffle
 from artiq.experiment import *
 
 _DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_readout"
 
-# readout: sweep two separate frequency ranges, red, blue center
-# readout: join red and blue, then randomize
 # adjust either power or time; hao wants time
 # assume 5 phonons @ wsec=1.3MHz
 
@@ -27,11 +26,13 @@ class SidebandCooling(EnvExperiment):
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
+
         "time_profileswitch_delay_us",
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
         "time_redist_us",
+
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_probe_channel",
@@ -39,16 +40,19 @@ class SidebandCooling(EnvExperiment):
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
+
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
+
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
+
         "pmt_discrimination"
     ]
 
@@ -75,7 +79,12 @@ class SidebandCooling(EnvExperiment):
 
 
         # frequency sweep
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=
+        self.setattr_argument("freq_bsb_scan_mhz",              Scannable(default=
+                                                                          RangeScan(104.24, 104.96, 801),
+                                                                          global_min=30, global_max=200, global_step=1,
+                                                                          unit="MHz", scale=1, ndecimals=5))
+
+        self.setattr_argument("freq_rsb_scan_mhz",              Scannable(default=
                                                                           RangeScan(104.24, 104.96, 801),
                                                                           global_min=30, global_max=200, global_step=1,
                                                                           unit="MHz", scale=1, ndecimals=5))
@@ -111,7 +120,10 @@ class SidebandCooling(EnvExperiment):
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
+        freq_bsb_scan_ftw =                                     [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rsb_scan_mhz]
+        freq_rsb_scan_ftw =                                     [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_bsb_scan_mhz]
+        self.freq_qubit_scan_ftw =                              freq_rsb_scan_ftw + freq_bsb_scan_ftw
+        shuffle(self.freq_qubit_scan_ftw)
 
         # convert frequency to ftw
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
@@ -188,12 +200,13 @@ class SidebandCooling(EnvExperiment):
                 self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
 
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})

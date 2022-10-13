@@ -241,5 +241,5 @@ class SidebandComparison(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        print("carrier counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison), np.std(self.sideband_comparison)))
-        print("bsb counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison), np.std(self.sideband_comparison)))
+        print("carrier counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison[:, 0]), np.std(self.sideband_comparison[:, 0])))
+        print("bsb counts: {:f} +/- {:f}".format(np.mean(self.sideband_comparison[:, 1]), np.std(self.sideband_comparison[:, 1])))
