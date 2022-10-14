@@ -44,7 +44,7 @@ class SidebandCooling(EnvExperiment):
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct"
+        "ampl_qubit_pct",
 
         "pmt_discrimination"
     ]

@@ -34,7 +34,7 @@ class SidebandComparison(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz"
+        "freq_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
