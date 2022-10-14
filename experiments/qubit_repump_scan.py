@@ -1,5 +1,8 @@
 import numpy as np
 from artiq.experiment import *
+
+import labrad
+
 _DMA_HANDLE_QUBITREPUMP_SCAN_SD = "qubit_repump_scan_sd_sequence"
 
 
@@ -56,16 +59,25 @@ class QubitRepumpScan(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_pipulse_us",                NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+
+        self.setattr_argument("time_qubit_repump_reset_us",     NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_qubit_repump_sweep_us",     NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
-                                                                    global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5))
+        self.setattr_argument("freq_qubit_repump_scan_thz",     Scannable(
+                                                                    default=RangeScan(350.862460, 350.862500, 801),
+                                                                    global_min=100, global_max=1000, global_step=1,
+                                                                    unit="THz", scale=1, ndecimals=8
+                                                                ))
 
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
+
+        # connect to labrad
+        self.cxn = labrad.connect()
+        print(self.cxn)
 
 
     def prepare(self):
@@ -81,8 +93,7 @@ class QubitRepumpScan(EnvExperiment):
         self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_729_mu =                                      self.core.seconds_to_mu(self.time_729_us * us)
-        self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_pipulse_mu =                                  self.core.seconds_to_mu(self.time_pipulse_us * us)
         self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
 
         # DDS devices
@@ -96,8 +107,7 @@ class QubitRepumpScan(EnvExperiment):
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
-        self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
+        self.freq_qubit_repump_scan_thz =                       list(self.freq_qubit_repump_scan_thz)
 
         # convert dds values to machine units - frequency
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
@@ -114,16 +124,16 @@ class QubitRepumpScan(EnvExperiment):
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
-        # sort out attenuation
-        # self.att_redist_mu =            np.int32(0xFF) - np.int32(round(self.att_redist_dB * 8))
-        # self.att_cooling_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        # self.att_readout_mu =           np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
+        # novel values
+        self.time_qubit_repump_reset_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_reset_us * us)
+        self.time_qubit_repump_sweep_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_sweep_us * us)
+
 
         # set up datasets
-        self.set_dataset("laser_scan_sd", [])
-        self.setattr_dataset("laser_scan_sd")
-        self.set_dataset("laser_scan_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("laser_scan_sd_processed")
+        self.set_dataset("qubit_repump_scan_sd", [])
+        self.setattr_dataset("qubit_repump_scan_sd")
+        self.set_dataset("qubit_repump_scan_sd_processed", np.zeros([len(self.freq_qubit_scan), 3]))
+        self.setattr_dataset("qubit_repump_scan_sd_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -141,7 +151,7 @@ class QubitRepumpScan(EnvExperiment):
         self.core.break_realtime()
 
         # get dma handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN_SD)
+        handle = self.core_dma.get_handle(_DMA_HANDLE_QUBITREPUMP_SCAN_SD)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -176,31 +186,39 @@ class QubitRepumpScan(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        with self.core_dma.record(_DMA_HANDLE_LASERSCAN_SD):
-            # set cooling waveform
+        with self.core_dma.record(_DMA_HANDLE_QUBITREPUMP_SCAN_SD):
+
+            # RESET
+                # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)
                 delay_mu(self.time_profileswitch_delay_mu)
 
-            # repump pulse
+                # qubit repump
             self.dds_board.cfg_switches(0b1100)
-            delay_mu(self.time_repump_qubit_mu)
+            delay_mu(self.time_qubit_repump_reset_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # cooling pulse
+                # doppler cooling
             self.dds_board.cfg_switches(0b0110)
             delay_mu(self.time_doppler_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # state preparation
+                # state preparation
             self.dds_board.cfg_switches(0b0101)
             delay_mu(self.time_redist_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # 729
+            # SEQUENCE
+                # qubit pi-pulse
             self.dds_qubit.cfg_sw(1)
-            delay_mu(self.time_729_mu)
+            delay_mu(self.time_pipulse_mu)
             self.dds_qubit.cfg_sw(0)
+
+                # qubit repump sweep
+            self.dds_board.cfg_switches(0b1100)
+            delay_mu(self.time_qubit_repump_sweep_mu)
+            self.dds_board.cfg_switches(0b0100)
 
             # set readout waveform
             with parallel:
@@ -243,7 +261,17 @@ class QubitRepumpScan(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('qubit_repump_scan_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+
+
+    @rpc(flags={"async"})
+    def labrad_call(self, freq_thz):
+        """
+        Call a labrad function.
+        """
+        # todo: make PID output port adjustable
+        #self.wm.set_pid_course(8, freq_thz)
+        print(self.wm.get_frequency(14))
 
 
     def analyze(self):
@@ -251,22 +279,22 @@ class QubitRepumpScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.laser_scan_sd = np.array(self.laser_scan_sd)
+        self.qubit_repump_scan_sd = np.array(self.qubit_repump_scan_sd)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan_sd[:, 0]))
+        freq_list_mhz = sorted(set(self.qubit_repump_scan_sd[:, 0]))
 
         # collate results
         collated_results = {
             freq: []
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts in self.laser_scan_sd:
+        for freq_mhz, pmt_counts in self.qubit_repump_scan_sd:
             collated_results[freq_mhz].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.laser_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+            self.qubit_repump_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        print(self.laser_scan_sd_processed)
+        print(self.qubit_repump_scan_sd_processed)
