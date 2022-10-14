@@ -158,11 +158,8 @@ class QubitRepumpScan(EnvExperiment):
         for trial_num in range(self.repetitions):
 
             # set frequencies
-            for freq_ftw in self.freq_qubit_scan_ftw:
-                self.core.break_realtime()
-
-                # set waveform for qubit DDS
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
+            for freq_thz in self.freq_qubit_repump_scan_thz:
+                self.labrad_call(freq_thz)
                 self.core.break_realtime()
 
                 # run sequence
@@ -170,7 +167,7 @@ class QubitRepumpScan(EnvExperiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                    self.update_dataset(freq_thz, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
         # reset after experiment
@@ -270,8 +267,8 @@ class QubitRepumpScan(EnvExperiment):
         Call a labrad function.
         """
         # todo: make PID output port adjustable
-        #self.wm.set_pid_course(8, freq_thz)
-        print(self.wm.get_frequency(14))
+        self.wm.set_pid_course(8, freq_thz)
+        print('curr freq: {}'.format(self.wm.get_frequency(14)))
 
 
     def analyze(self):
@@ -298,3 +295,6 @@ class QubitRepumpScan(EnvExperiment):
             self.qubit_repump_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
         print(self.qubit_repump_scan_sd_processed)
+
+        # close labrad connection
+        self.cxn.close()
