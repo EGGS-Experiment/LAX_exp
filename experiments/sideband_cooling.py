@@ -58,7 +58,7 @@ class SidebandCooling(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
         self.setattr_argument("time_max_sideband_cooling_us",   NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
@@ -69,12 +69,12 @@ class SidebandCooling(EnvExperiment):
 
         # readout
         self.setattr_argument("freq_bsb_scan_mhz",              Scannable(default=
-                                                                          RangeScan(104.24, 104.96, 801),
+                                                                          RangeScan(100, 105, 101),
                                                                           global_min=30, global_max=200, global_step=1,
                                                                           unit="MHz", scale=1, ndecimals=5))
 
         self.setattr_argument("freq_rsb_scan_mhz",              Scannable(default=
-                                                                          RangeScan(104.24, 104.96, 801),
+                                                                          RangeScan(120, 115, 101),
                                                                           global_min=30, global_max=200, global_step=1,
                                                                           unit="MHz", scale=1, ndecimals=5))
 
@@ -119,8 +119,9 @@ class SidebandCooling(EnvExperiment):
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # process scan frequencies
-        self.freq_qubit_scan_ftw =                              shuffle([self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)])
+        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
+        shuffle(self.freq_qubit_scan_ftw)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
@@ -137,6 +138,7 @@ class SidebandCooling(EnvExperiment):
         self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
 
         # readout pi-pulse
+        self.time_readout_pipulse_mu =                          self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
         #self.ampl_readout_pipulse_asf =                         self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
@@ -252,7 +254,7 @@ class SidebandCooling(EnvExperiment):
 
             # do qubit pi-pulse
             self.dds_qubit.cfg_sw(1)
-            delay_mu(self.time_readout_pipulse_us)
+            delay_mu(self.time_readout_pipulse_mu)
             self.dds_qubit.cfg_sw(0)
 
             # readout pulse
