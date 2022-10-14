@@ -60,8 +60,8 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("sideband_cycles",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_repump_sideband_cooling_us",    NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("freq_sideband_cooling_mhz",          NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("ampl_sideband_cooling_pct",          NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
