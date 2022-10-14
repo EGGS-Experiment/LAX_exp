@@ -57,28 +57,29 @@ class SidebandCooling(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_max_sideband_cooling_us",   NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_min_sideband_cooling_us",   NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("freq_sideband_cooling_mhz",      NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("ampl_sideband_cooling_pct",      NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
+        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_repump_sideband_cooling_us",    NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("freq_sideband_cooling_mhz",          NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("ampl_sideband_cooling_pct",          NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
 
         # readout
-        self.setattr_argument("freq_bsb_scan_mhz",              Scannable(default=
-                                                                          RangeScan(100, 105, 101),
-                                                                          global_min=30, global_max=200, global_step=1,
-                                                                          unit="MHz", scale=1, ndecimals=5))
+        self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
+                                                                            RangeScan(100, 105, 101),
+                                                                            global_min=30, global_max=200, global_step=1,
+                                                                            unit="MHz", scale=1, ndecimals=5))
 
-        self.setattr_argument("freq_rsb_scan_mhz",              Scannable(default=
-                                                                          RangeScan(120, 115, 101),
-                                                                          global_min=30, global_max=200, global_step=1,
-                                                                          unit="MHz", scale=1, ndecimals=5))
+        self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
+                                                                            RangeScan(120, 115, 101),
+                                                                            global_min=30, global_max=200, global_step=1,
+                                                                            unit="MHz", scale=1, ndecimals=5))
 
-        self.setattr_argument("time_readout_pipulse_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
         #self.setattr_argument("ampl_readout_pipulse_pct",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
@@ -133,6 +134,7 @@ class SidebandCooling(EnvExperiment):
         # sideband cooling
         self.time_sideband_cooling_list_mu =                    [self.core.seconds_to_mu(time_us * us)
                                                                  for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)]
+        self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
 
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
@@ -178,7 +180,7 @@ class SidebandCooling(EnvExperiment):
                 # initialize by running doppler cooling and spin polarization
                 self.core_dma.playback_handle(handle_initialize)
 
-                # run sideband cooling cycles
+                # run sideband cooling cycles and repump afterwards
                 self.core_dma.playback_handle(handle_sideband)
 
                 # read out
@@ -234,7 +236,7 @@ class SidebandCooling(EnvExperiment):
 
                 # qubit repump
                 self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_qubit_mu)
+                delay_mu(self.time_repump_sideband_cooling_mu)
                 self.dds_board.cfg_switches(0b0100)
 
             # repump qubit after sideband cooling
