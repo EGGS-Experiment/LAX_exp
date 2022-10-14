@@ -1,7 +1,10 @@
 import numpy as np
+from time import sleep
 from artiq.experiment import *
 
 import labrad
+from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
+
 
 _DMA_HANDLE_QUBITREPUMP_SCAN_SD = "qubit_repump_scan_sd_sequence"
 
@@ -17,7 +20,6 @@ class QubitRepumpScan(EnvExperiment):
         "pmt_input_channel",
         "pmt_gating_edge",
 
-        "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
         "time_redist_us",
@@ -56,28 +58,32 @@ class QubitRepumpScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_pipulse_us",                NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_pipulse_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
-        self.setattr_argument("time_qubit_repump_reset_us",     NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
-        self.setattr_argument("time_qubit_repump_sweep_us",     NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_qubit_repump_set_s",            NumberValue(default=5, ndecimals=3, step=1, min=0, max=100))
+        self.setattr_argument("time_qubit_repump_initialize_us",    NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_qubit_repump_sweep_us",         NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_repump_scan_thz",     Scannable(
-                                                                    default=RangeScan(350.862460, 350.862500, 801),
-                                                                    global_min=100, global_max=1000, global_step=1,
-                                                                    unit="THz", scale=1, ndecimals=8
-                                                                ))
+        self.setattr_argument("wavemeter_PID_channel",              NumberValue(default=8, ndecimals=0, step=1, min=1, max=20))
+        self.setattr_argument("wavemeter_freq_channel",             NumberValue(default=14, ndecimals=0, step=1, min=1, max=20))
+
+        self.setattr_argument("freq_qubit_repump_scan_thz",         Scannable(
+                                                                        default=RangeScan(350.862460, 350.862500, 10),
+                                                                        global_min=100, global_max=1000, global_step=1,
+                                                                        unit="THz", scale=1, ndecimals=8
+                                                                    ))
 
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
 
         # connect to labrad
-        self.cxn = labrad.connect()
-        print(self.cxn)
+        self.cxn = labrad.connect(multiplexer_config.ip, port=7682, tls_mode='off', username='', password='lab')
+        self.wm = self.cxn.multiplexerserver
 
 
     def prepare(self):
@@ -125,14 +131,14 @@ class QubitRepumpScan(EnvExperiment):
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # novel values
-        self.time_qubit_repump_reset_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_reset_us * us)
+        self.time_qubit_repump_initialize_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_initialize_us * us)
         self.time_qubit_repump_sweep_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_sweep_us * us)
 
 
         # set up datasets
         self.set_dataset("qubit_repump_scan_sd", [])
         self.setattr_dataset("qubit_repump_scan_sd")
-        self.set_dataset("qubit_repump_scan_sd_processed", np.zeros([len(self.freq_qubit_scan), 3]))
+        self.set_dataset("qubit_repump_scan_sd_processed", np.zeros([len(self.freq_qubit_repump_scan_thz), 3]))
         self.setattr_dataset("qubit_repump_scan_sd_processed")
 
 
@@ -155,13 +161,13 @@ class QubitRepumpScan(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for trial_num in range(self.repetitions):
+        for freq_thz in self.freq_qubit_repump_scan_thz:
 
-            # set frequencies
-            for freq_thz in self.freq_qubit_repump_scan_thz:
-                self.labrad_call(freq_thz)
-                self.core.break_realtime()
+            # set qubit repump frequency via wavemeter
+            self.wavemeter_set(freq_thz)
+            self.core.break_realtime()
 
+            for trial_num in range(self.repetitions):
                 # run sequence
                 self.core_dma.playback_handle(handle)
 
@@ -193,7 +199,7 @@ class QubitRepumpScan(EnvExperiment):
 
                 # qubit repump
             self.dds_board.cfg_switches(0b1100)
-            delay_mu(self.time_qubit_repump_reset_mu)
+            delay_mu(self.time_qubit_repump_initialize_mu)
             self.dds_board.cfg_switches(0b0100)
 
                 # doppler cooling
@@ -258,17 +264,27 @@ class QubitRepumpScan(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('qubit_repump_scan_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('qubit_repump_scan_sd', [freq_ftw, pmt_counts])
 
 
     @rpc(flags={"async"})
-    def labrad_call(self, freq_thz):
+    def wavemeter_set(self, freq_thz):
         """
-        Call a labrad function.
+        Set the wavemeter frequency setpoint via LabRAD.
         """
-        # todo: make PID output port adjustable
-        self.wm.set_pid_course(8, freq_thz)
-        print('curr freq: {}'.format(self.wm.get_frequency(14)))
+        # set target frequency
+        self.wm.set_pid_course(self.wavemeter_PID_channel, freq_thz)
+        # wait until set
+        sleep(self.time_qubit_repump_set_s)
+
+    @rpc(flags={"async"})
+    def wavemeter_get(self) -> TFloat:
+        """
+        Get the current wavemeter frequency value via LabRAD.
+        """
+        # set target frequency
+        freq_thz = self.wm.get_frequency(self.wavemeter_freq_channel)
+        return float(freq_thz)
 
 
     def analyze(self):
@@ -297,4 +313,4 @@ class QubitRepumpScan(EnvExperiment):
         print(self.qubit_repump_scan_sd_processed)
 
         # close labrad connection
-        self.cxn.close()
+        self.cxn.disconnect()

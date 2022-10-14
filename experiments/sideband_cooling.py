@@ -79,7 +79,7 @@ class SidebandCooling(EnvExperiment):
                                                                             unit="MHz", scale=1, ndecimals=5))
 
         self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        #self.setattr_argument("ampl_readout_pipulse_pct",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
+        #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
         for param_name in self.global_parameters:
