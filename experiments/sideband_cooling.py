@@ -44,6 +44,7 @@ class SidebandCooling(EnvExperiment):
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
+        "ampl_qubit_pct"
 
         "pmt_discrimination"
     ]
@@ -57,20 +58,16 @@ class SidebandCooling(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
-        # timing
-        self.setattr_argument("time_max_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_min_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
-
-        # AOM
+        # sideband cooling
+        self.setattr_argument("time_max_sideband_cooling_us",   NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_min_sideband_cooling_us",   NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("freq_sideband_cooling_mhz",      NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
-
         self.setattr_argument("ampl_sideband_cooling_pct",      NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
-        self.setattr_argument("ampl_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
 
-        # frequency sweep
+        # readout
         self.setattr_argument("freq_bsb_scan_mhz",              Scannable(default=
                                                                           RangeScan(104.24, 104.96, 801),
                                                                           global_min=30, global_max=200, global_step=1,
@@ -80,6 +77,9 @@ class SidebandCooling(EnvExperiment):
                                                                           RangeScan(104.24, 104.96, 801),
                                                                           global_min=30, global_max=200, global_step=1,
                                                                           unit="MHz", scale=1, ndecimals=5))
+
+        self.setattr_argument("time_readout_pipulse_us",        NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        #self.setattr_argument("ampl_readout_pipulse_pct",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -111,17 +111,16 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
-        # process scan frequencies
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in list(self.freq_bsb_scan_mhz) + list(self.freq_rsb_scan_mhz)]
-        shuffle(self.freq_qubit_scan_ftw)
-
         # convert frequency to ftw
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+
+        # process scan frequencies
+        self.freq_qubit_scan_ftw =                              shuffle([self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)])
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
@@ -130,14 +129,16 @@ class SidebandCooling(EnvExperiment):
         self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
-        # novel parameters
-        self.time_pipulse_list_mu =                             [self.core.seconds_to_mu(time_us * us)
-                                                                 for time_us in np.linspace(self.time_min_pipulse_us, 2 * self.time_max_pipulse_us, self.sideband_cycles)]
-
-        self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
+        # sideband cooling
+        self.time_sideband_cooling_list_mu =                    [self.core.seconds_to_mu(time_us * us)
+                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)]
 
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
-        self.ampl_pipulse_asf =                                 self.dds_qubit.amplitude_to_asf(self.ampl_pipulse_pct / 100)
+        self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
+
+        # readout pi-pulse
+        self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        #self.ampl_readout_pipulse_asf =                         self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # set up datasets
         self.set_dataset("sideband_cooling", [])
@@ -165,11 +166,11 @@ class SidebandCooling(EnvExperiment):
         # MAIN SEQUENCE
         for i in range(self.repetitions):
 
-            # frequency sweep
+            # sweep final pi-pulse frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set readout frequency in advance
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_pipulse_asf, profile=1)
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=1)
                 self.core.break_realtime()
 
                 # initialize by running doppler cooling and spin polarization
@@ -177,11 +178,6 @@ class SidebandCooling(EnvExperiment):
 
                 # run sideband cooling cycles
                 self.core_dma.playback_handle(handle_sideband)
-
-                # repump qubit
-                self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_qubit_mu)
-                self.dds_board.cfg_switches(0b0100)
 
                 # read out
                 self.core_dma.playback_handle(handle_readout)
@@ -206,29 +202,28 @@ class SidebandCooling(EnvExperiment):
         """
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
-            with sequential:
-                # set qubit to sideband waveform
-                self.dds_qubit_board.set_profile(0)
+            # set qubit to sideband waveform
+            self.dds_qubit_board.set_profile(0)
 
-                # set cooling waveform
-                with parallel:
-                    self.dds_board.set_profile(0)
-                    delay_mu(self.time_profileswitch_delay_mu)
+            # set cooling waveform
+            with parallel:
+                self.dds_board.set_profile(0)
+                delay_mu(self.time_profileswitch_delay_mu)
 
-                # doppler cooling
-                self.dds_board.cfg_switches(0b0110)
-                delay_mu(self.time_doppler_cooling_mu)
-                self.dds_board.cfg_switches(0b0100)
+            # doppler cooling
+            self.dds_board.cfg_switches(0b0110)
+            delay_mu(self.time_doppler_cooling_mu)
+            self.dds_board.cfg_switches(0b0100)
 
-                # spin depolarization/redistribute S-1/2 (397)
-                self.dds_board.cfg_switches(0b0101)
-                delay_mu(self.time_redist_mu)
-                self.dds_board.cfg_switches(0b0100)
+            # spin depolarization/redistribute S-1/2 (397)
+            self.dds_board.cfg_switches(0b0101)
+            delay_mu(self.time_redist_mu)
+            self.dds_board.cfg_switches(0b0100)
 
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
             # sweep pi-pulse times
-            for time_mu in range(self.time_pipulse_list_mu):
+            for time_mu in self.time_sideband_cooling_list_mu:
 
                 # qubit pi-pulse
                 self.dds_qubit.cfg_sw(1)
@@ -240,26 +235,30 @@ class SidebandCooling(EnvExperiment):
                 delay_mu(self.time_repump_qubit_mu)
                 self.dds_board.cfg_switches(0b0100)
 
+            # repump qubit after sideband cooling
+            self.dds_board.cfg_switches(0b1100)
+            delay_mu(self.time_repump_qubit_mu)
+            self.dds_board.cfg_switches(0b0100)
+
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
-            with sequential:
-                # set qubit pi-pulse waveform
-                self.dds_qubit_board.set_profile(1)
+            # set qubit pi-pulse waveform
+            self.dds_qubit_board.set_profile(1)
 
-                # set pump readout waveform
-                with parallel:
-                    self.dds_board.set_profile(1)
-                    delay_mu(self.time_profileswitch_delay_mu)
+            # set pump readout waveform
+            with parallel:
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
 
-                # do qubit pi-pulse
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(self.time_pipulse_mu)
-                self.dds_qubit.cfg_sw(0)
+            # do qubit pi-pulse
+            self.dds_qubit.cfg_sw(1)
+            delay_mu(self.time_readout_pipulse_us)
+            self.dds_qubit.cfg_sw(0)
 
-                # readout pulse
-                self.dds_board.cfg_switches(0b0110)
-                self.pmt_gating_edge(self.time_readout_mu)
-                self.dds_board.cfg_switches(0b0100)
+            # readout pulse
+            self.dds_board.cfg_switches(0b0110)
+            self.pmt_gating_edge(self.time_readout_mu)
+            self.dds_board.cfg_switches(0b0100)
 
 
     @kernel(flags={"fast-math"})
@@ -287,6 +286,7 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
+        # profile 0 = sideband cooling, profile 1 = readout pi-pulse
         self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw, asf=self.ampl_sideband_cooling_asf, profile=0)
         self.core.break_realtime()
 
