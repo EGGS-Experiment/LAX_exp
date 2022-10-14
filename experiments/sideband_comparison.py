@@ -84,7 +84,7 @@ class SidebandComparison(EnvExperiment):
         self.time_redist_mu =                   self.core.seconds_to_mu(self.time_redist_us * us)
 
         # rabi flopping timing
-        self.time_rabi_mu =                     self.core.seconds_to_mu(self.time_rabi_mu * us)
+        self.time_rabi_mu =                     self.core.seconds_to_mu(self.time_rabi_us * us)
 
         # DDS devices
         self.dds_board =                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -103,7 +103,7 @@ class SidebandComparison(EnvExperiment):
         self.freq_repump_cooling_ftw =          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw =                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
-        self.freq_bsb_ftw =                     self.dds_qubit.frequency_to_ftw((0.5 * self.freq_micromotion_mhz + self.qubit_mhz) * MHz)
+        self.freq_bsb_ftw =                     self.dds_qubit.frequency_to_ftw((0.5 * self.freq_micromotion_mhz + self.freq_qubit_mhz) * MHz)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
@@ -152,7 +152,7 @@ class SidebandComparison(EnvExperiment):
             self.core_dma.playback_handle(handle_sequence)
 
             # add data to dataset
-            self.mutate_dataset("sideband_comparison", trial_num, [self.pmt_counter.fetch_counts(), self.pmt_counter.fetch_counts()])
+            self.mutate_dataset("sideband_comparison", trial_num, [self.pmt_counter.fetch_count(), self.pmt_counter.fetch_count()])
 
         # reset board profiles
         self.dds_board.set_profile(0)
