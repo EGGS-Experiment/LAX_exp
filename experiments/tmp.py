@@ -14,7 +14,7 @@ class Testing2(EnvExperiment):
         self.setattr_device("core_dma")
 
     def prepare(self):
-        print('exp 0')
+        print('exp 1')
 
     def run(self):
         pass
