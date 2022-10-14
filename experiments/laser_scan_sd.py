@@ -13,11 +13,13 @@ class LaserScanSD(EnvExperiment):
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
+
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
         "time_redist_us",
         "time_profileswitch_delay_us",
+
         "dds_board_num",
         "dds_board_qubit_num",
         "dds_probe_channel",
@@ -25,17 +27,20 @@ class LaserScanSD(EnvExperiment):
         "dds_repump_cooling_channel",
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
+
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
+
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
         "ampl_qubit_pct",
+
         "pmt_discrimination"
     ]
 
