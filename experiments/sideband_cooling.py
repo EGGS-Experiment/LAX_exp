@@ -60,7 +60,6 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("sideband_cycles",                NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_sideband_cooling_us",       NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_max_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_min_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
 
@@ -113,9 +112,8 @@ class SidebandCooling(EnvExperiment):
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # process scan frequencies
-        freq_bsb_scan_ftw =                                     [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rsb_scan_mhz]
-        freq_rsb_scan_ftw =                                     [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_bsb_scan_mhz]
-        self.freq_qubit_scan_ftw =                              freq_rsb_scan_ftw + freq_bsb_scan_ftw
+        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                 for freq_mhz in list(self.freq_bsb_scan_mhz) + list(self.freq_rsb_scan_mhz)]
         shuffle(self.freq_qubit_scan_ftw)
 
         # convert frequency to ftw
@@ -133,7 +131,6 @@ class SidebandCooling(EnvExperiment):
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # novel parameters
-        self.time_sideband_cooling_mu =                         self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
         self.time_pipulse_list_mu =                             [self.core.seconds_to_mu(time_us * us)
                                                                  for time_us in np.linspace(self.time_min_pipulse_us, 2 * self.time_max_pipulse_us, self.sideband_cycles)]
 
