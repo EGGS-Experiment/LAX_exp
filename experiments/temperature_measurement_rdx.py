@@ -45,12 +45,9 @@ class TemperatureMeasurementRDX(EnvExperiment):
         # timing
         self.setattr_argument("time_probe_us",          NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
 
-        # probe parameters
-        self.setattr_argument("ampl_probe_pct",         NumberValue(default=50, ndecimals=3, step=1, min=10, max=100))
-
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(
-                                                            default=RangeScan(70, 146, 20, randomize=True),
+                                                            default=RangeScan(80, 140, 25, randomize=True),
                                                             global_min=10, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, ndecimals=6
                                                         ))
@@ -100,8 +97,9 @@ class TemperatureMeasurementRDX(EnvExperiment):
         self.adc_mu_to_volts = (10 ** (1 - self.photodiode_gain)) / (2 ** 15)
 
         # asf adjustment
+        # background: 1.8uW
         asf_freqs = sorted(list(self.freq_probe_scan_mhz))
-        asf_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])/100
+        asf_vals = np.array([39.00, 26.60, 20.25, 16.45, 15.85, 15.00, 14.60, 14.45, 14.25, 14.00, 14.05, 14.17, 14.35, 14.93, 15.58, 16.24, 17.12, 17.95, 19.10, 20.89, 21.04, 26.95, 32.08, 39.22, 48.20])/100
         asf_dict = dict(np.concatenate([[asf_freqs], [asf_vals]]).transpose())
         self.ampl_probe_scan_asf = [self.dds_pump.amplitude_to_asf(asf_dict[freq]) for freq in self.freq_probe_scan_mhz]
 
