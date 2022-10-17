@@ -113,6 +113,7 @@ class LaserScan(EnvExperiment):
         self.set_dataset("laser_scan_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_processed")
 
+
     @kernel(flags={"fast-math"})
     def run(self):
         """
@@ -150,12 +151,13 @@ class LaserScan(EnvExperiment):
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
-        # reset after experiment
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})
@@ -189,6 +191,7 @@ class LaserScan(EnvExperiment):
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
+
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):

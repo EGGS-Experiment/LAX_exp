@@ -3,13 +3,6 @@ from artiq.experiment import *
 
 _DMA_HANDLE_ON = "temperature_measurement_on"
 _DMA_HANDLE_OFF = "temperature_measurement_off"
-# todo: make repump status more general
-# todo: check synchronization of cycle with now_mu()
-# todo: check scannable works correctly
-# todo: set up ion calibration properly
-# todo: fix ADC
-# todo: set attenuations problem
-# todo: remove freq_probe_scan_mhz2 and fix scannables problem
 
 
 class TemperatureMeasurement(EnvExperiment):
@@ -40,6 +33,7 @@ class TemperatureMeasurement(EnvExperiment):
 
         "pmt_discrimination"
     ]
+
 
     def build(self):
         """
@@ -179,7 +173,10 @@ class TemperatureMeasurement(EnvExperiment):
                     self.update_dataset(freq_ftw, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
 
-        # after sequence, set all dds channels to trapping state
+        # reset board profiles
+        self.dds_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
 
 

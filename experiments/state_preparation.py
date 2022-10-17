@@ -162,13 +162,13 @@ class StatePreparation(EnvExperiment):
                 self.mutate_dataset("state_preparation", trial_num, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
 
-        # reset after experiment
-        self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
-
-        # tmp remove
+        # reset board profiles
         self.dds_board.set_profile(0)
         self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
+        self.dds_board.cfg_switches(0b1110)
+        self.dds_qubit.cfg_sw(0)
 
 
     @kernel(flags={"fast-math"})

@@ -176,12 +176,13 @@ class QubitRepumpScan(EnvExperiment):
                     self.update_dataset(freq_thz, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
-        # reset after experiment
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})
@@ -276,6 +277,7 @@ class QubitRepumpScan(EnvExperiment):
         self.wm.set_pid_course(self.wavemeter_PID_channel, freq_thz)
         # wait until set
         sleep(self.time_qubit_repump_set_s)
+
 
     @rpc(flags={"async"})
     def wavemeter_get(self) -> TFloat:

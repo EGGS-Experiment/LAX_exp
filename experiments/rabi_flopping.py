@@ -108,10 +108,6 @@ class RabiFlopping(EnvExperiment):
         self.ampl_repump_qubit_asf =            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
-        # sort out attenuation
-        #self.att_cooling_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_cooling_dB * 8))
-        #self.att_readout_mu =                   np.int32(0xFF) - np.int32(round(self.att_pump_readout_dB * 8))
-
         # set up datasets
         self.set_dataset("rabi_flopping", [])
         self.setattr_dataset("rabi_flopping")
@@ -164,12 +160,13 @@ class RabiFlopping(EnvExperiment):
                     self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
-        # reset after experiment
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(0)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})
