@@ -40,7 +40,7 @@ class TemperatureMeasurementRDX(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
         self.setattr_argument("time_probe_us",          NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
@@ -101,7 +101,7 @@ class TemperatureMeasurementRDX(EnvExperiment):
 
         # asf adjustment
         asf_freqs = sorted(list(self.freq_probe_scan_mhz))
-        asf_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])
+        asf_vals = np.array([27.0, 26.5, 26.5, 26.5, 27.0, 27.0, 26.5, 26.0, 24.0, 25.5, 26.5, 27.0, 26.5, 26.0, 25.5, 24.5, 23.5, 22.0, 19.0, 15.5])/100
         asf_dict = dict(np.concatenate([[asf_freqs], [asf_vals]]).transpose())
         self.ampl_probe_scan_asf = [self.dds_pump.amplitude_to_asf(asf_dict[freq]) for freq in self.freq_probe_scan_mhz]
 
