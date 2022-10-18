@@ -1,7 +1,8 @@
 import numpy as np
 from artiq.experiment import *
 
-_DMA_HANDLE_SEQUENCE = "temperature_measurement_rdx_sequence"
+_DMA_HANDLE_REPUMP_ON = "temperature_measurement_rdx_repump_on"
+_DMA_HANDLE_REPUMP_OFF = "temperature_measurement_rdx_repump_off"
 
 
 class TemperatureMeasurementRDX(EnvExperiment):
@@ -126,7 +127,8 @@ class TemperatureMeasurementRDX(EnvExperiment):
         self.core.break_realtime()
 
         # retrieve pulse sequence handle
-        handle_sequence = self.core_dma.get_handle(_DMA_HANDLE_SEQUENCE)
+        handle_repump_on = self.core_dma.get_handle(_DMA_HANDLE_REPUMP_ON)
+        handle_repump_off = self.core_dma.get_handle(_DMA_HANDLE_REPUMP_OFF)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -143,12 +145,20 @@ class TemperatureMeasurementRDX(EnvExperiment):
 
                 # todo: get photodiode reading
 
-                # run pulse sequence from core DMA
-                self.core_dma.playback_handle(handle_sequence)
+                # run sequence from DMA with repump on
+                self.core_dma.playback_handle(handle_repump_on)
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
+                    self.update_dataset(freq_ftw, 1, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
+                    self.core.break_realtime()
+
+                # run sequence from DMA with repump off
+                self.core_dma.playback_handle(handle_repump_off)
+
+                # update dataset
+                with parallel:
+                    self.update_dataset(freq_ftw, 0, self.pmt_counter.fetch_count(), self.adc_buffer[self.photodiode_channel])
                     self.core.break_realtime()
 
         # reset board profiles & AOMs after experiment
@@ -161,8 +171,8 @@ class TemperatureMeasurementRDX(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        # sequence
-        with self.core_dma.record(_DMA_HANDLE_SEQUENCE):
+        # sequence w/repump on
+        with self.core_dma.record(_DMA_HANDLE_REPUMP_ON):
             # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)
@@ -182,6 +192,29 @@ class TemperatureMeasurementRDX(EnvExperiment):
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_probe_mu)
             self.dds_board.cfg_switches(0b0100)
+
+
+        # sequence w/repump off
+        with self.core_dma.record(_DMA_HANDLE_REPUMP_OFF):
+            # set cooling waveform
+            with parallel:
+                self.dds_board.set_profile(0)
+                delay_mu(self.time_profileswitch_delay_mu)
+
+            # doppler cooling
+            self.dds_board.cfg_switches(0b0010)
+            delay_mu(self.time_doppler_cooling_mu)
+            self.dds_board.cfg_switches(0b0000)
+
+            # set readout waveform
+            with parallel:
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
+
+            # read out
+            self.dds_board.cfg_switches(0b0010)
+            self.pmt_gating_edge(self.time_probe_mu)
+            self.dds_board.cfg_switches(0b0000)
 
 
     @kernel(flags={"fast-math"})
@@ -207,11 +240,11 @@ class TemperatureMeasurementRDX(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts, sampler_mu):
+    def update_dataset(self, freq_ftw, repump_status, pmt_counts, sampler_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('temperature_measurement_rdx', [freq_ftw * self.ftw_to_frequency, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        self.append_to_dataset('temperature_measurement_rdx', [freq_ftw * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
 
 
     def analyze(self):
@@ -227,15 +260,15 @@ class TemperatureMeasurementRDX(EnvExperiment):
         # collate results
         collated_results = {
             # two lists, one for w/repump (index 1), and one for w/o repump (index 0)
-            freq: []
+            freq: [[], []]
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts, sampler_volts in self.temperature_measurement_rdx:
-            collated_results[freq_mhz].append(pmt_counts)
+        for freq_mhz, repump_status, pmt_counts, sampler_volts in self.temperature_measurement_rdx:
+            collated_results[freq_mhz][int(repump_status)].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            binned_count_list = np.heaviside(np.array(count_list[1]) - self.pmt_discrimination, 1)
             self.temperature_measurement_rdx_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
         print(self.temperature_measurement_rdx_processed)
