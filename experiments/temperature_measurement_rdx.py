@@ -41,10 +41,10 @@ class TemperatureMeasurementRDX(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_probe_us",          NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000))
+        self.setattr_argument("time_probe_us",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(

@@ -14,7 +14,7 @@ class Testing(EnvExperiment):
         self.setattr_device("core_dma")
 
     def prepare(self):
-        self.set_dataset('att_redist_dB', 19.0, broadcast=True, persist=True)
+        self.set_dataset('ampl_pump_cooling_pct', 22.8, broadcast=True, persist=True)
 
     def run(self):
         pass
