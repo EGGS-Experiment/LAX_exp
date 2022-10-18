@@ -68,16 +68,7 @@ class ParameterSet(EnvExperiment):
             "ampl_pump_readout_pct":    50,
             "ampl_repump_cooling_pct":  50,
             "ampl_repump_qubit_pct":    50,
-            "ampl_qubit_pct":           50,
-
-            # attenuation
-            "att_redist_dB":            17.5,
-            "att_pump_dB":              21.5,
-            "att_pump_cooling_dB":      21.5,
-            "att_pump_readout_dB":      20.5,
-            "att_repump_cooling_dB":    25.5,
-            "att_repump_qubit_dB":      25.5,
-            "att_qubit_dB":             8.5
+            "ampl_qubit_pct":           50
         }
 
         # consolidate parameter dictionaries
