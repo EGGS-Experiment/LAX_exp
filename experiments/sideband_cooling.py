@@ -6,6 +6,8 @@ _DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_readout"
 
+# todo: allow running with 729 on/off
+
 
 class SidebandCooling(EnvExperiment):
     """

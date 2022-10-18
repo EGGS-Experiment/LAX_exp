@@ -5,7 +5,6 @@ from artiq.experiment import *
 import labrad
 from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
 
-
 _DMA_HANDLE_QUBITREPUMP_SCAN_SD = "qubit_repump_scan_sd_sequence"
 
 
@@ -133,7 +132,6 @@ class QubitRepumpScan(EnvExperiment):
         # novel values
         self.time_qubit_repump_initialize_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_initialize_us * us)
         self.time_qubit_repump_sweep_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_sweep_us * us)
-
 
         # set up datasets
         self.set_dataset("qubit_repump_scan_sd", [])
