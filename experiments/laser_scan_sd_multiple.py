@@ -61,13 +61,13 @@ class LaserScanSDMultiple(EnvExperiment):
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_1_mhz",          Scannable(
-                                                                    default=RangeScan(104.24, 104.96, 801),
+                                                                    default=CenterScan(104.609, 0.010, 0.000250),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
         self.setattr_argument("freq_qubit_scan_2_mhz",          Scannable(
-                                                                    default=RangeScan(105.14, 105.96, 801),
+                                                                    default=CenterScan(117.248, 0.010, 0.000250),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
