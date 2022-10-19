@@ -60,7 +60,8 @@ class SidebandCooling(EnvExperiment):
         # experiment runs
         self.setattr_argument("calibration",                        BooleanValue(default=False))
         self.setattr_argument("repetitions",                        NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                    NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
         self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
@@ -134,8 +135,9 @@ class SidebandCooling(EnvExperiment):
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                    [self.core.seconds_to_mu(time_us * us)
-                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)]
+        self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
+                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)])
+        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
 
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
@@ -224,25 +226,29 @@ class SidebandCooling(EnvExperiment):
             delay_mu(self.time_doppler_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # spin depolarization/redistribute S-1/2 (397)
-            self.dds_board.cfg_switches(0b0101)
-            delay_mu(self.time_redist_mu)
-            self.dds_board.cfg_switches(0b0100)
-
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
-            # sweep pi-pulse times
-            for time_mu in self.time_sideband_cooling_list_mu:
 
-                # qubit pi-pulse
-                self.dds_qubit.cfg_sw(1)
-                delay_mu(time_mu)
-                self.dds_qubit.cfg_sw(0)
+            # ensure state preparation is properly interspersed
+            for time_list_mu in self.time_sideband_cooling_list_mu:
 
-                # qubit repump
-                self.dds_board.cfg_switches(0b1100)
-                delay_mu(self.time_repump_sideband_cooling_mu)
+                # spin depolarization/redistribute S-1/2 (397)
+                self.dds_board.cfg_switches(0b0101)
+                delay_mu(self.time_redist_mu)
                 self.dds_board.cfg_switches(0b0100)
+
+                # sweep pi-pulse times
+                for time_mu in time_list_mu:
+
+                    # qubit pi-pulse
+                    self.dds_qubit.cfg_sw(1)
+                    delay_mu(time_mu)
+                    self.dds_qubit.cfg_sw(0)
+
+                    # qubit repump
+                    self.dds_board.cfg_switches(0b1100)
+                    delay_mu(self.time_repump_sideband_cooling_mu)
+                    self.dds_board.cfg_switches(0b0100)
 
             # repump qubit after sideband cooling
             self.dds_board.cfg_switches(0b1100)
