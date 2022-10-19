@@ -62,16 +62,17 @@ class QubitRepumpScan(EnvExperiment):
         # timing
         self.setattr_argument("time_pipulse_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
-        self.setattr_argument("time_qubit_repump_set_s",            NumberValue(default=5, ndecimals=3, step=1, min=0, max=100))
         self.setattr_argument("time_qubit_repump_initialize_us",    NumberValue(default=1000, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_qubit_repump_sweep_us",         NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
         self.setattr_argument("wavemeter_PID_channel",              NumberValue(default=8, ndecimals=0, step=1, min=1, max=20))
         self.setattr_argument("wavemeter_freq_channel",             NumberValue(default=14, ndecimals=0, step=1, min=1, max=20))
+        self.setattr_argument("wavemeter_settle_freq_mhz",          NumberValue(default=1, ndecimals=1, step=1, min=1, max=5))
+
 
         self.setattr_argument("freq_qubit_repump_scan_thz",         Scannable(
-                                                                        default=RangeScan(350.862460, 350.862500, 10),
+                                                                        default=RangeScan(350.862465, 350.862505, 10),
                                                                         global_min=100, global_max=1000, global_step=1,
                                                                         unit="THz", scale=1, ndecimals=8
                                                                     ))
@@ -273,18 +274,19 @@ class QubitRepumpScan(EnvExperiment):
         """
         # set target frequency
         self.wm.set_pid_course(self.wavemeter_PID_channel, freq_thz_set)
-        print("Set 854 target frequency: {:.7f}".format(freq_thz_set))
+        print("Setting 854 target frequency: {:.7f}".format(freq_thz_set))
 
-        # poll value until set
-        sleep(self.time_qubit_repump_set_s)
+        sleep(2.5)
 
+        # wait for frequency to settle
         freq_thz_current = self.wm.get_frequency(self.wavemeter_freq_channel)
-        while (np.abs(freq_thz_current - freq_thz_set) > 0.000010):
+        while (np.abs(freq_thz_current - freq_thz_set) > (self.wavemeter_settle_freq_mhz / 1e6)):
             freq_thz_current = self.wm.get_frequency(self.wavemeter_freq_channel)
-            sleep(self.time_qubit_repump_set_s)
+            sleep(2.5)
 
-        print("854 target frequency settled: {:.7f}".format(freq_thz_set))
-        print("Resuming data acquisition.")
+        # print readout messages
+        print("\t854 target frequency settled: {:.7f}".format(freq_thz_set))
+        print("\tResuming data acquisition.")
 
 
     def analyze(self):
