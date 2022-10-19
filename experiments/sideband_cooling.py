@@ -6,7 +6,7 @@ _DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_readout"
 
-# todo: allow running with 729 on/off
+# todo: make max time the same as readout time
 
 
 class SidebandCooling(EnvExperiment):
@@ -58,31 +58,40 @@ class SidebandCooling(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("calibration",                        BooleanValue(default=False))
+        self.setattr_argument("calibration",                        BooleanValue(default=True))
         self.setattr_argument("repetitions",                        NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                    NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_repump_sideband_cooling_us",    NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("freq_sideband_cooling_mhz",          NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_sideband_cooling_mhz",          NumberValue(default=104.012, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("ampl_sideband_cooling_pct",          NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
 
         # readout
+        # self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
+        #                                                                     RangeScan(100, 105, 101),
+        #                                                                     global_min=30, global_max=200, global_step=1,
+        #                                                                     unit="MHz", scale=1, ndecimals=5))
+        #
+        # self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
+        #                                                                     RangeScan(120, 115, 101),
+        #                                                                     global_min=30, global_max=200, global_step=1,
+        #                                                                     unit="MHz", scale=1, ndecimals=5))
         self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
-                                                                            RangeScan(100, 105, 101),
+                                                                            CenterScan(104.012, 0.005, 20),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
 
         self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
-                                                                            RangeScan(120, 115, 101),
+                                                                            CenterScan(105.214, 0.005, 20),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
 
-        self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
         #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
