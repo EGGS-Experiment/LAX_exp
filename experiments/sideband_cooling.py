@@ -83,12 +83,12 @@ class SidebandCooling(EnvExperiment):
         #                                                                     unit="MHz", scale=1, ndecimals=5))
 
         self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
-                                                                            CenterScan(104.012, 0.005, 20),
+                                                                            CenterScan(104.012, 0.005, 0.00025),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
 
         self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
-                                                                            CenterScan(105.214, 0.005, 20),
+                                                                            CenterScan(105.214, 0.005, 0.00025),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
 
