@@ -81,12 +81,13 @@ class SidebandCooling(EnvExperiment):
         #                                                                     RangeScan(120, 115, 101),
         #                                                                     global_min=30, global_max=200, global_step=1,
         #                                                                     unit="MHz", scale=1, ndecimals=5))
-        self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
+
+        self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
                                                                             CenterScan(104.012, 0.005, 20),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
 
-        self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
+        self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
                                                                             CenterScan(105.214, 0.005, 20),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5))
@@ -250,7 +251,7 @@ class SidebandCooling(EnvExperiment):
                 for time_mu in time_list_mu:
 
                     # qubit pi-pulse
-                    self.dds_qubit.cfg_sw(1)
+                    self.dds_qubit.cfg_sw(self.calibration_qubit_status)
                     delay_mu(time_mu)
                     self.dds_qubit.cfg_sw(0)
 
@@ -275,7 +276,7 @@ class SidebandCooling(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # do qubit pi-pulse
-            self.dds_qubit.cfg_sw(self.calibration_qubit_status)
+            self.dds_qubit.cfg_sw(1)
             delay_mu(self.time_readout_pipulse_mu)
             self.dds_qubit.cfg_sw(0)
 
