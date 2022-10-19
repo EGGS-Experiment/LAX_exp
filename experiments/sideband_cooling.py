@@ -146,7 +146,7 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling
         self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
-                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)])
+                                                                for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)])
         self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
 

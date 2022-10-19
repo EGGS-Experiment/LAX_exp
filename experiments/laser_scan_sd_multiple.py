@@ -3,10 +3,11 @@ from artiq.experiment import *
 _DMA_HANDLE_LASERSCAN_SD = "laserscan_sd_sequence"
 
 
-class LaserScanSD(EnvExperiment):
+class LaserScanSDMultiple(EnvExperiment):
     """
-    729nm Laser Scan (w/spin depolarization)
+    729nm Laser Scan (multiple regions, w/spin depolarization)
     Gets the number of counts as a function of frequency for a fixed time.
+    Scans over multiple regions.
     """
 
     #kernel_invariants = {}
@@ -59,9 +60,17 @@ class LaserScanSD(EnvExperiment):
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
+        self.setattr_argument("freq_qubit_scan_1_mhz",          Scannable(
+                                                                    default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5))
+                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                ))
+
+        self.setattr_argument("freq_qubit_scan_2_mhz",          Scannable(
+                                                                    default=RangeScan(105.14, 105.96, 801),
+                                                                    global_min=60, global_max=200, global_step=1,
+                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                ))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -97,7 +106,8 @@ class LaserScanSD(EnvExperiment):
 
         # process scan frequencies
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
+        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                 for freq_mhz in list(self.freq_qubit_scan_1_mhz) + list(self.freq_qubit_scan_2_mhz)]
 
         # convert dds values to machine units - frequency
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
