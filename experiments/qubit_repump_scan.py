@@ -130,7 +130,7 @@ class QubitRepumpScan(EnvExperiment):
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # novel values
-        self.time_qubit_repump_initialize_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_initialize_us * us)
+        self.time_qubit_repump_initialize_mu =                  self.core.seconds_to_mu(self.time_qubit_repump_initialize_us * us)
         self.time_qubit_repump_sweep_mu =                       self.core.seconds_to_mu(self.time_qubit_repump_sweep_us * us)
 
         # set up datasets
@@ -267,24 +267,24 @@ class QubitRepumpScan(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def wavemeter_set(self, freq_thz):
+    def wavemeter_set(self, freq_thz_set):
         """
         Set the wavemeter frequency setpoint via LabRAD.
         """
         # set target frequency
-        self.wm.set_pid_course(self.wavemeter_PID_channel, freq_thz)
-        # wait until set
+        self.wm.set_pid_course(self.wavemeter_PID_channel, freq_thz_set)
+        print("Set 854 target frequency: {:.7f}".format(freq_thz_set))
+
+        # poll value until set
         sleep(self.time_qubit_repump_set_s)
 
+        freq_thz_current = self.wm.get_frequency(self.wavemeter_freq_channel)
+        while (np.abs(freq_thz_current - freq_thz_set) > 0.000010):
+            freq_thz_current = self.wm.get_frequency(self.wavemeter_freq_channel)
+            sleep(self.time_qubit_repump_set_s)
 
-    @rpc(flags={"async"})
-    def wavemeter_get(self) -> TFloat:
-        """
-        Get the current wavemeter frequency value via LabRAD.
-        """
-        # set target frequency
-        freq_thz = self.wm.get_frequency(self.wavemeter_freq_channel)
-        return float(freq_thz)
+        print("854 target frequency settled: {:.7f}".format(freq_thz_set))
+        print("Resuming data acquisition.")
 
 
     def analyze(self):
