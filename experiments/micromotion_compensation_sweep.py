@@ -185,7 +185,7 @@ class MicromotionCompensationSweep(EnvExperiment):
                 self.core_dma.playback_handle(handle_sequence)
 
                 # add data to dataset
-                self.mutate_dataset("micromotion_compensation", trial_num, [self.pmt_counter.fetch_count(), self.pmt_counter.fetch_count()])
+                self.mutate_dataset("micromotion_compensation", trial_num, [voltage_v, self.pmt_counter.fetch_count(), self.pmt_counter.fetch_count()])
 
         # reset board profiles
         self.dds_board.set_profile(0)
@@ -282,5 +282,6 @@ class MicromotionCompensationSweep(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        print("carrier counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 0]), np.std(self.micromotion_compensation[:, 0])))
-        print("bsb counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 1]), np.std(self.micromotion_compensation[:, 1])))
+        pass
+        #print("carrier counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 1]), np.std(self.micromotion_compensation[:, 0])))
+        #print("bsb counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 1]), np.std(self.micromotion_compensation[:, 1])))
