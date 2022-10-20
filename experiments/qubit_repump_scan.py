@@ -222,7 +222,7 @@ class QubitRepumpScan(EnvExperiment):
             self.dds_qubit.cfg_sw(0)
 
                 # qubit repump sweep
-            self.dds_board.cfg_switches(0b0100)
+            self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_qubit_repump_sweep_mu)
             self.dds_board.cfg_switches(0b0100)
 
