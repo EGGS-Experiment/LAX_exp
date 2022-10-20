@@ -184,7 +184,7 @@ class QubitRepumpScan(EnvExperiment):
         self.dds_qubit.cfg_sw(0)
 
         # reset wavemeter lock to correct frequency
-        self.wavemeter_set(350.862460)
+        #self.wavemeter_set(350.862460)
 
 
     @kernel(flags={"fast-math"})
