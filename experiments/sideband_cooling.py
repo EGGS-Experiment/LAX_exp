@@ -185,6 +185,7 @@ class SidebandCooling(EnvExperiment):
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
         self.core.break_realtime()
+        self.ttl8.off()
 
         # MAIN SEQUENCE
         for i in range(self.repetitions):
