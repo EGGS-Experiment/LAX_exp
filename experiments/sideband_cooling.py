@@ -146,7 +146,7 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling
         self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
-                                                                for time_us in np.linspace(self.time_min_sideband_cooling_us, 2 * self.time_max_sideband_cooling_us, self.sideband_cycles)])
+                                                                for time_us in np.linspace(self.time_min_sideband_cooling_us, self.time_max_sideband_cooling_us, self.sideband_cycles)])
         self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
 
@@ -166,10 +166,6 @@ class SidebandCooling(EnvExperiment):
         self.setattr_dataset("sideband_cooling")
         self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
-
-        print('sideband cooling time list mu: {}'.format(self.time_sideband_cooling_list_mu))
-        print('sideband cooling time list us: {}'.format([1e6 * self.core.mu_to_seconds(val) for val in self.time_sideband_cooling_list_mu]))
-        print('sideband cooling time list num: {}'.format([len(arr) for arr in self.time_sideband_cooling_list_mu]))
 
     @kernel(flags={"fast-math"})
     def run(self):
