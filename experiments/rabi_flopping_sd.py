@@ -158,10 +158,16 @@ class RabiFloppingSD(EnvExperiment):
                 # wait given time
                 delay_mu(time_delay_mu)
 
+                # tmp remove
+                self.dds_board.cfg_switches(0b0000)
+
                 # rabi flopping w/qubit laser
                 self.dds_qubit.cfg_sw(1)
                 delay_mu(time_rabi_mu)
                 self.dds_qubit.cfg_sw(0)
+
+                # tmp remove
+                self.dds_board.cfg_switches(0b0100)
 
                 # do readout
                 self.core_dma.playback_handle(handle_readout)
