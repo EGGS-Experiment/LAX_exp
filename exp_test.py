@@ -1,12 +1,12 @@
 import numpy as np
 from artiq.experiment import *
-_DMA_HANDLE_LASERSCAN_SD = "laserscan_sd_sequence"
+
+from .extensions.EGGSExperiment import EGGSExperiment
 
 
-class LaserScanSD(EnvExperiment):
+class EGGSExperimentTest(EGGSExperiment):
     """
-    729nm Laser Scan (w/spin depolarization)
-    Gets the number of counts as a function of frequency for a fixed time.
+    Test EGGS Experiment
     """
 
     #kernel_invariants = {}
@@ -52,21 +52,15 @@ class LaserScanSD(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
-        # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
-        # timing
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
-        # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
+        self.setattr_argument("arg_scannable",                  Scannable(
+                                                                    default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5))
-
-        # get global parameters
-        for param_name in self.global_parameters:
-            self.setattr_dataset(param_name, archive=True)
-
+                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                ))
 
     def prepare(self):
         """
@@ -115,136 +109,23 @@ class LaserScanSD(EnvExperiment):
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # set up datasets
-        self.set_dataset("laser_scan_sd", [])
-        self.setattr_dataset("laser_scan_sd")
-        self.set_dataset("laser_scan_sd_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("laser_scan_sd_processed")
+        self.set_dataset("exp_test", [])
+        self.setattr_dataset("exp_test")
+        self.set_dataset("exp_test_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("exp_test_processed")
 
 
-    @kernel(flags={"fast-math"})
     def run(self):
         """
         Run the experimental sequence.
         """
-        self.core.reset()
-
-        # prepare devices
-        self.prepareDevices()
-
-        # record dma
-        self.DMArecord()
-        self.core.break_realtime()
-
-        # get dma handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN_SD)
-        self.core.break_realtime()
-
-        # MAIN SEQUENCE
-        for trial_num in range(self.repetitions):
-
-            # set frequencies
-            for freq_ftw in self.freq_qubit_scan_ftw:
-                self.core.break_realtime()
-
-                # set waveform for qubit DDS
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
-                self.core.break_realtime()
-
-                # run sequence
-                self.core_dma.playback_handle(handle)
-
-                # update dataset
-                with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
-                    self.core.break_realtime()
-
-        # reset board profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
-
-        # reset AOMs after experiment
-        self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
-
-
-    @kernel(flags={"fast-math"})
-    def DMArecord(self):
-        """
-        Record onto core DMA the AOM sequence for a single data point.
-        """
-        with self.core_dma.record(_DMA_HANDLE_LASERSCAN_SD):
-            # set cooling waveform
-            with parallel:
-                self.dds_board.set_profile(0)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # repump pulse
-            self.dds_board.cfg_switches(0b1100)
-            delay_mu(self.time_repump_qubit_mu)
-            self.dds_board.cfg_switches(0b0100)
-
-            # cooling pulse
-            self.dds_board.cfg_switches(0b0110)
-            delay_mu(self.time_doppler_cooling_mu)
-            self.dds_board.cfg_switches(0b0100)
-
-            # state preparation
-            self.dds_board.cfg_switches(0b0101)
-            delay_mu(self.time_redist_mu)
-            self.dds_board.cfg_switches(0b0100)
-
-            # 729
-            self.dds_qubit.cfg_sw(1)
-            delay_mu(self.time_729_mu)
-            self.dds_qubit.cfg_sw(0)
-
-            # set readout waveform
-            with parallel:
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # readout pulse
-            self.dds_board.cfg_switches(0b0110)
-            self.pmt_gating_edge(self.time_readout_mu)
-            self.dds_board.cfg_switches(0b0100)
-
-
-    @kernel(flags={"fast-math"})
-    def prepareDevices(self):
-        """
-        Prepare devices for the experiment.
-        """
-        self.core.break_realtime()
-
-        # set AOM DDS waveforms
-        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
-        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
-        self.core.break_realtime()
-
-        self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
-        self.core.break_realtime()
-
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
-        self.core.break_realtime()
-
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
-        self.core.break_realtime()
-
-
-    @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
-        """
-        Records values via rpc to minimize kernel overhead.
-        """
-        self.append_to_dataset('laser_scan_sd', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        pass
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
+        """
         """
         # turn dataset into numpy array for ease of use
         self.laser_scan_sd = np.array(self.laser_scan_sd)
@@ -265,4 +146,6 @@ class LaserScanSD(EnvExperiment):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
             self.laser_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        #print(self.laser_scan_sd_processed)
+        print(self.laser_scan_sd_processed)
+        """
+        pass

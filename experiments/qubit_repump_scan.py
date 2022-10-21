@@ -315,7 +315,7 @@ class QubitRepumpScan(EnvExperiment):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
             self.qubit_repump_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        print(self.qubit_repump_scan_sd_processed)
+        #print(self.qubit_repump_scan_sd_processed)
 
         # close labrad connection
         self.cxn.disconnect()

@@ -275,4 +275,4 @@ class LaserScanSDMultiple(EnvExperiment):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
             self.laser_scan_sd_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        print(self.laser_scan_sd_processed)
+        #print(self.laser_scan_sd_processed)

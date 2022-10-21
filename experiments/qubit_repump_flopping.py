@@ -286,4 +286,4 @@ class QubitRepumpDepletionSD(EnvExperiment):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
             self.qubit_repump_depletion_processed[i] = np.array([time_s, np.mean(binned_count_list)])
 
-        print(self.qubit_repump_depletion_processed)
+        #print(self.qubit_repump_depletion_processed)

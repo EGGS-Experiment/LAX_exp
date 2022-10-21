@@ -268,4 +268,4 @@ class TemperatureMeasurement(EnvExperiment):
             binned_count_list = np.heaviside(np.array(count_list[1]) - self.pmt_discrimination, 1)
             self.temperature_measurement_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
 
-        print(self.temperature_measurement_processed)
+        #print(self.temperature_measurement_processed)
