@@ -169,6 +169,7 @@ class SidebandCooling(EnvExperiment):
 
         print('sideband cooling time list mu: {}'.format(self.time_sideband_cooling_list_mu))
         print('sideband cooling time list us: {}'.format([1e6 * self.core.mu_to_seconds(val) for val in self.time_sideband_cooling_list_mu]))
+        print('sideband cooling time list num: {}'.format([len(arr) for arr in self.time_sideband_cooling_list_mu]))
 
     @kernel(flags={"fast-math"})
     def run(self):
