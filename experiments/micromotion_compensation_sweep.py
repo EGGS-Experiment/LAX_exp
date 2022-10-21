@@ -63,8 +63,7 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # qubit time scan
-        self.setattr_argument("time_rabi_us",                       NumberValue(default=8, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_dc_set_s",                      NumberValue(default=5, ndecimals=3, step=1, min=0, max=100))
+        self.setattr_argument("time_rabi_us",                       NumberValue(default=300, ndecimals=5, step=1, min=1, max=1000000))
 
         # AOM values
         self.setattr_argument("freq_micromotion_mhz",               NumberValue(default=19, ndecimals=5, step=1, min=1, max=10000))
@@ -72,9 +71,9 @@ class MicromotionCompensationSweep(EnvExperiment):
         # voltage values
         #self.setattr_argument("dc_micromotion_channels",            NumberValue(default=19, ndecimals=5, step=1, min=1, max=10000))
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys())))
+        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='A-Ramp 1'))
         self.setattr_argument("dc_micromotion_voltages_v",          Scannable(
-                                                                        default=RangeScan(30, 60, 31),
+                                                                        default=RangeScan(1, 10, 10),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -136,11 +135,11 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # get voltage parameters
-        self.dc_micromotion_channels =          self.dc_micromotion_channeldict["dc_micromotion_channels"]
-        self.dc_micromotion_voltages_v =        list(self.dc_micromotion_voltages_v)
+        self.dc_micromotion_channels =          self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
+        self.dc_micromotion_voltages_mu =       list(np.int32(val * 2**16) for val in self.dc_micromotion_voltages_v)
 
         # set up datasets
-        self.set_dataset("micromotion_compensation", np.zeros([self.repetitions, 2]))
+        self.set_dataset("micromotion_compensation", [])
         self.setattr_dataset("micromotion_compensation")
 
 
@@ -160,10 +159,10 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for voltage_v in self.dc_micromotion_voltages_v:
+        for voltage_mu in self.dc_micromotion_voltages_mu:
 
             # set voltage
-            self.voltage_set(self.dc_micromotion_channels, voltage_v)
+            self.voltage_set(self.dc_micromotion_channels, voltage_mu)
 
             # repeat experiment
             for trial_num in range(self.repetitions):
@@ -176,6 +175,11 @@ class MicromotionCompensationSweep(EnvExperiment):
                 # run sequence
                 self.core_dma.playback_handle(handle_sequence)
 
+                # add data to dataset
+                with parallel:
+                    self.append_to_dataset("micromotion_compensation", [voltage_mu, 0, self.pmt_counter.fetch_count()])
+                    self.core.break_realtime()
+
                 # set bsb waveform
                 with parallel:
                     self.dds_board.set_profile(1)
@@ -185,7 +189,9 @@ class MicromotionCompensationSweep(EnvExperiment):
                 self.core_dma.playback_handle(handle_sequence)
 
                 # add data to dataset
-                self.mutate_dataset("micromotion_compensation", trial_num, [voltage_v, self.pmt_counter.fetch_count(), self.pmt_counter.fetch_count()])
+                with parallel:
+                    self.append_to_dataset("micromotion_compensation", [voltage_mu, 1, self.pmt_counter.fetch_count()])
+                    self.core.break_realtime()
 
         # reset board profiles
         self.dds_board.set_profile(0)
@@ -270,18 +276,18 @@ class MicromotionCompensationSweep(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def voltage_set(self, channel, voltage_v):
+    def voltage_set(self, channel, voltage_mu):
         """
         Set the channel to the desired voltage.
         """
-        voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(self.time_dc_set_s)
+        voltage_set_v = self.dc.voltage(channel, voltage_mu/2**16)
+        print('voltage set: {}'.format(voltage_set_v))
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
+        #self.micromotion_compensation = np.array(self.micromotion_compensation)
+        #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
         pass
-        #print("carrier counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 1]), np.std(self.micromotion_compensation[:, 0])))
-        #print("bsb counts: {:f} +/- {:f}".format(np.mean(self.micromotion_compensation[:, 1]), np.std(self.micromotion_compensation[:, 1])))
