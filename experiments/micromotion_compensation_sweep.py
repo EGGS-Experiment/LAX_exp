@@ -136,7 +136,7 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.ampl_qubit_asf =                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # get voltage parameters
-        self.dc_micromotion_channels =          self.dc_micromotion_channeldict["dc_micromotion_channels"]
+        self.dc_micromotion_channels =          self.dc_micromotion_channeldict[self.dc_micromotion_channels]
         self.dc_micromotion_voltages_v =        list(self.dc_micromotion_voltages_v)
 
         # set up datasets
