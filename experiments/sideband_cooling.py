@@ -167,6 +167,9 @@ class SidebandCooling(EnvExperiment):
         self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
 
+        print('sideband cooling time list mu: {}'.format(self.time_sideband_cooling_list_mu))
+        print('sideband cooling time list us: {}'.format([1e6 * self.core.mu_to_seconds(val) for val in self.time_sideband_cooling_list_mu]))
+
     @kernel(flags={"fast-math"})
     def run(self):
         """
