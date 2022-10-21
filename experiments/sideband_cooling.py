@@ -167,6 +167,7 @@ class SidebandCooling(EnvExperiment):
         self.setattr_dataset("sideband_cooling")
         self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
+        self.setattr_device('ttl8')
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -239,6 +240,7 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
+            self.ttl8.on()
 
             # ensure state preparation is properly interspersed
             for time_list_mu in self.time_sideband_cooling_list_mu:
