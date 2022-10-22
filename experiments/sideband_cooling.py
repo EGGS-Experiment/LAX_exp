@@ -168,7 +168,6 @@ class SidebandCooling(EnvExperiment):
         self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
 
-        print()
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -349,5 +348,3 @@ class SidebandCooling(EnvExperiment):
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
             self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
-
-        #print(self.sideband_cooling_processed)
