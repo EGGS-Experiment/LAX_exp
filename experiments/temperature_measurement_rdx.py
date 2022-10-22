@@ -1,13 +1,13 @@
 import numpy as np
 from artiq.experiment import *
 
-_DMA_HANDLE_REPUMP_ON = "temperature_measurement_rdx_repump_on"
-_DMA_HANDLE_REPUMP_OFF = "temperature_measurement_rdx_repump_off"
+_DMA_HANDLE_REPUMP_ON = "temperature_measurement_repump_on"
+_DMA_HANDLE_REPUMP_OFF = "temperature_measurement_repump_off"
 
 
-class TemperatureMeasurementRDX(EnvExperiment):
+class TemperatureMeasurement(EnvExperiment):
     """
-    Temperature Measurement RDX
+    Temperature Measurement
     Measures ion fluorescence for a single detuning and sweeps frequency within each trial.
     Uses only the cooling beam since probe beam is polarized; keeps 866 on whole time (not once on, once off).
     """
@@ -106,10 +106,10 @@ class TemperatureMeasurementRDX(EnvExperiment):
         self.ampl_probe_scan_asf = [self.dds_pump.amplitude_to_asf(asf_dict[freq]) for freq in self.freq_probe_scan_mhz]
 
         # set up datasets
-        self.set_dataset("temperature_measurement_rdx", [])
-        self.setattr_dataset("temperature_measurement_rdx")
-        self.set_dataset("temperature_measurement_rdx_processed", np.zeros([len(self.freq_probe_scan_mhz), 3]))
-        self.setattr_dataset("temperature_measurement_rdx_processed")
+        self.set_dataset("temperature_measurement", [])
+        self.setattr_dataset("temperature_measurement")
+        self.set_dataset("temperature_measurement_processed", np.zeros([len(self.freq_probe_scan_mhz), 3]))
+        self.setattr_dataset("temperature_measurement_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -245,7 +245,7 @@ class TemperatureMeasurementRDX(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('temperature_measurement_rdx', [freq_ftw * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
+        self.append_to_dataset('temperature_measurement', [freq_ftw * self.ftw_to_frequency, repump_status, pmt_counts, sampler_mu * self.adc_mu_to_volts])
 
 
     def analyze(self):
@@ -253,10 +253,10 @@ class TemperatureMeasurementRDX(EnvExperiment):
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.temperature_measurement_rdx = np.array(self.temperature_measurement_rdx)
+        self.temperature_measurement = np.array(self.temperature_measurement)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.temperature_measurement_rdx[:, 0]))
+        freq_list_mhz = sorted(set(self.temperature_measurement[:, 0]))
 
         # collate results
         collated_results = {
@@ -264,12 +264,10 @@ class TemperatureMeasurementRDX(EnvExperiment):
             freq: [[], []]
             for freq in freq_list_mhz
         }
-        for freq_mhz, repump_status, pmt_counts, sampler_volts in self.temperature_measurement_rdx:
+        for freq_mhz, repump_status, pmt_counts, sampler_volts in self.temperature_measurement:
             collated_results[freq_mhz][int(repump_status)].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
             binned_count_list = np.heaviside(np.array(count_list[1]) - self.pmt_discrimination, 1)
-            self.temperature_measurement_rdx_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
-
-        #print(self.temperature_measurement_rdx_processed)
+            self.temperature_measurement_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
