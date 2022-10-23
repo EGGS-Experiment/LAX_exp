@@ -4,7 +4,7 @@ from artiq.experiment import *
 from .extensions.EGGSExperiment import EGGSExperiment
 
 
-class EGGSExperimentTest(EGGSExperiment):
+class EGGSExperimentTest(EnvExperiment):
     """
     Test EGGS Experiment
     """
