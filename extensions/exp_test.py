@@ -61,7 +61,7 @@ class EGGSExperimentTest(EGGSExperiment):
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
-    def prepare(self):
+    def prepare2(self):
         """
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.

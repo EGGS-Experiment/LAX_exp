@@ -33,19 +33,19 @@ class EGGSExperiment(EnvExperiment):
         # assign global parameters
         for param_name in self.global_parameters:
             # get parameter from dataset manager
-            param_value = self.__dataset_mgr.ddb.get(param_name, param_name)
+            param_value = self._HasEnvironment__dataset_mgr.ddb.get(param_name)
             # set as parameter in dataset manager and HDF5 file
-            self.__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
+            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
 
         # assign local parameters
         for param_name in self.local_parameters:
             # get parameter from object attributes
             param_value = getattr(self, param_name)
             # store parameter
-            self.__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
+            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
 
         # call subclassed prepare function
-        self.call_child_method("prepare")
+        self.call_child_method("prepare2")
 
     def setattr_argument(self, key, *args, **kwargs):
         # call original setattr_argument function
