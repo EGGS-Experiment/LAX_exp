@@ -1,7 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-from artiq-work.extensions.EGGSExperiment import EGGSExperiment
+from EGGSExperiment import EGGSExperiment
 
 
 class EGGSExperimentTest(EnvExperiment):
