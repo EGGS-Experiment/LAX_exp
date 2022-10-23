@@ -3,7 +3,6 @@ from artiq.experiment import *
 
 from EGGSExperiment import EGGSExperiment
 
-
 class EGGSExperimentTest(EGGSExperiment):
     """
     Test EGGS Experiment
