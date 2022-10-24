@@ -1,5 +1,5 @@
 """
-Base classes for building PyQt5 GUI clients for LabRAD.
+Base classes for building experiment sequences for EGGS.
 """
 import numpy as np
 from artiq.experiment import *
@@ -29,26 +29,6 @@ class EGGSExperiment(EnvExperiment):
     global_parameters = []
 
 
-    def prepare(self):
-        # assign global parameters
-        for param_name in self.global_parameters:
-            # get parameter from dataset manager
-            param_value = self._HasEnvironment__dataset_mgr.ddb.get(param_name)
-            # set as parameter in dataset manager and HDF5 file
-            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
-        # assign local parameters
-        for param_name in self.local_parameters:
-            # get parameter from object attributes
-            param_value = getattr(self, param_name)
-            # store parameter
-            if type(param_value) in (RangeScan, CenterScan):
-                param_value = list(param_value)
-
-            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
-
-        # call subclassed prepare function
-        self.call_child_method("prepare2")
-
     def setattr_argument(self, key, *args, **kwargs):
         # call original setattr_argument function
         super().setattr_argument(key, *args, **kwargs)
@@ -56,4 +36,60 @@ class EGGSExperiment(EnvExperiment):
         # add key to parameter list to be added to dataset manager later
         self.local_parameters.append(key)
 
-    # todo: upon removal stuff
+
+    def prepare(self):
+        # set core devices
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+
+        # assign global parameters
+        for param_name in self.global_parameters:
+            # get parameter from dataset manager
+            param_value = self._HasEnvironment__dataset_mgr.ddb.get(param_name)
+            # set as parameter in dataset manager and HDF5 file
+            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
+
+        # assign local parameters
+        for param_name in self.local_parameters:
+            # get parameter from object attributes and store
+            param_value = getattr(self, param_name)
+            if type(param_value) in (RangeScan, CenterScan):
+                param_value = list(param_value)
+
+            self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
+
+        # call subclassed prepare functions
+        self.call_child_method("prepare_experiment")
+
+
+    @kernel
+    def run_reset(self):
+        self.core.reset()
+
+
+    def run(self):
+        # reset to remove leftovers from previous experiments
+        self.run_reset()
+
+        # prepare devices
+        self.call_child_method("prepare_devices")
+
+        # prepare dma
+        self.call_child_method("prepare_dma")
+
+        # run experiment
+        self.call_child_method("run_experiment")
+
+        # wrap up experiment
+        self.finish()
+
+
+    @kernel
+    def finish(self):
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
+        self.dds_board.cfg_switches(0b1110)
+        self.dds_qubit.cfg_sw(0)

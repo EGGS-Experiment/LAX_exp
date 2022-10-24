@@ -173,6 +173,7 @@ class LaserScan(EnvExperiment):
         Record onto core DMA the AOM sequence for a single data point.
         """
         with self.core_dma.record(_DMA_HANDLE_LASERSCAN):
+
             # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)

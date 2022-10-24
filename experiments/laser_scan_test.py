@@ -8,11 +8,10 @@ _DMA_HANDLE_LASERSCAN = "laserscan_sequence"
 
 class LaserScan(EGGSExperiment):
     """
-    729nm Laser Scan
+    729nm Laser Scan - EGGSExperiment Test
     Gets the number of counts as a function of frequency for a fixed time.
     """
 
-    #kernel_invariants = {}
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
@@ -52,9 +51,6 @@ class LaserScan(EGGSExperiment):
         """
         Set devices and arguments for the experiment.
         """
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-
         # experiment runs
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
@@ -146,57 +142,12 @@ class LaserScan(EGGSExperiment):
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
-        """
-        Run the experimental sequence.
-        """
-        self.core.reset()
-
-        # prepare devices
-        self.prepareDevices()
-
-        # record dma
-        self.DMArecord()
-        self.core.break_realtime()
-
-        # get dma handle
-        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN)
-        self.core.break_realtime()
-
-        # MAIN SEQUENCE
-        for trial_num in range(self.repetitions):
-
-            # set frequencies
-            for freq_ftw in self.freq_qubit_scan_ftw:
-                self.core.break_realtime()
-
-                # set waveform for qubit DDS
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
-                self.core.break_realtime()
-
-                # run sequence
-                self.core_dma.playback_handle(handle)
-
-                # update dataset
-                with parallel:
-                    self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, self.pmt_counter.fetch_count()])
-                    self.core.break_realtime()
-
-        # reset board profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
-
-        # reset AOMs after experiment
-        self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
-
-
-    @kernel(flags={"fast-math"})
-    def DMArecord(self):
+    def prepare_dma(self):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
         with self.core_dma.record(_DMA_HANDLE_LASERSCAN):
+
             # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)
@@ -231,6 +182,35 @@ class LaserScan(EGGSExperiment):
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
+
+
+    @kernel(flags={"fast-math"})
+    def run_experiment(self):
+        """
+        Run the experimental sequence.
+        """
+        # get dma handle
+        handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN)
+        self.core.break_realtime()
+
+        # MAIN SEQUENCE
+        for trial_num in range(self.repetitions):
+
+            # set frequencies
+            for freq_ftw in self.freq_qubit_scan_ftw:
+                self.core.break_realtime()
+
+                # set waveform for qubit DDS
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
+                self.core.break_realtime()
+
+                # run sequence
+                self.core_dma.playback_handle(handle)
+
+                # update dataset
+                with parallel:
+                    self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, self.pmt_counter.fetch_count()])
+                    self.core.break_realtime()
 
 
     def analyze(self):

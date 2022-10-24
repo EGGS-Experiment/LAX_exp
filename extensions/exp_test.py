@@ -61,7 +61,7 @@ class EGGSExperimentTest(EGGSExperiment):
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
-    def prepare2(self):
+    def prepare_experiment(self):
         """
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
@@ -113,12 +113,33 @@ class EGGSExperimentTest(EGGSExperiment):
         self.set_dataset("exp_test_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("exp_test_processed")
 
+    @kernel
+    def prepare_devices(self):
+        """
+        todo: document
+        """
+        pass
 
-    def run(self):
+
+    @kernel
+    def prepare_dma(self):
+        """
+        todo: document
+        """
+        pass
+
+
+    def run_experiment(self):
         """
         Run the experimental sequence.
         """
         pass
+
+
+    def finish(self):
+        """
+        todo: document
+        """
 
 
     def analyze(self):
