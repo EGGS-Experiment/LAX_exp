@@ -36,12 +36,14 @@ class EGGSExperiment(EnvExperiment):
             param_value = self._HasEnvironment__dataset_mgr.ddb.get(param_name)
             # set as parameter in dataset manager and HDF5 file
             self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
-
         # assign local parameters
         for param_name in self.local_parameters:
             # get parameter from object attributes
             param_value = getattr(self, param_name)
             # store parameter
+            if type(param_value) in (RangeScan, CenterScan):
+                param_value = list(param_value)
+
             self._HasEnvironment__dataset_mgr.set(param_name, param_value, archive=False, parameter=True)
 
         # call subclassed prepare function
