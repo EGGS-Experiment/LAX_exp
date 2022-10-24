@@ -148,7 +148,13 @@ class SidebandCooling(EnvExperiment):
         # sideband cooling
         self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, self.time_max_sideband_cooling_us, self.sideband_cycles)])
+
+        # calculate number of spin polarizations
+        num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
+        if (num_spin_depolarizations < 1): num_spin_depolarizations = 1
         self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
+
+        # other sideband cooling parameters
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
 
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
