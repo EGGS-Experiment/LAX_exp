@@ -172,6 +172,8 @@ class HeatingRateMeasurement(EnvExperiment):
         # set up datasets
         self.set_dataset("heating_rate", [])
         self.setattr_dataset("heating_rate")
+        self.set_dataset("heating_rate_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("heating_rate_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -217,7 +219,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    self.append_to_dataset('heating_rate', [time_heating_delay_mu, freq_ftw, self.pmt_counter.fetch_count()])
+                    self.update_dataset(time_heating_delay_mu, freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
         # reset board profiles
@@ -331,6 +333,14 @@ class HeatingRateMeasurement(EnvExperiment):
         self.core.break_realtime()
 
 
+    @rpc(flags={"async"})
+    def update_dataset(self, time_mu, freq_ftw, pmt_counts):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        self.append_to_dataset('heating_rate', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts])
+
+
     def analyze(self):
         """
         Analyze the results from the experiment.
@@ -338,6 +348,18 @@ class HeatingRateMeasurement(EnvExperiment):
         # turn dataset into numpy array for ease of use
         self.heating_rate = np.array(self.heating_rate)
 
-        # convert to normal values
-        self.heating_rate[:, 0] = self.core.mu_to_seconds(self.heating_rate[:, 0])
-        self.heating_rate[:, 1] *= self.freq_to_ftw
+        # # get sorted x-values (frequency)
+        # freq_list_mhz = sorted(set(self.heating_rate[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     freq: []
+        #     for freq in freq_list_mhz
+        # }
+        # for freq_mhz, pmt_counts in self.heating_rate:
+        #     collated_results[freq_mhz].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.heating_rate_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
