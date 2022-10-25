@@ -232,12 +232,6 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
             delay_mu(self.time_doppler_cooling_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # tmp remove
-            # repump qubit after sideband cooling
-            self.dds_board.cfg_switches(0b1100)
-            delay_mu(self.time_repump_qubit_mu)
-            self.dds_board.cfg_switches(0b0100)
-
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
 
@@ -272,8 +266,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
             delay_mu(self.time_redist_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # prepare for rabi flopping
-            # set qubit pi-pulse waveform
+            # set qubit pi-pulse waveform for rabi flopping
             self.dds_qubit_board.set_profile(1)
 
         # readout sequence

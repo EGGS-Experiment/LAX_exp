@@ -2,17 +2,17 @@ import numpy as np
 from random import shuffle
 from artiq.experiment import *
 
-_DMA_HANDLE_INITIALIZE = "sideband_cooling_initialize"
-_DMA_HANDLE_SIDEBAND = "sideband_cooling_pulse"
-_DMA_HANDLE_READOUT = "sideband_cooling_readout"
+_DMA_HANDLE_INITIALIZE = "heating_rate_initialize"
+_DMA_HANDLE_SIDEBAND = "heating_rate_pulse"
+_DMA_HANDLE_READOUT = "heating_rate_readout"
 
 # todo: make max time the same as readout time
 
 
-class SidebandCooling(EnvExperiment):
+class HeatingRateMeasurement(EnvExperiment):
     """
-    Sideband Cooling
-    Measures temperature after a given number of RSB pulses.
+    Heating Rate Measurement
+    Does sideband cooling then waits a variable amount of time before measuring the sidebands.
     """
 
     # kernel_invariants = {}
@@ -70,20 +70,27 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("freq_sideband_cooling_mhz",          NumberValue(default=104.012, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("ampl_sideband_cooling_pct",          NumberValue(default=50, ndecimals=5, step=1, min=0, max=100))
 
+        # heating rate
+        self.setattr_argument("time_heating_rate_us",               Scannable(
+                                                                            default=RangeScan(1, 100, 101),
+                                                                            global_min=0, global_max=1000, global_step=1,
+                                                                            unit="V", scale=1, ndecimals=4
+                                                                    ))
 
         # readout
         self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
                                                                             CenterScan(104.012, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5))
+                                                                            unit="MHz", scale=1, ndecimals=5)
+                                                                    )
 
         self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
                                                                             CenterScan(105.214, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5))
+                                                                            unit="MHz", scale=1, ndecimals=5
+                                                                      ))
 
         self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
-        #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -150,6 +157,9 @@ class SidebandCooling(EnvExperiment):
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
 
+        # heating rate
+        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_us) for time_us in self.time_heating_rate_us]
+
         # readout pi-pulse
         self.time_readout_pipulse_mu =                          self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
@@ -159,10 +169,10 @@ class SidebandCooling(EnvExperiment):
         self.calibration_qubit_status =                         int(not self.calibration)
 
         # set up datasets
-        self.set_dataset("sideband_cooling", [])
-        self.setattr_dataset("sideband_cooling")
-        self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("sideband_cooling_processed")
+        self.set_dataset("heating_rate", [])
+        self.setattr_dataset("heating_rate")
+        self.set_dataset("heating_rate_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.setattr_dataset("heating_rate_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -185,25 +195,31 @@ class SidebandCooling(EnvExperiment):
         # MAIN SEQUENCE
         for i in range(self.repetitions):
 
-            # sweep final pi-pulse frequency
-            for freq_ftw in self.freq_qubit_scan_ftw:
+            # sweep times to measure heating rate
+            for time_heating_delay_mu in self.time_heating_rate_list_mu:
 
-                # set readout frequency in advance
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=1)
-                self.core.break_realtime()
+                # sweep final pi-pulse frequency
+                for freq_ftw in self.freq_qubit_scan_ftw:
 
-                # initialize by running doppler cooling and spin polarization
-                self.core_dma.playback_handle(handle_initialize)
+                    # set readout frequency in advance
+                    self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=1)
+                    self.core.break_realtime()
 
-                # run sideband cooling cycles and repump afterwards
-                self.core_dma.playback_handle(handle_sideband)
+                    # initialize by running doppler cooling and spin polarization
+                    self.core_dma.playback_handle(handle_initialize)
 
-                # read out
-                self.core_dma.playback_handle(handle_readout)
+                    # run sideband cooling cycles and repump afterwards
+                    self.core_dma.playback_handle(handle_sideband)
 
-                # record data
-                self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
-                self.core.break_realtime()
+                    # wait a given delay to measure heating rate
+                    delay_mu(time_heating_delay_mu)
+
+                    # read out
+                    self.core_dma.playback_handle(handle_readout)
+
+                    # record data
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                    self.core.break_realtime()
 
         # reset board profiles
         self.dds_board.set_profile(0)
@@ -319,7 +335,7 @@ class SidebandCooling(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('heating_rate', [freq_ftw * self.ftw_to_mhz, pmt_counts])
 
 
     def analyze(self):
@@ -327,20 +343,20 @@ class SidebandCooling(EnvExperiment):
         Analyze the results from the experiment.
         """
         # turn dataset into numpy array for ease of use
-        self.sideband_cooling = np.array(self.sideband_cooling)
+        self.heating_rate = np.array(self.heating_rate)
 
         # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
+        freq_list_mhz = sorted(set(self.heating_rate[:, 0]))
 
         # collate results
         collated_results = {
             freq: []
             for freq in freq_list_mhz
         }
-        for freq_mhz, pmt_counts in self.sideband_cooling:
+        for freq_mhz, pmt_counts in self.heating_rate:
             collated_results[freq_mhz].append(pmt_counts)
 
         # process counts for mean and std and put into processed dataset
         for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
             binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+            self.heating_rate_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])

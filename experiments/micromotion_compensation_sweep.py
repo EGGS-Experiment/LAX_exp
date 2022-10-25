@@ -69,7 +69,6 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.setattr_argument("freq_micromotion_mhz",               NumberValue(default=19, ndecimals=5, step=1, min=1, max=10000))
 
         # voltage values
-        #self.setattr_argument("dc_micromotion_channels",            NumberValue(default=19, ndecimals=5, step=1, min=1, max=10000))
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='A-Ramp 1'))
         self.setattr_argument("dc_micromotion_voltages_v",          Scannable(
