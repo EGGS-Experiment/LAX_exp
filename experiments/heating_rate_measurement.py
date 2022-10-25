@@ -59,9 +59,9 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                        BooleanValue(default=False))
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=3, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                    NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=200, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
         self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
@@ -72,7 +72,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # heating rate
         self.setattr_argument("time_heating_rate_us",               Scannable(
-                                                                            default=RangeScan(1, 100, 101),
+                                                                            default=RangeScan(1, 100, 5),
                                                                             global_min=0, global_max=1000, global_step=1,
                                                                             unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -149,7 +149,8 @@ class HeatingRateMeasurement(EnvExperiment):
         # calculate number of spin polarizations
         num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
         if (num_spin_depolarizations < 1): num_spin_depolarizations = 1
-        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
+
+        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
         # other sideband cooling parameters
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
@@ -158,7 +159,7 @@ class HeatingRateMeasurement(EnvExperiment):
         self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
 
         # heating rate
-        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_us) for time_us in self.time_heating_rate_us]
+        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_us * us) for time_us in self.time_heating_rate_us]
 
         # readout pi-pulse
         self.time_readout_pipulse_mu =                          self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
@@ -218,7 +219,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                    self.update_dataset(time_heating_delay_mu, freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
         # reset board profiles
@@ -279,6 +280,8 @@ class HeatingRateMeasurement(EnvExperiment):
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
+            # todo: do we need to state prep by spin polarization here?
+
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             # set qubit pi-pulse waveform
@@ -331,11 +334,11 @@ class HeatingRateMeasurement(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
+    def update_dataset(self, time_mu, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('heating_rate', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('heating_rate', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts])
 
 
     def analyze(self):
@@ -345,18 +348,18 @@ class HeatingRateMeasurement(EnvExperiment):
         # turn dataset into numpy array for ease of use
         self.heating_rate = np.array(self.heating_rate)
 
-        # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.heating_rate[:, 0]))
-
-        # collate results
-        collated_results = {
-            freq: []
-            for freq in freq_list_mhz
-        }
-        for freq_mhz, pmt_counts in self.heating_rate:
-            collated_results[freq_mhz].append(pmt_counts)
-
-        # process counts for mean and std and put into processed dataset
-        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.heating_rate_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+        # # get sorted x-values (frequency)
+        # freq_list_mhz = sorted(set(self.heating_rate[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     freq: []
+        #     for freq in freq_list_mhz
+        # }
+        # for freq_mhz, pmt_counts in self.heating_rate:
+        #     collated_results[freq_mhz].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.heating_rate_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])

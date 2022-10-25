@@ -142,7 +142,8 @@ class SidebandCooling(EnvExperiment):
         # calculate number of spin polarizations
         num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
         if (num_spin_depolarizations < 1): num_spin_depolarizations = 1
-        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, int(self.sideband_cycles / self.cycles_per_spin_polarization))
+
+        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
         # other sideband cooling parameters
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
@@ -262,6 +263,8 @@ class SidebandCooling(EnvExperiment):
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
+
+            # todo: do we need to state prep by spin polarization here?
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
