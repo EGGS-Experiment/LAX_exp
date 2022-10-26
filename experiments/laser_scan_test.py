@@ -1,12 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.extensions.EGGSExperiment import EGGSExperiment
+from LAX_exp.extensions.EGGSExperiment import _EGGSExperiment
 
 _DMA_HANDLE_LASERSCAN = "laserscan_sequence"
 
 
-class LaserScanTest(EGGSExperiment):
+class LaserScanTest(_EGGSExperiment, EnvExperiment):
     """
     729nm Laser Scan - EGGSExperiment Test
     Gets the number of counts as a function of frequency for a fixed time.
@@ -212,7 +212,15 @@ class LaserScanTest(EGGSExperiment):
                     self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, self.pmt_counter.fetch_count()])
                     self.core.break_realtime()
 
+    @kernel
+    def finish(self):
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
 
+        # reset AOMs after experiment
+        self.dds_board.cfg_switches(0b1110)
+        self.dds_qubit.cfg_sw(0)
     def analyze(self):
         """
         Analyze the results from the experiment.

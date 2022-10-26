@@ -3,11 +3,12 @@ Base classes for building experiment sequences for EGGS.
 """
 import numpy as np
 from artiq.experiment import *
+from abc import ABC
 
-__all__ = ["EGGSExperiment"]
+__all__ = ["_EGGSExperiment"]
 
 
-class EGGSExperiment(EnvExperiment):
+class _EGGSExperiment(EnvExperiment):
     """
     A typical EGGS Experiment.
     Does all necessary startup steps under the hood such that the user only
@@ -84,12 +85,12 @@ class EGGSExperiment(EnvExperiment):
         self.finish()
 
 
-    @kernel
-    def finish(self):
-        # reset board profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
-
-        # reset AOMs after experiment
-        self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+    # @kernel
+    # def finish(self):
+    #     # reset board profiles
+    #     self.dds_board.set_profile(0)
+    #     self.dds_qubit_board.set_profile(0)
+    #
+    #     # reset AOMs after experiment
+    #     self.dds_board.cfg_switches(0b1110)
+    #     self.dds_qubit.cfg_sw(0)
