@@ -1,12 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
-from ..extensions.EGGSExperiment import EGGSExperiment
+from LAX_exp.extensions.EGGSExperiment import EGGSExperiment
 
 _DMA_HANDLE_LASERSCAN = "laserscan_sequence"
 
 
-class LaserScan(EGGSExperiment):
+class LaserScanTest(EGGSExperiment):
     """
     729nm Laser Scan - EGGSExperiment Test
     Gets the number of counts as a function of frequency for a fixed time.
