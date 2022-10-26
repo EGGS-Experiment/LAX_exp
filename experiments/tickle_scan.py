@@ -1,10 +1,10 @@
+import labrad
 import numpy as np
+from os import environ
+from time import sleep
 from artiq.experiment import *
 
 _DMA_HANDLE_TICKLE_SEQUENCE = "tickle_scan_sequence"
-
-import labrad
-from os import environ
 
 
 class TickleScan(EnvExperiment):
@@ -44,7 +44,7 @@ class TickleScan(EnvExperiment):
 
         # tickle values
         self.setattr_argument("time_tickle_us",                     NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=10, ndecimals=3, step=1, min=1, max=10000))
+        self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=50, ndecimals=3, step=1, min=10, max=10000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
                                                                         default=RangeScan(0.9, 1.2, 31),
                                                                         global_min=0, global_max=1000, global_step=1,
@@ -93,7 +93,7 @@ class TickleScan(EnvExperiment):
         # prepare labrad devices
         self.fg.select_device()
         # self.fg.toggle(1)
-        # self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
+        self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
 
         # configure burst mode
         self.fg.gpib_write('BURS:STAT ON')
@@ -188,6 +188,7 @@ class TickleScan(EnvExperiment):
         """
         self.fg.frequency(freq_mhz * 1e6)
         # todo: set number of cycles
+        sleep(1.5)
         print('freq set: {}'.format(freq_mhz))
 
 
@@ -204,5 +205,5 @@ class TickleScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         self.tickle_scan = np.array(self.tickle_scan)
+        self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
-        pass
