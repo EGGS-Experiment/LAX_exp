@@ -1,5 +1,4 @@
 import numpy as np
-from time import sleep
 from artiq.experiment import *
 
 _DMA_HANDLE_TICKLE_SEQUENCE = "tickle_scan_sequence"
@@ -20,24 +19,14 @@ class TickleScan(EnvExperiment):
         "pmt_gating_edge",
         "ttl_channel_function_generator",
 
-        "time_profileswitch_delay_us",
-        "time_redist_us",
-        "time_doppler_cooling_us",
-        "time_readout_us",
-
         "dds_board_num",
-        "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
 
-        "freq_redist_mhz",
         "freq_pump_cooling_mhz",
-        "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
 
-        "ampl_redist_pct",
         "ampl_pump_cooling_pct",
-        "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
 
         "pmt_discrimination"
@@ -55,6 +44,7 @@ class TickleScan(EnvExperiment):
 
         # tickle values
         self.setattr_argument("time_tickle_us",                     NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=10, ndecimals=3, step=1, min=1, max=10000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
                                                                         default=RangeScan(0.9, 1.2, 31),
                                                                         global_min=0, global_max=1000, global_step=1,
@@ -82,38 +72,36 @@ class TickleScan(EnvExperiment):
         # function generator
         self.ttl_function_generator =                               self.get_device("ttl{}".format(self.ttl_channel_function_generator))
 
-        # convert time values to machine units
-        self.time_profileswitch_delay_mu =                          self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
-        self.time_cooling_mu =                                      self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_readout_mu =                                      self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_redist_mu =                                       self.core.seconds_to_mu(self.time_redist_us * us)
-
         # DDS devices
         self.dds_board =                                            self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-
-        self.dds_probe =                                            self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump =                                             self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
         self.dds_repump_cooling =                                   self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
 
         # convert frequency to ftw
-        self.freq_redist_ftw =                                      self.dds_pump.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                                self.dds_pump.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =                                self.dds_pump.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =                              self.dds_pump.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_redist_asf =                                      self.dds_pump.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                                self.dds_pump.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
-        self.ampl_pump_readout_asf =                                self.dds_pump.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =                              self.dds_pump.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
 
         # tickle
+        self.time_fuction_generator_delay_mu =                      self.core.seconds_to_mu(350 * ns)
         self.time_tickle_us =                                       self.core.seconds_to_mu(self.time_tickle_us * us)
         self.freq_tickle_mhz =                                      list(self.freq_tickle_mhz)
 
         # prepare labrad devices
         self.fg.select_device()
-        # todo: set up triggering
+        # self.fg.toggle(1)
+
+        # configure burst mode
+        self.fg.gpib_write('BURS:STAT ON')
+        self.fg.gpib_write('BURS:MODE GAT')
+        self.fg.gpib_write('BURS:PHAS 0')
+
+        # configure function generator trigger
+        self.fg.gpib_write('TRIG:SOUR EXT')
+        self.fg.gpib_write('TRIG:SLOP POS')
 
         # set up datasets
         self.set_dataset("tickle_scan", [])
@@ -143,6 +131,7 @@ class TickleScan(EnvExperiment):
 
             # repeat experiment
             for trial_num in range(self.repetitions):
+
                 # run sequence
                 self.core_dma.playback_handle(handle_sequence)
 
@@ -151,20 +140,10 @@ class TickleScan(EnvExperiment):
                     self.update_dataset(freq_mhz, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
-        # finish experiment
-        self.run_reset()
-
-
-    @kernel(flags={"fast-math"})
-    def run_reset(self):
-        """
-        Reset devices for normal operation.
-        """
-        # reset board profiles
+        # reset devices
         self.dds_board.set_profile(0)
-
-        # reset after experiment
         self.dds_board.cfg_switches(0b1110)
+        self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
@@ -172,39 +151,19 @@ class TickleScan(EnvExperiment):
         """
         Record onto core DMA the AOM sequence for a single data point.
         """
-        # cooling sequence
+        # tickle sequence
         with self.core_dma.record(_DMA_HANDLE_TICKLE_SEQUENCE):
 
-            # set cooling waveform
-            with parallel:
-                self.dds_board.set_profile(0)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # do cooling
-            self.dds_board.cfg_switches(0b0110)
-            delay_mu(self.time_cooling_mu)
-            self.dds_board.cfg_switches(0b0100)
-
-            # todo: check if spin depolarization needed
-            # do spin depolarization using probe
-            # self.dds_board.cfg_switches(0b0101)
-            # delay_mu(self.time_redist_mu)
-            # self.dds_board.cfg_switches(0b0100)
-
-            # set readout waveform
-            with parallel:
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
-
-            # trigger function generator
+            # start tickle
             with parallel:
                 self.ttl_function_generator.on()
-                # todo: delay time it takes for function generator to turn on
+                delay_mu(self.time_fuction_generator_delay_mu)
 
-            # readout pulse
-            self.dds_board.cfg_switches(0b0110)
-            self.pmt_gating_edge(self.time_readout_mu)
-            self.dds_board.cfg_switches(0b0100)
+            # read pmt
+            self.pmt_gating_edge(self.time_tickle_us)
+
+            # stop tickle
+            self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
@@ -212,22 +171,13 @@ class TickleScan(EnvExperiment):
         """
         Prepare devices for the experiment.
         """
-        self.core.break_realtime()
-
-        # set AOM DDS waveforms; profile 0 is cooling, profile 1 is readout
-        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
-        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
-        self.core.break_realtime()
-
+        # set up AOMs
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
-        self.core.break_realtime()
-
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
-        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
         self.core.break_realtime()
 
-        # todo: set up ttl for function generator trigger
+        # set up ttl for function generator trigger
+        self.ttl_function_generator.off()
 
 
     @rpc(flags={"async"})
@@ -235,7 +185,8 @@ class TickleScan(EnvExperiment):
         """
         Set the function generator to the desired frequency.
         """
-        #self.fg.frequency(freq_mhz * 1e6)
+        self.fg.frequency(freq_mhz * 1e6)
+        # todo: set number of cycles
         print('freq set: {}'.format(freq_mhz))
 
 
