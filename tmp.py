@@ -23,6 +23,7 @@ class Testing(EnvExperiment):
         # self.set_dataset('freq_pump_readout_mhz', 110.0, broadcast=True, persist=True)
         # self.set_dataset('freq_repump_cooling_mhz', 110.0, broadcast=True, persist=True)
         # self.set_dataset('freq_repump_qubit_mhz', 110.0, broadcast=True, persist=True)
+        self.set_dataset('ttl_channel_function_generator', 9, broadcast=True, persist=True)
         pass
 
     def run(self):

@@ -18,11 +18,10 @@ class TickleScan(EnvExperiment):
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
-        "ttl_channel_function_generator"
+        "ttl_channel_function_generator",
 
         "time_profileswitch_delay_us",
         "time_redist_us",
-        "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
 
@@ -30,8 +29,6 @@ class TickleScan(EnvExperiment):
         "dds_probe_channel",
         "dds_pump_channel",
         "dds_repump_cooling_channel",
-        "dds_repump_qubit_channel",
-        "dds_qubit_channel",
 
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
@@ -54,12 +51,12 @@ class TickleScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # tickle values
-        self.setattr_argument("time_tickle_us",                     NumberValue(default=300, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_tickle_us",                     NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
-                                                                        default=RangeScan(0.9, 1.2, 301),
+                                                                        default=RangeScan(0.9, 1.2, 31),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=4
                                                                     ))
@@ -93,26 +90,26 @@ class TickleScan(EnvExperiment):
 
         # DDS devices
         self.dds_board =                                            self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =                                      self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
         self.dds_probe =                                            self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
         self.dds_pump =                                             self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
         self.dds_repump_cooling =                                   self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
 
         # convert frequency to ftw
-        self.freq_redist_ftw =                                      self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
-        self.freq_pump_cooling_ftw =                                self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =                                self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw =                              self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_redist_ftw =                                      self.dds_pump.frequency_to_ftw(self.freq_redist_mhz * MHz)
+        self.freq_pump_cooling_ftw =                                self.dds_pump.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =                                self.dds_pump.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =                              self.dds_pump.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
 
         # convert amplitude to asf
-        self.ampl_redist_asf =                                      self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
-        self.ampl_pump_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
-        self.ampl_pump_readout_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
-        self.ampl_repump_cooling_asf =                              self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_redist_asf =                                      self.dds_pump.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_pump_cooling_asf =                                self.dds_pump.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =                                self.dds_pump.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_repump_cooling_asf =                              self.dds_pump.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
 
         # tickle
         self.time_tickle_us =                                       self.core.seconds_to_mu(self.time_tickle_us * us)
+        self.freq_tickle_mhz =                                      list(self.freq_tickle_mhz)
 
         # prepare labrad devices
         self.fg.select_device()
@@ -123,7 +120,7 @@ class TickleScan(EnvExperiment):
         self.setattr_dataset("tickle_scan")
 
 
-    #@kernel(flags={"fast-math"})
+    @kernel(flags={"fast-math"})
     def run(self):
         """
         Run the experimental sequence.
@@ -135,7 +132,7 @@ class TickleScan(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        self.handle_sequence = self.core_dma.get_handle(_DMA_HANDLE_TICKLE_SEQUENCE)
+        handle_sequence = self.core_dma.get_handle(_DMA_HANDLE_TICKLE_SEQUENCE)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -144,27 +141,18 @@ class TickleScan(EnvExperiment):
             # set frequency
             self.frequency_set(freq_mhz)
 
-            # run experiment
-            self.run_repetition(freq_mhz)
+            # repeat experiment
+            for trial_num in range(self.repetitions):
+                # run sequence
+                self.core_dma.playback_handle(handle_sequence)
+
+                # add data to dataset
+                with parallel:
+                    self.update_dataset(freq_mhz, self.pmt_counter.fetch_count())
+                    self.core.break_realtime()
 
         # finish experiment
         self.run_reset()
-
-
-    @kernel(flags={"fast-math"})
-    def run_repetition(self, freq_mhz):
-        """
-        todo: document
-        """
-        # repeat experiment
-        for trial_num in range(self.repetitions):
-            # run sequence
-            self.core_dma.playback_handle(self.handle_sequence)
-
-            # add data to dataset
-            with parallel:
-                self.update_dataset(freq_mhz, self.pmt_counter.fetch_count())
-                self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
@@ -174,11 +162,9 @@ class TickleScan(EnvExperiment):
         """
         # reset board profiles
         self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
 
 
     @kernel(flags={"fast-math"})
@@ -241,13 +227,15 @@ class TickleScan(EnvExperiment):
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
         self.core.break_realtime()
 
+        # todo: set up ttl for function generator trigger
+
 
     @rpc(flags={"async"})
     def frequency_set(self, freq_mhz):
         """
         Set the function generator to the desired frequency.
         """
-        self.fg.frequency(freq_mhz * 1e6)
+        #self.fg.frequency(freq_mhz * 1e6)
         print('freq set: {}'.format(freq_mhz))
 
 
