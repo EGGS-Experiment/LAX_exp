@@ -186,8 +186,8 @@ class TickleScan(EnvExperiment):
         """
         Set the function generator to the desired frequency.
         """
-        self.fg.frequency(freq_mhz * 1e6)
-        print('freq: {}'.format(self.fg.frequency())
+        freq_set = self.fg.frequency(freq_mhz * 1e6)
+        print('freq: {}'.format(freq_set))
         #print('freq set: {}'.format(freq_mhz))
 
 
@@ -204,5 +204,6 @@ class TickleScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         self.tickle_scan = np.array(self.tickle_scan)
+        self.fg.toggle(0)
         self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
