@@ -92,7 +92,7 @@ class TickleScan(EnvExperiment):
 
         # prepare labrad devices
         self.fg.select_device()
-        # self.fg.toggle(1)
+        self.fg.toggle(1)
         self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
 
         # configure burst mode
@@ -187,9 +187,8 @@ class TickleScan(EnvExperiment):
         Set the function generator to the desired frequency.
         """
         self.fg.frequency(freq_mhz * 1e6)
-        # todo: set number of cycles
-        sleep(1.5)
-        print('freq set: {}'.format(freq_mhz))
+        print('freq: {}'.format(self.fg.frequency())
+        #print('freq set: {}'.format(freq_mhz))
 
 
     @rpc(flags={"async"})
