@@ -188,6 +188,7 @@ class TickleScan(EnvExperiment):
         """
         freq_set = self.fg.frequency(freq_mhz * 1e6)
         print('freq: {}'.format(freq_set))
+        sleep(0.1)
         #print('freq set: {}'.format(freq_mhz))
 
 
