@@ -164,7 +164,7 @@ class TickleScan(EnvExperiment):
             self.pmt_gating_edge(self.time_tickle_us)
 
             # stop tickle
-            self.ttl_function_generator.off()
+            #self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
@@ -206,5 +206,6 @@ class TickleScan(EnvExperiment):
         """
         self.tickle_scan = np.array(self.tickle_scan)
         #self.fg.toggle(0)
+        self.ttl_function_generator.on()
         self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
