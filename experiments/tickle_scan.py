@@ -178,7 +178,7 @@ class TickleScan(EnvExperiment):
         self.core.break_realtime()
 
         # set up ttl for function generator trigger
-        self.ttl_function_generator.off()
+        #self.ttl_function_generator.off()
 
 
     @rpc(flags={"async"})
@@ -206,6 +206,6 @@ class TickleScan(EnvExperiment):
         """
         self.tickle_scan = np.array(self.tickle_scan)
         #self.fg.toggle(0)
-        self.ttl_function_generator.on()
+        #self.ttl_function_generator.on()
         self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
