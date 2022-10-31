@@ -59,7 +59,7 @@ class SidebandCooling(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                        BooleanValue(default=False))
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("sideband_cycles",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
@@ -222,12 +222,11 @@ class SidebandCooling(EnvExperiment):
         """
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
-            # set qubit to sideband waveform
-            self.dds_qubit_board.set_profile(0)
 
             # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)
+                self.dds_qubit_board.set_profile(0)
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # doppler cooling
@@ -269,11 +268,11 @@ class SidebandCooling(EnvExperiment):
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             # set qubit pi-pulse waveform
-            self.dds_qubit_board.set_profile(1)
 
             # set pump readout waveform
             with parallel:
                 self.dds_board.set_profile(1)
+                self.dds_qubit_board.set_profile(1)
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # do qubit pi-pulse

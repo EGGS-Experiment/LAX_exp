@@ -205,6 +205,6 @@ class TickleScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         self.tickle_scan = np.array(self.tickle_scan)
-        self.fg.toggle(0)
+        #self.fg.toggle(0)
         self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
