@@ -144,7 +144,7 @@ class TickleScan(EnvExperiment):
         # reset devices
         self.dds_board.set_profile(0)
         self.dds_board.cfg_switches(0b1110)
-        self.ttl_function_generator.off()
+        #self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
