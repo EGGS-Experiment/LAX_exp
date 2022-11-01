@@ -44,6 +44,7 @@ class TickleScan(EnvExperiment):
 
         # tickle values
         self.setattr_argument("time_tickle_us",                     NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_freq_delay_s",                  NumberValue(default=0.5, ndecimals=3, step=0.1, min=0, max=10))
         self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=50, ndecimals=3, step=1, min=10, max=10000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
                                                                         default=RangeScan(0.9, 1.2, 31),
@@ -188,7 +189,7 @@ class TickleScan(EnvExperiment):
         """
         freq_set = self.fg.frequency(freq_mhz * 1e6)
         print('freq: {}'.format(freq_set))
-        sleep(0.5)
+        sleep(self.time_freq_delay_s)
         #print('freq set: {}'.format(freq_mhz))
 
 
