@@ -204,7 +204,7 @@ class TickleScan(EnvExperiment):
         Set the function generator to the desired frequency.
         """
         freq_set = self.fg.frequency(freq_mhz * 1e6)
-        print('freq: {}'.format(freq_set))
+        #print('freq: {}'.format(freq_set))
         sleep(self.time_freq_delay_s)
         #print('freq set: {}'.format(freq_mhz))
 
