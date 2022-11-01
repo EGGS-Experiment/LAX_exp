@@ -126,29 +126,13 @@ class TickleScan(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        # for freq_mhz in self.freq_tickle_mhz:
-        #
-        #     # set frequency
-        #     self.frequency_set(freq_mhz)
-        #
-        #     # repeat experiment
-        #     for trial_num in range(self.repetitions):
-        #
-        #         # run sequence
-        #         self.core_dma.playback_handle(handle_sequence)
-        #
-        #         # add data to dataset
-        #         with parallel:
-        #             self.update_dataset(freq_mhz, self.pmt_counter.fetch_count())
-        #             self.core.break_realtime()
+        for freq_mhz in self.freq_tickle_mhz:
 
-        for trial_num in range(self.repetitions):
+            # set frequency
+            self.frequency_set(freq_mhz)
 
             # repeat experiment
-            for freq_mhz in self.freq_tickle_mhz:
-
-                # set frequency
-                self.frequency_set(freq_mhz)
+            for trial_num in range(self.repetitions):
 
                 # run sequence
                 self.core_dma.playback_handle(handle_sequence)
