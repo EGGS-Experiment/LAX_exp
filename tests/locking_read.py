@@ -14,18 +14,18 @@ class locking_read(EnvExperiment):
         self.setattr_device('core')
 
         # channels
-        self.setattr_argument("channel_error", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("channel_error", NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("channel_dac", NumberValue(default=1, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("channel_blank", NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("channel_blank", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
 
         # gain
-        self.setattr_argument("gain_error_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("gain_error_10dB", NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("gain_dac_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("gain_blank_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
 
         # timing
         self.setattr_argument("time_delay_us", NumberValue(default=200, ndecimals=3, step=1, min=0.2, max=100))
-        self.setattr_argument("time_total_s", NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("time_total_s", NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
 
 
     def prepare(self):
@@ -40,7 +40,8 @@ class locking_read(EnvExperiment):
         self.repetitions = np.int32(self.time_total_s / self.time_delay_us * 1e6)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]))
+        #self.set_dataset('locking_readout', np.zeros([self.repetitions, 3]))
+        self.set_dataset('locking_readout', np.zeros(self.repetitions))
         self.setattr_dataset('locking_readout')
 
         self.set_dataset('locking_readout_processed', np.zeros([self.repetitions, 4]))
@@ -74,19 +75,21 @@ class locking_read(EnvExperiment):
     def update_dataset(self, i, arr):
         """
         Records values via rpc to minimize kernel overhead.
-        """
-        self.mutate_dataset("locking_readout",
-                            i,
-                            [arr[self.channel_error] * self.adc_mu_to_volts_error,
-                             arr[self.channel_dac] * self.adc_mu_to_volts_dac,
-                             arr[self.channel_blank] * self.adc_mu_to_volts_blank])
+        # """
+        # self.mutate_dataset("locking_readout",
+        #                     i,
+        #                     [arr[self.channel_error] * self.adc_mu_to_volts_error,
+        #                      arr[self.channel_dac] * self.adc_mu_to_volts_dac,
+        #                      arr[self.channel_blank] * self.adc_mu_to_volts_blank])
+        self.mutate_dataset("locking_readout", i, arr[self.channel_error] * self.adc_mu_to_volts_error)
 
 
     def analyze(self):
-        for channel_num in range(len(self.locking_readout[0])):
-            dataset_tmp = self.locking_readout[:, channel_num]
-            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(channel_num, np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
+        #for channel_num in range(len(self.locking_readout[0])):
+            #dataset_tmp = self.locking_readout[:, channel_num]
+            #print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(channel_num, np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
+        print('\toutput: {:.3f} +/- {:.3f} mV'.format(np.mean(self.locking_readout) * 1000, np.std(self.locking_readout) * 1000))
 
-        self.locking_readout_processed[:, 0] = np.linspace(0, self.time_total_s, self.repetitions)
-        self.locking_readout_processed[:, 1:] = np.array(self.locking_readout)
+        #self.locking_readout_processed[:, 0] = np.linspace(0, self.time_total_s, self.repetitions)
+        #self.locking_readout_processed[:, 1:] = np.array(self.locking_readout)
         #pass
