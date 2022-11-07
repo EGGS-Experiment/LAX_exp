@@ -3,17 +3,17 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import RAM_MODE_BIDIR_RAMP, RAM_DEST_ASF, RAM_DEST_POW, RAM_DEST_FTW
 
 
-class Urukul_AWG(EnvExperiment):
+class UrukulDitherTest(EnvExperiment):
     """
-    Urukul AWG Test
-    Test the use of the Urukul as an AWG.
+    Urukul Dither Test.
+    Test phase dithering on an AD9910.
     """
 
     def build(self):
         """
         Ensure that the necessary devices are set.
         """
-        self.setattr_device("core")                                 # always needed
+        self.setattr_device("core")
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch3")
 
@@ -48,7 +48,6 @@ class Urukul_AWG(EnvExperiment):
         self.urukul0_ch3.write_ram(self.ram_values)
         delay(100 * ms)
 
-
     @kernel
     def _ram_setup(self):
         # write to CFR1 to enable RAM modulation
@@ -75,7 +74,6 @@ class Urukul_AWG(EnvExperiment):
             # ramp down
             self.urukul0_ch3.cpld.set_profile(1)
             self.core.break_realtime()
-
 
     def analyze(self):
         pass
