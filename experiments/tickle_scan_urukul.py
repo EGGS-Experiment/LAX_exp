@@ -88,7 +88,7 @@ class TickleScanUrukul(EnvExperiment):
         self.dds_board_tickle =                                     self.get_device("urukul{:d}_cpld".format(self.dds_board_tickle_num))
         self.dds_tickle =                                           self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_tickle_num, self.dds_tickle_channel))
         self.time_tickle_mu =                                       self.core.seconds_to_mu(self.time_tickle_us * us)
-        self.freq_tickle_ftw =                                      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_tickle_mhz)]
+        self.freq_tickle_ftw =                                      [self.dds_pump.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_tickle_mhz)]
         self.ampl_tickle_asf =                                      self.dds_pump.amplitude_to_asf(self.ampl_tickle_pct / 100)
 
         # set up datasets
@@ -115,25 +115,27 @@ class TickleScanUrukul(EnvExperiment):
         for trial_num in range(self.repetitions):
 
             # scan frequency
-            for freq_mhz in self.freq_tickle_mhz:
+            for freq_ftw in self.freq_tickle_ftw:
 
                 # set frequency
-                self.frequency_set(freq_mhz)
+                self.dds_tickle.set_mu(freq_ftw, asf=self.ampl_tickle_asf)
 
                 # run sequence
                 self.core_dma.playback_handle(handle_sequence)
 
                 # add data to dataset
                 with parallel:
-                    self.update_dataset(freq_mhz, self.pmt_counter.fetch_count())
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
+
+                delay(100 * ms)
 
         # reset devices
         self.dds_board.set_profile(0)
-        self.dds_tickle_board.set_profile(0)
+        self.dds_board_tickle.set_profile(0)
 
         self.dds_board.cfg_switches(0b1110)
-        self.dds_tickle_board.cfg_switches(0b0000)
+        self.dds_board_tickle.cfg_switches(0b0000)
 
 
     @kernel(flags={"fast-math"})
@@ -148,7 +150,7 @@ class TickleScanUrukul(EnvExperiment):
             self.dds_tickle.cfg_sw(1)
 
             # read pmt
-            self.pmt_gating_edge(self.time_tickle_us)
+            self.pmt_gating_edge(self.time_tickle_mu)
 
             # stop tickle
             self.dds_tickle.cfg_sw(0)
@@ -164,17 +166,13 @@ class TickleScanUrukul(EnvExperiment):
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.core.break_realtime()
 
-        # set up tickle DDS
-        self.dds_tickle.set_mu(self.freq_tickle_ftw, asf=self.ampl_tickle_asf, profile=0)
-        self.core.break_realtime()
-
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_mhz, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('tickle_scan', [freq_mhz, pmt_counts])
+        self.append_to_dataset('tickle_scan_urukul', [self.dds_tickle.ftw_to_frequency(freq_ftw), pmt_counts])
 
 
     def analyze(self):
