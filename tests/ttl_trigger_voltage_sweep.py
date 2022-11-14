@@ -5,7 +5,7 @@ from os import environ
 from artiq.experiment import *
 
 
-class TTLTrigger(EnvExperiment):
+class TTLTriggerVoltageSweep(EnvExperiment):
     """
     tmp exp
     Testing

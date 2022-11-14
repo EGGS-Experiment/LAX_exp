@@ -16,22 +16,26 @@ class ParameterSet(EnvExperiment):
         # devices
         device_parameters = {
             # PMT
-            "pmt_input_channel":            0,
-            "pmt_gating_edge":              "rising",
+            "pmt_input_channel":                0,
+            "pmt_gating_edge":                  "rising",
+            "pmt_discrimination":               11,
+
+            # TTLs
+            "ttl_channel_function_generator":   9,
 
             # DDS - boards & channels
-            "dds_board_num":                1,
-            "dds_probe_channel":            0,
-            "dds_pump_channel":             1,
-            "dds_repump_cooling_channel":   2,
-            "dds_repump_qubit_channel":     3,
+            "dds_board_num":                    1,
+            "dds_probe_channel":                0,
+            "dds_pump_channel":                 1,
+            "dds_repump_cooling_channel":       2,
+            "dds_repump_qubit_channel":         3,
 
-            "dds_board_qubit_num":          0,
-            "dds_qubit_channel":            1,
+            "dds_board_qubit_num":              0,
+            "dds_qubit_channel":                1,
 
             # photodiode
-            "photodiode_channel":           0,
-            "photodiode_gain":              1
+            "photodiode_channel":               0,
+            "photodiode_gain":                  1
         }
 
         # timing
