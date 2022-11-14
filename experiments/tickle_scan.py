@@ -145,7 +145,7 @@ class TickleScan(EnvExperiment):
         # reset devices
         self.dds_board.set_profile(0)
         self.dds_board.cfg_switches(0b1110)
-        #fself.ttl_function_generator.off()
+        self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
@@ -165,7 +165,7 @@ class TickleScan(EnvExperiment):
             self.pmt_gating_edge(self.time_tickle_us)
 
             # stop tickle
-            #self.ttl_function_generator.off()
+            self.ttl_function_generator.off()
 
 
     @kernel(flags={"fast-math"})
@@ -179,7 +179,7 @@ class TickleScan(EnvExperiment):
         self.core.break_realtime()
 
         # set up ttl for function generator trigger
-        #self.ttl_function_generator.off()
+        self.ttl_function_generator.off()
 
 
     @rpc(flags={"async"})
@@ -206,7 +206,7 @@ class TickleScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         self.tickle_scan = np.array(self.tickle_scan)
-        #self.fg.toggle(0)
+        self.fg.toggle(0)
         #self.ttl_function_generator.on()
         self.fg.deselect_device()
         #self.micromotion_compensation[:, 0] = float(self.micromotion_compensation[:, 0] / 2**16)
