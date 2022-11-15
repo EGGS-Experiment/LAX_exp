@@ -2,6 +2,7 @@
 Copied over from DAX via the startup kernel page in their wiki: https://gitlab.com/duke-artiq/dax/-/snippets/1966946/raw/master/startup_kernel.py
 Added minor formatting changes.
 """
+import numpy as np
 from artiq.experiment import *
 
 
@@ -39,7 +40,7 @@ class StartupKernel(EnvExperiment):
     ]
     
     # The amount of time reserved for an initialization to finish.
-    DELAY_INIT_MU = 5000000 # 5 ms
+    DELAY_INIT_MU = np.int64(5000000) # 5 ms
 
 
     """
@@ -167,7 +168,7 @@ class StartupKernel(EnvExperiment):
 
             if devices:
                 # Message user a device type was found
-                print('Initializing {} device(s) of type {}: {}'.format(len(devices), device_class, ', '.join(devices)))
+                print('\tInitializing {} device(s) of type {}: {}'.format(len(devices), device_class, ', '.join(devices)))
 
                 # Expected name of the initialization function for this device
                 init_func_name = device_class.lower()
@@ -181,19 +182,19 @@ class StartupKernel(EnvExperiment):
 
             if excluded_device_keys:
                 # Message user devices were excluded
-                print('Excluded {} device(s) of type {}: {}'.format(
+                print('\tExcluded {} device(s) of type {}: {}'.format(
                     len(excluded_device_keys), device_class, ', '.join(excluded_device_keys)))
 
         if not self._init_functions:
             # Handle case where there are no init commands
             self._init_commands = self._no_init_commands
             # Message
-            print('No devices were initialized')
+            print('\tNo devices were initialized')
 
         # Report about devices that were not initialized
         not_initialized = {k: v for k, v in all_devices.items() if v['class'] not in self.DEVICE_CLASSES}
-        print('Device types not initialized: {}'.format(', '.join({v['class'] for v in not_initialized.values()})))
-        print('Devices not initialized: {}'.format(', '.join(not_initialized.keys())))
+        print('\tDevice types not initialized: {}'.format(', '.join({v['class'] for v in not_initialized.values()})))
+        print('\tDevices not initialized: {}'.format(', '.join(not_initialized.keys())))
 
     def resolve_keys(self, keys):
         """
