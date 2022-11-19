@@ -17,7 +17,6 @@ class TickleScanUrukul(EnvExperiment):
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge",
-        "ttl_channel_function_generator",
 
         "dds_board_num",
         "dds_pump_channel",
@@ -67,9 +66,6 @@ class TickleScanUrukul(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                          self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
-
-        # function generator
-        self.ttl_function_generator =                               self.get_device("ttl{}".format(self.ttl_channel_function_generator))
 
         # DDS devices
         self.dds_board =                                            self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -132,7 +128,6 @@ class TickleScanUrukul(EnvExperiment):
 
         # reset devices
         self.dds_board.set_profile(0)
-        self.dds_board_tickle.set_profile(0)
 
         self.dds_board.cfg_switches(0b1110)
         self.dds_board_tickle.cfg_switches(0b0000)
