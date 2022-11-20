@@ -124,6 +124,9 @@ class TickleScanUrukul(EnvExperiment):
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
+                # add artificial delay
+                delay_mu(10 * ms)
+
 
         # reset devices
         self.dds_board.set_profile(0)
