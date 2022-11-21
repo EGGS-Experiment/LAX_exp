@@ -35,8 +35,8 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     def prepare(self):
-        self.frequency_list_hz = np.arange(1.4, 1.450, 0.001) * 1e6
-        self.fg.select_device(1)
+        self.frequency_list_hz = np.arange(1.340, 1.440, 0.001) * 1e6
+        self.fg.select_device(2)
 
     @kernel
     def run(self):
@@ -90,7 +90,9 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         """
         Set the RF to the desired frequency.
         """
-        freq_set_hz = self.fg.frequency(freq_hz)
+        #freq_set_hz = self.fg.frequency(freq_hz)
+        self.fg.gpib_write('FREQ {}'.format(freq_hz))
+        freq_set_hz = self.fg.gpib_query('FREQ?')
         print('frequency set: {}'.format(freq_set_hz))
 
 
