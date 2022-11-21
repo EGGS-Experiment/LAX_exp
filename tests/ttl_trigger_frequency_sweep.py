@@ -7,7 +7,7 @@ from artiq.experiment import *
 
 class TTLTriggerFrequencySweep(EnvExperiment):
     """
-    tmp exp
+    trigger freq sweep
     Testing
     """
 
