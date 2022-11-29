@@ -10,7 +10,7 @@ class Beam_Urukul(HasEnvironment):
     DDS_NAME = None
     frequencies = []
     amplitudes = []
-    kernel_invariants = {}
+    kernel_invariants = set()
 
 
     # BUILD
@@ -38,42 +38,44 @@ class Beam_Urukul(HasEnvironment):
 
             # reformat parameter name
             freq_param_new = freq_param.split('.')[-1]
-            freq_param_new.replace('mhz', 'ftw')
+            freq_param_new = freq_param_new.replace('mhz', 'ftw')
 
             # get parameter from dataset manager
-            freq_val_mhz = self.__dataset_mgr.ddb.get(freq_param)
+            freq_val_mhz = self._HasEnvironment__dataset_mgr.ddb.get(freq_param)
 
             # set as parameter in dataset manager and HDF5 file
-            self.__dataset_mgr.set(
+            self.setattr_dataset(
                 freq_param_new,
-                self.dev.frequency_to_ftw(freq_val_mhz),
-                archive=False
+                self.dev.frequency_to_ftw(freq_val_mhz * MHz),
+                archive=True
                 # todo: make dataset manager store parameters differently
             )
 
             # add parameter to kernel invariants
-            self.kernel_invariants |= {freq_param}
+            self.kernel_invariants.add(freq_param_new)
+
 
         # get amplitudes
         for ampl_param in self.amplitudes:
 
             # reformat parameter name
             ampl_param_new = ampl_param.split('.')[-1]
-            ampl_param_new.replace('pct', 'asf')
+            ampl_param_new = ampl_param_new.replace('pct', 'asf')
 
             # get parameter from dataset manager
-            ampl_val_pct = self.__dataset_mgr.ddb.get(ampl_param)
+            ampl_val_pct = self._HasEnvironment__dataset_mgr.ddb.get(ampl_param)
 
             # set as parameter in dataset manager and HDF5 file
-            self.__dataset_mgr.set(
+            self.setattr_dataset(
                 ampl_param_new,
-                self.dev.amplitude_to_asf(ampl_val_pct),
-                archive=False
+                self.dev.amplitude_to_asf(ampl_val_pct / 100),
+                archive=True
                 # todo: make dataset manager store parameters differently
             )
 
             # add parameter to kernel invariants
-            self.kernel_invariants |= {ampl_param}
+            self.kernel_invariants.add(ampl_param_new)
+
 
     @kernel
     def _build_set_profiles(self):
