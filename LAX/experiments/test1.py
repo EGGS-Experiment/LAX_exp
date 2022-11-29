@@ -16,12 +16,14 @@ class yzdeTest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5))
+
+        self.time_readout_mu = self.core.seconds_to_mu(10 * ms)
 
 
     def prepare(self):
@@ -33,7 +35,6 @@ class yzdeTest(EnvExperiment):
         self.pmt_counter =                                      self.get_device("ttl_counter{:d}".format(0))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format('rising'))
 
-        # th
         self.pump_397 = beam_397_pump(self)
 
         self.set_dataset("storage_tmp", [])
@@ -48,18 +49,20 @@ class yzdeTest(EnvExperiment):
         """
         #self.core.reset()
 
-        # get dma handle
-        #handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN)
-        #self.core.break_realtime()
-        for i in range(self.repetitions):
+        yz = list(range(self.repetitions))
+        for i in yz:
             val = self.yzdetmp()
             self.append_to_dataset("storage_tmp", val)
-            print('\tkk1: {}'.format(val))
 
-    @kernel
+
+    @kernel(flags='fast-math')
     def yzdetmp(self):
         self.core.break_realtime()
         self.pump_397.dev.cfg_sw(True)
         self.pmt_gating_edge(self.time_readout_mu)
-        self.pump_397_dev.cfg_sw(False)
+        self.pump_397.dev.cfg_sw(False)
+        self.core.break_realtime()
         return self.pmt_counter.fetch_count()
+
+    def analyze(self):
+        print('avg: {}'.format(np.mean(self.storage_tmp)))
