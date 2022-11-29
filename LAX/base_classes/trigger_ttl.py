@@ -1,7 +1,9 @@
 from artiq.experiment import *
 
-
-class Beam_Urukul(HasEnvironment):
+# todo: finish
+# measure time delay between events
+# force block until event
+class Trigger_TTL(HasEnvironment):
     """
     A generic "beam" object based off an Urukul DDS channel.
     """
