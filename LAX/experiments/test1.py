@@ -58,7 +58,7 @@ class yzdeTest(EnvExperiment):
     @kernel(flags='fast-math')
     def yzdetmp(self):
         self.core.break_realtime()
-        self.pump_397.dev.cfg_sw(False)
+        self.pump_397.dev.cfg_sw(True)
         self.pmt_gating_edge(self.time_readout_mu)
         self.pump_397.dev.cfg_sw(False)
         self.core.break_realtime()
