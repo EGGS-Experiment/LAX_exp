@@ -21,4 +21,4 @@ class Testing(EnvExperiment):
     #@kernel
     def run(self):
         self.set_dataset('dds.dds_board_tickle_num', 0, broadcast=True, persist=True)
-        self.set_dataset('dds_tickle_channel', 3, broadcast=True, persist=True)
+        self.set_dataset('dds.dds_tickle_channel', 3, broadcast=True, persist=True)

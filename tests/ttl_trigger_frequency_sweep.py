@@ -4,6 +4,8 @@ import numpy as np
 from os import environ
 from artiq.experiment import *
 
+from time import sleep
+
 
 class TTLTriggerFrequencySweep(EnvExperiment):
     """
@@ -35,7 +37,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     def prepare(self):
-        self.frequency_list_hz = np.arange(1.340, 1.440, 0.001) * 1e6
+        self.frequency_list_hz = np.arange(1.340, 1.450, 0.010) * 1e6
         self.fg.select_device(2)
 
     @kernel
@@ -84,6 +86,8 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                     self.update_dataset(freq_val_hz, time_input_mu, time_input_mu2)
                     self.core.break_realtime()
 
+        self.frequency_set(5000000)
+
 
     @rpc(flags={"async"})
     def frequency_set(self, freq_hz):
@@ -92,6 +96,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         """
         #freq_set_hz = self.fg.frequency(freq_hz)
         self.fg.gpib_write('FREQ {}'.format(freq_hz))
+        sleep(1.0)
         freq_set_hz = self.fg.gpib_query('FREQ?')
         print('frequency set: {}'.format(freq_set_hz))
 
