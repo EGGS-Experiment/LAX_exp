@@ -49,10 +49,12 @@ class yzdeTest(EnvExperiment):
 
         yz = list(range(self.repetitions))
         for i in yz:
+            print('\ta1: {}'.format(i))
             val = self.yzdetmp()
             self.append_to_dataset("storage_tmp", val)
 
 
+    #@kernel
     @kernel(flags='fast-math')
     def yzdetmp(self):
         self.core.break_realtime()

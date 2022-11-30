@@ -3,6 +3,8 @@ from artiq.experiment import *
 # todo: on
 # todo: off
 # todo: pulse
+#from inspect import getmembers
+import inspect
 
 
 class Beam_Urukul(HasEnvironment):
@@ -31,13 +33,26 @@ class Beam_Urukul(HasEnvironment):
         # get dds channel
         urukul_cpld = self.get_dataset(self.DDS_BOARD, archive=False)
         urukul_chan = self.get_dataset(self.DDS_CHANNEL, archive=False)
-        self.dev = self.get_device('urukul{:d}_ch{:d}'.format(urukul_cpld, urukul_chan))
+        setattr(
+            self,
+            "dev",
+            self.get_device('urukul{:d}_ch{:d}'.format(urukul_cpld, urukul_chan))
+        )
 
         # get parameters from master dataset
         self._build_set_parameters()
 
         # set waveforms
         self._build_set_profiles()
+
+        # get methods
+        ppsh41 = lambda okth: (callable(okth)) and (inspect.ismethod(okth)) and (okth.__name__ is not "__init__")
+        kka = inspect.getmembers(self.dev, ppsh41)
+        for (d_name, d_meth) in kka:
+            print('\t{}: {}'.format(d_name, d_meth.__func__))
+            setattr(self, d_name, d_meth)
+        # for th1 in dir(self.dev):
+        #     print('\tth1: {}'.format(getattr(self.dev, th1).__func__))
 
     def _build_set_parameters(self):
         """
@@ -93,9 +108,3 @@ class Beam_Urukul(HasEnvironment):
         #todo: document
         """
         pass
-
-    def __getattr__(self, attribute):
-        """
-        Call methods of the backing Urukul channel if not otherwise implemented.
-        """
-        return getattr(self.dev, attribute)
