@@ -1,8 +1,12 @@
 from artiq.experiment import *
 from LAX_exp.LAX.base_classes import *
+# todo: maybe set profile names as enum (e.g. set_profile(PROFILE_COOLING))
+# gate counts
+# get counts
+# read out
+# todo: core_dma must only happen at sequence level and above
 
-
-class RFSync(Trigger_TTL):
+class Linetrigger(Beam_Urukul):
     """
     A beam
     # todo: document
