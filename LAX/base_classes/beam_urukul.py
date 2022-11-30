@@ -1,10 +1,6 @@
 from artiq.experiment import *
+from inspect import getmembers, ismethod
 # todo: add RAM methods
-# todo: on
-# todo: off
-# todo: pulse
-#from inspect import getmembers
-import inspect
 
 
 class Beam_Urukul(HasEnvironment):
@@ -45,14 +41,13 @@ class Beam_Urukul(HasEnvironment):
         # set waveforms
         self._build_set_profiles()
 
-        # get methods
-        ppsh41 = lambda okth: (callable(okth)) and (inspect.ismethod(okth)) and (okth.__name__ is not "__init__")
-        kka = inspect.getmembers(self.dev, ppsh41)
-        for (d_name, d_meth) in kka:
-            print('\t{}: {}'.format(d_name, d_meth.__func__))
-            setattr(self, d_name, d_meth)
-        # for th1 in dir(self.dev):
-        #     print('\tth1: {}'.format(getattr(self.dev, th1).__func__))
+        # steal all relevant methods of underlying TTL counter object so users
+        # can directly call methods from this wrapper
+        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
+        device_functions = getmembers(self.dev, isDeviceFunction)
+        for (function_name, function_object) in device_functions:
+            setattr(self, function_name, function_object)
+
 
     def _build_set_parameters(self):
         """

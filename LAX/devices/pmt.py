@@ -1,5 +1,6 @@
 from artiq.experiment import *
-import inspect
+from inspect import getmembers, ismethod
+
 
 class PMT_counter(HasEnvironment):
     """
@@ -39,24 +40,12 @@ class PMT_counter(HasEnvironment):
         gating_method = self.get_dataset(self.TTL_GATING_EDGE, archive=False)
         self.counting_method = getattr(self.dev, "gate_{:s}_mu".format(gating_method))
 
-        # get methods
-        ppsh41 = lambda okth: (callable(okth)) and (inspect.ismethod(okth)) and (okth.__name__ is not "__init__")
-        kka = inspect.getmembers(self.dev, ppsh41)
-        for (d_name, d_meth) in kka:
-            print('\t{}: {}'.format(d_name, d_meth.__func__))
-            setattr(self, d_name, d_meth)
-
-    def __getattr__(self, attr):
-        """
-        Call methods of the backing TTL counter if not otherwise implemented.
-        """
-        @kernel
-        def methodtmp(th1):
-            yz1 = getattr(self.dev, attr)
-            return yz1(th1)
-
-        return methodtmp
-
+        # steal all relevant methods of underlying TTL counter object so users
+        # can directly call methods from this wrapper
+        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
+        device_functions = getmembers(self.dev, isDeviceFunction)
+        for (function_name, function_object) in device_functions:
+            setattr(self, function_name, function_object)
 
 
     # CONVENIENCE METHODS
