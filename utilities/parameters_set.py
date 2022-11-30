@@ -51,7 +51,9 @@ class ParameterSet(EnvExperiment):
             "beams.freq_mhz.freq_pump_readout_mhz":                     110.0,
             "beams.freq_mhz.freq_repump_cooling_mhz":                   110.0,
             "beams.freq_mhz.freq_repump_qubit_mhz":                     110.0,
-            "beams.freq_mhz.freq_qubit_mhz":                            110.771,
+            "beams.freq_mhz.freq_qubit_carrier_mhz":                    110.771,
+            "beams.freq_mhz.freq_qubit_rsb_mhz":                        104.012,
+            "beams.freq_mhz.freq_qubit_bsb_mhz":                        105.214,
 
             # amplitude
             "beams.ampl_pct.ampl_probe_redist_pct":                     50.0,

@@ -1,6 +1,7 @@
 import numpy as np
 from artiq.experiment import *
-from LAX_exp.LAX.devices.beam_397 import beam_397_pump
+from LAX_exp.LAX.devices.beam_397_pump import beam_397_pump
+from LAX_exp.LAX.devices.pmt import PMT_counter
 
 
 class yzdeTest(EnvExperiment):
@@ -21,7 +22,7 @@ class yzdeTest(EnvExperiment):
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
                                                                     global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5))
+                                                                    unit="MHz", scale=1, ndecimals=5), group = 'thkim.yzde')
 
         self.time_readout_mu = self.core.seconds_to_mu(10 * ms)
 
@@ -31,15 +32,12 @@ class yzdeTest(EnvExperiment):
         Set up the dataset and prepare things such that
         the kernel functions have minimal overhead.
         """
-        # PMT devices
-        self.pmt_counter =                                      self.get_device("ttl_counter{:d}".format(0))
-        self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format('rising'))
-
+        # devices
+        self.pmt = PMT_counter(self)
         self.pump_397 = beam_397_pump(self)
 
         self.set_dataset("storage_tmp", [])
         self.setattr_dataset("storage_tmp")
-
 
 
     #@kernel(flags={"fast-math"})
@@ -58,11 +56,11 @@ class yzdeTest(EnvExperiment):
     @kernel(flags='fast-math')
     def yzdetmp(self):
         self.core.break_realtime()
-        self.pump_397.dev.cfg_sw(True)
-        self.pmt_gating_edge(self.time_readout_mu)
-        self.pump_397.dev.cfg_sw(False)
+        self.pump_397.cfg_sw(True)
+        self.pmt.count(self.time_readout_mu)
+        self.pump_397.cfg_sw(False)
         self.core.break_realtime()
-        return self.pmt_counter.fetch_count()
+        return self.pmt.fetch_count()
 
     def analyze(self):
         print('avg: {}'.format(np.mean(self.storage_tmp)))

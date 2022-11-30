@@ -49,7 +49,6 @@ class Trigger_TTL(HasEnvironment):
                 freq_param_new,
                 self.dev.frequency_to_ftw(freq_val_mhz),
                 archive=False
-                # todo: make dataset manager store parameters differently
             )
 
             # add parameter to kernel invariants
@@ -70,7 +69,6 @@ class Trigger_TTL(HasEnvironment):
                 ampl_param_new,
                 self.dev.amplitude_to_asf(ampl_val_pct),
                 archive=False
-                # todo: make dataset manager store parameters differently
             )
 
             # add parameter to kernel invariants

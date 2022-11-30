@@ -1,28 +1,28 @@
 from artiq.experiment import *
 from LAX_exp.LAX.base_classes import *
-# todo: maybe set profile names as enum (e.g. set_profile(PROFILE_COOLING))
 
 
 class beam_397_probe(Beam_Urukul):
     """
-    A beam
-    # todo: document
+    Wrapper for the 397nm probe beam (polarized).
+    Uses the DDS channel to drive an AOM in double-pass configuration.
     """
 
-    DDS_NAME = 'urukul1_ch0'
+    DDS_BOARD =     'beams.dds_board.dds_board_num'
+    DDS_CHANNEL =   'beams.dds_channel.dds_probe_channel'
 
     frequencies = [
-        "beams.freq_mhz.freq_pump_cooling_mhz",
-        "beams.freq_mhz.freq_pump_readout_mhz"
+        "beams.freq_mhz.freq_probe_redist_mhz"
     ]
 
     amplitudes = [
-        "beams.ampl_pct.ampl_pump_cooling_pct",
-        "beams.ampl_pct.ampl_pump_readout_pct"
+        "beams.ampl_pct.ampl_probe_redist_pct"
     ]
 
-    @kernel
+
+    @kernel(flags='fast-math')
     def _build_set_profiles(self):
-        self.dev.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dev.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
         self.core.break_realtime()
+        self.dev.set_mu(self.freq_probe_redist_ftw, asf=self.ampl_probe_redist_asf, profile=0)
+        self.core.break_realtime()
+        self.dev.set_mu(self.freq_probe_redist_ftw, asf=self.ampl_probe_redist_asf, profile=1)

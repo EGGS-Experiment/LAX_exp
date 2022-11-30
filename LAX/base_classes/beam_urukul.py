@@ -1,25 +1,37 @@
 from artiq.experiment import *
+# todo: add RAM methods
+# todo: on
+# todo: off
+# todo: pulse
 
 
 class Beam_Urukul(HasEnvironment):
     """
     A generic "beam" object based off an Urukul DDS channel.
+    # todo: document
     """
 
-    DDS_NAME = None
-    frequencies = []
-    amplitudes = []
-    kernel_invariants = set()
+    kernel_invariants =     set()
+
+    DDS_BOARD =             None
+    DDS_CHANNEL =           None
+
+    frequencies =           []
+    amplitudes =            []
 
 
-    # BUILD
+    # SETUP
     def build(self):
         """
         #todo document
         """
-        # get core devices
+        # get core device
         self.setattr_device("core")
-        self.dev = self.get_device(self.DDS_NAME)
+
+        # get dds channel
+        urukul_cpld = self.get_dataset(self.DDS_BOARD, archive=False)
+        urukul_chan = self.get_dataset(self.DDS_CHANNEL, archive=False)
+        self.dev = self.get_device('urukul{:d}_ch{:d}'.format(urukul_cpld, urukul_chan))
 
         # get parameters from master dataset
         self._build_set_parameters()
@@ -75,10 +87,15 @@ class Beam_Urukul(HasEnvironment):
             # add parameter to kernel invariants
             self.kernel_invariants.add(ampl_param_new)
 
-
     @kernel
     def _build_set_profiles(self):
         """
         #todo: document
         """
         pass
+
+    def __getattr__(self, attribute):
+        """
+        Call methods of the backing Urukul channel if not otherwise implemented.
+        """
+        return getattr(self.dev, attribute)
