@@ -35,7 +35,6 @@ class DopplerCooling(HasEnvironment):
         )
 
 
-
     @kernel(flags={"fast-math"})
     def run(self, cooling_time_mu=self.time_doppler_cooling_mu):
         """
