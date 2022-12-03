@@ -37,7 +37,7 @@ class LAXDevice(HasEnvironment, ABC):
     # SETUP
     def build(self):
         """
-        Get core devices and their parameters from the master, and instantiate them.
+        Get core devices from the master, and instantiate them.
         """
         # get core device
         self.setattr_device("core")
@@ -55,6 +55,21 @@ class LAXDevice(HasEnvironment, ABC):
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
+        # if class only uses one device, break out original device methods
+        if len(self.device_names) == 1:
+
+            # verifies that a function is not magic
+            isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
+
+            # get device
+            dev_tmp = getattr(self, list(self.device_names.keys())[0])
+
+            # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
+            for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
+                setattr(self, function_name, function_object)
+
+
+    def _prepare_parameters(self):
         # get device parameters
         for parameter_name, parameter_attributes in self.device_parameters.items():
 
@@ -75,34 +90,8 @@ class LAXDevice(HasEnvironment, ABC):
             except Exception as e:
                 logger.warning("Parameter unavailable: {:s}".format(parameter_name))
 
-        # if class only uses one device, break out original device methods
-        if len(self.device_names) == 1:
 
-            # verifies that a function is not magic
-            isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
-
-            # get device
-            dev_tmp = getattr(self, list(self.device_names.keys())[0])
-
-            # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-            for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
-                setattr(self, function_name, function_object)
-
-        # allow users to modify the class
-        self.prepare_class()
-
-        # ensure device is only automatically built once per experiment
-        # get list of all extant devices
-        _laxDevice_list_all = self.get_dataset('_laxDevice_list_all', list(), archive=False)
-        print('\t{}'.format(_laxDevice_list_all))
-
-        # add device to list and initialize
-        if self.name not in _laxDevice_list_all:
-            _laxDevice_list_all.append(self.name)
-            self.set_dataset('_laxDevice_list_all', _laxDevice_list_all, archive=True)
-            self.prepare_devices()
-
-    #@abstractmethod
+    # USER FUNCTIONS
     def prepare_class(self):
         """
         To be subclassed.
@@ -111,7 +100,7 @@ class LAXDevice(HasEnvironment, ABC):
         """
         pass
 
-    #@abstractmethod
+
     def prepare_devices(self):
         """
         To be subclassed.

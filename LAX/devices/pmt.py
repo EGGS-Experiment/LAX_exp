@@ -6,7 +6,7 @@ class PMTCounter(LAXDevice):
     """
     A wrapper around the TTL edge_counter object for the PMT.
     """
-    name = "PMT"
+    name = "pmt"
 
     device_names = {'pmt': 'ttl_counter0'}
     device_parameters = {

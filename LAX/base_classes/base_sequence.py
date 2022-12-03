@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from inspect import getmembers, ismethod
 
 
-class Sequence(HasEnvironment):
+class LAXSequence(HasEnvironment, ABC):
     """
     Base class for sequence objects.
     A set of pulse sequences that achieves a complete ***thing? todo*** (e.g. sideband cooling).

@@ -1,10 +1,14 @@
 from artiq.experiment import *
 
+import logging
 from abc import ABC, abstractmethod
 from inspect import getmembers, ismethod
 
 
-class LAXExperiment(HasEnvironment):
+logger = logging.getLogger("artiq.master.experiments")
+
+
+class LAXExperiment(HasEnvironment, ABC):
     """
     Base class for LAX experiments.
     """
