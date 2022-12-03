@@ -23,11 +23,15 @@ class LAXDevice(HasEnvironment, ABC):
                                                             together with a conversion function (None if no conversion needed).
     """
     # Core attributes
+    name =                  None
     kernel_invariants =     set()
 
     # Device attributes
     device_names =          dict()
     device_parameters =     dict()
+
+    # todo: document
+    _initialized = False
 
 
     # SETUP
@@ -35,6 +39,24 @@ class LAXDevice(HasEnvironment, ABC):
         """
         Get core devices and their parameters from the master, and instantiate them.
         """
+        # ensure device is only automatically built once per experiment
+        try:
+            # get list of all extant devices
+            _laxDevice_list_all = self.get_dataset('_laxDevice_list_all', set(), archive=False)
+
+            # stop here if device already exists
+            if self.name in _laxDevice_list_all:
+                return
+            # otherwise, add this device to the list
+            else:
+                _laxDevice_list_all.add(self.name)
+                self.set_dataset('_laxDevice_list_all', _laxDevice_list_all, archive=True)
+
+        # begin list of extant devices if it doesn't yet exist
+        except KeyError:
+            self.set_dataset('_laxDevice_list_all', set([self.name]), archive=True)
+
+
         # get core device
         self.setattr_device("core")
 
@@ -84,8 +106,7 @@ class LAXDevice(HasEnvironment, ABC):
             for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
                 setattr(self, function_name, function_object)
 
-
-        # call ABC methods
+        # run device-specific initialization
         self.prepare_devices()
 
 
