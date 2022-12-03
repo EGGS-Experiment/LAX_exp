@@ -1,29 +1,20 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import *
-# todo: maybe set profile names as enum (e.g. set_profile(PROFILE_COOLING))
+from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf
 
 
-class beam_397_probe(Beam_Urukul):
+class BeamTickle(LAXDevice):
     """
-    A beam
-    # todo: document
+    Wrapper for the tickle beam.
+        Uses the DDS channel to apply a tickle on one of the radial
     """
 
-    DDS_BOARD = 'urukul0_ch3'
-    DDS_NAME = 'urukul1_ch0'
+    device_names = {'beam': 'urukul0_ch3'}
+    device_parameters = {
+        'ampl_tickle_pct': ('beams.ampl_pct.ampl_probe_redist_pct', pct_to_asf)
+    }
 
-    frequencies = [
-        "beams.freq_mhz.freq_pump_cooling_mhz",
-        "beams.freq_mhz.freq_pump_readout_mhz"
-    ]
-
-    amplitudes = [
-        "beams.ampl_pct.ampl_pump_cooling_pct",
-        "beams.ampl_pct.ampl_pump_readout_pct"
-    ]
-
-    @kernel
-    def _build_set_profiles(self):
-        self.dev.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dev.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+    @kernel(flags='fast-math')
+    def prepare_devices(self):
+        # set base profile
         self.core.break_realtime()
+        self.set_mu(mhz_to_ftw(1), asf=self.ampl_redist_asf, profile=0)

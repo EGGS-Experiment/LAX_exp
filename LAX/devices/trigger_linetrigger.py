@@ -1,31 +1,51 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import *
-# todo: maybe set profile names as enum (e.g. set_profile(PROFILE_COOLING))
-# gate counts
-# get counts
-# read out
-# todo: core_dma must only happen at sequence level and above
+from LAX_exp.LAX.base_classes import LAXDevice, seconds_to_mu
 
-class Linetrigger(Beam_Urukul):
+
+class Linetrigger(LAXDevice):
     """
-    A beam
-    # todo: document
+    Triggers an event off the AC line.
+        Requires the AC line to already be converted into a TTL signal.
     """
 
-    DDS_NAME = 'urukul1_ch1'
+    device_names = {'trigger': 'ttl4'}
+    device_parameters = {
+        'gating_edge': ('triggers.linetrigger_gating_edge', None),
+        'gating_timeout_mu': ('triggers.linetrigger_gating_timeout_mu', seconds_to_mu),
+    }
 
-    frequencies = [
-        "beams.freq_mhz.freq_pump_cooling_mhz",
-        "beams.freq_mhz.freq_pump_readout_mhz"
-    ]
 
-    amplitudes = [
-        "beams.ampl_pct.ampl_pump_cooling_pct",
-        "beams.ampl_pct.ampl_pump_readout_pct"
-    ]
-
-    @kernel
-    def _build_set_profiles(self):
-        self.dev.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dev.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+    @kernel(flags='fast-math')
+    def prepare_devices(self):
         self.core.break_realtime()
+        self.trigger.input()
+
+
+    @kernel(flags='fast-math')
+    def trigger(self):
+        """
+        Block until either the timeout period is reached, or a TTL edge is detected.
+        """
+        # wait for PMT count
+        time_end_mu = self.pmt_counter.gate_rising_mu(self.gating_timeout_mu)
+        time_input_mu = self.pmt_counter.timestamp_mu(time_end_mu)
+
+        # check if event has fired
+        if time_input_mu > 0:
+
+            # set RTIO time and add slack
+            at_mu(time_input_mu)
+            delay_mu(5000)
+
+            # wait until end of period
+            self.rf_sync.count(time_end_mu)
+            return (True, time_input_mu)
+
+        return (False, time_input_mu)
+
+    @host_only()
+    def set_trigger_timeout_ms(self, timeout_ms):
+        """
+        Change the trigger timeout.
+        """
+        self.gating_timeout_mu = seconds_to_mu(timeout_ms * ms)

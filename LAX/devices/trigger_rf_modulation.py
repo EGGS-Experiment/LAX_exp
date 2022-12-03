@@ -1,27 +1,54 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import *
+from LAX_exp.LAX.base_classes import LAXDevice, seconds_to_mu
 
 
-class RFSync(Trigger_TTL):
+class RFSync(LAXDevice):
     """
-    A beam
-    # todo: document
+    Correlates PMT counts with the phase of the modulation signal.
     """
 
-    DDS_NAME = 'urukul1_ch1'
+    device_names = {
+        'pmt': 'ttl0',
+        'rf_sync': 'ttl3'
+    }
+    device_parameters = {
+        'pmt_gating_edge': ('pmt.pmt_gating_edge', None),
+        'rf_gating_edge': ('rf.rfsync_gating_edge', None),
 
-    frequencies = [
-        "beams.freq_mhz.freq_pump_cooling_mhz",
-        "beams.freq_mhz.freq_pump_readout_mhz"
-    ]
+        'pmt_gating_timeout_mu': ('pmt.pmt_gating_timeout_us', seconds_to_mu),
+        'rf_gating_timeout_mu': ('rf.rfsync_gating_timeout_us', seconds_to_mu),
+    }
 
-    amplitudes = [
-        "beams.ampl_pct.ampl_pump_cooling_pct",
-        "beams.ampl_pct.ampl_pump_readout_pct"
-    ]
-
-    @kernel
-    def _build_set_profiles(self):
-        self.dev.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
-        self.dev.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+    @kernel(flags='fast-math')
+    def prepare_devices(self):
         self.core.break_realtime()
+
+
+    @kernel(flags='fast-math')
+    def correlate_count(self, timeout_mu):
+        """
+        Block until either the timeout period is reached, or a TTL edge is detected.
+        """
+        # wait for PMT count
+        time_end_pmt_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
+        time_input_pmt_mu = self.pmt_counter.timestamp_mu(time_end_pmt_mu)
+
+        # check if event has fired
+        if time_input_pmt_mu > 0:
+
+            # set RTIO time and add slack
+            at_mu(time_input_pmt_mu)
+            delay_mu(self.time_slack_mu)
+
+            # get timestamp of RF event
+            time_end_rf_mu = self.rf_sync.gate_rising_mu(self.time_timeout_rf_mu)
+            time_input_rf_mu = self.rf_sync.timestamp_mu(time_end_rf_mu)
+
+            # close input gating
+            self.rf_sync.count(time_end_rf_mu)
+            self.pmt_counter.count(time_end_pmt_mu)
+            self.core.break_realtime()
+
+            # add data to dataset
+            self.core.break_realtime()
+            return (time_end_pmt_mu, time_input_rf_mu)

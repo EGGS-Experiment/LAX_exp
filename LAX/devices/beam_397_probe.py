@@ -1,28 +1,24 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import *
+from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf
 
 
-class beam_397_probe(Beam_Urukul):
+class Beam397Probe(LAXDevice):
     """
     Wrapper for the 397nm probe beam (polarized).
-    Uses the DDS channel to drive an AOM in double-pass configuration.
+        Uses the DDS channel to drive an AOM in double-pass configuration.
     """
 
-    DDS_BOARD =     'beams.dds_board.dds_board_num'
-    DDS_CHANNEL =   'beams.dds_channel.dds_probe_channel'
-
-    frequencies = [
-        "beams.freq_mhz.freq_probe_redist_mhz"
-    ]
-
-    amplitudes = [
-        "beams.ampl_pct.ampl_probe_redist_pct"
-    ]
+    device_names = {'beam': 'urukul1_ch0'}
+    device_parameters = {
+        'freq_redist_ftw': ('beams.freq_mhz.freq_probe_redist_mhz', mhz_to_ftw),
+        'ampl_redist_asf': ('beams.ampl_pct.ampl_probe_redist_pct', pct_to_asf)
+    }
 
 
     @kernel(flags='fast-math')
-    def _build_set_profiles(self):
+    def prepare_devices(self):
+        # set cooling and readout profiles
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_probe_redist_ftw, asf=self.ampl_probe_redist_asf, profile=0)
+        self.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_probe_redist_ftw, asf=self.ampl_probe_redist_asf, profile=1)
+        self.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)

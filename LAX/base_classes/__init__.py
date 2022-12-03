@@ -4,10 +4,13 @@ Contains base device classes for LAX.
 
 __all__ = []
 
-# beams
-from .beam_urukul import Beam_Urukul
-__all__.extend(["Beam_Urukul"])
+# device classes
+from .base_device import LAXDevice
+__all__.extend(['LAXDevice'])
 
-# TTLs
-from .trigger_ttl import Trigger_TTL
-__all__.extend(["Trigger_TTL"])
+# tmp remove
+from numpy import int32, int64
+mhz_to_ftw = lambda mhz: int32(round(mhz / 1e3 * 0xFFFFFFFF))
+pct_to_asf = lambda pct: int32(round(pct / 100 * 0x3FFF))
+seconds_to_mu = lambda seconds: int64(seconds * 1e9)
+__all__.extend(['mhz_to_ftw', 'pct_to_asf'])
