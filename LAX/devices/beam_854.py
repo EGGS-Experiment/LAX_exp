@@ -7,6 +7,7 @@ class Beam854(LAXDevice):
     Wrapper for the 854nm qubit repump.
         Uses the DDS channel to drive an AOM.
     """
+    name = "qubit_repump"
 
     device_names = {'beam': 'urukul1_ch3'}
     device_parameters = {

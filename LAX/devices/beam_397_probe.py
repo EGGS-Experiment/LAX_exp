@@ -7,6 +7,7 @@ class Beam397Probe(LAXDevice):
     Wrapper for the 397nm probe beam (polarized).
         Uses the DDS channel to drive an AOM in double-pass configuration.
     """
+    name = "probe"
 
     device_names = {'beam': 'urukul1_ch0'}
     device_parameters = {

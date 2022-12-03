@@ -6,6 +6,7 @@ class RFSync(LAXDevice):
     """
     Correlates PMT counts with the phase of the modulation signal.
     """
+    name = "rf_sync"
 
     device_names = {
         'pmt': 'ttl0',

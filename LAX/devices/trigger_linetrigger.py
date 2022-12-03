@@ -7,6 +7,7 @@ class Linetrigger(LAXDevice):
     Triggers an event off the AC line.
         Requires the AC line to already be converted into a TTL signal.
     """
+    name = "linetrigger"
 
     device_names = {'trigger': 'ttl4'}
     device_parameters = {

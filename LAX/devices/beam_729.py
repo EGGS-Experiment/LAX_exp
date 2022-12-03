@@ -7,6 +7,7 @@ class Beam729(LAXDevice):
     Wrapper for the 729nm qubit beam (polarized).
         Uses the DDS channel to drive an AOM in double-pass configuration.
     """
+    name = "qubit"
 
     device_names = {'beam': 'urukul0_ch1'}
     device_parameters = {

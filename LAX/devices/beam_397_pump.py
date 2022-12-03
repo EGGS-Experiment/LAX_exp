@@ -7,6 +7,7 @@ class Beam397Pump(LAXDevice):
     Wrapper for the 397nm pump beam.
         Uses the DDS channel to drive an AOM in double-pass configuration.
     """
+    name = "pump"
 
     device_names = {'beam': 'urukul1_ch1'}
     device_parameters = {

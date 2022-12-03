@@ -7,6 +7,7 @@ class Beam866(LAXDevice):
     Wrapper for the 866nm cooling repump.
         Uses the DDS channel to drive an AOM.
     """
+    name = "cooling_repump"
 
     device_names = {'beam': 'urukul1_ch2'}
     device_parameters = {

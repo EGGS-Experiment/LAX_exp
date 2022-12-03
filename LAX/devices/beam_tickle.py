@@ -7,6 +7,7 @@ class BeamTickle(LAXDevice):
     Wrapper for the tickle beam.
         Uses the DDS channel to apply a tickle on one of the radial
     """
+    name = "tickle"
 
     device_names = {'beam': 'urukul0_ch3'}
     device_parameters = {
