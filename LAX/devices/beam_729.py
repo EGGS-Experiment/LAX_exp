@@ -17,7 +17,6 @@ class Beam729(LAXDevice):
         'ampl_qubit_pct': ('beams.ampl_pct.ampl_qubit_pct', pct_to_asf)
     }
 
-
     @kernel(flags='fast-math')
     def prepare_devices(self):
         # set qubit profiles

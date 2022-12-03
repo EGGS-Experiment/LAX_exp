@@ -44,6 +44,7 @@ class Linetrigger(LAXDevice):
 
         return (False, time_input_mu)
 
+    # todo: check this decorator is correct
     @host_only
     def set_trigger_timeout_ms(self, timeout_ms):
         """

@@ -21,11 +21,6 @@ class RFSync(LAXDevice):
     }
 
     @kernel(flags='fast-math')
-    def prepare_devices(self):
-        self.core.break_realtime()
-
-
-    @kernel(flags='fast-math')
     def correlate_count(self, timeout_mu):
         """
         Block until either the timeout period is reached, or a TTL edge is detected.

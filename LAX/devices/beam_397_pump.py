@@ -17,7 +17,6 @@ class Beam397Pump(LAXDevice):
         'ampl_readout_asf': ('beams.ampl_pct.ampl_pump_readout_pct', pct_to_asf)
     }
 
-
     @kernel(flags='fast-math')
     def prepare_devices(self):
         # set cooling and readout profiles

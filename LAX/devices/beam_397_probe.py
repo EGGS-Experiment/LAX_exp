@@ -15,7 +15,6 @@ class Beam397Probe(LAXDevice):
         'ampl_redist_asf': ('beams.ampl_pct.ampl_probe_redist_pct', pct_to_asf)
     }
 
-
     @kernel(flags='fast-math')
     def prepare_devices(self):
         # set cooling and readout profiles

@@ -13,12 +13,10 @@ class PMTCounter(LAXDevice):
         'gating_edge': ('pmt.pmt_gating_edge', None)
     }
 
-
-    def prepare_devices(self):
+    def prepare_class(self):
         # get default gating edge for counting
         self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
         self.kernel_invariants.add('counting_method')
-
 
     @kernel
     def count(self, time_mu):

@@ -15,7 +15,6 @@ class Beam854(LAXDevice):
         'ampl_repump_qubit_asf': ('beams.ampl_pct.ampl_repump_qubit_pct', pct_to_asf)
     }
 
-
     @kernel(flags='fast-math')
     def prepare_devices(self):
         # set cooling and readout profiles
