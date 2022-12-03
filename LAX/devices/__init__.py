@@ -5,18 +5,18 @@ Contains specifically constructed device classes for LAX.
 __all__ = []
 
 # beams
-from .beam_397_probe import beam_397_probe
-from .beam_397_pump import beam_397_pump
-from .beam_866 import beam_866
-from .beam_854 import beam_854
-from .beam_729 import beam_729
-from .beam_tickle import beam_tickle
-__all__.extend(['beam_397_probe', 'beam_397_pump', 'beam_866', 'beam_854', 'beam_tickle'])
+from .beam_397_probe import Beam397Probe
+from .beam_397_pump import Beam397Pump
+from .beam_866 import Beam866
+from .beam_854 import Beam854
+from .beam_729 import Beam729
+from .beam_tickle import BeamTickle
+__all__.extend(['Beam397Probe', 'Beam397Pump', 'Beam866', 'Beam854', 'Beam729', 'BeamTickle'])
 
 
 # PMT
-from .pmt import PMT_counter
-__all__.extend(['PMT_counter'])
+from .pmt import PMTCounter
+__all__.extend(['PMTCounter'])
 
 
 # TTL triggers

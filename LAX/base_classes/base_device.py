@@ -38,7 +38,6 @@ class LAXDevice(HasEnvironment, ABC):
         # get core device
         self.setattr_device("core")
 
-
         # get device(s)
         for device_nickname, device_name in self.device_names.items():
 
@@ -51,7 +50,6 @@ class LAXDevice(HasEnvironment, ABC):
 
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
-
 
         # get device parameters
         for parameter_name, parameter_attributes in self.device_parameters.items():
@@ -73,23 +71,22 @@ class LAXDevice(HasEnvironment, ABC):
             except Exception as e:
                 logger.warning("Parameter unavailable: {:s}".format(parameter_name))
 
-
         # if class only uses one device, break out original device methods
         if len(self.device_names) == 1:
 
             # verifies that a function is not magic
             isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
 
+            # get device
+            dev_tmp = getattr(self, list(self.device_names.keys())[0])
+
             # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-            for (function_name, function_object) in getmembers(self.dev, isDeviceFunction):
+            for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
                 setattr(self, function_name, function_object)
 
 
-        # call child methods
-        self.call_child_method("build")
-
         # call ABC methods
-        self.call_child_method("prepare_devices")
+        self.prepare_devices()
 
 
     @abstractmethod

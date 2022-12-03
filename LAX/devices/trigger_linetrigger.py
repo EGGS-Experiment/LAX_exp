@@ -43,7 +43,7 @@ class Linetrigger(LAXDevice):
 
         return (False, time_input_mu)
 
-    @host_only()
+    @host_only
     def set_trigger_timeout_ms(self, timeout_ms):
         """
         Change the trigger timeout.

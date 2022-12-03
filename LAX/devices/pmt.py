@@ -13,7 +13,6 @@ class PMTCounter(LAXDevice):
     }
 
 
-    @kernel(flags='fast-math')
     def prepare_devices(self):
         # get default gating edge for counting
         self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
