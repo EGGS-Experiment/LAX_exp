@@ -1,7 +1,7 @@
 import numpy as np
 from artiq.experiment import *
-from LAX_exp.LAX.devices.beam_397_pump import beam_397_pump
-from LAX_exp.LAX.devices.pmt import PMT_counter
+from LAX_exp.LAX.devices.beam_397_pump import Beam397Pump
+from LAX_exp.LAX.devices.pmt import PMTCounter
 
 
 class yzdeTest(EnvExperiment):
@@ -33,8 +33,8 @@ class yzdeTest(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # devices
-        self.pmt = PMT_counter(self)
-        self.pump_397 = beam_397_pump(self)
+        self.pmt = PMTCounter(self)
+        self.pump_397 = Beam397Pump(self)
 
         self.set_dataset("storage_tmp", [])
         self.setattr_dataset("storage_tmp")
