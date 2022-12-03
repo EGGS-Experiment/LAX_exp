@@ -37,8 +37,9 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     def prepare(self):
-        self.frequency_list_hz = np.arange(1.340, 1.450, 0.010) * 1e6
-        self.fg.select_device(2)
+        self.frequency_list_hz = np.arange(1.470, 1.500, 0.001) * 1e6
+        self.setattr_dataset('xArr', self.frequency_list_hz)
+        self.fg.select_device()
 
     @kernel
     def run(self):

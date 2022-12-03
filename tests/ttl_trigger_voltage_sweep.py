@@ -37,6 +37,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
     def prepare(self):
         self.voltage_channel = 20
         self.voltage_list_v = np.arange(40, 80 + 1, 1)
+        self.setattr_dataset('xArr', self.voltage_list_v)
 
 
     @kernel
