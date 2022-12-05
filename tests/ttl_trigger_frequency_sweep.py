@@ -1,7 +1,6 @@
 import labrad
 import numpy as np
 
-from time import sleep
 from os import environ
 from artiq.experiment import *
 from EGGS_labrad.config.dc_config import dc_config
@@ -11,6 +10,15 @@ class TTLTriggerFrequencySweep(EnvExperiment):
     """
     TTL Trigger Frequency Sweep
     """
+    kernel_invariants = {
+        'time_timeout_pmt_mu',
+        'time_slack_mu',
+        'time_timeout_rf_mu',
+        'dc_micromotion_channels',
+        'freq_mod_mhz_list',
+        'dc_micromotion_voltage_v'
+    }
+
     global_parameters = [
         "pmt_input_channel",
         "pmt_gating_edge"
@@ -25,14 +33,14 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=1000, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_slack_us",                      NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.4, ndecimals=3, step=1, min=1, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.350, 1.400, 26),
+                                                                        default=RangeScan(1.350, 1.400, 26, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -95,7 +103,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
 
-    @kernel
+    @kernel(flags='fast-math')
     def run(self):
         self.core.reset()
 
@@ -166,12 +174,12 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('ttl_trigger', [freq_hz, time_start_mu, time_stop_mu])
+        self.append_to_dataset('ttl_trigger', [freq_hz, self.core.mu_to_seconds(time_stop_mu - time_start_mu)])
 
 
     def analyze(self):
         # turn off modulation
-        self.fg.gpib_write('OUTP OFF')
+        self.fg.toggle(0)
 
         # process data
         # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
