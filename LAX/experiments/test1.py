@@ -39,6 +39,12 @@ class yzdeTest(EnvExperiment):
         self.set_dataset("storage_tmp", [])
         self.setattr_dataset("storage_tmp")
 
+        self.pmt._prepare_parameters()
+        self.pmt.prepare_class()
+
+        self.pump_397._prepare_parameters()
+        self.pump_397.prepare_devices()
+
 
     #@kernel(flags={"fast-math"})
     def run(self):

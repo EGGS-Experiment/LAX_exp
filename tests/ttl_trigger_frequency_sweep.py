@@ -25,22 +25,22 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=1000, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_slack_us",                      NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.470, 1.500, 31),
+        self.setattr_argument("freq_mod_mhz_list",                   Scannable(
+                                                                        default=RangeScan(1.350, 1.400, 11),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.6, ndecimals=3, step=1, min=1, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='A-Ramp 1'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=40, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=80, ndecimals=3, step=1, min=1, max=1000000))
 
         # datasets
         self.set_dataset("ttl_trigger", [])
@@ -56,7 +56,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
         # connect to labrad
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-        self.fg = self.cxn.fg_server
+        self.fg = self.cxn.function_generator_server
         self.dc = self.cxn.dc_server
 
 
@@ -80,12 +80,14 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
         # set up modulation
-        self.fg.select_device()
+        self.fg.select_device(1)
         self.fg.gpib_write('OUTP ON')
         self.fg.gpib_write('VOLT {}'.format(self.ampl_mod_vpp))
 
         # tmp remove: record parameters
-        self.set_dataset('xArr', self.frequency_list_mhz)
+        self.freq_mod_mhz_list = np.array(list(self.freq_mod_mhz_list))
+        self.set_dataset('xArr', self.freq_mod_mhz_list)
+        self.set_dataset('repetitions', self.repetitions)
         self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
@@ -158,7 +160,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     def analyze(self):
-        ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v, self.repetitions, 2)))
+        ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
         ind_arr = np.argsort(self.freq_mod_mhz_list)
         ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
 

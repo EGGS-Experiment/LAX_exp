@@ -19,7 +19,7 @@ class locking_read(EnvExperiment):
         self.setattr_argument("channel_blank", NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
 
         # gain
-        self.setattr_argument("gain_error_10dB", NumberValue(default=3, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("gain_error_10dB", NumberValue(default=2, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("gain_dac_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
         self.setattr_argument("gain_blank_10dB", NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
 
