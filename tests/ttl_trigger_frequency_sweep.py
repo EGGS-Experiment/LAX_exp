@@ -15,6 +15,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         'time_slack_mu',
         'time_timeout_rf_mu',
         'dc_micromotion_channels',
+        'ampl_mod_vpp',
         'freq_mod_mhz_list',
         'dc_micromotion_voltage_v'
     }

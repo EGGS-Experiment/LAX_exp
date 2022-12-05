@@ -15,8 +15,9 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         'time_slack_mu',
         'time_timeout_rf_mu',
         'dc_micromotion_channels',
-        'freq_mod_mhz_list',
-        'dc_micromotion_voltage_v'
+        'ampl_mod_vpp',
+        'freq_mod_mhz',
+        'dc_micromotion_voltages_v'
     }
 
     global_parameters = [
@@ -84,9 +85,6 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         # get voltage parameters
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_list))
         self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
-
-        # set voltage
-        self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
         # set up modulation
         self.fg.select_device(1)
