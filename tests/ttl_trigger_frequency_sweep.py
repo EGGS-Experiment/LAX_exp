@@ -33,7 +33,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_slack_us",                      NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
