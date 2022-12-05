@@ -127,7 +127,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
                     self.core.break_realtime()
 
                     # add data to dataset
-                    self.update_dataset(voltage_val, time_end_pmt_mu, time_input_rf_mu)
+                    self.update_dataset(voltage_val, time_input_pmt_mu, time_input_rf_mu)
                     self.core.break_realtime()
 
 
@@ -149,6 +149,10 @@ class TTLTriggerVoltageSweep(EnvExperiment):
 
 
     def analyze(self):
+        # turn off modulation
+        self.fg.gpib_write('OUTP OFF')
+
+        # process data
         ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v), self.repetitions, 2))
         ind_arr = np.argsort(self.dc_micromotion_voltages_v)
         ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]

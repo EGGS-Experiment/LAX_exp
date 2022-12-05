@@ -25,17 +25,17 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=1000, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_slack_us",                      NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("freq_mod_mhz_list",                   Scannable(
-                                                                        default=RangeScan(1.350, 1.400, 11),
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("freq_mod_mhz_list",                  Scannable(
+                                                                        default=RangeScan(1.350, 1.400, 51),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.6, ndecimals=3, step=1, min=1, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
@@ -76,18 +76,21 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         # get voltage parameters
         self.dc_micromotion_channels =          self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
 
+        # reformat frequency list
+        self.freq_mod_mhz_list =                np.array(list(self.freq_mod_mhz_list))
+
         # set voltage
         self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
         # set up modulation
         self.fg.select_device(1)
-        self.fg.gpib_write('OUTP ON')
-        self.fg.gpib_write('VOLT {}'.format(self.ampl_mod_vpp))
+        self.fg.toggle(1)
+        self.fg.amplitude(self.ampl_mod_vpp)
 
-        # tmp remove: record parameters
-        self.freq_mod_mhz_list = np.array(list(self.freq_mod_mhz_list))
+        # record parameters
         self.set_dataset('xArr', self.freq_mod_mhz_list)
         self.set_dataset('repetitions', self.repetitions)
+        self.set_dataset('modulation_amplitude', self.ampl_mod_vpp)
         self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
@@ -95,6 +98,11 @@ class TTLTriggerFrequencySweep(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+
+        # set ttl direction
+        self.pmt_counter.input()
+        self.rf_sync.input()
+        self.core.break_realtime()
 
 
         # MAIN LOOP
@@ -104,6 +112,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
             # set frequency
             self.frequency_set(freq_val_mhz * 1e6)
             self.core.break_realtime()
+            #delay(1 * s)
 
             # get photon counts
             for i in range(self.repetitions):
@@ -117,6 +126,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                 if time_input_pmt_mu > 0:
 
                     # set RTIO time and add slack
+                    # todo: make it now_mu
                     at_mu(time_input_pmt_mu)
                     delay_mu(self.time_slack_mu)
 
@@ -130,9 +140,11 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                     self.core.break_realtime()
 
                     # add data to dataset
-                    self.update_dataset(freq_val_mhz, time_end_pmt_mu, time_input_rf_mu)
+                    self.update_dataset(freq_val_mhz, time_input_pmt_mu, time_input_rf_mu)
                     self.core.break_realtime()
 
+
+    # LABRAD FUNCTIONS
     @rpc(flags={"async"})
     def voltage_set(self, channel, voltage_v):
         """
@@ -146,10 +158,8 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         """
         Set the RF to the desired frequency.
         """
-        self.fg.gpib_write('FREQ {}'.format(freq_hz))
-        sleep(1.0)
-        freq_set_hz = self.fg.gpib_query('FREQ?')
-        print('frequency set: {}'.format(freq_set_hz))
+        freq_set_hz = self.fg.frequency(freq_hz)
+        print('\tfrequency set: {}'.format(freq_set_hz))
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_hz, time_start_mu, time_stop_mu):
@@ -160,8 +170,12 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     def analyze(self):
-        ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
-        ind_arr = np.argsort(self.freq_mod_mhz_list)
-        ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
+        # turn off modulation
+        self.fg.gpib_write('OUTP OFF')
 
-        self.ttl_trigger_processed = ttl_trigger_tmp
+        # process data
+        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
+        # ind_arr = np.argsort(self.freq_mod_mhz_list)
+        # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
+        #
+        # self.ttl_trigger_processed = ttl_trigger_tmp
