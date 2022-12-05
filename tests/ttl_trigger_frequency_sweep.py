@@ -32,7 +32,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         # modulation
         self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=1, min=1, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.350, 1.400, 51),
+                                                                        default=RangeScan(1.350, 1.400, 26),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -46,8 +46,8 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.set_dataset("ttl_trigger", [])
         self.setattr_dataset("ttl_trigger")
 
-        self.set_dataset("ttl_trigger_processed", np.zeros(self.repetitions))
-        self.setattr_dataset("ttl_trigger_processed")
+        #self.set_dataset("ttl_trigger_processed", np.zeros(self.repetitions))
+        #self.setattr_dataset("ttl_trigger_processed")
 
 
         # get global parameters
