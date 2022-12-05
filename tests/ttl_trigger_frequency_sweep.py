@@ -70,22 +70,22 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
     def prepare(self):
         # PMT devices
-        self.pmt_counter =                      self.get_device("ttl{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                          self.get_device("ttl{:d}".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # RF devices
-        self.rf_sync =                          self.get_device('ttl3')
+        self.rf_sync =                                              self.get_device('ttl3')
 
         # convert time values to machine units
-        self.time_timeout_pmt_mu =              self.core.seconds_to_mu(self.time_timeout_pmt_us * us)
-        self.time_slack_mu =                    self.core.seconds_to_mu(self.time_slack_us * us)
-        self.time_timeout_rf_mu =               self.core.seconds_to_mu(self.time_timeout_rf_us * us)
+        self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_us * us)
+        self.time_slack_mu =                                        self.core.seconds_to_mu(self.time_slack_us * us)
+        self.time_timeout_rf_mu =                                   self.core.seconds_to_mu(self.time_timeout_rf_us * us)
 
         # get voltage parameters
-        self.dc_micromotion_channels =          self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
+        self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
 
         # reformat frequency list
-        self.freq_mod_mhz_list =                np.array(list(self.freq_mod_mhz_list))
+        self.freq_mod_mhz_list =                                    np.array(list(self.freq_mod_mhz_list))
 
         # set voltage
         self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
@@ -98,7 +98,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         # record parameters
         self.set_dataset('xArr', self.freq_mod_mhz_list)
         self.set_dataset('repetitions', self.repetitions)
-        self.set_dataset('modulation_amplitude', self.ampl_mod_vpp)
+        self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
         self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
