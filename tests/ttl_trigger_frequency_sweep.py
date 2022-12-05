@@ -39,9 +39,9 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.4, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.05, ndecimals=3, step=1, min=1, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.400, 1.420, 101, randomize=True),
+                                                                        default=RangeScan(1.350, 1.400, 51, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
