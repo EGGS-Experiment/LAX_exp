@@ -1,6 +1,7 @@
 import labrad
 import numpy as np
 
+from time import sleep
 from os import environ
 from artiq.experiment import *
 from EGGS_labrad.config.dc_config import dc_config
@@ -30,7 +31,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions",                        NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
@@ -82,11 +83,8 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         self.time_timeout_rf_mu =                                   self.core.seconds_to_mu(self.time_timeout_rf_us * us)
 
         # get voltage parameters
-        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_list))
+        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
         self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
-
-        # set voltage
-        self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
         # set up modulation
         self.fg.select_device(1)
@@ -95,7 +93,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         self.fg.amplitude(self.ampl_mod_vpp)
 
         # record parameters
-        self.set_dataset('xArr', self.freq_mod_mhz_list)
+        self.set_dataset('xArr', self.dc_micromotion_voltages_v_list)
         self.set_dataset('repetitions', self.repetitions)
         self.set_dataset('freq_mod_mhz', self.freq_mod_mhz)
         self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
@@ -119,6 +117,9 @@ class TTLTriggerVoltageSweep(EnvExperiment):
             # set voltage
             self.voltage_set(self.dc_micromotion_channels, voltage_val)
             self.core.break_realtime()
+
+            # add extra delay for ion to settle
+            delay(1 * s)
 
             # get photon counts
             for i in range(self.repetitions):
