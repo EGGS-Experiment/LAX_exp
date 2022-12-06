@@ -1,7 +1,7 @@
 import labrad
 import numpy as np
 
-from time import sleep
+#from time import sleep
 from os import environ
 from artiq.experiment import *
 from EGGS_labrad.config.dc_config import dc_config
@@ -15,7 +15,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         'time_timeout_pmt_mu',
         'time_slack_mu',
         'time_timeout_rf_mu',
-        'dc_micromotion_channels',
+        'dc_micromotion_channel',
         'ampl_mod_vpp',
         'freq_mod_mhz',
         'dc_micromotion_voltages_v'
@@ -45,7 +45,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
                                                                         default=RangeScan(40.0, 80.0, 41, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
@@ -85,7 +85,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
 
         # get voltage parameters
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
-        self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
+        self.dc_micromotion_channel =                               self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
 
         # set up modulation
         self.fg.select_device(1)
@@ -98,7 +98,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         self.set_dataset('repetitions', self.repetitions)
         self.set_dataset('freq_mod_mhz', self.freq_mod_mhz)
         self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
+        self.set_dataset('dc_channel_num', self.dc_micromotion_channel)
 
 
     @kernel(flags='fast-math')
@@ -116,11 +116,11 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         for voltage_val in self.dc_micromotion_voltages_v_list:
 
             # set voltage
-            self.voltage_set(self.dc_micromotion_channels, voltage_val)
+            self.voltage_set(self.dc_micromotion_channel, voltage_val)
             self.core.break_realtime()
 
             # add extra delay for ion to settle
-            delay(1 * s)
+            #delay(1 * s)
 
             # get photon counts
             for i in range(self.repetitions):
