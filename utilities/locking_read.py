@@ -80,9 +80,9 @@ class locking_read(EnvExperiment):
 
     def analyze(self):
         # print out noise values
-        for channel_num in range(len(self.channel_list)):
-            dataset_tmp = adc_mu_to_volt(self.locking_readout[:, channel_num], self.gain_list[channel_num])
-            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(channel_num, np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
+        for i in self.channel_iter:
+            dataset_tmp = adc_mu_to_volt(self.locking_readout[:, i], self.gain_list[i])
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.channel_list[i], np.mean(dataset_tmp) * 1000, np.std(dataset_tmp) * 1000))
 
         # convert from mu to volts
         locking_readout_tmp = self.locking_readout.transpose()
