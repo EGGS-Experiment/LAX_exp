@@ -18,8 +18,8 @@ class locking_read(EnvExperiment):
         self.setattr_device('core')
 
         # channels
-        self.setattr_argument("channel_list",           PYONValue([0, 1, 2]))
-        self.setattr_argument("gain_list",              PYONValue([2, 2, 3]))
+        self.setattr_argument("channel_list",           PYONValue([0, 1, 2, 3]))
+        self.setattr_argument("gain_list",              PYONValue([2, 2, 3, 0]))
 
         # timing
         self.setattr_argument("sample_rate_hz",         NumberValue(default=5000, ndecimals=3, step=1, min=1, max=5100))
