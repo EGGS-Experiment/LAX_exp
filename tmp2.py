@@ -4,9 +4,9 @@ from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
 from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
                                    rtio_input_data)
 
-class Testing(EnvExperiment):
+class testarg12(EnvExperiment):
     """
-    tmp exp
+    testarg34
     Testing
     """
 
