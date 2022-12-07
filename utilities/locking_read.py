@@ -22,27 +22,31 @@ class locking_read(EnvExperiment):
         self.setattr_argument("gain_list",              PYONValue([2, 2, 3]))
 
         # timing
-        self.setattr_argument("time_delay_us",          NumberValue(default=200, ndecimals=3, step=1, min=0.2, max=100))
-        self.setattr_argument("time_total_s",           NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("sample_rate_hz",         NumberValue(default=5000, ndecimals=3, step=1, min=1, max=5100))
+        self.setattr_argument("time_total_s",           NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
 
 
     def prepare(self):
         # general
-        self.channel_iter = list(range(len(self.channel_list)))
+        self.channel_iter =                             list(range(len(self.channel_list)))
 
         # ADC
-        self.adc = self.get_device("sampler0")
+        self.adc =                                      self.get_device("sampler0")
 
         # timing
-        self.time_delay_mu = self.core.seconds_to_mu(self.time_delay_us * us)
-        self.repetitions = np.int32(self.time_total_s / self.time_delay_us * 1e6)
+        self.time_delay_mu =                            self.core.seconds_to_mu(1 / self.sample_rate_hz)
+        self.repetitions =                              np.int32(self.time_total_s * self.sample_rate_hz)
 
         # datasets
-        self.set_dataset('locking_readout', np.zeros([self.repetitions, len(self.channel_list)]))
+        self.set_dataset('locking_readout',             np.zeros([self.repetitions, len(self.channel_list)]))
         self.setattr_dataset('locking_readout')
 
+        # save parameters
+        self.set_dataset('sample_rate_hz',              self.sample_rate_hz)
+        self.set_dataset('time_total_s',                self.time_total_s)
 
-    @kernel
+
+    @kernel(flags='fast-math')
     def run(self):
         self.core.reset()
 
