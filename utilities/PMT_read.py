@@ -90,4 +90,4 @@ class PMT_experiment(EnvExperiment):
         Analyze the results from the experiment.
         """
         # print results
-        print('\tcounts: {:.3f} +/- {.3f}'.format(mean(self.pmt_dataset), std(self.pmt_dataset)))
+        print('\tcounts: {:.3f} +/- {:.3f}'.format(mean(self.pmt_dataset), std(self.pmt_dataset)))
