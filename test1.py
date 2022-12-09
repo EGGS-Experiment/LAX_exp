@@ -34,7 +34,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_slack_us",                      NumberValue(default=5, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_timeout_rf_us",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
 
@@ -50,13 +50,6 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=80, ndecimals=3, step=1, min=1, max=1000000))
-
-        # datasets
-        self.set_dataset("ttl_trigger", np.zeros([self.repetitions, 2]))
-        self.setattr_dataset("ttl_trigger")
-
-        #self.set_dataset("ttl_trigger_processed", np.zeros(self.repetitions))
-        #self.setattr_dataset("ttl_trigger_processed")
 
 
         # get global parameters
@@ -91,10 +84,13 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         # set voltage
         self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
-        # set up modulation
-        self.fg.select_device(1)
-        self.fg.toggle(1)
-        self.fg.amplitude(self.ampl_mod_vpp)
+        # set up datasets
+        self._dataset_counter                                       = 0
+        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list) * self.repetitions, 3]))
+        self.setattr_dataset("ttl_trigger")
+
+        #self.set_dataset("ttl_trigger_processed", np.zeros(self.repetitions))
+        #self.setattr_dataset("ttl_trigger_processed")
 
         # record parameters
         self.set_dataset('xArr', self.freq_mod_mhz_list)
@@ -103,24 +99,16 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
-
-    #@kernel(flags='fast-math')
-    def run(self):
-        # prepare experiment hardware
-        self._run_prepare()
-
-        # MAIN LOOP
-        for freq_val_mhz in self.freq_mod_mhz_list:
-
-            # set frequency
-            self.frequency_set(freq_val_mhz * 1e6)
+        # set up modulation
+        self.fg.select_device(1)
+        self.fg.toggle(1)
+        self.fg.amplitude(self.ampl_mod_vpp)
 
 
 
 
-    # todo name
     @kernel(flags='fast-math')
-    def run_prepare(self):
+    def run(self):
         self.core.reset()
 
         # set ttl directions
@@ -129,41 +117,63 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.core.break_realtime()
 
 
-    @kernel(flags='fast-math')
-    def run_loop(self):
-        # reset
-        self.core.reset()
+        # MAIN LOOP
+        # sweep voltage
+        for freq_val_mhz in self.freq_mod_mhz_list:
 
-        # set up loop
-        pmt_counts = 0
-
-        # get photon counts
-        while pmt_counts < self.repetitions:
+            # set frequency
+            self.frequency_set(freq_val_mhz * 1e6)
             self.core.break_realtime()
 
-            # wait for PMT count
+            # configure ttls
             self.pmt_counter._set_sensitivity(0)
-            time_input_pmt_mu = self.pmt_counter.timestamp_mu(time_end_pmt_mu)
+            self.rf_sync._set_sensitivity(0)
+            self.core.break_realtime()
 
-            # check if event has fired
-            if time_input_pmt_mu > 0:
-                # set RTIO time and add slack
-                # todo: make it now_mu
-                at_mu(time_input_pmt_mu)
-                delay_mu(self.time_slack_mu)
+            # set up counter
+            counter = 0
 
-                # get timestamp of RF event
-                time_end_rf_mu = self.rf_sync.gate_rising_mu(self.time_timeout_rf_mu)
-                time_input_rf_mu = self.rf_sync.timestamp_mu(time_end_rf_mu)
+            # get photon counts
+            while counter < self.repetitions:
+                #try:
+                # wait for PMT count
+                self.pmt_counter._set_sensitivity(1)
+                delay_mu(self.time_timeout_pmt_mu)
+                time_start_mu = self.pmt_counter.timestamp_mu(now_mu())
 
-                # close input gating
-                self.rf_sync.count(time_end_rf_mu)
-                self.pmt_counter.count(time_end_pmt_mu)
-                self.core.break_realtime()
+                # check if event has fired
+                if time_start_mu > 0:
 
-                # add data to dataset
-                self.update_dataset(freq_val_mhz, time_input_pmt_mu, time_input_rf_mu)
-                self.core.break_realtime()
+                    # set RTIO time
+                    at_mu(time_start_mu)
+
+                    # start RF counting and stop PMT counting
+                    with parallel:
+                        self.pmt_counter._set_sensitivity(0)
+                        self.rf_sync._set_sensitivity(1)
+
+                    # get timestamp of RF event
+                    delay_mu(self.time_timeout_rf_mu)
+                    time_stop_mu = self.rf_sync.timestamp_mu(now_mu())
+
+                    # close input gating
+                    at_mu(time_stop_mu)
+                    self.rf_sync._set_sensitivity(0)
+
+                    # add data to dataset
+                    counter += 1
+                    self.update_dataset(freq_val_mhz, time_start_mu, time_stop_mu)
+                    self.core.reset()
+
+                # close gating otherwise
+                else:
+                    self.pmt_counter._set_sensitivity(0)
+
+                # stop counting and reset RTIOs in case of problems
+                # except RTIOUnderflow:
+                #     self.pmt_counter._set_sensitivity(0)
+                #     self.rf_sync._set_sensitivity(0)
+                #     self.core.reset()
 
 
     # LABRAD FUNCTIONS
@@ -188,6 +198,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
+        self._dataset_counter += 1
         self.append_to_dataset('ttl_trigger', [freq_hz, self.core.mu_to_seconds(time_stop_mu - time_start_mu)])
 
 
