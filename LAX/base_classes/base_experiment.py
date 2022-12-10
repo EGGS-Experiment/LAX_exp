@@ -5,14 +5,10 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
 
-# todo: instantiate one of each device
-# todo: make device references within seq/subseq use our device object
-# todo: modify device manager
+# todo: from each subsequence and own devices, add to virtual devices of dataset manager
 
 # todo: prepare sequences
 # todo: prepare devices
-
-# todo:
 
 # todo: make device parameters be stored separately (in a group)
 # todo: make sequence parameters be stored separately (in a group)
@@ -35,8 +31,6 @@ class LAXExperiment(EnvExperiment, ABC):
 
     # Class attributes
     name =                          None
-    devices =                       set()
-
 
     '''
     BUILD
@@ -45,63 +39,41 @@ class LAXExperiment(EnvExperiment, ABC):
     # BUILD - BASE
     def build(self):
         """
-        Specify & get arguments, and get & instantiate core devices and necessary modules
-        """
-        # tmp remove
-        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.urukul0 = self.get_device('urukul0_cpld')
-        self.urukul1 = self.get_device('urukul1_cpld')
+        Get core devices and their parameters from the master, and instantiate them.
 
-        # tmp remove
-        self.build_arguments()
-        self._build_set_attributes()
-        self.build_children()
-        self._build_children()
+        Will be called upon instantiation.
+        """
+        self._build_experiment()
+        self.build_experiment()
 
-    def _build_set_attributes(self):
+    def _build_experiment(self):
         """
-        Set instance attributes.
+        General construction of the experiment object.
+
+        Gets/sets instance attributes, devices, and process build arguments.
+        Called before build_experiment.
         """
+        # core devices, etc.
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+        self.setattr_device('urukul0_cpld')
+        self.setattr_device('urukul1_cpld')
+
+        # instance variables
         setattr(self,   'dma_handle',           None)
         setattr(self,   'build_parameters',     dict())
 
-    def _build_children(self):
-        """
-        todo: document properly
-        Get LAXDevices as well as core devices necessary for the subsequence.
-        """
-        # get core devices
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-
-        # get LAXDevices
-        for device_object in self.devices:
-
-            # set device as class attribute
-            try:
-                device_name = device_object.name
-                setattr(self, device_name, device_object)
-                self.kernel_invariants.add(device_name)
-            except Exception as e:
-                logger.warning("Device unavailable: {:s}".format(device_name))
+        # universal arguments
+        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
 
     # BUILD - USER FUNCTIONS
-    def build_arguments(self):
+    def build_experiment(self):
         """
         To be subclassed.
 
         Called during build.
-        Used to specify experiment arguments using setattr_argument.
-        """
-        pass
-
-    def build_children(self):
-        """
-        To be subclassed.
-
-        Called during _build_set_attributes.
-        Used to get relevant core devices, LAX devices, sequences, and subsequences.
+        Used to specify experiment arguments and get relevant devices/objects.
         """
         pass
 
@@ -113,42 +85,33 @@ class LAXExperiment(EnvExperiment, ABC):
     # PREPARE - BASE
     def prepare(self):
         """
-        Get and convert arguments, and set up child devices/sequences.
-        """
-        self.prepare_arguments()
-        self.prepare_children()
-        self._prepare_children()
-        self._prepare_datasets()
+        General construction of the experiment object.
 
-    def _prepare_children(self):
+        Called right before run (unlike build, which is called upon instantiation).
+        _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
+            values computed only in prepaer_experiment.
         """
-        Collate all required children and run child-specific setup.
-        """
-        pass
+        self.prepare_experiment()
+        self._prepare_experiment()
 
-    def _prepare_datasets(self):
+    def _prepare_experiment(self):
         """
-        Prepare datasets for use.
+        General construction of the experiment object.
         """
-        pass
+        # create dataset to hold results
+        self.set_dataset(self.name, list())
+        self.setattr_dataset(self.name)
+
+        # prepare all children
+        self.call_child_method("prepare")
 
 
     # PREPARE - USER FUNCTIONS
-    def prepare_arguments(self):
+    def prepare_experiment(self):
         """
         To be subclassed.
 
-        Called after prepare.
-        Used to modify/prepare experiment arguments from build.
-        """
-        pass
-
-    def prepare_children(self):
-        """
-        To be subclassed.
-
-        Called after prepare_arguments.
-        Used to declare and instantiate child objects.
+        Used to pre-compute data, modify arguments, and further instantiate objects.
         """
         pass
 

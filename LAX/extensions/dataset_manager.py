@@ -11,6 +11,20 @@ class LAXDatasetManager(DatasetManager):
     todo: document
     """
 
+    def __init__(self, parent):
+        """
+        Steal necessary methods from parent (i.e. an actual DatasetManager).
+        """
+        self._broadcaster = Notifier(dict())
+        self.local = dict()
+        self.archive = dict()
+        # todo: notate
+        self.parameters = dict()
+
+        self.ddb = parent.ddb
+        self._broadcaster.publish = ddb.update
+        super().__init__()
+
     def set(self, key, value, broadcast=False, persist=False, archive=True, parameter=False):
         if persist:
             broadcast = True

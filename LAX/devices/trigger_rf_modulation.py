@@ -9,11 +9,11 @@ class RFSync(LAXDevice):
     name = "rf_sync"
 
     parameters = {
-        'pmt_gating_edge':          ('pmt.pmt_gating_edge',             None),
-        'rf_gating_edge':           ('rf.rfsync_gating_edge',           None),
+        'pmt_gating_edge':          ('pmt.pmt_gating_edge',                 None),
+        'rf_gating_edge':           ('rf.rfsync_gating_edge',               None),
 
-        'pmt_gating_timeout_mu':    ('pmt.pmt_gating_timeout_us',       seconds_to_mu),
-        'rf_gating_timeout_mu':     ('rf.rfsync_gating_timeout_us',     seconds_to_mu),
+        'pmt_gating_timeout_mu':    ('pmt.pmt_gating_timeout_us',           seconds_to_mu),
+        'rf_gating_timeout_mu':     ('rf.rfsync_gating_timeout_us',         seconds_to_mu),
     }
     core_devices = {
         'pmt':          'ttl0',

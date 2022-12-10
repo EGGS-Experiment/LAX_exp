@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
-
+# todo: need to somehow register LAXDevices as child of experiment so its prepaer
 
 class LAXSubsequence(HasEnvironment, ABC):
     """
@@ -44,15 +44,21 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         Will be called upon instantiation.
         """
-        self._build_set_attributes()
-        self.build_process_kwargs(**kwargs)
-        self._build_process_parameter_kwargs(**kwargs)
-        self._build_get_devices()
+        self._build_subsequence(**kwargs)
+        self.build_subsequence(**kwargs)
 
-    def _build_set_attributes(self):
+    def _build_subsequence(self, **kwargs):
         """
-        Set instance attributes.
+        General construction of the subsequence object.
+
+        Gets/sets instance attributes, devices, and process build arguments.
+        Called before build_subsequence.
         """
+        # get core devices
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+
+        # set instance variables
         setattr(self,   'dma_handle',           None)
         setattr(self,   'build_parameters',     dict())
         setattr(self,   'instance_number',      self.duplicate_counter)
@@ -60,32 +66,7 @@ class LAXSubsequence(HasEnvironment, ABC):
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
 
-    def _build_process_parameters(self, **kwargs):
-        """
-        Process kwargs used to initialize the subsequence.
-        """
-        # check kwargs are valid
-        if kwargs is not None:
-
-            # get parameter names
-            class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
-            build_parameters = set([parameter_name for parameter_name, _ in kwargs.keys()])
-
-            # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
-            self.build_parameters = {
-                parameter_name: kwargs[parameter_name]
-                for parameter_name in class_parameters.intersection(build_parameters)
-            }
-
-    def _build_get_devices(self):
-        """
-        Get LAXDevices as well as core devices necessary for the subsequence.
-        """
-        # get core devices
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-
-        # get LAXDevices
+        # get devices
         for device_name in self.devices:
 
             # set device as class attribute
@@ -97,13 +78,26 @@ class LAXSubsequence(HasEnvironment, ABC):
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
 
+        # extract parameters passed as build arguments from kwargs
+
+        # get parameter names
+        class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
+        build_parameters = set([parameter_name for parameter_name, _ in kwargs.keys()])
+
+        # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
+        self.build_parameters = {
+            parameter_name: kwargs[parameter_name]
+            for parameter_name in class_parameters.intersection(build_parameters)
+        }
+
+
     # BUILD - USER FUNCTIONS
-    def build_process_kwargs(self, **kwargs):
+    def build_subsequence(self, **kwargs):
         """
         To be subclassed.
 
         Called after _build_set_attributes.
-        Used to process kwargs in a way specific to the subsequence.
+        Used to set and process subsequence-specific arguments.
         """
         pass
 
@@ -120,11 +114,11 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters()
-        self.prepare_class()
+        self.__prepare_parameters()
+        self.prepare_subsequence()
         self._prepare_subsequence()
 
-    def _prepare_parameters(self):
+    def __prepare_parameters(self):
         """
         Get parameters and convert them for use by the subsequence.
         """
@@ -182,7 +176,7 @@ class LAXSubsequence(HasEnvironment, ABC):
 
 
     # PREPARE - USER FUNCTIONS
-    def prepare_class(self):
+    def prepare_subsequence(self):
         """
         To be subclassed.
 

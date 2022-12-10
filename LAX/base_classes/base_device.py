@@ -42,14 +42,12 @@ class LAXDevice(HasEnvironment, ABC):
 
         Will be called upon instantiation.
         """
-        #self._build_set_attributes()
-        #self._build_process_kwargs(**kwargs)
-        self._build_get_devices()
+        self._build_device()
         self._build_expose_methods()
 
-    def _build_get_devices(self):
+    def _build_device(self):
         """
-        Get core devices necessary for the subsequence.
+        General construction required for the
         """
         # get core device
         self.setattr_device("core")
@@ -96,11 +94,10 @@ class LAXDevice(HasEnvironment, ABC):
 
         To be called by parent classes.
         """
-        self._prepare_parameters()
-        self.prepare_class()
-        self.prepare_hardware()
+        self.__prepare_parameters()
+        self.prepare_device()
 
-    def _prepare_parameters(self):
+    def __prepare_parameters(self):
         """
         Get parameters and convert them for use by the object.
         """
@@ -125,20 +122,11 @@ class LAXDevice(HasEnvironment, ABC):
 
 
     # PREPARE - USER FUNCTIONS
-    def prepare_class(self):
+    def prepare_device(self):
         """
         To be subclassed.
 
         Called after _prepare_parameters.
-        Used to customize this class.
-        """
-        pass
-
-    def prepare_hardware(self):
-        """
-        To be subclassed.
-
-        Called after prepare_class.
-        Used to set up device hardware.
+        Used to customize the device class and set up hardware.
         """
         pass

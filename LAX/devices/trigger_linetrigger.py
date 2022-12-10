@@ -19,7 +19,7 @@ class Linetrigger(LAXDevice):
 
 
     @kernel(flags='fast-math')
-    def prepare_hardware(self):
+    def prepare_device(self):
         self.core.break_realtime()
         self.trigger.input()
 
@@ -47,7 +47,7 @@ class Linetrigger(LAXDevice):
         return (False, time_input_mu)
 
     # todo: check this decorator is correct
-    @host_only
+    @rpc
     def set_trigger_timeout_ms(self, timeout_ms):
         """
         Change the trigger timeout.

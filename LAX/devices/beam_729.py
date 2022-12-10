@@ -20,11 +20,11 @@ class Beam729(LAXDevice):
 
     }
     core_devices = {
-        'beam': 'urukul0_ch1'
+        'beam': 'urukul0_ch2'
     }
 
-    def prepare_class(self):
-        # list of functions to break out
+    def prepare_device(self):
+        # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
         # verifies that a function is not magic
@@ -35,6 +35,9 @@ class Beam729(LAXDevice):
         for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
+
+        # prepare dds profiles
+        self.prepare_hardware()
 
     @kernel(flags='fast-math')
     def prepare_hardware(self):

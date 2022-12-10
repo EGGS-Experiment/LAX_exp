@@ -28,8 +28,9 @@ class SidebandCool(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
         # set cooling waveforms
-        self.probe.cooling()
-        self.qubit.rsb()
+        with parallel:
+            self.probe.cooling()
+            self.qubit.rsb()
 
         # ensure state preparation is properly interspersed
         for time_list_mu in self.time_sideband_cooling_list_mu:
@@ -41,7 +42,7 @@ class SidebandCool(LAXSubsequence):
 
             # sweep pi-pulse times
             for time_sideband_mu in time_list_mu:
-                # todo: change frequencies
+                # todo: change frequencies to hit multiple modes
                 # qubit pi-pulse
                 self.qubit.on()
                 delay_mu(time_sideband_mu)

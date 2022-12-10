@@ -12,23 +12,15 @@ class Beam397Probe(LAXDevice):
     name = "probe"
 
     parameters = {
-        'freq_spinpol_ftw':          ('beams.freq_mhz.freq_probe_spinpol_mhz', mhz_to_ftw),
-        'ampl_spinpol_asf':          ('beams.ampl_pct.ampl_probe_spinpol_pct', pct_to_asf)
+        'freq_spinpol_ftw':          ('beams.freq_mhz.freq_probe_spinpol_mhz',      mhz_to_ftw),
+        'ampl_spinpol_asf':          ('beams.ampl_pct.ampl_probe_spinpol_pct',      pct_to_asf)
     }
     core_devices = {
         'beam': 'urukul1_ch0'
     }
 
-    @kernel(flags='fast-math')
-    def prepare_hardware(self):
-        # set cooling and readout profiles
-        self.core.break_realtime()
-        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
-        self.core.break_realtime()
-        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
-
-    def prepare_class(self):
-        # list of functions to break out
+    def prepare_device(self):
+        # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
         # verifies that a function is not magic
@@ -38,3 +30,14 @@ class Beam397Probe(LAXDevice):
         for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
+
+        # prepare dds profiles
+        self.prepare_hardware()
+
+    @kernel(flags='fast-math')
+    def prepare_hardware(self):
+        # set cooling and readout profiles
+        self.core.break_realtime()
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
+        self.core.break_realtime()
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
