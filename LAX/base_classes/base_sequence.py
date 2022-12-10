@@ -3,16 +3,17 @@ from artiq.experiment import *
 import logging
 from abc import ABC, abstractmethod
 
-
 logger = logging.getLogger("artiq.master.experiments")
 
 
 class LAXSequence(HasEnvironment, ABC):
     """
     Base class for sequence objects.
-        A set of pulse sequences that achieves a complete ***thing? todo*** (e.g. sideband cooling).
-        This should be the only level that compiles onto core DMA.
-        Assumes that the relevant devices have already been initialized.
+
+    A longer, more complex sequence of operations (compared to Subsequences) and can
+        contain non-kernel functions.
+    This should not be compiled onto core DMA.
+    Assumes that the relevant devices have already been initialized.
 
     Attributes:
         kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
@@ -22,22 +23,59 @@ class LAXSequence(HasEnvironment, ABC):
                                                             and the value is a tuple of the parameter name as stored in dataset_db,
                                                             together with a conversion function (None if no conversion needed).
     """
-
     # Core attributes
     kernel_invariants =             set()
 
     # Class attributes
     name =                          None
-    devices =                       list()
     parameters =                    dict()
+    devices =                       list()
 
 
-    # SETUP
-    def build(self):
+    '''
+    BUILD
+    '''
+
+    # BUILD - BASE
+    def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
+
+        Will be called upon instantiation.
         """
-        # get core device
+        self._build_set_attributes()
+        self.build_process_kwargs(**kwargs)
+        self._build_process_parameter_kwargs(**kwargs)
+        self._build_get_devices()
+
+    def _build_set_attributes(self):
+        """
+        Set instance attributes.
+        """
+        setattr(self,   'build_parameters',     dict())
+
+    def _build_process_parameters(self, **kwargs):
+        """
+        Process kwargs used to initialize the sequence.
+        """
+        # check kwargs are valid
+        if kwargs is not None:
+
+            # get parameter names
+            class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
+            build_parameters = set([parameter_name for parameter_name, _ in kwargs.keys()])
+
+            # take kwargs passed to the sequence meant to replace parameter values from the dataset manager
+            self.build_parameters = {
+                parameter_name: kwargs[parameter_name]
+                for parameter_name in class_parameters.intersection(build_parameters)
+            }
+
+    def _build_get_devices(self):
+        """
+        Get LAXDevices as well as core devices necessary for the sequence.
+        """
+        # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
@@ -49,12 +87,26 @@ class LAXSequence(HasEnvironment, ABC):
                 device_name = device_object.name
                 setattr(self, device_name, device_object)
                 self.kernel_invariants.add(device_name)
-
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
 
-    # SETUP - PREPARE
+    # BUILD - USER FUNCTIONS
+    def build_process_kwargs(self, **kwargs):
+        """
+        To be subclassed.
+
+        Called after _build_set_attributes.
+        Used to process kwargs in a way specific to the sequence.
+        """
+        pass
+
+
+    '''
+    PREPARE
+    '''
+
+    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -71,57 +123,48 @@ class LAXSequence(HasEnvironment, ABC):
         """
         # get sequence parameters
         for parameter_name, parameter_attributes in self.parameters.items():
-
             _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
 
-            # set parameter as class attribute
             try:
-                # get parameter from dataset manager and store in HDF5
-                parameter_value = self.get_dataset(_parameter_name_dataset, archive=True)
+                # get parameter from kwargs or dataset manager
+                parameter_value = self.build_parameters.get(
+                    _parameter_name_dataset,
+                    self.get_dataset(_parameter_name_dataset, archive=True)
+                )
 
-                # convert parameter to machine units as necessary
+                # convert parameter as necessary
                 if _parameter_conversion_function is not None:
                     parameter_value = _parameter_conversion_function(parameter_value)
 
+                # set parameter as class attribute
                 setattr(self, parameter_name, parameter_value)
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
                 logger.warning("Parameter unavailable: {:s}".format(parameter_name))
 
-    @kernel(flags='fast-math')
-    def record_dma(self):
-        """
-        Record the run sequence onto core DMA.
-            This is only offered for convenience, since Sequence objects
-            should be the only ones which compile into core DMA.
-        Returns:
-            str: the handle name.
-        """
-        # record sequence
-        with self.core_dma.record(self.name):
-            self.run()
-
-        # return handle
-        return self.core_dma.get_handle(self.name)
-
 
     # PREPARE - USER FUNCTIONS
     def prepare_class(self):
         """
         To be subclassed.
+
         Called after _prepare_parameters.
         Used to customize this class.
         """
         pass
 
 
+    '''
+    RUN
+    '''
+
     # RUN - USER FUNCTIONS
     @abstractmethod
     def run(self):
         """
-        To be subclassed.
-        Runs the main pulse sequence.
-        Should be a kernel function.
+        Must be subclassed.
+
+        Runs a sequence of operations.
         """
         pass

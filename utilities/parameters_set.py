@@ -79,7 +79,6 @@ class ParameterSet(EnvExperiment):
             # amplitude
             "beams.ampl_pct.ampl_probe_redist_pct":                     50.0,
             "beams.ampl_pct.ampl_probe_spinpol_pct":                    50.0,
-            "beams.ampl_pct.ampl_pump_pct":                             50.0,
             "beams.ampl_pct.ampl_pump_cooling_pct":                     50.0,
             "beams.ampl_pct.ampl_pump_readout_pct":                     50.0,
             "beams.ampl_pct.ampl_repump_cooling_pct":                   21.0,
@@ -96,22 +95,25 @@ class ParameterSet(EnvExperiment):
 
         # timing
         timing_parameters = {
-            # state preparation
-            "timing.time_repump_qubit_us":                              100,
+            # general
+            "timing.time_profileswitch_delay_us":                       1,
+
+            # standard
             "timing.time_redist_us":                                    500,
             "timing.time_spinpol_us":                                   500,
-            "timing.time_probe_us":                                     50,
-
-            # cooling & readout
             "timing.time_doppler_cooling_us":                           800,
             "timing.time_readout_us":                                   500,
+            "timing.time_probe_us":                                     50,
+            "timing.time_repump_qubit_us":                              100,
+
+            # qubit manipulation
             "timing.time_rabiflop_us":                                  50,
 
-            # tickle
-            "timing.time_tickle_us":                                    500,
+            # sideband cooling
+            "time_repump_sideband_cooling_mu":                          20,
 
-            # general
-            "timing.time_profileswitch_delay_us":                       1
+            # tickle
+            "timing.time_tickle_us":                                    500
         }
 
 

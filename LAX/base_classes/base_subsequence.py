@@ -9,8 +9,9 @@ logger = logging.getLogger("artiq.master.experiments")
 class LAXSubsequence(HasEnvironment, ABC):
     """
     Base class for subsequence objects.
-        Defines a single short and regularly used pulse sequence to be recorded onto DMA.
-        Assumes that the relevant devices have already been initialized.
+
+    Defines a single short and regularly used pulse sequence to be recorded onto DMA.
+    Assumes that the relevant devices have already been initialized.
 
     Attributes:
         kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
@@ -28,6 +29,9 @@ class LAXSubsequence(HasEnvironment, ABC):
     parameters =                    dict()
     devices =                       list()
 
+    # Runtime attributes
+    duplicate_counter =             0
+
 
     '''
     BUILD
@@ -41,18 +45,22 @@ class LAXSubsequence(HasEnvironment, ABC):
         Will be called upon instantiation.
         """
         self._build_set_attributes()
-        self._build_process_kwargs(**kwargs)
+        self.build_process_kwargs(**kwargs)
+        self._build_process_parameter_kwargs(**kwargs)
         self._build_get_devices()
 
     def _build_set_attributes(self):
         """
         Set instance attributes.
         """
-        # set instance variables
         setattr(self,   'dma_handle',           None)
         setattr(self,   'build_parameters',     dict())
+        setattr(self,   'instance_number',      self.duplicate_counter)
 
-    def _build_process_kwargs(self, **kwargs):
+        # keep track of all instances of a subsequence
+        self.duplicate_counter += 1
+
+    def _build_process_parameters(self, **kwargs):
         """
         Process kwargs used to initialize the subsequence.
         """
@@ -60,12 +68,14 @@ class LAXSubsequence(HasEnvironment, ABC):
         if kwargs is not None:
 
             # get parameter names
-            valid_parameters = set([parameter_name for parameter_name, _ in self.parameters.values()])
+            class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
             build_parameters = set([parameter_name for parameter_name, _ in kwargs.keys()])
 
-            # make passed args
-            if build_parameters.issubset(valid_parameters):
-                self.build_parameters = kwargs
+            # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
+            self.build_parameters = {
+                parameter_name: kwargs[parameter_name]
+                for parameter_name in class_parameters.intersection(build_parameters)
+            }
 
     def _build_get_devices(self):
         """
@@ -76,15 +86,26 @@ class LAXSubsequence(HasEnvironment, ABC):
         self.setattr_device("core_dma")
 
         # get LAXDevices
-        for device_object in self.devices:
+        for device_name in self.devices:
 
             # set device as class attribute
             try:
-                device_name = device_object.name
+                device_object = self.get_device(device_name)
                 setattr(self, device_name, device_object)
                 self.kernel_invariants.add(device_name)
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
+
+
+    # BUILD - USER FUNCTIONS
+    def build_process_kwargs(self, **kwargs):
+        """
+        To be subclassed.
+
+        Called after _build_set_attributes.
+        Used to process kwargs in a way specific to the subsequence.
+        """
+        pass
 
 
     '''
@@ -118,7 +139,7 @@ class LAXSubsequence(HasEnvironment, ABC):
                     self.get_dataset(_parameter_name_dataset, archive=True)
                 )
 
-                # convert parameter to machine units as necessary
+                # convert parameter as necessary
                 if _parameter_conversion_function is not None:
                     parameter_value = _parameter_conversion_function(parameter_value)
 
@@ -135,26 +156,26 @@ class LAXSubsequence(HasEnvironment, ABC):
         the handle as an attribute.
         """
         # record sequence
-        dma_handle = self._prepare_dma()
+        dma_handle = self._prepare_dma('{:s}_{:d}'.format(self.name, self.instance_number))
 
         # set dma handle as class attribute
         setattr(self, 'dma_handle', dma_handle)
         self.kernel_invariants.add(dma_handle)
 
     @kernel(flags='fast-math')
-    def _prepare_dma(self):
+    def _prepare_dma(self, handle_name):
         """
         Record the run sequence onto core DMA.
         Returns:
             str: the DMA handle for the sequence.
         """
         # record sequence
-        with self.core_dma.record(self.name):
+        with self.core_dma.record(handle_name):
             self.run()
 
         # get sequence handle
         self.core.break_realtime()
-        handle = self.core_dma.get_handle(self.name)
+        handle = self.core_dma.get_handle(handle_name)
 
         # return handle
         return handle
@@ -193,6 +214,6 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         Runs a fixed, unchangeable pulse sequence from core DMA.
         Must have the kernel decorator.
-        Since Subsequences use core DMA, it cannot contain any methods involving RTIO input.
+        Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
         """
         pass

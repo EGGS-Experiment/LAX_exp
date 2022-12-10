@@ -10,7 +10,7 @@ class InitializeQubit(LAXSubsequence):
     name = 'initialize_qubit'
 
     parameters = {
-        'time_spinpol_mu':                   ('timing.time_spinpol_us',                   us_to_mu),
+        'time_spinpol_mu':                  ('timing.time_spinpol_us',                  us_to_mu),
         'time_repump_qubit_mu':             ('timing.time_repump_qubit_us',             us_to_mu),
         'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu),
         'time_profileswitch_delay_mu':      ('timing.time_profileswitch_delay_us',      us_to_mu)

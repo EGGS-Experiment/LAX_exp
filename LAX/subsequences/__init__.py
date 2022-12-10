@@ -4,22 +4,21 @@ Contains specifically constructed subsequences for LAX.
 
 __all__ = []
 
+
 # cooling
 from .doppler_cool import DopplerCool
-__all__.extend(['DopplerCool'])
-
+from .sideband_cool import SidebandCool
+__all__.extend(['DopplerCool', 'SidebandCool'])
 
 # state manipulation
 from .tickle import Tickle
 from .rabi_flop import RabiFlop
 __all__.extend(['Tickle', 'RabiFlop'])
 
-
 # state preparation
 from .spin_polarization import SpinPolarization
-from .initialize_qubit import SpinPolarization
+from .initialize_qubit import InitializeQubit
 __all__.extend(['SpinPolarization', 'InitializeQubit'])
-
 
 # readout
 from .readout import Readout
