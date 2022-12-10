@@ -16,7 +16,7 @@ class EGGSExperimentTest(EGGSExperiment):
         "time_repump_qubit_us",
         "time_doppler_cooling_us",
         "time_readout_us",
-        "time_redist_us",
+        "time_spinpol_us",
         "time_profileswitch_delay_us",
 
         "dds_board_num",
@@ -27,13 +27,13 @@ class EGGSExperimentTest(EGGSExperiment):
         "dds_repump_qubit_channel",
         "dds_qubit_channel",
 
-        "freq_redist_mhz",
+        "freq_spinpol_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
 
-        "ampl_redist_pct",
+        "ampl_spinpol_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
         "ampl_repump_cooling_pct",
@@ -72,7 +72,7 @@ class EGGSExperimentTest(EGGSExperiment):
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
+        self.time_spinpol_mu =                                   self.core.seconds_to_mu(self.time_spinpol_us * us)
         self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_729_mu =                                      self.core.seconds_to_mu(self.time_729_us * us)
         self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
@@ -93,14 +93,14 @@ class EGGSExperimentTest(EGGSExperiment):
         self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
 
         # convert dds values to machine units - frequency
-        self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
+        self.freq_spinpol_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_spinpol_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # convert dds values to machine units - amplitude
-        self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_spinpol_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_spinpol_pct / 100)
         self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
         self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)

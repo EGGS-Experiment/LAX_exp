@@ -43,7 +43,7 @@ class yzdeTest(EnvExperiment):
         self.pmt.prepare_class()
 
         self.pump_397._prepare_parameters()
-        self.pump_397.prepare_devices()
+        self.pump_397.prepare_hardware()
 
 
     #@kernel(flags={"fast-math"})

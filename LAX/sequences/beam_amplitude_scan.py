@@ -12,7 +12,7 @@ class BeamScan(LAXSequence):
     devices = [
         'pump'
     ]
-    subsequence_parameters = {
+    parameters = {
         'time_doppler_cooling_mu':      ('timing.time_doppler_cooling_us', us_to_mu),
         'time_profileswitch_delay_mu':  ('timing.time_profileswitch_delay_us', us_to_mu)
     }

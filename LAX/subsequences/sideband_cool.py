@@ -1,10 +1,10 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
 
 
-class SidebandCool(LAXSequence):
+class SidebandCool(LAXSubsequence):
     """
-    Sequence: Sideband Cooling
+    Subsequence: Sideband Cooling
         todo: document
     """
     name = 'sideband_cool'
@@ -12,7 +12,7 @@ class SidebandCool(LAXSequence):
     devices = [
         'pump'
     ]
-    subsequence_parameters = {
+    parameters = {
         'time_doppler_cooling_mu':      ('timing.time_doppler_cooling_us', us_to_mu),
         'time_profileswitch_delay_mu':  ('timing.time_profileswitch_delay_us', us_to_mu)
     }
@@ -25,6 +25,6 @@ class SidebandCool(LAXSequence):
             delay_mu(self.time_profileswitch_delay_mu)
 
         # doppler cooling
-        self.pump.cfg_sw(1)
+        self.pump.on()
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.cfg_sw(0)
+        self.pump.off()

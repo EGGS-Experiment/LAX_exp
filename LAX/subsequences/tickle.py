@@ -5,20 +5,19 @@ from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
 class Tickle(LAXSubsequence):
     """
     Subsequence: Tickle
-        Apply the tickle beam for a given time.
+        Heat the ion by applying a tickle at the secular frequency.
     """
     name = 'tickle'
 
+    parameters = {
+        'time_tickle_mu':                   ('timing.time_tickle_us',                   us_to_mu)
+    }
     devices = [
         'tickle'
     ]
-    subsequence_parameters = {
-        'time_tickle_mu':           ('timing.time_tickle_mu', us_to_mu)
-    }
-
+    
     @kernel(flags={"fast-math"})
     def run(self):
-        # readout pulse
-        self.tickle.cfg_sw(1)
+        self.tickle.on()
         delay_mu(self.time_tickle_mu)
-        self.tickle.cfg_sw(0)
+        self.tickle.off()

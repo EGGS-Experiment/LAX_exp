@@ -12,7 +12,7 @@ from .base_experiment import LAXExperiment
 
 __all__.extend(['LAXDevice', 'LAXSubsequence', 'LAXSequence', 'LAXExperiment'])
 
-# tmp remove
+# conversion functions
 from numpy import int32, int64
 mhz_to_ftw = lambda mhz: int32(round(mhz / 1e3 * 0xFFFFFFFF))
 pct_to_asf = lambda pct: int32(round(pct / 100 * 0x3FFF))

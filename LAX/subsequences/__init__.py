@@ -17,7 +17,8 @@ __all__.extend(['Tickle', 'RabiFlop'])
 
 # state preparation
 from .spin_polarization import SpinPolarization
-__all__.extend(['SpinPolarization'])
+from .initialize_qubit import SpinPolarization
+__all__.extend(['SpinPolarization', 'InitializeQubit'])
 
 
 # readout

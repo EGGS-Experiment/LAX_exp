@@ -9,15 +9,17 @@ class Linetrigger(LAXDevice):
     """
     name = "linetrigger"
 
-    device_names = {'trigger': 'ttl4'}
-    device_parameters = {
-        'gating_edge': ('triggers.linetrigger_gating_edge', None),
-        'gating_timeout_mu': ('triggers.linetrigger_gating_timeout_mu', seconds_to_mu),
+    parameters = {
+        'gating_edge':              ('triggers.linetrigger_gating_edge',            None),
+        'gating_timeout_mu':        ('triggers.linetrigger_gating_timeout_mu',      seconds_to_mu),
+    }
+    core_devices = {
+        'trigger': 'ttl4'
     }
 
 
     @kernel(flags='fast-math')
-    def prepare_devices(self):
+    def prepare_hardware(self):
         self.core.break_realtime()
         self.trigger.input()
 

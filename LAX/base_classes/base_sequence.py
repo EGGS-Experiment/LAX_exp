@@ -1,107 +1,127 @@
 from artiq.experiment import *
 
+import logging
 from abc import ABC, abstractmethod
-from inspect import getmembers, ismethod
+
+
+logger = logging.getLogger("artiq.master.experiments")
 
 
 class LAXSequence(HasEnvironment, ABC):
     """
     Base class for sequence objects.
-    A set of pulse sequences that achieves a complete ***thing? todo*** (e.g. sideband cooling).
-    This should be the only level that compiles onto core DMA.
+        A set of pulse sequences that achieves a complete ***thing? todo*** (e.g. sideband cooling).
+        This should be the only level that compiles onto core DMA.
+        Assumes that the relevant devices have already been initialized.
+
+    Attributes:
+        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
+        name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
+        devices                     list(LAXDevice)         : list of devices used by the Sequence.
+        parameters                  dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
+                                                            and the value is a tuple of the parameter name as stored in dataset_db,
+                                                            together with a conversion function (None if no conversion needed).
     """
 
-    kernel_invariants =     set()
+    # Core attributes
+    kernel_invariants =             set()
 
-    DDS_BOARD =             None
-    DDS_CHANNEL =           None
-
-    frequencies =           []
-    amplitudes =            []
+    # Class attributes
+    name =                          None
+    devices =                       list()
+    parameters =                    dict()
 
 
     # SETUP
     def build(self):
         """
-        #todo document
+        Get core devices and their parameters from the master, and instantiate them.
         """
         # get core device
         self.setattr_device("core")
+        self.setattr_device("core_dma")
 
-        # get dds channel
-        urukul_cpld = self.get_dataset(self.DDS_BOARD, archive=False)
-        urukul_chan = self.get_dataset(self.DDS_CHANNEL, archive=False)
-        setattr(
-            self,
-            "dev",
-            self.get_device('urukul{:d}_ch{:d}'.format(urukul_cpld, urukul_chan))
-        )
+        # get LAXDevices
+        for device_object in self.devices:
 
-        # get parameters from master dataset
-        self._build_set_parameters()
+            # set device as class attribute
+            try:
+                device_name = device_object.name
+                setattr(self, device_name, device_object)
+                self.kernel_invariants.add(device_name)
 
-        # set waveforms
-        self._build_set_profiles()
-
-        # steal all relevant methods of underlying TTL counter object so users
-        # can directly call methods from this wrapper
-        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
-        device_functions = getmembers(self.dev, isDeviceFunction)
-        for (function_name, function_object) in device_functions:
-            setattr(self, function_name, function_object)
+            except Exception as e:
+                logger.warning("Device unavailable: {:s}".format(device_name))
 
 
-    def _build_set_parameters(self):
+    # SETUP - PREPARE
+    def prepare(self):
         """
-        set parameters
-        # todo document
+        Get and convert parameters from the master for use by the device,
+        define object methods, and set up the device hardware.
+
+        Will be called by parent classes.
         """
-        # get frequencies
-        for freq_param in self.frequencies:
+        self._prepare_parameters()
+        self.prepare_class()
 
-            # reformat parameter name
-            freq_param_new = freq_param.split('.')[-1]
-            freq_param_new = freq_param_new.replace('mhz', 'ftw')
-
-            # get parameter from dataset manager
-            freq_val_mhz = self._HasEnvironment__dataset_mgr.ddb.get(freq_param)
-
-            # set as parameter in dataset manager and HDF5 file
-            self.setattr_dataset(
-                freq_param_new,
-                self.dev.frequency_to_ftw(freq_val_mhz * MHz),
-                archive=True
-                # todo: make dataset manager store parameters differently
-            )
-
-            # add parameter to kernel invariants
-            self.kernel_invariants.add(freq_param_new)
-
-
-        # get amplitudes
-        for ampl_param in self.amplitudes:
-
-            # reformat parameter name
-            ampl_param_new = ampl_param.split('.')[-1]
-            ampl_param_new = ampl_param_new.replace('pct', 'asf')
-
-            # get parameter from dataset manager
-            ampl_val_pct = self._HasEnvironment__dataset_mgr.ddb.get(ampl_param)
-
-            # set as parameter in dataset manager and HDF5 file
-            self.setattr_dataset(
-                ampl_param_new,
-                self.dev.amplitude_to_asf(ampl_val_pct / 100),
-                archive=True
-                # todo: make dataset manager store parameters differently
-            )
-
-            # add parameter to kernel invariants
-            self.kernel_invariants.add(ampl_param_new)
-
-    @kernel
-    def _build_set_profiles(self):
+    def _prepare_parameters(self):
         """
-        #todo: document
+        Get parameters and convert them for use by the sequence.
+        """
+        # get sequence parameters
+        for parameter_name, parameter_attributes in self.parameters.items():
+
+            _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
+
+            # set parameter as class attribute
+            try:
+                # get parameter from dataset manager and store in HDF5
+                parameter_value = self.get_dataset(_parameter_name_dataset, archive=True)
+
+                # convert parameter to machine units as necessary
+                if _parameter_conversion_function is not None:
+                    parameter_value = _parameter_conversion_function(parameter_value)
+
+                setattr(self, parameter_name, parameter_value)
+                self.kernel_invariants.add(parameter_name)
+
+            except Exception as e:
+                logger.warning("Parameter unavailable: {:s}".format(parameter_name))
+
+    @kernel(flags='fast-math')
+    def record_dma(self):
+        """
+        Record the run sequence onto core DMA.
+            This is only offered for convenience, since Sequence objects
+            should be the only ones which compile into core DMA.
+        Returns:
+            str: the handle name.
+        """
+        # record sequence
+        with self.core_dma.record(self.name):
+            self.run()
+
+        # return handle
+        return self.core_dma.get_handle(self.name)
+
+
+    # PREPARE - USER FUNCTIONS
+    def prepare_class(self):
+        """
+        To be subclassed.
+        Called after _prepare_parameters.
+        Used to customize this class.
+        """
+        pass
+
+
+    # RUN - USER FUNCTIONS
+    @abstractmethod
+    def run(self):
+        """
+        To be subclassed.
+        Runs the main pulse sequence.
+        Should be a kernel function.
         """
         pass

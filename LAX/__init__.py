@@ -3,3 +3,5 @@
 # todo: make dataset manager store parameters differently
 # todo: accept list of times and frequencies for sideband cooling
 # todo: allow values to be specified for sub/sequences, but if not, take from dataset
+# todo: create utilities
+# todo: move conversion functions to utilities

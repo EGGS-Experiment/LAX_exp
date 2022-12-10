@@ -47,6 +47,7 @@ class ParameterSet(EnvExperiment):
 
             # frequency
             "beams.freq_mhz.freq_probe_redist_mhz":                     110.0,
+            "beams.freq_mhz.freq_probe_spinpol_mhz":                    110.0,
             "beams.freq_mhz.freq_pump_cooling_mhz":                     106.0,
             "beams.freq_mhz.freq_pump_readout_mhz":                     110.0,
             "beams.freq_mhz.freq_repump_cooling_mhz":                   110.0,
@@ -56,7 +57,28 @@ class ParameterSet(EnvExperiment):
             "beams.freq_mhz.freq_qubit_bsb_mhz":                        105.214,
 
             # amplitude
+            "beams.ampl_pct.ampl_probe_redist_pct":                     16.0,
+            "beams.ampl_pct.ampl_probe_spinpol_pct":                    50.0,
+            "beams.ampl_pct.ampl_pump_cooling_pct":                     21.0,
+            "beams.ampl_pct.ampl_pump_readout_pct":                     45.0,
+            "beams.ampl_pct.ampl_repump_cooling_pct":                   17.0,
+            "beams.ampl_pct.ampl_repump_qubit_pct":                     15.0,
+            "beams.ampl_pct.ampl_qubit_pct":                            50.0,
+            'beams.ampl_pct.ampl_tickle_radial_pct':                    50.0,
+            'beams.ampl_pct.ampl_tickle_radial_pct':                    50.0
+        }
+
+
+        # motion
+        motion_parameters = {
+            # secular frequencies
+            "motion.freq_khz.freq_secular_x_khz":                       1450.0,
+            "motion.freq_khz.freq_secular_y_khz":                       1375.0,
+            "motion.freq_khz.freq_secular_z_khz":                       550.0,
+
+            # amplitude
             "beams.ampl_pct.ampl_probe_redist_pct":                     50.0,
+            "beams.ampl_pct.ampl_probe_spinpol_pct":                    50.0,
             "beams.ampl_pct.ampl_pump_pct":                             50.0,
             "beams.ampl_pct.ampl_pump_cooling_pct":                     50.0,
             "beams.ampl_pct.ampl_pump_readout_pct":                     50.0,
@@ -64,7 +86,6 @@ class ParameterSet(EnvExperiment):
             "beams.ampl_pct.ampl_repump_qubit_pct":                     50.0,
             "beams.ampl_pct.ampl_qubit_pct":                            50.0
         }
-
 
         # external devices
         external_parameters = {
@@ -75,16 +96,19 @@ class ParameterSet(EnvExperiment):
 
         # timing
         timing_parameters = {
-            # preparation
+            # state preparation
             "timing.time_repump_qubit_us":                              100,
             "timing.time_redist_us":                                    500,
+            "timing.time_spinpol_us":                                   500,
             "timing.time_probe_us":                                     50,
 
-            # cooling
+            # cooling & readout
             "timing.time_doppler_cooling_us":                           800,
-
-            # readout
             "timing.time_readout_us":                                   500,
+            "timing.time_rabiflop_us":                                  50,
+
+            # tickle
+            "timing.time_tickle_us":                                    500,
 
             # general
             "timing.time_profileswitch_delay_us":                       1

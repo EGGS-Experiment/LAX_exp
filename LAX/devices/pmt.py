@@ -8,9 +8,11 @@ class PMTCounter(LAXDevice):
     """
     name = "pmt"
 
-    device_names = {'pmt': 'ttl_counter0'}
-    device_parameters = {
-        'gating_edge': ('pmt.pmt_gating_edge', None)
+    parameters = {
+        'gating_edge':          ('pmt.pmt_gating_edge', None)
+    }
+    core_devices = {
+        'pmt': 'ttl_counter0'
     }
 
     def prepare_class(self):

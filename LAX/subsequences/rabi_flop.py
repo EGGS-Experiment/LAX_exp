@@ -5,20 +5,24 @@ from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
 class RabiFlop(LAXSubsequence):
     """
     Subsequence: Rabi Flop
-        Apply the 729nm beam to cause rabi flopping.
+        Transfer the population in the S-1/2 mj=-1/2 state to the D-5/2 mj=-5/2 state,
+        and vice versa using the polarized 729nm beam.
     """
     name = 'rabi_flop'
 
+    parameters = {
+        'time_rabiflop_mu':                 ('timing.time_rabiflop_us',                 us_to_mu)
+    }
     devices = [
         'qubit'
     ]
-    subsequence_parameters = {
-        # 'time_tickle_mu':           ('timing.time_tickle_mu', us_to_mu)
-    }
 
     @kernel(flags={"fast-math"})
     def run(self):
-        # readout pulse
-        self.qubit.cfg_sw(1)
-        # delay_mu(self.time_tickle_mu)
-        # self.qubit.cfg_sw(0)
+        # set readout waveform
+        self.qubit.carrier()
+
+        # population transfer pulse
+        self.qubit.on()
+        delay_mu(self.time_rabiflop_mu)
+        self.qubit.off()

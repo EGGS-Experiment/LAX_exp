@@ -2,17 +2,17 @@ from artiq.experiment import *
 from LAX_exp.LAX.base_classes import LAXSequence, us_to_mu
 
 
-class Initialize(LAXSequence):
+class BeamScan(LAXSequence):
     """
-    Sequence: Ion Initialization
+    Sequence: Beam Scan
         todo: document
     """
-    name = 'initialize'
+    name = 'beam_scan'
 
     devices = [
         'pump'
     ]
-    subsequence_parameters = {
+    parameters = {
         'time_doppler_cooling_mu':      ('timing.time_doppler_cooling_us', us_to_mu),
         'time_profileswitch_delay_mu':  ('timing.time_profileswitch_delay_us', us_to_mu)
     }

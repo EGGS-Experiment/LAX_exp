@@ -5,7 +5,7 @@ from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
 class Readout(LAXSubsequence):
     """
     Subsequence: Readout
-        Apply the 397nm pump beam while reading fluorescence via the PMT.
+        Read out the ion state by shining the pump beam and reading fluorescence via PMT counts.
     """
     name = 'readout'
 
@@ -13,19 +13,16 @@ class Readout(LAXSubsequence):
         'pump',
         'pmt'
     ]
-    subsequence_parameters = {
-        'time_readout_mu':              ('timing.time_readout_us', us_to_mu),
-        'time_profileswitch_delay_mu':  ('timing.time_profileswitch_delay_us', us_to_mu)
+    parameters = {
+        'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu)
     }
 
     @kernel(flags={"fast-math"})
     def run(self):
         # set readout waveform
-        with parallel:
-            self.dds_board.set_profile(1)
-            delay_mu(self.time_profileswitch_delay_mu)
+        self.pump.readout()
 
         # readout pulse
-        self.pump.cfg_sw(1)
+        self.pump.on()
         self.pmt.count(self.time_readout_mu)
-        self.pump.cfg_sw(0)
+        self.pump.off()
