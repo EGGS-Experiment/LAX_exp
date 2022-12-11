@@ -39,84 +39,47 @@ class LaserScan2(LAXExperiment):
         self.set_dataset('results',                             np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
         self.setattr_dataset('results')
 
-        # tmp remove
+        # prepare frequencies for sweep
         self.freq_qubit_scan_ftw =                              [mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz]
         self.pmt = self.get_device("pmt")
-        self.pump = self.get_device('pump')
-        self.qubit = self.get_device('qubit')
 
-    #@kernel
+
     def run(self):
-        self.core.reset()
-
-        handle = self.thkimde()
-        setattr(self, 'handle', handle)
+        dma_handle = self._record_dma()
+        setattr(self, 'dma_handle', dma_handle)
 
         for trial_num in range(self.repetitions):
-            self._run_main()
+            self.run_loop()
+
+    @kernel(flags='fast-math')
+    def _record_dma(self):
+        # record DMA sequence
+        with self.core_dma.record('main_sequence'):
+            self.cooling_subsequence.run()
+            self.rabiflop_subsequence.run()
+            self.readout_subsequence.run()
+        self.core.break_realtime()
+
+        # get and return DMA handle
+        handle = self.core_dma.get_handle('main_sequence')
+        self.core.break_realtime()
+        return handle
 
     @kernel
-    def _run_main(self):
+    def run_loop(self):
         self.core.reset()
+
+        # sweep frequency
         for freq_ftw in self.freq_qubit_scan_ftw:
-            # set qubit frequency
+
+            # set frequency
             self.qubit.set_mu(freq_ftw, asf=0x1FFF)
             self.core.break_realtime()
 
-            self.core_dma.playback_handle(self.handle)
+            # run main sequence
+            self.core_dma.playback_handle(self.dma_handle)
 
             # update dataset
             with parallel:
                 self.update_dataset(freq_ftw, self.pmt.fetch_count())
                 self.core.break_realtime()
-
-    # def run_loop(self):
-    #     """
-    #     Run the experimental sequence.
-    #     """
-    #     for freq_mhz in self.freq_qubit_scan_mhz:
-    #
-    #         # convert value to ftw
-    #         freq_ftw = mhz_to_ftw(freq_mhz)
-    #
-    #         # get and store results
-    #         try:
-    #             counts = self._run_loop_kernel(freq_ftw)
-    #             self.update_dataset(freq_mhz, counts)
-    #         except RTIOUnderflow:
-    #             self.core.break_realtime()
-    #
-    # @kernel(flags='fast-math')
-    # def _run_loop_kernel(self, freq_ftw):
-    #     self.core.break_realtime()
-    #
-    #     # set qubit frequency
-    #     self.qubit.set_mu(freq_ftw, asf=self.qubit.ampl_qubit_asf)
-    #     self.core.break_realtime()
-    #
-    #     # doppler cool
-    #     self.cooling_subsequence.run_dma()
-    #
-    #     # rabi flop
-    #     self.rabiflop_subsequence.run_dma()
-    #
-    #     # readout
-    #     self.readout_subsequence.run_dma()
-    #     self.core.break_realtime()
-    #
-    #     # return data
-    #     return self.pmt.fetch_count()
-
-    @kernel(flags='fast-math')
-    def thkimde(self):
-        with self.core_dma.record('thkim'):
-            self.cooling_subsequence.run()
-
-            self.rabiflop_subsequence.run()
-
-            self.readout_subsequence.run()
-
-        self.core.break_realtime()
-        handle = self.core_dma.get_handle('thkim')
-        self.core.break_realtime()
-        return handle
