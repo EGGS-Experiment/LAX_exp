@@ -104,7 +104,7 @@ class LAXDeviceManager:
 
         # add device holders for LAX
         self.__dict__['ddb_lax'] =              device_db_ext
-        self.__dict__['active_lax_devices'] =   dict()
+        self.__dict__['active_lax_devices'] =   list()
 
     def __getattr__(self, attr):
         return getattr(self.base, attr)
@@ -125,14 +125,18 @@ class LAXDeviceManager:
             dev_desc = self.ddb_lax[name]
 
             # return object if it already exists
-            for desc, obj in self.active_lax_devices.items():
+            for desc, obj in self.active_lax_devices:
                 if dev_desc == desc:
                     return obj
 
             # instantiate object and add to holding dictionary
-            else:
+            try:
                 dev_obj = self.__create_lax_device(dev_desc)
-                self.active_lax_devices[name] = dev_obj
+                self.active_lax_devices.append((dev_desc, dev_obj))
+                return dev_obj
+            except Exception as e:
+                print('Unable to create LAX Device: {}'.format(name))
+                print('\tError: {}'.format(e))
 
         # get device normally
         else:

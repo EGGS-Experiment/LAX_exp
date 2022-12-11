@@ -71,16 +71,13 @@ class LAXSubsequence(HasEnvironment, ABC):
         for device_name in self.devices:
             try:
                 device_object = self.get_device(device_name)
-                print('\tsubseq obj: {}'.format(device_object))
                 setattr(self, device_name, device_object)
                 self.kernel_invariants.add(device_name)
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
 
-        # extract parameters passed as build arguments from kwargs
-
-        # get parameter names
+        # extract parameters from build arguments
         class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
         build_parameters = set([parameter_name for parameter_name in kwargs.keys()])
 

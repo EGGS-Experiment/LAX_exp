@@ -191,15 +191,14 @@ class LAXExperiment(EnvExperiment, ABC):
     @rpc(flags='async')
     def update_dataset(self, *args):
         """
-        To be subclassed.
+        Records data from the main sequence in the experiment dataset.
 
-        Updates the experiment dataset.
-        Used to move as much processing off the kernel and onto the host as possible.
-        Should use the @rpc decorator with the "async" flag for efficiency.
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
         """
         self.results[self.__result_iter] = array(args)
         self.__result_iter += 1
-        pass
 
 
     '''
