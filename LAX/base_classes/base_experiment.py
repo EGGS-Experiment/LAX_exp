@@ -67,7 +67,7 @@ class LAXExperiment(EnvExperiment, ABC):
 
         # instance variables
         setattr(self,   '_build_arguments',         dict())
-        setattr(self,   '__result_iter',            0)
+        setattr(self,   '_result_iter',             0)
 
         # universal arguments
         self.setattr_argument("repetitions",                    NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
@@ -115,14 +115,15 @@ class LAXExperiment(EnvExperiment, ABC):
                 logger.warning("Argument unavailable: {:s}".format(arg_val))
 
         # create dataset to hold results
-        self.set_dataset('results', list())
-        self.setattr_dataset('results')
+        #self.set_dataset('results', list())
+        #self.setattr_dataset('results')
 
         # prepare children
         self.call_child_method('prepare')
 
         # record subsequences onto DMA
-        self.call_child_method('record_dma')
+        # tmp fix todo
+        #self.call_child_method('record_dma')
 
 
     # PREPARE - USER FUNCTIONS
@@ -205,8 +206,8 @@ class LAXExperiment(EnvExperiment, ABC):
         For efficiency, data is added by mutating indices of a preallocated dataset.
         Contains an internal iterator to keep track of the current index.
         """
-        self.results[self.__result_iter] = array(args)
-        self.__result_iter += 1
+        self.results[self._result_iter] = array(args)
+        self._result_iter += 1
 
 
     '''
