@@ -1,6 +1,6 @@
 # Custom devices using the LAXDevice class
 
-device_db = {
+device_db_ext = {
 
     # BEAMS
     "probe": {
@@ -27,11 +27,6 @@ device_db = {
         "type": "local",
         "module": "LAX_exp.LAX.devices.beam_729",
         "class": "Beam729"
-    },
-    "tickle": {
-        "type": "local",
-        "module": "LAX_exp.LAX.devices.beam_tickle",
-        "class": "BeamTickle"
     },
     "tickle": {
         "type": "local",

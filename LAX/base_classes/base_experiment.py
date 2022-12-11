@@ -3,15 +3,8 @@ from artiq.experiment import *
 import logging
 from abc import ABC, abstractmethod
 
+from LAX_exp.LAX.extensions import LAXDeviceManager, LAXDatasetManager
 logger = logging.getLogger("artiq.master.experiments")
-
-# todo: from each subsequence and own devices, add to virtual devices of dataset manager
-
-# todo: prepare sequences
-# todo: prepare devices
-
-# todo: make device parameters be stored separately (in a group)
-# todo: make sequence parameters be stored separately (in a group)
 
 
 class LAXExperiment(EnvExperiment, ABC):
@@ -32,9 +25,18 @@ class LAXExperiment(EnvExperiment, ABC):
     # Class attributes
     name =                          None
 
+
     '''
     BUILD
     '''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # wrap manager objects
+        self.__device_mgr = LAXDeviceManager(self.__device_mgr)
+        self.__dataset_mgr = LAXDatasetManager(self.__dataset_mgr)
+
 
     # BUILD - BASE
     def build(self):
@@ -60,8 +62,9 @@ class LAXExperiment(EnvExperiment, ABC):
         self.setattr_device('urukul1_cpld')
 
         # instance variables
-        setattr(self,   'dma_handle',           None)
-        setattr(self,   'build_parameters',     dict())
+        setattr(self,   'dma_handle',               None)
+        setattr(self,   '_build_arguments',         dict())
+
 
         # universal arguments
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -89,7 +92,7 @@ class LAXExperiment(EnvExperiment, ABC):
 
         Called right before run (unlike build, which is called upon instantiation).
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
-            values computed only in prepaer_experiment.
+            values computed only in prepare_experiment.
         """
         self.prepare_experiment()
         self._prepare_experiment()
@@ -98,6 +101,15 @@ class LAXExperiment(EnvExperiment, ABC):
         """
         General construction of the experiment object.
         """
+        # add arguments to the dataset manager
+        for arg_key in self._build_arguments.keys():
+
+            try:
+                arg_val = getattr(self, arg_key)
+                self.__dataset_mgr.set(arg_key, arg_val, archive=False, parameter=False, argument=True)
+            except KeyError:
+                logger.warning("Argument unavailable: {:s}".format(arg_val))
+
         # create dataset to hold results
         self.set_dataset(self.name, list())
         self.setattr_dataset(self.name)
@@ -182,3 +194,14 @@ class LAXExperiment(EnvExperiment, ABC):
         Should use the @rpc decorator with the "async" flag for efficiency.
         """
         pass
+
+
+    '''
+     HasEnvironment Extensions
+     '''
+
+    def setattr_argument(self, key, **kwargs):
+        super().setattr_argument(key, **kwargs)
+
+        # add argument to _build_arguments (will grab after prepare)
+        self._build_arguments[key] = None

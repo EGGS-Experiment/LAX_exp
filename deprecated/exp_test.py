@@ -1,7 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-from EGGSExperiment import EGGSExperiment
+from deprecated.EGGSExperiment import EGGSExperiment
 
 class EGGSExperimentTest(EGGSExperiment):
     """

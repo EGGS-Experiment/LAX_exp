@@ -1,10 +1,14 @@
 """
-Contains all language extensions custom-designed for the EGGS-Experiment at UCLA.
+Contains all language extensions designed for the EGGS Experiment at UCLA.
 """
 
-# __all__ = []
+__all__ = []
 
-# # utils
-# from .clients import utils
-# from EGGS_labrad.clients.utils import *
-# __all__.extend(utils.__all__)
+
+# managers
+from .manager_wrappers import LAXDeviceManager, LAXDatasetManager
+__all__.extend(['LAXDeviceManager', 'LAXDatasetManager'])
+
+# devices
+from .device_db_ext import device_db_ext
+__all__.extend(['device_db_ext'])

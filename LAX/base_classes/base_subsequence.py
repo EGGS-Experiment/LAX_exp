@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
-# todo: need to somehow register LAXDevices as child of experiment so its prepaer
+
 
 class LAXSubsequence(HasEnvironment, ABC):
     """
@@ -127,11 +127,20 @@ class LAXSubsequence(HasEnvironment, ABC):
             _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
 
             try:
-                # get parameter from kwargs or dataset manager
+                # get parameter from kwargs
                 parameter_value = self.build_parameters.get(
                     _parameter_name_dataset,
-                    self.get_dataset(_parameter_name_dataset, archive=True)
+                    None
                 )
+
+                # if not in kwargs, take it from dataset manager
+                if parameter_value is None:
+                    #self.get_dataset(_parameter_name_dataset, archive=True)
+                    self.get_parameter(_parameter_name_dataset)
+
+                # if in kwargs, add parameter to dataset manager
+                else:
+                    self.__dataset_mgr.set(_parameter_name_dataset, parameter_value, archive=False, parameter=True, argument=False)
 
                 # convert parameter as necessary
                 if _parameter_conversion_function is not None:
@@ -211,3 +220,17 @@ class LAXSubsequence(HasEnvironment, ABC):
         Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
         """
         pass
+
+
+    '''
+    HasEnvironment Extensions
+    '''
+
+    def get_parameter(self, key, default=NoDefault, archive=False):
+        try:
+            return self.__dataset_mgr.get(key, archive, parameter=True, argument=False)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default

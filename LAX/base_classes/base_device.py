@@ -108,7 +108,8 @@ class LAXDevice(HasEnvironment, ABC):
             # set parameter as class attribute
             try:
                 # get parameter from dataset manager and store in HDF5
-                parameter_value = self.get_dataset(_parameter_name_dataset, archive=True)
+                #parameter_value = self.get_dataset(_parameter_name_dataset, archive=True)
+                parameter_value = self.get_parameter(_parameter_name_dataset)
 
                 # convert parameter to machine units as necessary
                 if _parameter_conversion_function is not None:
@@ -130,3 +131,17 @@ class LAXDevice(HasEnvironment, ABC):
         Used to customize the device class and set up hardware.
         """
         pass
+
+
+    '''
+    HasEnvironment Extensions
+    '''
+
+    def get_parameter(self, key, default=NoDefault, archive=False):
+        try:
+            return self.__dataset_mgr.get(key, archive, parameter=True, argument=False)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default

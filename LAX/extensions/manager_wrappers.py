@@ -1,13 +1,12 @@
-# todo: create parameter group that stores parameters separately for each class object using attributes
-# todo: specify save location
-# todo: create experiment group that saves arguments, save_location, etc. there
-# todo: allow writing by enevp to diff location
-
+"""
+Base classes for building PyQt5 GUI clients for LabRAD.
+"""
+import logging
 from importlib import import_module
-from artiq.master.worker_db import DatasetManager, DeviceManager, _write
+from artiq.master.worker_db import _write
 
 logger = logging.getLogger("artiq.master.experiments")
-from LAX_exp.LAX.extensions.device_db_ext import device_db
+from LAX_exp.LAX.extensions.device_db_ext import device_db_ext
 
 
 class LAXDatasetManager:
@@ -23,8 +22,10 @@ class LAXDatasetManager:
         # get parent (i.e. object which owns the HasEnvironment object, typically an EnvExperiment)
         self.__dict__['parent'] =               parent
 
-        # add parameter management
+        # add parameter and argument management
         self.__dict__['parameters'] =           dict()
+        self.__dict__['arguments'] =            dict()
+
 
     def __getattr__(self, attr):
         return getattr(self.base, attr)
@@ -34,9 +35,21 @@ class LAXDatasetManager:
 
 
     # MODIFIED
+    def set(self, key, value, broadcast=False, persist=False, archive=True, parameter=False, argument=False):
+        """
+        Added handling for arguments.
+        """
+        if argument:
+            self.arguments[key] = value
+        elif parameter:
+            self.parameters[key] = value
+        else:
+            self.base.set(key, value, broadcast, persist, archive)
+
+
     def get(self, key, archive=False, parameter=False):
         """
-        Add handling for parameter arguments.
+        Add handling for parameters.
         """
         # regular handling
         if key in self.local:
@@ -49,12 +62,12 @@ class LAXDatasetManager:
                                "overwriting", key, stack_info=True)
             self.archive[key] = data
 
-        # handle parameters as well
+        # handle parameters
         if parameter:
-            if key in self.parameter:
-                logger.warning("Dataset '%s' is already in archive, "
+            if key in self.parameters:
+                logger.warning("Parameter '%s' is already in parameter storage, "
                                "overwriting", key, stack_info=True)
-            self.parameter[key] = archive
+            self.parameters[key] = data
 
         return data
 
@@ -62,17 +75,18 @@ class LAXDatasetManager:
         """
         Add handling for stored parameters.
         """
-        # handle datasets normally
-        datasets_group = f.create_group("datasets")
-        for k, v in self.local.items():
-            _write(datasets_group, k, v)
+        self.base.write_hdf5(f)
+        # todo: remove handling for archive groups
 
-        # don't handle archive group
-
-        # store parameters in a separate group
+        # store parameters in a separate group as attributes
         parameters_group = f.create_group("parameters")
         for k, v in self.parameters.items():
             _write(parameters_group.attrs, k, v)
+
+        # store arguments in a separate group as attributes
+        arguments_group = f.create_group("arguments")
+        for k, v in self.arguments.items():
+            _write(arguments_group.attrs, k, v)
 
 
 class LAXDeviceManager:
@@ -89,7 +103,7 @@ class LAXDeviceManager:
         self.__dict__['parent'] =               parent
 
         # add device holders for LAX
-        self.__dict__['ddb_lax'] =              device_db
+        self.__dict__['ddb_lax'] =              device_db_ext
         self.__dict__['active_lax_devices'] =   dict()
 
     def __getattr__(self, attr):
@@ -124,6 +138,9 @@ class LAXDeviceManager:
             return self.base.get(name)
 
     def __create_lax_device(self, desc):
+        """
+        *** todo: document
+        """
         if desc["type"] == "local":
             module = import_module(desc["module"])
             device_class = getattr(module, desc["class"])
