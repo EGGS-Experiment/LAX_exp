@@ -1,7 +1,8 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.LAX.base_classes import LAXExperiment, mhz_to_ftw
+from LAX_exp.utilities.conversions import *
+from LAX_exp.LAX.base_classes import LAXExperiment
 from LAX_exp.LAX.subsequences import RabiFlop, DopplerCool, Readout
 
 
@@ -67,4 +68,4 @@ class LaserScan2(LAXExperiment):
         self.readout_subsequence.run_dma()
 
         # return data
-        return self.pmt_counter.fetch_counts()
+        return self.pmt.fetch_count()

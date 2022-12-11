@@ -118,8 +118,11 @@ class LAXExperiment(EnvExperiment, ABC):
         self.set_dataset('results', list())
         self.setattr_dataset('results')
 
-        # prepare all children
-        self.call_child_method("prepare")
+        # prepare children
+        self.call_child_method('prepare')
+
+        # record subsequences onto DMA
+        self.call_child_method('record_dma')
 
 
     # PREPARE - USER FUNCTIONS

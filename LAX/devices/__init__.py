@@ -13,9 +13,8 @@ from .beam_854 import Beam854
 from .beam_729 import Beam729
 from .beam_tickle import BeamTickle
 __all__.extend([
-    'Beam397Probe', 'Beam397Pump',
-    'Beam866', 'Beam854',
-    'Beam729',
+    'Beam397Probe', 'Beam397Pump', 'Beam866',
+    'Beam854', 'Beam729',
     'BeamTickle'
 ])
 

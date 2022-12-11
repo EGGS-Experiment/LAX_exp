@@ -180,7 +180,7 @@ class LAXSubsequence(HasEnvironment, ABC):
             str: the DMA handle for the sequence.
         """
         # record sequence
-        dma_handle = self._prepare_dma('{:s}_{:d}'.format(self.name, self.instance_number))
+        dma_handle = self._record_dma('{:s}_{:d}'.format(self.name, self.instance_number))
 
         # set dma handle as class attribute
         setattr(self, 'dma_handle', dma_handle)
