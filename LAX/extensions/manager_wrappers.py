@@ -125,8 +125,9 @@ class LAXDeviceManager:
             dev_desc = self.ddb_lax[name]
 
             # return object if it already exists
-            if dev_desc in self.active_lax_devices:
-                return self.active_lax_devices[dev_desc]
+            for desc, obj in self.active_lax_devices.items():
+                if dev_desc == desc:
+                    return obj
 
             # instantiate object and add to holding dictionary
             else:

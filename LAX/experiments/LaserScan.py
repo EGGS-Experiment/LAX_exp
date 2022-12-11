@@ -2,7 +2,6 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.LAX.base_classes import LAXExperiment
-from LAX_exp.LAX.devices import
 from LAX_exp.LAX.subsequences import RabiFlop, DopplerCool, Readout
 
 
@@ -25,12 +24,12 @@ class LaserScan2(LAXExperiment):
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
+
+    def prepare_experiment(self):
         # get 729 beam
         self.setattr_device('qubit')
         self.setattr_device('pmt')
 
-
-    def prepare_experiment(self):
         # sequences
         self.cooling_subsequence =                              DopplerCool(self)
         self.rabiflop_subsequence =                             RabiFlop(self, time_rabiflop_us=self.time_729_us)

@@ -34,9 +34,12 @@ class LAXExperiment(EnvExperiment, ABC):
         super().__init__(*args, **kwargs)
 
         # wrap manager objects
-        self.__device_mgr = LAXDeviceManager(self.__device_mgr)
-        self.__dataset_mgr = LAXDatasetManager(self.__dataset_mgr)
+        self._HasEnvironment__device_mgr = LAXDeviceManager(self._HasEnvironment__device_mgr, self)
+        self._HasEnvironment__dataset_mgr = LAXDatasetManager(self._HasEnvironment__dataset_mgr, self)
 
+        # tmp remove
+        self.__device_mgr = self._HasEnvironment__device_mgr
+        self.__dataset_mgr = self._HasEnvironment__dataset_mgr
 
     # BUILD - BASE
     def build(self):
@@ -201,8 +204,9 @@ class LAXExperiment(EnvExperiment, ABC):
      HasEnvironment Extensions
      '''
 
-    def setattr_argument(self, key, **kwargs):
-        super().setattr_argument(key, **kwargs)
+    def setattr_argument(self, *args, **kwargs):
+        super().setattr_argument(*args, **kwargs)
 
         # add argument to _build_arguments (will grab after prepare)
+        key, processor = args
         self._build_arguments[key] = None

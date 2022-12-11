@@ -82,7 +82,7 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         # get parameter names
         class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
-        build_parameters = set([parameter_name for parameter_name, _ in kwargs.keys()])
+        build_parameters = set([parameter_name for parameter_name in kwargs.keys()])
 
         # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
         self.build_parameters = {

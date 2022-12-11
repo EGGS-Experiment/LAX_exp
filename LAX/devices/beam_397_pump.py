@@ -1,7 +1,7 @@
 from artiq.experiment import *
 from inspect import getmembers, ismethod
 
-from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf
+from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf, us_to_mu
 
 
 class Beam397Pump(LAXDevice):

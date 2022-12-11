@@ -39,6 +39,6 @@ class Beam866(LAXDevice):
     def prepare_hardware(self):
         # set cooling and readout profiles
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
+        self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)

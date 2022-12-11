@@ -39,6 +39,6 @@ class Beam854(LAXDevice):
     def prepare_hardware(self):
         # set cooling and readout profiles
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
+        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.core.break_realtime()
-        self.dev.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
