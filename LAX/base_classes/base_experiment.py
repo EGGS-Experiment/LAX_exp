@@ -111,8 +111,8 @@ class LAXExperiment(EnvExperiment, ABC):
                 logger.warning("Argument unavailable: {:s}".format(arg_val))
 
         # create dataset to hold results
-        self.set_dataset(self.name, list())
-        self.setattr_dataset(self.name)
+        self.set_dataset('results', list())
+        self.setattr_dataset('results')
 
         # prepare all children
         self.call_child_method("prepare")
@@ -185,6 +185,7 @@ class LAXExperiment(EnvExperiment, ABC):
         """
         pass
 
+    @rpc(flags='async')
     def update_dataset(self):
         """
         To be subclassed.

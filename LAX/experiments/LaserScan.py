@@ -2,7 +2,8 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.LAX.base_classes import LAXExperiment
-from LAX_exp.LAX.subsequences import DopplerCool, Readout
+from LAX_exp.LAX.devices import
+from LAX_exp.LAX.subsequences import RabiFlop, DopplerCool, Readout
 
 
 class LaserScan2(LAXExperiment):
@@ -13,57 +14,58 @@ class LaserScan2(LAXExperiment):
 
     name = 'Laser Scan 2'
 
-    def build_arguments(self):
+    def build_experiment(self):
+        # timing
+        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(default=RangeScan(104.24, 104.96, 801),
+        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
+                                                                    default=RangeScan(104.24, 104.96, 801, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5), group = 'thkim.yzde')
+                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                ))
 
-        self.time_readout_mu = self.core.seconds_to_mu(10 * ms)
-
-
-    def prepare(self):
-        """
-        Set up the dataset and prepare things such that
-        the kernel functions have minimal overhead.
-        """
-        # devices
-        self.pmt = PMTCounter(self)
-        self.pump_397 = Beam397Pump(self)
-
-        self.set_dataset("storage_tmp", [])
-        self.setattr_dataset("storage_tmp")
-
-        self.pmt._prepare_parameters()
-        self.pmt.prepare_class()
-
-        self.pump_397._prepare_parameters()
-        self.pump_397.prepare_hardware()
+        # get 729 beam
+        self.setattr_device('qubit')
+        self.setattr_device('pmt')
 
 
-    #@kernel(flags={"fast-math"})
-    def run(self):
+    def prepare_experiment(self):
+        # sequences
+        self.cooling_subsequence =                              DopplerCool(self)
+        self.rabiflop_subsequence =                             RabiFlop(self, time_rabiflop_us=self.time_729_us)
+        self.readout_subsequence =                              Readout(self)
+
+        # dataset
+        self.results =                                          np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2))
+        self._result_iter =                                     0
+
+
+    def run_loop(self):
         """
         Run the experimental sequence.
         """
-        #self.core.reset()
+        for freq_mhz in self.freq_qubit_scan_mhz:
+            self._run_loop_kernel(freq_mhz)
 
-        yz = list(range(self.repetitions))
-        for i in yz:
-            print('\ta1: {}'.format(i))
-            val = self.yzdetmp()
-            self.append_to_dataset("storage_tmp", val)
-
-
-    #@kernel
     @kernel(flags='fast-math')
-    def yzdetmp(self):
-        self.core.break_realtime()
-        self.pump_397.cfg_sw(True)
-        self.pmt.count(self.time_readout_mu)
-        self.pump_397.cfg_sw(False)
-        self.core.break_realtime()
-        return self.pmt.fetch_count()
+    def _run_loop_kernel(self, freq_mhz):
+        # set qubit frequency
+        self.qubit.set(freq_mhz * 1e6, asf=0.5)
 
-    def analyze(self):
-        print('avg: {}'.format(np.mean(self.storage_tmp)))
+        # doppler cool
+        self.cooling_subsequence.run_dma()
+
+        # rabi flop
+        self.rabiflop_subsequence.run_dma()
+
+        # readout
+        self.readout_subsequence.run_dma()
+
+        self.core.break_realtime()
+        self.update_dataset()
+
+    @rpc(flags='async')
+    def update_dataset(self, freq_mhz, pmt_counts):
+        self.results[self.iter] = np.array([freq_mhz, pmt_counts])
+        self.iter += 1
