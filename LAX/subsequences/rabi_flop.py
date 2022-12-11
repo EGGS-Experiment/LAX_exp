@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class RabiFlop(LAXSubsequence):
@@ -23,6 +25,6 @@ class RabiFlop(LAXSubsequence):
         self.qubit.carrier()
 
         # population transfer pulse
-        self.qubit.on()
+        self.qubit.cfg_sw(1)
         delay_mu(self.time_rabiflop_mu)
-        self.qubit.off()
+        self.qubit.cfg_sw(0)

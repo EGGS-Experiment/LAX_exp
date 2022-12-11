@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXDevice, seconds_to_mu
+
+from LAX_exp.utilities.conversions import *
+from LAX_exp.LAX.base_classes import LAXDevice
 
 
 class RFSync(LAXDevice):

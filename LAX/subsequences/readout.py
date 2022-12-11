@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class Readout(LAXSubsequence):
@@ -23,6 +25,6 @@ class Readout(LAXSubsequence):
         self.pump.readout()
 
         # readout pulse
-        self.pump.on()
+        self.pump.cfg_sw(1)
         self.pmt.count(self.time_readout_mu)
-        self.pump.off()
+        self.pump.cfg_sw(0)

@@ -1,7 +1,7 @@
 from artiq.experiment import *
-from inspect import getmembers, ismethod
 
-from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf
+from LAX_exp.utilities.conversions import *
+from LAX_exp.LAX.base_classes import LAXDevice
 
 
 class Beam866(LAXDevice):

@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class Tickle(LAXSubsequence):
@@ -18,6 +20,6 @@ class Tickle(LAXSubsequence):
     
     @kernel(flags={"fast-math"})
     def run(self):
-        self.tickle.on()
+        self.tickle.cfg_sw(1)
         delay_mu(self.time_tickle_mu)
-        self.tickle.off()
+        self.tickle.cfg_sw(0)

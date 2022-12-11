@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class DopplerCool(LAXSubsequence):
@@ -22,6 +24,6 @@ class DopplerCool(LAXSubsequence):
         self.pump.cooling()
 
         # doppler cooling
-        self.pump.on()
+        self.pump.cfg_sw(1)
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.off()
+        self.pump.cfg_sw(0)

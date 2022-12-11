@@ -1,7 +1,7 @@
 from artiq.experiment import *
-from inspect import getmembers, ismethod
 
-from LAX_exp.LAX.base_classes import LAXDevice, mhz_to_ftw, pct_to_asf
+from LAX_exp.utilities.conversions import *
+from LAX_exp.LAX.base_classes import LAXDevice
 
 
 class BeamTickle(LAXDevice):
@@ -18,23 +18,16 @@ class BeamTickle(LAXDevice):
         'beam': 'urukul0_ch3'
     }
 
-    def build_device(self):
-        # list of cfg_sw functions to break out
-        sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
-
-        # verifies that a function is not magic
-        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (
-                    func_obj.__name__ is not "__init__")
-
-        # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-        for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
-            if function_name in sw_functions:
-                setattr(self, function_name, function_object)
-
-
-
     @kernel(flags='fast-math')
     def prepare_device(self):
         # set base profile
         self.core.break_realtime()
         self.set_mu(mhz_to_ftw(1), asf=self.ampl_tickle_pct, profile=0)
+
+    @kernel(flags='fast-math')
+    def on(self):
+        self.beam.cfg_sw(1)
+
+    @kernel(flags='fast-math')
+    def off(self):
+        self.beam.cfg_sw(0)

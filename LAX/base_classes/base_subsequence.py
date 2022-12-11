@@ -146,38 +146,14 @@ class LAXSubsequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
-                print(e)
                 logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
 
     def _prepare_subsequence(self):
         """
-        Records the subsequence onto core DMA and sets
-        the handle as an attribute.
+        idk
+        :return:
         """
-        # record sequence
-        dma_handle = self._prepare_dma('{:s}_{:d}'.format(self.name, self.instance_number))
-
-        # set dma handle as class attribute
-        setattr(self, 'dma_handle', dma_handle)
-        self.kernel_invariants.add(dma_handle)
-
-    @kernel(flags='fast-math')
-    def _prepare_dma(self, handle_name):
-        """
-        Record the run sequence onto core DMA.
-        Returns:
-            str: the DMA handle for the sequence.
-        """
-        # record sequence
-        with self.core_dma.record(handle_name):
-            self.run()
-
-        # get sequence handle
-        self.core.break_realtime()
-        handle = self.core_dma.get_handle(handle_name)
-
-        # return handle
-        return handle
+        pass
 
 
     # PREPARE - USER FUNCTIONS
@@ -196,6 +172,33 @@ class LAXSubsequence(HasEnvironment, ABC):
     '''
 
     # RUN - BASE
+    def record_dma(self):
+        """
+        Records the run subsequence onto core DMA and sets
+        the handle as an attribute.
+        Returns:
+            str: the DMA handle for the sequence.
+        """
+        # record sequence
+        dma_handle = self._prepare_dma('{:s}_{:d}'.format(self.name, self.instance_number))
+
+        # set dma handle as class attribute
+        setattr(self, 'dma_handle', dma_handle)
+        self.kernel_invariants.add('dma_handle')
+
+    @kernel(flags='fast-math')
+    def _record_dma(self, handle_name):
+        # record sequence
+        with self.core_dma.record(handle_name):
+            self.run()
+
+        # get sequence handle
+        self.core.break_realtime()
+        handle = self.core_dma.get_handle(handle_name)
+
+        # return handle
+        return handle
+
     @kernel(flags='fast-math')
     def run_dma(self):
         """

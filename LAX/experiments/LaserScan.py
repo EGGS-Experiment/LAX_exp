@@ -1,7 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.LAX.base_classes import LAXExperiment
+from LAX_exp.LAX.base_classes import LAXExperiment, mhz_to_ftw
 from LAX_exp.LAX.subsequences import RabiFlop, DopplerCool, Readout
 
 
@@ -44,12 +44,18 @@ class LaserScan2(LAXExperiment):
         Run the experimental sequence.
         """
         for freq_mhz in self.freq_qubit_scan_mhz:
-            self._run_loop_kernel(freq_mhz)
+
+            # convert value to ftw
+            freq_ftw = mhz_to_ftw(freq_mhz)
+
+            # get and store results
+            counts = self._run_loop_kernel(freq_ftw)
+            self.update_dataset(freq_mhz, counts)
 
     @kernel(flags='fast-math')
-    def _run_loop_kernel(self, freq_mhz):
+    def _run_loop_kernel(self, freq_ftw):
         # set qubit frequency
-        self.qubit.set(freq_mhz * 1e6, asf=0.5)
+        self.qubit.set_mu(freq_ftw, asf=self.qubit.ampl_qubit_asf)
 
         # doppler cool
         self.cooling_subsequence.run_dma()
@@ -60,5 +66,5 @@ class LaserScan2(LAXExperiment):
         # readout
         self.readout_subsequence.run_dma()
 
-        self.core.break_realtime()
-        self.update_dataset(freq_mhz, self.pmt_counter.fetch_counts())
+        # return data
+        return self.pmt_counter.fetch_counts()

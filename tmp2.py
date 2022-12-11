@@ -16,15 +16,21 @@ class testarg12(EnvExperiment):
         self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
         self.setattr_device('urukul1_ch0')
 
-        # self.set_dataset('dds_tickle_channel', 3, broadcast=True, persist=True)
+        self.set_dataset('timing.time_rabiflop_us', 15, broadcast=True, persist=True)
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
+
+    def prepare(self):
+        val = self.get_dataset('timing.time_profileswitch_delay_us')
+        print('val: {}'.format(self.core.seconds_to_mu(us*val)))
 
 
     #@kernel
     def run(self):
+        pass
         #self.set_dataset('dds.dds_board_tickle_num', 0, broadcast=True, persist=True)
         #self.set_dataset('dds.dds_tickle_channel', 3, broadcast=True, persist=True)
         #self.set_dataset('pmt_gating_edge', 'rising', broadcast=True, persist=True)
-        print('type: {}'.format(type(self.test1)))
-        print(self.test1)
+        #print('type: {}'.format(type(self.test1)))
+        #print(self.test1)
+

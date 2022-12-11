@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu, mhz_to_ftw
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class SidebandCool(LAXSubsequence):
@@ -36,24 +38,24 @@ class SidebandCool(LAXSubsequence):
         for time_list_mu in self.time_sideband_cooling_list_mu:
 
             # spin polarization/redistribute S-1/2 (397)
-            self.probe.on()
+            self.probe.cfg_sw(1)
             delay_mu(self.time_redist_mu)
-            self.probe.off()
+            self.probe.cfg_sw(0)
 
             # sweep pi-pulse times
             for time_sideband_mu in time_list_mu:
                 # todo: change frequencies to hit multiple modes
                 # qubit pi-pulse
-                self.qubit.on()
+                self.qubit.cfg_sw(1)
                 delay_mu(time_sideband_mu)
-                self.qubit.off()
+                self.qubit.cfg_sw(0)
 
                 # qubit repump
-                self.qubit_repump.on()
+                self.qubit_repump.cfg_sw(1)
                 delay_mu(self.time_repump_sideband_cooling_mu)
-                self.qubit_repump.off()
+                self.qubit_repump.cfg_sw(0)
 
         # repump qubit after sideband cooling
-        self.qubit_repump.on()
+        self.qubit_repump.cfg_sw(1)
         delay_mu(self.time_repump_qubit_mu)
-        self.qubit_repump.off()
+        self.qubit_repump.cfg_sw(0)

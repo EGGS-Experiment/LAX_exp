@@ -103,6 +103,7 @@ class LAXExperiment(EnvExperiment, ABC):
     def _prepare_experiment(self):
         """
         General construction of the experiment object.
+        Must happen after the user-defined prepare_experiment method.
         """
         # add arguments to the dataset manager
         for arg_key in self._build_arguments.keys():
@@ -151,11 +152,12 @@ class LAXExperiment(EnvExperiment, ABC):
                 # run the trial
                 self.run_loop()
 
+        # allow clean termination
         except TerminationRequested:
             pass
 
+        # set devices back to their default state
         finally:
-            # set devices back to their default state
             self._run_cleanup()
 
     @kernel(flags='fast-math')
@@ -163,8 +165,9 @@ class LAXExperiment(EnvExperiment, ABC):
         """
         Set all devices back to their original state.
         """
-        self.urukul0.set_profile(0)
-        self.urukul1.set_profile(0)
+        self.urukul0_cpld.set_profile(0)
+        self.urukul1_cpld.set_profile(0)
+        self.core.break_realtime()
 
 
     # RUN - USER FUNCTIONS

@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
 
 
 class SpinPolarization(LAXSubsequence):
@@ -19,6 +21,6 @@ class SpinPolarization(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
         # probe pulse
-        self.probe.on()
+        self.probe.cfg_sw(1)
         delay_mu(self.time_spinpol_mu)
-        self.probe.off()
+        self.probe.cfg_sw(0)

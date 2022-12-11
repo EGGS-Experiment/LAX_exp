@@ -1,5 +1,8 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+from LAX_exp.LAX.base_classes import LAXSubsequence
+
+from LAX_exp.utilities.conversions import *
+
 
 
 class InitializeQubit(LAXSubsequence):
@@ -27,16 +30,16 @@ class InitializeQubit(LAXSubsequence):
         self.pump.cooling()
 
         # repump pulse
-        self.repump_qubit.on()
+        self.repump_qubit.cfg_sw(1)
         delay_mu(self.time_repump_qubit_mu)
-        self.repump_qubit.off()
+        self.repump_qubit.cfg_sw(0)
 
         # doppler cooling
-        self.pump.on()
+        self.pump.cfg_sw(1)
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.off()
+        self.pump.cfg_sw(0)
 
         # spin polarization
-        self.probe.on()
+        self.probe.cfg_sw(1)
         delay_mu(self.time_spinpol_mu)
-        self.probe.off()
+        self.probe.cfg_sw(0)
