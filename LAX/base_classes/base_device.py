@@ -44,10 +44,11 @@ class LAXDevice(HasEnvironment, ABC):
         """
         self._build_device()
         self._build_expose_methods()
+        self.build_device()
 
     def _build_device(self):
         """
-        General construction required for the
+        General construction required for the device.
         """
         # get core device
         self.setattr_device("core")
@@ -80,6 +81,17 @@ class LAXDevice(HasEnvironment, ABC):
             # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
             for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
                 setattr(self, function_name, function_object)
+
+
+    # BUILD - USER FUNCTIONS
+    def build_device(self, **kwargs):
+        """
+        To be subclassed.
+
+        Called at the end of build.
+        Used to set & process arguments, define object attributes, etc.
+        """
+        pass
 
 
     '''

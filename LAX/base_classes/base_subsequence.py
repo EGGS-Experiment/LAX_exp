@@ -66,7 +66,6 @@ class LAXSubsequence(HasEnvironment, ABC):
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
 
-        # todo: maybe put this into prepare??? or reassociate in prepare?
         # set devices as class attributes
         for device_name in self.devices:
             try:

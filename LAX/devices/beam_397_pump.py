@@ -22,7 +22,7 @@ class Beam397Pump(LAXDevice):
         'beam': 'urukul1_ch1'
     }
 
-    def prepare_device(self):
+    def build_device(self):
         # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
@@ -30,16 +30,18 @@ class Beam397Pump(LAXDevice):
         isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (
                     func_obj.__name__ is not "__init__")
 
+        print('cfg sw: {}'.format(self.beam.cfg_sw))
+        for val in getmembers(self.beam.cfg_sw, isDeviceFunction):
+            print('\tgetmems: {}'.format(val))
+
         # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
         for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
+            print('\tfunct name prep: {}'.format(function_name))
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
 
-        # prepare dds profiles
-        self.prepare_hardware()
-
     @kernel(flags='fast-math')
-    def prepare_hardware(self):
+    def prepare_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)

@@ -26,7 +26,6 @@ class LAXDatasetManager:
         self.__dict__['parameters'] =           dict()
         self.__dict__['arguments'] =            dict()
 
-
     def __getattr__(self, attr):
         return getattr(self.base, attr)
 
@@ -45,7 +44,6 @@ class LAXDatasetManager:
             self.parameters[key] = value
         else:
             self.base.set(key, value, broadcast, persist, archive)
-
 
     def get(self, key, archive=False, parameter=False):
         """
@@ -144,7 +142,7 @@ class LAXDeviceManager:
 
     def __create_lax_device(self, desc):
         """
-        *** todo: document
+        Create and instantiate a given LAXDevice.
         """
         if desc["type"] == "local":
             module = import_module(desc["module"])

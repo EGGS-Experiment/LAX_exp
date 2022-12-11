@@ -19,7 +19,7 @@ class Beam397Probe(LAXDevice):
         'beam': 'urukul1_ch0'
     }
 
-    def prepare_device(self):
+    def build_device(self):
         # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
@@ -31,11 +31,8 @@ class Beam397Probe(LAXDevice):
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
 
-        # prepare dds profiles
-        self.prepare_hardware()
-
     @kernel(flags='fast-math')
-    def prepare_hardware(self):
+    def prepare_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)

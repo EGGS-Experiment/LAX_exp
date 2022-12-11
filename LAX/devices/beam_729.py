@@ -23,7 +23,7 @@ class Beam729(LAXDevice):
         'beam': 'urukul0_ch2'
     }
 
-    def prepare_device(self):
+    def build_device(self):
         # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
@@ -36,11 +36,8 @@ class Beam729(LAXDevice):
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
 
-        # prepare dds profiles
-        self.prepare_hardware()
-
     @kernel(flags='fast-math')
-    def prepare_hardware(self):
+    def prepare_device(self):
         # set carrier profile
         self.core.break_realtime()
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)

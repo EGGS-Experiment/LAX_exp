@@ -18,7 +18,7 @@ class BeamTickle(LAXDevice):
         'beam': 'urukul0_ch3'
     }
 
-    def prepare_device(self):
+    def build_device(self):
         # list of cfg_sw functions to break out
         sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
 
@@ -31,11 +31,10 @@ class BeamTickle(LAXDevice):
             if function_name in sw_functions:
                 setattr(self, function_name, function_object)
 
-        # prepare dds profiles
-        self.prepare_hardware()
+
 
     @kernel(flags='fast-math')
-    def prepare_hardware(self):
+    def prepare_device(self):
         # set base profile
         self.core.break_realtime()
         self.set_mu(mhz_to_ftw(1), asf=self.ampl_tickle_pct, profile=0)
