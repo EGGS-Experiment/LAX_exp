@@ -19,18 +19,6 @@ class Beam397Probe(LAXDevice):
         'beam': 'urukul1_ch0'
     }
 
-    def build_device(self):
-        # list of cfg_sw functions to break out
-        sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
-
-        # verifies that a function is not magic
-        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
-
-        # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-        for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
-            if function_name in sw_functions:
-                setattr(self, function_name, function_object)
-
     @kernel(flags='fast-math')
     def prepare_device(self):
         # set cooling and readout profiles
@@ -38,3 +26,11 @@ class Beam397Probe(LAXDevice):
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
+
+    @kernel(flags='fast-math')
+    def on(self):
+        self.beam.cfg_sw(1)
+
+    @kernel(flags='fast-math')
+    def off(self):
+        self.beam.cfg_sw(0)

@@ -23,19 +23,6 @@ class Beam729(LAXDevice):
         'beam': 'urukul0_ch2'
     }
 
-    def build_device(self):
-        # list of cfg_sw functions to break out
-        sw_functions = ['on', 'off', 'pulse', 'pulse_mu']
-
-        # verifies that a function is not magic
-        isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (
-                    func_obj.__name__ is not "__init__")
-
-        # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-        for (function_name, function_object) in getmembers(self.beam.cfg_sw, isDeviceFunction):
-            if function_name in sw_functions:
-                setattr(self, function_name, function_object)
-
     @kernel(flags='fast-math')
     def prepare_device(self):
         # set carrier profile
@@ -51,6 +38,14 @@ class Beam729(LAXDevice):
         self.core.break_realtime()
         #self.beam.set_mu(self.freq_qubit_bsb_ftw, asf=self.ampl_qubit_asf, profile=2)
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
+
+    @kernel(flags='fast-math')
+    def on(self):
+        self.beam.cfg_sw(1)
+
+    @kernel(flags='fast-math')
+    def off(self):
+        self.beam.cfg_sw(0)
 
     @kernel(flags='fast-math')
     def carrier(self):
