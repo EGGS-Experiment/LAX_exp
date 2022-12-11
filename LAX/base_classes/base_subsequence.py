@@ -135,8 +135,7 @@ class LAXSubsequence(HasEnvironment, ABC):
 
                 # if not in kwargs, take it from dataset manager
                 if parameter_value is None:
-                    #self.get_dataset(_parameter_name_dataset, archive=True)
-                    self.get_parameter(_parameter_name_dataset)
+                    parameter_value = self.get_parameter(_parameter_name_dataset)
 
                 # if in kwargs, add parameter to dataset manager
                 else:
@@ -151,6 +150,7 @@ class LAXSubsequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
+                print(e)
                 logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
 
     def _prepare_subsequence(self):

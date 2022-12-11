@@ -16,9 +16,11 @@ class DopplerCool(LAXSubsequence):
         'pump'
     ]
 
+    def prepare_subsequence(self):
+        print(dir(self))
+
     @kernel(flags={"fast-math"})
     def run(self):
-        print(dir(self))
         # set cooling waveform
         self.pump.cooling()
 
