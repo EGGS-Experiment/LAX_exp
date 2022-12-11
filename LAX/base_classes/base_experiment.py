@@ -121,10 +121,6 @@ class LAXExperiment(EnvExperiment, ABC):
         # prepare children
         self.call_child_method('prepare')
 
-        # record subsequences onto DMA
-        # tmp fix todo
-        #self.call_child_method('record_dma')
-
 
     # PREPARE - USER FUNCTIONS
     def prepare_experiment(self):

@@ -20,7 +20,7 @@ class LaserScan2(LAXExperiment):
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
-                                                                    default=RangeScan(104.24, 104.96, 500, randomize=True),
+                                                                    default=RangeScan(104.24, 104.96, 100, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
@@ -36,10 +36,10 @@ class LaserScan2(LAXExperiment):
         self.readout_subsequence =                              Readout(self)
 
         # dataset
-        self.results =                                          np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2))
+        self.set_dataset('results',                             np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
+        self.setattr_dataset('results')
 
         # tmp remove
-        self.freq_qubit_scan_hz = [float(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz]
         self.freq_qubit_scan_ftw =                              [mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz]
         self.pmt = self.get_device("pmt")
         self.pump = self.get_device('pump')
@@ -51,10 +51,8 @@ class LaserScan2(LAXExperiment):
 
         handle = self.thkimde()
         setattr(self, 'handle', handle)
-        #self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
-
             self._run_main()
 
     @kernel
@@ -112,21 +110,11 @@ class LaserScan2(LAXExperiment):
     @kernel(flags='fast-math')
     def thkimde(self):
         with self.core_dma.record('thkim'):
-            self.pump.cooling()
-            self.qubit.carrier()
+            self.cooling_subsequence.run()
 
-            self.pump.cfg_sw(1)
-            delay_mu(800000)
-            self.pump.cfg_sw(0)
+            self.rabiflop_subsequence.run()
 
-            self.qubit.cfg_sw(1)
-            delay_mu(15000)
-            self.pump.cfg_sw(0)
-
-            self.pump.readout()
-            self.pump.cfg_sw(1)
-            self.pmt.count(500000)
-            self.pump.cfg_sw(0)
+            self.readout_subsequence.run()
 
         self.core.break_realtime()
         handle = self.core_dma.get_handle('thkim')
