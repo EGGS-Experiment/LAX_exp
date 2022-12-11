@@ -108,7 +108,6 @@ class LAXDevice(HasEnvironment, ABC):
             # set parameter as class attribute
             try:
                 # get parameter from dataset manager and store in HDF5
-                #parameter_value = self.get_dataset(_parameter_name_dataset, archive=True)
                 parameter_value = self.get_parameter(_parameter_name_dataset)
 
                 # convert parameter to machine units as necessary
@@ -119,7 +118,7 @@ class LAXDevice(HasEnvironment, ABC):
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
-                logger.warning("Parameter unavailable: {:s}".format(parameter_name))
+                logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
 
 
     # PREPARE - USER FUNCTIONS
@@ -139,7 +138,7 @@ class LAXDevice(HasEnvironment, ABC):
 
     def get_parameter(self, key, default=NoDefault, archive=False):
         try:
-            return self.__dataset_mgr.get(key, archive, parameter=True, argument=False)
+            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=False)
         except KeyError:
             if default is NoDefault:
                 raise

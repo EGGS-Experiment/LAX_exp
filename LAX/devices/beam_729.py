@@ -15,7 +15,7 @@ class Beam729(LAXDevice):
         'freq_qubit_carrier_ftw':           ('beams.freq_mhz.freq_qubit_mhz',               mhz_to_ftw),
         # 'freq_qubit_rsb_ftw':               ('beams.freq_mhz.freq_qubit_rsb_mhz',           mhz_to_ftw),
         # 'freq_qubit_bsb_ftw':               ('beams.freq_mhz.freq_qubit_bsb_mhz',           mhz_to_ftw),
-        'ampl_qubit_pct':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf),
+        'ampl_qubit_asf':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf),
         'time_profileswitch_delay_mu':      ('timing.time_profileswitch_delay_us',          us_to_mu)
 
     }
@@ -48,12 +48,12 @@ class Beam729(LAXDevice):
         # set RSB profile
         self.core.break_realtime()
         #self.beam.set_mu(self.freq_qubit_rsb_ftw, asf=self.ampl_qubit_asf, profile=1)
-        self.beam.set_mu(self.freq_qubit_carrier_ftw - mhz_to_ftw(1.5), asf=self.ampl_qubit_asf, profile=0)
+        self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
 
         # set BSB profile
         self.core.break_realtime()
         #self.beam.set_mu(self.freq_qubit_bsb_ftw, asf=self.ampl_qubit_asf, profile=2)
-        self.beam.set_mu(self.freq_qubit_carrier_ftw + mhz_to_ftw(1.5), asf=self.ampl_qubit_asf, profile=0)
+        self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
 
     @kernel(flags='fast-math')
     def carrier(self):

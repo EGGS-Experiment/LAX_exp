@@ -151,7 +151,7 @@ class LAXSubsequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
-                logger.warning("Parameter unavailable: {:s}".format(parameter_name))
+                logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
 
     def _prepare_subsequence(self):
         """
