@@ -70,7 +70,7 @@ class LAXExperiment(EnvExperiment, ABC):
         setattr(self,   '__result_iter',            0)
 
         # universal arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
 
 
     # BUILD - USER FUNCTIONS
@@ -168,7 +168,9 @@ class LAXExperiment(EnvExperiment, ABC):
         """
         Set all devices back to their original state.
         """
+        self.core.break_realtime()
         self.urukul0_cpld.set_profile(0)
+        self.core.break_realtime()
         self.urukul1_cpld.set_profile(0)
         self.core.break_realtime()
 

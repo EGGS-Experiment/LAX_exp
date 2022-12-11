@@ -50,13 +50,19 @@ class LaserScan2(LAXExperiment):
             freq_ftw = mhz_to_ftw(freq_mhz)
 
             # get and store results
-            counts = self._run_loop_kernel(freq_ftw)
-            self.update_dataset(freq_mhz, counts)
+            try:
+                counts = self._run_loop_kernel(freq_ftw)
+                self.update_dataset(freq_mhz, counts)
+            except RTIOUnderflow:
+                self.core.break_realtime()
 
     @kernel(flags='fast-math')
     def _run_loop_kernel(self, freq_ftw):
+        self.core.break_realtime()
+
         # set qubit frequency
         self.qubit.set_mu(freq_ftw, asf=self.qubit.ampl_qubit_asf)
+        self.core.break_realtime()
 
         # doppler cool
         self.cooling_subsequence.run_dma()
@@ -66,6 +72,7 @@ class LaserScan2(LAXExperiment):
 
         # readout
         self.readout_subsequence.run_dma()
+        self.core.break_realtime()
 
         # return data
         return self.pmt.fetch_count()
