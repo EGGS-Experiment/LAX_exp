@@ -228,7 +228,7 @@ class LAXSubsequence(HasEnvironment, ABC):
 
     def get_parameter(self, key, default=NoDefault, archive=False):
         try:
-            return self.__dataset_mgr.get(key, archive, parameter=True, argument=False)
+            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
         except KeyError:
             if default is NoDefault:
                 raise

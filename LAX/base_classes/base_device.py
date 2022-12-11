@@ -138,7 +138,7 @@ class LAXDevice(HasEnvironment, ABC):
 
     def get_parameter(self, key, default=NoDefault, archive=False):
         try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=False)
+            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
         except KeyError:
             if default is NoDefault:
                 raise
