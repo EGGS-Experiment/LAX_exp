@@ -14,10 +14,12 @@ class testarg12(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
+        self.setattr_device('urukul1_ch0')
 
         # self.set_dataset('dds_tickle_channel', 3, broadcast=True, persist=True)
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
+
 
     #@kernel
     def run(self):

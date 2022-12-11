@@ -37,7 +37,6 @@ class LaserScan2(LAXExperiment):
 
         # dataset
         self.results =                                          np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2))
-        self._result_iter =                                     0
 
 
     def run_loop(self):
@@ -62,9 +61,4 @@ class LaserScan2(LAXExperiment):
         self.readout_subsequence.run_dma()
 
         self.core.break_realtime()
-        self.update_dataset()
-
-    @rpc(flags='async')
-    def update_dataset(self, freq_mhz, pmt_counts):
-        self.results[self.iter] = np.array([freq_mhz, pmt_counts])
-        self.iter += 1
+        self.update_dataset(freq_mhz, self.pmt_counter.fetch_counts())

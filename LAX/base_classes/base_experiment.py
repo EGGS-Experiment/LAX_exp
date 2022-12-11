@@ -1,10 +1,11 @@
 from artiq.experiment import *
 
 import logging
+from numpy import array
 from abc import ABC, abstractmethod
+logger = logging.getLogger("artiq.master.experiments")
 
 from LAX_exp.LAX.extensions import LAXDeviceManager, LAXDatasetManager
-logger = logging.getLogger("artiq.master.experiments")
 
 
 class LAXExperiment(EnvExperiment, ABC):
@@ -65,9 +66,8 @@ class LAXExperiment(EnvExperiment, ABC):
         self.setattr_device('urukul1_cpld')
 
         # instance variables
-        setattr(self,   'dma_handle',               None)
         setattr(self,   '_build_arguments',         dict())
-
+        setattr(self,   '__result_iter',            0)
 
         # universal arguments
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -142,7 +142,7 @@ class LAXExperiment(EnvExperiment, ABC):
         Repeat a given sequence a number of times.
         """
         try:
-            # repeat the experimental sequence
+            # repeat the experimental sequence a given number of times
             for trial_num in range(self.repetitions):
 
                 # prepare the trial
@@ -189,7 +189,7 @@ class LAXExperiment(EnvExperiment, ABC):
         pass
 
     @rpc(flags='async')
-    def update_dataset(self):
+    def update_dataset(self, *args):
         """
         To be subclassed.
 
@@ -197,12 +197,14 @@ class LAXExperiment(EnvExperiment, ABC):
         Used to move as much processing off the kernel and onto the host as possible.
         Should use the @rpc decorator with the "async" flag for efficiency.
         """
+        self.results[self.__result_iter] = array(args)
+        self.__result_iter += 1
         pass
 
 
     '''
-     HasEnvironment Extensions
-     '''
+    HasEnvironment Extensions
+    '''
 
     def setattr_argument(self, *args, **kwargs):
         super().setattr_argument(*args, **kwargs)

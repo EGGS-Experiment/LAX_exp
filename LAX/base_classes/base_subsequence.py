@@ -66,12 +66,12 @@ class LAXSubsequence(HasEnvironment, ABC):
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
 
-        # get devices
+        # todo: maybe put this into prepare??? or reassociate in prepare?
+        # set devices as class attributes
         for device_name in self.devices:
-
-            # set device as class attribute
             try:
                 device_object = self.get_device(device_name)
+                print('\tsubseq obj: {}'.format(device_object))
                 setattr(self, device_name, device_object)
                 self.kernel_invariants.add(device_name)
             except Exception as e:
