@@ -142,11 +142,14 @@ class LAXExperiment(EnvExperiment, ABC):
         Main sequence of the experiment.
         Repeat a given sequence a number of times.
         """
+        # set up the run
+        self.run_initialize()
+
         try:
-            # repeat the experimental sequence a given number of times
+            # repeat the experiment a given number of times
             for trial_num in range(self.repetitions):
 
-                # prepare the trial
+                # prepare a trial
                 self.run_prepare()
 
                 # run the trial
@@ -171,6 +174,18 @@ class LAXExperiment(EnvExperiment, ABC):
         self.urukul1_cpld.set_profile(0)
         self.core.break_realtime()
 
+    @rpc(flags='async')
+    def update_dataset(self, *args):
+        """
+        Records data from the main sequence in the experiment dataset.
+
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
+        """
+        self.results[self._result_iter] = array(args)
+        self._result_iter += 1
+
 
     # RUN - USER FUNCTIONS
     def run_prepare(self):
@@ -192,18 +207,6 @@ class LAXExperiment(EnvExperiment, ABC):
         Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
         """
         pass
-
-    @rpc(flags='async')
-    def update_dataset(self, *args):
-        """
-        Records data from the main sequence in the experiment dataset.
-
-        Parameters passed to this function will be converted into a 1D array and added to the dataset.
-        For efficiency, data is added by mutating indices of a preallocated dataset.
-        Contains an internal iterator to keep track of the current index.
-        """
-        self.results[self._result_iter] = array(args)
-        self._result_iter += 1
 
 
     '''
