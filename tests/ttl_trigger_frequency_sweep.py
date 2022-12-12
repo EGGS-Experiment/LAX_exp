@@ -31,7 +31,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions",                        NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
@@ -48,7 +48,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=80, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=40, ndecimals=3, step=1, min=1, max=1000000))
 
 
         # get global parameters
@@ -168,14 +168,6 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                 else:
                     self.core.break_realtime()
                     self.pmt_counter._set_sensitivity(0)
-
-                # stop counting and reset RTIOs in case of problems
-                # except RTIOUnderflow:
-                #     self.core.break_realtime()
-                #     print('\trtio:', counter)
-                #     self.pmt_counter._set_sensitivity(0)
-                #     self.rf_sync._set_sensitivity(0)
-                #     self.core.reset()
 
 
     # LABRAD FUNCTIONS
