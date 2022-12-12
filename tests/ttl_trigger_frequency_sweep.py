@@ -96,7 +96,11 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
         # set up modulation
-        self.fg.select_device(1)
+        # todo: ensure device is correct
+        fg_dev_list = self.fg.list_devices()
+
+
+        self.fg.select_device(2)
         self.fg.toggle(1)
         self.fg.amplitude(self.ampl_mod_vpp)
 
@@ -143,9 +147,9 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                     delay_mu(self.time_slack_mu)
 
                     # start RF counting and stop PMT counting
-                    with parallel:
-                        self.pmt_counter._set_sensitivity(0)
-                        self.rf_sync._set_sensitivity(1)
+                    #with parallel:
+                    self.pmt_counter._set_sensitivity(0)
+                    self.rf_sync._set_sensitivity(1)
 
                     # get timestamp of RF event
                     delay_mu(self.time_timeout_rf_mu)
@@ -157,6 +161,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
                         delay_mu(self.time_slack_mu)
                         self.rf_sync._set_sensitivity(0)
                     else:
+                        delay_mu(self.time_slack_mu)
                         self.rf_sync._set_sensitivity(0)
 
                     # add data to dataset

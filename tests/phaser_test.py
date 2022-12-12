@@ -2,42 +2,50 @@ from artiq.experiment import *
 from artiq.coredevice.rtio import *
 from artiq.coredevice.core import rtio_get_counter
 
+#from numpy import int64
+
 
 class PhaserTest(EnvExperiment):
     """
     Phaser Test
-    Test the phaser.
+    Test the phaser0.
     """
 
 
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("phaser")
+        self.setattr_device("phaser0")
 
     @kernel
     def get_frame_timestamp(self):
         """Performs a Phaser register read and records the exact frame timing in self.frame_tstamp.
         For deterministic pulses, changes must be phase-aligned with the phaser frames
         """
-        rtio_output(self.phaser.channel_base << 8, 0)  # read some phaser reg (board id here)
+        rtio_output(self.phaser0.channel_base << 8, 0)  # read some phaser reg (board id here)
         delay_mu(int64((8*4*10)))
-        frame_tstamp = rtio_input_timestamp(rtio_get_counter()+0xffffff, self.phaser.channel_base)
+        frame_tstamp = rtio_input_timestamp(rtio_get_counter()+0xffffff, self.phaser0.channel_base)
         delay(10*ms)
         return frame_tstamp
 
     @kernel
     def run(self):
-        ch0 = self.phaser.channel[0]
-        ch1 = self.phaser.channel[1]
+        # get devices
+        ch0 = self.phaser0.channel[0]
+        ch1 = self.phaser0.channel[1]
+
+        # initialize
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
-        self.phaser.init(debug=False)
+        self.phaser0.init(debug=False)
         delay(1*ms)
+
+        # set attenuations
         ch0.set_att(0*dB)
         delay(1*ms)
         ch1.set_att(0*dB)
         delay(1*ms)
 
+        # set DUC
         ch0.set_duc_frequency(0*MHz)
         delay(1*ms)
         ch1.set_duc_frequency(0*MHz)
@@ -50,13 +58,19 @@ class PhaserTest(EnvExperiment):
         delay(1*ms)
         ch1.set_duc_cfg(clr_once=1)
         delay(.1*ms)
-        self.phaser.duc_stb()
+        self.phaser0.duc_stb()
         delay(1*ms)
+
+        # loop
         for _ in range(10000):
+
+            # ensure updates are aligned to a frame
             t_stamp = self.get_frame_timestamp()
             at_mu(t_stamp + 100000)
-            ch0.oscillator[0].set_frequency(7 * MHz)
-            ch1.oscillator[0].set_frequency(7 * MHz)
+
+            # output a waveform
+            ch0.oscillator[0].set_frequency(150 * MHz)
+            ch1.oscillator[0].set_frequency(150 * MHz)
             delay_mu(40*2)
             ch0.oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             ch1.oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
@@ -73,7 +87,8 @@ class PhaserTest(EnvExperiment):
             ch0.oscillator[0].set_amplitude_phase(amplitude=.0)
             ch1.oscillator[0].set_amplitude_phase(amplitude=.0)
 
+            # add break
             self.core.wait_until_mu(now_mu())
-            print("make jitter")
+            # print("make jitter")
             self.core.break_realtime()
             delay(10*ms)
