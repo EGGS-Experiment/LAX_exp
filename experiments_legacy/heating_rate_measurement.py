@@ -87,7 +87,7 @@ class HeatingRateMeasurement(EnvExperiment):
         #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # heating rate
-        self.setattr_argument("time_heating_rate_us",               PYONValue([1, 10, 50, 200]))
+        self.setattr_argument("time_heating_rate_ms",               PYONValue([1, 10, 50, 200]))
 
         # get global parameters
         for param_name in self.global_parameters:

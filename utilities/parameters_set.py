@@ -86,6 +86,7 @@ class ParameterSet(EnvExperiment):
             "beams.ampl_pct.ampl_qubit_pct":                            50.0
         }
 
+
         # external devices
         external_parameters = {
             # devices
@@ -116,6 +117,14 @@ class ParameterSet(EnvExperiment):
             "timing.time_tickle_us":                                    500
         }
 
+
+        management_parameters = {
+            # experiments
+            "management.completition_pct":                              0.00,
+
+            # datasets
+            "management.dataset_save_locations":                        ["Z:\Motion\Data"],
+        }
 
         # consolidate parameter dictionaries
         consolidated_parameters = {
