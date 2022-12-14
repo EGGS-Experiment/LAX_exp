@@ -2,11 +2,11 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.utilities.conversions import *
-from LAX_exp.LAX.base_classes import LAXExperiment
-from LAX_exp.LAX.subsequences import RabiFlop, DopplerCool, Readout
+from LAX_exp.base import LAXExperiment as _LAXExperiment
+from LAX_exp.system.subsequences import RabiFlop, DopplerCool, Readout
 
 
-class LaserScan2(LAXExperiment):
+class LaserScan2(_LAXExperiment):
     """
     729nm Laser Scan2
     Gets the number of counts as a function of frequency for a fixed time.
@@ -30,7 +30,7 @@ class LaserScan2(LAXExperiment):
         self.setattr_device('qubit')
         self.setattr_device('pmt')
 
-        # sequences
+        # prepare sequences
         self.cooling_subsequence =                              DopplerCool(self)
         self.rabiflop_subsequence =                             RabiFlop(self, time_rabiflop_us=self.time_729_us)
         self.readout_subsequence =                              Readout(self)
@@ -44,12 +44,11 @@ class LaserScan2(LAXExperiment):
         self.pmt = self.get_device("pmt")
 
 
-    def run(self):
+    # PREPARE MAIN SEQUENCE
+    def run_initialize(self):
+        # record pulse sequence onto DMA for speed & accuracy
         dma_handle = self._record_dma()
         setattr(self, 'dma_handle', dma_handle)
-
-        for trial_num in range(self.repetitions):
-            self.run_loop()
 
     @kernel(flags='fast-math')
     def _record_dma(self):
@@ -65,8 +64,10 @@ class LaserScan2(LAXExperiment):
         self.core.break_realtime()
         return handle
 
+
+    # MAIN LOOP
     @kernel
-    def run_loop(self):
+    def loop_run(self):
         self.core.reset()
 
         # sweep frequency

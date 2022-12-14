@@ -1,5 +1,7 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXSubsequence, us_to_mu
+
+from LAX_exp.base import LAXSubsequence
+from LAX_exp.utilities.conversions import *
 
 
 class CorrelatePhotons(LAXSequence):

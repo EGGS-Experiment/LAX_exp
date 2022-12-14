@@ -1,5 +1,5 @@
 from artiq.experiment import *
-from LAX_exp.LAX.base_classes import LAXDevice
+from LAX_exp.base import LAXDevice
 
 
 class PMTCounter(LAXDevice):

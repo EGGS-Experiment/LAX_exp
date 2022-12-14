@@ -5,7 +5,7 @@ from numpy import array
 from abc import ABC, abstractmethod
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.LAX.extensions import LAXDeviceManager, LAXDatasetManager
+from LAX_exp.extensions import LAXDeviceManager, LAXDatasetManager
 
 
 class LAXExperiment(EnvExperiment, ABC):
@@ -150,10 +150,10 @@ class LAXExperiment(EnvExperiment, ABC):
             for trial_num in range(self.repetitions):
 
                 # prepare a trial
-                self.run_prepare()
+                self.loop_prepare()
 
                 # run the trial
-                self.run_loop()
+                self.loop_run()
 
         # allow clean termination
         except TerminationRequested:
@@ -188,23 +188,27 @@ class LAXExperiment(EnvExperiment, ABC):
 
 
     # RUN - USER FUNCTIONS
-    def run_prepare(self):
+    def run_initialize(self):
         """
         To be subclassed.
 
-        Runs a fixed, unchangeable pulse sequence from core DMA.
-        Must have the kernel decorator.
-        Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
+        todo: document
         """
         pass
 
-    def run_loop(self):
+    def loop_prepare(self):
         """
-        Must be subclassed.
+        To be subclassed.
 
-        Runs a fixed, unchangeable pulse sequence from core DMA.
-        Must have the kernel decorator.
-        Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
+        todo: document
+        """
+        pass
+
+    def loop_run(self):
+        """
+        To be subclassed.
+
+        todo: document
         """
         pass
 
