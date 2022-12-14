@@ -158,7 +158,7 @@ class SidebandCooling(EnvExperiment):
         #self.ampl_readout_pipulse_asf =                         self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # calibration setup
-        self.calibration_qubit_status =                         int(not self.calibration)
+        self.calibration_qubit_status =                         not self.calibration
 
         # set up datasets
         self.set_dataset("sideband_cooling", [])
@@ -213,7 +213,7 @@ class SidebandCooling(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -260,7 +260,7 @@ class SidebandCooling(EnvExperiment):
                         # qubit pi-pulse
                         self.dds_qubit.cfg_sw(self.calibration_qubit_status)
                         delay_mu(time_mu)
-                        self.dds_qubit.cfg_sw(0)
+                        self.dds_qubit.cfg_sw(False)
 
                         # qubit repump
                         self.dds_board.cfg_switches(0b1100)
@@ -285,9 +285,9 @@ class SidebandCooling(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # do qubit pi-pulse
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_readout_pipulse_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
