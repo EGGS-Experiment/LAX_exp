@@ -74,7 +74,7 @@ class LaserScan(EnvExperiment):
         the kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter =                                      self.get_device("ttl_counter{:d}".format(self.pmt_input_channel))
+        self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units

@@ -12,7 +12,7 @@ class PMTCounter(LAXDevice):
         'gating_edge':          ('pmt.pmt_gating_edge', None)
     }
     core_devices = {
-        'pmt': 'ttl_counter0'
+        'pmt': 'ttl0_counter'
     }
 
     def prepare_device(self):

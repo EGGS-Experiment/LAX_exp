@@ -1,12 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
+from LAX_exp.base import LAXExperiment
 from LAX_exp.utilities.conversions import *
-from LAX_exp.base import LAXExperiment as _LAXExperiment
 from LAX_exp.system.subsequences import RabiFlop, DopplerCool, Readout
 
 
-class LaserScan2(_LAXExperiment):
+class LaserScan2(LAXExperiment, Experiment):
     """
     729nm Laser Scan2
     Gets the number of counts as a function of frequency for a fixed time.

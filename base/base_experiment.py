@@ -8,7 +8,7 @@ logger = logging.getLogger("artiq.master.experiments")
 from LAX_exp.extensions import LAXDeviceManager, LAXDatasetManager
 
 
-class LAXExperiment(EnvExperiment, ABC):
+class LAXExperiment(HasEnvironment, ABC):
     """
     Base class for experiment objects.
 
