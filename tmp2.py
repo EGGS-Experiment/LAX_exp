@@ -20,14 +20,18 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
-    def prepare(self):
-        val = self.get_dataset('timing.time_profileswitch_delay_us')
-        print('val: {}'.format(self.core.seconds_to_mu(us*val)))
+    # def prepare(self):
+    #     val = self.get_dataset('timing.time_profileswitch_delay_us')
+    #     print('val: {}'.format(self.core.seconds_to_mu(us*val)))
 
 
-    #@kernel
+    @kernel
     def run(self):
-        pass
+        #pass
+        self.core.reset()
+        self.core.break_realtime()
+        self.urukul1_ch0.init()
+        delay(10*ms)
         #self.set_dataset('dds.dds_board_tickle_num', 0, broadcast=True, persist=True)
         #self.set_dataset('dds.dds_tickle_channel', 3, broadcast=True, persist=True)
         #self.set_dataset('pmt_gating_edge', 'rising', broadcast=True, persist=True)
