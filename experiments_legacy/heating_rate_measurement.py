@@ -87,7 +87,7 @@ class HeatingRateMeasurement(EnvExperiment):
         #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # heating rate
-        self.setattr_argument("time_heating_rate_ms",               PYONValue([1, 10, 50, 200]))
+        self.setattr_argument("time_heating_rate_ms_list",               PYONValue([1, 10, 50, 200]))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -156,7 +156,7 @@ class HeatingRateMeasurement(EnvExperiment):
         self.iter_sideband_cooling_profiles_list =              list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
         # heating rate
-        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_us * us) for time_us in self.time_heating_rate_us]
+        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_ms * ms) for time_ms in self.time_heating_rate_ms_list]
 
         # readout pi-pulse
         self.time_readout_pipulse_mu =                          self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
@@ -164,7 +164,7 @@ class HeatingRateMeasurement(EnvExperiment):
         #self.ampl_readout_pipulse_asf =                         self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # calibration setup
-        self.calibration_qubit_status =                         int(not self.calibration)
+        self.calibration_qubit_status =                         not self.calibration
 
         # set up datasets
         self.set_dataset("heating_rate", [])
