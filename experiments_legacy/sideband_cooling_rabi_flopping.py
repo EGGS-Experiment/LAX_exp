@@ -1,5 +1,4 @@
 import numpy as np
-from random import shuffle
 from artiq.experiment import *
 
 _DMA_HANDLE_INITIALIZE = "sideband_cooling_rabi_flop_initialize"
@@ -58,7 +57,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("sideband_cycles",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
