@@ -25,6 +25,6 @@ class RabiFlop(LAXSubsequence):
         self.qubit.carrier()
 
         # population transfer pulse
-        self.qubit.cfg_sw(1)
+        self.qubit.cfg_sw(True)
         delay_mu(self.time_rabiflop_mu)
-        self.qubit.cfg_sw(0)
+        self.qubit.cfg_sw(False)
