@@ -6,6 +6,8 @@ _DMA_HANDLE_INITIALIZE = "sideband_cooling_rabi_flop_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_rabi_flop_pulse"
 _DMA_HANDLE_READOUT = "sideband_cooling_rabi_flop_readout"
 
+# todo: make max time the same as readout time
+
 
 class SidebandCoolingRabiFlopping(EnvExperiment):
     """
@@ -57,24 +59,29 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("calibration",                            BooleanValue(default=False))
+        self.setattr_argument("repetitions",                            NumberValue(default=25, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_min_sideband_cooling_us",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_max_sideband_cooling_us",               NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_repump_sideband_cooling_us",            NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.012, 103.012, 105.012]))
-        self.setattr_argument("ampl_sideband_cooling_pct_list",             PYONValue([50, 50, 50]))
+        self.setattr_argument("time_min_sideband_cooling_us",           NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_max_sideband_cooling_us",           NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_repump_sideband_cooling_us",        NumberValue(default=40, ndecimals=5, step=1, min=1, max=1000000))
 
-        # rabi-flopping readout
-        self.setattr_argument("time_rabi_us_list",                          Scannable(default=
-                                                                                RangeScan(0, 400, 101, randomize=True),
-                                                                                global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
-                                                                            ))
+        self.setattr_argument("freq_sideband_cooling_x_mhz",            NumberValue(default=104.005, ndecimals=5, step=1, min=1, max=10000))
+
+
+        self.setattr_argument("ampl_sideband_cooling_x_pct",            NumberValue(default=50, ndecimals=5, step=1, min=0, max=100))
+        self.setattr_argument("ampl_sideband_cooling_y_pct",            NumberValue(default=50, ndecimals=5, step=1, min=0, max=100))
+        self.setattr_argument("ampl_sideband_cooling_z_pct",            NumberValue(default=50, ndecimals=5, step=1, min=0, max=100))
+
+        # qubit time scan
+        self.setattr_argument("time_rabi_us_list",                      Scannable(default=
+                                                                            RangeScan(0, 400, 101, randomize=True),
+                                                                            global_min=1, global_max=100000, global_step=1,
+                                                                            unit="us", scale=1, ndecimals=5
+                                                                        ))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -115,11 +122,6 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw =                                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
-        # process scan frequencies
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
-        shuffle(self.freq_qubit_scan_ftw)
-
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
@@ -130,7 +132,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # sideband cooling
         self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
-                                                                for time_us in np.linspace(self.time_min_sideband_cooling_us, self.time_max_sideband_cooling_us, self.sideband_cycles)])
+                                                                 for time_us in np.linspace(self.time_min_sideband_cooling_us, self.time_max_sideband_cooling_us, self.sideband_cycles)])
 
         # calculate number of spin polarizations
         num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
@@ -140,9 +142,9 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # other sideband cooling parameters
         self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
-        self.freq_sideband_cooling_ftw_list =                   [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
-        self.ampl_sideband_cooling_asf_list =                   [self.dds_qubit.amplitude_to_asf(ampl_pct / 100) for ampl_pct in self.ampl_sideband_cooling_pct_list]
-        self.iter_sideband_cooling_profiles_list =              list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
+
+        self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
+        self.freq_sideband_cooling_ftw =                        self.dds_qubit.frequency_to_ftw(self.freq_sideband_cooling_mhz * MHz)
 
         # rabi flopping timing
         self.time_rabi_mu_list =                                [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
@@ -151,13 +153,13 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.num_time_points_list =                             list(range(len(self.time_rabi_mu_list)))
 
         # calibration setup
-        self.calibration_qubit_status =                         not self.calibration
+        self.calibration_qubit_status =                         int(not self.calibration)
 
         # set up datasets
-        self.set_dataset("sideband_cooling_rabi_flopping", [])
-        self.setattr_dataset("sideband_cooling_rabi_flopping")
-        self.set_dataset("sideband_cooling_rabi_flopping_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("sideband_cooling_rabi_flopping_processed")
+        self.set_dataset("sideband_cooling", [])
+        self.setattr_dataset("sideband_cooling")
+        #self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        #self.setattr_dataset("sideband_cooling_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -178,10 +180,10 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for i in range(self.repetitions):
+        for trial_num in range(self.repetitions):
 
-            # sweep pi-pulse time
-            for freq_ftw in self.freq_qubit_scan_ftw:
+            # get points with rabi oscillation
+            for i in self.num_time_points_list:
 
                 # get timings
                 time_delay_mu = self.time_delay_mu_list[i]
@@ -193,10 +195,8 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                 # run sideband cooling cycles and repump afterwards
                 self.core_dma.playback_handle(handle_sideband)
 
-                # wait given time, and meanwhile set rabi-flopping waveform
-                with parallel:
-                    self.dds_qubit_board.set_profile(0)
-                    delay_mu(time_delay_mu)
+                # wait given time
+                delay_mu(time_delay_mu)
 
                 # do rabi flopping
                 self.dds_qubit.cfg_sw(True)
@@ -226,11 +226,12 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         """
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
+            # set qubit to sideband waveform
+            self.dds_qubit_board.set_profile(0)
 
             # set cooling waveform
             with parallel:
                 self.dds_board.set_profile(0)
-                self.dds_qubit_board.set_profile(1)
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # doppler cooling
@@ -252,30 +253,29 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                 # sweep pi-pulse times
                 for time_mu in time_list_mu:
 
-                    # sweep over modes
-                    for i in self.iter_sideband_cooling_profiles_list:
+                    # qubit pi-pulse
+                    self.dds_qubit.cfg_sw(self.calibration_qubit_status)
+                    delay_mu(time_mu)
+                    self.dds_qubit.cfg_sw(False)
 
-                        # set mode
-                        with parallel:
-                            self.dds_qubit_board.set_profile(i)
-                            delay_mu(self.time_profileswitch_delay_mu)
-
-                        # qubit pi-pulse
-                        self.dds_qubit.cfg_sw(self.calibration_qubit_status)
-                        delay_mu(time_mu)
-                        self.dds_qubit.cfg_sw(False)
-
-                        # qubit repump
-                        self.dds_board.cfg_switches(0b1100)
-                        delay_mu(self.time_repump_sideband_cooling_mu)
-                        self.dds_board.cfg_switches(0b0100)
+                    # qubit repump
+                    self.dds_board.cfg_switches(0b1100)
+                    delay_mu(self.time_repump_sideband_cooling_mu)
+                    self.dds_board.cfg_switches(0b0100)
 
             # repump qubit after sideband cooling
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # todo: do we need to state prep by spin polarization here?
+            # spin polarization/redistribute S-1/2 (397)
+            # todo: should this be here?
+            self.dds_board.cfg_switches(0b0101)
+            delay_mu(self.time_redist_mu)
+            self.dds_board.cfg_switches(0b0100)
+
+            # set qubit pi-pulse waveform for rabi flopping
+            self.dds_qubit_board.set_profile(1)
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
@@ -315,29 +315,26 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        # set sideband cooling profiles
-        # profile 0 = readout pi-pulse
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
-        # profile 1 & greater = sideband cooling
-        for i in self.iter_sideband_cooling_profiles_list:
-            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf_list[i - 1], profile=i)
-            self.core.break_realtime()
+        # profile 0 = sideband cooling, profile 1 = rabi-flopping
+        self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw, asf=self.ampl_sideband_cooling_asf, profile=0)
+        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=1)
+        self.core.break_realtime()
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
+    def update_dataset(self, time_mu, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling_rabi_flopping', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('sideband_cooling', [self.core.mu_to_seconds(time_mu), pmt_counts])
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
+        # turn dataset into numpy array for ease of use
         pass
-        # # turn dataset into numpy array for ease of use
         # self.sideband_cooling = np.array(self.sideband_cooling)
         #
         # # get sorted x-values (frequency)
@@ -355,3 +352,5 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
         #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
         #     self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+        #
+        # print(self.sideband_cooling_processed)
