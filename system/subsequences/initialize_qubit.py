@@ -30,16 +30,16 @@ class InitializeQubit(LAXSubsequence):
         self.pump.cooling()
 
         # repump pulse
-        self.repump_qubit.cfg_sw(1)
+        self.repump_qubit.cfg_sw(True)
         delay_mu(self.time_repump_qubit_mu)
-        self.repump_qubit.cfg_sw(0)
+        self.repump_qubit.cfg_sw(False)
 
         # doppler cooling
-        self.pump.cfg_sw(1)
+        self.pump.cfg_sw(True)
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.cfg_sw(0)
+        self.pump.cfg_sw(False)
 
         # spin polarization
-        self.probe.cfg_sw(1)
+        self.probe.cfg_sw(True)
         delay_mu(self.time_spinpol_mu)
-        self.probe.cfg_sw(0)
+        self.probe.cfg_sw(False)

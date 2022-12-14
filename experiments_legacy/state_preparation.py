@@ -168,7 +168,7 @@ class StatePreparation(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -203,9 +203,9 @@ class StatePreparation(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_LOOP):
             with sequential:
                 # 729 pulse
-                self.dds_qubit.cfg_sw(1)
+                self.dds_qubit.cfg_sw(True)
                 delay_mu(self.time_loop_mu)
-                self.dds_qubit.cfg_sw(0)
+                self.dds_qubit.cfg_sw(False)
 
                 # 854 repump pulse
                 self.dds_board.cfg_switches(0b1100)
@@ -224,9 +224,9 @@ class StatePreparation(EnvExperiment):
                     delay_mu(self.time_profileswitch_delay_mu)
 
                 # shelving pulse
-                self.dds_qubit.cfg_sw(1)
+                self.dds_qubit.cfg_sw(True)
                 delay_mu(self.time_shelving_mu)
-                self.dds_qubit.cfg_sw(0)
+                self.dds_qubit.cfg_sw(False)
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):

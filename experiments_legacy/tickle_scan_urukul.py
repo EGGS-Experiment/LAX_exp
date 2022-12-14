@@ -144,13 +144,13 @@ class TickleScanUrukul(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_TICKLE_URUKUL_SEQUENCE):
 
             # start tickle
-            self.dds_tickle.cfg_sw(1)
+            self.dds_tickle.cfg_sw(True)
 
             # read pmt
             self.pmt_gating_edge(self.time_tickle_mu)
 
             # stop tickle
-            self.dds_tickle.cfg_sw(0)
+            self.dds_tickle.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})

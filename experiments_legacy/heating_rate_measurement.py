@@ -216,7 +216,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    self.update_dataset(time_heating_delay_mu, freq_ftw, self.pmt_counter.fetch_count())
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), time_heating_delay_mu)
                     self.core.break_realtime()
 
         # reset board profiles
@@ -225,7 +225,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -272,7 +272,7 @@ class HeatingRateMeasurement(EnvExperiment):
                         # qubit pi-pulse
                         self.dds_qubit.cfg_sw(self.calibration_qubit_status)
                         delay_mu(time_mu)
-                        self.dds_qubit.cfg_sw(0)
+                        self.dds_qubit.cfg_sw(False)
 
                         # qubit repump
                         self.dds_board.cfg_switches(0b1100)
@@ -297,9 +297,9 @@ class HeatingRateMeasurement(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # do qubit pi-pulse
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_readout_pipulse_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
@@ -332,22 +332,19 @@ class HeatingRateMeasurement(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.core.break_realtime()
 
-        # profile 0 = readout pi-pulse, profile 1 & greater = sideband cooling
-        self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw, asf=self.ampl_sideband_cooling_asf, profile=0)
-        self.core.break_realtime()
-
         # set sideband cooling profiles
+        # profile 0 = readout pi-pulse, profile 1 & greater = sideband cooling
         for i in self.iter_sideband_cooling_profiles_list:
-            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i], asf=self.ampl_sideband_cooling_asf_list[i], profile=i)
+            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf_list[i - 1], profile=i)
             self.core.break_realtime()
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, freq_ftw, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts, time_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('heating_rate', [self.core.mu_to_seconds(time_mu), freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('heating_rate', [freq_ftw * self.ftw_to_mhz, pmt_counts, self.core.mu_to_seconds(time_mu)])
 
 
     def analyze(self):

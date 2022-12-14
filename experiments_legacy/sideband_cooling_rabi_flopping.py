@@ -199,9 +199,9 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                 delay_mu(time_delay_mu)
 
                 # do rabi flopping
-                self.dds_qubit.cfg_sw(1)
+                self.dds_qubit.cfg_sw(True)
                 delay_mu(time_rabi_mu)
-                self.dds_qubit.cfg_sw(0)
+                self.dds_qubit.cfg_sw(False)
 
                 # read out
                 self.core_dma.playback_handle(handle_readout)
@@ -216,7 +216,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -256,7 +256,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                     # qubit pi-pulse
                     self.dds_qubit.cfg_sw(self.calibration_qubit_status)
                     delay_mu(time_mu)
-                    self.dds_qubit.cfg_sw(0)
+                    self.dds_qubit.cfg_sw(False)
 
                     # qubit repump
                     self.dds_board.cfg_switches(0b1100)

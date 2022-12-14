@@ -231,7 +231,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -271,7 +271,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     # qubit pi-pulse
                     self.dds_qubit.cfg_sw(self.calibration_qubit_status)
                     delay_mu(time_mu)
-                    self.dds_qubit.cfg_sw(0)
+                    self.dds_qubit.cfg_sw(False)
 
                     # qubit repump
                     self.dds_board.cfg_switches(0b1100)
@@ -296,9 +296,9 @@ class HeatingRateMeasurement(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # do qubit pi-pulse
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_readout_pipulse_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)

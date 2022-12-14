@@ -42,16 +42,16 @@ class UrukulTest(EnvExperiment):
         #self.core.break_realtime()
         #self.urukul1_ch0.init()            # initialization for an individual DDS channel, only needs to happen once after turning ARTIQ on
         #self.core.break_realtime()         # this is the time delay, put it between consecutive events
-        self.urukul0_ch3.cfg_sw(1)          # switches the DDS channel on/off (on=1, off=0)
+        self.urukul0_ch3.cfg_sw(True)          # switches the DDS channel on/off (on=1, off=0)
         self.core.break_realtime()
         self.urukul0_ch3.set_mu(self.frequency_mu, asf=self.amplitude_mu)     # uncomment this line when you want to change frequency
-        #self.urukul1_ch0.cfg_sw(1)
+        #self.urukul1_ch0.cfg_sw(True)
         self.urukul0_ch3.set_att(10 * dB)                   # set channel attenuation; has a range between 0dB and 31.5dB attenuation
         #self.urukul1_ch0.set_att(4 * dB)                     # 0dB attenuation corresponds to +2.1dBm
 
-        #self.urukul1_ch2.cfg_sw(1)
-        #self.urukul1_ch3.cfg_sw(1)
+        #self.urukul1_ch2.cfg_sw(True)
+        #self.urukul1_ch3.cfg_sw(True)
         #self.urukul1_cpld.cfg_sw(1, 1)
         #self.urukul0_cpld.cfg_sw(1, 1)
-        #self.urukul1_ch3.cfg_sw(1)
+        #self.urukul1_ch3.cfg_sw(True)
         #self.urukul0_cpld.cfg_sw(2, 1)

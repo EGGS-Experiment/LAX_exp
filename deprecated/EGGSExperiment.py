@@ -93,4 +93,4 @@ class _EGGSExperiment(EnvExperiment):
     #
     #     # reset AOMs after experiment
     #     self.dds_board.cfg_switches(0b1110)
-    #     self.dds_qubit.cfg_sw(0)
+    #     self.dds_qubit.cfg_sw(False)

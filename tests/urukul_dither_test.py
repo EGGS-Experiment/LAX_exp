@@ -79,7 +79,7 @@ class UrukulDitherTest(EnvExperiment):
         self.urukul0_ch3.set_frequency(1 * MHz)
         self.urukul0_ch3.set_amplitude(0.99)
         self.urukul0_ch3.set_att(2 * dB)
-        self.urukul0_ch3.cfg_sw(1)
+        self.urukul0_ch3.cfg_sw(True)
         self.core.break_realtime()
 
     @kernel

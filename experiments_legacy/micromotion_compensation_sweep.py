@@ -198,7 +198,7 @@ class MicromotionCompensationSweep(EnvExperiment):
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -234,9 +234,9 @@ class MicromotionCompensationSweep(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # rabi flopping w/qubit laser
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_rabi_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # readout pulse
             self.dds_board.cfg_switches(0b0110)

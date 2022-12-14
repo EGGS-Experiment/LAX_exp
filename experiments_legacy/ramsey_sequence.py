@@ -182,7 +182,7 @@ class RamseySpectroscopy(EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
 
     @kernel(flags={"fast-math"})
@@ -222,17 +222,17 @@ class RamseySpectroscopy(EnvExperiment):
                 delay_mu(self.time_profileswitch_delay_mu)
 
             # first pi/2 pulse
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_half_pipulse_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # free evolution
             delay_mu(self.time_ramsey_mu)
 
             # second pi/2 pulse
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_half_pipulse_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # set readout waveform
             with parallel:

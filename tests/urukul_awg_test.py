@@ -56,7 +56,7 @@ class Urukul_AWG(EnvExperiment):
         self.dds.set_frequency(110 * MHz)
         self.dds.cpld.io_update.pulse_mu(8)
         self.dds.set_att(8 * dB)
-        self.dds.cfg_sw(1)
+        self.dds.cfg_sw(True)
         self.core.break_realtime()
 
         while True:

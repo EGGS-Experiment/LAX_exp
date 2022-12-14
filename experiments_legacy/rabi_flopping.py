@@ -159,9 +159,9 @@ class RabiFlopping(EnvExperiment):
                 delay_mu(time_delay_mu)
 
                 # rabi flopping w/qubit laser
-                self.dds_qubit.cfg_sw(1)
+                self.dds_qubit.cfg_sw(True)
                 delay_mu(time_rabi_mu)
-                self.dds_qubit.cfg_sw(0)
+                self.dds_qubit.cfg_sw(False)
 
                 # do readout
                 self.core_dma.playback_handle(handle_readout)
@@ -173,7 +173,7 @@ class RabiFlopping(EnvExperiment):
 
         # reset after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
 
         # tmp remove
         self.dds_board.set_profile(0)

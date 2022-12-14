@@ -21,6 +21,6 @@ class SpinPolarization(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
         # probe pulse
-        self.probe.cfg_sw(1)
+        self.probe.cfg_sw(True)
         delay_mu(self.time_spinpol_mu)
-        self.probe.cfg_sw(0)
+        self.probe.cfg_sw(False)

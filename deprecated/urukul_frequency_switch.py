@@ -49,7 +49,7 @@ class urukul_frequency_switch(EnvExperiment):
 
         # set up rf switch and attenuator
         self.dds.set_att_mu(0xff)
-        self.dds.cfg_sw(1)
+        self.dds.cfg_sw(True)
         self.core.break_realtime()
 
         # switch profiles periodically

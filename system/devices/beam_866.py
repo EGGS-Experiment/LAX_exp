@@ -29,8 +29,8 @@ class Beam866(LAXDevice):
 
     @kernel(flags='fast-math')
     def on(self):
-        self.beam.cfg_sw(1)
+        self.beam.cfg_sw(True)
 
     @kernel(flags='fast-math')
     def off(self):
-        self.beam.cfg_sw(0)
+        self.beam.cfg_sw(False)

@@ -169,9 +169,9 @@ class LaserScanTest(_EGGSExperiment, EnvExperiment):
             self.dds_board.cfg_switches(0b0100)
 
             # 729
-            self.dds_qubit.cfg_sw(1)
+            self.dds_qubit.cfg_sw(True)
             delay_mu(self.time_729_mu)
-            self.dds_qubit.cfg_sw(0)
+            self.dds_qubit.cfg_sw(False)
 
             # set readout waveform
             with parallel:
@@ -220,7 +220,7 @@ class LaserScanTest(_EGGSExperiment, EnvExperiment):
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
-        self.dds_qubit.cfg_sw(0)
+        self.dds_qubit.cfg_sw(False)
     def analyze(self):
         """
         Analyze the results from the experiment.
