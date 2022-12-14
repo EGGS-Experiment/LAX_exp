@@ -25,6 +25,6 @@ class Readout(LAXSubsequence):
         self.pump.readout()
 
         # readout pulse
-        self.pump.cfg_sw(1)
+        self.pump.cfg_sw(True)
         self.pmt.count(self.time_readout_mu)
-        self.pump.cfg_sw(0)
+        self.pump.cfg_sw(False)
