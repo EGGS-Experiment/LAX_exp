@@ -95,12 +95,25 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
-        # set up modulation
-        # todo: ensure device is correct
+
+        # set up function generator
+
+        # get list of function generators
         fg_dev_list = self.fg.list_devices()
+        fg_dev_dict = dict(tuple(fg_dev_list))
 
+        # select correct function generator
+        dev_exists = False
+        for dev_num, dev_desc in fg_dev_dict.items():
+            if 'DG1' in dev_desc:
+                dev_exists = True
+                self.fg.select_device(dev_num)
 
-        self.fg.select_device(2)
+        # raise error if function generator doesn't exist
+        if dev_exists == False:
+            raise Exception("Error: function generator not present.")
+
+        # configure function generator
         self.fg.toggle(1)
         self.fg.amplitude(self.ampl_mod_vpp)
 
