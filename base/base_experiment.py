@@ -155,11 +155,8 @@ class LAXExperiment(HasEnvironment, ABC):
             # repeat the experiment a given number of times
             for trial_num in range(self.repetitions):
 
-                # prepare a trial
-                self.loop_prepare()
-
                 # run the trial
-                self.loop_run()
+                self.loop()
 
         # allow clean termination
         except TerminationRequested:
@@ -202,15 +199,7 @@ class LAXExperiment(HasEnvironment, ABC):
         """
         pass
 
-    def loop_prepare(self):
-        """
-        To be subclassed.
-
-        todo: document
-        """
-        pass
-
-    def loop_run(self):
+    def loop(self):
         """
         To be subclassed.
 

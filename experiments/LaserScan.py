@@ -73,9 +73,7 @@ class LaserScan2(LAXExperiment, Experiment):
 
     # MAIN LOOP
     @kernel
-    def loop_run(self):
-        self.core.reset()
-
+    def loop(self):
         # sweep frequency
         for freq_ftw in self.freq_qubit_scan_ftw:
 
