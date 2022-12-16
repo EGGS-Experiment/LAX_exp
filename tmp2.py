@@ -37,7 +37,7 @@ class testarg12(EnvExperiment):
             "management.completition_pct":                              0.00,
 
             # datasets
-            "management.dataset_save_locations":                        ["Z:\Motion\Data"],
+            "management.dataset_save_locations":                        ["Z:\\Motion\\Data"],
         }
         for parameter_name, parameter_value in management_parameters.items():
             self.set_dataset(parameter_name, parameter_value, broadcast=True, persist=True)
