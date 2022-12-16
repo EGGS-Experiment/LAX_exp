@@ -132,7 +132,8 @@ class ParameterSet(EnvExperiment):
             **rf_parameters,
             **beam_parameters,
             **external_parameters,
-            **timing_parameters
+            **timing_parameters,
+            **management_parameters
         }
 
         # set parameters as global persistent datasets

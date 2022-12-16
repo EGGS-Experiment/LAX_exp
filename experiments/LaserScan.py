@@ -16,11 +16,17 @@ class LaserScan2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # timing
+        #self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
         self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
+        # self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
+        #                                                             default=RangeScan(104.24, 104.96, 100, randomize=True),
+        #                                                             global_min=60, global_max=200, global_step=1,
+        #                                                             unit="MHz", scale=1, ndecimals=5
+        #                                                         ))
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
-                                                                    default=RangeScan(104.24, 104.96, 100, randomize=True),
+                                                                    default=RangeScan(104.24, 104.96, 10, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))

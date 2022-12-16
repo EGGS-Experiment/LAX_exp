@@ -110,6 +110,11 @@ class LAXExperiment(HasEnvironment, ABC):
 
             try:
                 arg_val = getattr(self, arg_key)
+
+                # convert scan objects into an array
+                if issubclass(type(arg_val), ScanObject):
+                    arg_val = array(list(arg_val))
+
                 self.__dataset_mgr.set(arg_key, arg_val, archive=False, parameter=False, argument=True)
             except KeyError:
                 logger.warning("Argument unavailable: {:s}".format(arg_val))
@@ -223,3 +228,28 @@ class LAXExperiment(HasEnvironment, ABC):
         # add argument to _build_arguments (will grab after prepare)
         key, processor = args
         self._build_arguments[key] = None
+
+
+    # tmp remove
+    def analyze(self):
+        import h5py
+        filename = "{:09}-{}.h5".format(8887, self.name)
+
+        with h5py.File(filename, "w") as f:
+            self._HasEnvironment__dataset_mgr.write_hdf5(f)
+
+            # store parameters in a separate group as attributes
+            # parameters_group = f.create_group("parameters")
+            # for k, v in self.parameters.items():
+            #     parameters_group.attrs[k] = v
+
+            exp_params = {
+                "artiq_version":    7,
+                "rid":              8887,
+                "start_time":       0
+            }
+
+            # store experiment details in a separate group as attributes
+            experiment_group = f.create_group("experiment")
+            for k, v in exp_params.items():
+                experiment_group.attrs[k] = v
