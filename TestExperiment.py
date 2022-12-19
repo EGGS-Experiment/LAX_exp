@@ -19,18 +19,19 @@ class TestExperiment(LAXExperiment, Experiment):
         self.setattr_argument("time_729_us",                    NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000000))
 
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
-                                                                    default=RangeScan(104.24, 104.96, 2, randomize=True),
+                                                                    default=LinearScan(104.24, 104.96, 2, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
+        self.setattr_argument("freq_sideband_coolin",            Scannable(
                                                                     default=LinearScan(104.24, 104.96, 2, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
 
     def prepare_experiment(self):
+        print(list(self.freq_qubit_scan_mhz))
         # get 729 beam
         self.setattr_device('qubit')
         self.setattr_device('pmt')
