@@ -73,18 +73,22 @@ class LaserScan2(LAXExperiment, Experiment):
 
     # MAIN LOOP
     @kernel
-    def loop(self):
-        # sweep frequency
-        for freq_ftw in self.freq_qubit_scan_ftw:
+    def run_main(self):
+        self.core.break_realtime()
 
-            # set frequency
-            self.qubit.set_mu(freq_ftw, asf=0x1FFF)
-            self.core.break_realtime()
+        for trial_num in range(self.repetitions):
 
-            # run main sequence
-            self.core_dma.playback_handle(self.dma_handle)
+            # sweep frequency
+            for freq_ftw in self.freq_qubit_scan_ftw:
 
-            # update dataset
-            with parallel:
-                self.update_dataset(freq_ftw, self.pmt.fetch_count())
+                # set frequency
+                self.qubit.set_mu(freq_ftw, asf=0x1FFF)
                 self.core.break_realtime()
+
+                # run main sequence
+                self.core_dma.playback_handle(self.dma_handle)
+
+                # update dataset
+                with parallel:
+                    self.update_dataset(freq_ftw, self.pmt.fetch_count())
+                    self.core.break_realtime()

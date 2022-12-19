@@ -1,8 +1,12 @@
 from artiq.experiment import *
 
+import h5py
 import logging
+import os
+import time
 from numpy import array
 from abc import ABC, abstractmethod
+
 logger = logging.getLogger("artiq.master.experiments")
 
 from LAX_exp.extensions import LAXDeviceManager, LAXDatasetManager
@@ -151,20 +155,11 @@ class LAXExperiment(HasEnvironment, ABC):
         # set up the run
         self.run_initialize()
 
-        try:
-            # repeat the experiment a given number of times
-            for trial_num in range(self.repetitions):
-
-                # run the trial
-                self.loop()
-
-        # allow clean termination
-        except TerminationRequested:
-            pass
+        # run the main part of the experiment
+        self.run_main()
 
         # set devices back to their default state
-        finally:
-            self._run_cleanup()
+        self._run_cleanup()
 
     @kernel(flags='fast-math')
     def _run_cleanup(self):
@@ -199,6 +194,23 @@ class LAXExperiment(HasEnvironment, ABC):
         """
         pass
 
+    def run_main(self):
+        """
+        Can be subclassed.
+
+        todo: document
+        """
+        # repeat the experiment a given number of times
+        for trial_num in range(self.repetitions):
+
+            # run the trial
+            try:
+                self.loop()
+
+            # allow clean termination
+            except TerminationRequested:
+                break
+
     def loop(self):
         """
         To be subclassed.
@@ -206,6 +218,47 @@ class LAXExperiment(HasEnvironment, ABC):
         todo: document
         """
         pass
+
+
+    '''
+    Results
+    '''
+
+    def write_results(self, exp_params):
+        rid = exp_params["rid"]
+        start_time = time.localtime(exp_params["start_time"])
+
+        save_dir_list = ['Z:\\Motion\\Data']
+
+        for save_dir in save_dir_list:
+
+            try:
+                # format file name and save directory
+                filedir = os.path.join(
+                    save_dir,
+                    time.strftime("%Y-%m-%d", start_time),
+                    time.strftime("%H", start_time)
+                )
+                filename = "{:09}-{}.h5".format(rid, self.name)
+
+                # enter save directory
+                os.makedirs(filedir, exist_ok=True)
+                os.chdir(filedir)
+
+                # write data
+                with h5py.File(filename, "w") as f:
+
+                    # save data from experiment via the dataset manager of the LAXExperiment
+                    self.__dataset_mgr.write_hdf5(f)
+
+                    # store experiment parameters in a separate group as attributes
+                    experiment_group = f.create_group("experiment")
+                    for k, v in exp_params.items():
+                        experiment_group.attrs[k] = v
+
+            # catch any errors
+            except Exception as e:
+                print("Warning: unable to create and save file in LAX format: {}".format(e))
 
 
     '''

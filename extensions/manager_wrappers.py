@@ -73,8 +73,10 @@ class LAXDatasetManager:
         """
         Add handling for stored parameters.
         """
-        self.base.write_hdf5(f)
-        # todo: remove handling for archive groups
+        # store datasets in a separate group
+        datasets_group = f.create_group("datasets")
+        for k, v in self.local.items():
+            _write(datasets_group, k, v)
 
         # store parameters in a separate group as attributes
         parameters_group = f.create_group("parameters")
