@@ -34,7 +34,7 @@ class testarg12(EnvExperiment):
         # delay(10*ms)
         management_parameters = {
             # experiments
-            "management.completition_pct":                              0.00,
+            "management.completion_pct":                              0.00,
 
             # datasets
             "management.dataset_save_locations":                        ["Z:\\Motion\\Data"],
