@@ -75,7 +75,7 @@ class LAXExperiment(HasEnvironment, ABC):
         setattr(self,   '_result_iter',             0)
 
         # universal arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
 
 
     # BUILD - USER FUNCTIONS

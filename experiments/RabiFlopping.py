@@ -17,7 +17,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def build_experiment(self):
         # rabi flopping parameters
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 400, 1001, randomize=True),
+                                                                        default=LinearScan(0, 400, 10, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ))
@@ -27,11 +27,14 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def prepare_experiment(self):
         # rabi flopping timing
         max_time_us =                                               np.max(list(self.time_rabi_us_list))
+        print(max_time_us)
+        print(list(self.time_rabi_us_list))
         self.time_rabiflop_mu_list =                                np.array([
-                                                                        [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
+                                                                        [us_to_mu(max_time_us - time_us), us_to_mu(time_us)]
                                                                         for time_us in self.time_rabi_us_list
                                                                     ])
-
+        print(len(self.time_rabiflop_mu_list))
+        print(self.time_rabiflop_mu_list)
         # rabi flopping frequency
         self.freq_rabiflop_mhz =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
@@ -73,25 +76,26 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
     # MAIN LOOP
     @kernel
-    def loop(self):
-        # sweep time
-        for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+    def run_main(self):
+        for trial_num in range(self.repetitions):
+            # sweep time
+            for time_rabi_pair_mu in self.time_rabiflop_mu_list:
 
-            # initialize ion in S-1/2 state
-            self.initialize_subsequence.run_dma()
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
 
-            # wait given time
-            delay_mu(time_rabi_pair_mu[0])
+                # wait given time
+                delay_mu(time_rabi_pair_mu[0])
 
-            # rabi flopping w/qubit laser
-            self.qubit.cfg_sw(True)
-            delay_mu(time_rabi_pair_mu[1])
-            self.qubit.cfg_sw(False)
+                # rabi flopping w/qubit laser
+                self.qubit.cfg_sw(True)
+                delay_mu(time_rabi_pair_mu[1])
+                self.qubit.cfg_sw(False)
 
-            # do readout
-            self.readout_subsequence.run_dma()
+                # do readout
+                self.readout_subsequence.run_dma()
 
-            # update dataset
-            with parallel:
-                self.update_dataset(time_rabi_pair_mu[1], self.pmt_counter.fetch_count())
-                self.core.break_realtime()
+                # update dataset
+                with parallel:
+                    self.update_dataset(time_rabi_pair_mu[1], self.pmt_counter.fetch_count())
+                    self.core.break_realtime()

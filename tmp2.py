@@ -34,7 +34,7 @@ class testarg12(EnvExperiment):
         # delay(10*ms)
         management_parameters = {
             # experiments
-            "timing.time_spinpol_us": 500.00
+            "timing.time_spinpol_us": 500
         }
         for parameter_name, parameter_value in management_parameters.items():
             self.set_dataset(parameter_name, parameter_value, broadcast=True, persist=True)
