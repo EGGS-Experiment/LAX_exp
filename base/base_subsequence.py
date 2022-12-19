@@ -174,30 +174,26 @@ class LAXSubsequence(HasEnvironment, ABC):
     # RUN - BASE
     def record_dma(self):
         """
-        Records the run subsequence onto core DMA and sets
-        the handle as an attribute.
+        Records the run subsequence onto core DMA and sets the trace name as an instance attribute.
+
+        This should not typically be used by the subsequence, and is only provided for convenience.
+
         Returns:
             str: the DMA handle for the sequence.
         """
         # record sequence
-        dma_handle = self._record_dma('{:s}_{:d}'.format(self.name, self.instance_number))
-
-        # set dma handle as class attribute
-        setattr(self, 'dma_handle', dma_handle)
-        self.kernel_invariants.add('dma_handle')
+        setattr(self, 'dma_name', '{:s}_{:d}'.format(self.name, self.instance_number))
+        self._record_dma(self.dma_name)
 
     @kernel(flags='fast-math')
-    def _record_dma(self, handle_name):
+    def _record_dma(self, dma_name):
+        self.core.break_realtime()
+
         # record sequence
-        with self.core_dma.record(handle_name):
+        with self.core_dma.record(dma_name):
             self.run()
 
-        # get sequence handle
         self.core.break_realtime()
-        handle = self.core_dma.get_handle(handle_name)
-
-        # return handle
-        return handle
 
     @kernel(flags='fast-math')
     def run_dma(self):

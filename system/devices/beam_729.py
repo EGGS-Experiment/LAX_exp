@@ -15,9 +15,7 @@ class Beam729(LAXDevice):
         'freq_qubit_carrier_ftw':           ('beams.freq_mhz.freq_qubit_mhz',               mhz_to_ftw),
         # 'freq_qubit_rsb_ftw':               ('beams.freq_mhz.freq_qubit_rsb_mhz',           mhz_to_ftw),
         # 'freq_qubit_bsb_ftw':               ('beams.freq_mhz.freq_qubit_bsb_mhz',           mhz_to_ftw),
-        'ampl_qubit_asf':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf),
-        'time_profileswitch_delay_mu':      ('timing.time_profileswitch_delay_us',          us_to_mu)
-
+        'ampl_qubit_asf':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf)
     }
     core_devices = {
         'beam': 'urukul0_ch2'
@@ -52,18 +50,18 @@ class Beam729(LAXDevice):
         # set carrier profile
         with parallel:
             self.beam.cpld.set_profile(0)
-            delay_mu(self.time_profileswitch_delay_mu)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags='fast-math')
     def rsb(self):
         # set red sideband profile
         with parallel:
             self.beam.cpld.set_profile(1)
-            delay_mu(self.time_profileswitch_delay_mu)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags='fast-math')
     def bsb(self):
         # set blue sideband profile
         with parallel:
             self.beam.cpld.set_profile(2)
-            delay_mu(self.time_profileswitch_delay_mu)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)

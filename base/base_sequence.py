@@ -153,7 +153,7 @@ class LAXSequence(HasEnvironment, ABC):
         idk
         :return:
         """
-        pass
+        self.record_dma()
 
 
     # PREPARE - USER FUNCTIONS
@@ -174,36 +174,48 @@ class LAXSequence(HasEnvironment, ABC):
     # RUN - BASE
     def record_dma(self):
         """
-        Records the run sequence onto core DMA and sets
-        the handle as an attribute.
+        Records the run sequence onto core DMA and sets the trace name as an instance attribute.
+
         Returns:
             str: the DMA handle for the sequence.
         """
         # record sequence
-        dma_handle = self._record_dma('{:s}_{:d}'.format(self.name, self.instance_number))
-
-        # set dma handle as class attribute
-        setattr(self, 'dma_handle', dma_handle)
-        self.kernel_invariants.add('dma_handle')
+        setattr(self, 'dma_name', '{:s}_{:d}'.format(self.name, self.instance_number))
+        self._record_dma(self.dma_name)
 
     @kernel(flags='fast-math')
-    def _record_dma(self, handle_name):
+    def _record_dma(self, dma_name):
+        self.core.break_realtime()
+
         # record sequence
-        with self.core_dma.record(handle_name):
+        with self.core_dma.record(dma_name):
             self.run()
 
-        # get sequence handle
         self.core.break_realtime()
-        handle = self.core_dma.get_handle(handle_name)
 
-        # return handle
-        return handle
+    def load_dma(self):
+        """
+        Get the DMA handles.
+
+        Must be called after ALL DMA sequences/subsequences have been recorded.
+        Any future calls to record_dma will invalidate this sequence handle.
+        """
+        # get DMA handle
+        dma_handle = self.core_dma.get_handle(self.dma_name)
+        setattr(self, 'dma_handle', dma_handle)
+
+    @kernel(flags='fast-math')
+    def _load_dma(self):
+        self.core.break_realtime()
+
+        # get DMA handle
+        return self.core_dma.get_handle(self.dma_name)
 
     @kernel(flags='fast-math')
     def run_dma(self):
         """
         Runs the core sequence from DMA.
-        Requires _prepare_sequence to have already been run.
+        Requires _prepare_subsequence to have already been run.
         """
         self.core_dma.playback_handle(self.dma_handle)
 
