@@ -71,20 +71,20 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
-        self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(
-                                                                        default=CenterScan(104.012, 0.04, 0.001),
-                                                                        global_min=30, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=5
-                                                                    ))
-
-        self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(
-                                                                            default=CenterScan(105.214, 0.04, 0.001),
+        self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
+                                                                            default=CenterScan(104.012, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
-                                                                    ))
+                                                                        ))
 
-        self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
-        #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
+        self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
+                                                                                default=CenterScan(105.214, 0.04, 0.001),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                        ))
+
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
+        #self.setattr_argument("ampl_readout_pipulse_pct",              NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -126,7 +126,7 @@ class SidebandCooling(EnvExperiment):
 
         # process scan frequencies
         self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
+                                                                 for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
         shuffle(self.freq_qubit_scan_ftw)
 
         # convert amplitude to asf
@@ -147,8 +147,9 @@ class SidebandCooling(EnvExperiment):
                                                                 ])
 
         # calculate number of spin polarizations
-        num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
-        if (num_spin_depolarizations < 1): num_spin_depolarizations = 1
+        num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
+        if (num_spin_depolarizations < 1):
+            num_spin_depolarizations = 1
 
         self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
