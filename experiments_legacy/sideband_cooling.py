@@ -78,9 +78,9 @@ class SidebandCooling(EnvExperiment):
                                                                     ))
 
         self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(
-                                                                        default=CenterScan(105.214, 0.04, 0.001),
-                                                                        global_min=30, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=5
+                                                                            default=CenterScan(105.214, 0.04, 0.001),
+                                                                            global_min=30, global_max=200, global_step=1,
+                                                                            unit="MHz", scale=1, ndecimals=5
                                                                     ))
 
         self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
