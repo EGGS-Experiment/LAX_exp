@@ -59,7 +59,8 @@ class LAXSubsequence(HasEnvironment, ABC):
         self.setattr_device("core_dma")
 
         # set instance variables
-        setattr(self,   'dma_handle',           None)
+        setattr(self,   'dma_name',             '')
+        setattr(self,   'dma_handle',           0)
         setattr(self,   'build_parameters',     dict())
         setattr(self,   'instance_number',      self.duplicate_counter)
 
@@ -182,18 +183,24 @@ class LAXSubsequence(HasEnvironment, ABC):
             str: the DMA handle for the sequence.
         """
         # record sequence
-        setattr(self, 'dma_name', '{:s}_{:d}'.format(self.name, self.instance_number))
-        self._record_dma(self.dma_name)
+        dma_name = '{:s}_{:d}'.format(self.name, self.instance_number)
+        setattr(self, 'dma_name', dma_name)
+        print('osc0')
+        #self._record_dma(dma_name)
+        self._record_dma()
+        print('osc-1')
+        print(dma_name)
 
     @kernel(flags='fast-math')
-    def _record_dma(self, dma_name):
-        self.core.break_realtime()
+    def _record_dma(self,):
+        #self.core.break_realtime()
 
         # record sequence
-        with self.core_dma.record(dma_name):
+        with self.core_dma.record('th0'):
             self.run()
 
-        self.core.break_realtime()
+        #self.core.break_realtime()
+        #return
 
     def load_dma(self):
         """
@@ -203,7 +210,8 @@ class LAXSubsequence(HasEnvironment, ABC):
         Any future calls to record_dma will invalidate this subsequence handle.
         """
         # get DMA handle
-        dma_handle = self.core_dma.get_handle(self.dma_name)
+        dma_handle = self._load_dma()
+        #dma_handle = self._load_dma(self.dma_name)
         setattr(self, 'dma_handle', dma_handle)
 
     @kernel(flags='fast-math')
@@ -211,7 +219,8 @@ class LAXSubsequence(HasEnvironment, ABC):
         self.core.break_realtime()
 
         # get DMA handle
-        return self.core_dma.get_handle(self.dma_name)
+        print(self.core_dma.get_handle('th0'))
+        #return self.core_dma.get_handle(self.dma_name)
 
     @kernel(flags='fast-math')
     def run_dma(self):

@@ -27,16 +27,13 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def prepare_experiment(self):
         # rabi flopping timing
         max_time_us =                                               np.max(list(self.time_rabi_us_list))
-        print(max_time_us)
-        print(list(self.time_rabi_us_list))
         self.time_rabiflop_mu_list =                                np.array([
                                                                         [us_to_mu(max_time_us - time_us), us_to_mu(time_us)]
                                                                         for time_us in self.time_rabi_us_list
                                                                     ])
-        print(len(self.time_rabiflop_mu_list))
-        print(self.time_rabiflop_mu_list)
+
         # rabi flopping frequency
-        self.freq_rabiflop_mhz =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
+        self.freq_rabiflop_ftw =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
         # get devices
         self.setattr_device('qubit')
@@ -45,6 +42,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
+
 
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
@@ -57,18 +55,18 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.core.reset()
 
         # set qubit beam parameters
-        self.qubit.set_mu(self.freq_rabiflop_mhz, asf=self.qubit.ampl_qubit_asf)
+        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.core.break_realtime()
-
+        print('kmp')
         self.readout_subsequence.record_dma()
-        self.core.break_realtime()
+        print('km2')
 
         # load subsequences from DMA
         self.initialize_subsequence.load_dma()
         self.core.break_realtime()
+        print('km3')
 
         self.readout_subsequence.load_dma()
         self.core.break_realtime()
@@ -99,3 +97,9 @@ class RabiFlopping2(LAXExperiment, Experiment):
                 with parallel:
                     self.update_dataset(time_rabi_pair_mu[1], self.pmt_counter.fetch_count())
                     self.core.break_realtime()
+
+    @rpc(flags='async')
+    def update_dataset(self, time_mu, counts):
+        self.results[self._result_iter] = np.array([time_mu, counts])
+        self._result_iter += 1
+        print(self._result_iter)
