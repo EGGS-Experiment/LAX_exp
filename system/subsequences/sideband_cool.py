@@ -1,4 +1,6 @@
 from artiq.experiment import *
+
+from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 
 
