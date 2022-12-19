@@ -1,7 +1,6 @@
 from artiq.experiment import *
 
 from LAX_exp.base import LAXDevice
-from LAX_exp.utilities.conversions import *
 
 
 class Beam397Probe(LAXDevice):

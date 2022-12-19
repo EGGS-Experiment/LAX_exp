@@ -1,7 +1,6 @@
 from artiq.experiment import *
 
 from LAX_exp.base import LAXDevice
-from LAX_exp.utilities.conversions import *
 
 
 class Beam397Pump(LAXDevice):
@@ -15,8 +14,7 @@ class Beam397Pump(LAXDevice):
         'freq_cooling_ftw':                 ('beams.freq_mhz.freq_pump_cooling_mhz',    mhz_to_ftw),
         'ampl_cooling_asf':                 ('beams.ampl_pct.ampl_pump_cooling_pct',    pct_to_asf),
         'freq_readout_ftw':                 ('beams.freq_mhz.freq_pump_readout_mhz',    mhz_to_ftw),
-        'ampl_readout_asf':                 ('beams.ampl_pct.ampl_pump_readout_pct',    pct_to_asf),
-        'time_profileswitch_delay_mu':      ('timing.time_profileswitch_delay_us',      us_to_mu)
+        'ampl_readout_asf':                 ('beams.ampl_pct.ampl_pump_readout_pct',    pct_to_asf)
     }
     core_devices = {
         'beam': 'urukul1_ch1'
@@ -43,11 +41,11 @@ class Beam397Pump(LAXDevice):
         # set cooling profile
         with parallel:
             self.beam.cpld.set_profile(0)
-            delay_mu(self.time_profileswitch_delay_mu)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags='fast-math')
     def readout(self):
         # set readout profile
         with parallel:
             self.beam.cpld.set_profile(1)
-            delay_mu(self.time_profileswitch_delay_mu)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)

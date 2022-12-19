@@ -1,15 +1,15 @@
 from artiq.experiment import *
 
-import h5py
-import logging
 import os
 import time
+import h5py
+import logging
 from numpy import array
-from abc import ABC, abstractmethod
+from abc import ABC
 
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.extensions import LAXDeviceManager, LAXDatasetManager
+from LAX_exp.base.manager_wrappers import LAXDeviceManager, LAXDatasetManager
 
 
 class LAXExperiment(HasEnvironment, ABC):

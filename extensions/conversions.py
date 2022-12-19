@@ -1,7 +1,7 @@
 """
-LAX.utilities.conversions
+LAX.extensions.conversions
 
-Contains useful conversion functions
+Contains useful conversion functions.
 """
 
 __all__ = []

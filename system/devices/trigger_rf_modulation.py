@@ -1,6 +1,5 @@
 from artiq.experiment import *
 
-from LAX_exp.utilities.conversions import *
 from LAX_exp.base import LAXDevice
 
 
