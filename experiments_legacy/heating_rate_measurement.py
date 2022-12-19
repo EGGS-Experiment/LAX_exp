@@ -58,36 +58,36 @@ class HeatingRateMeasurement(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("calibration",                        BooleanValue(default=False))
-        self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",       NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("calibration",                            BooleanValue(default=False))
+        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_min_sideband_cooling_us",       NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_max_sideband_cooling_us",       NumberValue(default=250, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_repump_sideband_cooling_us",    NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",     PYONValue([104.012, 103.012, 105.012]))
-        self.setattr_argument("ampl_sideband_cooling_pct_list",     PYONValue([50, 50, 50]))
-
-
+        self.setattr_argument("time_repump_sideband_cooling_us",        NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 75, 80, 91]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 271, 239, 241]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012, 107.711]))
+        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
-        self.setattr_argument("freq_rsb_scan_mhz",                  Scannable(default=
-                                                                            CenterScan(104.012, 0.04, 0.001),
+        self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
+                                                                            default=CenterScan(104.012, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5))
+                                                                            unit="MHz", scale=1, ndecimals=5
+                                                                        ))
 
-        self.setattr_argument("freq_bsb_scan_mhz",                  Scannable(default=
-                                                                            CenterScan(105.214, 0.04, 0.001),
+        self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
+                                                                            default=CenterScan(105.214, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5))
+                                                                            unit="MHz", scale=1, ndecimals=5
+                                                                        ))
 
-        self.setattr_argument("time_readout_pipulse_us",            NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
-        #self.setattr_argument("ampl_readout_pipulse_pct",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
+        #self.setattr_argument("ampl_readout_pipulse_pct",              NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # heating rate
-        self.setattr_argument("time_heating_rate_ms_list",               PYONValue([1, 10, 50, 200]))
+        self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 10, 50, 200]))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -99,72 +99,79 @@ class HeatingRateMeasurement(EnvExperiment):
         Prepare things such that kernel functions have minimal overhead.
         """
         # PMT devices
-        self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_repump_qubit_mu =                             self.core.seconds_to_mu(self.time_repump_qubit_us * us)
-        self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
-        self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_doppler_cooling_mu =                                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
+        self.time_repump_qubit_mu =                                     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_redist_mu =                                           self.core.seconds_to_mu(self.time_redist_us * us)
+        self.time_readout_mu =                                          self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_profileswitch_delay_mu =                              self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
 
         # DDS devices
-        self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =                                  self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                                                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =                                          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling =                               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_probe =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =                                       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # convert frequency to ftw
-        self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
-        self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
-        self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.ftw_to_mhz =                                               1e3 / (2 ** 32 - 1)
+        self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
+        self.freq_pump_cooling_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # process scan frequencies
-        self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
+        self.freq_qubit_scan_ftw =                                      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                        for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
         shuffle(self.freq_qubit_scan_ftw)
 
         # convert amplitude to asf
-        self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
-        self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
-        self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
-        self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_pump_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                    np.array([self.core.seconds_to_mu(time_us * us)
-                                                                for time_us in np.linspace(self.time_min_sideband_cooling_us, self.time_max_sideband_cooling_us, self.sideband_cycles)])
+        self.time_sideband_cooling_list_mu =                            np.array([
+                                                                            self.core.seconds_to_mu(time_us * us)
+                                                                            for time_us in np.linspace(
+                                                                                self.time_min_sideband_cooling_us_list,
+                                                                                self.time_max_sideband_cooling_us_list,
+                                                                                self.sideband_cycles
+                                                                            )
+                                                                        ])
 
         # calculate number of spin polarizations
-        num_spin_depolarizations = self.sideband_cycles > self.cycles_per_spin_polarization
-        if (num_spin_depolarizations < 1): num_spin_depolarizations = 1
+        num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
+        if (num_spin_depolarizations < 1):
+            num_spin_depolarizations = 1
 
-        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
+        self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
         # other sideband cooling parameters
-        self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
-        self.freq_sideband_cooling_ftw_list =                   [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
-        self.ampl_sideband_cooling_asf_list =                   [self.dds_qubit.amplitude_to_asf(ampl_pct / 100) for ampl_pct in self.ampl_sideband_cooling_pct_list]
-        self.iter_sideband_cooling_profiles_list =              list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
+        self.time_repump_sideband_cooling_mu =                          self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
+        self.freq_sideband_cooling_ftw_list =                           [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
+        self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
+        self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
         # heating rate
-        self.time_heating_rate_list_mu =                        [self.core.seconds_to_mu(time_ms * ms) for time_ms in self.time_heating_rate_ms_list]
+        self.time_heating_rate_list_mu =                                [self.core.seconds_to_mu(time_ms * ms) for time_ms in self.time_heating_rate_ms_list]
 
         # readout pi-pulse
-        self.time_readout_pipulse_mu =                          self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
-        #self.ampl_readout_pipulse_asf =                         self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
+        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
+        self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        #self.ampl_readout_pipulse_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # calibration setup
-        self.calibration_qubit_status =                         not self.calibration
+        self.calibration_qubit_status =                                 not self.calibration
 
         # set up datasets
         self.set_dataset("heating_rate", [])
@@ -259,10 +266,10 @@ class HeatingRateMeasurement(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
                 # sweep pi-pulse times
-                for time_mu in time_list_mu:
+                for time_modes_mu in time_list_mu:
 
                     # sweep over modes
-                    for i in self.iter_sideband_cooling_profiles_list:
+                    for i in self.iter_sideband_cooling_modes_list:
 
                         # set mode
                         with parallel:
@@ -271,7 +278,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
                         # qubit pi-pulse
                         self.dds_qubit.cfg_sw(self.calibration_qubit_status)
-                        delay_mu(time_mu)
+                        delay_mu(time_modes_mu[i - 1])
                         self.dds_qubit.cfg_sw(False)
 
                         # qubit repump
@@ -288,9 +295,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
-            # set qubit pi-pulse waveform
-
-            # set pump readout waveform
+            # set pump readout waveform and qubit pi-pulse waveform
             with parallel:
                 self.dds_board.set_profile(1)
                 self.dds_qubit_board.set_profile(0)
