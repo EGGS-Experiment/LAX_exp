@@ -195,6 +195,24 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         self.core.break_realtime()
 
+    def load_dma(self):
+        """
+        Get the DMA handles.
+
+        Must be called after ALL DMA sequences/subsequences have been recorded.
+        Any future calls to record_dma will invalidate this subsequence handle.
+        """
+        # get DMA handle
+        dma_handle = self.core_dma.get_handle(self.dma_name)
+        setattr(self, 'dma_handle', dma_handle)
+
+    @kernel(flags='fast-math')
+    def _load_dma(self):
+        self.core.break_realtime()
+
+        # get DMA handle
+        return self.core_dma.get_handle(self.dma_name)
+
     @kernel(flags='fast-math')
     def run_dma(self):
         """

@@ -57,11 +57,11 @@ class RabiFlopping(EnvExperiment):
         self.setattr_argument("repetitions",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # qubit parameters
-        self.setattr_argument("time_rabi_us_list",              Scannable(default=
-                                                                          RangeScan(0, 400, 1001, randomize=True),
-                                                                          global_min=1, global_max=100000, global_step=1,
-                                                                          unit="us", scale=1, ndecimals=5
-                                                                          ))
+        self.setattr_argument("time_rabi_us_list",              Scannable(
+                                                                    default=RangeScan(0, 400, 1001, randomize=True),
+                                                                    global_min=1, global_max=100000, global_step=1,
+                                                                    unit="us", scale=1, ndecimals=5
+                                                                ))
 
         # AOM values
         self.setattr_argument("freq_qubit_mhz",                 NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
