@@ -65,9 +65,9 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling
         self.setattr_argument("time_repump_sideband_cooling_us",        NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 50, 50]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 250, 250]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012]))
+        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 75, 80, 91]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 271, 239, 241]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012, 107.711]))
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
