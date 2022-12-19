@@ -34,10 +34,7 @@ class testarg12(EnvExperiment):
         # delay(10*ms)
         management_parameters = {
             # experiments
-            "management.completion_pct":                              0.00,
-
-            # datasets
-            "management.dataset_save_locations":                        ["Z:\\Motion\\Data"],
+            "timing.time_spinpol_us": 500.00
         }
         for parameter_name, parameter_value in management_parameters.items():
             self.set_dataset(parameter_name, parameter_value, broadcast=True, persist=True)

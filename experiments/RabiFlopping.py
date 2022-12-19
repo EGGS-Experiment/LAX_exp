@@ -33,7 +33,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
                                                                     ])
 
         # rabi flopping frequency
-        self.freq_rabiflop_mhz =                                    mhz_to_ftw(self.freq_qubit_mhz * MHz)
+        self.freq_rabiflop_mhz =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
         # get devices
         self.setattr_device('qubit')
