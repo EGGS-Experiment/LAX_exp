@@ -185,11 +185,6 @@ class HeatingRateMeasurement(EnvExperiment):
         self.set_dataset("heating_rate_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("heating_rate_processed")
 
-        # tmp remove
-        self.set_dataset("heating_rate_timing", np.zeros((len(self.freq_qubit_scan_ftw) * self.repetitions * len(self.time_heating_rate_list_mu), 2)))
-        self.setattr_dataset("heating_rate_timing")
-        self.tmpiter = 0
-
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -217,9 +212,6 @@ class HeatingRateMeasurement(EnvExperiment):
                 # sweep final pi-pulse frequency
                 for freq_ftw in self.freq_qubit_scan_ftw:
 
-                    # tmp remove
-                    tmp1 = now_mu()
-
                     # set readout frequency in advance
                     self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
                     self.core.break_realtime()
@@ -236,9 +228,6 @@ class HeatingRateMeasurement(EnvExperiment):
                     # read out
                     self.core_dma.playback_handle(handle_readout)
 
-                    # tmp remove
-                    self.tmprecord(time_heating_delay_mu, tmp1, now_mu())
-
                     # record data
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), time_heating_delay_mu)
                     self.core.break_realtime()
@@ -250,11 +239,6 @@ class HeatingRateMeasurement(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-
-    @rpc(flags='async')
-    def tmprecord(self, time_wait_mu, time_start_mu, time_stop_mu):
-        self.mutate_dataset('heating_rate_timing', self.tmpiter, [self.core.mu_to_seconds(time_wait_mu), self.core.mu_to_seconds(time_stop_mu - time_start_mu)])
-        self.tmpiter += 1
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
