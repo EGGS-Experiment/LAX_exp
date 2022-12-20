@@ -274,7 +274,7 @@ class MicromotionCompensationSweep(EnvExperiment):
         self.core.break_realtime()
 
 
-    @rpc(flags={"async"})
+    @rpc
     def voltage_set(self, channel, voltage_mu):
         """
         Set the channel to the desired voltage.

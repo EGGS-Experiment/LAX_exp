@@ -182,7 +182,7 @@ class TickleScan(EnvExperiment):
         self.ttl_function_generator.off()
 
 
-    @rpc(flags={"async"})
+    @rpc
     def frequency_set(self, freq_mhz):
         """
         Set the function generator to the desired frequency.

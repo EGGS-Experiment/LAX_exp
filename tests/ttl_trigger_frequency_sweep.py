@@ -189,7 +189,6 @@ class TTLTriggerFrequencySweep(EnvExperiment):
 
 
     # LABRAD FUNCTIONS
-    #@rpc(flags={"async"})
     @rpc
     def voltage_set(self, channel, voltage_v):
         """
@@ -198,7 +197,6 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         voltage_set_v = self.dc.voltage(channel, voltage_v)
         print('\tvoltage set: {}'.format(voltage_set_v))
 
-    #@rpc(flags={"async"})
     @rpc
     def frequency_set(self, freq_hz):
         """
