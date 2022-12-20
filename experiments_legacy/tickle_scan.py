@@ -93,7 +93,7 @@ class TickleScan(EnvExperiment):
 
         # prepare labrad devices
         self.fg.select_device()
-        self.fg.toggle(0)
+        self.fg.toggle(1)
         self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
 
         # configure burst mode
