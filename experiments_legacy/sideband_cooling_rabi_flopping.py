@@ -334,11 +334,11 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
+    def update_dataset(self, time_mu, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling_rabi_flopping', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('sideband_cooling_rabi_flopping', [self.core.seconds_to_mu(time_mu), pmt_counts])
 
 
     def analyze(self):
