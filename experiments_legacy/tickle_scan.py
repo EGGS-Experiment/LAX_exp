@@ -47,7 +47,7 @@ class TickleScan(EnvExperiment):
         self.setattr_argument("time_freq_delay_s",                  NumberValue(default=0.5, ndecimals=3, step=0.1, min=0, max=10))
         self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=10, ndecimals=3, step=1, min=1, max=10000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
-                                                                        default=RangeScan(0.9, 1.2, 31),
+                                                                        default=RangeScan(0.9, 1.2, 31, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=4
                                                                     ))
@@ -130,9 +130,7 @@ class TickleScan(EnvExperiment):
 
             # set frequency
             self.frequency_set(freq_mhz)
-            delay_mu(2000000000)
-            self.core.wait_until_mu(now_mu())
-            delay_mu(1000)
+            delay(1 * s)
 
             # repeat experiment
             for trial_num in range(self.repetitions):
@@ -160,9 +158,9 @@ class TickleScan(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_TICKLE_SEQUENCE):
 
             # start tickle
-            with parallel:
-                self.ttl_function_generator.on()
-                delay_mu(self.time_fuction_generator_delay_mu)
+            #with parallel:
+            self.ttl_function_generator.on()
+            delay_mu(self.time_fuction_generator_delay_mu)
 
             # read pmt
             self.pmt_gating_edge(self.time_tickle_us)
@@ -191,6 +189,7 @@ class TickleScan(EnvExperiment):
         print('freq set: {}'.format(freq_mhz))
         freq_set = self.fg.frequency(freq_mhz * 1e6)
         print('\tfreq: {}'.format(freq_set))
+        sleep(self.time_freq_delay_s)
 
 
     @rpc(flags={"async"})
