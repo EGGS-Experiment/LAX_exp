@@ -158,15 +158,17 @@ class TickleScan(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_TICKLE_SEQUENCE):
 
             # start tickle
-            #with parallel:
-            self.ttl_function_generator.on()
-            delay_mu(self.time_fuction_generator_delay_mu)
+            with parallel:
+                self.ttl_function_generator.on()
+                delay_mu(self.time_fuction_generator_delay_mu)
 
             # read pmt
             self.pmt_gating_edge(self.time_tickle_us)
 
             # stop tickle
-            self.ttl_function_generator.off()
+            with parallel:
+                self.ttl_function_generator.off()
+                delay_mu(self.time_fuction_generator_delay_mu)
 
 
     @kernel(flags={"fast-math"})
