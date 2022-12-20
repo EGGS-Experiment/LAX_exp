@@ -237,7 +237,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # tmp remove
-                    self.tmprecord(tmp1, now_mu())
+                    self.tmprecord(time_heating_delay_mu, tmp1, now_mu())
 
                     # record data
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), time_heating_delay_mu)
