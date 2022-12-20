@@ -36,7 +36,6 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         "freq_pump_readout_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
-        "freq_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
@@ -57,20 +56,21 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=25, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("sideband_cycles",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
         self.setattr_argument("time_repump_sideband_cooling_us",            NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([50, 75, 80, 91]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([250, 271, 239, 241]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.012, 103.012, 105.012, 103.079]))
+        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([20]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.118]))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # rabi-flopping readout
+        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.463, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_rabi_us_list",                          Scannable(default=
-                                                                                RangeScan(0, 400, 101, randomize=True),
+                                                                                RangeScan(0, 200, 201, randomize=True),
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ))
