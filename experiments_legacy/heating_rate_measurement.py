@@ -59,26 +59,26 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
         self.setattr_argument("time_repump_sideband_cooling_us",        NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 75, 80, 91]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 271, 239, 241]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012, 107.711]))
+        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.655]))
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(104.012, 0.04, 0.001),
+                                                                            default=CenterScan(103.655, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
 
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(105.214, 0.04, 0.001),
+                                                                            default=CenterScan(105.271, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
@@ -223,7 +223,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # wait a given delay to measure heating rate
-                    #delay_mu(time_heating_delay_mu)
+                    delay_mu(time_heating_delay_mu)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
