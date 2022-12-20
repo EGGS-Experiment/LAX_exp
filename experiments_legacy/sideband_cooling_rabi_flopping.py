@@ -153,10 +153,10 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # rabi flopping timing
         max_time_us =                                           np.max(list(self.time_rabi_us_list))
-        self.time_rabiflop_mu_list =                            np.array([
-                                                                    [us_to_mu(max_time_us - time_us), us_to_mu(time_us)]
+        self.time_rabiflop_mu_list =                            self.core.seconds_to_mu(np.array([
+                                                                    [(max_time_us - time_us) * us, time_us * us]
                                                                     for time_us in self.time_rabi_us_list
-                                                                ])
+                                                                ]))
 
         # calibration setup
         self.calibration_qubit_status =                         not self.calibration
@@ -164,7 +164,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # set up datasets
         self.set_dataset("sideband_cooling_rabi_flopping", [])
         self.setattr_dataset("sideband_cooling_rabi_flopping")
-        self.set_dataset("sideband_cooling_rabi_flopping_processed", np.zeros([len(self.time_rabi_mu_list), 3]))
+        self.set_dataset("sideband_cooling_rabi_flopping_processed", np.zeros([len(self.time_rabiflop_mu_list), 3]))
         self.setattr_dataset("sideband_cooling_rabi_flopping_processed")
 
 
@@ -328,8 +328,8 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # profile 0 = readout pi-pulse
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
         # profile 1 & greater = sideband cooling
-        for i in self.iter_sideband_cooling_profiles_list:
-            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf_list[i - 1], profile=i)
+        for i in self.iter_sideband_cooling_modes_list:
+            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
 
 
