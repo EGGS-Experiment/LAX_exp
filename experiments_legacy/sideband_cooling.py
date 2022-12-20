@@ -95,6 +95,12 @@ class SidebandCooling(EnvExperiment):
         """
         Prepare things such that kernel functions have minimal overhead.
         """
+        # ensure input has correct dimensions
+        min_time_length = len(list(self.time_min_sideband_cooling_us_list))
+        max_time_length = len(list(self.time_max_sideband_cooling_us_list))
+        modes_length = len(list(self.freq_sideband_cooling_mhz_list))
+        assert min_time_length == max_time_length == modes_length
+
         # PMT devices
         self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))

@@ -65,8 +65,8 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.setattr_argument("time_repump_sideband_cooling_us",            NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([50, 75, 80, 91]))
         self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([250, 271, 239, 241]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.012, 103.012, 105.012]))
-        self.setattr_argument("ampl_sideband_cooling_pct_list",             PYONValue([50, 50, 50]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.012, 103.012, 105.012, 103.079]))
+        self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # rabi-flopping readout
         self.setattr_argument("time_rabi_us_list",                          Scannable(default=
@@ -84,6 +84,12 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         """
         Prepare things such that kernel functions have minimal overhead.
         """
+        # ensure input has correct dimensions
+        min_time_length = len(list(self.time_min_sideband_cooling_us_list))
+        max_time_length = len(list(self.time_max_sideband_cooling_us_list))
+        modes_length = len(list(self.freq_sideband_cooling_mhz_list))
+        assert min_time_length == max_time_length == modes_length
+
         # PMT devices
         self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
