@@ -204,7 +204,7 @@ class SidebandCooling(EnvExperiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set readout frequency in advance
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=1)
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize by running doppler cooling and spin polarization
