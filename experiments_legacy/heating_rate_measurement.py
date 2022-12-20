@@ -223,7 +223,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # wait a given delay to measure heating rate
-                    delay_mu(time_heating_delay_mu)
+                    delay_mu(1000)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
