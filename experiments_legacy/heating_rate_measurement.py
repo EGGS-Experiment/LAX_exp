@@ -253,7 +253,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
     @rpc(flags='async')
     def tmprecord(self, time_wait_mu, time_start_mu, time_stop_mu):
-        self.mutate_dataset('heating_rate_timing', self.tmpiter, np.array(self.core.mu_to_seconds([time_wait_mu, time_stop_mu - time_start_mu])))
+        self.mutate_dataset('heating_rate_timing', self.tmpiter, [self.core.mu_to_seconds(time_wait_mu), self.core.mu_to_seconds(time_stop_mu - time_start_mu)])
         self.tmpiter += 1
 
     @kernel(flags={"fast-math"})
