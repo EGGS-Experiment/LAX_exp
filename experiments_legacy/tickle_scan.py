@@ -45,7 +45,7 @@ class TickleScan(EnvExperiment):
         # tickle values
         self.setattr_argument("time_tickle_us",                     NumberValue(default=100, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_freq_delay_s",                  NumberValue(default=0.5, ndecimals=3, step=0.1, min=0, max=10))
-        self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=50, ndecimals=3, step=1, min=10, max=10000))
+        self.setattr_argument("ampl_tickle_mvpp",                   NumberValue(default=10, ndecimals=3, step=1, min=1, max=10000))
         self.setattr_argument("freq_tickle_mhz",                    Scannable(
                                                                         default=RangeScan(0.9, 1.2, 31),
                                                                         global_min=0, global_max=1000, global_step=1,
@@ -93,7 +93,7 @@ class TickleScan(EnvExperiment):
 
         # prepare labrad devices
         self.fg.select_device()
-        self.fg.toggle(1)
+        self.fg.toggle(0)
         self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
 
         # configure burst mode
@@ -130,6 +130,9 @@ class TickleScan(EnvExperiment):
 
             # set frequency
             self.frequency_set(freq_mhz)
+            delay_mu(2000000000)
+            self.core.wait_until_mu(now_mu())
+            delay_mu(1000)
 
             # repeat experiment
             for trial_num in range(self.repetitions):
@@ -181,16 +184,13 @@ class TickleScan(EnvExperiment):
         # set up ttl for function generator trigger
         self.ttl_function_generator.off()
 
-
-    @rpc
     def frequency_set(self, freq_mhz):
         """
         Set the function generator to the desired frequency.
         """
+        print('freq set: {}'.format(freq_mhz))
         freq_set = self.fg.frequency(freq_mhz * 1e6)
-        print('freq: {}'.format(freq_set))
-        sleep(self.time_freq_delay_s)
-        print('\tfreq set: {}'.format(freq_mhz))
+        print('\tfreq: {}'.format(freq_set))
 
 
     @rpc(flags={"async"})

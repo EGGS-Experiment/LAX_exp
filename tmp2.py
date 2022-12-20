@@ -1,4 +1,6 @@
 import numpy as np
+import labrad
+from os import environ
 from artiq.experiment import *
 from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
 from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
@@ -16,14 +18,13 @@ class testarg12(EnvExperiment):
         self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
         self.setattr_device('urukul1_ch0')
 
-        self.set_dataset('timing.time_rabiflop_us', 15, broadcast=True, persist=True)
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
-    # def prepare(self):
-    #     val = self.get_dataset('timing.time_profileswitch_delay_us')
-    #     print('val: {}'.format(self.core.seconds_to_mu(us*val)))
-
+    def prepare(self):
+        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.os = self.cxn.oscilloscope_server
+        print(self.os.list_devices())
 
     #@kernel
     def run(self):
@@ -32,12 +33,8 @@ class testarg12(EnvExperiment):
         # self.core.break_realtime()
         # self.urukul1_ch0.init()
         # delay(10*ms)
-        management_parameters = {
-            # experiments
-            "timing.time_spinpol_us": 500
-        }
-        for parameter_name, parameter_value in management_parameters.items():
-            self.set_dataset(parameter_name, parameter_value, broadcast=True, persist=True)
+        print('scde')
+
 
         #self.set_dataset('dds.dds_board_tickle_num', 0, broadcast=True, persist=True)
         #self.set_dataset('dds.dds_tickle_channel', 3, broadcast=True, persist=True)
