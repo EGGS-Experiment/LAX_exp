@@ -338,7 +338,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling_rabi_flopping', [self.core.seconds_to_mu(time_mu), pmt_counts])
+        self.append_to_dataset('sideband_cooling_rabi_flopping', [self.core.mu_to_seconds(time_mu), pmt_counts])
 
 
     def analyze(self):
