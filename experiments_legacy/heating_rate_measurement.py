@@ -186,8 +186,8 @@ class HeatingRateMeasurement(EnvExperiment):
         self.setattr_dataset("heating_rate_processed")
 
         # tmp remove
-        self.set_dataset("heating_rate_timings", np.zeros(len(self.freq_qubit_scan_ftw)))
-        self.setattr_dataset("heating_rate_timings")
+        self.set_dataset("heating_rate_timing", np.zeros(len(self.freq_qubit_scan_ftw)))
+        self.setattr_dataset("heating_rate_timing")
         self.tmpiter = 0
 
 
