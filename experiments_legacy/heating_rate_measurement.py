@@ -186,7 +186,7 @@ class HeatingRateMeasurement(EnvExperiment):
         self.setattr_dataset("heating_rate_processed")
 
         # tmp remove
-        self.set_dataset("heating_rate_timing", np.zeros(len(self.freq_qubit_scan_ftw) * self.repetitions))
+        self.set_dataset("heating_rate_timing", np.zeros((len(self.freq_qubit_scan_ftw) * self.repetitions * len(self.time_heating_rate_list_mu), 2)))
         self.setattr_dataset("heating_rate_timing")
         self.tmpiter = 0
 
@@ -252,8 +252,8 @@ class HeatingRateMeasurement(EnvExperiment):
         self.dds_qubit.cfg_sw(False)
 
     @rpc(flags='async')
-    def tmprecord(self, time_start_mu, time_stop_mu):
-        self.mutate_dataset('heating_rate_timing', self.tmpiter, self.core.mu_to_seconds(time_stop_mu - time_start_mu))
+    def tmprecord(self, time_wait_mu, time_start_mu, time_stop_mu):
+        self.mutate_dataset('heating_rate_timing', self.tmpiter, np.array(self.core.mu_to_seconds([time_wait_mu, time_stop_mu - time_start_mu])))
         self.tmpiter += 1
 
     @kernel(flags={"fast-math"})
@@ -379,6 +379,8 @@ class HeatingRateMeasurement(EnvExperiment):
         """
         # turn dataset into numpy array for ease of use
         self.heating_rate = np.array(self.heating_rate)
+
+        print('heating rate times')
 
         # # get sorted x-values (frequency)
         # freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
