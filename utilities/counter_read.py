@@ -27,8 +27,7 @@ class counter_read(EnvExperiment):
         self.setattr_argument("sample_rate_hz",                 NumberValue(default=1000, ndecimals=3, step=1, min=1, max=100000))
 
         # PMT
-        self.setattr_argument("pmt_input_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
-        self.setattr_argument("pmt_power_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("pmt_input_channel",              NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("pmt_gating_edge",                EnumerationValue(["rising", "falling", "both"], default="rising"))
 
 
