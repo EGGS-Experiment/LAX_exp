@@ -3,10 +3,10 @@ from artiq.experiment import *
 from artiq.coredevice.sampler import adc_mu_to_volt
 
 
-class locking_read(EnvExperiment):
+class sampler_read(EnvExperiment):
     """
-    Locking Read
-    Read locking data
+    Sampler Read
+    Read Sampler values over time.
     """
     kernel_invariants = {
         'time_delay_mu',
