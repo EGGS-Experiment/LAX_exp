@@ -59,7 +59,9 @@ class LAXSubsequence(HasEnvironment, ABC):
         # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
-
+        # tmp remove
+        print('build subseq called')
+        # tmp remove clear
         # set instance variables
         setattr(self,   'build_parameters',         dict())
         setattr(self,   'instance_number',          self.duplicate_counter)
@@ -69,6 +71,9 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
+        # tmp remove
+        print('\tbuild subseq vals set, duplicate counter: {}'.format(self.duplicate_counter))
+        # tmp remove clear
 
         # set devices as class attributes
         for device_name in self.devices:
@@ -78,7 +83,6 @@ class LAXSubsequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(device_name)
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
-
 
         # extract parameters from build arguments
         class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
