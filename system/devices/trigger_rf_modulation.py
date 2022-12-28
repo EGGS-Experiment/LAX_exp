@@ -22,7 +22,7 @@ class RFSync(LAXDevice):
         'rf_sync':      'ttl3'
     }
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def correlate_count(self, timeout_mu):
         """
         Block until either the timeout period is reached, or a TTL edge is detected.

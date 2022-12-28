@@ -191,7 +191,7 @@ class LAXSubsequence(HasEnvironment, ABC):
         print('osc-1')
         print(dma_name)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _record_dma(self,):
         #self.core.break_realtime()
 
@@ -214,7 +214,7 @@ class LAXSubsequence(HasEnvironment, ABC):
         #dma_handle = self._load_dma(self.dma_name)
         setattr(self, 'dma_handle', dma_handle)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _load_dma(self):
         self.core.break_realtime()
 
@@ -222,7 +222,7 @@ class LAXSubsequence(HasEnvironment, ABC):
         print(self.core_dma.get_handle('th0'))
         #return self.core_dma.get_handle(self.dma_name)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def run_dma(self):
         """
         Runs the core sequence from DMA.

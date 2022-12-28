@@ -183,7 +183,7 @@ class LAXSequence(HasEnvironment, ABC):
         setattr(self, 'dma_name', '{:s}_{:d}'.format(self.name, self.instance_number))
         self._record_dma(self.dma_name)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _record_dma(self, dma_name):
         self.core.break_realtime()
 
@@ -204,14 +204,14 @@ class LAXSequence(HasEnvironment, ABC):
         dma_handle = self.core_dma.get_handle(self.dma_name)
         setattr(self, 'dma_handle', dma_handle)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _load_dma(self):
         self.core.break_realtime()
 
         # get DMA handle
         return self.core_dma.get_handle(self.dma_name)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def run_dma(self):
         """
         Runs the core sequence from DMA.

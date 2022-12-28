@@ -20,13 +20,13 @@ class Linetrigger(LAXDevice):
     }
 
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def prepare_device(self):
         self.core.break_realtime()
         self.trigger.input()
 
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def trigger(self):
         """
         Block until either the timeout period is reached, or a TTL edge is detected.

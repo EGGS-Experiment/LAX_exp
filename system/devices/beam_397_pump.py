@@ -21,7 +21,7 @@ class Beam397Pump(LAXDevice):
         'beam': 'urukul1_ch1'
     }
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def prepare_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
@@ -29,22 +29,22 @@ class Beam397Pump(LAXDevice):
         self.core.break_realtime()
         self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def on(self):
         self.beam.cfg_sw(True)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def off(self):
         self.beam.cfg_sw(False)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def cooling(self):
         # set cooling profile
         with parallel:
             self.beam.cpld.set_profile(0)
             delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def readout(self):
         # set readout profile
         with parallel:

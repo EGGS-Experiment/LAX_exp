@@ -19,7 +19,7 @@ class Beam854(LAXDevice):
         'beam': 'urukul1_ch3'
     }
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def prepare_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
@@ -27,10 +27,10 @@ class Beam854(LAXDevice):
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def on(self):
         self.beam.cfg_sw(True)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def off(self):
         self.beam.cfg_sw(False)

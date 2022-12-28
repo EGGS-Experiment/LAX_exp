@@ -36,7 +36,7 @@ class sampler_fast(EnvExperiment):
         # iterables
         self.range = list(range(self.num_samples))
 
-    @kernel(flags="fast-math")
+    @kernel(flags={"fast-math"})
     def run(self):
         self.core.reset()
 

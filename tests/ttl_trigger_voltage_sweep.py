@@ -101,7 +101,7 @@ class TTLTriggerVoltageSweep(EnvExperiment):
         self.set_dataset('dc_channel_num', self.dc_micromotion_channel)
 
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def run(self):
         self.core.reset()
 

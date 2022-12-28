@@ -118,7 +118,7 @@ class TTLTriggerFrequencySweep(EnvExperiment):
         self.fg.amplitude(self.ampl_mod_vpp)
 
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def run(self):
         self.core.reset()
 

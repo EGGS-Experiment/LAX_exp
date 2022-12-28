@@ -18,16 +18,16 @@ class BeamTickle(LAXDevice):
         'beam': 'urukul0_ch3'
     }
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def prepare_device(self):
         # set base profile
         self.core.break_realtime()
         self.set_mu(mhz_to_ftw(1), asf=self.ampl_tickle_pct, profile=0)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def on(self):
         self.beam.cfg_sw(True)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def off(self):
         self.beam.cfg_sw(False)

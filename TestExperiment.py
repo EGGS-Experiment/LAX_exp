@@ -56,7 +56,7 @@ class TestExperiment(LAXExperiment, Experiment):
         dma_handle = self._record_dma()
         setattr(self, 'dma_handle', dma_handle)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _record_dma(self):
         # record DMA sequence
         with self.core_dma.record('main_sequence'):

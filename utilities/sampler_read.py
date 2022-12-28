@@ -48,7 +48,7 @@ class sampler_read(EnvExperiment):
         self.set_dataset('time_total_s',                        self.time_total_s)
 
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def run(self):
         self.core.reset()
 

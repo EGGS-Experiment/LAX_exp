@@ -21,7 +21,7 @@ class Beam729(LAXDevice):
         'beam': 'urukul0_ch2'
     }
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def prepare_device(self):
         # set carrier profile
         self.core.break_realtime()
@@ -37,29 +37,29 @@ class Beam729(LAXDevice):
         #self.beam.set_mu(self.freq_qubit_bsb_ftw, asf=self.ampl_qubit_asf, profile=2)
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def on(self):
         self.beam.cfg_sw(True)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def off(self):
         self.beam.cfg_sw(False)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def carrier(self):
         # set carrier profile
         with parallel:
             self.beam.cpld.set_profile(0)
             delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def rsb(self):
         # set red sideband profile
         with parallel:
             self.beam.cpld.set_profile(1)
             delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def bsb(self):
         # set blue sideband profile
         with parallel:
