@@ -28,3 +28,5 @@ class Readout(LAXSubsequence):
         self.pump.cfg_sw(True)
         self.pmt.count(self.time_readout_mu)
         self.pump.cfg_sw(False)
+
+        # todo: return counts so users don't have to separately get PMT device

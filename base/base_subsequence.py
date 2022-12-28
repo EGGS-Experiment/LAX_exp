@@ -3,6 +3,10 @@ from artiq.experiment import *
 import logging
 from abc import ABC, abstractmethod
 
+# tmp remove
+from numpy import int64, int32
+# tmp remove clear
+
 logger = logging.getLogger("artiq.master.experiments")
 
 
@@ -59,10 +63,11 @@ class LAXSubsequence(HasEnvironment, ABC):
         self.setattr_device("core_dma")
 
         # set instance variables
-        setattr(self,   'build_parameters',     dict())
-        setattr(self,   'instance_number',      self.duplicate_counter)
-        setattr(self,   'dma_name',             '{:s}_{:d}'.format(self.name, self.instance_number))
-        setattr(self,   'dma_handle',           0)
+        setattr(self,   'build_parameters',         dict())
+        setattr(self,   'instance_number',          self.duplicate_counter)
+        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
+        setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
+        setattr(self,   'dma_record_status',        False)
 
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
@@ -169,10 +174,9 @@ class LAXSubsequence(HasEnvironment, ABC):
 
 
     '''
-    RUN
+    DMA
     '''
 
-    # RUN - BASE
     @kernel(flags={"fast-math"})
     def record_dma(self):
         """
@@ -182,23 +186,35 @@ class LAXSubsequence(HasEnvironment, ABC):
             str: the DMA handle for the sequence.
         """
         # record sequence
-        print(self.dma_name)
-
-        # record sequence
-        with self.core_dma.record('th0'):
+        with self.core_dma.record(self.dma_name):
             self.run()
 
+        self.dma_record_status = True
         self.core.break_realtime()
 
+    def tmp_load_dma(self):
+        if self.dma_record_status == True:
+            handle_tmp = self._tmp_load_dma()
+            setattr(self, 'dma_handle', handle_tmp)
+
+    @kernel
+    def _tmp_load_dma(self):
+        self.core.break_realtime()
+        return self.core_dma.get_handle(self.dma_name)
+
+
+    '''
+    RUN
+    '''
 
     @kernel(flags={"fast-math"})
     def run_dma(self):
         """
         Runs the core sequence from DMA.
-        Requires _prepare_subsequence to have already been run.
+        Requires record_dma to have been previously run.
         """
-        #self.core_dma.playback_handle(self.dma_handle)
-        self.core_dma.playback(self.dma_handle)
+        self.core_dma.playback_handle(self.dma_handle)
+        self.core.break_realtime()
 
 
     # RUN - USER FUNCTIONS

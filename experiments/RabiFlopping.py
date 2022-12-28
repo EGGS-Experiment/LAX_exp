@@ -58,9 +58,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        print('kmp')
         self.readout_subsequence.record_dma()
-        print('km2')
 
         self.core.break_realtime()
 
@@ -69,8 +67,10 @@ class RabiFlopping2(LAXExperiment, Experiment):
     @kernel
     def run_main(self):
         for trial_num in range(self.repetitions):
+
             # sweep time
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+                self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
@@ -88,7 +88,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_pair_mu[1], self.pmt_counter.fetch_count())
+                    self.update_dataset(time_rabi_pair_mu[1], self.pmt.fetch_count())
                     self.core.break_realtime()
 
     @rpc(flags={"async"})
