@@ -193,13 +193,13 @@ class LAXSubsequence(HasEnvironment, ABC):
 
     def _load_dma(self):
         if self._dma_record_flag == True:
-            handle_tmp = self._load_dma_kernel()
-            setattr(self, 'dma_handle', handle_tmp)
-
+            self._load_dma_kernel()
+            print('\t{}: {}'.format(self.name, self.dma_handle))
+            print('\t\tdma name: {}'.format(self.dma_name))
+    # todo: move to solely a kernel function after we fix dma issue
     @kernel(flags={"fast-math"})
     def _load_dma_kernel(self):
-        self.core.break_realtime()
-        return self.core_dma.get_handle(self.dma_name)
+        self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
 
     '''

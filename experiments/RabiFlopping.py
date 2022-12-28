@@ -41,6 +41,10 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
+        # tmp remove
+        self.rubbish_initialize =                               InitializeQubit(self)
+        print(self.rubbish_initialize.dma_name)
+        # tmp remove clear
         self.readout_subsequence =                                  Readout(self)
 
         # dataset
@@ -57,6 +61,9 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
 
         # record subsequences onto DMA
+        # tmp remove
+        self.rubbish_initialize.record_dma()
+        # tmp remove clear
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
@@ -66,6 +73,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
     # MAIN LOOP
     @kernel
     def run_main(self):
+
         for trial_num in range(self.repetitions):
 
             # sweep time
