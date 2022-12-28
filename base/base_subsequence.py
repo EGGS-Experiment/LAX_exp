@@ -1,11 +1,9 @@
 from artiq.experiment import *
 
 import logging
+from numpy import int64, int32
 from abc import ABC, abstractmethod
 
-# tmp remove
-from numpy import int64, int32
-# tmp remove clear
 
 logger = logging.getLogger("artiq.master.experiments")
 
@@ -67,7 +65,7 @@ class LAXSubsequence(HasEnvironment, ABC):
         setattr(self,   'instance_number',          self.duplicate_counter)
         setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
-        setattr(self,   'dma_record_status',        False)
+        setattr(self,   '_dma_record_flag',         False)
 
         # keep track of all instances of a subsequence
         self.duplicate_counter += 1
@@ -189,16 +187,17 @@ class LAXSubsequence(HasEnvironment, ABC):
         with self.core_dma.record(self.dma_name):
             self.run()
 
-        self.dma_record_status = True
+        # set dma record flag
+        self._dma_record_flag = True
         self.core.break_realtime()
 
-    def tmp_load_dma(self):
-        if self.dma_record_status == True:
-            handle_tmp = self._tmp_load_dma()
+    def _load_dma(self):
+        if self._dma_record_flag == True:
+            handle_tmp = self._load_dma_kernel()
             setattr(self, 'dma_handle', handle_tmp)
 
-    @kernel
-    def _tmp_load_dma(self):
+    @kernel(flags={"fast-math"})
+    def _load_dma_kernel(self):
         self.core.break_realtime()
         return self.core_dma.get_handle(self.dma_name)
 
@@ -207,6 +206,7 @@ class LAXSubsequence(HasEnvironment, ABC):
     RUN
     '''
 
+    # RUN - BASE
     @kernel(flags={"fast-math"})
     def run_dma(self):
         """

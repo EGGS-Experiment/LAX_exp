@@ -154,8 +154,9 @@ class LAXExperiment(HasEnvironment, ABC):
         """
         # set up the run
         self.run_initialize()
-        # tmp remove
-        self.call_child_method('tmp_load_dma')
+
+        # get DMA handles for subsequences recorded onto DMA
+        self.call_child_method('_load_dma')
 
         # run the main part of the experiment
         self.run_main()
