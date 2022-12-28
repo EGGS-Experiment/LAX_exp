@@ -161,7 +161,7 @@ class LAXExperiment(HasEnvironment, ABC):
         # set devices back to their default state
         self._run_cleanup()
 
-    @kernel(flags='fast-math')
+    @kernel(flags={"fast-math"})
     def _run_cleanup(self):
         """
         Set all devices back to their original state.
@@ -172,7 +172,7 @@ class LAXExperiment(HasEnvironment, ABC):
         self.urukul1_cpld.set_profile(0)
         self.core.break_realtime()
 
-    @rpc(flags='async')
+    @rpc(flags={"async"})
     def update_dataset(self, *args):
         """
         Records data from the main sequence in the experiment dataset.

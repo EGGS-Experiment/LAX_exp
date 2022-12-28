@@ -98,7 +98,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
                     self.update_dataset(time_rabi_pair_mu[1], self.pmt_counter.fetch_count())
                     self.core.break_realtime()
 
-    @rpc(flags='async')
+    @rpc(flags={"async"})
     def update_dataset(self, time_mu, counts):
         self.results[self._result_iter] = np.array([time_mu, counts])
         self._result_iter += 1
