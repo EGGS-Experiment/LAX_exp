@@ -43,7 +43,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
 
-
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
         self.setattr_dataset('results')
@@ -63,12 +62,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
         print('km2')
 
-        # load subsequences from DMA
-        self.initialize_subsequence.load_dma()
-        self.core.break_realtime()
-        print('km3')
-
-        self.readout_subsequence.load_dma()
         self.core.break_realtime()
 
 
