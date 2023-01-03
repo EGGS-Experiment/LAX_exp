@@ -37,7 +37,6 @@ class RabiFloppingTest(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device('pmt')
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
@@ -97,7 +96,7 @@ class RabiFloppingTest(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_pair_mu[1], self.pmt.fetch_count())
+                    self.update_dataset(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
 
     @rpc(flags={"async"})

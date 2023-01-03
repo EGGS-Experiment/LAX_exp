@@ -22,23 +22,47 @@ class LAXBase(HasEnvironment, ABC):
                                                             together with a conversion function (None if no conversion needed).
     """
     # Core attributes
-    kernel_invariants = set()
+    name =                      None
+    kernel_invariants =         set()
 
     # Class attributes
-    name = None
+    _build_arguments =          dict()
+    parameters =                dict()
 
 
-    def __prepare_parameters(self):
+    # BUILD
+    def setattr_argument(self, *args, **kwargs):
+        """
+        todo: document
+        """
+        super().setattr_argument(*args, **kwargs)
+
+        # add argument to _build_arguments (will grab after prepare)
+        key, processor = args
+        self._build_arguments[key] = None
+
+
+    # PREPARE
+    def _prepare_parameters(self, **kwargs):
         """
         Get parameters and convert them for use by the subsequence.
         """
+        # extract desired parameter keys from parameter dictionary
+        class_parameter_keys = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
+
+        # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
+        build_parameters = {
+            parameter_name: kwargs[parameter_name]
+            for parameter_name in (class_parameter_keys & kwargs.keys())
+        }
+
         # get sequence parameters
         for parameter_name, parameter_attributes in self.parameters.items():
             _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
 
             try:
                 # get parameter from kwargs
-                parameter_value = self.build_parameters.get(
+                parameter_value = build_parameters.get(
                     _parameter_name_dataset,
                     None
                 )
@@ -49,8 +73,7 @@ class LAXBase(HasEnvironment, ABC):
 
                 # if in kwargs, add parameter to dataset manager
                 else:
-                    self.__dataset_mgr.set(_parameter_name_dataset, parameter_value, archive=False, parameter=True,
-                                           argument=False)
+                    self.__dataset_mgr.set(_parameter_name_dataset, parameter_value, archive=False, parameter=True, argument=False)
 
                 # convert parameter as necessary
                 if _parameter_conversion_function is not None:
@@ -61,6 +84,7 @@ class LAXBase(HasEnvironment, ABC):
                 self.kernel_invariants.add(parameter_name)
 
             except Exception as e:
+                # todo: add more documentation, maybe raise?
                 logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
 
     def get_parameter(self, key, default=NoDefault, archive=False):
@@ -71,10 +95,3 @@ class LAXBase(HasEnvironment, ABC):
                 raise
             else:
                 return default
-
-    def setattr_argument(self, *args, **kwargs):
-        super().setattr_argument(*args, **kwargs)
-
-        # add argument to _build_arguments (will grab after prepare)
-        key, processor = args
-        self._build_arguments[key] = None

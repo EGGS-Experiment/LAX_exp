@@ -4,11 +4,11 @@ import logging
 from numpy import int64, int32
 from abc import ABC, abstractmethod
 
-
+from LAX_exp.base import LAXBase
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXSubsequence(HasEnvironment, ABC):
+class LAXSubsequence(LAXBase, ABC):
     """
     Base class for subsequence objects.
 
@@ -23,15 +23,8 @@ class LAXSubsequence(HasEnvironment, ABC):
                                                             and the value is a tuple of the parameter name as stored in dataset_db,
                                                             together with a conversion function (None if no conversion needed).
     """
-    # Core attributes
-    kernel_invariants =             set()
-
     # Class attributes
-    name =                          None
-    parameters =                    dict()
     devices =                       list()
-
-    # Runtime attributes
     duplicate_counter =             0
 
 
@@ -46,24 +39,26 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         Will be called upon instantiation.
         """
-        self._build_subsequence(**kwargs)
+        self._build_arguments = kwargs
+        self._build_subsequence()
         self.build_subsequence(**kwargs)
 
-    def _build_subsequence(self, **kwargs):
+    def _build_subsequence(self):
         """
         General construction of the subsequence object.
 
         Gets/sets instance attributes, devices, and process build arguments.
         Called before build_subsequence.
         """
-        # get core devices
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
         # tmp remove
         print('build subseq called')
         # tmp remove clear
+
+        # get core devices
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+
         # set instance variables
-        setattr(self,   'build_parameters',         dict())
         setattr(self,   'instance_number',          self.duplicate_counter)
         setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
@@ -83,16 +78,6 @@ class LAXSubsequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(device_name)
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
-
-        # extract parameters from build arguments
-        class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
-        build_parameters = set([parameter_name for parameter_name in kwargs.keys()])
-
-        # take kwargs passed to the subsequence meant to replace parameter values from the dataset manager
-        self.build_parameters = {
-            parameter_name: kwargs[parameter_name]
-            for parameter_name in class_parameters.intersection(build_parameters)
-        }
 
 
     # BUILD - USER FUNCTIONS
@@ -118,50 +103,8 @@ class LAXSubsequence(HasEnvironment, ABC):
 
         Will be called by parent classes.
         """
-        self.__prepare_parameters()
+        self._prepare_parameters(**self._build_arguments)
         self.prepare_subsequence()
-        self._prepare_subsequence()
-
-    def __prepare_parameters(self):
-        """
-        Get parameters and convert them for use by the subsequence.
-        """
-        # get sequence parameters
-        for parameter_name, parameter_attributes in self.parameters.items():
-            _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
-
-            try:
-                # get parameter from kwargs
-                parameter_value = self.build_parameters.get(
-                    _parameter_name_dataset,
-                    None
-                )
-
-                # if not in kwargs, take it from dataset manager
-                if parameter_value is None:
-                    parameter_value = self.get_parameter(_parameter_name_dataset)
-
-                # if in kwargs, add parameter to dataset manager
-                else:
-                    self.__dataset_mgr.set(_parameter_name_dataset, parameter_value, archive=False, parameter=True, argument=False)
-
-                # convert parameter as necessary
-                if _parameter_conversion_function is not None:
-                    parameter_value = _parameter_conversion_function(parameter_value)
-
-                # set parameter as class attribute
-                setattr(self, parameter_name, parameter_value)
-                self.kernel_invariants.add(parameter_name)
-
-            except Exception as e:
-                logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
-
-    def _prepare_subsequence(self):
-        """
-        idk
-        :return:
-        """
-        pass
 
 
     # PREPARE - USER FUNCTIONS
@@ -232,17 +175,3 @@ class LAXSubsequence(HasEnvironment, ABC):
         Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
         """
         pass
-
-
-    '''
-    HasEnvironment Extensions
-    '''
-
-    def get_parameter(self, key, default=NoDefault, archive=False):
-        try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
-        except KeyError:
-            if default is NoDefault:
-                raise
-            else:
-                return default

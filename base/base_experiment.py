@@ -4,15 +4,16 @@ import os
 import time
 import h5py
 import logging
-from numpy import array
 from abc import ABC
+from numpy import array
 
 logger = logging.getLogger("artiq.master.experiments")
 
+from LAX_exp.base import LAXBase
 from LAX_exp.base.manager_wrappers import LAXDeviceManager, LAXDatasetManager
 
 
-class LAXExperiment(HasEnvironment, ABC):
+class LAXExperiment(LAXBase, ABC):
     """
     Base class for experiment objects.
 
@@ -48,14 +49,15 @@ class LAXExperiment(HasEnvironment, ABC):
 
 
     # BUILD - BASE
-    def build(self):
+    def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
 
         Will be called upon instantiation.
         """
+        self._build_arguments = kwargs
         self._build_experiment()
-        self.build_experiment()
+        self.build_experiment(**kwargs)
 
     def _build_experiment(self):
         """
@@ -71,7 +73,6 @@ class LAXExperiment(HasEnvironment, ABC):
         self.setattr_device('urukul1_cpld')
 
         # instance variables
-        setattr(self,   '_build_arguments',         dict())
         setattr(self,   '_result_iter',             0)
 
         # universal arguments
@@ -79,7 +80,7 @@ class LAXExperiment(HasEnvironment, ABC):
 
 
     # BUILD - USER FUNCTIONS
-    def build_experiment(self):
+    def build_experiment(self, **kwargs):
         """
         To be subclassed.
 
@@ -262,15 +263,3 @@ class LAXExperiment(HasEnvironment, ABC):
             # catch any errors
             except Exception as e:
                 print("Warning: unable to create and save file in LAX format: {}".format(e))
-
-
-    '''
-    HasEnvironment Extensions
-    '''
-
-    def setattr_argument(self, *args, **kwargs):
-        super().setattr_argument(*args, **kwargs)
-
-        # add argument to _build_arguments (will grab after prepare)
-        key, processor = args
-        self._build_arguments[key] = None

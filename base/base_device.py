@@ -4,10 +4,11 @@ import logging
 from abc import ABC, abstractmethod
 from inspect import getmembers, ismethod
 
+from LAX_exp.base import LAXBase
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXDevice(HasEnvironment, ABC):
+class LAXDevice(LAXBase, ABC):
     """
     A generic device object.
         Gets devices and their relevant parameters from the master
@@ -22,12 +23,7 @@ class LAXDevice(HasEnvironment, ABC):
         core_devices            dict(str, str)          : dict of devices used where the key is the device nickname (e.g. "beam_854")
                                                             and the value is the actual device name (e.g. "urukul1_ch3").
     """
-    # Core attributes
-    name =                  None
-    kernel_invariants =     set()
-
     # Class attributes
-    parameters =            dict()
     core_devices =          dict()
 
 
@@ -42,18 +38,20 @@ class LAXDevice(HasEnvironment, ABC):
 
         Will be called upon instantiation.
         """
+        self._build_arguments = kwargs
         self._build_device()
-        self._build_expose_methods()
-        self.build_device()
+        self.build_device(**kwargs)
 
     def _build_device(self):
         """
-        General construction required for the device.
+        General instantiation required for the device.
+
+        Sets class attributes and methods.
         """
         # get core device
         self.setattr_device("core")
 
-        # get device(s)
+        # get device(s) & set them as class attributes
         for device_nickname, device_name in self.core_devices.items():
 
             # set device as class attribute
@@ -64,11 +62,6 @@ class LAXDevice(HasEnvironment, ABC):
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
-    def _build_expose_methods(self):
-        """
-        Expose core device methods as the object's own,
-        i.e. allow users to use underlying core device methods directly from this class.
-        """
         # if class only uses one device, break out original device methods
         if len(self.core_devices) == 1:
 
@@ -104,34 +97,10 @@ class LAXDevice(HasEnvironment, ABC):
         Get and convert parameters from the master for use by the device,
         define object methods, and set up the device hardware.
 
-        To be called by parent classes.
+        Will be called by parent classes.
         """
-        self.__prepare_parameters()
+        self._prepare_parameters(self._build_arguments)
         self.prepare_device()
-
-    def __prepare_parameters(self):
-        """
-        Get parameters and convert them for use by the object.
-        """
-        # get device parameters
-        for parameter_name, parameter_attributes in self.parameters.items():
-            _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
-
-            # set parameter as class attribute
-            try:
-                # get parameter from dataset manager and store in HDF5
-                parameter_value = self.get_parameter(_parameter_name_dataset)
-
-                # convert parameter to machine units as necessary
-                if _parameter_conversion_function is not None:
-                    parameter_value = _parameter_conversion_function(parameter_value)
-
-                setattr(self, parameter_name, parameter_value)
-                self.kernel_invariants.add(parameter_name)
-
-            except Exception as e:
-                logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
-
 
     # PREPARE - USER FUNCTIONS
     def prepare_device(self):
@@ -142,17 +111,3 @@ class LAXDevice(HasEnvironment, ABC):
         Used to customize the device class and set up hardware.
         """
         pass
-
-
-    '''
-    HasEnvironment Extensions
-    '''
-
-    def get_parameter(self, key, default=NoDefault, archive=False):
-        try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
-        except KeyError:
-            if default is NoDefault:
-                raise
-            else:
-                return default

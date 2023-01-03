@@ -29,4 +29,8 @@ class Readout(LAXSubsequence):
         self.pmt.count(self.time_readout_mu)
         self.pump.cfg_sw(False)
 
-        # todo: return counts so users don't have to separately get PMT device
+    @kernel(flags={"fast-math"})
+    def fetch_count(self):
+        # convenience function so that users don't have to separately instantiate the PMT
+        # device object to read counts
+        return self.pmt.fetch_count()
