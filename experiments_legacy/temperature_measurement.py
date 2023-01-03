@@ -101,7 +101,8 @@ class TemperatureMeasurement(EnvExperiment):
         # background: 1.8uW
         asf_freqs = sorted(list(self.freq_probe_scan_mhz))
         #asf_vals = np.array([39.00, 26.60, 20.25, 16.45, 15.85, 15.00, 14.60, 14.45, 14.25, 14.00, 14.05, 14.17, 14.35, 14.93, 15.58, 16.24, 17.12, 17.95, 19.10, 20.89, 21.04, 26.95, 32.08, 39.22, 48.20])/100
-        asf_vals = np.array([35,30,30,30,27.5,27.5,27.5,30,26,27.5,27.5,27.5,28,27.5,30,30,30,30,30,35,37.5,37.5,37.5,37.5,37.5])/100
+        #asf_vals = np.array([35,30,30,30,27.5,27.5,27.5,30,26,27.5,27.5,27.5,28,27.5,30,30,30,30,30,35,37.5,37.5,37.5,37.5,37.5])/100
+        asf_vals = np.array([28,21.5,17.5,15,13.5,13,12.5,12,12,11.5,12,12,12.5,13,13.5,14,15,15.5,16.5,18,20.5,24,29,36,48])/100
         asf_dict = dict(np.concatenate([[asf_freqs], [asf_vals]]).transpose())
         self.ampl_probe_scan_asf = [self.dds_pump.amplitude_to_asf(asf_dict[freq]) for freq in self.freq_probe_scan_mhz]
 
