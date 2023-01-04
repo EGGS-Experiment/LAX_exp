@@ -80,16 +80,17 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         # RF modulation synchronization clock
         self.mod_clock =                                            self.get_device("urukul0_ch3")
         self.mod_toggle =                                           self.get_device("ttl8")
-        self.mod_clock_freq_ftw =                                   self.urukul0_ch0.frequency_to_ftw(10. * MHz)
-        self.mod_clock_ampl_pct =                                   self.urukul0_ch0.amplitude_to_asf(0.5)
+        self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
+        self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
         self.mod_clock_att_db =                                     2. * dB
+        self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
         # set voltage
         #self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list) * self.repetitions, 2]))
+        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list), self.repetitions]))
         self.setattr_dataset("ttl_trigger")
 
         self.set_dataset("ttl_trigger_freq_mhz",                    np.zeros(len(self.freq_mod_mhz_list)))
@@ -103,7 +104,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         #self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
 
         # set up function generator
-
         # get list of function generators
         fg_dev_list = self.fg.list_devices()
         fg_dev_dict = dict(tuple(fg_dev_list))
@@ -142,13 +142,13 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.core.break_realtime()
 
         # start rf mod clock
-        self.mod_clock.set_att(self.mod_clock_att)
+        self.mod_clock.set_att(self.mod_clock_att_db)
         self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
         self.mod_clock.cfg_sw(True)
         self.core.break_realtime()
 
         # enable external clocking
-        self.fg_write(':ROSC:SOUR EXT')
+        self.fg_write(':ROSC:SOUR EXT', ':ROSC:SOUR:CURR?')
         delay(1 * s)
 
         # MAIN LOOP
@@ -164,23 +164,29 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
             # set up loop variables
             counter = 0
-            time_stop_mu_list = np.zeros(self.repetitions)
+            #self.tmp_data_holder = np.zeros(self.repetitions)
+            #time_stop_mu_list = np.zeros(self.repetitions)
+            time_stop_mu_list = [0] * self.repetitions
 
             # activate modulation and wait for change in output
+            self.core.break_realtime()
             self.mod_toggle.on()
-            delay_mu(300)
+            delay_mu(self.mod_clock_delay_mu)
 
             # load photon timestamps into buffer
-            self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
             time_start_mu = now_mu()
+            time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
             while counter < self.repetitions:
-                time_stop_mu_list[counter] = self.pmt_counter.timestamp_mu()
+                time_stop_mu_list[counter] = self.pmt_counter.timestamp_mu(time_stop_mu)
+                #self.tmp_data_holder[counter] = self.pmt_counter.timestamp_mu()
+                counter += 1
 
             # sync delay at end
             self.core.break_realtime()
 
             # turn off modulation
             self.mod_toggle.off()
+            delay_mu(self.mod_clock_delay_mu)
 
             # update dataset
             self.update_dataset(freq_val_mhz, time_start_mu, time_stop_mu_list)
