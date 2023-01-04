@@ -192,8 +192,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
             # sync delay at end
             self.core.break_realtime()
 
-            # turn off modulation
-
             # complete a loop
             self.mod_toggle.off()
             self.update_dataset(freq_val_mhz, time_start_mu, time_stop_mu_list)
