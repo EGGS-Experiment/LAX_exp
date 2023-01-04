@@ -25,8 +25,13 @@ class LAXSubsequence(LAXBase, ABC):
     """
     # Class attributes
     devices =                       list()
-    duplicate_counter =             0
 
+    def __init__(self, managers_or_parent, *args, **kwargs):
+        super().__init__(managers_or_parent, *args, **kwargs)
+
+        # get subseq #
+        parent_instance_num_tmp = managers_or_parent.getattr('instance_number', 0)
+        setattr(self, 'instance_number', parent_instance_num_tmp)
 
     '''
     BUILD
@@ -59,15 +64,13 @@ class LAXSubsequence(LAXBase, ABC):
         self.setattr_device("core_dma")
 
         # set instance variables
-        setattr(self,   'instance_number',          self.duplicate_counter)
         setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
 
         # keep track of all instances of a subsequence
-        self.duplicate_counter += 1
         # tmp remove
-        print('\tbuild subseq vals set, duplicate counter: {}'.format(self.duplicate_counter))
+        print('\tbuild subseq vals set, parent subseq counter: {}'.format(self.instance_number))
         # tmp remove clear
 
         # set devices as class attributes
@@ -141,8 +144,12 @@ class LAXSubsequence(LAXBase, ABC):
     def _load_dma(self):
         if self._dma_record_flag == True:
             self._load_dma_kernel()
+
+            # tmp remove
             print('\t{}: {}'.format(self.name, self.dma_handle))
             print('\t\tdma name: {}'.format(self.dma_name))
+            # tmp remove
+
     # todo: move to solely a kernel function after we fix dma issue
     @kernel(flags={"fast-math"})
     def _load_dma_kernel(self):
@@ -161,6 +168,7 @@ class LAXSubsequence(LAXBase, ABC):
         Requires record_dma to have been previously run.
         """
         self.core_dma.playback_handle(self.dma_handle)
+        # todo: remove break_realtime()
         self.core.break_realtime()
 
 

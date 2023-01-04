@@ -25,12 +25,10 @@ class LAXExperiment(LAXBase, ABC):
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
         devices                     list(LAXDevice)         : list of devices used by the subsequence.
     """
-    # Core attributes
-    kernel_invariants =             set()
 
-    # Class attributes
-    name =                          None
-
+    # tmp remove
+    instance_number = 0
+    # tmp remove
 
     '''
     BUILD
@@ -230,6 +228,10 @@ class LAXExperiment(LAXBase, ABC):
     '''
 
     def write_results(self, exp_params):
+        """
+        Write arguments, datasets, and parameters in a well-structured format
+        that uses the capabilities of HDF5.
+        """
         # set variables
         rid = exp_params["rid"]
         start_time = time.localtime(exp_params["start_time"])
