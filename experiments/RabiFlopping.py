@@ -37,7 +37,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device('pmt')
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
@@ -58,15 +57,16 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def run_initialize(self):
         self.core.reset()
 
-        # set qubit beam parameters
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
-
         # record subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
+
         # tmp remove
         self.rubbish_initialize.record_dma()
         # tmp remove clear
-        self.initialize_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
+
+        # set qubit beam parameters
+        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
 
         self.core.break_realtime()
 
@@ -97,7 +97,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_pair_mu[1], self.pmt.fetch_count())
+                    self.update_dataset(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
 
     @rpc(flags={"async"})
