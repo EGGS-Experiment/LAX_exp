@@ -1,9 +1,8 @@
-from artiq.experiment import *
-
 import logging
 from numpy import int64, int32
 from abc import ABC, abstractmethod
 
+from artiq.experiment import *
 from LAX_exp.base import LAXBase
 logger = logging.getLogger("artiq.master.experiments")
 
