@@ -140,6 +140,7 @@ class RabiFlopping(EnvExperiment):
         self.DMArecord()
         handle_reset = self.core_dma.get_handle(_DMA_HANDLE_RESET)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        self.core.break_realtime()
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
