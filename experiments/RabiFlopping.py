@@ -17,7 +17,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def build_experiment(self):
         # rabi flopping parameters
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=LinearScan(0, 400, 10, randomize=True),
+                                                                        default=RangeScan(0, 400, 1001, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ))
