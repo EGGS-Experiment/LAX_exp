@@ -139,7 +139,6 @@ class LAXSubsequence(LAXBase, ABC):
         self._dma_record_flag = True
         self.core.break_realtime()
 
-    # todo: ensure this works
     @kernel(flags={"fast-math"})
     def _load_dma(self):
         if self._dma_record_flag == True:

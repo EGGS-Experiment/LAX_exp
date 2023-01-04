@@ -42,11 +42,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
 
-        # tmp remove
-        self.rubbish_initialize =                                   InitializeQubit(self)
-        print(self.rubbish_initialize.dma_name)
-        # tmp remove clear
-
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
         self.setattr_dataset('results')
@@ -60,10 +55,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
-
-        # tmp remove
-        self.rubbish_initialize.record_dma()
-        # tmp remove clear
 
         # set qubit beam parameters
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
