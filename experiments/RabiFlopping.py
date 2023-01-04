@@ -43,7 +43,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.initialize_subsequence =                               InitializeQubit(self)
         # tmp remove
         self.rubbish_initialize =                               InitializeQubit(self)
-        print(self.rubbish_initialize.dma_name)
+        #print(self.rubbish_initialize.dma_name)
         # tmp remove clear
         self.readout_subsequence =                                  Readout(self)
 
@@ -103,4 +103,4 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def update_dataset(self, time_mu, counts):
         self.results[self._result_iter] = np.array([time_mu, counts])
         self._result_iter += 1
-        print(self._result_iter)
+        #print(self._result_iter)
