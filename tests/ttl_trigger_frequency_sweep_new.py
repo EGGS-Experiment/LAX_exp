@@ -170,6 +170,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
             # set up loop variables
             counter = 0
             time_stop_mu_list = [0] * self.repetitions
+            self.core.break_realtime()
 
             # synchronize timings with DDS clock
             # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
