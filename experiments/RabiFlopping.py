@@ -22,7 +22,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ))
 
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=110, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.3925, ndecimals=5, step=1, min=1, max=10000))
 
     def prepare_experiment(self):
         # rabi flopping timing
@@ -41,11 +41,12 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
+        self.readout_subsequence =                                  Readout(self)
+
         # tmp remove
-        self.rubbish_initialize =                               InitializeQubit(self)
+        self.rubbish_initialize =                                   InitializeQubit(self)
         #print(self.rubbish_initialize.dma_name)
         # tmp remove clear
-        self.readout_subsequence =                                  Readout(self)
 
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
@@ -101,6 +102,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, counts):
-        self.results[self._result_iter] = np.array([time_mu, counts])
+        self.results[self._result_iter] = np.array([self.core.seconds_to_mu(time_mu), counts])
         self._result_iter += 1
-        #print(self._result_iter)
+        print(self._result_iter)
