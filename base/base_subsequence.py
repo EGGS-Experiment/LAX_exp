@@ -139,19 +139,11 @@ class LAXSubsequence(LAXBase, ABC):
         self._dma_record_flag = True
         self.core.break_realtime()
 
+    # todo: ensure this works
+    @kernel(flags={"fast-math"})
     def _load_dma(self):
         if self._dma_record_flag == True:
-            self._load_dma_kernel()
-
-            # tmp remove
-            print('\t{}: {}'.format(self.name, self.dma_handle))
-            print('\t\tdma name: {}'.format(self.dma_name))
-            # tmp remove
-
-    # todo: move to solely a kernel function after we fix dma issue
-    @kernel(flags={"fast-math"})
-    def _load_dma_kernel(self):
-        self.dma_handle = self.core_dma.get_handle(self.dma_name)
+            self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
 
     '''
@@ -166,8 +158,6 @@ class LAXSubsequence(LAXBase, ABC):
         Requires record_dma to have been previously run.
         """
         self.core_dma.playback_handle(self.dma_handle)
-        # todo: remove break_realtime()
-        #self.core.break_realtime()
 
 
     # RUN - USER FUNCTIONS
