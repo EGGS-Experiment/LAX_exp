@@ -32,6 +32,8 @@ class LAXSubsequence(LAXBase, ABC):
         parent_instance_num_tmp = getattr(managers_or_parent, 'instance_number', 0)
         setattr(self, 'instance_number', parent_instance_num_tmp)
         print('self inst num: {}'.format(self.instance_number))
+        try:
+            managers_or_parent.instance_number += 1
 
         # regular init todo better document
         super().__init__(managers_or_parent, *args, **kwargs)
