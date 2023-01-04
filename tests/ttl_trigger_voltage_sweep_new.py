@@ -39,7 +39,6 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=1, min=1, max=1000000))
         self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.59, ndecimals=5, step=1, min=0, max=1000000))
 
-
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))

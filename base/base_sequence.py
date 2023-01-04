@@ -1,14 +1,15 @@
-from artiq.experiment import *
-
 import logging
+from numpy import int64, int32
 from abc import ABC, abstractmethod
 
+from artiq.experiment import *
+from LAX_exp.base import LAXBase
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXSequence(HasEnvironment, ABC):
+class LAXSequence(LAXBase, ABC):
     """
-    Base class for sequence objects.
+    Base class for Sequence objects.
 
     Defines a single short and regularly used pulse sequence to be recorded onto DMA.
     Assumes that the relevant devices have already been initialized.
@@ -21,17 +22,8 @@ class LAXSequence(HasEnvironment, ABC):
                                                             and the value is a tuple of the parameter name as stored in dataset_db,
                                                             together with a conversion function (None if no conversion needed).
     """
-    # Core attributes
-    kernel_invariants =             set()
-
     # Class attributes
-    name =                          None
-    parameters =                    dict()
     devices =                       list()
-
-    # Runtime attributes
-    duplicate_counter =             0
-
 
     '''
     BUILD
@@ -44,10 +36,11 @@ class LAXSequence(HasEnvironment, ABC):
 
         Will be called upon instantiation.
         """
-        self._build_sequence(**kwargs)
-        self.build_sequence(**kwargs)
+        self._build_arguments = kwargs
+        self._build_sequence()
+        self.build_sequence()
 
-    def _build_sequence(self, **kwargs):
+    def _build_sequence(self):
         """
         General construction of the sequence object.
 
@@ -59,12 +52,9 @@ class LAXSequence(HasEnvironment, ABC):
         self.setattr_device("core_dma")
 
         # set instance variables
-        setattr(self,   'dma_handle',           None)
-        setattr(self,   'build_parameters',     dict())
-        setattr(self,   'instance_number',      self.duplicate_counter)
-
-        # keep track of all instances of a sequence
-        self.duplicate_counter += 1
+        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
+        setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
+        setattr(self,   '_dma_record_flag',         False)
 
         # set devices as class attributes
         for device_name in self.devices:
@@ -74,17 +64,6 @@ class LAXSequence(HasEnvironment, ABC):
                 self.kernel_invariants.add(device_name)
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
-
-
-        # extract parameters from build arguments
-        class_parameters = set([parameter_name.split('.')[-1] for parameter_name, _ in self.parameters.values()])
-        build_parameters = set([parameter_name for parameter_name in kwargs.keys()])
-
-        # take kwargs passed to the sequence meant to replace parameter values from the dataset manager
-        self.build_parameters = {
-            parameter_name: kwargs[parameter_name]
-            for parameter_name in class_parameters.intersection(build_parameters)
-        }
 
 
     # BUILD - USER FUNCTIONS
@@ -110,50 +89,8 @@ class LAXSequence(HasEnvironment, ABC):
 
         Will be called by parent classes.
         """
-        self.__prepare_parameters()
+        self._prepare_parameters(**self._build_arguments)
         self.prepare_sequence()
-        self._prepare_sequence()
-
-    def __prepare_parameters(self):
-        """
-        Get parameters and convert them for use by the sequence.
-        """
-        # get sequence parameters
-        for parameter_name, parameter_attributes in self.parameters.items():
-            _parameter_name_dataset, _parameter_conversion_function = parameter_attributes
-
-            try:
-                # get parameter from kwargs
-                parameter_value = self.build_parameters.get(
-                    _parameter_name_dataset,
-                    None
-                )
-
-                # if not in kwargs, take it from dataset manager
-                if parameter_value is None:
-                    parameter_value = self.get_parameter(_parameter_name_dataset)
-
-                # if in kwargs, add parameter to dataset manager
-                else:
-                    self.__dataset_mgr.set(_parameter_name_dataset, parameter_value, archive=False, parameter=True, argument=False)
-
-                # convert parameter as necessary
-                if _parameter_conversion_function is not None:
-                    parameter_value = _parameter_conversion_function(parameter_value)
-
-                # set parameter as class attribute
-                setattr(self, parameter_name, parameter_value)
-                self.kernel_invariants.add(parameter_name)
-
-            except Exception as e:
-                logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
-
-    def _prepare_sequence(self):
-        """
-        idk
-        :return:
-        """
-        self.record_dma()
 
 
     # PREPARE - USER FUNCTIONS
@@ -171,55 +108,6 @@ class LAXSequence(HasEnvironment, ABC):
     RUN
     '''
 
-    # RUN - BASE
-    def record_dma(self):
-        """
-        Records the run sequence onto core DMA and sets the trace name as an instance attribute.
-
-        Returns:
-            str: the DMA handle for the sequence.
-        """
-        # record sequence
-        setattr(self, 'dma_name', '{:s}_{:d}'.format(self.name, self.instance_number))
-        self._record_dma(self.dma_name)
-
-    @kernel(flags={"fast-math"})
-    def _record_dma(self, dma_name):
-        self.core.break_realtime()
-
-        # record sequence
-        with self.core_dma.record(dma_name):
-            self.run()
-
-        self.core.break_realtime()
-
-    def load_dma(self):
-        """
-        Get the DMA handles.
-
-        Must be called after ALL DMA sequences/subsequences have been recorded.
-        Any future calls to record_dma will invalidate this sequence handle.
-        """
-        # get DMA handle
-        dma_handle = self.core_dma.get_handle(self.dma_name)
-        setattr(self, 'dma_handle', dma_handle)
-
-    @kernel(flags={"fast-math"})
-    def _load_dma(self):
-        self.core.break_realtime()
-
-        # get DMA handle
-        return self.core_dma.get_handle(self.dma_name)
-
-    @kernel(flags={"fast-math"})
-    def run_dma(self):
-        """
-        Runs the core sequence from DMA.
-        Requires _prepare_subsequence to have already been run.
-        """
-        self.core_dma.playback_handle(self.dma_handle)
-
-
     # RUN - USER FUNCTIONS
     @abstractmethod
     def run(self):
@@ -231,17 +119,3 @@ class LAXSequence(HasEnvironment, ABC):
         Since sequences use core DMA, it cannot contain any methods involving RTIO input.
         """
         pass
-
-
-    '''
-    HasEnvironment Extensions
-    '''
-
-    def get_parameter(self, key, default=NoDefault, archive=False):
-        try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
-        except KeyError:
-            if default is NoDefault:
-                raise
-            else:
-                return default
