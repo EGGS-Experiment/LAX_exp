@@ -17,12 +17,12 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def build_experiment(self):
         # rabi flopping parameters
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 400, 1001, randomize=True),
+                                                                        default=RangeScan(0, 400, 201, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ))
 
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.3925, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.3895, ndecimals=5, step=1, min=1, max=10000))
 
     def prepare_experiment(self):
         # rabi flopping timing
