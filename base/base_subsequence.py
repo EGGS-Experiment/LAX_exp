@@ -29,7 +29,7 @@ class LAXSubsequence(LAXBase, ABC):
 
     def __init__(self, managers_or_parent, *args, **kwargs):
         # get subseq #
-        parent_instance_num_tmp = managers_or_parent.getattr('instance_number', 0)
+        parent_instance_num_tmp = getattr(managers_or_parent, 'instance_number', 0)
         setattr(self, 'instance_number', parent_instance_num_tmp)
         print('self inst num: {}'.format(self.instance_number))
 
