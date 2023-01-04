@@ -99,7 +99,7 @@ class LAXDevice(LAXBase, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters(self._build_arguments)
+        self._prepare_parameters(**self._build_arguments)
         self.prepare_device()
 
     # PREPARE - USER FUNCTIONS
