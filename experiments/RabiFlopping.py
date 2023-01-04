@@ -43,8 +43,8 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.readout_subsequence =                                  Readout(self)
 
         # tmp remove
-        #self.rubbish_initialize =                                   InitializeQubit(self)
-        #print(self.rubbish_initialize.dma_name)
+        self.rubbish_initialize =                                   InitializeQubit(self)
+        print(self.rubbish_initialize.dma_name)
         # tmp remove clear
 
         # dataset
@@ -62,7 +62,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # tmp remove
-        #self.rubbish_initialize.record_dma()
+        self.rubbish_initialize.record_dma()
         # tmp remove clear
 
         # set qubit beam parameters
