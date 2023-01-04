@@ -36,17 +36,17 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.setattr_argument("time_timeout_pmt_ms",                NumberValue(default=10000, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=0.1, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
                                                                         default=RangeScan(1.585, 1.615, 51, randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=4
+                                                                        global_min=0, global_max=1000, global_step=0.1,
+                                                                        unit="MHz", scale=1, ndecimals=5
                                                                     ))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=65, ndecimals=3, step=1, min=1, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=55.5, ndecimals=3, step=1g, min=0, max=1000000))
 
 
         # get global parameters
