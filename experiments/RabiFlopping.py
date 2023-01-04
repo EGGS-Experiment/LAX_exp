@@ -73,12 +73,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
     # MAIN LOOP
     @kernel
     def run_main(self):
-
         for trial_num in range(self.repetitions):
-
-            self.core.break_realtime()
-            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
-            self.core.break_realtime()
 
             # sweep time
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
