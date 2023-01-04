@@ -67,7 +67,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         # set qubit beam parameters
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
-
         self.core.break_realtime()
 
 
@@ -77,6 +76,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
         for trial_num in range(self.repetitions):
 
+            self.core.break_realtime()
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
             self.core.break_realtime()
 
@@ -105,6 +105,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, counts):
-        self.results[self._result_iter] = np.array([self.core.seconds_to_mu(time_mu), counts])
+        self.results[self._result_iter] = np.array([self.core.mu_to_seconds(time_mu), counts])
         self._result_iter += 1
         #print(self._result_iter)

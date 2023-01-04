@@ -18,7 +18,7 @@ class Beam729(LAXDevice):
         'ampl_qubit_asf':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf)
     }
     core_devices = {
-        'beam': 'urukul0_ch2'
+        'beam': 'urukul0_ch1'
     }
 
     @kernel(flags={"fast-math"})
