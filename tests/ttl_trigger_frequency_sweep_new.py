@@ -3,6 +3,7 @@ import numpy as np
 
 from os import environ
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
@@ -141,6 +142,10 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.mod_toggle.off()
         self.core.break_realtime()
 
+        # configure rf mod clock
+        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.core.break_realtime()
+
         # start rf mod clock
         self.mod_clock.set_att(self.mod_clock_att_db)
         self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
@@ -164,21 +169,21 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
             # set up loop variables
             counter = 0
-            #self.tmp_data_holder = np.zeros(self.repetitions)
-            #time_stop_mu_list = np.zeros(self.repetitions)
             time_stop_mu_list = [0] * self.repetitions
 
+            # synchronize timings with DDS clock
+            # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+            # delay_mu(self.mod_clock_delay_mu)
+
             # activate modulation and wait for change in output
-            self.core.break_realtime()
             self.mod_toggle.on()
             delay_mu(self.mod_clock_delay_mu)
+            time_start_mu = now_mu()
 
             # load photon timestamps into buffer
-            time_start_mu = now_mu()
             time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
             while counter < self.repetitions:
                 time_stop_mu_list[counter] = self.pmt_counter.timestamp_mu(time_stop_mu)
-                #self.tmp_data_holder[counter] = self.pmt_counter.timestamp_mu()
                 counter += 1
 
             # sync delay at end
