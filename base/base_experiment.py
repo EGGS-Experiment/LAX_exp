@@ -229,19 +229,19 @@ class LAXExperiment(LAXBase, ABC):
     '''
 
     def write_results(self, exp_params):
+        # set variables
         rid = exp_params["rid"]
         start_time = time.localtime(exp_params["start_time"])
-
         save_dir_list = ['Z:\\Motion\\Data']
 
+        # save to all relevant directories
         for save_dir in save_dir_list:
 
             try:
                 # format file name and save directory
                 filedir = os.path.join(
                     save_dir,
-                    time.strftime("%Y-%m-%d", start_time),
-                    time.strftime("%H", start_time)
+                    time.strftime("%Y-%m-%d", start_time)
                 )
                 filename = "{:09}-{}.h5".format(rid, self.name)
 

@@ -104,4 +104,4 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def update_dataset(self, time_mu, counts):
         self.results[self._result_iter] = np.array([self.core.seconds_to_mu(time_mu), counts])
         self._result_iter += 1
-        print(self._result_iter)
+        #print(self._result_iter)
