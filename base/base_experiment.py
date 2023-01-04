@@ -172,9 +172,9 @@ class LAXExperiment(LAXBase, ABC):
         """
         self.core.break_realtime()
         self.urukul0_cpld.set_profile(0)
-        self.urukul0_cpld.cfg_sw(0b0000)
+        self.urukul0_cpld.cfg_switches(0b0000)
         self.core.break_realtime()
-        self.urukul1_cpld.cfg_sw(0b1110)
+        self.urukul1_cpld.cfg_switches(0b1110)
         self.core.break_realtime()
 
     @rpc(flags={"async"})
