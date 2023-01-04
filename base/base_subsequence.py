@@ -41,7 +41,7 @@ class LAXSubsequence(LAXBase, ABC):
         """
         self._build_arguments = kwargs
         self._build_subsequence()
-        self.build_subsequence(**kwargs)
+        self.build_subsequence()
 
     def _build_subsequence(self):
         """

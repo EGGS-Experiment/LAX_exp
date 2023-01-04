@@ -40,7 +40,7 @@ class LAXDevice(LAXBase, ABC):
         """
         self._build_arguments = kwargs
         self._build_device()
-        self.build_device(**kwargs)
+        self.build_device()
 
     def _build_device(self):
         """
@@ -77,7 +77,7 @@ class LAXDevice(LAXBase, ABC):
 
 
     # BUILD - USER FUNCTIONS
-    def build_device(self, **kwargs):
+    def build_device(self):
         """
         To be subclassed.
 

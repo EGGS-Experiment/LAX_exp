@@ -57,7 +57,7 @@ class LAXExperiment(LAXBase, ABC):
         """
         self._build_arguments = kwargs
         self._build_experiment()
-        self.build_experiment(**kwargs)
+        self.build_experiment()
 
     def _build_experiment(self):
         """
@@ -80,7 +80,7 @@ class LAXExperiment(LAXBase, ABC):
 
 
     # BUILD - USER FUNCTIONS
-    def build_experiment(self, **kwargs):
+    def build_experiment(self):
         """
         To be subclassed.
 
