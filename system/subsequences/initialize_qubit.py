@@ -19,6 +19,7 @@ class InitializeQubit(LAXSubsequence):
     devices = [
         'probe',
         'pump',
+        'repump_cooling',
         'repump_qubit'
     ]
 
@@ -26,6 +27,9 @@ class InitializeQubit(LAXSubsequence):
     def run(self):
         # set cooling waveform
         self.pump.cooling()
+
+        # permanently enable cooling repump
+        self.repump_cooling.cfg_sw(True)
 
         # repump pulse
         self.repump_qubit.cfg_sw(True)
