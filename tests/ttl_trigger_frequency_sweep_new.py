@@ -42,7 +42,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
                                                                         default=RangeScan(1.350, 1.400, 51, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
-                                                                        unit="V", scale=1, ndecimals=4
+                                                                        unit="MHz", scale=1, ndecimals=4
                                                                     ))
 
         # voltage values
@@ -230,7 +230,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         )
 
         self._dataset_counter += 1
-
 
     def analyze(self):
         # turn off modulation
