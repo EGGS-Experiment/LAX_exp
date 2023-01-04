@@ -28,16 +28,14 @@ class LAXSubsequence(LAXBase, ABC):
 
 
     def __init__(self, managers_or_parent, *args, **kwargs):
-        # get subseq #
-        parent_instance_num_tmp = getattr(managers_or_parent, 'instance_number', 0)
-        setattr(self, 'instance_number', parent_instance_num_tmp)
-        print('self inst num: {}'.format(self.instance_number))
-        try:
+        # get unique subsequence number to distinguish different DMA handles from the same class
+        instance_number = 0
+        if (not isinstance(managers_or_parent, tuple)) and (hasattr(managers_or_parent, 'instance_number')):
+            instance_number = getattr(managers_or_parent, 'instance_number')
             managers_or_parent.instance_number += 1
-        except Exception as e:
-            print('\texception: {}'.format(e))
 
-        # regular init todo better document
+
+        # do regular initialization
         super().__init__(managers_or_parent, *args, **kwargs)
 
     '''
@@ -62,10 +60,6 @@ class LAXSubsequence(LAXBase, ABC):
         Gets/sets instance attributes, devices, and process build arguments.
         Called before build_subsequence.
         """
-        # tmp remove
-        print('build subseq called')
-        # tmp remove clear
-
         # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -74,11 +68,6 @@ class LAXSubsequence(LAXBase, ABC):
         setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
-
-        # keep track of all instances of a subsequence
-        # tmp remove
-        print('\tbuild subseq vals set, parent subseq counter: {}'.format(self.instance_number))
-        # tmp remove clear
 
         # set devices as class attributes
         for device_name in self.devices:
@@ -176,7 +165,7 @@ class LAXSubsequence(LAXBase, ABC):
         """
         self.core_dma.playback_handle(self.dma_handle)
         # todo: remove break_realtime()
-        self.core.break_realtime()
+        #self.core.break_realtime()
 
 
     # RUN - USER FUNCTIONS
