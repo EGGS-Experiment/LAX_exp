@@ -13,7 +13,7 @@ class Beam866(LAXDevice):
 
     parameters = {
         'freq_repump_cooling_ftw':          ('beams.freq_mhz.freq_repump_cooling_mhz',      mhz_to_ftw),
-        'ampl_repump_cooling_saf':          ('beams.ampl_pct.ampl_repump_cooling_pct',      pct_to_asf)
+        'ampl_repump_cooling_asf':          ('beams.ampl_pct.ampl_repump_cooling_pct',      pct_to_asf)
     }
     core_devices = {
         'beam': 'urukul1_ch2'
