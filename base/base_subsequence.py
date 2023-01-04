@@ -34,6 +34,8 @@ class LAXSubsequence(LAXBase, ABC):
             instance_number = getattr(managers_or_parent, 'instance_number')
             managers_or_parent.instance_number += 1
 
+        setattr(self, 'instance_number', instance_number)
+
 
         # do regular initialization
         super().__init__(managers_or_parent, *args, **kwargs)
