@@ -34,6 +34,8 @@ class LAXSubsequence(LAXBase, ABC):
         print('self inst num: {}'.format(self.instance_number))
         try:
             managers_or_parent.instance_number += 1
+        except Exception as e:
+            print('\texception: {}'.format(e))
 
         # regular init todo better document
         super().__init__(managers_or_parent, *args, **kwargs)
