@@ -7,16 +7,16 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class TTLTriggerFrequencySweepNew(EnvExperiment):
+class TTLTriggerVoltageSweepNew(EnvExperiment):
     """
-    TTL Trigger Frequency SweepNew
+    TTL Trigger Voltage SweepNew
     """
     kernel_invariants = {
         'time_timeout_pmt_mu',
-        'dc_micromotion_channels',
+        'dc_micromotion_channel',
         'ampl_mod_vpp',
-        'freq_mod_mhz_list',
-        'dc_micromotion_voltage_v'
+        'freq_mod_mhz',
+        'dc_micromotion_voltages_v_list'
     }
 
     global_parameters = [
@@ -37,17 +37,17 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
         # modulation
         self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=1, min=1, max=1000000))
-        self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.585, 1.615, 51, randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=4
-                                                                    ))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.59, ndecimals=5, step=1, min=0, max=1000000))
+
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channels",            EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=65, ndecimals=3, step=1, min=1, max=1000000))
-
+        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
+                                                                        default=RangeScan(40.0, 80.0, 41, randomize=True),
+                                                                        global_min=0, global_max=1000, global_step=1,
+                                                                        unit="V", scale=1, ndecimals=4
+                                                                    ))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -68,10 +68,8 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_ms * ms)
 
         # get voltage parameters
-        self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
-
-        # reformat frequency list
-        self.freq_mod_mhz_list =                                    np.array(list(self.freq_mod_mhz_list))
+        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
+        self.dc_micromotion_channel =                               self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
 
         # RF modulation synchronization clock
         self.mod_clock =                                            self.get_device("urukul0_ch3")
@@ -81,20 +79,17 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.mod_clock_att_db =                                     2. * dB
         self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
-        # set voltage
-        self.dc.voltage(self.dc_micromotion_channels, self.dc_micromotion_voltage_v)
-
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list), self.repetitions]))
+        self.set_dataset("ttl_trigger",                             np.zeros([len(self.dc_micromotion_voltages_v_list), self.repetitions]))
         self.setattr_dataset("ttl_trigger")
 
         # record parameters
-        self.set_dataset('xArr', self.freq_mod_mhz_list)
-        self.set_dataset('repetitions', self.repetitions)
-        self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_num', self.dc_micromotion_channels)
-        self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
+        self.set_dataset('xArr',                                    self.dc_micromotion_voltages_v_list)
+        self.set_dataset('repetitions',                             self.repetitions)
+        self.set_dataset('freq_mod_mhz',                            self.freq_mod_mhz)
+        self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
+        self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel)
 
         # set up function generator
         # get list of function generators
@@ -115,6 +110,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         # set up function generator
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)
+        self.fg.frequency(self.freq_mod_mhz * 1e6)
 
         # set up gated burst
         self.fg.burst(True)
@@ -149,13 +145,13 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
         # MAIN LOOP
         # sweep voltage
-        for freq_val_mhz in self.freq_mod_mhz_list:
+        for voltage_val in self.dc_micromotion_voltages_v_list:
 
             # reset FIFOs
             self.core.reset()
 
             # set frequency
-            self.frequency_set(freq_val_mhz * 1e6)
+            self.voltage_set(self.dc_micromotion_channel, voltage_val)
             self.core.break_realtime()
 
             # set up loop variables
@@ -238,7 +234,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg.toggle(0)
 
         # process data
-        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
+        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v_list), self.repetitions, 2))
         # ind_arr = np.argsort(self.freq_mod_mhz_list)
         # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
         #
