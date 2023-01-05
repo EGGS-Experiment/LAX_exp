@@ -80,7 +80,7 @@ class LaserScan2(LAXExperiment, Experiment):
                     self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
 
-            self.set_dataset('management.completion_pct', trial_num / len(self.repetitions) * 100., broadcast=True, persist=True, archive=False)
+            self.set_dataset('management.completion_pct', trial_num / self.repetitions * 100., broadcast=True, persist=True, archive=False)
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, counts):
