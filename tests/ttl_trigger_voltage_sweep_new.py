@@ -187,7 +187,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # sync delay at end
             # todo: maybe counts are still accumulated since sensitivity might not be off
-            self.pmt_counter.set_sensitivity(0)
+            self.pmt_counter._set_sensitivity(0)
             self.core.break_realtime()
 
             # complete a loop
