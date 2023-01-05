@@ -68,7 +68,7 @@ class LAXExperiment(LAXBase, ABC):
         self.setattr_device('urukul1_cpld')
 
         # instance variables
-        setattr(self,   '_result_iter',                         0)
+        self.setattr_dataset('_result_iter',                    0, broadcast=True, persist=True)
 
         # universal arguments
         self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))

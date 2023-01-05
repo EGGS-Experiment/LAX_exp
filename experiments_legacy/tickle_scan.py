@@ -91,19 +91,31 @@ class TickleScan(EnvExperiment):
         self.time_tickle_us =                                       self.core.seconds_to_mu(self.time_tickle_us * us)
         self.freq_tickle_mhz =                                      list(self.freq_tickle_mhz)
 
-        # prepare labrad devices
-        self.fg.select_device()
-        self.fg.toggle(1)
-        self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
+        # set up function generator
+        # get list of function generators
+        fg_dev_list = self.fg.list_devices()
+        fg_dev_dict = dict(tuple(fg_dev_list))
 
-        # configure burst mode
+        # select correct function generator
+        dev_exists = False
+        for dev_num, dev_desc in fg_dev_dict.items():
+            if 'MY48' in dev_desc:
+                dev_exists = True
+                self.fg.select_device(dev_num)
+
+            # raise error if function generator doesn't exist
+            if not dev_exists:
+                raise Exception("Error: modulation function generator not detected.")
+
+        # set up function generator
+        self.fg.toggle(0)
+        self.fg.amplitude(self.ampl_tickle_mvpp / 1e3)
         self.fg.gpib_write('BURS:STAT ON')
         self.fg.gpib_write('BURS:MODE GAT')
         self.fg.gpib_write('BURS:PHAS 0')
-
-        # configure function generator trigger
         self.fg.gpib_write('TRIG:SOUR EXT')
         self.fg.gpib_write('TRIG:SLOP POS')
+        self.fg.toggle(1)
 
         # set up datasets
         self.set_dataset("tickle_scan", [])
@@ -131,6 +143,8 @@ class TickleScan(EnvExperiment):
             # set frequency
             self.frequency_set(freq_mhz)
             delay(1 * s)
+            self.core.wait_until_mu(now_mu())
+            self.core.break_realtime()
 
             # repeat experiment
             for trial_num in range(self.repetitions):
