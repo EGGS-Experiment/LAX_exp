@@ -152,7 +152,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             # set frequency
             self.voltage_set(self.dc_micromotion_channel, voltage_val)
             delay(1 * s)
-            wait_until_mu(now_mu())
+            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
 
             # set up loop variables
