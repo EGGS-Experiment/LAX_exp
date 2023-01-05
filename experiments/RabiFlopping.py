@@ -25,6 +25,9 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.3895, ndecimals=5, step=1, min=1, max=10000))
 
     def prepare_experiment(self):
+        # get devices
+        self.setattr_device('qubit')
+
         # rabi flopping timing
         max_time_us =                                               np.max(list(self.time_rabi_us_list))
         self.time_rabiflop_mu_list =                                np.array([
@@ -35,9 +38,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         # rabi flopping frequency
         self.freq_rabiflop_ftw =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
-        # get devices
-        self.setattr_device('qubit')
-
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
@@ -47,7 +47,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.setattr_dataset('results')
 
 
-    # PREPARE MAIN SEQUENCE
+    # MAIN SEQUENCE
     @kernel
     def run_initialize(self):
         self.core.reset()
@@ -60,8 +60,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
         self.core.break_realtime()
 
-
-    # MAIN LOOP
     @kernel
     def run_main(self):
         for trial_num in range(self.repetitions):
