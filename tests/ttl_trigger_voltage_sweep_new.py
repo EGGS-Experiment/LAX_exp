@@ -30,14 +30,14 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_device("core_dma")
 
         # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions",                        NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_ms",                NumberValue(default=10000, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.1, min=0, max=1000000))
-        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.57, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=0.1, min=0, max=1000000))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.58, ndecimals=5, step=0.1, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
@@ -74,8 +74,8 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.mod_clock =                                            self.get_device("urukul0_ch3")
         self.mod_toggle =                                           self.get_device("ttl8")
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
-        self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
-        self.mod_clock_att_db =                                     2. * dB
+        self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.50)
+        self.mod_clock_att_db =                                     0. * dB
         self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
         # set up datasets
@@ -110,12 +110,8 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)
         self.fg.frequency(self.freq_mod_mhz * 1e6)
-
-        # set up gated burst
         self.fg.burst(True)
         self.fg.burst_mode('GAT')
-
-        # enable output
         self.fg.toggle(1)
 
 
@@ -131,9 +127,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
         # configure rf mod clock
         self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.core.break_realtime()
-
-        # start rf mod clock
+        #self.core.break_realtime()
         self.mod_clock.set_att(self.mod_clock_att_db)
         self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
         self.mod_clock.cfg_sw(True)
@@ -148,15 +142,6 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # reset FIFOs
             self.core.reset()
-
-            # tmp remove
-            if voltage_val > 75:
-                #tmp_end_time = self.pmt_counter.gate_rising_mu(1000000)
-                self.core.break_realtime()
-                if self.pmt_counter.timestamp_mu(now_mu() + 10000) > 0:
-                    print('yzde: error')
-                    self.core.break_realtime()
-            # tmp remove clear
 
             # set frequency
             self.voltage_set(self.dc_micromotion_channel, voltage_val)
@@ -194,14 +179,12 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
                     timestamp_mu_list[counter] = time_mu_tmp
                     counter += 1
 
-            # sync delay at end
-            # todo: maybe counts are still accumulated since sensitivity might not be off
+            # stop loop
             self.pmt_counter._set_sensitivity(0)
-            self.core.reset()
-            self.core.break_realtime()
-
-            # complete a loop
             self.mod_toggle.off()
+            self.core.reset()
+
+            # store data
             self.update_dataset(time_start_mu, timestamp_mu_list)
             self.core.break_realtime()
 
@@ -243,6 +226,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
     def analyze(self):
         # turn off modulation
+        #pass
         self.fg.toggle(0)
 
         # process data
