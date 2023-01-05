@@ -30,7 +30,7 @@ class testarg12(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.ttl8.off()
+        self.ttl8.on()
         self.core.break_realtime()
         #pass
         # self.core.reset()
@@ -46,3 +46,5 @@ class testarg12(EnvExperiment):
         #print('type: {}'.format(type(self.test1)))
         #print(self.test1)
 
+    def analyze(self):
+        print('test done')
