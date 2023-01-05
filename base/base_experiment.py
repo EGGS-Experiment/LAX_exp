@@ -147,6 +147,9 @@ class LAXExperiment(LAXBase, ABC):
         Main sequence of the experiment.
         Repeat a given sequence a number of times.
         """
+        # todo: completion monitor stuff
+        self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
+
         # set up the run
         self.run_initialize()
 
