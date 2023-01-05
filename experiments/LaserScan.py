@@ -84,4 +84,6 @@ class LaserScan2(LAXExperiment, Experiment):
     def update_dataset(self, freq_ftw, counts):
         self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw) / MHz, counts])
         self._result_iter += 1
+        print('iter: {}'.format(self._result_iter))
+        self.set_dataset('aa_result_iter', self._result_iter, broadcast=True, persist=True)
         #print(self._result_iter)
