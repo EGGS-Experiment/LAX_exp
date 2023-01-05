@@ -149,6 +149,15 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             # reset FIFOs
             self.core.reset()
 
+            # tmp remove
+            if voltage_val > 75:
+                #tmp_end_time = self.pmt_counter.gate_rising_mu(1000000)
+                self.core.break_realtime()
+                if self.pmt_counter.timestamp_mu(now_mu() + 10000) > 0:
+                    print('yzde: error')
+                    self.core.break_realtime()
+            # tmp remove clear
+
             # set frequency
             self.voltage_set(self.dc_micromotion_channel, voltage_val)
             delay(1 * s)
@@ -168,11 +177,6 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             self.mod_toggle.on()
             delay_mu(self.mod_clock_delay_mu)
             time_start_mu = now_mu()
-
-            if voltage_val > 50:
-                #tmp_end_time = self.pmt_counter.gate_rising_mu(1000000)
-                if self.pmt_counter.timestamp_mu(now_mu() + 10000) > 0:
-                    print('yzde: error')
 
             # start counting photons
             time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
