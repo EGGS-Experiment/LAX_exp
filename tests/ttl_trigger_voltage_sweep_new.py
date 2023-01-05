@@ -33,7 +33,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_ms",                NumberValue(default=10000, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
         self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=0.1, min=0, max=1000000))
@@ -64,7 +64,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_ms * ms)
+        self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_s * s)
 
         # get voltage parameters
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
@@ -107,6 +107,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             raise Exception("Error: modulation function generator not detected.")
 
         # set up function generator
+        self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)
         self.fg.frequency(self.freq_mod_mhz * 1e6)
