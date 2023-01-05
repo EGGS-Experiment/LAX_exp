@@ -30,7 +30,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_device("core_dma")
 
         # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions",                        NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_ms",                NumberValue(default=10000, ndecimals=5, step=1, min=1, max=1000000))
@@ -188,7 +188,8 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             # sync delay at end
             # todo: maybe counts are still accumulated since sensitivity might not be off
             self.pmt_counter._set_sensitivity(0)
-            self.core.break_realtime()
+            self.core.reset()
+            self.core.break_realtiem()
 
             # complete a loop
             self.mod_toggle.off()
