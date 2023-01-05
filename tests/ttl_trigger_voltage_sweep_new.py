@@ -151,11 +151,13 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # set frequency
             self.voltage_set(self.dc_micromotion_channel, voltage_val)
+            delay(1 * s)
+            wait_until_mu(now_mu())
             self.core.break_realtime()
 
             # set up loop variables
             counter = 0
-            time_stop_mu_list = [0] * self.repetitions
+            timestamp_mu_list = [0] * self.repetitions
             self.core.break_realtime()
 
             # synchronize timings with DDS clock
@@ -171,16 +173,16 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
             time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
             while counter < self.repetitions:
 
-                # move timestamped photons
+                # move timestamped photons into buffer
                 time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
 
                 # increase gating time
                 if time_mu_tmp < 0:
-                    print('\tError: increased gating time')
+                    print('\t\tError: increased gating time')
                     self.core.break_realtime()
                     time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
                 else:
-                    time_stop_mu_list[counter] = time_mu_tmp
+                    timestamp_mu_list[counter] = time_mu_tmp
                     counter += 1
 
             # sync delay at end
@@ -188,7 +190,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # complete a loop
             self.mod_toggle.off()
-            self.update_dataset(time_start_mu, time_stop_mu_list)
+            self.update_dataset(time_start_mu, timestamp_mu_list)
             self.core.break_realtime()
 
 
@@ -216,16 +218,15 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.fg.gpib_write(msg)
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_start_mu, time_stop_mu_list):
+    def update_dataset(self, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
         self.mutate_dataset(
             'ttl_trigger',
             self._dataset_counter,
-            np.array(self.core.mu_to_seconds(np.array(time_stop_mu_list) - time_start_mu))
+            np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
         )
-
         self._dataset_counter += 1
 
     def analyze(self):
