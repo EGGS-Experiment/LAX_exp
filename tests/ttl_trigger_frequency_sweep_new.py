@@ -70,7 +70,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         # get voltage parameters
         self.dc_micromotion_channels =                              self.dc_micromotion_channeldict[self.dc_micromotion_channels]['num']
 
-        # reformat frequency list
+        # reformat frequency listk
         self.freq_mod_mhz_list =                                    np.array(list(self.freq_mod_mhz_list))
 
         # RF modulation synchronization clock
@@ -78,7 +78,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.mod_toggle =                                           self.get_device("ttl8")
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
-        self.mod_clock_att_db =                                     2. * dB
+        self.mod_clock_att_db =                                     0 * dB
         self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
         # set voltage
@@ -115,12 +115,8 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         # set up function generator
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)
-
-        # set up gated burst
         self.fg.burst(True)
         self.fg.burst_mode('GAT')
-
-        # enable output
         self.fg.toggle(1)
 
 
@@ -136,9 +132,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
         # configure rf mod clock
         self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.core.break_realtime()
-
-        # start rf mod clock
+        # self.core.break_realtime()
         self.mod_clock.set_att(self.mod_clock_att_db)
         self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
         self.mod_clock.cfg_sw(True)
@@ -148,7 +142,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg_write(':ROSC:SOUR EXT')
 
         # MAIN LOOP
-        # sweep voltage
+        # sweep frequency
         for freq_val_mhz in self.freq_mod_mhz_list:
 
             # reset FIFOs
@@ -156,16 +150,18 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
 
             # set frequency
             self.frequency_set(freq_val_mhz * 1e6)
+            delay(1 * s)
+            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
 
             # set up loop variables
             counter = 0
-            time_stop_mu_list = [0] * self.repetitions
+            timestamp_mu_list = [0] * self.repetitions
             self.core.break_realtime()
 
             # synchronize timings with DDS clock
-            #self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-            #delay_mu(self.mod_clock_delay_mu)
+            # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+            # delay_mu(self.mod_clock_delay_mu)
 
             # activate modulation and wait for change in output
             self.mod_toggle.on()
@@ -176,24 +172,25 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
             time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
             while counter < self.repetitions:
 
-                # move timestamped photons
+                # move timestamped photons into buffer
                 time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
 
                 # increase gating time
                 if time_mu_tmp < 0:
-                    print('\tError: increased gating time')
+                    print('\t\tError: increased gating time')
                     self.core.break_realtime()
                     time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
                 else:
-                    time_stop_mu_list[counter] = time_mu_tmp
+                    timestamp_mu_list[counter] = time_mu_tmp
                     counter += 1
 
-            # sync delay at end
-            self.core.break_realtime()
-
-            # complete a loop
+            # stop loop
+            self.pmt_counter._set_sensitivity(0)
             self.mod_toggle.off()
-            self.update_dataset(time_start_mu, time_stop_mu_list)
+            self.core.reset()
+
+            # store data
+            self.update_dataset(time_start_mu, timestamp_mu_list)
             self.core.break_realtime()
 
 
@@ -230,7 +227,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
             self._dataset_counter,
             np.array(self.core.mu_to_seconds(np.array(time_stop_mu_list) - time_start_mu))
         )
-
         self._dataset_counter += 1
 
     def analyze(self):
