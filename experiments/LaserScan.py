@@ -16,11 +16,11 @@ class LaserScan2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # timing
-        self.setattr_argument("time_729_us",                        NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                        NumberValue(default=4000, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=RangeScan(104.24, 104.96, 100, randomize=True),
+                                                                        default=CenterScan(104.3895, 0.05, 0.005, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -52,14 +52,12 @@ class LaserScan2(LAXExperiment, Experiment):
         self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-        # set qubit beam parameters
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
-        self.core.break_realtime()
-
 
     @kernel
     def run_main(self):
         for trial_num in range(self.repetitions):
+
+            self.core.break_realtime()
 
             # sweep frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
@@ -84,6 +82,6 @@ class LaserScan2(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, counts):
-        self.results[self._result_iter] = np.array([self.qubit.frequency_to_ftw(freq_ftw), counts])
+        self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw), counts])
         self._result_iter += 1
         #print(self._result_iter)
