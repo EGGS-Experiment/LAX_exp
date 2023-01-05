@@ -67,9 +67,6 @@ class LAXExperiment(LAXBase, ABC):
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
 
-        # instance variables
-        self.set_dataset('_result_iter',                        0, broadcast=True, persist=True, archive=False)
-
         # universal arguments
         self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
@@ -149,6 +146,7 @@ class LAXExperiment(LAXBase, ABC):
         Repeat a given sequence a number of times.
         """
         # set up the run
+        self.set_dataset('_result_iter', 0, broadcast=True, persist=True, archive=False)
         self.run_initialize()
 
         # get DMA handles for subsequences recorded onto DMA
