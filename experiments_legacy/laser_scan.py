@@ -122,6 +122,9 @@ class LaserScan(EnvExperiment):
         self.set_dataset("laser_scan_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_processed")
 
+        # tmp remove
+        self.setattr_device('ttl17')
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -129,6 +132,9 @@ class LaserScan(EnvExperiment):
         Run the experimental sequence.
         """
         self.core.reset()
+
+        # tmp remove
+        self.ttl17.off()
 
         # prepare devices
         self.prepareDevices()
@@ -140,6 +146,9 @@ class LaserScan(EnvExperiment):
         # get dma handle
         handle = self.core_dma.get_handle(_DMA_HANDLE_LASERSCAN)
         self.core.break_realtime()
+
+        # tmp remove
+        self.ttl17.on()
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):

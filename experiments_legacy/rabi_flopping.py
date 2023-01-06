@@ -125,6 +125,9 @@ class RabiFlopping(EnvExperiment):
         self.set_dataset("rabi_flopping_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_processed")
 
+        # tmp remove
+        self.setattr_device('ttl17')
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -132,6 +135,9 @@ class RabiFlopping(EnvExperiment):
         Run the experimental sequence.
         """
         self.core.reset()
+
+        # tmp remove
+        self.ttl17.off()
 
         # prepare devices
         self.prepareDevices()
@@ -141,6 +147,9 @@ class RabiFlopping(EnvExperiment):
         handle_reset = self.core_dma.get_handle(_DMA_HANDLE_RESET)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
         self.core.break_realtime()
+
+        # tmp remove
+        self.ttl17.on()
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):

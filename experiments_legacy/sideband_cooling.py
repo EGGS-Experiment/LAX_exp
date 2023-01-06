@@ -179,6 +179,9 @@ class SidebandCooling(EnvExperiment):
         self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
 
+        # tmp remove
+        self.setattr_device('ttl17')
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -186,6 +189,9 @@ class SidebandCooling(EnvExperiment):
         Run the experimental sequence.
         """
         self.core.reset()
+
+        # tmp remove
+        self.ttl17.off()
 
         # prepare devices
         self.prepareDevices()
@@ -196,6 +202,9 @@ class SidebandCooling(EnvExperiment):
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
         self.core.break_realtime()
+
+        # tmp remove
+        self.ttl17.on()
 
         # MAIN SEQUENCE
         for i in range(self.repetitions):
