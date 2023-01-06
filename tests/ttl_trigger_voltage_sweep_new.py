@@ -30,7 +30,8 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_device("core_dma")
 
         # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("counts_per_repetition",              NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
@@ -82,6 +83,9 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self._dataset_counter                                       = 0
         self.set_dataset("ttl_trigger",                             np.zeros([len(self.dc_micromotion_voltages_v_list), self.repetitions]))
         self.setattr_dataset("ttl_trigger")
+        # self.set_dataset("ttl_trigger",                             np.zeros([self.repetitions, len(self.freq_mod_mhz_list), self.counts_per_repetition]))
+        # self.setattr_dataset("ttl_trigger")
+
 
         # record parameters
         self.set_dataset('xArr',                                    self.dc_micromotion_voltages_v_list)

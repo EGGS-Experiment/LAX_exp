@@ -81,7 +81,8 @@ class TickleScanUrukul(EnvExperiment):
         self.ampl_repump_cooling_asf =                              self.dds_pump.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
 
         # tickle
-        self.dds_board_tickle =                                     self.get_device("urukul{:d}_cpld".format(self.dds_board_tickle_num))
+        # self.dds_board_tickle =                                     self.get_device("urukul{:d}_cpld".format(self.dds_board_tickle_num))
+        self.dds_board_tickle =                                     self.get_device("urukul{:d}_cpld".format(0))
         self.dds_tickle =                                           self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_tickle_num, self.dds_tickle_channel))
         self.time_tickle_mu =                                       self.core.seconds_to_mu(self.time_tickle_us * us)
         self.freq_tickle_ftw =                                      [self.dds_pump.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_tickle_mhz)]
