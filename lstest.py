@@ -53,14 +53,14 @@ class LStest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                    NumberValue(default=40, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
-                                                                    default=CenterScan(104.463, 0.1, 5e-5, randomize=True),
+                                                                    default=CenterScan(104.463, 0.1, 5e-3, randomize=True),
                                                                     global_min=60, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ))
@@ -242,15 +242,14 @@ class LStest(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        self.append_to_dataset('laser_scan', [np.round(self.dds_pump.ftw_to_frequency(freq_ftw) / 1e6, 5), pmt_counts])
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        res_tmp = groupBy(self.laser_scan, combine=True)
-        for i, k, v in enumerate(res_tmp.items()):
-            self.laser_scan_processed[i] = [k, discriminateCounts(v, 17)]
-
-        print(self.laser_scan_processed)
+        res_tmp = groupBy(self.laser_scan, combine=False)
+        for i, (k, v) in enumerate(res_tmp.items()):
+            self.laser_scan_processed[i, 0] = k
+            self.laser_scan_processed[i, 1] = discriminateCounts(v, 1)

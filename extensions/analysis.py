@@ -77,6 +77,9 @@ def discriminateCounts(counts, threshold):
     Returns:
         ***todo
     """
+    # ensure counts is a numpy array
+    counts = np.array(counts)
+
     # ensure threshold argument is a list
     if not isinstance(threshold, (list, np.ndarray)):
         threshold = [threshold]
@@ -90,7 +93,7 @@ def discriminateCounts(counts, threshold):
     for cutoff in threshold:
         res += np.where(counts > cutoff, 1, 0)
 
-    return res
+    return np.mean(res)
 
 
 '''
