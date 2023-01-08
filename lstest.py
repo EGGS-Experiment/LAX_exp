@@ -119,8 +119,6 @@ class LStest(EnvExperiment):
         # set up datasets
         self.set_dataset("laser_scan", [])
         self.setattr_dataset("laser_scan")
-        self.set_dataset("laser_scan_processed", np.zeros([len(self.freq_qubit_scan_ftw), 2]))
-        self.setattr_dataset("laser_scan_processed")
 
 
     @kernel(flags={"fast-math"})
@@ -242,14 +240,29 @@ class LStest(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan', [np.round(self.dds_pump.ftw_to_frequency(freq_ftw), 5), pmt_counts])
+        self.append_to_dataset('laser_scan', [np.round(self.dds_pump.ftw_to_frequency(freq_ftw) / 1e6, 5), pmt_counts])
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        res_tmp = groupBy(self.laser_scan, combine=False)
+        laser_scan_tmp = self.tmpreplacedata()
+
+
+        res_tmp = groupBy(laser_scan_tmp, combine=False)
         for i, (k, v) in enumerate(res_tmp.items()):
             self.laser_scan_processed[i, 0] = k
-            self.laser_scan_processed[i, 1] = discriminateCounts(v, 1)
+            self.laser_scan_processed[i, 1] = discriminateCounts(v, 17)
+
+    def tmpreplacedata(self):
+        import h5py
+        laser_scan_tmp = np.array([])
+        with h5py.File("C:\\Users\\EGGS1\\Documents\\datatmp\\000008927-LaserScan.h5", "r") as f:
+            laser_scan_tmp = np.zeros([len(f['datasets']['laser_scan']), 2])
+            f['datasets']['laser_scan'].read_direct(laser_scan_tmp)
+
+        x_len = len(set(laser_scan_tmp[:, 0]))
+        self.set_dataset("laser_scan_processed", np.zeros([x_len, 2]))
+        self.setattr_dataset("laser_scan_processed")
+        return laser_scan_tmp
