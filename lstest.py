@@ -242,7 +242,7 @@ class LStest(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan', [np.round(self.dds_pump.ftw_to_frequency(freq_ftw) / 1e6, 5), pmt_counts])
+        self.append_to_dataset('laser_scan', [np.round(self.dds_pump.ftw_to_frequency(freq_ftw), 5), pmt_counts])
 
 
     def analyze(self):
