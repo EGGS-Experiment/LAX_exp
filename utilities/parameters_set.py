@@ -86,16 +86,19 @@ class ParameterSet(EnvExperiment):
             # qubit carrier
             "calibration.qubit.freq_carrier_mhz":                       104.364,
             "calibration.qubit.cavity_drift_rate_hz_per_s":             0.264,
-            "calibration.qubit.time_last_calibrated_timestamp":         1673141207.260716,
+            "calibration.qubit.calibration_timestamp":                  1673141207.260716,
 
             # secular frequency
             "calibration.secular.freq_secular_x_mhz":                   1.600,
-            "calibration.secular.freq_secular_x_mhz":                   1.480,
-            "calibration.secular.freq_secular_x_mhz":                   0.692,
+            "calibration.secular.freq_secular_y_mhz":                   1.480,
+            "calibration.secular.freq_secular_z_mhz":                   0.692,
+            "calibration.secular.calibration_timestamp":                1673141207.260716,
 
             # pmt counts
+            "calibration.pmt.sample_num":                               100,
             "calibration.pmt.counts_signal":                            17,
             "calibration.pmt.counts_noise":                             1.4,
+            "calibration.pmt.calibration_timestamp":                    1673141207.260716
         }
 
 
@@ -114,7 +117,8 @@ class ParameterSet(EnvExperiment):
             **beam_parameters,
             **external_parameters,
             **timing_parameters,
-            **management_parameters
+            **management_parameters,
+            **calibration_parameters
         }
 
         # set parameters as global persistent datasets
