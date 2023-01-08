@@ -50,28 +50,19 @@ class Test3(EnvExperiment):
 
         # nco stuff
         ch.set_nco_frequency(-212 * MHz)
-        scb()
         ch.set_nco_phase(0.)
-        scb()
         ph.dac_sync()
         scb()
 
 
         # trf
         ch.set_att(0 * dB)
-        self.core.break_realtime()
-
         ch.en_trf_out(rf=1, lo=0)
         self.core.break_realtime()
 
-
         # duc
         ch.set_duc_frequency(0 * MHz)
-        scb()
-
         ch.set_duc_cfg()
-        scb()
-
         ph.duc_stb()
         scb()
 
@@ -85,7 +76,7 @@ class Test3(EnvExperiment):
         # pwd_lo_div
         # pwd_tx_div
         osc_freq_list = [-1.5, 1.5, 0.0, 0.0, 0.0]
-        osc_ampl_list = [0.48, 0.48, 0.0, 0.0, 0.0]
+        osc_ampl_list = [0.49, 0.49, 0.0, 0.0, 0.0]
 
         for i in range(5):
             ch.oscillator[i].set_frequency(osc_freq_list[i] * MHz)
