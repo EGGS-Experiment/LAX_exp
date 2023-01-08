@@ -20,7 +20,7 @@ class ParameterSet(EnvExperiment):
             "pmt.pmt_discrimination":                                   11,
 
             # photodiode
-            "photodiode.photodiode_channel":                            0,
+            "photodiode.photodiode_channel_sampler":                    0,
             "photodiode.photodiode_gain":                               1
         }
 
@@ -34,8 +34,8 @@ class ParameterSet(EnvExperiment):
         # beam parameters
         beam_parameters = {
             # frequency
-            "beams.freq_mhz.freq_probe_spinpol_mhz":                    110.0,
-            "beams.freq_mhz.freq_pump_cooling_mhz":                     106.0,
+            "beams.freq_mhz.freq_probe_spinpol_mhz":                    114.0,
+            "beams.freq_mhz.freq_pump_cooling_mhz":                     110.0,
             "beams.freq_mhz.freq_pump_readout_mhz":                     110.0,
             "beams.freq_mhz.freq_repump_cooling_mhz":                   110.0,
             "beams.freq_mhz.freq_repump_qubit_mhz":                     110.0,
@@ -44,22 +44,13 @@ class ParameterSet(EnvExperiment):
             "beams.freq_mhz.freq_qubit_bsb_mhz":                        105.214,
 
             # amplitude
-            "beams.ampl_pct.ampl_probe_spinpol_pct":                    50.0,
-            "beams.ampl_pct.ampl_pump_cooling_pct":                     21.0,
+            "beams.ampl_pct.ampl_probe_spinpol_pct":                    20.0,
+            "beams.ampl_pct.ampl_pump_cooling_pct":                     19.0,
             "beams.ampl_pct.ampl_pump_readout_pct":                     45.0,
-            "beams.ampl_pct.ampl_repump_cooling_pct":                   17.0,
+            "beams.ampl_pct.ampl_repump_cooling_pct":                   15.0,
             "beams.ampl_pct.ampl_repump_qubit_pct":                     15.0,
             "beams.ampl_pct.ampl_qubit_pct":                            50.0,
             'beams.ampl_pct.ampl_tickle_radial_pct':                    50.0
-        }
-
-
-        # motion
-        motion_parameters = {
-            # secular frequencies
-            "motion.freq_khz.freq_secular_x_khz":                       1450.0,
-            "motion.freq_khz.freq_secular_y_khz":                       1375.0,
-            "motion.freq_khz.freq_secular_z_khz":                       550.0
         }
 
 
@@ -76,8 +67,8 @@ class ParameterSet(EnvExperiment):
             "timing.time_profileswitch_delay_us":                       1,
 
             # standard
-            "timing.time_spinpol_us":                                   500,
-            "timing.time_doppler_cooling_us":                           800,
+            "timing.time_spinpol_us":                                   20,
+            "timing.time_doppler_cooling_us":                           3000,
             "timing.time_readout_us":                                   500,
             "timing.time_probe_us":                                     50,
             "timing.time_repump_qubit_us":                              100,
@@ -85,11 +76,26 @@ class ParameterSet(EnvExperiment):
             # qubit manipulation
             "timing.time_rabiflop_us":                                  50,
 
-            # sideband cooling
-            "time_repump_sideband_cooling_mu":                          20,
-
             # tickle
             "timing.time_tickle_us":                                    500
+        }
+
+
+        # calibration parameters
+        calibration_parameters = {
+            # qubit carrier
+            "calibration.qubit.freq_carrier_mhz":                       104.364,
+            "calibration.qubit.cavity_drift_rate_hz_per_s":             0.264,
+            "calibration.qubit.time_last_calibrated_timestamp":         1673141207.260716,
+
+            # secular frequency
+            "calibration.secular.freq_secular_x_mhz":                   1.600,
+            "calibration.secular.freq_secular_x_mhz":                   1.480,
+            "calibration.secular.freq_secular_x_mhz":                   0.692,
+
+            # pmt counts
+            "calibration.pmt.counts_signal":                            17,
+            "calibration.pmt.counts_noise":                             1.4,
         }
 
 
@@ -98,7 +104,7 @@ class ParameterSet(EnvExperiment):
             "management.completion_pct":                                0.00,
 
             # datasets
-            "management.dataset_save_locations":                        ["Z:\Motion\Data"],
+            "management.dataset_save_locations":                        ["Z:\Motion\Data"]
         }
 
         # consolidate parameter dictionaries

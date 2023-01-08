@@ -64,7 +64,6 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
-        self.setattr_argument("time_repump_sideband_cooling_us",        NumberValue(default=20, ndecimals=5, step=1, min=1, max=1000000))
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 75, 80, 91]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 271, 239, 241]))
         self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012, 107.711]))
@@ -84,7 +83,6 @@ class SidebandCooling(EnvExperiment):
                                                                         ))
 
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
-        #self.setattr_argument("ampl_readout_pipulse_pct",              NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -160,7 +158,6 @@ class SidebandCooling(EnvExperiment):
         self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
         # other sideband cooling parameters
-        self.time_repump_sideband_cooling_mu =                  self.core.seconds_to_mu(self.time_repump_sideband_cooling_us * us)
         self.freq_sideband_cooling_ftw_list =                   [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.iter_sideband_cooling_modes_list =                 list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
@@ -277,7 +274,7 @@ class SidebandCooling(EnvExperiment):
 
                         # qubit repump
                         self.dds_board.cfg_switches(0b1100)
-                        delay_mu(self.time_repump_sideband_cooling_mu)
+                        delay_mu(self.time_repump_qubit_mu)
                         self.dds_board.cfg_switches(0b0100)
 
             # repump qubit after sideband cooling
