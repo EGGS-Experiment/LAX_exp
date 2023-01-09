@@ -238,9 +238,9 @@ class EGGSHeating(EnvExperiment):
                     # run eggs heating
                     #self.core_dma.playback_handle(handle_eggs)
                     at_mu(self.awg_board.get_next_frame_mu())
-                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.3, clr=0)
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
                     delay_mu(320)
-                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.3, clr=0)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
 
                     delay_mu(self.time_eggs_heating_mu)
 
@@ -405,7 +405,7 @@ class EGGSHeating(EnvExperiment):
         self.core.break_realtime()
 
         # trf setup, and disable rf output while we set things up
-        self.awg_eggs.set_att(31.5 * dB)
+        self.awg_eggs.set_att(0 * dB)
         self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 

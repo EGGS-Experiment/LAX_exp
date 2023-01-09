@@ -77,11 +77,11 @@ class Test3(EnvExperiment):
         # pwd_tx_div
         # osc_freq_list = [-1.5, 1.5, 0.0, 0.0, 0.0]
         osc_freq_list = [0., 0., 0.0, 0.0, 0.0]
-        osc_ampl_list = [0.9, 0., 0.0, 0.0, 0.0]
+        osc_ampl_list = [0., 0., 0.0, 0.0, 0.0]
 
         for i in range(5):
             ch.oscillator[i].set_frequency(osc_freq_list[i] * MHz)
-            ch.oscillator[i].set_amplitude_phase(amplitude=osc_ampl_list[i])
+            ch.oscillator[i].set_amplitude_phase(amplitude=osc_ampl_list[i], clr=1)
             self.core.break_realtime()
 
         # write lo div sel reg
