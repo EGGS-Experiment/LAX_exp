@@ -339,7 +339,7 @@ class EGGSHeating(EnvExperiment):
 
             # turn off
             self.awg_eggs.oscillator[0].set_amplitude_phase(0., 0.)
-            self.awg_eggs.oscillator[1].set_amplitude_phase(0., 0)
+            self.awg_eggs.oscillator[1].set_amplitude_phase(0., 0.)
 
 
     @kernel(flags={"fast-math"})
