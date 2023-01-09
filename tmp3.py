@@ -57,7 +57,7 @@ class Test3(EnvExperiment):
 
         # trf
         ch.set_att(31.5 * dB)
-        ch.en_trf_out(rf=1, lo=0)
+        ch.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
         # duc
