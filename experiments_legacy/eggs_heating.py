@@ -61,8 +61,8 @@ class EGGSHeating(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling
@@ -177,7 +177,6 @@ class EGGSHeating(EnvExperiment):
         self.awg_board =                                                self.get_device("phaser0")
         self.awg_eggs =                                                 self.awg_board.channel[0]
         self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
-        # self.freq_eggs_heating_ftw_list =                               [self.awg_eggs_mhz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_eggs_heating_mhz_list]
         self.freq_eggs_heating_mhz_list =                               [(freq_mhz - 85) for freq_mhz in self.freq_eggs_heating_mhz_list]
 
         # readout pi-pulse
@@ -209,7 +208,7 @@ class EGGSHeating(EnvExperiment):
         handle_initialize = self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
-        handle_eggs = self.core_dma.get_handle(_DMA_HANDLE_EGGS)
+        #handle_eggs = self.core_dma.get_handle(_DMA_HANDLE_EGGS)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -237,7 +236,22 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # run eggs heating
-                    self.core_dma.playback_handle(handle_eggs)
+                    #self.core_dma.playback_handle(handle_eggs)
+                    at_mu(self.awg_board.get_next_frame_mu())
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.3, clr=0)
+                    delay_mu(320)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.3, clr=0)
+
+                    delay_mu(self.time_eggs_heating_mu)
+
+                    at_mu(self.awg_board.get_next_frame_mu())
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+                    delay_mu(320)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+                    delay_mu(320)
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
+                    delay_mu(320)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
@@ -245,6 +259,10 @@ class EGGSHeating(EnvExperiment):
                     # record data
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), freq_eggs_mhz + 85)
                     self.core.break_realtime()
+
+        # disable rf output
+        self.awg_eggs.en_trf_out(rf=0, lo=0)
+        self.core.break_realtime()
 
         # reset board profiles
         self.dds_board.set_profile(0)
@@ -331,15 +349,17 @@ class EGGSHeating(EnvExperiment):
             self.dds_board.cfg_switches(0b0100)
 
         # eggs sequence
-        with self.core_dma.record(_DMA_HANDLE_EGGS):
-            # set amplitude
-            self.awg_eggs.oscillator[0].set_amplitude_phase(0.49, 0.)
-            self.awg_eggs.oscillator[1].set_amplitude_phase(0.49, 0.)
-            delay_mu(self.time_eggs_heating_mu)
-
-            # turn off
-            self.awg_eggs.oscillator[0].set_amplitude_phase(0., 0.)
-            self.awg_eggs.oscillator[1].set_amplitude_phase(0., 0.)
+        # with self.core_dma.record(_DMA_HANDLE_EGGS):
+        #     # set amplitude
+        #     self.awg_eggs.oscillator[0].set_amplitude_phase(0.49, 0.)
+        #     self.awg_eggs.oscillator[1].set_amplitude_phase(0.49, 0.)
+        #     #self.core.break_realtime()
+        #
+        #     delay_mu(self.time_eggs_heating_mu)
+        #
+        #     # turn off
+        #     self.awg_eggs.oscillator[0].set_amplitude_phase(0., 0., clr=1)
+        #     self.awg_eggs.oscillator[1].set_amplitude_phase(0., 0., clr=1)
 
 
     @kernel(flags={"fast-math"})
@@ -374,7 +394,7 @@ class EGGSHeating(EnvExperiment):
             self.core.break_realtime()
 
 
-        # set up eggs awg (i.e. phaser)
+        # initialize phaser
         self.awg_board.init(debug=True)
         self.core.break_realtime()
 
@@ -384,9 +404,9 @@ class EGGSHeating(EnvExperiment):
         self.awg_board.dac_sync()
         self.core.break_realtime()
 
-        # trf
-        self.awg_eggs.set_att(0 * dB)
-        self.awg_eggs.en_trf_out(rf=1, lo=0)
+        # trf setup, and disable rf output while we set things up
+        self.awg_eggs.set_att(31.5 * dB)
+        self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
         # duc
@@ -397,9 +417,14 @@ class EGGSHeating(EnvExperiment):
 
         # oscillators (i.e. sidebands)
         self.awg_eggs.oscillator[0].set_frequency(-self.freq_eggs_heating_secular_mhz * MHz)
-        self.awg_eggs.oscillator[0].set_amplitude_phase(0.)
+        self.awg_eggs.oscillator[0].set_amplitude_phase(0., clr=0)
+        self.core.break_realtime()
         self.awg_eggs.oscillator[1].set_frequency(self.freq_eggs_heating_secular_mhz * MHz)
-        self.awg_eggs.oscillator[1].set_amplitude_phase(0.)
+        self.awg_eggs.oscillator[1].set_amplitude_phase(0., clr=0)
+        self.core.break_realtime()
+
+        # re-enable rf output
+        self.awg_eggs.en_trf_out(rf=1, lo=0)
         self.core.break_realtime()
 
 
@@ -417,5 +442,3 @@ class EGGSHeating(EnvExperiment):
         """
         # turn dataset into numpy array for ease of use
         self.eggs_heating = np.array(self.eggs_heating)
-        print('heating rate times')
-        
