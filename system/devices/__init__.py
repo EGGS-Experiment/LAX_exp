@@ -23,6 +23,7 @@ from LAX_exp.system.devices.pmt import PMTCounter
 __all__.extend(['PMTCounter'])
 
 # TTL triggers
-from LAX_exp.system.devices.trigger_linetrigger import Linetrigger
-from LAX_exp.system.devices.trigger_rf_modulation import RFSync
-__all__.extend(['Linetrigger', 'RFSync'])
+from LAX_exp.system.devices.linetrigger import Linetrigger
+#from LAX_exp.system.devices.trigger_rf_modulation import RFSync
+__all__.extend(['Linetrigger'])
+#__all__.extend(['Linetrigger', 'RFSync'])

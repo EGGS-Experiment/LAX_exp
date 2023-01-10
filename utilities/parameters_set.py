@@ -24,6 +24,14 @@ class ParameterSet(EnvExperiment):
             "photodiode.photodiode_gain":                               1
         }
 
+        # ttl parameters
+        ttl_parameters = {
+            # linetrigger
+            "linetrigger.gating_edge":                                  'rising',
+            "linetrigger.time_timeout_ms":                              100.0,
+            "linetrigger.time_holdoff_us":                              100.0
+        }
+
 
         # rf parameters
         rf_parameters = {
@@ -114,6 +122,7 @@ class ParameterSet(EnvExperiment):
         consolidated_parameters = {
             **readout_parameters,
             **rf_parameters,
+            **ttl_parameters,
             **beam_parameters,
             **external_parameters,
             **timing_parameters,
