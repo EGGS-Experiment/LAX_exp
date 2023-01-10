@@ -41,21 +41,22 @@ class TemperatureMeasurement(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",            NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("amplitude_calibration",              BooleanValue(default=False))
 
         # timing
-        self.setattr_argument("time_probe_us",          NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000))
+        self.setattr_argument("time_probe_us",                      NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(
-                                                            default=RangeScan(80, 140, 25, randomize=True),
-                                                            global_min=10, global_max=200, global_step=1,
-                                                            unit="MHz", scale=1, ndecimals=6
-                                                        ))
+        self.setattr_argument("freq_probe_scan_mhz",                Scannable(
+                                                                        default=RangeScan(80, 140, 25, randomize=True),
+                                                                        global_min=10, global_max=200, global_step=1,
+                                                                        unit="MHz", scale=1, ndecimals=6
+                                                                    ))
 
         # photodiode
-        self.setattr_argument("photodiode_channel",     NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("photodiode_gain",        NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("photodiode_channel",                 NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("photodiode_gain",                    NumberValue(default=1, ndecimals=0, step=1, min=0, max=3))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -240,6 +241,16 @@ class TemperatureMeasurement(EnvExperiment):
         # set up sampler
         self.adc.set_gain_mu(self.photodiode_channel, self.photodiode_gain)
         self.core.break_realtime()
+
+    @kernel(flags={"fast-math"})
+    def amplitudeCalibration(self):
+        """
+        Calibrate the power of the 397nm probe beam.
+        """
+        self.core.break_realtime()
+
+        # set pump waveform (profile 0 is doppler cooling, profile 1 is readout)
+        #self.dds_pump.set_mu(self.fre
 
 
     @rpc(flags={"async"})
