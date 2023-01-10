@@ -15,7 +15,7 @@ class PMTDiscrimination(LAXSequence):
     name = 'pmt_discrimination'
 
     parameters = {
-        "sample_num":                       ('calibration.pmt.sample_num',              100),
+        "sample_num":                       ('calibration.pmt.sample_num',              None),
         'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu),
         'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu),
     }
@@ -25,11 +25,14 @@ class PMTDiscrimination(LAXSequence):
         'pmt'
     ]
 
+    # def build_sequence(self):
+    #     self.time_doppler_cooling_mu = 0
+    #     self.time_readout_mu = 0
+
     def prepare_sequence(self):
-        print(self.time_doppler_cooling_mu)
         # create subsequence datasets
-        self.set_dataset("counts_signal", np.zeros(self.sample_num))
-        self.set_dataset("counts_noise", np.zeros(self.sample_num))
+        self.set_dataset("counts_signal", np.zeros(self.sample_num, dtype=np.int32))
+        self.set_dataset("counts_noise", np.zeros(self.sample_num, dtype=np.int32))
         self.setattr_dataset("counts_signal")
         self.setattr_dataset("counts_noise")
 
@@ -37,24 +40,25 @@ class PMTDiscrimination(LAXSequence):
     def run(self):
         # set up 397 cooling
         self.pump.readout()
+        self.core.break_realtime()
+
+        # take discrimination counts w/cooling repump off
         self.pump.on()
         self.repump_cooling.off()
         self.core.break_realtime()
 
-        # take discrimination counts w/cooling repump off
-
-        # read out on PMT
         for i in range(self.sample_num):
-            self.counts_noise[i] = self.pmt.count(self.time_readout_mu)
+            self.pmt.count(self.time_readout_mu)
+            self.counts_noise[i] = self.pmt.fetch_count()
             self.core.break_realtime()
 
         # take discrimination counts w/cooling repump on
         self.repump_cooling.on()
         self.core.break_realtime()
 
-        # read out on PMT
         for i in range(self.sample_num):
-            self.counts_signal[i] = self.pmt.count(self.time_readout_mu)
+            self.pmt.count(self.time_readout_mu)
+            self.counts_signal[i] = self.pmt.fetch_count()
             self.core.break_realtime()
 
     def analyze(self):

@@ -21,7 +21,6 @@ class pmt_disc_test(LAXExperiment, Experiment):
         # get 729 beam
         self.setattr_device('qubit')
 
-
         # prepare sequences
         self.pmt_disc_sequence =                                    PMTDiscrimination(self)
 
