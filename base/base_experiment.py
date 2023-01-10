@@ -119,6 +119,9 @@ class LAXExperiment(LAXBase, ABC):
             except KeyError:
                 logger.warning("Argument unavailable: {:s}".format(arg_val))
 
+        # todo: get a labrad snapshot
+        # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
+
         # create dataset to hold results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')

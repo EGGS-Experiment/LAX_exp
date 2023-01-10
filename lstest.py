@@ -133,12 +133,13 @@ class analtest(EnvExperiment):
             self.laser_scan_processed[i, 1] = discriminateCounts(v, 17)
 
         from scipy.signal import find_peaks
+        # todo: set height requirement, threshold, and distance
         th1 = find_peaks(self.laser_scan_processed[:, 1])[0]
         yz0 = np.zeros([len(th1),2])
         for i, val in enumerate(th1):
-            print(val)
             yz0[i, 0] = self.laser_scan_processed[val, 0]
             yz0[i, 1] = self.laser_scan_processed[val, 1]
+
         print(yz0)
         self.set_dataset("laser_scan_peaks", yz0)
         self.setattr_dataset("laser_scan_peaks")
