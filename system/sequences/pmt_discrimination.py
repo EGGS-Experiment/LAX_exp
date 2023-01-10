@@ -15,7 +15,7 @@ class PMTDiscrimination(LAXSequence):
     name = 'pmt_discrimination'
 
     parameters = {
-        "calibration.pmt.sample_num":       ('calibration.pmt.sample_num',              100),
+        "sample_num":                       ('calibration.pmt.sample_num',              100),
         'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu),
         'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu),
     }
@@ -25,31 +25,35 @@ class PMTDiscrimination(LAXSequence):
         'pmt'
     ]
 
-    # sequence parameters
-    counts_signal =             []
-    counts_noise =              []
+    def build_sequence(self):
+        # create subsequence datasets
+        self.set_dataset("counts_signal", np.zeros(self.sample_num))
+        self.set_dataset("counts_noise", np.zeros(self.sample_num))
+        self.setattr_dataset("counts_signal")
+        self.setattr_dataset("counts_noise")
 
     @kernel(flags={"fast-math"})
     def run(self):
+        # set up 397 cooling
+        self.pump.readout()
+        self.pump.on()
+        self.repump_cooling.off()
         self.core.break_realtime()
 
-        # set up cooling
-        self.pump.cooling()
-
         # take discrimination counts w/cooling repump off
-        self.repump_cooling.off()
 
         # read out on PMT
-        for i in range(self.num_reads):
-            self.counts_noise.append(self.pmt.count(self.time_readout_mu))
+        for i in range(self.sample_num):
+            self.counts_noise[i] = self.pmt.count(self.time_readout_mu)
             self.core.break_realtime()
 
         # take discrimination counts w/cooling repump on
         self.repump_cooling.on()
+        self.core.break_realtime()
 
         # read out on PMT
-        for i in range(self.num_reads):
-            self.counts_signal.append(self.pmt.count(self.time_readout_mu))
+        for i in range(self.sample_num):
+            self.counts_signal[i] = self.pmt.count(self.time_readout_mu)
             self.core.break_realtime()
 
     def analyze(self):
@@ -59,6 +63,10 @@ class PMTDiscrimination(LAXSequence):
 
         # calculate discrimination threshold value
         threshold = signal_mean / np.log(1 + signal_mean / noise_mean)
+
+        print('\tsignal mean: {} +/- {}'.format(signal_mean, signal_std))
+        print('\tnoise mean: {} +/- {}'.format(noise_mean, noise_std))
+        print('\tthreshold: {}'.format(threshold))
 
         # update values in scheduler
         self.set_dataset("calibration.pmt.counts_signal", signal_mean, broadcast=True, persist=True)
