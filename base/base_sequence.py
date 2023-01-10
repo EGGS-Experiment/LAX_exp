@@ -51,11 +51,6 @@ class LAXSequence(LAXBase, ABC):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
-        # set instance variables
-        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
-        setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
-        setattr(self,   '_dma_record_flag',         False)
-
         # set devices as class attributes
         for device_name in self.devices:
             try:

@@ -11,7 +11,7 @@ class pmt_disc_test(LAXExperiment, Experiment):
     pmt_disc_test
     """
 
-    name = 'pmt_disc_test"
+    name = "pmt_disc_test"
 
     def build_experiment(self):
         # timing
@@ -21,20 +21,9 @@ class pmt_disc_test(LAXExperiment, Experiment):
         # get 729 beam
         self.setattr_device('qubit')
 
-        # convert frequencies to machine units
-        self.freq_qubit_scan_ftw =                                  np.array([mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz])
-
-        # prepare subsequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
-        self.readout_subsequence =                                  Readout(self)
 
         # prepare sequences
         self.pmt_disc_sequence =                                    PMTDiscrimination(self)
-
-        # dataset
-        self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
-        self.setattr_dataset('results')
 
 
     # MAIN SEQUENCE
@@ -45,4 +34,5 @@ class pmt_disc_test(LAXExperiment, Experiment):
         self.pmt_disc_sequence.run()
         self.core.break_realtime()
 
-        self.
+    def analyze(self):
+        self.pmt_disc_sequence.analyze()

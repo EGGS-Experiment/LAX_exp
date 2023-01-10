@@ -25,7 +25,8 @@ class PMTDiscrimination(LAXSequence):
         'pmt'
     ]
 
-    def build_sequence(self):
+    def prepare_sequence(self):
+        print(self.time_doppler_cooling_mu)
         # create subsequence datasets
         self.set_dataset("counts_signal", np.zeros(self.sample_num))
         self.set_dataset("counts_noise", np.zeros(self.sample_num))
