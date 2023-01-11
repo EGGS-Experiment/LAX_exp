@@ -7,7 +7,8 @@ from LAX_exp.base import LAXSubsequence
 class SidebandCool(LAXSubsequence):
     """
     Subsequence: Sideband Cooling
-        Cool the ion to the ground state using the S-1/2 D-5/2 transition.
+
+    Cool the ion to the ground state using the S-1/2 D-5/2 transition.
     """
     name = 'sideband_cool'
 
@@ -17,8 +18,6 @@ class SidebandCool(LAXSubsequence):
 
         'time_spinpol_mu':                  ('timing.time_spinpol_us',                  us_to_mu),
         'time_repump_qubit_mu':             ('timing.time_repump_qubit_us',             us_to_mu),
-        'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu),
-        'time_repump_sideband_cooling_mu':  ('timing.time_repump_sideband_cooling_us',  us_to_mu)
     }
     devices = [
         'probe',

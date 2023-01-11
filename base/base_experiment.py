@@ -121,6 +121,9 @@ class LAXExperiment(LAXBase, ABC):
 
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
+        # need: wavemeter frequencies
+        # need: DDS attenuation
+        # need: B-fields
 
         # create dataset to hold results
         #self.set_dataset('results', list())

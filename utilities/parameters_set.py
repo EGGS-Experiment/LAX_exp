@@ -19,6 +19,7 @@ class ParameterSet(EnvExperiment):
             "pmt.pmt_gating_edge":                                      "rising",
             "pmt.pmt_discrimination":                                   11,
 
+            # todo: distinguish between the 3 photodiodes
             # photodiode
             "photodiode.photodiode_channel_sampler":                    0,
             "photodiode.photodiode_gain":                               1
