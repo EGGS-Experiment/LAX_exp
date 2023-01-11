@@ -176,7 +176,6 @@ class HeatingRateMeasurement(EnvExperiment):
         # readout pi-pulse
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
         self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
-        #self.ampl_readout_pipulse_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # calibration setup
         self.calibration_qubit_status =                                 not self.calibration

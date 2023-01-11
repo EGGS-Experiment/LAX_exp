@@ -57,10 +57,14 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
         self.setattr_argument("repetitions",                                NumberValue(default=25, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
+
+        # additional cooling
+        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling
+        self.setattr_argument("sideband_cycles",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([20]))
         self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
         self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.118]))
@@ -215,6 +219,17 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                 # record data
                 self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
+
+            # add post repetition cooling
+            if (i % self.repetitions_per_cooling) == 0:
+                # set readout waveform
+                self.dds_board.set_profile(1)
+                delay_mu(self.time_profileswitch_delay_mu)
+
+                # doppler cooling
+                self.dds_board.cfg_switches(0b0110)
+                delay(self.additional_cooling_time_s)
+                self.dds_board.cfg_switches(0b0100)
 
         # reset board profiles
         self.dds_board.set_profile(0)
