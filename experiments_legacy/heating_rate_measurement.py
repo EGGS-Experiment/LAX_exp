@@ -59,7 +59,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -70,27 +70,27 @@ class HeatingRateMeasurement(EnvExperiment):
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.655]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.5075]))
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(103.655, 0.04, 0.001),
+                                                                            default=CenterScan(103.5075, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
 
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(105.271, 0.04, 0.001),
+                                                                            default=CenterScan(105.1825, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
 
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000))
         #self.setattr_argument("ampl_readout_pipulse_pct",              NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
 
         # heating rate
-        self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 10, 50, 200]))
+        self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 2]))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -235,9 +235,9 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core.break_realtime()
 
             # add post repetition cooling
-            if (i % self.reptitions_per_cooling) == 0:
-                # set cooling waveform
-                self.dds_board.set_profile(0)
+            if (i % self.repetitions_per_cooling) == 0:
+                # set readout waveform
+                self.dds_board.set_profile(1)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # doppler cooling
