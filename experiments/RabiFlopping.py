@@ -36,6 +36,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
                                                                     ])
 
         # rabi flopping frequency
+        # todo: use rabi flopping subsequence
         self.freq_rabiflop_ftw =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
         # prepare sequences
@@ -91,4 +92,3 @@ class RabiFlopping2(LAXExperiment, Experiment):
     def update_dataset(self, time_mu, counts):
         self.results[self._result_iter] = np.array([self.core.mu_to_seconds(time_mu), counts])
         self._result_iter += 1
-        #print(self._result_iter)
