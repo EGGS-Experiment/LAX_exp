@@ -36,7 +36,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
                                                                     ])
 
         # rabi flopping frequency
-        # todo: use rabi flopping subsequence
         self.freq_rabiflop_ftw =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
         # prepare sequences
@@ -76,9 +75,9 @@ class RabiFlopping2(LAXExperiment, Experiment):
                 delay_mu(time_rabi_pair_mu[0])
 
                 # rabi flopping w/qubit laser
-                self.qubit.cfg_sw(True)
+                self.qubit.on()
                 delay_mu(time_rabi_pair_mu[1])
-                self.qubit.cfg_sw(False)
+                self.qubit.off()
 
                 # do readout
                 self.readout_subsequence.run_dma()

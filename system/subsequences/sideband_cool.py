@@ -29,9 +29,7 @@ class SidebandCool(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
         # set cooling waveforms
-        with parallel:
-            self.probe.cooling()
-            self.qubit.rsb()
+        self.probe.cooling()
 
         # ensure state preparation is properly interspersed
         for time_list_mu in self.time_sideband_cooling_list_mu:
