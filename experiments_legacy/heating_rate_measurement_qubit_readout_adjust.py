@@ -82,7 +82,7 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
                                                                         ))
 
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
+        self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=16.1, ndecimals=5, step=1, min=1, max=100))
 
         # heating rate
         self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 10, 50, 200]))
