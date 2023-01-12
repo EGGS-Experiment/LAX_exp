@@ -178,9 +178,6 @@ class SidebandCooling(EnvExperiment):
         # calibration setup
         self.calibration_qubit_status =                         not self.calibration
 
-        print('ftw: {}'.format((self.freq_pump_rescue_ftw)))
-        print('asf: {}'.format((self.ampl_pump_rescue_asf)))
-
         # set up datasets
         self.set_dataset("sideband_cooling", [])
         self.setattr_dataset("sideband_cooling")
@@ -341,7 +338,15 @@ class SidebandCooling(EnvExperiment):
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+        print('freq: ', self.freq_pump_readout_ftw)
+        self.core.break_realtime()
+        print('ampl: ', self.ampl_pump_readout_asf)
+        self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
+        print('freq: ', self.freq_pump_rescue_ftw)
+        self.core.break_realtime()
+        print('ampl: ', self.ampl_pump_rescue_asf)
+        self.core.break_realtime()
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
