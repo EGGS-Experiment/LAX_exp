@@ -37,12 +37,14 @@ class SidebandCooling(EnvExperiment):
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
+        "freq_pump_rescue_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
+        "ampl_pump_rescue_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
         "ampl_qubit_pct",
@@ -129,6 +131,7 @@ class SidebandCooling(EnvExperiment):
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_rescue_ftw =                             self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
@@ -141,6 +144,7 @@ class SidebandCooling(EnvExperiment):
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_pump_rescue_asf =                             self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
         self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
@@ -199,7 +203,7 @@ class SidebandCooling(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for i in range(self.repetitions):
+        for trial_num in range(self.repetitions):
 
             # sweep final pi-pulse frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
@@ -222,10 +226,8 @@ class SidebandCooling(EnvExperiment):
                 self.core.break_realtime()
 
             # add post repetition cooling
-            if (i % self.repetitions_per_cooling) == 0:
+            if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
                 # set readout waveform
-                self.dds_pump.set(95 * MHz, amplitude=0.5, profile=2)
-                self.core.break_realtime()
                 self.dds_pump.set_profile(2)
                 delay_mu(self.time_profileswitch_delay_mu)
 
@@ -331,18 +333,22 @@ class SidebandCooling(EnvExperiment):
         # profile 0 = cooling; profile 1 = readout (red-detuned); profile 2 = readout (blue-detuned)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
         # set sideband cooling profiles
