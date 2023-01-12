@@ -178,6 +178,9 @@ class SidebandCooling(EnvExperiment):
         # calibration setup
         self.calibration_qubit_status =                         not self.calibration
 
+        print('ftw: {}'.format((self.freq_pump_rescue_ftw)))
+        print('asf: {}'.format((self.ampl_pump_rescue_asf)))
+
         # set up datasets
         self.set_dataset("sideband_cooling", [])
         self.setattr_dataset("sideband_cooling")
