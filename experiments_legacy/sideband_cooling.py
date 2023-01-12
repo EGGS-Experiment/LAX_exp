@@ -237,7 +237,7 @@ class SidebandCooling(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
         # reset board profiles
-        self.dds_board.set_profile(0)
+        self.dds_board.set_profile(2)
         self.dds_qubit_board.set_profile(0)
 
         # reset AOMs after experiment
