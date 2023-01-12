@@ -170,7 +170,7 @@ class LaserScan(EnvExperiment):
 
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
-                # set readout waveform
+                # set rescue waveform
                 self.dds_board.set_profile(2)
                 delay_mu(self.time_profileswitch_delay_mu)
 
