@@ -233,6 +233,7 @@ class SidebandCooling(EnvExperiment):
 
                 # doppler cooling
                 self.dds_board.cfg_switches(0b0110)
+                delay_mu(10000000000)
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
