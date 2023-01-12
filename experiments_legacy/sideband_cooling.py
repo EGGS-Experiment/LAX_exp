@@ -224,7 +224,9 @@ class SidebandCooling(EnvExperiment):
             # add post repetition cooling
             if (i % self.repetitions_per_cooling) == 0:
                 # set readout waveform
-                self.dds_board.set_profile(1)
+                self.dds_pump.set(100, amplitude=0.45, profile=2)
+                self.core.break_realtime()
+                self.dds_pump.set_profile(2)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # doppler cooling

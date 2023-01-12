@@ -41,6 +41,24 @@ class LAXBase(HasEnvironment, ABC):
         key, processor = args
         self._build_arguments[key] = None
 
+    def get_parameter(self, key, default=NoDefault, archive=False):
+        try:
+            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default
+
+    def get_parameter2(self, key, default=NoDefault, archive=False, manager=True):
+        try:
+            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default
+
 
     # PREPARE
     def _prepare_parameters(self, **kwargs):
@@ -86,12 +104,3 @@ class LAXBase(HasEnvironment, ABC):
             except Exception as e:
                 # todo: add more documentation, maybe raise?
                 logger.warning("Parameter unavailable: {:s}".format(_parameter_name_dataset))
-
-    def get_parameter(self, key, default=NoDefault, archive=False):
-        try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
-        except KeyError:
-            if default is NoDefault:
-                raise
-            else:
-                return default
