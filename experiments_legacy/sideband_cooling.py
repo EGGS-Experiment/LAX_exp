@@ -225,8 +225,13 @@ class SidebandCooling(EnvExperiment):
                 self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
 
+            print('ytrial ')
+            self.core.break_realtime()
+
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
+                print('yzde')
+                self.core.break_realtime()
                 # set readout waveform
                 self.dds_pump.set_profile(2)
                 delay_mu(self.time_profileswitch_delay_mu)
