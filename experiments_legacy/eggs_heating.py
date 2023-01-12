@@ -239,18 +239,18 @@ class EGGSHeating(EnvExperiment):
                     #self.core_dma.playback_handle(handle_eggs)
                     at_mu(self.awg_board.get_next_frame_mu())
                     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
-                    delay_mu(320)
+                    delay_mu(40)
                     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
 
                     delay_mu(self.time_eggs_heating_mu)
 
                     at_mu(self.awg_board.get_next_frame_mu())
                     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
-                    delay_mu(320)
+                    delay_mu(40)
                     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
-                    delay_mu(320)
+                    delay_mu(40)
                     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
-                    delay_mu(320)
+                    delay_mu(40)
                     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
 
                     # read out
