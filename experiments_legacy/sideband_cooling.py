@@ -233,7 +233,7 @@ class SidebandCooling(EnvExperiment):
                 print('yzde')
                 self.core.break_realtime()
                 # set readout waveform
-                self.dds_pump.set_profile(2)
+                self.dds_board.set_profile(2)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # doppler cooling
