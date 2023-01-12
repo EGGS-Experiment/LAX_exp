@@ -228,16 +228,16 @@ class SidebandCooling(EnvExperiment):
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
                 # set rescue waveform
-                self.dds_board.set_profile(2)
+                self.dds_board.set_profile(1)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # doppler cooling
                 self.dds_board.cfg_switches(0b0110)
-                delay_mu(500000000)
+                delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
         # reset board profiles
-        self.dds_board.set_profile(2)
+        self.dds_board.set_profile(0)
         self.dds_qubit_board.set_profile(0)
 
         # reset AOMs after experiment
@@ -338,15 +338,7 @@ class SidebandCooling(EnvExperiment):
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
-        print('freq: ', self.freq_pump_readout_ftw)
-        self.core.break_realtime()
-        print('ampl: ', self.ampl_pump_readout_asf)
-        self.core.break_realtime()
         self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
-        print('freq: ', self.freq_pump_rescue_ftw)
-        self.core.break_realtime()
-        print('ampl: ', self.ampl_pump_rescue_asf)
-        self.core.break_realtime()
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
