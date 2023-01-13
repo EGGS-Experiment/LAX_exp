@@ -312,8 +312,6 @@ class HeatingRateMeasurement(EnvExperiment):
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # todo: do we need to state prep by spin polarization here?
-
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
             # set pump readout waveform and qubit pi-pulse waveform
@@ -359,7 +357,7 @@ class HeatingRateMeasurement(EnvExperiment):
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
-        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=12)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
         # set sideband cooling profiles
