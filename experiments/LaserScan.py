@@ -15,6 +15,9 @@ class LaserScan2(LAXExperiment, Experiment):
     name = 'Laser Scan 2'
 
     def build_experiment(self):
+        # core arguments
+        self.setattr_argument("repetitions",                        NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
+
         # timing
         self.setattr_argument("time_729_us",                        NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
@@ -34,7 +37,7 @@ class LaserScan2(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
-        #self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
+        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
         self.readout_subsequence =                                  Readout(self)
 
         # tmp remove
@@ -52,7 +55,7 @@ class LaserScan2(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        # self.rabiflop_subsequence.record_dma()
+        self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
     @kernel
@@ -74,10 +77,10 @@ class LaserScan2(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
 
                 # rabi flop
-                #self.rabiflop_subsequence.run_dma()
-                self.qubit.on()
-                delay_mu(self.time_729_mu)
-                self.qubit.off()
+                self.rabiflop_subsequence.run_dma()
+                # self.qubit.on()
+                # delay_mu(self.time_729_mu)
+                # self.qubit.off()
 
                 # do readout
                 self.readout_subsequence.run_dma()

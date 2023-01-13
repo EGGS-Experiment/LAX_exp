@@ -6,8 +6,9 @@ from LAX_exp.base import LAXDevice
 
 class Beam729(LAXDevice):
     """
-    Wrapper for the 729nm qubit beam (polarized).
-        Uses the DDS channel to drive an AOM in double-pass configuration.
+    Device: Wrapper for the 729nm qubit beam (polarized).
+
+    Uses the DDS channel to drive the 729nm AOM in double-pass configuration.
     """
     name = "qubit"
 

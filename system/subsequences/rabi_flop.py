@@ -24,9 +24,10 @@ class RabiFlop(LAXSubsequence):
     def run(self):
         # set readout waveform
         # todo: remove this line
-        self.qubit.carrier()
+        #self.qubit.carrier()
 
         # population transfer pulse
         self.qubit.on()
-        delay_mu(self.time_rabiflop_mu)
+        #delay_mu(self.time_rabiflop_mu)
+        delay_mu(400000)
         self.qubit.off()
