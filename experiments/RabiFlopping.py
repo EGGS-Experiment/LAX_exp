@@ -16,11 +16,11 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # rabi flopping parameters
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 400, 401, randomize=True),
+                                                                        default=RangeScan(0, 250, 251, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ))
@@ -60,8 +60,9 @@ class RabiFlopping2(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # set qubit beam parameters
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
         self.core.break_realtime()
+
 
     @kernel
     def run_main(self):
