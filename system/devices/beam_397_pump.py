@@ -13,9 +13,12 @@ class Beam397Pump(LAXDevice):
 
     parameters = {
         'freq_cooling_ftw':                 ('beams.freq_mhz.freq_pump_cooling_mhz',    mhz_to_ftw),
-        'ampl_cooling_asf':                 ('beams.ampl_pct.ampl_pump_cooling_pct',    pct_to_asf),
         'freq_readout_ftw':                 ('beams.freq_mhz.freq_pump_readout_mhz',    mhz_to_ftw),
-        'ampl_readout_asf':                 ('beams.ampl_pct.ampl_pump_readout_pct',    pct_to_asf)
+        'freq_rescue_ftw':                  ('beams.freq_mhz.freq_pump_rescue_mhz',     mhz_to_ftw),
+
+        'ampl_cooling_asf':                 ('beams.ampl_pct.ampl_pump_cooling_pct',    pct_to_asf),
+        'ampl_readout_asf':                 ('beams.ampl_pct.ampl_pump_readout_pct',    pct_to_asf),
+        'ampl_rescue_asf':                  ('beams.ampl_pct.ampl_pump_rescue_pct',     pct_to_asf)
     }
     core_devices = {
         'beam': 'urukul1_ch1'
@@ -49,4 +52,11 @@ class Beam397Pump(LAXDevice):
         # set readout profile
         with parallel:
             self.beam.cpld.set_profile(1)
+            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+
+    @kernel(flags={"fast-math"})
+    def rescue(self):
+        # set rescue profile
+        with parallel:
+            self.beam.cpld.set_profile(2)
             delay_mu(TIME_PROFILESWITCH_DELAY_MU)
