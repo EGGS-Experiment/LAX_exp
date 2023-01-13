@@ -24,6 +24,6 @@ class DopplerCool(LAXSubsequence):
         self.pump.cooling()
 
         # doppler cooling
-        self.pump.cfg_sw(True)
+        self.pump.on()
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.cfg_sw(False)
+        self.pump.off()

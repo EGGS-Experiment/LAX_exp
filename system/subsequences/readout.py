@@ -25,9 +25,9 @@ class Readout(LAXSubsequence):
         self.pump.readout()
 
         # readout pulse
-        self.pump.cfg_sw(True)
+        self.pump.on()
         self.pmt.count(self.time_readout_mu)
-        self.pump.cfg_sw(False)
+        self.pump.off()
 
     @kernel(flags={"fast-math"})
     def fetch_count(self):

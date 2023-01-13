@@ -29,16 +29,6 @@ class LaserScan2(LAXExperiment, Experiment):
         # get 729 beam
         self.setattr_device('qubit')
 
-        # tmp remove
-        self.setattr_device('urukul0_ch1')
-        self.setattr_device('urukul0_cpld')
-        self.setattr_device('urukul1_ch0')
-        self.setattr_device('urukul1_ch1')
-        self.setattr_device('urukul1_ch2')
-        self.setattr_device('urukul1_ch3')
-        self.setattr_device('urukul1_cpld')
-        self.setattr_device('ttl0_counter')
-
         # convert frequencies to machine units
         self.freq_qubit_scan_ftw =                                  np.array([mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz])
 
@@ -64,44 +54,6 @@ class LaserScan2(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         # self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
-        #with self.core_dma.record("laserscan_tmp"):
-
-            # # set cooling waveform
-            # with parallel:
-            #     self.urukul1_cpld.set_profile(0)
-            #     delay_mu(TIME_PROFILESWITCH_DELAY_MU)
-            #
-            # # repump pulse
-            # self.urukul1_cpld.cfg_switches(0b1100)
-            # delay_mu(self.time_repump_qubit_mu)
-            # self.urukul1_cpld.cfg_switches(0b0100)
-            #
-            # # cooling pulse
-            # self.urukul1_cpld.cfg_switches(0b0110)
-            # delay_mu(self.time_doppler_cooling_mu)
-            # self.urukul1_cpld.cfg_switches(0b0100)
-            #
-            # # state preparation
-            # self.urukul1_cpld.cfg_switches(0b0101)
-            # delay_mu(self.time_redist_mu)
-            # self.urukul1_cpld.cfg_switches(0b0100)
-            #
-            # # 729
-            # self.dds_qubit.cfg_sw(True)
-            # delay_mu(self.time_729_mu)
-            # self.dds_qubit.cfg_sw(False)
-            #
-            # # set readout waveform
-            # with parallel:
-            #     self.urukul1_cpld.set_profile(1)
-            #     delay_mu(TIME_PROFILESWITCH_DELAY_MU)
-            #
-            # # readout pulse
-            # self.urukul1_cpld.cfg_switches(0b0110)
-            # self.ttl0_counter.gate_rising_mu(self.time_readout_mu)
-            # self.urukul1_cpld.cfg_switches(0b0100)
-            #
-
 
     @kernel
     def run_main(self):
@@ -115,20 +67,17 @@ class LaserScan2(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                #self.qubit.set_mu(freq_ftw, asf=0x1FFF)
-                self.urukul0_ch1.set_mu(freq_ftw, asf=0x1FFF)
+                self.qubit.set_mu(freq_ftw, asf=0x1FFF)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
                 # rabi flop
-                # tmp remove
                 #self.rabiflop_subsequence.run_dma()
                 self.qubit.on()
                 delay_mu(self.time_729_mu)
                 self.qubit.off()
-                # tmp remove clear
 
                 # do readout
                 self.readout_subsequence.run_dma()

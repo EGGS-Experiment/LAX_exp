@@ -7,8 +7,9 @@ from LAX_exp.base import LAXSubsequence
 class RabiFlop(LAXSubsequence):
     """
     Subsequence: Rabi Flop
-        Transfer the population in the S-1/2 mj=-1/2 state to the D-5/2 mj=-5/2 state,
-        and vice versa using the polarized 729nm beam.
+
+    Transfer the population in the S-1/2 mj=-1/2 state to the D-5/2 mj=-5/2 state,
+    and vice versa using the polarized 729nm beam.
     """
     name = 'rabi_flop'
 
@@ -26,6 +27,6 @@ class RabiFlop(LAXSubsequence):
         self.qubit.carrier()
 
         # population transfer pulse
-        self.qubit.cfg_sw(True)
+        self.qubit.on()
         delay_mu(self.time_rabiflop_mu)
-        self.qubit.cfg_sw(False)
+        self.qubit.off()

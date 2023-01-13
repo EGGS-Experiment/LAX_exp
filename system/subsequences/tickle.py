@@ -20,6 +20,6 @@ class Tickle(LAXSubsequence):
     
     @kernel(flags={"fast-math"})
     def run(self):
-        self.tickle.cfg_sw(True)
+        self.tickle.on()
         delay_mu(self.time_tickle_mu)
-        self.tickle.cfg_sw(False)
+        self.tickle.off()
