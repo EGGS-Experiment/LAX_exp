@@ -277,11 +277,11 @@ class RamseySpectroscopy(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('ramsey_spectroscopy', [self.core.mu_to_seconds(time_mu), pmt_counts])
+        self.append_to_dataset('ramsey_spectroscopy', [self.dds_qubit.ftw_to_frequency(freq_ftw) * MHz, pmt_counts])
 
 
     def analyze(self):
