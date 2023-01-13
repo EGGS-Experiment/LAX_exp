@@ -27,11 +27,13 @@ class testarg12(EnvExperiment):
         # self.os = self.cxn.oscilloscope_server
         # print(self.os.list_devices())
 
-    @kernel
+    #@kernel
     def run(self):
-        self.core.reset()
-        self.ttl8.on()
-        self.core.break_realtime()
+        self.set_dataset('beams.freq_mhz.freq_pump_rescue_mhz', 95.0, broadcast=True, persist=True)
+        self.set_dataset('beams.ampl_pct.ampl_pump_rescue_pct', 50.0, broadcast=True, persist=True)
+        # self.core.reset()
+        # self.ttl8.on()
+        # self.core.break_realtime()
         #pass
         # self.core.reset()
         # self.core.break_realtime()

@@ -55,21 +55,21 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                    NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # timing
-        self.setattr_argument("time_729_us",                    NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                            NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
-        self.setattr_argument("freq_qubit_scan_mhz",            Scannable(
-                                                                    default=CenterScan(104.463, 0.1, 5e-5, randomize=True),
-                                                                    global_min=60, global_max=200, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5
-                                                                ))
+        self.setattr_argument("freq_qubit_scan_mhz",                    Scannable(
+                                                                            default=CenterScan(104.463, 0.1, 5e-5, randomize=True),
+                                                                            global_min=60, global_max=200, global_step=1,
+                                                                            unit="MHz", scale=1, ndecimals=5
+                                                                        ))
 
         # get global parameters
         for param_name in self.global_parameters:

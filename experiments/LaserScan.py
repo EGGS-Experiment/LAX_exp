@@ -16,11 +16,11 @@ class LaserScan2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # timing
-        self.setattr_argument("time_729_us",                        NumberValue(default=4000, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_729_us",                        NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(104.3395, 0.05, 0.0005, randomize=True),
+                                                                        default=CenterScan(104.35, 0.9, 0.001, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -44,8 +44,11 @@ class LaserScan2(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
+        #self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
         self.readout_subsequence =                                  Readout(self)
+
+        # tmp remove
+        self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
 
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
@@ -58,10 +61,10 @@ class LaserScan2(LAXExperiment, Experiment):
         self.core.reset()
 
         # record subsequences onto DMA
-        # self.initialize_subsequence.record_dma()
+        self.initialize_subsequence.record_dma()
         # self.rabiflop_subsequence.record_dma()
-        # self.readout_subsequence.record_dma()
-        with self.core_dma.record("laserscan_tmp"):
+        self.readout_subsequence.record_dma()
+        #with self.core_dma.record("laserscan_tmp"):
 
             # # set cooling waveform
             # with parallel:
@@ -122,17 +125,10 @@ class LaserScan2(LAXExperiment, Experiment):
                 # rabi flop
                 # tmp remove
                 #self.rabiflop_subsequence.run_dma()
-                # tmp remove clear
-
-                # 729
                 self.qubit.on()
                 delay_mu(self.time_729_mu)
                 self.qubit.off()
-                #
-                # # readout pulse
-                # self.dds_board.cfg_switches(0b0110)
-                # self.pmt_gating_edge(self.time_readout_mu)
-                # self.dds_board.cfg_switches(0b0100)
+                # tmp remove clear
 
                 # do readout
                 self.readout_subsequence.run_dma()
