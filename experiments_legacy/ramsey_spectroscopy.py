@@ -56,7 +56,7 @@ class RamseySpectroscopy(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -128,7 +128,7 @@ class RamseySpectroscopy(EnvExperiment):
         # set up datasets
         self.set_dataset("ramsey_spectroscopy", [])
         self.setattr_dataset("ramsey_spectroscopy")
-        self.set_dataset("ramsey_spectroscopy_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
+        self.set_dataset("ramsey_spectroscopy_processed", np.zeros([len(self.freq_ramsey_ftw_list), 2]))
         self.setattr_dataset("ramsey_spectroscopy_processed")
 
 
@@ -221,7 +221,7 @@ class RamseySpectroscopy(EnvExperiment):
                 self.dds_board.cfg_switches(0b0100)
 
         # ramsey readout sequence
-        with self.core_dma.record(_DMA_HANDLE_READOUT):
+        with self.core_dma.record(_DMA_HANDLE_RAMSEY_READOUT):
             with sequential:
                 # pi/2 pulse
                 self.dds_qubit.cfg_sw(True)
