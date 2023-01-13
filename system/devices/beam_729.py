@@ -25,6 +25,12 @@ class Beam729(LAXDevice):
         self.core.break_realtime()
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
 
+        self.core.break_realtime()
+        self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
+
+        self.core.break_realtime()
+        self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
+
     @kernel(flags={"fast-math"})
     def on(self):
         self.beam.cfg_sw(True)
@@ -35,7 +41,8 @@ class Beam729(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def carrier(self):
-        # set carrier profile
-        with parallel:
-            self.beam.cpld.set_profile(0)
-            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        # # set carrier profile
+        # with parallel:
+        #     self.beam.cpld.set_profile(0)
+        #     delay_mu(TIME_PROFILESWITCH_DELAY_MU)

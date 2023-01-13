@@ -16,14 +16,14 @@ class LaserScan2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
 
         # timing
-        self.setattr_argument("time_729_us",                        NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
+        self.setattr_argument("time_qubit_us",                      NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(104.35, 0.9, 0.001, randomize=True),
+                                                                        default=CenterScan(104.35, 0.2, 0.001, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -37,11 +37,8 @@ class LaserScan2(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_729_us)
+        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.readout_subsequence =                                  Readout(self)
-
-        # tmp remove
-        self.time_729_mu = self.core.seconds_to_mu(self.time_729_us * us)
 
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
@@ -78,9 +75,6 @@ class LaserScan2(LAXExperiment, Experiment):
 
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
-                # self.qubit.on()
-                # delay_mu(self.time_729_mu)
-                # self.qubit.off()
 
                 # do readout
                 self.readout_subsequence.run_dma()

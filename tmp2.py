@@ -29,8 +29,7 @@ class testarg12(EnvExperiment):
 
     #@kernel
     def run(self):
-        self.set_dataset('beams.freq_mhz.freq_pump_rescue_mhz', 95.0, broadcast=True, persist=True)
-        self.set_dataset('beams.ampl_pct.ampl_pump_rescue_pct', 50.0, broadcast=True, persist=True)
+        self.set_dataset('timing.time_rabiflop_us', 400.0, broadcast=True, persist=True)
         # self.core.reset()
         # self.ttl8.on()
         # self.core.break_realtime()
