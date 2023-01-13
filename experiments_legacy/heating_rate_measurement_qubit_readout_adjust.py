@@ -240,10 +240,12 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
                 # set rescue waveform
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
+                with parallel:
+                    self.dds_board.set_profile(2)
+                    delay_mu(self.time_profileswitch_delay_mu)
 
-                # doppler cooling
+                # start rescuing
+                self.dds_board.io_update.pulse_mu(8)
                 self.dds_board.cfg_switches(0b0110)
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
