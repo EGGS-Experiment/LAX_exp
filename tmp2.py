@@ -29,7 +29,7 @@ class testarg12(EnvExperiment):
 
     #@kernel
     def run(self):
-        self.set_dataset('timing.time_rabiflop_us', 400.0, broadcast=True, persist=True)
+        self.set_dataset('ampl_pump_rescue_pct', 50, broadcast=True, persist=True)
         # self.core.reset()
         # self.ttl8.on()
         # self.core.break_realtime()
