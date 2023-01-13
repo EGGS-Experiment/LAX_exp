@@ -281,7 +281,7 @@ class RamseySpectroscopy(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('ramsey_spectroscopy', [self.dds_qubit.ftw_to_frequency(freq_ftw) * MHz, pmt_counts])
+        self.append_to_dataset('ramsey_spectroscopy', [self.dds_qubit.ftw_to_frequency(freq_ftw) / MHz, pmt_counts])
 
 
     def analyze(self):
