@@ -6,9 +6,9 @@ from LAX_exp.base import LAXSubsequence
 
 class SidebandCool(LAXSubsequence):
     """
-    Subsequence: Sideband Cooling
+    Subsequence: Sideband Cool
 
-    Cool the ion to the ground state using the S-1/2 D-5/2 transition.
+    Cool the ion to the ground state using RSB pulses on the S-1/2 to D-5/2 transition.
     """
     name = 'sideband_cool'
 
@@ -25,6 +25,12 @@ class SidebandCool(LAXSubsequence):
         'qubit_repump',
         'qubit'
     ]
+
+    def prepare_sequence(self):
+        # todo: calculate spin polarizations
+        # todo:
+        pass
+
 
     @kernel(flags={"fast-math"})
     def run(self):
