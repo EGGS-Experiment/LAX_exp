@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 _DMA_HANDLE_INITIALIZE = "sideband_cooling_ramsey_spectroscopy_initialize"
 _DMA_HANDLE_SIDEBAND = "sideband_cooling_ramsey_spectroscopy_pulse"
-_DMA_HANDLE_READOUT = "sideband_cooling_ramsey_spectroscopy_readout"
+_DMA_HANDLE_RAMSEY_READOUT = "sideband_cooling_ramsey_spectroscopy_ramsey_readout"
 
 
 class SidebandCoolingRamseySpectoscopy(EnvExperiment):
@@ -73,13 +73,14 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
         self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([104.118]))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
-        # rabi-flopping readout
-        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.463, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_rabi_us_list",                          Scannable(default=
-                                                                                RangeScan(0, 200, 201, randomize=True),
-                                                                                global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
+        # rqmsey spectroscopy
+        self.setattr_argument("freq_ramsey_mhz_list",                       Scannable(
+                                                                                default=CenterScan(104.335, 0.5, 0.001),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
                                                                             ))
+        self.setattr_argument("time_pi2pulse_us",                           NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_delay_us",                              NumberValue(default=50, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -158,12 +159,11 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
         self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.iter_sideband_cooling_modes_list =                 list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
-        # rabi flopping timing
-        max_time_us =                                           np.max(list(self.time_rabi_us_list))
-        self.time_rabiflop_mu_list =                            self.core.seconds_to_mu(np.array([
-                                                                    [(max_time_us - time_us) * us, time_us * us]
-                                                                    for time_us in self.time_rabi_us_list
-                                                                ]))
+        # ramsey spectroscopy timing
+        self.time_pi2pulse_mu =                                         self.core.seconds_to_mu(self.time_pi2pulse_us * us)
+        self.time_delay_mu =                                            self.core.seconds_to_mu(self.time_delay_us * us)
+        self.freq_ramsey_ftw_list =                                     [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                         for freq_mhz in list(self.freq_ramsey_mhz_list)]
 
         # calibration setup
         self.calibration_qubit_status =                         not self.calibration
@@ -171,7 +171,7 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
         # set up datasets
         self.set_dataset("sideband_cooling_ramsey_spectroscopy", [])
         self.setattr_dataset("sideband_cooling_ramsey_spectroscopy")
-        self.set_dataset("sideband_cooling_ramsey_spectroscopy_processed", np.zeros([len(self.time_rabiflop_mu_list), 3]))
+        self.set_dataset("sideband_cooling_ramsey_spectroscopy_processed", np.zeros([len(self.freq_ramsey_mhz_list), 3]))
         self.setattr_dataset("sideband_cooling_ramsey_spectroscopy_processed")
 
 
@@ -189,18 +189,19 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
         self.DMArecord()
         handle_initialize = self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
-        handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        handle_ramsey_readout = self.core_dma.get_handle(_DMA_HANDLE_RAMSEY_READOUT)
         self.core.break_realtime()
+
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
-            # sweep pi-pulse time
-            for time_rabiflop_mu_list in self.time_rabiflop_mu_list:
+            # sweep ramsey detunings
+            for freq_ftw in self.freq_ramsey_ftw_list:
 
-                # get timings
-                time_delay_mu = time_rabiflop_mu_list[0]
-                time_rabi_mu = time_rabiflop_mu_list[1]
+                # set ramsey detunings
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                self.core.break_realtime()
 
                 # initialize by running doppler cooling and spin polarization
                 self.core_dma.playback_handle(handle_initialize)
@@ -208,21 +209,11 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
                 # run sideband cooling cycles and repump afterwards
                 self.core_dma.playback_handle(handle_sideband)
 
-                # wait given time, and meanwhile set rabi-flopping waveform
-                with parallel:
-                    self.dds_qubit_board.set_profile(0)
-                    delay_mu(time_delay_mu)
-
-                # do rabi flopping
-                self.dds_qubit.cfg_sw(True)
-                delay_mu(time_rabi_mu)
-                self.dds_qubit.cfg_sw(False)
-
-                # read out
-                self.core_dma.playback_handle(handle_readout)
+                # do ramsey and read out
+                self.core_dma.playback_handle(handle_ramsey_readout)
 
                 # record data
-                self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count())
+                self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
                 self.core.break_realtime()
 
             # add post repetition cooling
@@ -304,17 +295,35 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
             self.dds_board.cfg_switches(0b0100)
 
         # readout sequence
-        with self.core_dma.record(_DMA_HANDLE_READOUT):
+        with self.core_dma.record(_DMA_HANDLE_RAMSEY_READOUT):
+            with sequential:
+                # wait given time, and meanwhile set ramsey spectroscopy waveform
+                with parallel:
+                    self.dds_qubit_board.set_profile(0)
+                    delay_mu(self.time_profileswitch_delay_mu)
 
-            # set pump readout waveform
-            with parallel:
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
+                # pi/2 pulse
+                self.dds_qubit.cfg_sw(True)
+                delay_mu(self.time_pi2pulse_mu)
+                self.dds_qubit.cfg_sw(False)
 
-            # readout pulse
-            self.dds_board.cfg_switches(0b0110)
-            self.pmt_gating_edge(self.time_readout_mu)
-            self.dds_board.cfg_switches(0b0100)
+                # ramsey delay
+                delay_mu(self.time_delay_mu)
+
+                # pi/2 pulse
+                self.dds_qubit.cfg_sw(True)
+                delay_mu(self.time_pi2pulse_mu)
+                self.dds_qubit.cfg_sw(False)
+
+                # set pump readout waveform
+                with parallel:
+                    self.dds_board.set_profile(1)
+                    delay_mu(self.time_profileswitch_delay_mu)
+
+                # readout pulse
+                self.dds_board.cfg_switches(0b0110)
+                self.pmt_gating_edge(self.time_readout_mu)
+                self.dds_board.cfg_switches(0b0100)
 
 
     @kernel(flags={"fast-math"})
@@ -348,7 +357,6 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
 
         # set sideband cooling profiles
         # profile 0 = readout pi-pulse
-        self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
         # profile 1 & greater = sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
             self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
@@ -356,11 +364,11 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling_ramsey_spectroscopy', [self.core.mu_to_seconds(time_mu), pmt_counts])
+        self.append_to_dataset('sideband_cooling_ramsey_spectroscopy', [self.dds_qubit.ftw_to_frequency(freq_ftw) / MHz, pmt_counts])
 
 
     def analyze(self):

@@ -56,7 +56,7 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -70,7 +70,7 @@ class RabiFlopping(EnvExperiment):
                                                                         ))
 
         # AOM values
-        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.392, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
