@@ -57,8 +57,6 @@ class LaserScan2(LAXExperiment, Experiment):
 
     @kernel
     def run_main(self):
-        self.core.reset()
-
         for trial_num in range(self.repetitions):
 
             self.core.break_realtime()
@@ -67,7 +65,7 @@ class LaserScan2(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=0x1FFF)
+                self.qubit.set_mu(freq_ftw, asf=0x1FFF, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state

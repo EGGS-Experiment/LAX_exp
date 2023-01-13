@@ -35,11 +35,7 @@ class Beam729(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def carrier(self):
-        self.core.break_realtime()
-
         # set carrier profile
         with parallel:
             self.beam.cpld.set_profile(0)
             delay_mu(TIME_PROFILESWITCH_DELAY_MU)
-
-        self.core.break_realtime()

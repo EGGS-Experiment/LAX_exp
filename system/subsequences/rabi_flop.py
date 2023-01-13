@@ -22,8 +22,6 @@ class RabiFlop(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        self.qubit.carrier()
-
         # population transfer pulse
         self.qubit.on()
         delay_mu(self.time_rabiflop_mu)
