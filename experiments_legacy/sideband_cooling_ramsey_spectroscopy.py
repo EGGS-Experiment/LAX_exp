@@ -126,7 +126,6 @@ class SidebandCoolingRamseySpectoscopy(EnvExperiment):
         self.freq_pump_rescue_ftw =                             self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
-        self.freq_qubit_ftw =                                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
