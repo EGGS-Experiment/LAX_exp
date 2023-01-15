@@ -220,7 +220,7 @@ class EGGSHeating(EnvExperiment):
         handle_initialize = self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
-        #handle_eggs = self.core_dma.get_handle(_DMA_HANDLE_EGGS)
+        handle_eggs = self.core_dma.get_handle(_DMA_HANDLE_EGGS)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
@@ -248,25 +248,25 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # run eggs heating
-                    #self.core_dma.playback_handle(handle_eggs)
-                    # enable output
-                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
-                    delay_mu(self.time_phaser_sample_mu)
-                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
-
-                    # apply eggs heating for given time;
-                    # no need to align here since we ensure time_eggs_heating_mu is an integer
-                    # multiple of phaser0.t_frame in prepare()
-                    delay_mu(self.time_eggs_heating_mu)
-
-                    # disable output
-                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
-                    delay_mu(self.time_phaser_sample_mu)
-                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
-                    delay_mu(self.time_phaser_sample_mu)
-                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
-                    delay_mu(self.time_phaser_sample_mu)
-                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
+                    self.core_dma.playback_handle(handle_eggs)
+                    # # enable output
+                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
+                    # delay_mu(self.time_phaser_sample_mu)
+                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
+                    #
+                    # # apply eggs heating for given time;
+                    # # no need to align here since we ensure time_eggs_heating_mu is an integer
+                    # # multiple of phaser0.t_frame in prepare()
+                    # delay_mu(self.time_eggs_heating_mu)
+                    #
+                    # # disable output
+                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+                    # delay_mu(self.time_phaser_sample_mu)
+                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+                    # delay_mu(self.time_phaser_sample_mu)
+                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
+                    # delay_mu(self.time_phaser_sample_mu)
+                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
@@ -375,25 +375,25 @@ class EGGSHeating(EnvExperiment):
             self.dds_board.cfg_switches(0b0100)
 
         # eggs sequence
-        # with self.core_dma.record(_DMA_HANDLE_EGGS):
-        #     # enable output
-        #     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
-        #     delay_mu(self.time_phaser_sample_mu)
-        #     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
-        #
-        #     # apply eggs heating for given time
-        #     # no need to align here since we ensure time_eggs_heating_mu is an integer
-        #     # multiple of phaser0.t_frame in prepare()
-        #     delay_mu(self.time_eggs_heating_mu)
-        #
-        #     # disable output
-        #     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
-        #     delay_mu(self.time_phaser_sample_mu)
-        #     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
-        #     delay_mu(self.time_phaser_sample_mu)
-        #     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
-        #     delay_mu(self.time_phaser_sample_mu)
-        #     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
+        with self.core_dma.record(_DMA_HANDLE_EGGS):
+            # enable output
+            self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
+            delay_mu(self.time_phaser_sample_mu)
+            self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
+
+            # apply eggs heating for given time;
+            # no need to align here since we ensure time_eggs_heating_mu is an integer
+            # multiple of phaser0.t_frame in prepare()
+            delay_mu(self.time_eggs_heating_mu)
+
+            # disable output
+            self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+            delay_mu(self.time_phaser_sample_mu)
+            self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+            delay_mu(self.time_phaser_sample_mu)
+            self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
+            delay_mu(self.time_phaser_sample_mu)
+            self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
 
 
     @kernel(flags={"fast-math"})
