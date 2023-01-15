@@ -7,8 +7,6 @@ _DMA_HANDLE_SIDEBAND = "eggs_heating_pulse"
 _DMA_HANDLE_READOUT = "eggs_heating_readout"
 _DMA_HANDLE_EGGS = "eggs_heating_eggs"
 
-# todo: make max time the same as readout time
-
 
 class EGGSHeating(EnvExperiment):
     """
@@ -248,25 +246,8 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # run eggs heating
+                    at_mu(self.awg_board.get_next_frame_mu())
                     self.core_dma.playback_handle(handle_eggs)
-                    # # enable output
-                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
-                    # delay_mu(self.time_phaser_sample_mu)
-                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
-                    #
-                    # # apply eggs heating for given time;
-                    # # no need to align here since we ensure time_eggs_heating_mu is an integer
-                    # # multiple of phaser0.t_frame in prepare()
-                    # delay_mu(self.time_eggs_heating_mu)
-                    #
-                    # # disable output
-                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
-                    # delay_mu(self.time_phaser_sample_mu)
-                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
-                    # delay_mu(self.time_phaser_sample_mu)
-                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=0)
-                    # delay_mu(self.time_phaser_sample_mu)
-                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0., clr=0)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
