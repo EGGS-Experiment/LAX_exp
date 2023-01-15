@@ -39,17 +39,17 @@ class EGGSHeating(EnvExperiment):
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
+        "freq_pump_rescue_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
+        "ampl_pump_rescue_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-
-        "pmt_discrimination"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -62,10 +62,14 @@ class EGGSHeating(EnvExperiment):
         # experiment runs
         self.setattr_argument("calibration",                            BooleanValue(default=False))
         self.setattr_argument("repetitions",                            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("sideband_cycles",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
+
+        # additional cooling
+        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
         self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.655]))
@@ -136,6 +140,7 @@ class EGGSHeating(EnvExperiment):
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_rescue_ftw =                                     self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
@@ -148,6 +153,7 @@ class EGGSHeating(EnvExperiment):
         self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_pump_rescue_asf =                                     self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
         self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
@@ -181,9 +187,9 @@ class EGGSHeating(EnvExperiment):
         self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
         # ensure eggs heating time is a multiple of the phaser frame period (4 ns/clock * 8 clock cycles * 10 words = 320ns)
-        if self.time_eggs_heating_mu % self.phaser0.t_frame:
-            t_frame_multiples = round(self.time_eggs_heating_mu / self.phaser0.t_frame + 0.5)
-            self.time_eggs_heating_mu = np.int64(self.phaser0.t_frame * t_frame_multiples)
+        if self.time_eggs_heating_mu % self.awg_board.t_frame:
+            t_frame_multiples = round(self.time_eggs_heating_mu / self.awg_board.t_frame + 0.5)
+            self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
 
         # readout pi-pulse
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
@@ -218,7 +224,7 @@ class EGGSHeating(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for i in range(self.repetitions):
+        for trial_num in range(self.repetitions):
 
             # sweep eggs rf frequencies
             for freq_eggs_mhz in self.freq_eggs_heating_mhz_list:
@@ -268,6 +274,19 @@ class EGGSHeating(EnvExperiment):
                     # record data
                     self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), freq_eggs_mhz + 85)
                     self.core.break_realtime()
+
+            # add post repetition cooling
+            if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
+                # set rescue waveform
+                with parallel:
+                    self.dds_board.set_profile(2)
+                    delay_mu(self.time_profileswitch_delay_mu)
+
+                # start rescuing
+                self.dds_board.io_update.pulse_mu(8)
+                self.dds_board.cfg_switches(0b0110)
+                delay(self.additional_cooling_time_s)
+                self.dds_board.cfg_switches(0b0100)
 
         # disable rf output
         self.awg_eggs.en_trf_out(rf=0, lo=0)
@@ -388,18 +407,22 @@ class EGGSHeating(EnvExperiment):
         # profile 0 = cooling; profile 1 = readout (red-detuned); profile 2 = readout (blue-detuned)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
         # set sideband cooling profiles
@@ -407,7 +430,6 @@ class EGGSHeating(EnvExperiment):
         for i in self.iter_sideband_cooling_modes_list:
             self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
-
 
         # initialize phaser
         self.awg_board.init(debug=True)
