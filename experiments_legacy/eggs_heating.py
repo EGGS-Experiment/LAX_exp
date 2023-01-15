@@ -184,7 +184,8 @@ class EGGSHeating(EnvExperiment):
         self.freq_eggs_heating_mhz_list =                               [(freq_mhz - 85) for freq_mhz in self.freq_eggs_heating_mhz_list]
         self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
-        # ensure eggs heating time is a multiple of the phaser frame period (4 ns/clock * 8 clock cycles * 10 words = 320ns)
+        # ensure eggs heating time is a multiple of the phaser frame period
+        # 4 ns/clock * 8 clock cycles * 10 words = 320ns
         if self.time_eggs_heating_mu % self.awg_board.t_frame:
             t_frame_multiples = round(self.time_eggs_heating_mu / self.awg_board.t_frame + 0.5)
             self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
