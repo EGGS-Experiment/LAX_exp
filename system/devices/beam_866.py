@@ -20,7 +20,7 @@ class Beam866(LAXDevice):
     }
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)

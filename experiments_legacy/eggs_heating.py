@@ -276,7 +276,9 @@ class EGGSHeating(EnvExperiment):
 
         # reset board profiles
         self.dds_board.set_profile(0)
+        self.dds_board.io_update.pulse_mu(8)
         self.dds_qubit_board.set_profile(0)
+        self.dds_qubit_board.io_update.pulse_mu(8)
 
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)

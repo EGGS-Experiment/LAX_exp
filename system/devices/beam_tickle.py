@@ -19,7 +19,7 @@ class BeamTickle(LAXDevice):
     }
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         # set base profile
         self.core.break_realtime()
         self.set_mu(mhz_to_ftw(1), asf=self.ampl_tickle_pct, profile=0)

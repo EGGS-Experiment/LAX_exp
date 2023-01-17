@@ -75,7 +75,6 @@ class LAXDevice(LAXBase, ABC):
             for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
                 setattr(self, function_name, function_object)
 
-
     # BUILD - USER FUNCTIONS
     def build_device(self):
         """
@@ -85,7 +84,6 @@ class LAXDevice(LAXBase, ABC):
         Used to set & process arguments, define object attributes, etc.
         """
         pass
-
 
     '''
     PREPARE
@@ -109,5 +107,18 @@ class LAXDevice(LAXBase, ABC):
 
         Called after _prepare_parameters.
         Used to customize the device class and set up hardware.
+        """
+        pass
+
+    '''
+    RUN
+    '''
+
+    # RUN - INITIALIZE
+    def initialize_device(self):
+        """
+        To be subclassed.
+
+        todo: document
         """
         pass

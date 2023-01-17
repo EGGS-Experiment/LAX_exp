@@ -25,7 +25,7 @@ class Beam397Pump(LAXDevice):
     }
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)

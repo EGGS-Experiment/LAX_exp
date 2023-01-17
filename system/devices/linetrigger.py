@@ -23,7 +23,7 @@ class Linetrigger(LAXDevice):
 
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         self.trigger.input()
 
 

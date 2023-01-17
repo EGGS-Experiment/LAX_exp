@@ -78,7 +78,6 @@ class LAXSubsequence(LAXBase, ABC):
             except Exception as e:
                 logger.warning("Device unavailable: {:s}".format(device_name))
 
-
     # BUILD - USER FUNCTIONS
     def build_subsequence(self, **kwargs):
         """
@@ -88,7 +87,6 @@ class LAXSubsequence(LAXBase, ABC):
         Used to set and process subsequence-specific arguments.
         """
         pass
-
 
     '''
     PREPARE
@@ -105,7 +103,6 @@ class LAXSubsequence(LAXBase, ABC):
         self._prepare_parameters(**self._build_arguments)
         self.prepare_subsequence()
 
-
     # PREPARE - USER FUNCTIONS
     def prepare_subsequence(self):
         """
@@ -115,7 +112,6 @@ class LAXSubsequence(LAXBase, ABC):
         Used to customize this class.
         """
         pass
-
 
     '''
     DMA
@@ -142,7 +138,6 @@ class LAXSubsequence(LAXBase, ABC):
         if self._dma_record_flag == True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
-
     '''
     RUN
     '''
@@ -156,8 +151,15 @@ class LAXSubsequence(LAXBase, ABC):
         """
         self.core_dma.playback_handle(self.dma_handle)
 
-
     # RUN - USER FUNCTIONS
+    def initialize_subsequence(self):
+        """
+        To be subclassed.
+
+        todo: document
+        """
+        pass
+
     @abstractmethod
     def run(self):
         """

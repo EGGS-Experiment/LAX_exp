@@ -21,7 +21,7 @@ class Beam729(LAXDevice):
     }
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         self.core.break_realtime()
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
 

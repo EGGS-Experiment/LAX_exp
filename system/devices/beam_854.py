@@ -20,7 +20,7 @@ class Beam854(LAXDevice):
     }
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
