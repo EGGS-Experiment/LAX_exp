@@ -181,13 +181,16 @@ class LaserScan(EnvExperiment):
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
-        # reset board profiles
-        self.dds_board.set_profile(0)
-        self.dds_qubit_board.set_profile(0)
-
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_board.io_update.pulse_mu(8)
+
+        self.dds_qubit_board.set_profile(0)
+        self.dds_qubit_board.io_update.pulse_mu(8)
 
 
     @kernel(flags={"fast-math"})
