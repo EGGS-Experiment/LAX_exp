@@ -25,7 +25,7 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
     def prepare(self):
-        pass
+        self.call_child_method('prepare')
         # self.hasenv = testhasenv(self, {'aa':11,'bbb':22}, 9031)
         # self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         # self.os = self.cxn.oscilloscope_server
