@@ -240,6 +240,12 @@ class LaserScan(EnvExperiment):
         """
         self.core.break_realtime()
 
+        # adjust attenuations correctly
+        self.dds_qubit_board.get_att_mu()
+        self.core.break_realtime()
+        self.dds_qubit.set_att(28 * dB)
+        self.core.break_realtime()
+
         # set AOM DDS waveforms
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
