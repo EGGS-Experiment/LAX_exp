@@ -15,6 +15,8 @@ class testarg12(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl8")
+        self.hasenv = testhasenv(self)
+
         # self.setattr_device("core_dma")
         # self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
         # self.setattr_device('urukul1_ch0')
@@ -23,7 +25,8 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
     def prepare(self):
-        self.hasenv = testhasenv(self, {'aa':11,'bbb':22}, 9031)
+        pass
+        # self.hasenv = testhasenv(self, {'aa':11,'bbb':22}, 9031)
         # self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         # self.os = self.cxn.oscilloscope_server
         # print(self.os.list_devices())
