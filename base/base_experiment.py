@@ -152,7 +152,7 @@ class LAXExperiment(LAXBase, ABC):
         # todo: completion monitor stuff
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # set up the run
+        # set up the run by initializing devices, etc.
         self.run_initialize()
 
         # get DMA handles for subsequences recorded onto DMA

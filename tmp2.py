@@ -22,30 +22,32 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
-    #def prepare(self):
+    def prepare(self):
+        self.hasenv = testhasenv(self, {'aa':11,'bbb':22}, 9031)
         # self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         # self.os = self.cxn.oscilloscope_server
         # print(self.os.list_devices())
 
     #@kernel
     def run(self):
-        self.set_dataset('ampl_pump_rescue_pct', 50, broadcast=True, persist=True)
-        # self.core.reset()
-        # self.ttl8.on()
-        # self.core.break_realtime()
-        #pass
-        # self.core.reset()
-        # self.core.break_realtime()
-        # self.urukul1_ch0.init()
-        # delay(10*ms)
-        #print('scde')
-
-
-        #self.set_dataset('dds.dds_board_tickle_num', 0, broadcast=True, persist=True)
-        #self.set_dataset('dds.dds_tickle_channel', 3, broadcast=True, persist=True)
-        #self.set_dataset('pmt_gating_edge', 'rising', broadcast=True, persist=True)
-        #print('type: {}'.format(type(self.test1)))
-        #print(self.test1)
+        print('running')
 
     def analyze(self):
         print('test done')
+
+
+class testhasenv(HasEnvironment):
+    """
+    test hasenv
+    yzde
+    """
+
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
+        self.setattr_argument("test2", NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000))
+
+    def prepare(self):
+        print('\thasenv test:')
+        print('\t\ttest1: {}'.format(self.test1))
+        print('\t\ttest2: {}'.format(self.test2))

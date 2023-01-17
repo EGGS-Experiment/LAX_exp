@@ -132,19 +132,24 @@ class PhaserWindowingTest(EnvExperiment):
 
     @kernel(flags={'fast-math'})
     def window_record(self):
+        """
+        Record the amplitude-windowed pulse onto core DMA.
+        """
+        time_pulse_mu = self.time_window_sample_mu - self.time_sample_mu
+
         # record windowing sequence
         with self.core_dma.record(_DMA_HANDLE_PHASER_TEST):
             
             # iterate across window amplitude values in mu
             for amp_val_mu in self.ampl_window_mu_list:
 
-                # set amplitude for oscillator 0
+                # set amplitude for oscillators 0 & 1
                 self.ph_channel.oscillator[0].set_amplitude_phase_mu(amp_val_mu)
-                delay_mu(self.time_window_sample_mu)
-
-                # set amplitude for oscillator 1
+                delay_mu(self.time_sample_mu)
                 self.ph_channel.oscillator[1].set_amplitude_phase_mu(amp_val_mu)
-                delay_mu(self.time_window_sample_mu)
+
+                # wait given time
+                delay_mu(time_pulse_mu)
 
         self.core.break_realtime()
 

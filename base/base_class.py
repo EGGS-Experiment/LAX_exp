@@ -41,7 +41,16 @@ class LAXBase(HasEnvironment, ABC):
         key, processor = args
         self._build_arguments[key] = None
 
-    def get_parameter(self, key, default=NoDefault, archive=False):
+    def get_parameter(self, key, default=NoDefault):
+        try:
+            return self._HasEnvironment__dataset_mgr.get(key, False, parameter=True)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default
+
+    def get_parameter2(self, key, default=NoDefault, manager=True):
         try:
             return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
         except KeyError:
@@ -49,16 +58,6 @@ class LAXBase(HasEnvironment, ABC):
                 raise
             else:
                 return default
-
-    def get_parameter2(self, key, default=NoDefault, archive=False, manager=True):
-        try:
-            return self._HasEnvironment__dataset_mgr.get(key, archive, parameter=True)
-        except KeyError:
-            if default is NoDefault:
-                raise
-            else:
-                return default
-
 
     # PREPARE
     def _prepare_parameters(self, **kwargs):
