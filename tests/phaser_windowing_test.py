@@ -22,7 +22,7 @@ class PhaserWindowingTest(EnvExperiment):
         self.setattr_device("phaser0")
 
         # general
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=5000, ndecimals=0, step=1, min=1, max=1000000))
         
         # sequence timing
         self.setattr_argument("time_pulse_ms",                          NumberValue(default=5, ndecimals=5, step=1, min=0.00001, max=10000))
@@ -47,7 +47,7 @@ class PhaserWindowingTest(EnvExperiment):
         self.time_sequence_delay_mu =                                   self.core.seconds_to_mu(self.time_sequence_delay_ms * ms)
 
         # signal values
-        self.freq_sideband_mu =                                         np.int32(self.freq_sideband_mhz * self.frequency_to_ftw)
+        self.freq_sideband_mu =                                         np.int32(self.freq_sideband_mhz * MHz * self.frequency_to_ftw)
 
         # ensure phaser pulse time is a multiple of the phaser frame period
         # (4 ns/clock * 8 clock cycles * 10 words = 320ns)
