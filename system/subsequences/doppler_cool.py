@@ -14,9 +14,9 @@ class DopplerCool(LAXSubsequence):
     parameters = {
         'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu)
     }
-    devices = [
-        'pump'
-    ]
+
+    def build_subsequence(self):
+        self.setattr_device('pump')
 
     @kernel(flags={"fast-math"})
     def run(self):

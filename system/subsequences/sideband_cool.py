@@ -19,17 +19,12 @@ class SidebandCool(LAXSubsequence):
         'time_spinpol_mu':                  ('timing.time_spinpol_us',                  us_to_mu),
         'time_repump_qubit_mu':             ('timing.time_repump_qubit_us',             us_to_mu),
     }
-    devices = [
-        'probe',
-        'pump',
-        'qubit_repump',
-        'qubit'
-    ]
 
-    def prepare_sequence(self):
-        # todo: calculate spin polarizations
-        # todo:
-        pass
+    def build_subsequence(self):
+        self.setattr_device('probe')
+        self.setattr_device('pump')
+        self.setattr_device('qubit_repump')
+        self.setattr_device('qubit')
 
 
     @kernel(flags={"fast-math"})

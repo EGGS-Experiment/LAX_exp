@@ -17,13 +17,10 @@ class LAXSubsequence(LAXBase, ABC):
     Attributes:
         kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        devices                     list(LAXDevice)         : list of devices used by the subsequence.
         parameters                  dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
                                                             and the value is a tuple of the parameter name as stored in dataset_db,
                                                             together with a conversion function (None if no conversion needed).
     """
-    # Class attributes
-    devices =                       list()
 
 
     def __init__(self, managers_or_parent, *args, **kwargs):
@@ -57,7 +54,7 @@ class LAXSubsequence(LAXBase, ABC):
         """
         General construction of the subsequence object.
 
-        Gets/sets instance attributes, devices, and process build arguments.
+        Gets/sets instance attributes and process build arguments.
         Called before build_subsequence.
         """
         # get core devices
@@ -69,14 +66,6 @@ class LAXSubsequence(LAXBase, ABC):
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
 
-        # set devices as class attributes
-        for device_name in self.devices:
-            try:
-                device_object = self.get_device(device_name)
-                setattr(self, device_name, device_object)
-                self.kernel_invariants.add(device_name)
-            except Exception as e:
-                logger.warning("Device unavailable: {:s}".format(device_name))
 
     # BUILD - USER FUNCTIONS
     def build_subsequence(self, **kwargs):

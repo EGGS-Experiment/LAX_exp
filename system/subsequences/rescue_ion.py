@@ -15,10 +15,10 @@ class RescueIon(LAXSubsequence):
     parameters = {
         'time_rescue_mu':                   ('timing.time_rescue_us',          us_to_mu)
     }
-    devices = [
-        'pump',
-        'cooling_repump'
-    ]
+
+    def build_subsequence(self):
+        self.setattr_device('pump')
+        self.setattr_device('cooling_repump')
 
     @kernel(flags={"fast-math"})
     def run(self):

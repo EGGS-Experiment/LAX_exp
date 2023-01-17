@@ -14,9 +14,9 @@ class Tickle(LAXSubsequence):
     parameters = {
         'time_tickle_mu':                   ('timing.time_tickle_us',                   us_to_mu)
     }
-    devices = [
-        'tickle'
-    ]
+
+    def build_subsequence(self):
+        self.setattr_device('tickle')
     
     @kernel(flags={"fast-math"})
     def run(self):

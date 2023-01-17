@@ -11,13 +11,13 @@ class Readout(LAXSubsequence):
     """
     name = 'readout'
 
-    devices = [
-        'pump',
-        'pmt'
-    ]
     parameters = {
         'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu)
     }
+
+    def build_subsequence(self):
+        self.setattr_device('pump')
+        self.setattr_device('pmt')
 
     @kernel(flags={"fast-math"})
     def run(self):

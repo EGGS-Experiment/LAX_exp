@@ -16,12 +16,12 @@ class InitializeQubit(LAXSubsequence):
         'time_repump_qubit_mu':             ('timing.time_repump_qubit_us',             us_to_mu),
         'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu)
     }
-    devices = [
-        'probe',
-        'pump',
-        'repump_cooling',
-        'repump_qubit'
-    ]
+
+    def build_subsequence(self):
+        self.setattr_device('probe')
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
 
     @kernel(flags={"fast-math"})
     def run(self):

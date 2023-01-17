@@ -14,9 +14,9 @@ class SpinPolarization(LAXSubsequence):
     parameters = {
         'time_spinpol_mu':                   ('timing.time_spinpol_us',                   us_to_mu)
     }
-    devices = [
-        'probe'
-    ]
+
+    def build_subsequence(self):
+        self.setattr_device('probe')
     
     @kernel(flags={"fast-math"})
     def run(self):
