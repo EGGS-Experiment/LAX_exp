@@ -59,7 +59,7 @@ class EGGSHeating(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -274,15 +274,16 @@ class EGGSHeating(EnvExperiment):
         self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
-        # reset board profiles
-        self.dds_board.set_profile(0)
-        self.dds_board.io_update.pulse_mu(8)
-        self.dds_qubit_board.set_profile(0)
-        self.dds_qubit_board.io_update.pulse_mu(8)
-
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+
+        # reset board profiles
+        self.dds_board.set_profile(0)
+        self.dds_board.io_update.pulse_mu(8)
+
+        self.dds_qubit_board.set_profile(0)
+        self.dds_qubit_board.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
