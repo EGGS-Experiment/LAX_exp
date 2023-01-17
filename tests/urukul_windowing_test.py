@@ -3,10 +3,11 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import RAM_MODE_BIDIR_RAMP, RAM_DEST_ASF, RAM_DEST_FTW
 
 
-class Urukul_AWG(EnvExperiment):
+class UrukulWindowingTest(EnvExperiment):
     """
-    Urukul AWG Test
-    Test the use of the Urukul as an AWG.
+    Urukulk Windowing Test
+
+    Test windowing on urukul0.
     """
 
     def build(self):
@@ -15,6 +16,17 @@ class Urukul_AWG(EnvExperiment):
         """
         self.setattr_device("core")
         self.setattr_device("urukul0_cpld")
+        self.setattr_device("urukul0_ch0")
+        self.setattr_device("urukul0_ch1")
+        self.setattr_device("urukul0_ch2")
+        self.setattr_device("urukul0_ch3")
+
+        self.setattr_device("urukul1_cpld")
+        self.setattr_device("urukul1_ch0")
+        self.setattr_device("urukul1_ch1")
+        self.setattr_device("urukul1_ch2")
+        self.setattr_device("urukul1_ch3")
+
         self.dds = self.get_device("urukul0_ch2")
 
     def prepare(self):
