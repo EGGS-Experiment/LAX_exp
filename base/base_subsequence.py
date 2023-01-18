@@ -17,6 +17,8 @@ class LAXSubsequence(LAXEnvironment, ABC):
     Attributes:
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
+    # Class attributes
+    name = None
 
     def __init__(self, managers_or_parent, *args, **kwargs):
         # get unique subsequence number to distinguish different DMA handles from the same class

@@ -17,8 +17,8 @@ class Beam397Probe(LAXDevice):
     }
 
     def prepare_device(self):
-        self.freq_spinpol_ftw = self.get_parameter('freq_spinpol_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
-        self.ampl_spinpol_asf = self.get_parameter('ampl_spinpol_asf', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
+        self.freq_spinpol_ftw = self.get_parameter('freq_probe_spinpol_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
+        self.ampl_spinpol_asf = self.get_parameter('ampl_probe_spinpol_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

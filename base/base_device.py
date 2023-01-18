@@ -20,6 +20,7 @@ class LAXDevice(LAXEnvironment, ABC):
                                                             and the value is the actual device name (e.g. "urukul1_ch3").
     """
     # Class attributes
+    name =                  None
     core_devices =          dict()
 
 
@@ -63,7 +64,7 @@ class LAXDevice(LAXEnvironment, ABC):
         if len(self.core_devices) == 1:
 
             # verifies that a function is not magic
-            isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ is not "__init__")
+            isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ != "__init__")
 
             # get device
             dev_tmp = getattr(self, list(self.core_devices.keys())[0])

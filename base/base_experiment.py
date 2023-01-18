@@ -23,7 +23,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
-    _dma_count = 0
+    name =              None
+    _dma_count =        0
 
     '''
     BUILD
@@ -36,10 +37,6 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         Will be called upon instantiation.
         """
-        print(self._LAXEnvironment__device_mgr)
-        print('ok1')
-        print(self.__device_mgr)
-        print('ok2')
         self._build_arguments = kwargs
         self._build_experiment()
         self.build_experiment()

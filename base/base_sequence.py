@@ -17,6 +17,8 @@ class LAXSequence(LAXEnvironment, ABC):
     Attributes:
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
+    # Class attributes
+    name = None
 
     '''
     BUILD

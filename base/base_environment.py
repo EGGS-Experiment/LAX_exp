@@ -21,32 +21,35 @@ class LAXEnvironment(HasEnvironment, ABC):
         devices                     list(LAXDevice)         : list of devices used by the subsequence.
     """
     # Class attributes
-    name =                      None
     kernel_invariants =         set()
-    _set_arguments =            dict()
-    _build_arguments =          dict()
+
 
     def __init__(self, managers_or_parent, *args, **kwargs):
-        # define class variables
-        self.children = []
-        device_mgr, dataset_mgr, argument_mgr, scheduler_defaults = (None, None, None, None)
+        # define instance variables
+        self._set_arguments = dict()
+        self._build_arguments = dict()
 
-        # correctly take manager objects
+        # correctly extract manager objects
+        device_mgr, dataset_mgr, argument_mgr, scheduler_defaults = (None, None, None, None)
         if isinstance(managers_or_parent, tuple):
             device_mgr = managers_or_parent[0]
             dataset_mgr = managers_or_parent[1]
             argument_mgr = managers_or_parent[2]
             scheduler_defaults = managers_or_parent[3]
-        else:
+        # todo: better document; this is for case if we try to use LAX stuff in isolation with regular hasenv
+        elif isinstance(managers_or_parent, HasEnvironment):
+            device_mgr = managers_or_parent._HasEnvironment__device_mgr
+            dataset_mgr = managers_or_parent._HasEnvironment__dataset_mgr
+            argument_mgr = managers_or_parent._HasEnvironment__argument_mgr
+            scheduler_defaults = {}
+            managers_or_parent.register_child(self)
+        # todo: better document; this is for case everyone is LAX
+        elif isinstance(managers_or_parent, LAXEnvironment):
             device_mgr = managers_or_parent.__device_mgr
             dataset_mgr = managers_or_parent.__dataset_mgr
             argument_mgr = managers_or_parent.__argument_mgr
             scheduler_defaults = {}
             managers_or_parent.register_child(self)
-
-        # tmp remove
-        print('\tis laxdv: {}\t: {}'.format(self.name, isinstance(device_mgr, LAXDeviceManager)))
-        print('\tis laxds: {}\t: {}'.format(self.name, isinstance(dataset_mgr, LAXDatasetManager)))
 
         # wrap manager objects
         if not isinstance(device_mgr, LAXDeviceManager):
@@ -54,19 +57,16 @@ class LAXEnvironment(HasEnvironment, ABC):
         if not isinstance(dataset_mgr, LAXDatasetManager):
             dataset_mgr = LAXDatasetManager(dataset_mgr, self)
 
-        self._HasEnvironment__device_mgr = LAXDeviceManager(self._HasEnvironment__device_mgr, self)
-        self._HasEnvironment__dataset_mgr = LAXDatasetManager(self._HasEnvironment__dataset_mgr, self)
-        print(self._HasEnvironment__device_mgr)
         # save wrapped manager objects as private variables
         self.__device_mgr = device_mgr
         self.__dataset_mgr = dataset_mgr
         self.__argument_mgr = argument_mgr
         self.__scheduler_defaults = scheduler_defaults
 
-        # start build
-        self.__in_build = True
-        self.build(*args, **kwargs)
-        self.__in_build = False
+        # initialize parent so we can use their functions which we haven't
+        # already subclassed
+        managers = (device_mgr, dataset_mgr, argument_mgr, scheduler_defaults)
+        super().__init__(managers, *args, **kwargs)
 
 
     '''
@@ -77,8 +77,6 @@ class LAXEnvironment(HasEnvironment, ABC):
         """
         todo: document
         """
-        print('\t\tsetattr arg: {}'.format(args))
-        print('\t\tsetattr kwargs: {}'.format(kwargs))
         super().setattr_argument(*args, **kwargs)
 
         # add argument to _set_arguments (will grab after prepare)
