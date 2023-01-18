@@ -17,7 +17,7 @@ class Readout(LAXSubsequence):
         self.setattr_device('pmt')
 
     def prepare_subsequence(self):
-        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=False, conversion_function=seconds_to_mu, units=us)
+        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):

@@ -144,6 +144,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Set all devices back to their original state.
         """
+        self.core.reset()
+
         # reset qubit board
         self.urukul0_cpld.set_profile(0)
         self.urukul0_cpld.io_update.pulse_mu(8)

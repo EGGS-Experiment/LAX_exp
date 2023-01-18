@@ -87,7 +87,6 @@ class LAXEnvironment(HasEnvironment, ABC):
         """
         todo: document
         """
-        print('\t{} arguments: {}'.format(self.name, self._set_arguments))
         # add arguments to the dataset manager
         for arg_key in self._set_arguments.keys():
             try:
