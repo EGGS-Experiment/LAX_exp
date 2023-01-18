@@ -14,6 +14,14 @@ class PhaserWindowingTest(EnvExperiment):
 
     Test windowing on phaser0.
     """
+    kernel_invariants = {
+        'time_sample_mu',
+        'time_frame_mu',
+        'time_pulse_mu',
+        'time_window_sample_mu',
+
+        'ampl_window_mu_list'
+    }
 
 
     def build(self):
@@ -57,7 +65,7 @@ class PhaserWindowingTest(EnvExperiment):
 
         # set up windowing variables
         # double the sample period since we use two oscillators
-        self.time_window_sample_mu =                                    7 * self.time_sample_mu
+        self.time_window_sample_mu =                                    14 * self.time_sample_mu
         num_samples =                                                   np.int32(self.time_pulse_mu / (2 * self.time_window_sample_mu))
         max_amplitude =                                                 int32(0x7FFF / 2 - 1)
 
@@ -87,7 +95,7 @@ class PhaserWindowingTest(EnvExperiment):
             
             # output signal 
             self.core_dma.playback_handle(handle_test)
-            
+
             # wait a holdoff period
             delay_mu(self.time_sequence_delay_mu)
 
