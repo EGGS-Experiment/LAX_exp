@@ -7,7 +7,7 @@ class ParameterSet(EnvExperiment):
     Sets all relevant parameters (persistent) for experiment.
     """
 
-    def build(self):
+    def prepare(self):
         """
         Set devices and arguments for the experiment.
         """
