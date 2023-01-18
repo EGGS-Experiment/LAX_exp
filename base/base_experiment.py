@@ -36,6 +36,10 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         Will be called upon instantiation.
         """
+        print(self._LAXEnvironment__device_mgr)
+        print('ok1')
+        print(self.__device_mgr)
+        print('ok2')
         self._build_arguments = kwargs
         self._build_experiment()
         self.build_experiment()
@@ -88,6 +92,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         General construction of the experiment object.
         Must happen after the user-defined prepare_experiment method.
         """
+        pass
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
         # need: wavemeter frequencies
@@ -97,7 +102,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         # create dataset to hold results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
-        pass
 
     # PREPARE - USER FUNCTIONS
     def prepare_experiment(self):
@@ -236,7 +240,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 with h5py.File(filename, "w") as f:
 
                     # save data from experiment via the dataset manager of the LAXExperiment
-                    self.__dataset_mgr.write_hdf5(f)
+                    self._LAXEnvironment__dataset_mgr.write_hdf5(f)
 
                     # store experiment parameters in a separate group as attributes
                     experiment_group = f.create_group("experiment")

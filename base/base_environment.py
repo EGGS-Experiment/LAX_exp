@@ -26,16 +26,47 @@ class LAXEnvironment(HasEnvironment, ABC):
     _set_arguments =            dict()
     _build_arguments =          dict()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, managers_or_parent, *args, **kwargs):
+        # define class variables
+        self.children = []
+        device_mgr, dataset_mgr, argument_mgr, scheduler_defaults = (None, None, None, None)
+
+        # correctly take manager objects
+        if isinstance(managers_or_parent, tuple):
+            device_mgr = managers_or_parent[0]
+            dataset_mgr = managers_or_parent[1]
+            argument_mgr = managers_or_parent[2]
+            scheduler_defaults = managers_or_parent[3]
+        else:
+            device_mgr = managers_or_parent.__device_mgr
+            dataset_mgr = managers_or_parent.__dataset_mgr
+            argument_mgr = managers_or_parent.__argument_mgr
+            scheduler_defaults = {}
+            managers_or_parent.register_child(self)
+
+        # tmp remove
+        print('\tis laxdv: {}\t: {}'.format(self.name, isinstance(device_mgr, LAXDeviceManager)))
+        print('\tis laxds: {}\t: {}'.format(self.name, isinstance(dataset_mgr, LAXDatasetManager)))
 
         # wrap manager objects
+        if not isinstance(device_mgr, LAXDeviceManager):
+            device_mgr = LAXDeviceManager(device_mgr, self)
+        if not isinstance(dataset_mgr, LAXDatasetManager):
+            dataset_mgr = LAXDatasetManager(dataset_mgr, self)
+
         self._HasEnvironment__device_mgr = LAXDeviceManager(self._HasEnvironment__device_mgr, self)
         self._HasEnvironment__dataset_mgr = LAXDatasetManager(self._HasEnvironment__dataset_mgr, self)
-
+        print(self._HasEnvironment__device_mgr)
         # save wrapped manager objects as private variables
-        self.__device_mgr = self._HasEnvironment__device_mgr
-        self.__dataset_mgr = self._HasEnvironment__dataset_mgr
+        self.__device_mgr = device_mgr
+        self.__dataset_mgr = dataset_mgr
+        self.__argument_mgr = argument_mgr
+        self.__scheduler_defaults = scheduler_defaults
+
+        # start build
+        self.__in_build = True
+        self.build(*args, **kwargs)
+        self.__in_build = False
 
 
     '''
@@ -46,6 +77,8 @@ class LAXEnvironment(HasEnvironment, ABC):
         """
         todo: document
         """
+        print('\t\tsetattr arg: {}'.format(args))
+        print('\t\tsetattr kwargs: {}'.format(kwargs))
         super().setattr_argument(*args, **kwargs)
 
         # add argument to _set_arguments (will grab after prepare)
@@ -56,6 +89,7 @@ class LAXEnvironment(HasEnvironment, ABC):
         """
         todo: document
         """
+        print('\t{} arguments: {}'.format(self.name, self._set_arguments))
         # add arguments to the dataset manager
         for arg_key in self._set_arguments.keys():
             try:

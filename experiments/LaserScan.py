@@ -27,7 +27,7 @@ class LaserScan2(LAXExperiment, Experiment):
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
-
+        print(self.freq_qubit_scan_mhz)
         # relevant devices
         self.setattr_device('qubit')
 

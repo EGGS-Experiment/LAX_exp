@@ -120,6 +120,7 @@ class LAXDeviceManager:
         """
         Redirect requests for LAXDevices
         """
+        print('tried bere ************************')
         # redirect requests for LAXDevices
         if name in self.ddb_lax:
 
