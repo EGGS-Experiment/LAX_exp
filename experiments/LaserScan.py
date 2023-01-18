@@ -33,7 +33,7 @@ class LaserScan2(LAXExperiment, Experiment):
 
         # subsequences
         self.initialize_subsequence =                               InitializeQubit(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=20000)
+        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.readout_subsequence =                                  Readout(self)
 
     def prepare_experiment(self):

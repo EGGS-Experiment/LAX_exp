@@ -36,14 +36,14 @@ class LAXEnvironment(HasEnvironment, ABC):
             dataset_mgr = managers_or_parent[1]
             argument_mgr = managers_or_parent[2]
             scheduler_defaults = managers_or_parent[3]
-        # todo: better document; this is for case if we try to use LAX stuff in isolation with regular hasenv
+        # account for case where parent is regular artiq HasEnv
         elif isinstance(managers_or_parent, HasEnvironment):
             device_mgr = managers_or_parent._HasEnvironment__device_mgr
             dataset_mgr = managers_or_parent._HasEnvironment__dataset_mgr
             argument_mgr = managers_or_parent._HasEnvironment__argument_mgr
             scheduler_defaults = {}
             managers_or_parent.register_child(self)
-        # todo: better document; this is for case everyone is LAX
+        # account for case where parent is LAX
         elif isinstance(managers_or_parent, LAXEnvironment):
             device_mgr = managers_or_parent.__device_mgr
             dataset_mgr = managers_or_parent.__dataset_mgr
