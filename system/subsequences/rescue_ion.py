@@ -12,19 +12,18 @@ class RescueIon(LAXSubsequence):
     """
     name = 'rescue_ion'
 
-    parameters = {
-        'time_rescue_mu':                   ('timing.time_rescue_us',          us_to_mu)
-    }
-
     def build_subsequence(self):
         self.setattr_device('pump')
-        self.setattr_device('cooling_repump')
+        self.setattr_device('repump_cooling')
+
+    def prepare_subsequence(self):
+        self.time_rescue_mu = self.get_parameter('time_rescue_us', group='timing', override=False, conversion=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):
         # set rescue waveform and ensure 866 is on
         self.pump.rescue()
-        self.repump.on()
+        self.repump_cooling.on()
 
         # doppler cooling
         self.pump.on()

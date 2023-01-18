@@ -23,7 +23,7 @@ class SidebandCool(LAXSubsequence):
     def build_subsequence(self):
         self.setattr_device('probe')
         self.setattr_device('pump')
-        self.setattr_device('qubit_repump')
+        self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
 
@@ -49,11 +49,11 @@ class SidebandCool(LAXSubsequence):
                 self.qubit.off()
 
                 # qubit repump
-                self.qubit_repump.on()
+                self.repump_qubit.on()
                 delay_mu(self.time_repump_sideband_cooling_mu)
-                self.qubit_repump.off()
+                self.repump_qubit.off()
 
         # repump qubit after sideband cooling
-        self.qubit_repump.on()
+        self.repump_qubit.on()
         delay_mu(self.time_repump_qubit_mu)
-        self.qubit_repump.off()
+        self.repump_qubit.off()

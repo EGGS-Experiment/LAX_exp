@@ -15,14 +15,12 @@ class ParameterSet(EnvExperiment):
         # readout parameters
         readout_parameters = {
             # PMT
-            "pmt.pmt_input_channel":                                    0,
-            "pmt.pmt_gating_edge":                                      "rising",
-            "pmt.pmt_discrimination":                                   11,
+            "pmt.gating_edge":                                          "rising",
 
             # todo: distinguish between the 3 photodiodes
             # photodiode
-            "photodiode.photodiode_channel_sampler":                    0,
-            "photodiode.photodiode_gain":                               1
+            "photodiode.sampler_channel":                               0,
+            "photodiode.gain":                                          1
         }
 
         # ttl parameters
@@ -36,7 +34,7 @@ class ParameterSet(EnvExperiment):
 
         # rf parameters
         rf_parameters = {
-            "rf.ttl_channel_rf_modulation":                             3
+            "rf.input_channel":                                         3
         }
 
 

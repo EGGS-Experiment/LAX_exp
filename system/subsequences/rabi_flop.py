@@ -13,12 +13,11 @@ class RabiFlop(LAXSubsequence):
     """
     name = 'rabi_flop'
 
-    parameters = {
-        'time_rabiflop_mu':                 ('timing.time_rabiflop_us',                 us_to_mu)
-    }
-
     def build_subsequence(self):
         self.setattr_device('qubit')
+
+    def prepare_subsequence(self):
+        self.time_rabiflop_mu = self.get_parameter('time_rabiflop_us', group='timing', override=False, conversion=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):

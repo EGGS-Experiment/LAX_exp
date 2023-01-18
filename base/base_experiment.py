@@ -9,11 +9,10 @@ from numpy import array
 
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.base import LAXBase
-from LAX_exp.base.manager_wrappers import LAXDeviceManager, LAXDatasetManager
+from LAX_exp.base import LAXEnvironment
 
 
-class LAXExperiment(LAXBase, ABC):
+class LAXExperiment(LAXEnvironment, ABC):
     """
     Base class for experiment objects.
 
@@ -21,27 +20,14 @@ class LAXExperiment(LAXBase, ABC):
     Instantiates and initalizes all relevant devices, sequences, and subsequences.
 
     Attributes:
-        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        devices                     list(LAXDevice)         : list of devices used by the subsequence.
     """
-    instance_number = 0
+    # Class attributes
+    _dma_count = 0
 
     '''
     BUILD
     '''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # wrap manager objects
-        self._HasEnvironment__device_mgr = LAXDeviceManager(self._HasEnvironment__device_mgr, self)
-        self._HasEnvironment__dataset_mgr = LAXDatasetManager(self._HasEnvironment__dataset_mgr, self)
-
-        # save wrapped manager objects as private variables
-        self.__device_mgr = self._HasEnvironment__device_mgr
-        self.__dataset_mgr = self._HasEnvironment__dataset_mgr
-
 
     # BUILD - BASE
     def build(self, **kwargs):
@@ -68,7 +54,6 @@ class LAXExperiment(LAXBase, ABC):
         self.setattr_device('urukul1_cpld')
         setattr(self,'_result_iter', 0)
 
-
     # BUILD - USER FUNCTIONS
     def build_experiment(self):
         """
@@ -93,28 +78,16 @@ class LAXExperiment(LAXBase, ABC):
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
             values computed only in prepare_experiment.
         """
-        self.prepare_experiment()
+        self.save_arguments()
         self._prepare_experiment()
+        self.prepare_experiment()
+        self.call_child_method('prepare')
 
     def _prepare_experiment(self):
         """
         General construction of the experiment object.
         Must happen after the user-defined prepare_experiment method.
         """
-        # add arguments to the dataset manager
-        for arg_key in self._build_arguments.keys():
-
-            try:
-                arg_val = getattr(self, arg_key)
-
-                # convert scan objects into an array
-                if issubclass(type(arg_val), ScanObject):
-                    arg_val = array(list(arg_val))
-
-                self.__dataset_mgr.set(arg_key, arg_val, archive=False, parameter=False, argument=True)
-            except KeyError:
-                logger.warning("Argument unavailable: {:s}".format(arg_val))
-
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
         # need: wavemeter frequencies
@@ -124,10 +97,7 @@ class LAXExperiment(LAXBase, ABC):
         # create dataset to hold results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
-
-        # prepare children
-        self.call_child_method('prepare')
-
+        pass
 
     # PREPARE - USER FUNCTIONS
     def prepare_experiment(self):
@@ -192,7 +162,6 @@ class LAXExperiment(LAXBase, ABC):
         """
         self.results[self._result_iter] = array(args)
         self._result_iter += 1
-
 
     # RUN - USER FUNCTIONS
     def run_initialize(self):

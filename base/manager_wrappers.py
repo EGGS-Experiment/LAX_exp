@@ -5,9 +5,10 @@ import logging
 from importlib import import_module
 from artiq.master.worker_db import _write
 
+from LAX_exp.system.device_db_ext import device_db_ext
+
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.system.device_db_ext import device_db_ext
 
 
 class LAXDatasetManager:

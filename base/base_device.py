@@ -4,11 +4,11 @@ import logging
 from abc import ABC, abstractmethod
 from inspect import getmembers, ismethod
 
-from LAX_exp.base import LAXBase
+from LAX_exp.base import LAXEnvironment
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXDevice(LAXBase, ABC):
+class LAXDevice(LAXEnvironment, ABC):
     """
     A generic device object.
         Gets devices and their relevant parameters from the master
@@ -16,10 +16,6 @@ class LAXDevice(LAXBase, ABC):
 
     Attributes:
         name                    str                     : the name of the device (will be used to refer to the device by other objects).
-        kernel_invariants       set(str)                : list of attribute names that won't change while kernel is running
-        parameters              dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
-                                                            and the value is a tuple of the parameter name as stored in dataset_db,
-                                                            together with a conversion function (None if no conversion needed).
         core_devices            dict(str, str)          : dict of devices used where the key is the device nickname (e.g. "beam_854")
                                                             and the value is the actual device name (e.g. "urukul1_ch3").
     """
@@ -60,7 +56,8 @@ class LAXDevice(LAXBase, ABC):
                 setattr(self, device_nickname, device_object)
                 self.kernel_invariants.add(device_nickname)
             except Exception as e:
-                logger.warning("Device unavailable: {:s}".format(device_name))
+                # logger.warning("Device unavailable: {:s}".format(device_name))
+                raise Exception("Device unavailable: {:s}".format(device_name))
 
         # if class only uses one device, break out original device methods
         if len(self.core_devices) == 1:
@@ -85,6 +82,7 @@ class LAXDevice(LAXBase, ABC):
         """
         pass
 
+
     '''
     PREPARE
     '''
@@ -97,7 +95,6 @@ class LAXDevice(LAXBase, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters(**self._build_arguments)
         self.prepare_device()
 
     # PREPARE - USER FUNCTIONS
@@ -109,6 +106,7 @@ class LAXDevice(LAXBase, ABC):
         Used to customize the device class and set up hardware.
         """
         pass
+
 
     '''
     RUN

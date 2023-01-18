@@ -6,31 +6,35 @@ from LAX_exp.base import LAXDevice
 
 class Beam397Pump(LAXDevice):
     """
-    Wrapper for the 397nm pump beam.
-        Uses the DDS channel to drive an AOM in double-pass configuration.
+    Device: 397nm pump beam
+
+    Uses the DDS channel to drive an AOM in double-pass configuration.
     """
     name = "pump"
 
-    parameters = {
-        'freq_cooling_ftw':                 ('beams.freq_mhz.freq_pump_cooling_mhz',    mhz_to_ftw),
-        'freq_readout_ftw':                 ('beams.freq_mhz.freq_pump_readout_mhz',    mhz_to_ftw),
-        'freq_rescue_ftw':                  ('beams.freq_mhz.freq_pump_rescue_mhz',     mhz_to_ftw),
-
-        'ampl_cooling_asf':                 ('beams.ampl_pct.ampl_pump_cooling_pct',    pct_to_asf),
-        'ampl_readout_asf':                 ('beams.ampl_pct.ampl_pump_readout_pct',    pct_to_asf),
-        'ampl_rescue_asf':                  ('beams.ampl_pct.ampl_pump_rescue_pct',     pct_to_asf)
-    }
     core_devices = {
         'beam': 'urukul1_ch1'
     }
 
+    def prepare_device(self):
+        self.freq_cooling_ftw =     self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz', override=False, conversion=hz_to_ftw, units=MHz)
+        self.freq_readout_ftw =     self.get_parameter('freq_pump_readout_mhz', group='beams.freq_mhz', override=False, conversion=hz_to_ftw, units=MHz)
+        self.freq_rescue_ftw =      self.get_parameter('freq_pump_rescue_mhz', group='beams.freq_mhz', override=False, conversion=hz_to_ftw, units=MHz)
+
+        self.ampl_cooling_asf =     self.get_parameter('ampl_pump_cooling_pct', group='beams.ampl_pct', override=False, conversion=pct_to_asf)
+        self.ampl_readout_asf =     self.get_parameter('ampl_pump_readout_pct', group='beams.ampl_pct', override=False, conversion=pct_to_asf)
+        self.ampl_rescue_asf =      self.get_parameter('ampl_pump_rescue_pct', group='beams.ampl_pct', override=False, conversion=pct_to_asf)
+
     @kernel(flags={"fast-math"})
     def initialize_device(self):
-        # set cooling and readout profiles
-        self.core.break_realtime()
+        # set waveforms for cooling, readout, and rescue
+        # todo: tune delays
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
         self.core.break_realtime()
         self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1)
+        self.core.break_realtime()
+        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def on(self):
@@ -42,21 +46,30 @@ class Beam397Pump(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def cooling(self):
-        # set cooling profile
-        with parallel:
-            self.beam.cpld.set_profile(0)
-            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        """
+        Set cooling profile
+        todo: document
+        """
+        self.beam.cpld.set_profile(0)
+        self.beam.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def readout(self):
-        # set readout profile
-        with parallel:
-            self.beam.cpld.set_profile(1)
-            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        """
+        Set readout profile
+        todo: document
+        """
+        self.beam.cpld.set_profile(1)
+        self.beam.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def rescue(self):
-        # set rescue profile
-        with parallel:
-            self.beam.cpld.set_profile(2)
-            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        """
+        Set rescue profile
+        todo: document
+        """
+        self.beam.cpld.set_profile(2)
+        self.beam.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)

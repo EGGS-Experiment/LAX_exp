@@ -14,18 +14,17 @@ class PMTDiscrimination(LAXSequence):
     """
     name = 'pmt_discrimination'
 
-    parameters = {
-        "sample_num":                       ('calibration.pmt.sample_num',              None),
-        'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu),
-        'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu),
-    }
-    devices = [
-        'pump',
-        'repump_cooling',
-        'pmt'
-    ]
+    def build_sequence(self):
+        self.setattr_device('pmt')
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
 
     def prepare_sequence(self):
+        # get parameters
+        self.sample_num = self.get_parameter('sample_num', group='calibration.pmt', override=True)
+        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion=seconds_to_mu, units=us)
+        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=True, conversion=seconds_to_mu, units=us)
+
         # create subsequence datasets
         self.set_dataset("counts_signal", np.zeros(self.sample_num, dtype=np.int32))
         self.setattr_dataset("counts_signal")

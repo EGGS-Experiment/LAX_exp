@@ -3,11 +3,11 @@ from numpy import int64, int32
 from abc import ABC, abstractmethod
 
 from artiq.experiment import *
-from LAX_exp.base import LAXBase
+from LAX_exp.base import LAXEnvironment
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXSubsequence(LAXBase, ABC):
+class LAXSubsequence(LAXEnvironment, ABC):
     """
     Base class for subsequence objects.
 
@@ -15,25 +15,22 @@ class LAXSubsequence(LAXBase, ABC):
     Assumes that the relevant devices have already been initialized.
 
     Attributes:
-        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        parameters                  dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
-                                                            and the value is a tuple of the parameter name as stored in dataset_db,
-                                                            together with a conversion function (None if no conversion needed).
     """
-
 
     def __init__(self, managers_or_parent, *args, **kwargs):
         # get unique subsequence number to distinguish different DMA handles from the same class
-        instance_number = 0
-        if (not isinstance(managers_or_parent, tuple)) and (hasattr(managers_or_parent, 'instance_number')):
-            instance_number = getattr(managers_or_parent, 'instance_number')
-            managers_or_parent.instance_number += 1
+        _dma_count = 0
+        if (not isinstance(managers_or_parent, tuple)) and (hasattr(managers_or_parent, '_dma_count')):
+            _dma_count = getattr(managers_or_parent, '_dma_count')
+            managers_or_parent._dma_count += 1
 
-        setattr(self, 'instance_number', instance_number)
+        # register our dma number for later reference
+        setattr(self, '_dma_count', _dma_count)
 
-        # do regular initialization
+        # complete regular initialization
         super().__init__(managers_or_parent, *args, **kwargs)
+
 
     '''
     BUILD
@@ -62,10 +59,9 @@ class LAXSubsequence(LAXBase, ABC):
         self.setattr_device("core_dma")
 
         # set instance variables
-        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
+        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self._dma_count))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
-
 
     # BUILD - USER FUNCTIONS
     def build_subsequence(self, **kwargs):
@@ -76,6 +72,7 @@ class LAXSubsequence(LAXBase, ABC):
         Used to set and process subsequence-specific arguments.
         """
         pass
+
 
     '''
     PREPARE
@@ -89,7 +86,7 @@ class LAXSubsequence(LAXBase, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters(**self._build_arguments)
+        self.save_arguments()
         self.prepare_subsequence()
 
     # PREPARE - USER FUNCTIONS
@@ -101,6 +98,7 @@ class LAXSubsequence(LAXBase, ABC):
         Used to customize this class.
         """
         pass
+
 
     '''
     DMA
@@ -126,6 +124,7 @@ class LAXSubsequence(LAXBase, ABC):
     def _load_dma(self):
         if self._dma_record_flag == True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
+
 
     '''
     RUN

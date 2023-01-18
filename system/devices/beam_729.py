@@ -6,24 +6,26 @@ from LAX_exp.base import LAXDevice
 
 class Beam729(LAXDevice):
     """
-    Device: Wrapper for the 729nm qubit beam (polarized).
+    Device: 729nm qubit beam (polarized)
 
     Uses the DDS channel to drive the 729nm AOM in double-pass configuration.
     """
     name = "qubit"
 
-    parameters = {
-        'freq_qubit_carrier_ftw':           ('beams.freq_mhz.freq_qubit_mhz',               mhz_to_ftw),
-        'ampl_qubit_asf':                   ('beams.ampl_pct.ampl_qubit_pct',               pct_to_asf)
-    }
     core_devices = {
         'beam': 'urukul0_ch1'
     }
 
+    def prepare_device(self):
+        self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False, conversion=hz_to_ftw, units=MHz)
+        self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False, conversion=pct_to_asf)
+
     @kernel(flags={"fast-math"})
     def initialize_device(self):
-        self.core.break_realtime()
+        # set waveform for carrier interrogation
+        # todo: tune delays
         self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def on(self):
@@ -35,7 +37,10 @@ class Beam729(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def carrier(self):
-        # set carrier profile
-        with parallel:
-            self.beam.cpld.set_profile(0)
-            delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        """
+        Set carrier profile
+        todo: document
+        """
+        self.beam.cpld.set_profile(0)
+        self.beam.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
