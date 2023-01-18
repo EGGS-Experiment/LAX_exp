@@ -286,6 +286,9 @@ class RamseySpectroscopy(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
+        # tmp remove
+        self.pmt_discrimination = 17
+
         # turn dataset into numpy array for ease of use
         self.ramsey_spectroscopy = np.array(self.ramsey_spectroscopy)
 

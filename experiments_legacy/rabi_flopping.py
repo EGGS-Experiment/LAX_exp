@@ -284,6 +284,9 @@ class RabiFlopping(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
+        # tmp remove
+        self.pmt_discrimination = 17
+
         # turn dataset into numpy array for ease of use
         self.rabi_flopping = np.array(self.rabi_flopping)
 

@@ -6,13 +6,13 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXSequence
 
 
-class PMTDiscrimination(LAXSequence):
+class PMTCalibration(LAXSequence):
     """
-    Sequence: PMT Discrimination
+    Sequence: PMT Calibration
 
     Record incoming photon counts to discriminate between the 0 and 1 states.
     """
-    name = 'pmt_discrimination'
+    name = 'pmt_calibration'
 
     def build_sequence(self):
         self.setattr_device('pmt')

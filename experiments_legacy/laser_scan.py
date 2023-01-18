@@ -281,6 +281,9 @@ class LaserScan(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
+        # tmp remove
+        self.pmt_discrimination = 17
+
         # turn dataset into numpy array for ease of use
         self.laser_scan = np.array(self.laser_scan)
 

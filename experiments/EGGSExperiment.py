@@ -10,7 +10,7 @@ class EGGSExperiment(LAXExperiment, Experiment):
     """
     EGGS Experiment - Base Class
 
-    todo: doccument
+    todo: document
     """
 
     def build_experiment(self):
@@ -28,9 +28,6 @@ class EGGSExperiment(LAXExperiment, Experiment):
                                                                     ))
 
     def prepare_experiment(self):
-        # get 729 beam
-        self.setattr_device('qubit')
-
         # convert frequencies to machine units
         self.freq_qubit_scan_ftw =                                  np.array([mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz])
 
