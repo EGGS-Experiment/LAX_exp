@@ -17,7 +17,7 @@ class RescueIon(LAXSubsequence):
         self.setattr_device('repump_cooling')
 
     def prepare_subsequence(self):
-        self.time_rescue_mu = self.get_parameter('time_rescue_us', group='timing', override=False, conversion=seconds_to_mu, units=us)
+        self.time_rescue_mu = self.get_parameter('time_rescue_us', group='timing', override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):

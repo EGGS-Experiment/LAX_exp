@@ -18,7 +18,7 @@ class BeamTickle(LAXDevice):
 
     def prepare_device(self):
         self.freq_tickle_ftw = hz_to_ftw(1 * MHz)
-        self.ampl_tickle_pct = self.get_parameter('ampl_tickle_radial_pct', group='beams.ampl_pct', override=False, conversion=pct_to_asf)
+        self.ampl_tickle_pct = self.get_parameter('ampl_tickle_radial_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

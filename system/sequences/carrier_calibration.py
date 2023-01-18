@@ -22,8 +22,8 @@ class CarrierCalibration(LAXSequence):
     def prepare_sequence(self):
         # get parameters
         self.sample_num = self.get_parameter('sample_num', group='calibration.pmt', override=True)
-        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion=seconds_to_mu, units=us)
-        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=True, conversion=seconds_to_mu, units=us)
+        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
         # create subsequence datasets
         self.set_dataset("counts_signal", np.zeros(self.sample_num, dtype=np.int32))

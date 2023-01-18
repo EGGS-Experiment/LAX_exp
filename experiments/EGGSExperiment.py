@@ -6,13 +6,12 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
 
 
-class LaserScan2(LAXExperiment, Experiment):
+class EGGSExperiment(LAXExperiment, Experiment):
     """
-    729nm Laser Scan2
-    Gets the number of counts as a function of frequency for a fixed time.
-    """
+    EGGS Experiment - Base Class
 
-    name = 'Laser Scan 2'
+    todo: doccument
+    """
 
     def build_experiment(self):
         # core arguments

@@ -19,8 +19,8 @@ class Linetrigger(LAXDevice):
 
     def prepare_device(self):
         self.gating_edge = self.get_parameter('gating_edge', group='linetrigger', override=False)
-        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger', override=False, conversion=seconds_to_mu, units=ms)
-        self.time_holdoff_mu = self.get_parameter('time_holdoff_us', group='linetrigger', override=False, conversion=seconds_to_mu, units=us)
+        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=ms)
+        self.time_holdoff_mu = self.get_parameter('time_holdoff_us', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

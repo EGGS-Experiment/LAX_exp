@@ -17,7 +17,7 @@ class RabiFlop(LAXSubsequence):
         self.setattr_device('qubit')
 
     def prepare_subsequence(self):
-        self.time_rabiflop_mu = self.get_parameter('time_rabiflop_us', group='timing', override=False, conversion=seconds_to_mu, units=us)
+        self.time_rabiflop_mu = self.get_parameter('time_rabiflop_us', group='timing', override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):
