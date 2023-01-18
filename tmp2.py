@@ -15,7 +15,7 @@ class testarg12(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl8")
-        self.hasenv = testhasenv(self)
+        self.hasenv = testhasenv(self, {'d':3, 'e':4}, 999)
 
         # self.setattr_device("core_dma")
         # self.setattr_argument("test1", PYONValue({'a':1,'b':2}))
