@@ -125,13 +125,18 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # set up the run by configuring devices, etc.
         # (never initialize devices directly to avoid compounding overhead)
-        self.call_child_method('initialize_devices')
+        print('yzde0')
+        self.call_child_method('initialize_device')
+        print('yzde1')
         self.call_child_method('initialize_subsequences')
+        print('yzde2')
         self.call_child_method('initialize_sequences')
+        print('yzde3')
         self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
         self.call_child_method('_load_dma')
+        print('yzde4')
 
         # run the main part of the experiment
         self.run_main()

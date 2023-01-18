@@ -23,8 +23,8 @@ class Beam729(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self):
         # set waveform for carrier interrogation
-        # todo: tune delays
-        self.beam.set_mu(self.freq_qubit_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
+        self.core.break_realtime()
+        self.beam.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})

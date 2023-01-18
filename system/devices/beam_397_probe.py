@@ -23,7 +23,6 @@ class Beam397Probe(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self):
         # set cooling and readout profiles
-        # todo: tune delays
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
         self.core.break_realtime()

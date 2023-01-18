@@ -22,7 +22,7 @@ class Beam866(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):
-        # todo: tune delays
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)

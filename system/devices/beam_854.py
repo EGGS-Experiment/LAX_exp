@@ -22,7 +22,7 @@ class Beam854(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):
-        # todo: tune delays
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)

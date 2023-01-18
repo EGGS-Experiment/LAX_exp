@@ -28,7 +28,7 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self):
         # set waveforms for cooling, readout, and rescue
-        # todo: tune delays
+        self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
         self.core.break_realtime()
         self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1)
