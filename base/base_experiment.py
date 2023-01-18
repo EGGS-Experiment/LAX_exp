@@ -122,8 +122,12 @@ class LAXExperiment(LAXEnvironment, ABC):
         # todo: completion monitor stuff
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # set up the run by initializing devices, etc.
-        self.run_initialize()
+        # set up the run by configuring devices, etc.
+        # (never initialize devices directly to avoid compounding overhead)
+        self.call_child_method('initialize_devices')
+        self.call_child_method('initialize_subsequences')
+        self.call_child_method('initialize_sequences')
+        self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
         self.call_child_method('_load_dma')
@@ -139,15 +143,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Set all devices back to their original state.
         """
-        self.core.break_realtime()
-
         # reset qubit board
         self.urukul0_cpld.set_profile(0)
+        self.urukul0_cpld.io_update.pulse_mu(8)
         self.urukul0_cpld.cfg_switches(0b0000)
         self.core.break_realtime()
 
-        # reset main board to rescue
+        # reset main board to rescue parameters
         self.urukul1_cpld.set_profile(2)
+        self.urukul1_cpld.io_update.pulse_mu(8)
         self.urukul1_cpld.cfg_switches(0b1110)
         self.core.break_realtime()
 
@@ -164,7 +168,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._result_iter += 1
 
     # RUN - USER FUNCTIONS
-    def run_initialize(self):
+    def initialize_experiment(self):
         """
         To be subclassed.
 
@@ -179,17 +183,18 @@ class LAXExperiment(LAXEnvironment, ABC):
         todo: document
         """
         # repeat the experiment a given number of times
+        # todo: repetitions sort out
         for trial_num in range(self.repetitions):
 
             # run the trial
             try:
-                self.loop()
+                self.run_loop()
 
             # allow clean termination
             except TerminationRequested:
                 break
 
-    def loop(self):
+    def run_loop(self):
         """
         To be subclassed.
 

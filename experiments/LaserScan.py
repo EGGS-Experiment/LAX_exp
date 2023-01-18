@@ -28,17 +28,17 @@ class LaserScan2(LAXExperiment, Experiment):
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
 
-    def prepare_experiment(self):
-        # get 729 beam
+        # relevant devices
         self.setattr_device('qubit')
 
-        # convert frequencies to machine units
-        self.freq_qubit_scan_ftw =                                  np.array([mhz_to_ftw(freq_mhz) for freq_mhz in self.freq_qubit_scan_mhz])
-
-        # prepare sequences
+        # subsequences
         self.initialize_subsequence =                               InitializeQubit(self)
         self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.readout_subsequence =                                  Readout(self)
+
+    def prepare_experiment(self):
+        # convert frequencies to machine units
+        self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
 
         # dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
@@ -47,7 +47,7 @@ class LaserScan2(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel
-    def run_initialize(self):
+    def initialize_experiment(self):
         self.core.reset()
 
         # record subsequences onto DMA
@@ -57,6 +57,8 @@ class LaserScan2(LAXExperiment, Experiment):
 
     @kernel
     def run_main(self):
+        self.core.reset()
+
         for trial_num in range(self.repetitions):
 
             self.core.break_realtime()
@@ -74,7 +76,7 @@ class LaserScan2(LAXExperiment, Experiment):
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
 
-                # do readout
+                # read out
                 self.readout_subsequence.run_dma()
 
                 # update dataset

@@ -145,6 +145,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
         To be subclassed.
 
         todo: document
+        note: don't initialize devices here, otherwise lots of redundancy and overhead
         """
         pass
 

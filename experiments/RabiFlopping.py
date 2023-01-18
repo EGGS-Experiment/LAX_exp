@@ -52,7 +52,7 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel
-    def run_initialize(self):
+    def initialize_experiment(self):
         self.core.reset()
 
         # record subsequences onto DMA
@@ -62,7 +62,6 @@ class RabiFlopping2(LAXExperiment, Experiment):
         # set qubit beam parameters
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
         self.core.break_realtime()
-
 
     @kernel
     def run_main(self):
@@ -90,6 +89,8 @@ class RabiFlopping2(LAXExperiment, Experiment):
                 with parallel:
                     self.update_dataset(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
+
+            self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, counts):
