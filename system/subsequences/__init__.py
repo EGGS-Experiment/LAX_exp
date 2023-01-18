@@ -7,7 +7,7 @@ __all__ = []
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
 from LAX_exp.system.subsequences.sideband_cool import SidebandCool
-from LAX_exp.system.subsequences.sideband_cool import RescueIon
+from LAX_exp.system.subsequences.rescue_ion import RescueIon
 __all__.extend(['DopplerCool', 'SidebandCool', 'RescueIon'])
 
 # state preparation

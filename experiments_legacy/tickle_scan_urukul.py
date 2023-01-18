@@ -29,9 +29,7 @@ class TickleScanUrukul(EnvExperiment):
         "freq_repump_cooling_mhz",
 
         "ampl_pump_cooling_pct",
-        "ampl_repump_cooling_pct",
-
-        "pmt_discrimination"
+        "ampl_repump_cooling_pct"
     ]
 
     def build(self):

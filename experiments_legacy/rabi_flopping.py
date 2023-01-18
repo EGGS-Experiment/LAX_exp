@@ -43,9 +43,7 @@ class RabiFlopping(EnvExperiment):
         "ampl_pump_rescue_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-
-        "pmt_discrimination"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
