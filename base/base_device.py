@@ -28,29 +28,20 @@ class LAXDevice(LAXEnvironment, ABC):
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
 
         Will be called upon instantiation.
         """
-        self._build_arguments = kwargs
-        self._build_device()
-        self.build_device()
-
-    def _build_device(self):
-        """
-        General instantiation required for the device.
-
-        Sets class attributes and methods.
-        """
-        # get core device
+        # get core devices
         self.setattr_device("core")
+
+        # store arguments passed during init for later processing
+        self._build_arguments = kwargs
 
         # get device(s) & set them as class attributes
         for device_nickname, device_name in self.core_devices.items():
-
             # set device as class attribute
             try:
                 device_object = self.get_device(device_name)
@@ -62,7 +53,6 @@ class LAXDevice(LAXEnvironment, ABC):
 
         # if class only uses one device, break out original device methods
         if len(self.core_devices) == 1:
-
             # verifies that a function is not magic
             isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ != "__init__")
 
@@ -73,7 +63,9 @@ class LAXDevice(LAXEnvironment, ABC):
             for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
                 setattr(self, function_name, function_object)
 
-    # BUILD - USER FUNCTIONS
+        # call user-defined build function
+        self.build_device()
+
     def build_device(self):
         """
         To be subclassed.
@@ -88,7 +80,6 @@ class LAXDevice(LAXEnvironment, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -98,7 +89,6 @@ class LAXDevice(LAXEnvironment, ABC):
         """
         self.prepare_device()
 
-    # PREPARE - USER FUNCTIONS
     def prepare_device(self):
         """
         To be subclassed.
@@ -110,10 +100,10 @@ class LAXDevice(LAXEnvironment, ABC):
 
 
     '''
-    RUN
+    INITIALIZE
     '''
 
-    # RUN - INITIALIZE
+    @kernel(flags={"fast-math"})
     def initialize_device(self):
         """
         To be subclassed.

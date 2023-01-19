@@ -83,7 +83,7 @@ class LAXEnvironment(HasEnvironment, ABC):
         key, processor = args
         self._set_arguments[key] = None
 
-    def save_arguments(self):
+    def _save_arguments(self):
         """
         todo: document
         """
@@ -122,7 +122,7 @@ class LAXEnvironment(HasEnvironment, ABC):
                 parameter_value = self.__dataset_mgr.get(key, False, parameter=True)
 
             # get parameter from _build_arguments
-            if (override == True) and (key in self._build_arguments):
+            if (override is True) and (key in self._build_arguments):
                 parameter_value = self._build_arguments[key]
                 self.__dataset_mgr.set(key, parameter_value, archive=False, parameter=True, argument=False)
 

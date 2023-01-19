@@ -24,28 +24,21 @@ class LAXSequence(LAXEnvironment, ABC):
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
 
         Will be called upon instantiation.
         """
-        self._build_arguments = kwargs
-        self._build_sequence()
-        self.build_sequence()
-
-    def _build_sequence(self):
-        """
-        General construction of the sequence object.
-
-        Gets/sets instance attributes, devices, and process build arguments.
-        Called before build_sequence.
-        """
         # get core devices
         self.setattr_device("core")
 
-    # BUILD - USER FUNCTIONS
+        # store arguments passed during init for later processing
+        self._build_arguments = kwargs
+
+        # call user-defined build function
+        self.build_sequence()
+
     def build_sequence(self, **kwargs):
         """
         To be subclassed.
@@ -60,7 +53,6 @@ class LAXSequence(LAXEnvironment, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -68,10 +60,12 @@ class LAXSequence(LAXEnvironment, ABC):
 
         Will be called by parent classes.
         """
-        self.save_arguments()
+        # store arguments in dataset manager
+        self._save_arguments()
+
+        # call user-defined prepare function
         self.prepare_sequence()
 
-    # PREPARE - USER FUNCTIONS
     def prepare_sequence(self):
         """
         To be subclassed.
@@ -86,7 +80,16 @@ class LAXSequence(LAXEnvironment, ABC):
     RUN
     '''
 
-    # RUN - USER FUNCTIONS
+    @kernel(flags={"fast-math"})
+    def initialize_sequence(self):
+        """
+        To be subclassed.
+
+        todo: document
+        note: don't initialize devices here, otherwise lots of redundancy and overhead
+        """
+        pass
+
     @abstractmethod
     def run(self):
         """

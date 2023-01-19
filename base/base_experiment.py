@@ -9,7 +9,7 @@ from numpy import array
 
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.base import LAXEnvironment
+from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -23,14 +23,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
-    name =              None
-    _dma_count =        0
+    name =                  None
+    _dma_count =            0
+    _init_functions =       []
 
     '''
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
@@ -55,7 +55,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('urukul1_cpld')
         setattr(self,'_result_iter', 0)
 
-    # BUILD - USER FUNCTIONS
     def build_experiment(self):
         """
         To be subclassed.
@@ -70,7 +69,6 @@ class LAXExperiment(LAXEnvironment, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         General construction of the experiment object.
@@ -79,7 +77,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
             values computed only in prepare_experiment.
         """
-        self.save_arguments()
+        self._save_arguments()
         self._prepare_experiment()
         self.prepare_experiment()
         self.call_child_method('prepare')
@@ -100,7 +98,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
 
-    # PREPARE - USER FUNCTIONS
     def prepare_experiment(self):
         """
         To be subclassed.
@@ -114,7 +111,6 @@ class LAXExperiment(LAXEnvironment, ABC):
     RUN
     '''
 
-    # RUN - BASE
     def run(self):
         """
         Main sequence of the experiment.
@@ -123,15 +119,31 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set up completion monitor
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # set up the run by configuring devices, etc.
-        # (never initialize devices directly to avoid compounding overhead)
+        # tmp remove
         print('yzde0')
-        self.call_child_method('initialize_device')
+
+        # collate initialize functions to speed up
+        # note: devices should be initialized first
+        _initialize_device_functions =          [getattr(child_obj, 'initialize_device')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXDevice)]
+        _initialize_subsequence_functions =     [getattr(child_obj, 'initialize_subsequence')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXSubsequence)]
+        _initialize_sequence_functions =        [getattr(child_obj, 'initialize_sequence')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXSequence)]
+
+        self._init_functions = _initialize_device_functions + _initialize_subsequence_functions + _initialize_sequence_functions
+        self.kernel_invariants.update(self._init_functions)
+
+        # tmp remove
         print('yzde1')
-        self.call_child_method('initialize_subsequences')
-        print('yzde2')
-        self.call_child_method('initialize_sequences')
-        print('yzde3')
+
+        # initialize children
+        self._initialize_experiment()
+
+        # call user-defined initialize function
         self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
@@ -143,6 +155,19 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # set devices back to their default state
         self._run_cleanup()
+
+    @kernel(flags={"fast-math"})
+    def _initialize_experiment(self):
+        """
+        Call the initialize functions of devices and sub/sequences (in that order).
+        """
+        # reset the core device
+        self.core.reset()
+
+        # call initialize functions for all children
+        for init_func in self._init_functions:
+            init_func()
+            self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def _run_cleanup(self):
@@ -175,7 +200,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.results[self._result_iter] = array(args)
         self._result_iter += 1
 
-    # RUN - USER FUNCTIONS
     def initialize_experiment(self):
         """
         To be subclassed.

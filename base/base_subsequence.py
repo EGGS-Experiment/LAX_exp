@@ -38,34 +38,28 @@ class LAXSubsequence(LAXEnvironment, ABC):
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
-        Get core devices and their parameters from the master, and instantiate them.
-
-        Will be called upon instantiation.
-        """
-        self._build_arguments = kwargs
-        self._build_subsequence()
-        self.build_subsequence()
-
-    def _build_subsequence(self):
-        """
         General construction of the subsequence object.
-
         Gets/sets instance attributes and process build arguments.
-        Called before build_subsequence.
+
+        Called upon instantiation.
         """
         # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
+
+        # store arguments passed during init for later processing
+        self._build_arguments = kwargs
 
         # set instance variables
         setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self._dma_count))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
 
-    # BUILD - USER FUNCTIONS
+        # call user-defined build function
+        self.build_subsequence()
+
     def build_subsequence(self, **kwargs):
         """
         To be subclassed.
@@ -80,7 +74,6 @@ class LAXSubsequence(LAXEnvironment, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -88,10 +81,12 @@ class LAXSubsequence(LAXEnvironment, ABC):
 
         Will be called by parent classes.
         """
-        self.save_arguments()
+        # store arguments passed during init for later processing
+        self._save_arguments()
+
+        # call user-defined prepare function
         self.prepare_subsequence()
 
-    # PREPARE - USER FUNCTIONS
     def prepare_subsequence(self):
         """
         To be subclassed.
@@ -127,12 +122,6 @@ class LAXSubsequence(LAXEnvironment, ABC):
         if self._dma_record_flag == True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
-
-    '''
-    RUN
-    '''
-
-    # RUN - BASE
     @kernel(flags={"fast-math"})
     def run_dma(self):
         """
@@ -141,7 +130,12 @@ class LAXSubsequence(LAXEnvironment, ABC):
         """
         self.core_dma.playback_handle(self.dma_handle)
 
-    # RUN - USER FUNCTIONS
+
+    '''
+    RUN
+    '''
+
+    @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
         """
         To be subclassed.

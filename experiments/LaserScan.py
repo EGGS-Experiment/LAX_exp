@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
+from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
 
 class LaserScan2(LAXExperiment, Experiment):
@@ -19,15 +19,13 @@ class LaserScan2(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
 
-        # timing
-        self.setattr_argument("time_qubit_us",                      NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
-
-        # frequency scan
+        # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
                                                                         default=CenterScan(104.35, 0.2, 0.001, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
-                                                                    ))
+                                                                    ), group=self.name)
+        self.setattr_argument("time_qubit_us",                      NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -36,27 +34,30 @@ class LaserScan2(LAXExperiment, Experiment):
         self.initialize_subsequence =                               InitializeQubit(self)
         self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.readout_subsequence =                                  Readout(self)
+        self.rescue_subsequence =                                   RescueIon(self)
 
     def prepare_experiment(self):
         # convert frequencies to machine units
         self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
 
-        # dataset
+        # set up dataset
         self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
         self.setattr_dataset('results')
 
 
     # MAIN SEQUENCE
-    @kernel
+    @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.core.reset()
+        # reduce attenuation/power of qubit beam to resolve lines
+        self.qubit.set_att(28 * dB)
+        self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-    @kernel
+    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
