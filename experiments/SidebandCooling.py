@@ -37,10 +37,10 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.setattr_device('qubit')
 
         # get subsequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.sidebandcool_subsequence =                             SidebandCool(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.readout_subsequence =                                  Readout(self)
+        self.initialize_subsequence =                                   InitializeQubit(self)
+        self.sidebandcool_subsequence =                                 SidebandCool(self)
+        self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
+        self.readout_subsequence =                                      Readout(self)
 
     def prepare_experiment(self):
         # convert frequencies to machine units
