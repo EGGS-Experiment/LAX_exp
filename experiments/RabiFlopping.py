@@ -8,7 +8,7 @@ from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
 
 class RabiFlopping2(LAXExperiment, Experiment):
     """
-    Rabi Flopping 2
+    Experiment: Rabi Flopping 2
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 

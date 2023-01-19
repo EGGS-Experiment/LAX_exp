@@ -4,6 +4,8 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
+# todo: put in general arguments (rescuing, repetitions, linetrigger)
+# todo:
 
 
 class EGGSExperiment(LAXExperiment, Experiment):
