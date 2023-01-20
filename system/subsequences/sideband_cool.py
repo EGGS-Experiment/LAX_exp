@@ -22,8 +22,8 @@ class SidebandCool(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling')
-        self.setattr_argument('sideband_cycles',                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
-        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument('sideband_cycles',                        NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=11, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
 
         # sideband cooling timing
         self.setattr_argument('time_min_sideband_cooling_us_list',      PYONValue([50, 75, 80, 91]), group='sideband_cooling')
@@ -53,21 +53,16 @@ class SidebandCool(LAXSubsequence):
         num_spin_polarizations =                                        int(self.sideband_cycles / self.cycles_per_spin_polarization + 1)
 
         # sequence sideband cooling pulses for each mode
-        self.time_sideband_cooling_list_mu =                            np.array([
-                                                                            self.core.seconds_to_mu(time_us * us)
-                                                                            for time_us in np.linspace(
-                                                                                self.time_min_sideband_cooling_us_list,
-                                                                                self.time_max_sideband_cooling_us_list,
-                                                                                self.sideband_cycles
+        self.time_sideband_cooling_list_mu =                            np.array(
+                                                                            self.core.seconds_to_mu(
+                                                                                np.linspace(
+                                                                                    self.time_min_sideband_cooling_us_list,
+                                                                                    self.time_max_sideband_cooling_us_list,
+                                                                                    self.sideband_cycles
+                                                                                ) * us
                                                                             )
-                                                                        ])
+                                                                        )
         self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
-
-        # tmp remove
-        print('sideband cooling timings:')
-        for val in self.time_sideband_cooling_list_mu:
-            print('\t{}'.format(val))
-        # tmp remove clear
 
         # sideband cooling waveforms
         self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])

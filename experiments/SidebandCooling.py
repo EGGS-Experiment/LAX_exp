@@ -55,7 +55,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # dataset
-        self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
+        self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_readout_ftw_list)), 2)))
         self.setattr_dataset('results')
 
 
@@ -77,7 +77,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
 
             # sweep frequency
-            for freq_ftw in self.freq_qubit_scan_ftw:
+            for freq_ftw in self.freq_readout_ftw_list:
 
                 # set frequency
                 self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
