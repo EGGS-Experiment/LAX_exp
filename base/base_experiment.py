@@ -25,10 +25,6 @@ class LAXExperiment(LAXEnvironment, ABC):
     # Class attributes
     name =                  None
     _dma_count =            0
-    #_init_functions =       []
-
-    # tmp remove
-    kernel_invariants = {'_init_functions'}
 
 
     '''
@@ -100,22 +96,14 @@ class LAXExperiment(LAXEnvironment, ABC):
                                                 if isinstance(child_obj, LAXSequence)]
         self._init_functions =  _initialize_device_functions + _initialize_subsequence_functions + _initialize_sequence_functions
 
-        self.setattr_device('probe')
+        self.init_names =                       [child_obj
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXDevice)]
 
-        # # tmp remove
-        # self._init_functions = [self.qubit.initialize_device, self.probe.initialize_device]
         # # todo *** cause is b/c those devices aren't within us
         # todo *** cause is b/c lists have to have same type, and we weren't doing so
         # maybe: could get device and initialize there, we only have to pass it a list of device strings
 
-        self.call_child_method('prepare')
-
-    def _prepare_experiment(self):
-        """
-        General construction of the experiment object.
-        Must happen after the user-defined prepare_experiment method.
-        """
-        pass
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
         # need: wavemeter frequencies
@@ -125,6 +113,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         # create dataset to hold results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
+
+        self.call_child_method('prepare')
 
     def prepare_experiment(self):
         """
@@ -152,8 +142,10 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # initialize children
         #self._initialize_experiment()
+        for dev in self.init_names:
+            self._initialize_experiment(dev)
         # todo: note that collating and running together really does make it faster
-        self.call_child_method('initialize_device')
+        # todo: create kernel from string
 
         # tmp remove
         print('yzde1')
@@ -171,16 +163,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._run_cleanup()
 
     @kernel(flags={"fast-math"})
-    def _initialize_experiment(self):
+    def _initialize_experiment(self, dev):
         """
         Call the initialize functions of devices and sub/sequences (in that order).
         """
         # reset the core device
-        self.core.reset()
+        #self.core.reset()
 
         # call initialize functions for all children
-        self.qubit.initialize_device()
-        self.probe.initialize_device()
+        dev.initialize_device()
+        # for obj_name in self.init_names:
+        #     dev = self.get_device(obj_name)
+        #     self.core.break_realtime()
+        #     dev.initialize_device()
+
 
 
     @kernel(flags={"fast-math"})
