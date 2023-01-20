@@ -244,7 +244,7 @@ class LaserScan(EnvExperiment):
         # adjust attenuations correctly
         self.dds_qubit_board.get_att_mu()
         self.core.break_realtime()
-        self.dds_qubit.set_att(28 * dB)
+        self.dds_qubit.set_att(8 * dB)
         self.core.break_realtime()
 
         # set AOM DDS waveforms
