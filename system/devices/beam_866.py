@@ -6,7 +6,7 @@ from LAX_exp.base import LAXDevice
 
 class Beam866(LAXDevice):
     """
-    Device: 866nm cooling repump
+    Device: Repump Cooling Beam (866nm)
 
     Uses the DDS channel to drive an AOM.
     """

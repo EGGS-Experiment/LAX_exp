@@ -6,7 +6,7 @@ from LAX_exp.base import LAXDevice
 
 class Beam397Probe(LAXDevice):
     """
-    Device: 397nm probe beam (polarized)
+    Device: Probe Beam (397nm, polarized)
 
     Uses the DDS channel to drive an AOM in double-pass configuration.
     """

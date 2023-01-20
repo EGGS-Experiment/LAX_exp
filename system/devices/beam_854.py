@@ -6,7 +6,7 @@ from LAX_exp.base import LAXDevice
 
 class Beam854(LAXDevice):
     """
-    Device: 854nm qubit repump
+    Device: Qubit Repump Beam (854nm)
 
     Uses the DDS channel to drive an AOM.
     """

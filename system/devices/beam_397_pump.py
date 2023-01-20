@@ -6,7 +6,7 @@ from LAX_exp.base import LAXDevice
 
 class Beam397Pump(LAXDevice):
     """
-    Device: 397nm pump beam
+    Device: Pump Beam (397nm)
 
     Uses the DDS channel to drive an AOM in double-pass configuration.
     """
@@ -17,10 +17,12 @@ class Beam397Pump(LAXDevice):
     }
 
     def prepare_device(self):
+        # get frequency parameters
         self.freq_cooling_ftw =     self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
         self.freq_readout_ftw =     self.get_parameter('freq_pump_readout_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
         self.freq_rescue_ftw =      self.get_parameter('freq_pump_rescue_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
 
+        # get amplitude parameters
         self.ampl_cooling_asf =     self.get_parameter('ampl_pump_cooling_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
         self.ampl_readout_asf =     self.get_parameter('ampl_pump_readout_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
         self.ampl_rescue_asf =      self.get_parameter('ampl_pump_rescue_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)

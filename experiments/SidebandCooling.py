@@ -43,11 +43,18 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.readout_subsequence =                                      Readout(self)
 
     def prepare_experiment(self):
-        # convert frequencies to machine units
-        self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
+        # convert readout frequencies to machine units
+        self.freq_readout_ftw_list =                                    [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                        for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
+        # combine & shuffle readout frequencies
+        shuffle(self.freq_readout_ftw_list)
+
+        # convert readout parameters
+        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
+        self.ampl_readout_pipulse_asf =                                 self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # dataset
-        self.set_dataset('results',                                 np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
+        self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
         self.setattr_dataset('results')
 
 
@@ -58,6 +65,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
         self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
@@ -67,17 +75,21 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
         for trial_num in range(self.repetitions):
 
-            self.core.break_realtime()
-
             # sweep frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=0x1FFF, profile=0)
+                self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
+
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                # set readout profile for qubit
+                self.qubit.carrier()
 
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
@@ -94,5 +106,5 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, counts):
-        self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw) / MHz, counts])
+        self.results[self._result_iter] = np.array([ftw_to_frequency(freq_ftw) / MHz, counts])
         self._result_iter += 1

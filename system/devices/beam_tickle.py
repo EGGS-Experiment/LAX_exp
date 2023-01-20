@@ -6,7 +6,7 @@ from LAX_exp.base import LAXDevice
 
 class BeamTickle(LAXDevice):
     """
-    Device: DDS tickle beam
+    Device: Tickle Beam
 
     Uses the DDS channel to apply a tickle on one of the radial
     """

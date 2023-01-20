@@ -41,27 +41,27 @@ class SidebandCool(LAXSubsequence):
         assert num_modes < 7, "Exceeded maximum number of cooling frequencies."
         assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
 
-        # calibration setup
-        self.calibration_qubit_status =                                 not self.calibration
-
         # timing parameters
         self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
         self.time_spinpol_mu = self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
+        # calibration setup
+        self.calibration_qubit_status =                                 not self.calibration
+
         # calculate number of spin polarizations
         # todo: do number of spin polarizations more accurately
-        num_spin_polarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization + 1)
+        num_spin_polarizations =                                        int(self.sideband_cycles / self.cycles_per_spin_polarization + 1)
 
         # sequence sideband cooling pulses for each mode
-        self.time_sideband_cooling_list_mu =                    np.array([
-                                                                    self.core.seconds_to_mu(time_us * us)
-                                                                    for time_us in np.linspace(
-                                                                        self.time_min_sideband_cooling_us_list,
-                                                                        self.time_max_sideband_cooling_us_list,
-                                                                        self.sideband_cycles
-                                                                    )
-                                                                ])
-        self.time_sideband_cooling_list_mu =                    np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
+        self.time_sideband_cooling_list_mu =                            np.array([
+                                                                            self.core.seconds_to_mu(time_us * us)
+                                                                            for time_us in np.linspace(
+                                                                                self.time_min_sideband_cooling_us_list,
+                                                                                self.time_max_sideband_cooling_us_list,
+                                                                                self.sideband_cycles
+                                                                            )
+                                                                        ])
+        self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # tmp remove
         print('sideband cooling timings:')
@@ -70,16 +70,17 @@ class SidebandCool(LAXSubsequence):
         # tmp remove clear
 
         # sideband cooling waveforms
-        self.freq_sideband_cooling_ftw_list =                   [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
-        self.ampl_sideband_cooling_asf =                        self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
-        self.iter_sideband_cooling_modes_list =                 list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
+        self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
+        self.ampl_sideband_cooling_asf =                                pct_to_asf(self.ampl_sideband_cooling_pct)
+        self.iter_sideband_cooling_modes_list =                         np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
         # set sideband cooling profiles for 729nm qubit laser
-        # profile 0 = readout pi-pulse, profile 1 & greater = sideband cooling
+        # profile 0: reserved for readout
+        # profile 1 & greater: sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
-            self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
+            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
