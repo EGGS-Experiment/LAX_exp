@@ -85,7 +85,7 @@ class SidebandCool(LAXSubsequence):
 
             # spin polarization/state preparation (397 probe beam)
             self.probe.on()
-            delay_mu(self.time_redist_mu)
+            delay_mu(self.time_spinpol_mu)
             self.probe.off()
 
             # sweep pi-pulse times

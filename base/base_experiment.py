@@ -25,7 +25,11 @@ class LAXExperiment(LAXEnvironment, ABC):
     # Class attributes
     name =                  None
     _dma_count =            0
-    _init_functions =       []
+    #_init_functions =       []
+
+    # tmp remove
+    kernel_invariants = {'_init_functions'}
+
 
     '''
     BUILD
@@ -77,9 +81,33 @@ class LAXExperiment(LAXEnvironment, ABC):
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
             values computed only in prepare_experiment.
         """
+        # store arguments in dataset manager
         self._save_arguments()
-        self._prepare_experiment()
+
+        # call user-defined prepare function
         self.prepare_experiment()
+
+        # collate initialize functions to speed up initialization
+        # note: devices should be initialized first
+        _initialize_device_functions =          [getattr(child_obj, 'initialize_device')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXDevice)]
+        _initialize_subsequence_functions =     [getattr(child_obj, 'initialize_subsequence')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXSubsequence)]
+        _initialize_sequence_functions =        [getattr(child_obj, 'initialize_sequence')
+                                                for child_obj in self.children
+                                                if isinstance(child_obj, LAXSequence)]
+        self._init_functions =  _initialize_device_functions + _initialize_subsequence_functions + _initialize_sequence_functions
+
+        self.setattr_device('probe')
+
+        # # tmp remove
+        # self._init_functions = [self.qubit.initialize_device, self.probe.initialize_device]
+        # # todo *** cause is b/c those devices aren't within us
+        # todo *** cause is b/c lists have to have same type, and we weren't doing so
+        # maybe: could get device and initialize there, we only have to pass it a list of device strings
+
         self.call_child_method('prepare')
 
     def _prepare_experiment(self):
@@ -122,33 +150,19 @@ class LAXExperiment(LAXEnvironment, ABC):
         # tmp remove
         print('yzde0')
 
-        # collate initialize functions to speed up
-        # note: devices should be initialized first
-        _initialize_device_functions =          [getattr(child_obj, 'initialize_device')
-                                                for child_obj in self.children
-                                                if isinstance(child_obj, LAXDevice)]
-        _initialize_subsequence_functions =     [getattr(child_obj, 'initialize_subsequence')
-                                                for child_obj in self.children
-                                                if isinstance(child_obj, LAXSubsequence)]
-        _initialize_sequence_functions =        [getattr(child_obj, 'initialize_sequence')
-                                                for child_obj in self.children
-                                                if isinstance(child_obj, LAXSequence)]
-
-        self._init_functions = _initialize_device_functions + _initialize_subsequence_functions + _initialize_sequence_functions
-        self.kernel_invariants.update(self._init_functions)
+        # initialize children
+        #self._initialize_experiment()
+        # todo: note that collating and running together really does make it faster
+        self.call_child_method('initialize_device')
 
         # tmp remove
         print('yzde1')
-
-        # initialize children
-        self._initialize_experiment()
 
         # call user-defined initialize function
         self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
         self.call_child_method('_load_dma')
-        print('yzde4')
 
         # run the main part of the experiment
         self.run_main()
@@ -165,9 +179,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.core.reset()
 
         # call initialize functions for all children
-        for init_func in self._init_functions:
-            init_func()
-            self.core.break_realtime()
+        self.qubit.initialize_device()
+        self.probe.initialize_device()
+
 
     @kernel(flags={"fast-math"})
     def _run_cleanup(self):

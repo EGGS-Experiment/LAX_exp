@@ -107,5 +107,5 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_dataset(self, freq_ftw, counts):
-        self.results[self._result_iter] = np.array([ftw_to_frequency(freq_ftw) / MHz, counts])
+        self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw) / MHz, counts])
         self._result_iter += 1

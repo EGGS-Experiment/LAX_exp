@@ -29,6 +29,7 @@ class Beam397Probe(LAXDevice):
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=2)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def on(self):
