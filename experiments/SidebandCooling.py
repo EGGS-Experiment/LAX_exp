@@ -44,14 +44,14 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # convert readout frequencies to machine units
-        self.freq_readout_ftw_list =                                    [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+        self.freq_readout_ftw_list =                                    [self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
         # combine & shuffle readout frequencies
         shuffle(self.freq_readout_ftw_list)
 
         # convert readout parameters
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_readout_pipulse_asf =                                 self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # dataset
         self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
