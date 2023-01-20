@@ -52,7 +52,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
 
         # convert readout parameters
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # dataset
         self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_qubit_scan_mhz)), 2)))
