@@ -26,6 +26,7 @@ class LaserScan2(LAXExperiment, Experiment):
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ), group=self.name)
         self.setattr_argument("time_qubit_us",                      NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("att_qubit_db",                       NumberValue(default=28, ndecimals=2, step=1, min=8, max=31.5), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -49,7 +50,7 @@ class LaserScan2(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         # reduce attenuation/power of qubit beam to resolve lines
-        self.qubit.set_att(28 * dB)
+        self.qubit.set_att(self.att_qubit_db * dB)
         self.core.break_realtime()
 
         # record subsequences onto DMA
