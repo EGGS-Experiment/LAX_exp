@@ -11,6 +11,9 @@ logger = logging.getLogger("artiq.master.experiments")
 
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 
+# tmp remove
+from datetime import datetime
+
 
 class LAXExperiment(LAXEnvironment, ABC):
     """
@@ -85,32 +88,42 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # collate initialize functions to speed up initialization
         # note: devices should be initialized first
-        _initialize_device_functions =          [getattr(child_obj, 'initialize_device')
+        _initialize_device_list =               [getattr(child_obj, 'name')
                                                 for child_obj in self.children
                                                 if isinstance(child_obj, LAXDevice)]
-        _initialize_subsequence_functions =     [getattr(child_obj, 'initialize_subsequence')
+        _initialize_subsequence_list =          [getattr(child_obj, 'initialize_subsequence')
                                                 for child_obj in self.children
                                                 if isinstance(child_obj, LAXSubsequence)]
-        _initialize_sequence_functions =        [getattr(child_obj, 'initialize_sequence')
+        _initialize_sequence_list =             [getattr(child_obj, 'initialize_sequence')
                                                 for child_obj in self.children
                                                 if isinstance(child_obj, LAXSequence)]
-        self._init_functions =  _initialize_device_functions + _initialize_subsequence_functions + _initialize_sequence_functions
 
-        self.init_names =                       [child_obj
-                                                for child_obj in self.children
-                                                if isinstance(child_obj, LAXDevice)]
+        # todo: document different
+        # write code which initializes the relevant modules directly without RPCs
+        _initialize_code =                      "self.core.reset()"
+        for device_name in _initialize_device_list:
+            self.setattr_device(device_name)
+            _initialize_code +=                 "self.{}.initialize_device()".format(device_name)
+            _initialize_code +=                 "self.core.break_realtime()"
+        # for subsequence_name in _initialize_subsequence_list:
+        #     _initialize_code +=                 "self.{}.initialize_subsequence()".format(subsequence_name)
+        #     _initialize_code +=                 "self.core.break_realtime()"
+        # for sequence_name in _initialize_sequence_list:
+        #     _initialize_code +=                 "self.{}.initialize_sequence()".format(sequence_name)
+        #     _initialize_code +=                 "self.core.break_realtime()"
+        # todo: somehow either get the sequence names we set them as, or pass them as objects to the kernel function
+        # maybe: just look at all entities in experiment and get their names that way
 
-        # # todo *** cause is b/c those devices aren't within us
-        # todo *** cause is b/c lists have to have same type, and we weren't doing so
-        # maybe: could get device and initialize there, we only have to pass it a list of device strings
+        # create kernel from code string and set as _initialize_experiment
+        initialize_func = kernel_from_string(["self"], _initialize_code)
+        setattr(self, '_initialize_experiment', initialize_func)
 
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
-        # need: wavemeter frequencies
-        # need: DDS attenuation
-        # need: B-fields
+        # need: wavemeter frequencies, DDS attenuation, B-fields
 
-        # create dataset to hold results
+        # todo: create dataset to hold results
+        # todo: maybe specify dimensionality of results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
 
@@ -139,16 +152,15 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # tmp remove
         print('yzde0')
+        time1 = datetime.timestamp(datetime.now())
 
         # initialize children
-        #self._initialize_experiment()
-        for dev in self.init_names:
-            self._initialize_experiment(dev)
-        # todo: note that collating and running together really does make it faster
-        # todo: create kernel from string
+        self._initialize_experiment()
 
         # tmp remove
+        time2 = datetime.timestamp(datetime.now())
         print('yzde1')
+        print('\tinitialize time: {:.2f}'.format(time2-time1))
 
         # call user-defined initialize function
         self.initialize_experiment()
@@ -163,21 +175,12 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._run_cleanup()
 
     @kernel(flags={"fast-math"})
-    def _initialize_experiment(self, dev):
+    def _initialize_experiment(self):
         """
         Call the initialize functions of devices and sub/sequences (in that order).
         """
-        # reset the core device
-        #self.core.reset()
-
-        # call initialize functions for all children
-        dev.initialize_device()
-        # for obj_name in self.init_names:
-        #     dev = self.get_device(obj_name)
-        #     self.core.break_realtime()
-        #     dev.initialize_device()
-
-
+        # todo: see if necessary
+        pass
 
     @kernel(flags={"fast-math"})
     def _run_cleanup(self):
