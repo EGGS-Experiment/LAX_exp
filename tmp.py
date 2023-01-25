@@ -30,27 +30,18 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
     def prepare(self):
-        self.set_dataset('freq_probe_shutter_mhz',              210.0, broadcast=True,  persist=True)
-        self.set_dataset('freq_pump_shutter_mhz',               220.0, broadcast=True,  persist=True)
-        self.set_dataset('freq_repump_cooling_shutter_mhz',     230.0, broadcast=True,  persist=True)
-        self.set_dataset('freq_repump_qubit_shutter_mhz',       240.0, broadcast=True,  persist=True)
-        self.set_dataset('freq_qubit_shutter_mhz',              250.0, broadcast=True,  persist=True)
+        f_tmp = self.freq_eggs_heating_secular_mhz
+        freq_eggs_sidebands_mhz =                                       np.array([[freq_mhz - f_tmp, freq_mhz + f_tmp] for freq_mhz in self.freq_eggs_heating_mhz_list])
 
-        self.set_dataset('ampl_shutter_pct',                    5.0, broadcast=True,    persist=True)
+        from scipy.interpolate import Akima1DInterpolator
+        yz1 = self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        spl1 = Akima1DInterpolator(yz1[:, 0], yz1[:, 1])
 
-
-        # f_tmp = self.freq_eggs_heating_secular_mhz
-        # freq_eggs_sidebands_mhz =                                       np.array([[freq_mhz - f_tmp, freq_mhz + f_tmp] for freq_mhz in self.freq_eggs_heating_mhz_list])
-        #
-        # from scipy.interpolate import Akima1DInterpolator
-        # yz1 = self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
-        # spl1 = Akima1DInterpolator(yz1[:, 0], yz1[:, 1])
-        #
-        # # look up values
-        # th0de = np.zeros((len(freq_eggs_sidebands_mhz), 2), dtype=float)
-        # for i, val in enumerate(freq_eggs_sidebands_mhz):
-        #     a1, a2 = (spl1(val[0]), spl1(val[1]))
-        #     th0de[i] = np.array([a2/(a1+a2), a1/(a1+a2)])
+        # look up values
+        th0de = np.zeros((len(freq_eggs_sidebands_mhz), 2), dtype=float)
+        for i, val in enumerate(freq_eggs_sidebands_mhz):
+            a1, a2 = (spl1(val[0]), spl1(val[1]))
+            th0de[i] = np.array([a2/(a1+a2), a1/(a1+a2)])
 
         # self.call_child_method('prepare')
         # self.hasenv = testhasenv(self, {'aa':11,'bbb':22}, 9031)
