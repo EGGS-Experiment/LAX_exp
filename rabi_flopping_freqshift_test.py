@@ -194,6 +194,7 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
 
                 # prepare qubit waveform
                 self.dds_qubit_board.set_profile(_URUKUL0_PROFILE_QUBIT)
+                self.dds_qubit_board.io_update.pulse_mu(8)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # wait given time
@@ -206,6 +207,7 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
 
                 # turn off qubit waveform
                 self.dds_qubit_board.set_profile(_URUKUL0_PROFILE_OFF)
+                self.dds_qubit_board.io_update.pulse_mu(8)
                 delay_mu(self.time_profileswitch_delay_mu)
 
                 # do readout
