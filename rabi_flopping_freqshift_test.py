@@ -268,7 +268,7 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
                 self.dds_board.set_profile(_URUKUL1_PROFILE_SPINPOLARIZATION)
                 delay_mu(self.time_profileswitch_delay_mu)
                 self.dds_board.cfg_switches(0b0101)
-                delay_mu(self.time_cooling_mu)
+                delay_mu(self.time_redist_mu)
                 self.dds_board.cfg_switches(0b0100)
 
         # readout sequence
