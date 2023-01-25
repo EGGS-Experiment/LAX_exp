@@ -175,7 +175,7 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        handle_reset = self.core_dma.get_handle(_DMA_HANDLE_RESET)
+        handle_initialize = self.core_dma.get_handle(_DMA_HANDLE_INITIALIZATION)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
         self.core.break_realtime()
 
@@ -190,7 +190,7 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
                 time_rabi_mu = self.time_rabi_mu_list[i]
 
                 # run repump and cooling
-                self.core_dma.playback_handle(handle_reset)
+                self.core_dma.playback_handle(handle_initialize)
 
                 # prepare qubit waveform
                 self.dds_qubit_board.set_profile(_URUKUL0_PROFILE_QUBIT)
