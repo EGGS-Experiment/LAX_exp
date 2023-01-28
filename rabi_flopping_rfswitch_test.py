@@ -7,7 +7,7 @@ _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 class RabiFlopping(EnvExperiment):
     """
-    Rabi Flopping
+    Rabi Flopping rf switch test
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
@@ -106,6 +106,9 @@ class RabiFlopping(EnvExperiment):
         self.dds_repump_cooling =                                       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+
+        # RF switches
+        self.dds_qubitswitch =                                         self.get_device("ttl20")
 
         # convert frequency to ftw
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
@@ -206,10 +209,18 @@ class RabiFlopping(EnvExperiment):
         # reset sequence
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
+                # enable 854 rf switch
+                self.dds_repump_qubit_switch.on()
+                delay_mu(2000)
+
                 # qubit repump (854) pulse
-                self.dds_board.cfg_switches(0b0100)
+                self.dds_board.cfg_switches(0b1100)
                 delay_mu(self.time_repump_qubit_mu)
+                # tmp remove
+                self.dds_repump_qubit_switch.off()
+                # tmp remove clear
                 self.dds_board.cfg_switches(0b0100)
+                delay_mu(2000)
 
                 # set cooling waveform
                 with parallel:
@@ -270,6 +281,9 @@ class RabiFlopping(EnvExperiment):
 
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.core.break_realtime()
+
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
 
 
     @rpc(flags={"async"})
