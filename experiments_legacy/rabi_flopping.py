@@ -190,12 +190,15 @@ class RabiFlopping(EnvExperiment):
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
-        # reset after experiment
+        # reset board profiles
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=0)
+        self.core.break_realtime()
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
 
 
     @kernel(flags={"fast-math"})
