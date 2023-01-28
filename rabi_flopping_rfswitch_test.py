@@ -108,7 +108,7 @@ class RabiFlopping(EnvExperiment):
         self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # RF switches
-        self.dds_qubitswitch =                                         self.get_device("ttl20")
+        self.dds_repump_qubit_switch =                                  self.get_device("ttl20")
 
         # convert frequency to ftw
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
