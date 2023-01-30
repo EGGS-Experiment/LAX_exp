@@ -86,6 +86,7 @@ class RabiFlopping(EnvExperiment):
 
         # convert time values to machine units
         self.time_profileswitch_delay_mu =                              self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_rfswitch_delay_mu =                                   self.core.seconds_to_mu(2 * us)
         self.time_repump_qubit_mu =                                     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
         self.time_cooling_mu =                                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
         self.time_readout_mu =                                          self.core.seconds_to_mu(self.time_readout_us * us)
@@ -106,6 +107,9 @@ class RabiFlopping(EnvExperiment):
         self.dds_repump_cooling =                                       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+
+        # RF switches
+        self.dds_repump_qubit_switch =                                  self.get_device("ttl21")
 
         # convert frequency to ftw
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
@@ -199,6 +203,7 @@ class RabiFlopping(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+        self.dds_repump_qubit_switch.on()
 
 
     @kernel(flags={"fast-math"})
@@ -209,10 +214,18 @@ class RabiFlopping(EnvExperiment):
         # reset sequence
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
+                # enable 854 rf switch
+                with parallel:
+                    self.dds_repump_qubit_switch.on()
+                    self.dds_board.cfg_switches(0b1100)
+                delay_mu(self.time_rfswitch_delay_mu)
+
                 # qubit repump (854) pulse
-                self.dds_board.cfg_switches(0b1100)
                 delay_mu(self.time_repump_qubit_mu)
-                self.dds_board.cfg_switches(0b0100)
+                with parallel:
+                    self.dds_repump_qubit_switch.off()
+                    self.dds_board.cfg_switches(0b0100)
+                delay_mu(2000)
 
                 # set cooling waveform
                 with parallel:
@@ -273,6 +286,9 @@ class RabiFlopping(EnvExperiment):
 
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.core.break_realtime()
+
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
 
 
     @rpc(flags={"async"})
