@@ -2,10 +2,10 @@ import numpy as np
 from random import shuffle
 from artiq.experiment import *
 
-_DMA_HANDLE_INITIALIZE = "eggs_heating_initialize"
-_DMA_HANDLE_SIDEBAND = "eggs_heating_pulse"
-_DMA_HANDLE_READOUT = "eggs_heating_readout"
-_DMA_HANDLE_EGGS = "eggs_heating_eggs"
+_DMA_HANDLE_INITIALIZE =        "eggs_heating_initialize"
+_DMA_HANDLE_SIDEBAND =          "eggs_heating_pulse"
+_DMA_HANDLE_READOUT =           "eggs_heating_readout"
+_DMA_HANDLE_EGGS_OFF =          "eggs_heating_eggs_off"
 
 
 class EGGSHeating(EnvExperiment):
@@ -181,7 +181,7 @@ class EGGSHeating(EnvExperiment):
         self.awg_board =                                                self.get_device("phaser0")
         self.awg_eggs =                                                 self.awg_board.channel[0]
         self.time_phaser_sample_mu =                                    np.int64(40)
-        self.freq_eggs_heating_mhz_list =                               [(freq_mhz - 85) for freq_mhz in self.freq_eggs_heating_mhz_list]
+        self.freq_eggs_heating_mhz_list =                               np.array([(freq_mhz - 85) for freq_mhz in self.freq_eggs_heating_mhz_list])
         self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
         # ensure eggs heating time is a multiple of the phaser frame period
@@ -189,6 +189,21 @@ class EGGSHeating(EnvExperiment):
         if self.time_eggs_heating_mu % self.awg_board.t_frame:
             t_frame_multiples = round(self.time_eggs_heating_mu / self.awg_board.t_frame + 0.5)
             self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
+
+        # calculate eggs sidebands amplitude, adjusted for eggs coupling resonance curve
+        # todo: set correctly
+        freq_eggs_sidebands_mhz_list =                                  np.zeros((len(self.freq_eggs_heating_mhz_list), 2))
+
+        # create interpolated coupling resonance curve
+        from scipy.interpolate import Akima1DInterpolator
+        ampl_calib_points =                                             self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+
+        # get scaled amplitudes
+        self.ampl_eggs_heating_frac_list =                              np.zeros((len(freq_eggs_sidebands_mhz_list), 2), dtype=float)
+        for i, freqs_mhz in enumerate(freq_eggs_sidebands_mhz_list):
+            a1, a2 = ampl_calib_curve(freqs_mhz)
+            self.ampl_eggs_heating_frac_list[i] = np.array([a2, a1]) * 100 / (a1+a2)
 
         # readout pi-pulse
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
@@ -216,20 +231,26 @@ class EGGSHeating(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        handle_initialize = self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
-        handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
-        handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
-        handle_eggs = self.core_dma.get_handle(_DMA_HANDLE_EGGS)
+        handle_initialize =     self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
+        handle_sideband =       self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
+        handle_readout =        self.core_dma.get_handle(_DMA_HANDLE_READOUT)
+        handle_eggs_off =       self.core_dma.get_handle(_DMA_HANDLE_EGGS_OFF)
         self.core.break_realtime()
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
             # sweep eggs rf frequencies
-            for freq_eggs_mhz in self.freq_eggs_heating_mhz_list:
+            for i in range(len(self.freq_eggs_heating_mhz_list)):
+
+                # get eggs carrier frequency
+                freq_eggs_mhz = self.freq_eggs_heating_mhz_list[i] * MHz
+
+                # get eggs amplitude values
+                ampl_eggs_rsb_frac, ampl_eggs_bsb_frac = self.ampl_eggs_heating_frac_list[i]
 
                 # set eggs carrier via the DUC
-                self.awg_eggs.set_duc_frequency(freq_eggs_mhz * MHz)
+                self.awg_eggs.set_duc_frequency(freq_eggs_mhz)
                 self.awg_board.duc_stb()
                 self.core.break_realtime()
 
@@ -246,9 +267,14 @@ class EGGSHeating(EnvExperiment):
                     # run sideband cooling cycles and repump afterwards
                     self.core_dma.playback_handle(handle_sideband)
 
-                    # run eggs heating
+                    # enable eggs heating output
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
+                    delay_mu(self.time_phaser_sample_mu)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
+
+                    # let eggs heating run, then turn off
                     at_mu(self.awg_board.get_next_frame_mu())
-                    self.core_dma.playback_handle(handle_eggs)
+                    self.core_dma.playback_handle(handle_eggs_off)
 
                     # read out
                     self.core_dma.playback_handle(handle_readout)
@@ -360,12 +386,7 @@ class EGGSHeating(EnvExperiment):
             self.dds_board.cfg_switches(0b0100)
 
         # eggs sequence
-        with self.core_dma.record(_DMA_HANDLE_EGGS):
-            # enable output
-            self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
-            delay_mu(self.time_phaser_sample_mu)
-            self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
-
+        with self.core_dma.record(_DMA_HANDLE_EGGS_OFF):
             # apply eggs heating for given time;
             # no need to align here since we ensure time_eggs_heating_mu is an integer
             # multiple of phaser0.t_frame in prepare()
