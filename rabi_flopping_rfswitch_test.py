@@ -1,26 +1,13 @@
-class _URUKUL1_PROFILE(Enum):
-    MONDAY = 1
-    TUESDAY = 2
-    WEDNESDAY = 3
-    THURSDAY = 4
-    FRIDAY = 5
-    SATURDAY = 6
-    SUNDAY = 7
-
-
 import numpy as np
-from enum import Enum
 from artiq.experiment import *
 
 _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 
-
-
-class RabiFloppingFrequencyShiftTest(EnvExperiment):
+class RabiFlopping(EnvExperiment):
     """
-    Rabi Flopping Freq Shift Test
+    Rabi Flopping rf switch test
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
@@ -120,6 +107,9 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
         self.dds_repump_qubit =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
+        # RF switches
+        self.dds_repump_qubit_switch =                                  self.get_device("ttl20")
+
         # convert frequency to ftw
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
@@ -203,12 +193,16 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
-        # reset after experiment
+        # reset board profiles
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=0)
+        self.core.break_realtime()
+        self.dds_board.set_profile(0)
+        self.dds_qubit_board.set_profile(0)
+
+        # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-
-        # tmp remove
-        self.dds_board.set_profile(0)
+        self.dds_repump_qubit_switch.on()
 
 
     @kernel(flags={"fast-math"})
@@ -219,10 +213,18 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
         # reset sequence
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
+                # enable 854 rf switch
+                self.dds_repump_qubit_switch.on()
+                delay_mu(2000)
+
                 # qubit repump (854) pulse
                 self.dds_board.cfg_switches(0b1100)
                 delay_mu(self.time_repump_qubit_mu)
+                # tmp remove
+                self.dds_repump_qubit_switch.off()
+                # tmp remove clear
                 self.dds_board.cfg_switches(0b0100)
+                delay_mu(2000)
 
                 # set cooling waveform
                 with parallel:
@@ -284,6 +286,9 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.core.break_realtime()
 
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
+
 
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, pmt_counts):
@@ -291,3 +296,30 @@ class RabiFloppingFrequencyShiftTest(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), pmt_counts])
+
+
+    def analyze(self):
+        """
+        Analyze the results from the experiment.
+        """
+        # tmp remove
+        self.pmt_discrimination = 17
+
+        # turn dataset into numpy array for ease of use
+        self.rabi_flopping = np.array(self.rabi_flopping)
+
+        # get sorted x-values (time, seconds)
+        time_list_s = sorted(set(self.rabi_flopping[:, 0]))
+
+        # collate results
+        collated_results = {
+            time: []
+            for time in time_list_s
+        }
+        for time_s, pmt_counts in self.rabi_flopping:
+            collated_results[time_s].append(pmt_counts)
+
+        # process counts for mean and std and put into processed dataset
+        for i, (time_s, count_list) in enumerate(collated_results.items()):
+            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+            self.rabi_flopping_processed[i] = np.array([time_s, np.mean(binned_count_list)])
