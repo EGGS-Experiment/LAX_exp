@@ -29,12 +29,12 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("freq_eggs_heating_mhz_list",                     Scannable(
-                                                                                    default=CenterScan(85, 5, 0.01, randomize=True),
+                                                                                    default=RangeScan(80, 90, 101, randomize=False),
                                                                                     global_min=30, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=5
                                                                                 ))
         # spectrum analyzer
-        self.setattr_argument("spectrum_analyzer_bandwidth_hz",                 NumberValue(default=20, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("spectrum_analyzer_bandwidth_khz",                NumberValue(default=2.5, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("spectrum_analyzer_attenuation_internal_db",      NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("spectrum_analyzer_attenuation_external_db",      NumberValue(default=0, ndecimals=5, step=1, min=0.00001, max=10000))
 
@@ -49,12 +49,6 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # eggs heating timings
         self.time_phaser_sample_mu =                                    np.int64(40)
-
-        # ensure eggs heating time is a multiple of the phaser frame period
-        # 4 ns/clock * 8 clock cycles * 10 words = 320ns
-        if self.time_eggs_heating_mu % self.awg_board.t_frame:
-            t_frame_multiples = round(self.time_eggs_heating_mu / self.awg_board.t_frame + 0.5)
-            self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
 
         # calculate eggs frequency
         self.freq_eggs_heating_mhz_list =                               list(self.freq_eggs_heating_mhz_list)
@@ -85,29 +79,30 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # set up spectrum analyzer sweep
         self.sa.attenuation(self.spectrum_analyzer_attenuation_internal_db)
-        self.sa.frequency_center(freq_eggs_heating_center_mhz)
-        self.sa.frequency_span(1.5 * freq_eggs_heating_range_mhz)
-        self.sa.bandwidth_resolution(self.spectrum_analyzer_bandwidth_hz)
+        self.sa.frequency_span(1.2 * freq_eggs_heating_range_mhz * MHz)
+        self.sa.frequency_center(freq_eggs_heating_center_mhz * MHz)
+        self.sa.bandwidth_resolution(self.spectrum_analyzer_bandwidth_khz * 1000)
+        # todo: move to actual labrad functions
+        self.sa.gpib_write('DET:TRAC1 AVER')
+        self.sa.gpib_write('DISP ENAB 0')
 
         # set up data vault
         date = datetime.now()
-        dataset_title_tmp = 'Spectrum Analyzer Measurement'
+        dataset_title_tmp = 'EGGS Resonance Calibration'
         trunk = '{0:s}_{1:02d}:{2:02d}'.format(dataset_title_tmp, date.hour, date.minute)
         trunk_tmp = ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk]
         self.dv.cd(trunk_tmp, True, context=self.cr)
         self.dv.new(
             dataset_title_tmp,
-            [('Time', 's')],
-            [
-                ('Signal Frequency', 'Frequency', 'Hz'),
-                ('Signal Power', 'Power', 'dBm')
-            ],
+            [('Frequency', 'MHz')],
+            [('Pickoff Power', 'Power', 'dBm')],
             context=self.cr
         )
         print("Data vault setup successful.")
 
         # set up artiq datasets
-        self.set_dataset("eggs_resonance_calibration", np.zeros([, 2]))
+        self._iter_dataset = 0
+        self.set_dataset("eggs_resonance_calibration", np.zeros([len(self.freq_eggs_heating_mhz_list), 2]))
         self.setattr_dataset("eggs_resonance_calibration")
 
 
@@ -120,9 +115,13 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # prepare phaser
         self.phaser_prepare()
+        delay_mu(2000000000)
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
         # start outputting
         self.sa_prepare()
+        self.core.break_realtime()
 
 
         # MAIN SEQUENCE
@@ -131,9 +130,12 @@ class EGGSResonanceCalibration(EnvExperiment):
         # sweep eggs rf frequencies
         for freq_mhz in self.freq_eggs_heating_mhz_list:
 
+            # add extra delay
+            self.core.break_realtime()
+
             # set eggs carrier via the DUC
             at_mu(self.awg_board.get_next_frame_mu())
-            self.awg_eggs.set_duc_frequency(freq_mhz * MHz)
+            self.awg_eggs.set_duc_frequency((freq_mhz - 85) * MHz)
             self.awg_board.duc_stb()
             self.core.break_realtime()
 
@@ -142,7 +144,7 @@ class EGGSResonanceCalibration(EnvExperiment):
             self.core.break_realtime()
 
         # disable rf output
-        self.awg_eggs.en_trf_out(rf=0, lo=0)
+        #self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
 
@@ -200,30 +202,34 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         Has to be done this way since we need phaser to already be outputting
         """
-        sleep(1)
         self.sa.gpib_write('CALC:MARK:PEAK:TABL:STAT 1')
         self.sa.peak_threshold(-70)
         self.sa.peak_excursion(10)
         self.sa.marker_toggle(1, True)
-        self.sa.marker_track(1, True)
         print("Spectrum analyzer setup successful.")
 
 
     @rpc
-    def record_power(self, peak_freq_mhz_tmp):
+    def record_power(self, peak_freq_mhz):
         """
         Get and record the given number of peaks, sorted by amplitude.
         """
-        # wait for spec anal to update
-        sleep(0.1)
-        #self.sa.marker_frequency(1, peak_freq_mhz)
-        peak_freq_mhz = self.sa.marker_frequency(1)
+        # zoom in on band of interest
+        self.sa.frequency_span(5 * self.spectrum_analyzer_bandwidth_khz * kHz)
+        self.sa.frequency_center(peak_freq_mhz * MHz)
 
-        # get peaks
+        # attempt to minimize measurement time
+        sweep_time_s = float(self.sa.gpib_query('SWE:TIME?'))
+        self.sa.gpib_write('CALC:MARK1:X ' + str(peak_freq_mhz * MHz))
+        sleep(3 * sweep_time_s)
         peak_power_dbm = self.sa.marker_amplitude(1)
 
+        # zoom in on amplitude
+        # todo
+
         # save to dataset (artiq)
-        self.mutate_dataset('eggs_resonance_calibration', np.array([peak_freq_mhz, peak_power_dbm]))
+        self.mutate_dataset('eggs_resonance_calibration', self._iter_dataset, np.array([peak_freq_mhz, peak_power_dbm]))
+        self._iter_dataset += 1
         # save to dataset (labrad)
         self.dv.add(peak_freq_mhz, peak_power_dbm, context=self.cr)
 
