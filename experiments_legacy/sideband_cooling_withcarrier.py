@@ -141,8 +141,13 @@ class SidebandCoolingWithCarrier(EnvExperiment):
 
         # process scan frequencies
         self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                 for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz) + list(self.freq_carrier_scan_mhz))]
+                                                                 for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
         shuffle(self.freq_qubit_scan_ftw)
+
+        # carrier scan frequencies
+        self.freq_carrier_scan_ftw =                            [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                 for freq_mhz in list(self.freq_carrier_scan_mhz)]
+        shuffle(self.freq_carrier_scan_ftw)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
@@ -209,6 +214,10 @@ class SidebandCoolingWithCarrier(EnvExperiment):
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
+            # ensure correct attenuation is set
+            self.dds_qubit.set_att(8 * dB)
+            self.core.break_realtime()
+
             # sweep final pi-pulse frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
 
@@ -221,6 +230,33 @@ class SidebandCoolingWithCarrier(EnvExperiment):
 
                 # run sideband cooling cycles and repump afterwards
                 self.core_dma.playback_handle(handle_sideband)
+
+                # read out
+                self.core_dma.playback_handle(handle_readout)
+
+                # record data
+                self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                self.core.break_realtime()
+
+            # sweep carrier pi-pulse frequency
+            for freq_ftw in self.freq_carrier_scan_ftw:
+
+                # set sideband cooling attenuation
+                self.dds_qubit.set_att(8 * dB)
+                self.core.break_realtime()
+
+                # set readout frequency in advance
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                self.core.break_realtime()
+
+                # initialize by running doppler cooling and spin polarization
+                self.core_dma.playback_handle(handle_initialize)
+
+                # run sideband cooling cycles and repump afterwards
+                self.core_dma.playback_handle(handle_sideband)
+
+                # set sideband cooling attenuation
+                self.dds_qubit.set_att(28 * dB)
 
                 # read out
                 self.core_dma.playback_handle(handle_readout)
@@ -362,6 +398,10 @@ class SidebandCoolingWithCarrier(EnvExperiment):
         for i in self.iter_sideband_cooling_modes_list:
             self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
+
+        # set dds qubit board to correct attenuation
+        self.dds_qubit.get_att()
+        self.dds_qubit.set_att(1, 8 * dB)
 
 
     @rpc(flags={"async"})
