@@ -30,7 +30,7 @@ class PhaserWindowingTest(EnvExperiment):
         self.setattr_device("phaser0")
 
         # general
-        self.setattr_argument("repetitions",                            NumberValue(default=5000, ndecimals=0, step=1, min=1, max=1000000))
+        self.setattr_argument("repetitions",                            NumberValue(default=500, ndecimals=0, step=1, min=1, max=1000000))
         
         # sequence timing
         self.setattr_argument("time_pulse_ms",                          NumberValue(default=5, ndecimals=5, step=1, min=0.00001, max=10000))

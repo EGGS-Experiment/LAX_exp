@@ -5,9 +5,9 @@ _DMA_HANDLE_RESET = "rabi_flopping_reset"
 _DMA_HANDLE_READOUT = "rabi_flopping_readout"
 
 
-class RabiFlopping(EnvExperiment):
+class RabiFloppingTesting(EnvExperiment):
     """
-    Rabi Flopping
+    Rabi Flopping Testing
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
@@ -54,21 +54,21 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",              NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=10000))
 
         # qubit parameters
         self.setattr_argument("time_rabi_us_list",                      Scannable(
-                                                                            default=RangeScan(0, 400, 401, randomize=True),
+                                                                            default=RangeScan(0, 100, 101, randomize=True),
                                                                             global_min=1, global_max=100000, global_step=1,
                                                                             unit="us", scale=1, ndecimals=5
                                                                         ))
 
         # AOM values
-        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.23, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -215,17 +215,17 @@ class RabiFlopping(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
                 # enable 854 rf switch
-                # with parallel:
-                #     self.dds_repump_qubit_switch.on()
-                self.dds_board.cfg_switches(0b1100)
-                #delay_mu(self.time_rfswitch_delay_mu)
+                self.dds_repump_qubit_switch.on()
+                delay_mu(2000)
 
                 # qubit repump (854) pulse
+                self.dds_board.cfg_switches(0b1100)
                 delay_mu(self.time_repump_qubit_mu)
-                # with parallel:
-                #     self.dds_repump_qubit_switch.off()
+                # tmp remove
+                self.dds_repump_qubit_switch.off()
+                # tmp remove clear
                 self.dds_board.cfg_switches(0b0100)
-                #delay_mu(2000)
+                delay_mu(2000)
 
                 # set cooling waveform
                 with parallel:
