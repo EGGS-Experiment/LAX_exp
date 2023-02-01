@@ -58,44 +58,48 @@ class EGGSHeating(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("calibration",                                BooleanValue(default=False))
+        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling
-        self.setattr_argument("sideband_cycles",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.655]))
-        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
+        self.setattr_argument("sideband_cycles",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([20]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.655]))
+        self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
-        self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(103.655, 0.04, 0.01),
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ))
+        self.setattr_argument("freq_rsb_scan_mhz",                          Scannable(
+                                                                                default=CenterScan(103.655, 0.04, 0.01),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
 
-        self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(105.271, 0.04, 0.01),
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ))
+        self.setattr_argument("freq_bsb_scan_mhz",                          Scannable(
+                                                                                default=CenterScan(105.271, 0.04, 0.01),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
 
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
 
         # eggs heating
-        self.setattr_argument("time_eggs_heating_ms",                   NumberValue(default=20, ndecimals=5, step=1, min=0.00001, max=10000))
-        self.setattr_argument("freq_eggs_heating_secular_mhz",          NumberValue(default=1.6, ndecimals=5, step=0.1, min=0.001, max=1000000))
-        self.setattr_argument("freq_eggs_heating_mhz_list",             Scannable(
-                                                                            default=CenterScan(85, 5, 0.01, randomize=True),
-                                                                            global_min=30, global_max=400, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ))
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=20, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
+                                                                                default=CenterScan(85, 5, 0.01, randomize=True),
+                                                                                global_min=30, global_max=400, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
+        self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
+                                                                                default=CenterScan(1.6, 0.1, 0.0001, randomize=True),
+                                                                                global_min=0, global_max=10000, global_step=0.1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -107,9 +111,9 @@ class EGGSHeating(EnvExperiment):
         Prepare things such that kernel functions have minimal overhead.
         """
         # ensure input has correct dimensions
-        min_time_length = len(list(self.time_min_sideband_cooling_us_list))
-        max_time_length = len(list(self.time_max_sideband_cooling_us_list))
-        modes_length = len(list(self.freq_sideband_cooling_mhz_list))
+        min_time_length =                                               len(list(self.time_min_sideband_cooling_us_list))
+        max_time_length =                                               len(list(self.time_max_sideband_cooling_us_list))
+        modes_length =                                                  len(list(self.freq_sideband_cooling_mhz_list))
         assert min_time_length == max_time_length == modes_length
 
         # PMT devices
@@ -155,6 +159,7 @@ class EGGSHeating(EnvExperiment):
         self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
+
         # sideband cooling
         self.time_sideband_cooling_list_mu =                            np.array([
                                                                             self.core.seconds_to_mu(time_us * us)
@@ -177,13 +182,20 @@ class EGGSHeating(EnvExperiment):
         self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
+        # readout pi-pulse
+        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
+        self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+
+        # calibration setup
+        self.calibration_qubit_status =                                 not self.calibration
+
+
         # eggs heating
         self.awg_board =                                                self.get_device("phaser0")
         self.awg_eggs =                                                 self.awg_board.channel[0]
         self.time_phaser_sample_mu =                                    np.int64(40)
 
-        self.freq_eggs_heating_center_mhz =                             85
-        self.freq_eggs_heating_mhz_list =                               np.array([(freq_mhz - self.freq_eggs_heating_center_mhz) for freq_mhz in self.freq_eggs_heating_mhz_list])
+        # eggs timing values
         self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
         # ensure eggs heating time is a multiple of the phaser frame period
@@ -192,39 +204,31 @@ class EGGSHeating(EnvExperiment):
             t_frame_multiples = round(self.time_eggs_heating_mu / self.awg_board.t_frame + 0.5)
             self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
 
-        # calculate eggs sidebands amplitude, adjusted for eggs coupling resonance curve
-        # todo: set correctly
-        freq_eggs_sidebands_mhz_list =                                  np.zeros((len(self.freq_eggs_heating_mhz_list), 2))
-        freq_eggs_sidebands_mhz_list[:, 0] =                            self.freq_eggs_heating_center_mhz + self.freq_eggs_heating_mhz_list - self.freq_eggs_heating_secular_mhz
-        freq_eggs_sidebands_mhz_list[:, 1] =                            self.freq_eggs_heating_center_mhz + self.freq_eggs_heating_mhz_list + self.freq_eggs_heating_secular_mhz
+        # convert eggs heating frequency values for use
+        self.freq_eggs_heating_center_hz =                              85 * MHz
+        self.freq_eggs_heating_hz_list =                                self.freq_eggs_heating_center_hz - np.array(list(self.freq_eggs_heating_mhz_list)) * MHz
+        self.freq_eggs_secular_hz_list =                                np.array(list(self.freq_eggs_secular_hz_list)) * MHz
+
+        # set up eggs config
+        self.config_eggs_heating_list =                                 np.zeros((len(self.freq_eggs_heating_hz_list) * len(self.freq_eggs_heating_secular_hz_list), 4), dtype=float)
+        self.config_eggs_heating_list[:, :2] =                          np.stack(np.meshgrid(self.freq_eggs_heating_hz_list, self.freq_eggs_heating_secular_hz_list), -1).reshape(-1, 3)
 
         # create interpolated coupling resonance curve
         from scipy.interpolate import Akima1DInterpolator
         ampl_calib_points =                                             self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
-        # get scaled amplitudes
-        self.ampl_eggs_heating_frac_list =                              np.zeros((len(freq_eggs_sidebands_mhz_list), 2), dtype=float)
-        for i, freqs_mhz in enumerate(freq_eggs_sidebands_mhz_list):
-            a1, a2 = ampl_calib_curve(freqs_mhz)
-            # print('\t: {:f}/{:f} = {:f}'.format(a1, a2, a1+a2))
-            self.ampl_eggs_heating_frac_list[i] = np.array([a2, a1]) / (a1+a2)
-
-        print(self.ampl_eggs_heating_frac_list)
-        print(freq_eggs_sidebands_mhz_list)
-
-        # readout pi-pulse
-        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
-
-        # calibration setup
-        self.calibration_qubit_status =                                 not self.calibration
+        # calculate calibrated eggs sidebands amplitudes
+        for i, config_freqs in enumerate(self.config_eggs_heating_list):
+            carrier_freq, secular_freq = config_freqs
+            self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([carrier_freq - secular_freq, carrier_freq + secular_freq])
 
         # set up datasets
-        self.set_dataset("eggs_heating", [])
+        self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list), 4]))
         self.setattr_dataset("eggs_heating")
-        self.set_dataset("eggs_heating_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
-        self.setattr_dataset("eggs_heating_processed")
+
+        # store config just in case
+        self.set_dataset("config_vals",                                 self.config_eggs_heating_list)
 
 
     @kernel(flags={"fast-math"})
@@ -248,40 +252,45 @@ class EGGSHeating(EnvExperiment):
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
-            # sweep eggs rf frequencies
-            for i in range(len(self.freq_eggs_heating_mhz_list)):
+            # sweep eggs rf configurations
+            for config_vals in self.config_eggs_heating_list:
 
-                # get eggs carrier frequency
-                freq_eggs_mhz = self.freq_eggs_heating_mhz_list[i] * MHz
-
-                # get eggs amplitude values
-                ampl_eggs_rsb_frac = self.ampl_eggs_heating_frac_list[i][0]
-                ampl_eggs_bsb_frac = self.ampl_eggs_heating_frac_list[i][1]
+                # extract values from config list
+                carrier_freq_hz =       config_vals[0]
+                sideband_freq_hz =      config_vals[1]
+                ampl_rsb_frac =         config_vals[2]
+                ampl_bsb_frac =         config_vals[3]
 
                 # set eggs carrier via the DUC
-                self.awg_eggs.set_duc_frequency(freq_eggs_mhz)
+                at_mu(self.awg_board.get_next_frame_mu())
+                self.awg_eggs.set_duc_frequency(carrier_freq_hz * MHz)
+                delay_mu(self.time_phaser_sample_mu)
                 self.awg_board.duc_stb()
+                self.core.break_realtime()
+
+                # set sideband frequencies
+                self.awg_eggs.oscillator[0].set_frequency(-sideband_freq_hz)
+                delay_mu(self.time_phaser_sample_mu)
+                self.awg_eggs.oscillator[1].set_frequency(sideband_freq_hz)
                 self.core.break_realtime()
 
                 # sweep final pi-pulse frequency
                 for freq_ftw in self.freq_qubit_scan_ftw:
 
                     # set readout frequency in advance
-                    #self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
-                    #self.core.break_realtime()
+                    self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                    self.core.break_realtime()
 
                     # initialize by running doppler cooling and spin polarization
-                    #self.core_dma.playback_handle(handle_initialize)
+                    self.core_dma.playback_handle(handle_initialize)
 
                     # run sideband cooling cycles and repump afterwards
-                    #self.core_dma.playback_handle(handle_sideband)
+                    self.core_dma.playback_handle(handle_sideband)
 
                     # enable eggs heating output
-                    # self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=ampl_eggs_rsb_frac, clr=0)
-                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0.49, clr=0)
+                    self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, clr=0)
                     delay_mu(self.time_phaser_sample_mu)
-                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=0.49, clr=0)
-                    # self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=ampl_eggs_bsb_frac, clr=0)
+                    self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, clr=0)
 
                     # let eggs heating run, then turn off
                     at_mu(self.awg_board.get_next_frame_mu())
@@ -291,8 +300,8 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    #self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), freq_eggs_mhz + self.freq_eggs_heating_center_mhz)
-                    #self.core.break_realtime()
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), carrier_freq_hz / MHz, sideband_freq_hz)
+                    self.core.break_realtime()
 
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
@@ -470,10 +479,8 @@ class EGGSHeating(EnvExperiment):
         self.core.break_realtime()
 
         # oscillators (i.e. sidebands)
-        self.awg_eggs.oscillator[0].set_frequency(-self.freq_eggs_heating_secular_mhz * MHz)
         self.awg_eggs.oscillator[0].set_amplitude_phase(0., clr=0)
         self.core.break_realtime()
-        self.awg_eggs.oscillator[1].set_frequency(self.freq_eggs_heating_secular_mhz * MHz)
         self.awg_eggs.oscillator[1].set_amplitude_phase(0., clr=0)
         self.core.break_realtime()
 
