@@ -90,6 +90,7 @@ class EGGSHeating(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=10, max=31.5))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
                                                                                 default=RangeScan(80, 90, 6, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
@@ -474,7 +475,7 @@ class EGGSHeating(EnvExperiment):
         self.core.break_realtime()
 
         # trf setup, and disable rf output while we set things up
-        self.awg_eggs.set_att(20 * dB)
+        self.awg_eggs.set_att(self.att_eggs_heating_db * dB)
         self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
