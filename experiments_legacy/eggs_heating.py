@@ -89,14 +89,14 @@ class EGGSHeating(EnvExperiment):
         self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
 
         # eggs heating
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=20, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=5, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=RangeScan(80, 90, 101, randomize=True),
+                                                                                default=RangeScan(80, 90, 11, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.6, 0.1, 0.01, randomize=True),
+                                                                                default=CenterScan(1.6, 0.1, 0.05, randomize=True),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
@@ -228,11 +228,11 @@ class EGGSHeating(EnvExperiment):
         # set up datasets
         self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list), 4]))
         self.setattr_dataset("eggs_heating")
+        self._iter_dataset = 0
 
         # store config just in case
         self.set_dataset("config_vals",                                 self.config_eggs_heating_list)
         print(self.config_eggs_heating_list)
-        raise Exception('stop here')
 
 
     @kernel(flags={"fast-math"})
@@ -268,11 +268,12 @@ class EGGSHeating(EnvExperiment):
                 # set eggs carrier via the DUC
                 at_mu(self.awg_board.get_next_frame_mu())
                 self.awg_eggs.set_duc_frequency(carrier_freq_hz * MHz)
-                delay_mu(self.time_phaser_sample_mu)
+                at_mu(self.awg_board.get_next_frame_mu())
                 self.awg_board.duc_stb()
                 self.core.break_realtime()
 
                 # set sideband frequencies
+                at_mu(self.awg_board.get_next_frame_mu())
                 self.awg_eggs.oscillator[0].set_frequency(-sideband_freq_hz)
                 delay_mu(self.time_phaser_sample_mu)
                 self.awg_eggs.oscillator[1].set_frequency(sideband_freq_hz)
@@ -292,6 +293,7 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_sideband)
 
                     # enable eggs heating output
+                    at_mu(self.awg_board.get_next_frame_mu())
                     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, clr=0)
                     delay_mu(self.time_phaser_sample_mu)
                     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, clr=0)
@@ -304,7 +306,7 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), carrier_freq_hz / MHz, sideband_freq_hz)
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), (carrier_freq_hz + self.freq_eggs_heating_center_hz) / MHz, sideband_freq_hz)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -494,11 +496,12 @@ class EGGSHeating(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts, time_mu):
+    def update_dataset(self, freq_sbc, pmt_counts, freq_eggs_carrier, freq_eggs_sideband):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('eggs_heating', [freq_ftw * self.ftw_to_mhz, pmt_counts, self.core.mu_to_seconds(time_mu)])
+        self.mutate_dataset('eggs_heating', self._iter_dataset, np.array([freq_sbc * self.ftw_to_mhz, pmt_counts, freq_eggs_carrier, freq_eggs_sideband]))
+        self._iter_dataset += 1
 
 
     def analyze(self):
