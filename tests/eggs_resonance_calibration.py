@@ -26,7 +26,7 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("freq_eggs_heating_mhz_list",                     Scannable(
-                                                                                    default=RangeScan(70, 95, 2501, randomize=False),
+                                                                                    default=RangeScan(70, 95, 2, randomize=False),
                                                                                     global_min=30, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=5
                                                                                 ))
@@ -86,7 +86,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.sa.marker_toggle(1, True)
         # todo: move to actual labrad functions
         self.sa.gpib_write('DET:TRAC1 AVER')
-        self.sa.gpib_write('DISP:ENAB 1')
+        self.sa.gpib_write('DISP:ENAB 0')
 
         # set up data vault
         date = datetime.now()
@@ -231,8 +231,8 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.sa.gpib_write('DISP:ENAB 1')
 
         # strip invalid y-axis values
-        calib_ds = np.array(self.eggs_resonance_calibration)
-        calib_ds[]
+        # calib_ds = np.array(self.eggs_resonance_calibration)
+        # calib_ds[]
 
         # turn dataset into numpy array for ease of use
         #self.eggs_heating = np.array(self.eggs_heating)

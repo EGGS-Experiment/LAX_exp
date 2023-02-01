@@ -474,7 +474,7 @@ class EGGSHeating(EnvExperiment):
         self.core.break_realtime()
 
         # trf setup, and disable rf output while we set things up
-        self.awg_eggs.set_att(0 * dB)
+        self.awg_eggs.set_att(20 * dB)
         self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 

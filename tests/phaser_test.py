@@ -49,6 +49,7 @@ class PhaserTest(EnvExperiment):
         scb()
 
         # nco stuff
+        at_mu(ph.get_next_frame_mu())
         ch.set_nco_frequency(-217.083495* MHz)
         ch.set_nco_phase(0.)
         ph.dac_sync()
