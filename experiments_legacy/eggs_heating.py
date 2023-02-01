@@ -91,12 +91,12 @@ class EGGSHeating(EnvExperiment):
         # eggs heating
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=20, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=CenterScan(85, 5, 0.01, randomize=True),
+                                                                                default=RangeScan(80, 90, 101, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.6, 0.1, 0.0001, randomize=True),
+                                                                                default=CenterScan(1.6, 0.1, 0.01, randomize=True),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
@@ -206,12 +206,12 @@ class EGGSHeating(EnvExperiment):
 
         # convert eggs heating frequency values for use
         self.freq_eggs_heating_center_hz =                              85 * MHz
-        self.freq_eggs_heating_hz_list =                                self.freq_eggs_heating_center_hz - np.array(list(self.freq_eggs_heating_mhz_list)) * MHz
-        self.freq_eggs_secular_hz_list =                                np.array(list(self.freq_eggs_secular_hz_list)) * MHz
+        self.freq_eggs_carrier_hz_list =                                self.freq_eggs_heating_center_hz - np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz
+        self.freq_eggs_secular_hz_list =                                np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
 
         # set up eggs config
-        self.config_eggs_heating_list =                                 np.zeros((len(self.freq_eggs_heating_hz_list) * len(self.freq_eggs_heating_secular_hz_list), 4), dtype=float)
-        self.config_eggs_heating_list[:, :2] =                          np.stack(np.meshgrid(self.freq_eggs_heating_hz_list, self.freq_eggs_heating_secular_hz_list), -1).reshape(-1, 3)
+        self.config_eggs_heating_list =                                 np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 4), dtype=float)
+        self.config_eggs_heating_list[:, :2] =                          np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
 
         # create interpolated coupling resonance curve
         from scipy.interpolate import Akima1DInterpolator
@@ -220,8 +220,10 @@ class EGGSHeating(EnvExperiment):
 
         # calculate calibrated eggs sidebands amplitudes
         for i, config_freqs in enumerate(self.config_eggs_heating_list):
-            carrier_freq, secular_freq = config_freqs
-            self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([carrier_freq - secular_freq, carrier_freq + secular_freq])
+            carrier_freq, secular_freq = config_freqs[:2]
+            carrier_freq += self.freq_eggs_heating_center_hz
+            #print(ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz]))
+            self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
 
         # set up datasets
         self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list), 4]))
@@ -229,6 +231,8 @@ class EGGSHeating(EnvExperiment):
 
         # store config just in case
         self.set_dataset("config_vals",                                 self.config_eggs_heating_list)
+        print(self.config_eggs_heating_list)
+        raise Exception('stop here')
 
 
     @kernel(flags={"fast-math"})
