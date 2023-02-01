@@ -89,16 +89,16 @@ class EGGSHeating(EnvExperiment):
         self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
 
         # eggs heating
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=5, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=RangeScan(80, 90, 11, randomize=True),
+                                                                                default=RangeScan(80, 90, 6, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                                unit="MHz", scale=1, ndecimals=6
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.6, 0.1, 0.05, randomize=True),
+                                                                                default=CenterScan(1.41, 0.0001, 0.001, randomize=True),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
-                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                                unit="MHz", scale=1, ndecimals=6
                                                                             ))
 
         # get global parameters
