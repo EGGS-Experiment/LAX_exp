@@ -106,7 +106,6 @@ class EGGSResonanceCalibration(EnvExperiment):
         self._iter_dataset = 0
         self.set_dataset("eggs_resonance_calibration", np.zeros([len(self.freq_eggs_heating_mhz_list), 2]))
         self.setattr_dataset("eggs_resonance_calibration")
-        #self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)
 
 
     @kernel(flags={"fast-math"})
@@ -228,9 +227,12 @@ class EGGSResonanceCalibration(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        # print results
-        print(self.eggs_resonance_calibration)
         # reenable spec anal display
         self.sa.gpib_write('DISP:ENAB 1')
+
+        # strip invalid y-axis values
+        calib_ds = np.array(self.eggs_resonance_calibration)
+        calib_ds[]
+
         # turn dataset into numpy array for ease of use
         #self.eggs_heating = np.array(self.eggs_heating)

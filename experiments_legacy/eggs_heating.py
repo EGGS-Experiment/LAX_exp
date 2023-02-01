@@ -59,34 +59,34 @@ class EGGSHeating(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=0.2, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling
-        self.setattr_argument("sideband_cycles",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("sideband_cycles",                            NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([20]))
+        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([37]))
         self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.655]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.526]))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
         self.setattr_argument("freq_rsb_scan_mhz",                          Scannable(
-                                                                                default=CenterScan(103.655, 0.04, 0.01),
+                                                                                default=CenterScan(103.526, 0.02, 0.0005),
                                                                                 global_min=30, global_max=200, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
 
         self.setattr_argument("freq_bsb_scan_mhz",                          Scannable(
-                                                                                default=CenterScan(105.271, 0.04, 0.01),
+                                                                                default=CenterScan(104.95, 0.02, 0.0005),
                                                                                 global_min=30, global_max=200, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ))
 
-        self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=10, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000))
 
         # eggs heating
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
@@ -96,7 +96,7 @@ class EGGSHeating(EnvExperiment):
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.41, 0.0001, 0.001, randomize=True),
+                                                                                default=CenterScan(1.41, 0.001, 0.0001, randomize=True),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
@@ -226,7 +226,7 @@ class EGGSHeating(EnvExperiment):
             self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
 
         # set up datasets
-        self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list), 4]))
+        self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list) * len(self.freq_qubit_scan_ftw) * self.repetitions, 4]))
         self.setattr_dataset("eggs_heating")
         self._iter_dataset = 0
 
@@ -500,7 +500,7 @@ class EGGSHeating(EnvExperiment):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.mutate_dataset('eggs_heating', self._iter_dataset, np.array([freq_sbc * self.ftw_to_mhz, pmt_counts, freq_eggs_carrier, freq_eggs_sideband]))
+        self.mutate_dataset('eggs_heating', self._iter_dataset, np.array([freq_sbc * self.ftw_to_mhz, pmt_counts, freq_eggs_carrier, freq_eggs_sideband / MHz]))
         self._iter_dataset += 1
 
 
