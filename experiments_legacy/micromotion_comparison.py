@@ -347,6 +347,7 @@ class MicromotionComparison(EnvExperiment):
         """
         data_tmp = np.array([voltage_1, voltage_2, pmt_counts_carrier, pmt_counts_sideband])
         self.mutate_dataset('micromotion_comparison', self._iter_dataset, data_tmp)
+        self._iter_dataset += 1
 
 
     def analyze(self):
