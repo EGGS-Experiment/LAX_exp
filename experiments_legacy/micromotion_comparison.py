@@ -1,6 +1,7 @@
 import labrad
 import numpy as np
 from os import environ
+from time import sleep
 
 from artiq.experiment import *
 from EGGS_labrad.config.dc_config import dc_config
@@ -335,7 +336,8 @@ class MicromotionComparison(EnvExperiment):
         Set the DC voltage channel to the desired voltage.
         """
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        print('\tvoltage set: {}'.format(voltage_set_v))
+        sleep(0.1)
+        #print('\tvoltage set: {}'.format(voltage_set_v))
 
 
     @rpc(flags={"async"})
