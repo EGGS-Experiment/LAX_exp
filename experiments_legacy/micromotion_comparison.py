@@ -72,14 +72,14 @@ class MicromotionComparison(EnvExperiment):
         # shimming parameters
         self.dc_micromotion_channeldict =                               dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",               EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltages_2_v_list",       Scannable(
-                                                                            default=CenterScan(0, 10, 0.1, randomize=True),
+        self.setattr_argument("dc_micromotion_voltages_1_v_list",       Scannable(
+                                                                            default=CenterScan(100.0, 10.0, 0.1, randomize=True),
                                                                             global_min=0, global_max=1000, global_step=1,
                                                                             unit="V", scale=1, ndecimals=2
                                                                         ))
         self.setattr_argument("dc_micromotion_channel_2",               EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='W Endcap'))
         self.setattr_argument("dc_micromotion_voltages_2_v_list",       Scannable(
-                                                                            default=CenterScan(0.0, 5.0, 0.1, randomize=True),
+                                                                            default=CenterScan(250.0, 5.0, 0.1, randomize=True),
                                                                             global_min=0, global_max=1000, global_step=1,
                                                                             unit="V", scale=1, ndecimals=2
                                                                         ))
@@ -143,18 +143,25 @@ class MicromotionComparison(EnvExperiment):
         self.time_pipulse_mu =                                          self.core.seconds_to_mu(self.time_pipulse_us * us)
 
         # get voltage parameters
-        self.dc_micromotion_voltages_v_list =                           np.array(list(self.dc_micromotion_voltages_v_list))
-        self.dc_micromotion_channel =                                   self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
+        self.dc_micromotion_voltages_1_v_list =                         np.array(list(self.dc_micromotion_voltages_1_v_list))
+        self.dc_micromotion_channel_1 =                                 self.dc_micromotion_channeldict[self.dc_micromotion_channel_1]['num']
+
+        self.dc_micromotion_voltages_2_v_list =                         np.array(list(self.dc_micromotion_voltages_2_v_list))
+        self.dc_micromotion_channel_2 =                                 self.dc_micromotion_channeldict[self.dc_micromotion_channel_2]['num']
+
 
         # connect to labrad
         self.cxn =                                                      labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                       self.cxn.dc_server
 
         # set up datasets
-        self.set_dataset("micromotion_comparison",                      np.zeros((len(self.dc_micromotion_voltages_v_list) * self.repetitions, 3)))
-        self.setattr_dataset("micromotion_comparison")
         self._iter_dataset =                                            0
-        raise Exception('not now')
+        self.set_dataset("micromotion_comparison",                      np.zeros((
+                                                                            len(self.dc_micromotion_voltages_1_v_list) * len(self.dc_micromotion_voltages_2_v_list) * self.repetitions,
+                                                                            4
+                                                                        )))
+        self.setattr_dataset("micromotion_comparison")
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -174,32 +181,40 @@ class MicromotionComparison(EnvExperiment):
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
 
-            # sweep time
-            for voltage_val in self.dc_micromotion_voltages_v_list:
+            # sweep voltage 1
+            for voltage_1_v in self.dc_micromotion_voltages_1_v_list:
 
-                # set electrode voltage
-                self.voltage_set(self.dc_micromotion_channel, voltage_val)
-
-                # rabi flop on carrier
-                self.dds_qubit.set_profile(0)
-                self.core_dma.playback_handle(handle_sequence)
-
-                # get carrier counts
-                counts_carrier = self.pmt_counter.fetch_count()
+                # set channel 1 voltage
+                self.voltage_set(self.dc_micromotion_channel_1, voltage_1_v)
                 self.core.break_realtime()
 
-                # rabi flop on sideband
-                self.dds_qubit.set_profile(1)
-                self.core_dma.playback_handle(handle_sequence)
+                # sweep voltage 2
+                for voltage_2_v in self.dc_micromotion_voltages_2_v_list:
 
-                # get sideband counts
-                counts_sideband = self.pmt_counter.fetch_count()
-                self.core.break_realtime()
-
-                # update dataset
-                with parallel:
-                    self.update_dataset(voltage_val, counts_carrier, counts_sideband)
+                    # set channel 2 voltage
+                    self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
                     self.core.break_realtime()
+
+                    # rabi flop on carrier
+                    self.dds_qubit_board.set_profile(0)
+                    self.core_dma.playback_handle(handle_sequence)
+
+                    # get carrier counts
+                    counts_carrier = self.pmt_counter.fetch_count()
+                    self.core.break_realtime()
+
+                    # rabi flop on sideband
+                    self.dds_qubit_board.set_profile(1)
+                    self.core_dma.playback_handle(handle_sequence)
+
+                    # get sideband counts
+                    counts_sideband = self.pmt_counter.fetch_count()
+                    self.core.break_realtime()
+
+                    # update dataset
+                    with parallel:
+                        self.update_dataset(voltage_1_v, voltage_2_v, counts_carrier, counts_sideband)
+                        self.core.break_realtime()
 
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
@@ -324,11 +339,11 @@ class MicromotionComparison(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts):
+    def update_dataset(self, voltage_1, voltage_2, pmt_counts_carrier, pmt_counts_sideband):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        data_tmp = np.array([self.core.mu_to_seconds(time_mu), pmt_counts])
+        data_tmp = np.array([voltage_1, voltage_2, pmt_counts_carrier, pmt_counts_sideband])
         self.mutate_dataset('micromotion_comparison', self._iter_dataset, data_tmp)
 
 
