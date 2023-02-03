@@ -336,7 +336,7 @@ class MicromotionComparison(EnvExperiment):
         Set the DC voltage channel to the desired voltage.
         """
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(0.1)
+        #sleep(0.1)
         #print('\tvoltage set: {}'.format(voltage_set_v))
 
 
