@@ -330,7 +330,7 @@ class MicromotionComparison(EnvExperiment):
         self.dds_repump_qubit_switch.off()
 
 
-    @rpc
+    #@rpc
     def voltage_set(self, channel, voltage_v):
         """
         Set the DC voltage channel to the desired voltage.
