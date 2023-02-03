@@ -322,7 +322,7 @@ class MicromotionComparison(EnvExperiment):
         self.core.break_realtime()
 
         self.dds_qubit.set_mu(self.freq_carrier_ftw, asf=self.ampl_qubit_asf, profile=0)
-        self.dds_qubit.set_mu(self.freq_sideband_ftw, asf=self.ampl_qubit_asf, profile=1)
+        self.dds_qubit.set_mu(self.freq_micromotion_ftw, asf=self.ampl_qubit_asf, profile=1)
         self.core.break_realtime()
 
         # set rf switches
