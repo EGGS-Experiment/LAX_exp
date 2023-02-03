@@ -119,8 +119,6 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # prepare phaser
         self.phaser_prepare()
-        delay_mu(500000000)
-        self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
 

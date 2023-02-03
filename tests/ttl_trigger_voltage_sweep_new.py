@@ -53,11 +53,6 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
 
-        # connect to labrad
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-        self.fg = self.cxn.function_generator_server
-        self.dc = self.cxn.dc_server
-
 
     def prepare(self):
         # PMT devices
@@ -93,6 +88,11 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.set_dataset('freq_mod_mhz',                            self.freq_mod_mhz)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
         self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel)
+
+        # connect to labrad
+        self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.fg =                                                   self.cxn.function_generator_server
+        self.dc =                                                   self.cxn.dc_server
 
         # set up function generator
         # get list of function generators

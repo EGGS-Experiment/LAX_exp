@@ -54,11 +54,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
 
-        # connect to labrad
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-        self.fg = self.cxn.function_generator_server
-        self.dc = self.cxn.dc_server
-
 
     def prepare(self):
         # PMT devices
@@ -83,9 +78,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.mod_clock_att_db =                                     0 * dB
         self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
-        # set voltage
-        self.dc.voltage(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-
         # set up datasets
         self.set_dataset("ttl_trigger",                             np.zeros([self.repetitions, len(self.freq_mod_mhz_list), self.counts_per_repetition]))
         self.setattr_dataset("ttl_trigger")
@@ -96,6 +88,12 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
         self.set_dataset('dc_channel_num', self.dc_micromotion_channel)
         self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
+
+
+        # connect to labrad
+        self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.fg =                                                   self.cxn.function_generator_server
+        self.dc =                                                   self.cxn.dc_server
 
         # set up function generator
         # get list of function generators
@@ -120,6 +118,9 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg.burst(True)
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
+
+        # set voltage
+        self.dc.voltage(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
 
 
     @kernel(flags={"fast-math"})
