@@ -330,14 +330,22 @@ class MicromotionComparison(EnvExperiment):
         self.dds_repump_qubit_switch.off()
 
 
-    #@rpc
     def voltage_set(self, channel, voltage_v):
         """
         Set the DC voltage channel to the desired voltage.
         """
+        # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        #sleep(0.1)
-        #print('\tvoltage set: {}'.format(voltage_set_v))
+        sleep(0.2)
+
+        # wait until voltage updates
+        voltage_get_v = self.dc.voltage(channel)
+        while np.abs(voltage_set_v - voltage_get_v) > 0.05:
+            sleep(0.2)
+            voltage_get_v = self.dc.voltage(channel)
+
+        # print current voltage for verification
+        print('\tvoltage set: {}'.format(voltage_get_v))
 
 
     @rpc(flags={"async"})
