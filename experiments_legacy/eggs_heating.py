@@ -92,7 +92,7 @@ class EGGSHeating(EnvExperiment):
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=10, max=31.5))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=RangeScan(80, 90, 6, randomize=True),
+                                                                                default=CenterScan(85.1, 0.020, 0.001, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
@@ -207,7 +207,7 @@ class EGGSHeating(EnvExperiment):
 
         # convert eggs heating frequency values for use
         self.freq_eggs_heating_center_hz =                              85 * MHz
-        self.freq_eggs_carrier_hz_list =                                self.freq_eggs_heating_center_hz - np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz
+        self.freq_eggs_carrier_hz_list =                                np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - self.freq_eggs_heating_center_hz
         self.freq_eggs_secular_hz_list =                                np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
 
         # set up eggs config
@@ -233,7 +233,6 @@ class EGGSHeating(EnvExperiment):
 
         # store config just in case
         self.set_dataset("config_vals",                                 self.config_eggs_heating_list)
-        print(self.config_eggs_heating_list)
 
 
     @kernel(flags={"fast-math"})
