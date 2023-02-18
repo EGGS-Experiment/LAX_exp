@@ -41,23 +41,27 @@ class ReactionMonitoring(EnvExperiment):
         # cooling parameters
         self.setattr_argument("freq_pump_cooling_mhz",                  NumberValue(default=110, ndecimals=6, step=1, min=1, max=10000))
         self.setattr_argument("ampl_pump_cooling_pct_list",             Scannable(
-                                                                            default=RangeScan(40.0, 50.0, 2, randomize=True),
+                                                                            default=RangeScan(30.0, 40.0, 2, randomize=True),
                                                                             global_min=0, global_max=1000, global_step=1,
                                                                             unit="%", scale=1, ndecimals=2
                                                                         ))
 
+
+        # tmp remove
+        self.setattr_argument("amplitude_pct_time_s_dict",              PYONValue({30.0: 60, 40.0: 100, 2:100}), tooltip='gthkim')
+
         # timing
-        self.setattr_argument("time_cooling_s",                         NumberValue(default=1, ndecimals=5, step=1, min=1, max=10000))
-        self.setattr_argument("time_control_s",                         NumberValue(default=0.05, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_cooling_s",                         NumberValue(default=120, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_control_s",                         NumberValue(default=30, ndecimals=5, step=1, min=1, max=10000))
 
         # fluorescence
         self.setattr_argument("sample_time_pmt_us",                     NumberValue(default=3000, ndecimals=3, step=1, min=1, max=1000000))
-        self.setattr_argument("sample_rate_pmt_hz",                     NumberValue(default=10, ndecimals=3, step=1, min=1, max=10000))
+        self.setattr_argument("sample_rate_pmt_hz",                     NumberValue(default=100, ndecimals=3, step=1, min=1, max=10000))
 
 
         # tickling parameters
         self.setattr_argument("tickle_freq_khz",                        NumberValue(default=602, ndecimals=4, step=1, min=1, max=10000))
-        self.setattr_argument("tickle_ampl_v",                          NumberValue(default=0.5, ndecimals=4, step=0.1, min=0.001, max=5))
+        self.setattr_argument("tickle_ampl_v",                          NumberValue(default=0.2, ndecimals=4, step=0.1, min=0.001, max=5))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -74,7 +78,7 @@ class ReactionMonitoring(EnvExperiment):
         self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert PMT values
-        self.sample_time_pmt_mu =                                       self.core.seconds_to_mu(self.sample_time_pmt_mu * us)
+        self.sample_time_pmt_mu =                                       self.core.seconds_to_mu(self.sample_time_pmt_us * us)
         delay_time_pmt_s_tmp =                                          (1 / self.sample_rate_pmt_hz) - (self.sample_time_pmt_us * us)
         assert delay_time_pmt_s_tmp > 0, "Error: Invalid PMT count timings."
         self.delay_time_pmt_mu =                                        self.core.seconds_to_mu(delay_time_pmt_s_tmp)
@@ -83,6 +87,11 @@ class ReactionMonitoring(EnvExperiment):
         self.iter_pmt_test =                                            np.arange(self.time_cooling_s * self.sample_rate_pmt_hz)
         self.iter_pmt_control =                                         np.arange(self.time_control_s * self.sample_rate_pmt_hz)
 
+        # tmp remove
+        # self.iter_pmt_test_list_tmp =                                       [np.arange(time_s * self.sample_rate_pmt_hz) for time_s in list(self.amplitude_pct_time_s_dict.values())]
+        # self.ampl_pump_cooling_asf_list_tmp =                               np.array([self.dds_pump.amplitude_to_asf(ampl_pct / 100)
+        #                                                                           for ampl_pct in list(self.amplitude_pct_time_s_dict.keys())])
+        # num_points =                                                    np.sum(np.array([len(iter_arr) for iter_arr in self.iter_pmt_test_list_tmp]))
 
         # DDS devices
         self.dds_board =                                                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -96,25 +105,26 @@ class ReactionMonitoring(EnvExperiment):
 
         # convert cooling values
         self.freq_pump_cooling_ftw =                                    self.dds_pump.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.ampl_pump_cooling_asf_list =                               self.dds_pump.amplitude_to_asf(np.array(list(self.ampl_pump_cooling_pct_list)) / 100)
+        self.ampl_pump_cooling_asf_list =                               np.array([self.dds_pump.amplitude_to_asf(ampl_pct / 100) for ampl_pct in list(self.ampl_pump_cooling_pct_list)])
 
         # set up datasets
         self._iter_dataset_test =                                       0
-        self.set_dataset("reaction_monitoring",                      np.zeros((
+        self.set_dataset("reaction_monitoring",                         np.zeros((
                                                                             len(self.iter_pmt_test) * len(self.ampl_pump_cooling_asf_list) * self.repetitions,
                                                                             3
                                                                         )))
+        # self.set_dataset("reaction_monitoring",                         np.zeros((
+        #                                                                     len(self.iter_pmt_test) * len(self.ampl_pump_cooling_asf_list) * self.repetitions,
+        #                                                                     3
+        #                                                                 )))
         self.setattr_dataset("reaction_monitoring")
 
         self._iter_dataset_control =                                    0
-        self.set_dataset("reaction_monitoring_control;",             np.zeros((
+        self.set_dataset("reaction_monitoring_control",                 np.zeros((
                                                                             len(self.iter_pmt_control) * len(self.ampl_pump_cooling_asf_list) * self.repetitions * 2,
                                                                             4
                                                                         )))
         self.setattr_dataset("reaction_monitoring_control")
-
-        # tmp remove
-        raise Exception('stop here')
 
 
         # connect to labrad
@@ -143,7 +153,7 @@ class ReactionMonitoring(EnvExperiment):
         self.fg.burst(False)
         # set waveform
         self.fg.toggle(0)
-        self.fg.frequency(self.tickle_frequency_khz * kHz)
+        self.fg.frequency(self.tickle_freq_khz * kHz)
         self.fg.amplitude(self.tickle_ampl_v)
         self.fg.toggle(1)
 
@@ -165,6 +175,7 @@ class ReactionMonitoring(EnvExperiment):
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
 
             # sweep cooling amplitudes
             for ampl_asf in self.ampl_pump_cooling_asf_list:
@@ -175,6 +186,7 @@ class ReactionMonitoring(EnvExperiment):
 
                 # get control data - before
                 self.tickle_toggle(False)
+                self.core.break_realtime()
                 for i in self.iter_pmt_control:
                     # run pulse sequence from core DMA
                     self.core_dma.playback_handle(handle_sequence)
@@ -186,6 +198,7 @@ class ReactionMonitoring(EnvExperiment):
 
                 # get treatment data w/tickle on
                 self.tickle_toggle(True)
+                self.core.break_realtime()
                 for i in self.iter_pmt_test:
                     # run pulse sequence from core DMA
                     self.core_dma.playback_handle(handle_sequence)
@@ -197,6 +210,7 @@ class ReactionMonitoring(EnvExperiment):
 
                 # get control data - after
                 self.tickle_toggle(False)
+                self.core.break_realtime()
                 for i in self.iter_pmt_control:
                     # run pulse sequence from core DMA
                     self.core_dma.playback_handle(handle_sequence)
@@ -239,7 +253,7 @@ class ReactionMonitoring(EnvExperiment):
         Toggle the output state of the tickle.
         """
         self.fg.toggle(status)
-        sleep(0.1)
+        #sleep(0.1)
         status_set = self.fg.toggle()
         # tmp remove
         print('\tstatus set: {}'.format(status_set))
