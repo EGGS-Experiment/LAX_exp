@@ -39,9 +39,9 @@ class ReactionMonitoring(EnvExperiment):
         self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # cooling parameters
-        self.setattr_argument("freq_pump_cooling_mhz",                  NumberValue(default=110, ndecimals=6, step=1, min=1, max=10000))
+        self.setattr_argument("freq_pump_cooling_mhz",                  NumberValue(default=100, ndecimals=6, step=1, min=1, max=10000))
         self.setattr_argument("ampl_pump_cooling_pct_list",             Scannable(
-                                                                            default=RangeScan(30.0, 40.0, 26, randomize=True),
+                                                                            default=RangeScan(26.0, 40.0, 8, randomize=True),
                                                                             global_min=0, global_max=1000, global_step=1,
                                                                             unit="%", scale=1, ndecimals=2
                                                                         ))
@@ -51,7 +51,7 @@ class ReactionMonitoring(EnvExperiment):
         self.setattr_argument("amplitude_pct_time_s_dict",              PYONValue({30.0: 60, 40.0: 100, 2:100}), tooltip='gthkim')
 
         # timing
-        self.setattr_argument("time_cooling_s",                         NumberValue(default=240, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("time_cooling_s",                         NumberValue(default=480, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_control_s",                         NumberValue(default=30, ndecimals=5, step=1, min=1, max=10000))
 
         # fluorescence
