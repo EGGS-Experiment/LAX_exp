@@ -16,6 +16,14 @@ class PhaserTest(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("phaser0")
 
+        # todo: select channel
+        # todo: select att
+        # todo: select on/off
+        # todo: select NCO freq
+        # todo: select DUC freq
+        # todo: select carrier
+        # todo: select oscillator amplitudes & frequency
+
     def prepare(self):
         self.scb = self.core.break_realtime
 
@@ -36,10 +44,8 @@ class PhaserTest(EnvExperiment):
         self.core.reset()
 
         scb = self.core.break_realtime
-        osc_num_list = [0, 1, 2, 3]
         ch_num = 0
         ch = self.phaser0.channel[ch_num]
-        ph = self.phaser0
         self.core.break_realtime()
 
         '''
@@ -49,39 +55,41 @@ class PhaserTest(EnvExperiment):
         scb()
 
         # nco stuff
-        at_mu(ph.get_next_frame_mu())
-        ch.set_nco_frequency(-217.083495* MHz)
+        at_mu(self.phaser0.get_next_frame_mu())
+        ch.set_nco_frequency((-217.083495 - 85) * MHz)
+        # ch.set_nco_frequency(-302.083495* MHz)
         self.core.break_realtime()
 
-        at_mu(ph.get_next_frame_mu())
+        at_mu(self.phaser0.get_next_frame_mu())
         ch.set_nco_phase(0.)
         self.core.break_realtime()
 
-        at_mu(ph.get_next_frame_mu())
-        ph.dac_sync()
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.dac_sync()
         self.core.break_realtime()
 
 
         # trf
-        at_mu(ph.get_next_frame_mu())
-        ch.set_att(20 * dB)
+        at_mu(self.phaser0.get_next_frame_mu())
+        ch.set_att(10 * dB)
         self.core.break_realtime()
 
-        at_mu(ph.get_next_frame_mu())
-        ch.en_trf_out(rf=1, lo=0)
+        at_mu(self.phaser0.get_next_frame_mu())
+        ch.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
+
 
         # duc
-        at_mu(ph.get_next_frame_mu())
+        at_mu(self.phaser0.get_next_frame_mu())
         ch.set_duc_frequency(0 * MHz)
         self.core.break_realtime()
 
-        at_mu(ph.get_next_frame_mu())
+        at_mu(self.phaser0.get_next_frame_mu())
         ch.set_duc_cfg()
         self.core.break_realtime()
 
-        at_mu(ph.get_next_frame_mu())
-        ph.duc_stb()
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.duc_stb()
         self.core.break_realtime()
 
 
@@ -93,18 +101,17 @@ class PhaserTest(EnvExperiment):
         # pwd_out_buff
         # pwd_lo_div
         # pwd_tx_div
-        # osc_freq_list = [-1.5, 1.5, 0.0, 0.0, 0.0]
-        osc_freq_list = [0., 0., 0.0, 0.0, 0.0]
-        osc_ampl_list = [0.49, 0., 0.0, 0.0, 0.0]
+        osc_freq_list = [0.602, 0.603, 0.599, 0.0, 0.0]
+        osc_ampl_list = [0.33, 0.33, 0.33, 0.0, 0.0]
 
         for i in range(5):
-            at_mu(ph.get_next_frame_mu())
+            at_mu(self.phaser0.get_next_frame_mu())
             ch.oscillator[i].set_frequency(osc_freq_list[i] * MHz)
-            at_mu(ph.get_next_frame_mu())
+            at_mu(self.phaser0.get_next_frame_mu())
             ch.oscillator[i].set_amplitude_phase(amplitude=osc_ampl_list[i], clr=0)
             self.core.break_realtime()
 
-    # kill all output
-    at_mu(ph.get_next_frame_mu())
-    ch.en_trf_out(rf=1, lo=0)
-    self.core.break_realtime()
+        # # kill all output
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # ch.en_trf_out(rf=1, lo=0)
+        # self.core.break_realtime()
