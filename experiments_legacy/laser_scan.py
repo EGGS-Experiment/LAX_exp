@@ -59,6 +59,9 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
+        # adc recording
+        self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
+
         # timing
         self.setattr_argument("time_729_us",                            NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000))
 
@@ -82,6 +85,12 @@ class LaserScan(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # ADC
+        self.adc =                                              self.get_device("sampler0")
+        self.adc_channel_list =                                 list(self.adc_channel_gain_dict.keys())
+        self.adc_gain_list_mu =                                 [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
+        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
@@ -123,10 +132,12 @@ class LaserScan(EnvExperiment):
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # set up datasets
-        self.set_dataset("laser_scan", [])
+        self._iter_dataset = 0
+        self.set_dataset("laser_scan",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 3)))
         self.setattr_dataset("laser_scan")
-        self.set_dataset("laser_scan_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.set_dataset("laser_scan_processed",                np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_processed")
+        self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), len(self.adc_channel_list))))
 
 
     @kernel(flags={"fast-math"})
@@ -138,6 +149,10 @@ class LaserScan(EnvExperiment):
 
         # prepare devices
         self.prepareDevices()
+
+        # create ADC holding buffer
+        sampler_buffer = [0] * 8
+        self.core.break_realtime()
 
         # record dma
         self.DMArecord()
@@ -161,9 +176,12 @@ class LaserScan(EnvExperiment):
                 # run sequence
                 self.core_dma.playback_handle(handle)
 
+                # get ADC values
+                self.adc.sample_mu(sampler_buffer)
+
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), sampler_buffer)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -268,13 +286,26 @@ class LaserScan(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
+        # set ADC channel gains
+        for i in range(len(self.adc_channel_list)):
+            self.adc.set_gain_mu(self.adc_channel_list[i], self.adc_gain_list_mu[i])
+            self.core.break_realtime()
+
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('laser_scan', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        # convert adc values
+        adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+
+        # save data to datasets
+        self.mutate_dataset('laser_scan', self._iter_dataset, np.array([freq_ftw * self.ftw_to_mhz, pmt_counts]))
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_values_volts)
+
+        # update dataset iterator
+        self._iter_dataset += 1
 
 
     def analyze(self):
