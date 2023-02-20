@@ -53,7 +53,7 @@ class LaserScan(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -67,7 +67,7 @@ class LaserScan(EnvExperiment):
 
         # frequency scan
         self.setattr_argument("freq_qubit_scan_mhz",                    Scannable(
-                                                                            default=CenterScan(104.39, 0.4, 0.01, randomize=True),
+                                                                            default=CenterScan(104.39, 0.4, 0.001, randomize=True),
                                                                             global_min=60, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
@@ -90,7 +90,7 @@ class LaserScan(EnvExperiment):
         self.adc =                                              self.get_device("sampler0")
         self.adc_channel_list =                                 list(self.adc_channel_gain_dict.keys())
         self.adc_gain_list_mu =                                 [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
-        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
+        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.adc_channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
@@ -133,11 +133,12 @@ class LaserScan(EnvExperiment):
 
         # set up datasets
         self._iter_dataset = 0
-        self.set_dataset("laser_scan",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 3)))
+        self.set_dataset("laser_scan",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 2)))
         self.setattr_dataset("laser_scan")
         self.set_dataset("laser_scan_processed",                np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_processed")
         self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), len(self.adc_channel_list))))
+        self.setattr_dataset("adc_values")
 
 
     @kernel(flags={"fast-math"})
@@ -312,24 +313,26 @@ class LaserScan(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        # tmp remove
-        self.pmt_discrimination = 17
-
-        # turn dataset into numpy array for ease of use
-        self.laser_scan = np.array(self.laser_scan)
-
-        # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan[:, 0]))
-
-        # collate results
-        collated_results = {
-            freq: []
-            for freq in freq_list_mhz
-        }
-        for freq_mhz, pmt_counts in self.laser_scan:
-            collated_results[freq_mhz].append(pmt_counts)
-
-        # process counts for mean and std and put into processed dataset
-        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+        for i in range(len(self.adc_channel_list)):
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i], np.mean(self.adc_values[:, i]) * 1000, np.std(self.adc_values[:, i]) * 1000))
+        # # tmp remove
+        # self.pmt_discrimination = 17
+        #
+        # # turn dataset into numpy array for ease of use
+        # self.laser_scan = np.array(self.laser_scan)
+        #
+        # # get sorted x-values (frequency)
+        # freq_list_mhz = sorted(set(self.laser_scan[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     freq: []
+        #     for freq in freq_list_mhz
+        # }
+        # for freq_mhz, pmt_counts in self.laser_scan:
+        #     collated_results[freq_mhz].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
