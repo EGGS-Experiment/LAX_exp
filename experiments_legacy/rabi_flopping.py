@@ -54,7 +54,7 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -88,10 +88,10 @@ class RabiFlopping(EnvExperiment):
         self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # ADC
-        self.adc =                                              self.get_device("sampler0")
-        self.adc_channel_list =                                 list(self.adc_channel_gain_dict.keys())
-        self.adc_gain_list_mu =                                 [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
-        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
+        self.adc =                                                      self.get_device("sampler0")
+        self.adc_channel_list =                                         list(self.adc_channel_gain_dict.keys())
+        self.adc_gain_list_mu =                                         [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
+        self.adc_mu_to_v_list =                                         np.array([10 / (2**15 * gain_mu) for gain_mu in self.adc_channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_profileswitch_delay_mu =                              self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
@@ -144,7 +144,8 @@ class RabiFlopping(EnvExperiment):
         self.setattr_dataset("rabi_flopping")
         self.set_dataset("rabi_flopping_processed",                     np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_processed")
-        self.set_dataset("adc_values",                                  np.zeros((self.repetitions * len(self.time_rabi_mu_list), len(self.adc_channel_list))))
+        self.set_dataset("adc_values",                                  np.zeros((self.repetitions * len(self.time_rabi_mu_list), 1 + len(self.adc_channel_list))))
+        self.setattr_dataset("adc_values")
 
 
     @kernel(flags={"fast-math"})
@@ -197,7 +198,7 @@ class RabiFlopping(EnvExperiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count(), sampler_buffer)
+                    self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count(), now_mu(), sampler_buffer)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -316,16 +317,17 @@ class RabiFlopping(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts, adc_values_mu):
+    def update_dataset(self, time_mu, pmt_counts, global_time_mu, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        # convert adc values
+        # format adc data; convert values from mu to volts
         adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+        adc_data = np.append(self.core.mu_to_seconds(global_time_mu), adc_values_volts)
 
         # save data to datasets
         self.mutate_dataset('rabi_flopping', self._iter_dataset, np.array([self.core.mu_to_seconds(time_mu), pmt_counts]))
-        self.mutate_dataset('adc_values', self._iter_dataset, adc_values_volts)
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_data)
 
         # update dataset iterator
         self._iter_dataset += 1
@@ -335,24 +337,26 @@ class RabiFlopping(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        # tmp remove
-        self.pmt_discrimination = 17
-
-        # turn dataset into numpy array for ease of use
-        self.rabi_flopping = np.array(self.rabi_flopping)
-
-        # get sorted x-values (time, seconds)
-        time_list_s = sorted(set(self.rabi_flopping[:, 0]))
-
-        # collate results
-        collated_results = {
-            time: []
-            for time in time_list_s
-        }
-        for time_s, pmt_counts in self.rabi_flopping:
-            collated_results[time_s].append(pmt_counts)
-
-        # process counts for mean and std and put into processed dataset
-        for i, (time_s, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.rabi_flopping_processed[i] = np.array([time_s, np.mean(binned_count_list)])
+        for i in range(len(self.adc_channel_list)):
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i], np.mean(self.adc_values[:, i + 1]) * 1000, np.std(self.adc_values[:, i + 1]) * 1000))
+        # # tmp remove
+        # self.pmt_discrimination = 17
+        #
+        # # turn dataset into numpy array for ease of use
+        # self.rabi_flopping = np.array(self.rabi_flopping)
+        #
+        # # get sorted x-values (time, seconds)
+        # time_list_s = sorted(set(self.rabi_flopping[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     time: []
+        #     for time in time_list_s
+        # }
+        # for time_s, pmt_counts in self.rabi_flopping:
+        #     collated_results[time_s].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (time_s, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.rabi_flopping_processed[i] = np.array([time_s, np.mean(binned_count_list)])
