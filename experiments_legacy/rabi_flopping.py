@@ -60,6 +60,9 @@ class RabiFlopping(EnvExperiment):
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
+        # adc recording
+        self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
+
         # qubit parameters
         self.setattr_argument("time_rabi_us_list",                      Scannable(
                                                                             default=RangeScan(0, 400, 401, randomize=True),
@@ -83,6 +86,12 @@ class RabiFlopping(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # ADC
+        self.adc =                                              self.get_device("sampler0")
+        self.adc_channel_list =                                 list(self.adc_channel_gain_dict.keys())
+        self.adc_gain_list_mu =                                 [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
+        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_profileswitch_delay_mu =                              self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
@@ -130,10 +139,12 @@ class RabiFlopping(EnvExperiment):
         self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # set up datasets
-        self.set_dataset("rabi_flopping", [])
+        self._iter_dataset =                                            0
+        self.set_dataset("rabi_flopping",                               np.zeros((self.repetitions * len(self.time_rabi_mu_list), 2)))
         self.setattr_dataset("rabi_flopping")
-        self.set_dataset("rabi_flopping_processed", np.zeros([len(self.time_rabi_mu_list), 2]))
+        self.set_dataset("rabi_flopping_processed",                     np.zeros([len(self.time_rabi_mu_list), 2]))
         self.setattr_dataset("rabi_flopping_processed")
+        self.set_dataset("adc_values",                                  np.zeros((self.repetitions * len(self.time_rabi_mu_list), len(self.adc_channel_list))))
 
 
     @kernel(flags={"fast-math"})
@@ -145,6 +156,10 @@ class RabiFlopping(EnvExperiment):
 
         # prepare devices
         self.prepareDevices()
+
+        # create ADC holding buffer
+        sampler_buffer = [0] * 8
+        self.core.break_realtime()
 
         # record dma and get handle
         self.DMArecord()
@@ -176,9 +191,13 @@ class RabiFlopping(EnvExperiment):
                 # do readout
                 self.core_dma.playback_handle(handle_readout)
 
+                # get ADC values
+                self.adc.sample_mu(sampler_buffer)
+                self.core.break_realtime()
+
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count())
+                    self.update_dataset(time_rabi_mu, self.pmt_counter.fetch_count(), sampler_buffer)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -290,13 +309,26 @@ class RabiFlopping(EnvExperiment):
         # set rf switches
         self.dds_repump_qubit_switch.off()
 
+        # set ADC channel gains
+        for i in range(len(self.adc_channel_list)):
+            self.adc.set_gain_mu(self.adc_channel_list[i], self.adc_gain_list_mu[i])
+            self.core.break_realtime()
+
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_mu, pmt_counts):
+    def update_dataset(self, time_mu, pmt_counts, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('rabi_flopping', [self.core.mu_to_seconds(time_mu), pmt_counts])
+        # convert adc values
+        adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+
+        # save data to datasets
+        self.mutate_dataset('rabi_flopping', self._iter_dataset, np.array([self.core.mu_to_seconds(time_mu), pmt_counts]))
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_values_volts)
+
+        # update dataset iterator
+        self._iter_dataset += 1
 
 
     def analyze(self):

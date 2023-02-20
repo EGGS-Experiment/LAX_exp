@@ -178,6 +178,7 @@ class LaserScan(EnvExperiment):
 
                 # get ADC values
                 self.adc.sample_mu(sampler_buffer)
+                self.core.break_realtime()
 
                 # update dataset
                 with parallel:
@@ -312,24 +313,24 @@ class LaserScan(EnvExperiment):
         """
         Analyze the results from the experiment.
         """
-        # tmp remove
-        self.pmt_discrimination = 17
-
-        # turn dataset into numpy array for ease of use
-        self.laser_scan = np.array(self.laser_scan)
-
-        # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.laser_scan[:, 0]))
-
-        # collate results
-        collated_results = {
-            freq: []
-            for freq in freq_list_mhz
-        }
-        for freq_mhz, pmt_counts in self.laser_scan:
-            collated_results[freq_mhz].append(pmt_counts)
-
-        # process counts for mean and std and put into processed dataset
-        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+        # # tmp remove
+        # self.pmt_discrimination = 17
+        #
+        # # turn dataset into numpy array for ease of use
+        # self.laser_scan = np.array(self.laser_scan)
+        #
+        # # get sorted x-values (frequency)
+        # freq_list_mhz = sorted(set(self.laser_scan[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     freq: []
+        #     for freq in freq_list_mhz
+        # }
+        # for freq_mhz, pmt_counts in self.laser_scan:
+        #     collated_results[freq_mhz].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.laser_scan_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
