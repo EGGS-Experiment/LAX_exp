@@ -137,7 +137,7 @@ class LaserScan(EnvExperiment):
         self.setattr_dataset("laser_scan")
         self.set_dataset("laser_scan_processed",                np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("laser_scan_processed")
-        self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), len(self.adc_channel_list))))
+        self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 1 + len(self.adc_channel_list))))
         self.setattr_dataset("adc_values")
 
 
@@ -183,7 +183,7 @@ class LaserScan(EnvExperiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), sampler_buffer)
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), now_mu(), sampler_buffer)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -295,16 +295,17 @@ class LaserScan(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts, adc_values_mu):
+    def update_dataset(self, freq_ftw, pmt_counts, global_time_mu, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        # convert adc values
+        # format adc data; convert values from mu to volts
         adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+        adc_data = np.append(self.core.mu_to_seconds(global_time_mu), adc_values_volts)
 
         # save data to datasets
         self.mutate_dataset('laser_scan', self._iter_dataset, np.array([freq_ftw * self.ftw_to_mhz, pmt_counts]))
-        self.mutate_dataset('adc_values', self._iter_dataset, adc_values_volts)
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_data)
 
         # update dataset iterator
         self._iter_dataset += 1
@@ -315,7 +316,7 @@ class LaserScan(EnvExperiment):
         Analyze the results from the experiment.
         """
         for i in range(len(self.adc_channel_list)):
-            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i], np.mean(self.adc_values[:, i]) * 1000, np.std(self.adc_values[:, i]) * 1000))
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i], np.mean(self.adc_values[:, i + 1]) * 1000, np.std(self.adc_values[:, i + 1]) * 1000))
         # # tmp remove
         # self.pmt_discrimination = 17
         #

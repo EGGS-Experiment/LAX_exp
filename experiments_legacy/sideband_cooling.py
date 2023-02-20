@@ -65,6 +65,9 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
+        # adc recording
+        self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
+
         # sideband cooling
         self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
@@ -106,6 +109,12 @@ class SidebandCooling(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # ADC
+        self.adc =                                              self.get_device("sampler0")
+        self.adc_channel_list =                                 list(self.adc_channel_gain_dict.keys())
+        self.adc_gain_list_mu =                                 [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
+        self.adc_mu_to_v_list =                                 np.array([10 / (2**15 * gain_mu) for gain_mu in self.adc_channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                          self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
@@ -177,10 +186,13 @@ class SidebandCooling(EnvExperiment):
         self.calibration_qubit_status =                         not self.calibration
 
         # set up datasets
-        self.set_dataset("sideband_cooling", [])
+        self._iter_dataset =                                    0
+        self.set_dataset("sideband_cooling",                    np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 2)))
         self.setattr_dataset("sideband_cooling")
-        self.set_dataset("sideband_cooling_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.set_dataset("sideband_cooling_processed",          np.zeros([len(self.freq_qubit_scan_ftw), 3]))
         self.setattr_dataset("sideband_cooling_processed")
+        self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 1 + len(self.adc_channel_list))))
+        self.setattr_dataset("adc_values")
 
 
     @kernel(flags={"fast-math"})
@@ -192,6 +204,10 @@ class SidebandCooling(EnvExperiment):
 
         # prepare devices
         self.prepareDevices()
+
+        # create ADC holding buffer
+        sampler_buffer = [0] * 8
+        self.core.break_realtime()
 
         # record dma and get handle
         self.DMArecord()
@@ -219,8 +235,12 @@ class SidebandCooling(EnvExperiment):
                 # read out
                 self.core_dma.playback_handle(handle_readout)
 
+                # get ADC values
+                self.adc.sample_mu(sampler_buffer)
+                self.core.break_realtime()
+
                 # record data
-                self.update_dataset(freq_ftw, self.pmt_counter.fetch_count())
+                self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), now_mu(), sampler_buffer)
                 self.core.break_realtime()
 
             # add post repetition cooling
@@ -357,37 +377,55 @@ class SidebandCooling(EnvExperiment):
             self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
 
+        # set ADC channel gains
+        for i in range(len(self.adc_channel_list)):
+            self.adc.set_gain_mu(self.adc_channel_list[i], self.adc_gain_list_mu[i])
+            self.core.break_realtime()
+
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts):
+    def update_dataset(self, freq_ftw, pmt_counts, global_time_mu, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('sideband_cooling', [freq_ftw * self.ftw_to_mhz, pmt_counts])
+        # format adc data; convert values from mu to volts
+        adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+        adc_data = np.append(self.core.mu_to_seconds(global_time_mu), adc_values_volts)
+
+        # save data to datasets
+        self.mutate_dataset('sideband_cooling', self._iter_dataset, np.array([freq_ftw * self.ftw_to_mhz, pmt_counts]))
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_data)
+
+        # update dataset iterator
+        self._iter_dataset += 1
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        # tmp remove
-        self.pmt_discrimination = 17
-
-        # turn dataset into numpy array for ease of use
-        self.sideband_cooling = np.array(self.sideband_cooling)
-
-        # get sorted x-values (frequency)
-        freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
-
-        # collate results
-        collated_results = {
-            freq: []
-            for freq in freq_list_mhz
-        }
-        for freq_mhz, pmt_counts in self.sideband_cooling:
-            collated_results[freq_mhz].append(pmt_counts)
-
-        # process counts for mean and std and put into processed dataset
-        for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-            binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-            self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
+        for i in range(len(self.adc_channel_list)):
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i],
+                                                           np.mean(self.adc_values[:, i + 1]) * 1000,
+                                                           np.std(self.adc_values[:, i + 1]) * 1000))
+        # # tmp remove
+        # self.pmt_discrimination = 17
+        #
+        # # turn dataset into numpy array for ease of use
+        # self.sideband_cooling = np.array(self.sideband_cooling)
+        #
+        # # get sorted x-values (frequency)
+        # freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
+        #
+        # # collate results
+        # collated_results = {
+        #     freq: []
+        #     for freq in freq_list_mhz
+        # }
+        # for freq_mhz, pmt_counts in self.sideband_cooling:
+        #     collated_results[freq_mhz].append(pmt_counts)
+        #
+        # # process counts for mean and std and put into processed dataset
+        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
+        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
+        #     self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])

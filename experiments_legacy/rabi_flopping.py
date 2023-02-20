@@ -338,7 +338,9 @@ class RabiFlopping(EnvExperiment):
         Analyze the results from the experiment.
         """
         for i in range(len(self.adc_channel_list)):
-            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i], np.mean(self.adc_values[:, i + 1]) * 1000, np.std(self.adc_values[:, i + 1]) * 1000))
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i],
+                                                           np.mean(self.adc_values[:, i + 1]) * 1000,
+                                                           np.std(self.adc_values[:, i + 1]) * 1000))
         # # tmp remove
         # self.pmt_discrimination = 17
         #

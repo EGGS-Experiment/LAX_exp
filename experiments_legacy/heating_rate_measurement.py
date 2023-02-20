@@ -65,6 +65,9 @@ class HeatingRateMeasurement(EnvExperiment):
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
+        # adc recording
+        self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
+
         # sideband cooling
         self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
@@ -110,6 +113,12 @@ class HeatingRateMeasurement(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # ADC
+        self.adc =                                                      self.get_device("sampler0")
+        self.adc_channel_list =                                         list(self.adc_channel_gain_dict.keys())
+        self.adc_gain_list_mu =                                         [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
+        self.adc_mu_to_v_list =                                         np.array([10 / (2 ** 15 * gain_mu) for gain_mu in self.adc_channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
@@ -183,10 +192,13 @@ class HeatingRateMeasurement(EnvExperiment):
         self.calibration_qubit_status =                                 not self.calibration
 
         # set up datasets
-        self.set_dataset("heating_rate", [])
+        self._iter_dataset =                                            0
+        self.set_dataset("heating_rate",                                np.zeros([self.repetitions * len(self.freq_qubit_scan_ftw) * len(self.time_heating_rate_list_mu), 3]))
         self.setattr_dataset("heating_rate")
-        self.set_dataset("heating_rate_processed", np.zeros([len(self.freq_qubit_scan_ftw), 3]))
+        self.set_dataset("heating_rate_processed",                      np.zeros([len(self.freq_qubit_scan_ftw) * len(self.time_heating_rate_list_mu), 3]))
         self.setattr_dataset("heating_rate_processed")
+        self.set_dataset("adc_values",                                  np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw) * len(self.time_heating_rate_list_mu), 1 + len(self.adc_channel_list))))
+        self.setattr_dataset("adc_values")
 
 
     @kernel(flags={"fast-math"})
@@ -198,6 +210,10 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # prepare devices
         self.prepareDevices()
+
+        # create ADC holding buffer
+        sampler_buffer = [0] * 8
+        self.core.break_realtime()
 
         # record dma and get handle
         self.DMArecord()
@@ -231,8 +247,12 @@ class HeatingRateMeasurement(EnvExperiment):
                     # read out
                     self.core_dma.playback_handle(handle_readout)
 
+                    # get ADC values
+                    self.adc.sample_mu(sampler_buffer)
+                    self.core.break_realtime()
+
                     # record data
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), time_heating_delay_mu)
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), time_heating_delay_mu, now_mu(), sampler_buffer)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -366,24 +386,37 @@ class HeatingRateMeasurement(EnvExperiment):
             self.dds_qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
             self.core.break_realtime()
 
+        # set ADC channel gains
+        for i in range(len(self.adc_channel_list)):
+            self.adc.set_gain_mu(self.adc_channel_list[i], self.adc_gain_list_mu[i])
+            self.core.break_realtime()
+
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, pmt_counts, time_mu):
+    def update_dataset(self, freq_ftw, pmt_counts, time_mu, global_time_mu, adc_values_mu):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.append_to_dataset('heating_rate', [freq_ftw * self.ftw_to_mhz, pmt_counts, self.core.mu_to_seconds(time_mu)])
+        # format adc data; convert values from mu to volts
+        adc_values_volts = np.array(adc_values_mu)[self.adc_channel_list] * self.adc_mu_to_v_list
+        adc_data = np.append(self.core.mu_to_seconds(global_time_mu), adc_values_volts)
+
+        # save data to datasets
+        self.mutate_dataset('heating_rate', self._iter_dataset, np.array([freq_ftw * self.ftw_to_mhz, pmt_counts, self.core.mu_to_seconds(time_mu)]))
+        self.mutate_dataset('adc_values', self._iter_dataset, adc_data)
+
+        # update dataset iterator
+        self._iter_dataset += 1
 
 
     def analyze(self):
         """
         Analyze the results from the experiment.
         """
-        # turn dataset into numpy array for ease of use
-        self.heating_rate = np.array(self.heating_rate)
-
-        print('heating rate times')
-
+        for i in range(len(self.adc_channel_list)):
+            print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i],
+                                                           np.mean(self.adc_values[:, i + 1]) * 1000,
+                                                           np.std(self.adc_values[:, i + 1]) * 1000))
         # # get sorted x-values (frequency)
         # freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
         #
