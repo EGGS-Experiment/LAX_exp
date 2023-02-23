@@ -270,6 +270,7 @@ class SidebandCooling(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+        self.dds_repump_qubit_switch.on()
 
 
     @kernel(flags={"fast-math"})
@@ -388,6 +389,9 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
+
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
 
         # set sideband cooling profiles
         # profile 0 = readout pi-pulse, profile 1 & greater = sideband cooling
