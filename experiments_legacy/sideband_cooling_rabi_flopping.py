@@ -103,6 +103,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_rfswitch_delay_mu =                           self.core.seconds_to_mu(2 * us)
 
         # DDS devices
         self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -113,6 +114,9 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.dds_repump_cooling =                               self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
         self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+
+        # RF switches
+        self.dds_repump_qubit_switch =                          self.get_device("ttl21")
 
         # convert frequency to ftw
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
@@ -242,6 +246,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+        self.dds_repump_qubit_switch.on()
 
 
     @kernel(flags={"fast-math"})
@@ -251,6 +256,19 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         """
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
+
+            # enable 854 rf switch
+            # with parallel:
+            self.dds_repump_qubit_switch.on()
+            delay_mu(self.time_rfswitch_delay_mu)
+            self.dds_board.cfg_switches(0b1100)
+
+            # qubit repump (854) pulse
+            delay_mu(self.time_repump_qubit_mu)
+            # with parallel:
+            self.dds_repump_qubit_switch.on()
+            self.dds_board.cfg_switches(0b0100)
+            delay_mu(self.time_rfswitch_delay_mu)
 
             # set cooling waveform
             with parallel:
@@ -342,6 +360,9 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
+
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
 
         # set sideband cooling profiles
         # profile 0 = readout pi-pulse

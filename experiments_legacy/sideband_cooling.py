@@ -79,7 +79,6 @@ class SidebandCooling(EnvExperiment):
 
         # readout
         self.setattr_argument("shuffle_rsb_and_bsb",                    BooleanValue(default=True))
-
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=CenterScan(104.012, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
