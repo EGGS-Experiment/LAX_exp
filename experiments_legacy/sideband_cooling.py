@@ -78,6 +78,8 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
+        self.setattr_argument("shuffle_rsb_and_bsb",                    BooleanValue(default=True))
+
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=CenterScan(104.012, 0.04, 0.001),
                                                                             global_min=30, global_max=200, global_step=1,
@@ -150,7 +152,8 @@ class SidebandCooling(EnvExperiment):
         # process scan frequencies
         self.freq_qubit_scan_ftw =                              [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
                                                                  for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
-        shuffle(self.freq_qubit_scan_ftw)
+        if self.shuffle_rsb_and_bsb is True:
+            shuffle(self.freq_qubit_scan_ftw)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
