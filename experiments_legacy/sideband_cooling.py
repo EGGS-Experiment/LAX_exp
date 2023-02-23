@@ -273,6 +273,7 @@ class SidebandCooling(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+        self.dds_repump_qubit_switch.on()
 
 
     @kernel(flags={"fast-math"})
