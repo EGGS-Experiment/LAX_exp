@@ -1,15 +1,18 @@
 import labrad
 import numpy as np
 
+from time import sleep
 from os import environ
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class TTLTriggerVoltageSweepNew(EnvExperiment):
+class MicromotionCompensation(EnvExperiment):
     """
-    TTL Trigger Voltage SweepNew
+    Micromotion Compensation
+
+    Compensates micromotion by correlating photon counts with a modulation signal applied to the trapping RF.
     """
     kernel_invariants = {
         'time_timeout_pmt_mu',
@@ -29,22 +32,21 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
-        # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000000))
-        self.setattr_argument("counts_per_repetition",              NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
+        # num_counts
+        self.setattr_argument("num_counts",                        NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.15, ndecimals=3, step=0.1, min=0, max=1000000))
-        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.54, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.572, ndecimals=5, step=0.001, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=RangeScan(40.0, 80.0, 41, randomize=True),
+                                                                        default=RangeScan(65.0, 75.0, 41, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -76,15 +78,13 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("ttl_trigger",                             np.zeros([len(self.dc_micromotion_voltages_v_list), self.repetitions]))
+        self.set_dataset("ttl_trigger",                             np.zeros([len(self.dc_micromotion_voltages_v_list), self.num_counts]))
         self.setattr_dataset("ttl_trigger")
-        # self.set_dataset("ttl_trigger",                             np.zeros([self.repetitions, len(self.freq_mod_mhz_list), self.counts_per_repetition]))
-        # self.setattr_dataset("ttl_trigger")
 
 
         # record parameters
         self.set_dataset('xArr',                                    self.dc_micromotion_voltages_v_list)
-        self.set_dataset('repetitions',                             self.repetitions)
+        self.set_dataset('num_counts',                              self.num_counts)
         self.set_dataset('freq_mod_mhz',                            self.freq_mod_mhz)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
         self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel)
@@ -156,7 +156,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # set up loop variables
             counter = 0
-            timestamp_mu_list = [0] * self.repetitions
+            timestamp_mu_list = [0] * self.num_counts
             self.core.break_realtime()
 
             # synchronize timings with DDS clock
@@ -170,14 +170,14 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
 
             # start counting photons
             time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-            while counter < self.repetitions:
+            while counter < self.num_counts:
 
-                # move timestamped photons into buffer
+                # move timestamped photon into buffer
                 time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
 
                 # increase gating time
                 if time_mu_tmp < 0:
-                    print('\t\tError: increased gating time')
+                    print('\t\tError: increased gating time.')
                     self.core.break_realtime()
                     time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
                 else:
@@ -202,12 +202,13 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         """
         # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(0.2)
+        sleep(0.8)
 
         # wait until voltage updates
         voltage_get_v = self.dc.voltage(channel)
         while np.abs(voltage_set_v - voltage_get_v) > 0.05:
-            sleep(0.2)
+            sleep(0.8)
+            print('voltage problem teehee')
             voltage_get_v = self.dc.voltage(channel)
 
         # print current voltage for verification
@@ -245,7 +246,7 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.fg.toggle(0)
 
         # process data
-        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v_list), self.repetitions, 2))
+        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v_list), self.num_counts, 2))
         # ind_arr = np.argsort(self.freq_mod_mhz_list)
         # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
         #
