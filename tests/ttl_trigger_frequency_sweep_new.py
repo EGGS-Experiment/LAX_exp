@@ -30,15 +30,15 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                        NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.10, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.25, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.560, 1.580, 41, randomize=True),
+                                                                        default=CenterScan(1.570, 0.01, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -86,9 +86,8 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.set_dataset('xArr',                                    self.freq_mod_mhz_list)
         self.set_dataset('num_counts',                              self.num_counts)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel)
+        self.set_dataset('dc_channel_n',                          self.dc_micromotion_channel)
         self.set_dataset('dc_channel_voltage',                      self.dc_micromotion_voltage_v)
-
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')

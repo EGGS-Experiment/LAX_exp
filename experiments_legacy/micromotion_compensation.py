@@ -16,10 +16,12 @@ class MicromotionCompensation(EnvExperiment):
     """
     kernel_invariants = {
         'time_timeout_pmt_mu',
-        'dc_micromotion_channel',
+        'dc_micromotion_channel_1',
+        'dc_micromotion_channel_2',
+        'dc_micromotion_voltages_v_list_1',
+        'dc_micromotion_voltages_v_list_2',
         'ampl_mod_vpp',
-        'freq_mod_mhz',
-        'dc_micromotion_voltages_v_list'
+        'freq_mod_mhz'
     }
 
     global_parameters = [
@@ -33,20 +35,27 @@ class MicromotionCompensation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                        NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
         self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=50, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.15, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.572, ndecimals=5, step=0.001, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=RangeScan(65.0, 75.0, 41, randomize=True),
+        self.setattr_argument("dc_micromotion_channel_1",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        self.setattr_argument("dc_micromotion_voltages_v_list_1",   Scannable(
+                                                                        default=CenterScan(70.0, 2.0, 1.0, randomize=True),
+                                                                        global_min=0, global_max=1000, global_step=1,
+                                                                        unit="V", scale=1, ndecimals=4
+                                                                    ))
+
+        self.setattr_argument("dc_micromotion_channel_2",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='H Shim'))
+        self.setattr_argument("dc_micromotion_voltages_v_list_2",   Scannable(
+                                                                        default=CenterScan(45.0, 10.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -65,8 +74,12 @@ class MicromotionCompensation(EnvExperiment):
         self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_s * s)
 
         # get voltage parameters
-        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
-        self.dc_micromotion_channel =                               self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
+        self.dc_micromotion_voltages_v_list_1 =                     np.array(list(self.dc_micromotion_voltages_v_list_1))
+        self.dc_micromotion_voltages_v_list_2 =                     np.array(list(self.dc_micromotion_voltages_v_list_2))
+        self.dc_micromotion_channel_1_name =                        self.dc_micromotion_channel_1
+        self.dc_micromotion_channel_1 =                             self.dc_micromotion_channeldict[self.dc_micromotion_channel_1]['num']
+        self.dc_micromotion_channel_2_name =                        self.dc_micromotion_channel_2
+        self.dc_micromotion_channel_2 =                             self.dc_micromotion_channeldict[self.dc_micromotion_channel_2]['num']
 
         # RF modulation synchronization clock
         self.mod_clock =                                            self.get_device("urukul0_ch3")
@@ -78,16 +91,18 @@ class MicromotionCompensation(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("ttl_trigger",                             np.zeros([len(self.dc_micromotion_voltages_v_list), self.num_counts]))
-        self.setattr_dataset("ttl_trigger")
+        self.set_dataset("results",                                 np.zeros([len(self.dc_micromotion_voltages_v_list_1) * len(self.dc_micromotion_voltages_v_list_2),
+                                                                              self.num_counts]))
+        self.setattr_dataset("results")
 
 
         # record parameters
-        self.set_dataset('xArr',                                    self.dc_micromotion_voltages_v_list)
         self.set_dataset('num_counts',                              self.num_counts)
-        self.set_dataset('freq_mod_mhz',                            self.freq_mod_mhz)
+        self.set_dataset('modulation_frequency_hz',                 self.freq_mod_mhz)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel)
+        self.set_dataset('channel_array',                           [self.dc_micromotion_channel_1_name, self.dc_micromotion_channel_2_name])
+        self.set_dataset('voltage_array',                           np.stack(np.meshgrid(self.dc_micromotion_voltages_v_list_1,
+                                                                                         self.dc_micromotion_voltages_v_list_2), -1).reshape(-1, 2))
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
@@ -142,56 +157,61 @@ class MicromotionCompensation(EnvExperiment):
         self.fg_write(':ROSC:SOUR EXT')
 
         # MAIN LOOP
-        # sweep voltage
-        for voltage_val in self.dc_micromotion_voltages_v_list:
+        # sweep voltage 1
+        for voltage_1_v in self.dc_micromotion_voltages_v_list_1:
 
-            # reset FIFOs
-            self.core.reset()
-
-            # set frequency
-            self.voltage_set(self.dc_micromotion_channel, voltage_val)
-            delay(1 * s)
-            self.core.wait_until_mu(now_mu())
+            # set voltage 1
+            self.voltage_set(self.dc_micromotion_channel_1, voltage_1_v)
             self.core.break_realtime()
 
-            # set up loop variables
-            counter = 0
-            timestamp_mu_list = [0] * self.num_counts
-            self.core.break_realtime()
+            # sweep voltage 2
+            for voltage_2_v in self.dc_micromotion_voltages_v_list_2:
 
-            # synchronize timings with DDS clock
-            #self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-            #delay_mu(self.mod_clock_delay_mu)
+                # reset FIFOs
+                self.core.reset()
 
-            # activate modulation and wait for change in output
-            self.mod_toggle.on()
-            delay_mu(self.mod_clock_delay_mu)
-            time_start_mu = now_mu()
+                # set voltage 2
+                self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
+                self.core.break_realtime()
 
-            # start counting photons
-            time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-            while counter < self.num_counts:
+                # set up loop variables
+                counter = 0
+                timestamp_mu_list = [0] * self.num_counts
+                self.core.break_realtime()
 
-                # move timestamped photon into buffer
-                time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
+                # synchronize timings with DDS clock
+                #self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+                #delay_mu(self.mod_clock_delay_mu)
 
-                # increase gating time
-                if time_mu_tmp < 0:
-                    print('\t\tError: increased gating time.')
-                    self.core.break_realtime()
-                    time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-                else:
-                    timestamp_mu_list[counter] = time_mu_tmp
-                    counter += 1
+                # activate modulation and wait for change in output
+                self.mod_toggle.on()
+                delay_mu(self.mod_clock_delay_mu)
+                time_start_mu = now_mu()
 
-            # stop loop
-            self.pmt_counter._set_sensitivity(0)
-            self.mod_toggle.off()
-            self.core.reset()
+                # start counting photons
+                time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
+                while counter < self.num_counts:
 
-            # store data
-            self.update_dataset(time_start_mu, timestamp_mu_list)
-            self.core.break_realtime()
+                    # move timestamped photon into buffer
+                    time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
+
+                    # increase gating time
+                    if time_mu_tmp < 0:
+                        print('\t\tError: increased gating time.')
+                        self.core.break_realtime()
+                        time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
+                    else:
+                        timestamp_mu_list[counter] = time_mu_tmp
+                        counter += 1
+
+                # stop loop
+                self.pmt_counter._set_sensitivity(0)
+                self.mod_toggle.off()
+                self.core.reset()
+
+                # store data
+                self.update_dataset(time_start_mu, timestamp_mu_list)
+                self.core.break_realtime()
 
 
     # LABRAD FUNCTIONS
@@ -224,7 +244,7 @@ class MicromotionCompensation(EnvExperiment):
 
     def fg_write(self, msg):
         """
-        write a GPIB message todo: clean up
+        Write a GPIB message to the function generator.
         """
         self.fg.gpib_write(msg)
 
@@ -234,7 +254,7 @@ class MicromotionCompensation(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.mutate_dataset(
-            'ttl_trigger',
+            'results',
             self._dataset_counter,
             np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
         )
@@ -242,12 +262,11 @@ class MicromotionCompensation(EnvExperiment):
 
     def analyze(self):
         # turn off modulation
-        #pass
         self.fg.toggle(0)
 
         # process data
-        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.dc_micromotion_voltages_v_list), self.num_counts, 2))
+        # results_tmp = np.array(self.results).reshape((len(self.dc_micromotion_voltages_v_list), self.num_counts, 2))
         # ind_arr = np.argsort(self.freq_mod_mhz_list)
-        # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
+        # results_tmp = results_tmp[ind_arr]
         #
-        # self.ttl_trigger_processed = ttl_trigger_tmp
+        # self.results_processed = results_tmp

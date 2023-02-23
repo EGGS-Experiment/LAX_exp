@@ -124,8 +124,8 @@ class ReactionMonitoring(EnvExperiment):
 
 
         # connect to labrad
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-        self.fg = self.cxn.function_generator_server
+        self.cxn =                                                      labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.fg =                                                       self.cxn.function_generator_server
 
         # set up function generator
         # get list of function generators
