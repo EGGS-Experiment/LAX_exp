@@ -218,8 +218,18 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
+        # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        #print('\tvoltage set: {}'.format(voltage_set_v))
+        sleep(0.2)
+
+        # wait until voltage updates
+        voltage_get_v = self.dc.voltage(channel)
+        while np.abs(voltage_set_v - voltage_get_v) > 0.05:
+            sleep(0.2)
+            voltage_get_v = self.dc.voltage(channel)
+
+        # print current voltage for verification
+        print('\tvoltage set: {}'.format(voltage_get_v))
 
     @rpc
     def frequency_set(self, freq_hz):
