@@ -72,7 +72,7 @@ class MicromotionCompensation(EnvExperiment):
 
         # RF clk
         self.rf_clk =                                               self.get_device("ttl3")
-        self.rf_clk_gating_edge =                                   self.get_device(self.rf_clk, 'gate_rising_mu')
+        self.rf_clk_gating_edge =                                   getattr(self.rf_clk, 'gate_rising_mu')
 
         # convert time values to machine units
         self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_s * s)
