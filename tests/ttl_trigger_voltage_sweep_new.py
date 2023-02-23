@@ -37,8 +37,8 @@ class TTLTriggerVoltageSweepNew(EnvExperiment):
         self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=0.1, min=0, max=1000000))
-        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.58, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.15, ndecimals=3, step=0.1, min=0, max=1000000))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.54, ndecimals=5, step=0.1, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
