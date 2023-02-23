@@ -393,6 +393,9 @@ class SidebandCooling(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
+
         # set sideband cooling profiles
         # profile 0 = readout pi-pulse, profile 1 & greater = sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
