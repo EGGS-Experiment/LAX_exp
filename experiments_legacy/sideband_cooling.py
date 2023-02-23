@@ -292,7 +292,7 @@ class SidebandCooling(EnvExperiment):
             # qubit repump (854) pulse
             delay_mu(self.time_repump_qubit_mu)
             # with parallel:
-            self.dds_repump_qubit_switch.off()
+            self.dds_repump_qubit_switch.on()
             self.dds_board.cfg_switches(0b0100)
             delay_mu(self.time_rfswitch_delay_mu)
 
