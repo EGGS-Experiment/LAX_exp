@@ -7,9 +7,9 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class TTLTriggerFrequencySweepNew(EnvExperiment):
+class ParametricSweep(EnvExperiment):
     """
-    TTL Trigger Frequency SweepNew
+    Parametric Sweep
     """
     kernel_invariants = {
         'time_timeout_pmt_mu',

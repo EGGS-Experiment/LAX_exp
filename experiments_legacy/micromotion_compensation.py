@@ -48,14 +48,14 @@ class MicromotionCompensation(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_1",   Scannable(
-                                                                        default=CenterScan(70.0, 20.0, 0.1, randomize=True),
+                                                                        default=CenterScan(70.0, 1.0, 0.5, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
 
         self.setattr_argument("dc_micromotion_channel_2",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='H Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_2",   Scannable(
-                                                                        default=CenterScan(45.0, 20.0, 0.1, randomize=True),
+                                                                        default=CenterScan(45.0, 25.0, 0.2, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -66,9 +66,13 @@ class MicromotionCompensation(EnvExperiment):
 
 
     def prepare(self):
-        # PMT devices
+        # PMT
         self.pmt_counter =                                          self.get_device("ttl{:d}".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # RF clk
+        self.rf_clk =                                               self.get_device("ttl3")
+        self.rf_clk_gating_edge =                                   self.get_device(self.rf_clk, 'gate_rising_mu')
 
         # convert time values to machine units
         self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_s * s)
@@ -153,7 +157,7 @@ class MicromotionCompensation(EnvExperiment):
         self.mod_clock.cfg_sw(True)
         self.core.break_realtime()
 
-        # enable external clocking
+        # enable external clocking of function generator
         self.fg_write(':ROSC:SOUR EXT')
 
         # MAIN LOOP
@@ -182,6 +186,8 @@ class MicromotionCompensation(EnvExperiment):
                 # synchronize timings with DDS clock
                 #self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
                 #delay_mu(self.mod_clock_delay_mu)
+
+                # todo: synchronize modulation with same phase of trap RF each time
 
                 # activate modulation and wait for change in output
                 self.mod_toggle.on()
