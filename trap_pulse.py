@@ -26,7 +26,7 @@ class TrapPulse(EnvExperiment):
         self.time_holdoff_ns =                                  10
 
         # trap pwm
-        self.pwm_freq_hz =                                      10
+        self.pwm_freq_hz =                                      1000
         self.time_pwm_cancel_us =                               1.25
         self.time_pwm_restore_us =                              1.25
 
