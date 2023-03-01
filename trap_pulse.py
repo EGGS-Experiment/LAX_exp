@@ -2,12 +2,14 @@ import labrad
 import numpy as np
 from os import environ
 from artiq.experiment import *
+# todo: examine pulse delay on scope and account
 
 
 class TrapPulse(EnvExperiment):
     """
-    testarg34
-    Testing
+    Trap Pulse
+
+    todo add description
     """
 
     def build(self):
@@ -19,27 +21,25 @@ class TrapPulse(EnvExperiment):
         self.setattr_device("ttl12")    # rf switch - main
         self.setattr_device("ttl13")    # rf switch - cancellation
 
-        # arg vals
-        # self.pwm_duty_cycle_pct =                               3e-3
-        self.pwm_freq_hz =                                      10
-        self.time_run_s =                                       5
+        # general timing
+        self.time_run_s =                                       20
         self.time_holdoff_ns =                                  10
 
-        # tmp remove
+        # trap pwm
+        self.pwm_freq_hz =                                      10
         self.time_pwm_cancel_us =                               1.25
         self.time_pwm_restore_us =                              1.25
 
 
     def prepare(self):
         # exp vals
-        self.time_rfswitch_delay_mu =                           self.core.seconds_to_mu(2 * us)
         self._iter_loop =                                       np.arange(int(self.time_run_s * (self.pwm_freq_hz * 1)))
-        self._handle_dma =                                      "TMP_DMA"
+        self._handle_dma =                                      "TRAP_PWM_SEQUENCE"
 
         # conv vals
-        self.time_cancel_on_mu =                                self.core.seconds_to_mu(self.time_cancel_on_us)
-        self.time_cancel_off_mu =                               self.core.seconds_to_mu(self.time_cancel_off_us)
-        self.time_pwm_off_mu =                                  self.core.seconds_to_mu((1 - self.pwm_duty_cycle_pct / 100) / (self.pwm_freq_hz * 1))
+        self.time_pwm_cancel_mu =                               self.core.seconds_to_mu(self.time_pwm_cancel_us * us)
+        self.time_pwm_restore_mu =                              self.core.seconds_to_mu(self.time_pwm_restore_us * us)
+        self.time_pwm_off_mu =                                  self.core.seconds_to_mu(1 / (self.pwm_freq_hz * 1) - (self.time_pwm_restore_us + self.time_pwm_restore_us) * us)
         self.time_holdoff_mu =                                  self.core.seconds_to_mu(self.time_holdoff_ns * ns)
 
         # alias devices
@@ -90,7 +90,6 @@ class TrapPulse(EnvExperiment):
                 self.ttl_os.on()
                 self.ttl_sw_main.on()
                 self.ttl_sw_cancel.off()
-                # todo: examine pulse delay on scope and account
 
             # actively cancel residual rf
             delay_mu(self.time_pwm_cancel_mu)
@@ -103,6 +102,7 @@ class TrapPulse(EnvExperiment):
             with parallel:
                 self.ttl_os.off()
                 self.ttl_sw_main.off()
+                self.ttl_sw_cancel.off()
                 delay_mu(self.time_pwm_off_mu)
 
 
