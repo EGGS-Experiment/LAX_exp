@@ -23,7 +23,7 @@ class TrapPulseTrigger(EnvExperiment):
         self.setattr_device("ttl4")                             # 243nm trigger - input
 
         # general timing
-        self.time_run_s =                                       5
+        self.time_run_s =                                       600
 
         # pwm timing
         self.time_pwm_cancel_us =                               0.5
