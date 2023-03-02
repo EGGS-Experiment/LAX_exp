@@ -90,8 +90,6 @@ class TrapRFCancellation(EnvExperiment):
         # finish and unset TTLs
         self.core.break_realtime()
         with parallel:
-            self.ttl_rf.off()
-            self.ttl_os.off()
             self.ttl_sw_main.off()
             self.ttl_sw_cancel.off()
 
@@ -109,7 +107,6 @@ class TrapRFCancellation(EnvExperiment):
 
             # rf off
             with parallel:
-                self.ttl_os.on()
                 self.ttl_sw_main.on()
                 self.ttl_sw_cancel.off()
 
@@ -122,7 +119,6 @@ class TrapRFCancellation(EnvExperiment):
 
             # rf on
             with parallel:
-                self.ttl_os.off()
                 self.ttl_sw_main.off()
                 self.ttl_sw_cancel.off()
 
@@ -135,8 +131,6 @@ class TrapRFCancellation(EnvExperiment):
 
         # prepare pulse sequence TTL triggers
         with parallel:
-            self.ttl_rf.off()
-            self.ttl_os.off()
             self.ttl_sw_main.off()
             self.ttl_sw_cancel.off()
 

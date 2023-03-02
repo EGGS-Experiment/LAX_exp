@@ -15,14 +15,16 @@ class TTLClock(EnvExperiment):
         """
         self.setattr_device("core")
         self.setattr_device("core_dma")
+        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(50.88 * us)
 
         # timing
-        self.setattr_argument('frequency_clock_khz', NumberValue(default=1, ndecimals=3, step=1, min=0.001, max=1000))
-        self.setattr_argument('time_total_ms', NumberValue(default=10000, ndecimals=3, step=1, min=0.001, max=100000))
+        self.setattr_argument('frequency_clock_khz',            NumberValue(default=1, ndecimals=3, step=1, min=0.001, max=1000))
+        self.setattr_argument('time_total_ms',                  NumberValue(default=10000, ndecimals=3, step=1, min=0.001, max=100000))
         #self.setattr_argument('time_off_us', NumberValue(default=100, ndecimals=3, step=1, min=0, max=100))
 
-        # PMT
-        self.setattr_argument("ttl_channel", NumberValue(default=9, ndecimals=0, step=1, min=4, max=23))
+        # TTL channel
+        self.setattr_argument("ttl_channel",                    NumberValue(default=9, ndecimals=0, step=1, min=4, max=23))
+
 
     def prepare(self):
         """
@@ -37,12 +39,24 @@ class TTLClock(EnvExperiment):
 
         # self.time_off_mu = self.core.seconds_to_mu(self.time_reset_us * us)
 
+
     @kernel
     def run(self):
+        """
+        Run the experimental sequence.
+        """
         self.core.break_realtime()
         self.ttl_clock.off()
+
+        # MAIN LOOP
         for i in range(self.num_repetitions):
-            self.ttl_clock.on()
-            delay_mu(self.time_delay_mu)
-            self.ttl_clock.off()
-            delay_mu(self.time_delay_mu)
+
+            # TTL ON
+            with parallel:
+                self.ttl_clock.on()
+                delay_mu(self.time_delay_mu)
+
+            # TTL OFF
+            with parallel:
+                self.ttl_clock.off()
+                delay_mu(self.time_delay_mu)
