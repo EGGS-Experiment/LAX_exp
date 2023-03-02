@@ -20,15 +20,18 @@ class TrapPulse(EnvExperiment):
         self.setattr_device("ttl11")    # oscilloscope trigger
         self.setattr_device("ttl12")    # rf switch - main
         self.setattr_device("ttl13")    # rf switch - cancellation
+        # self.setattr_device("ttl14")    # 243nm trigger - output
+        self.setattr_device("ttl4")     # 243nm trigger - input
 
         # general timing
-        self.time_run_s =                                       20
+        self.time_run_s =                                       100
         self.time_holdoff_ns =                                  10
+        self.time_delay_243_ns =                                10
 
         # trap pwm
-        self.pwm_freq_hz =                                      1000
-        self.time_pwm_cancel_us =                               1.25
-        self.time_pwm_restore_us =                              1.25
+        self.pwm_freq_hz =                                      10
+        self.time_pwm_cancel_us =                               0.5
+        self.time_pwm_restore_us =                              0.5
 
 
     def prepare(self):
@@ -41,12 +44,15 @@ class TrapPulse(EnvExperiment):
         self.time_pwm_restore_mu =                              self.core.seconds_to_mu(self.time_pwm_restore_us * us)
         self.time_pwm_off_mu =                                  self.core.seconds_to_mu(1 / (self.pwm_freq_hz * 1) - (self.time_pwm_restore_us + self.time_pwm_restore_us) * us)
         self.time_holdoff_mu =                                  self.core.seconds_to_mu(self.time_holdoff_ns * ns)
+        self.time_delay_243_mu =                                self.core.seconds_to_mu(self.time_delay_243_ns * ns)
 
         # alias devices
         self.ttl_rf =                                           self.get_device('ttl10')
         self.ttl_os =                                           self.get_device('ttl11')
         self.ttl_sw_main =                                      self.get_device('ttl12')
         self.ttl_sw_cancel =                                    self.get_device('ttl13')
+        # self.ttl_trig_243 =                                     self.get_device('ttl14')
+        self.counter_trig_243 =                                 self.get_device('ttl4')
 
 
     @kernel
@@ -76,6 +82,7 @@ class TrapPulse(EnvExperiment):
             self.ttl_os.off()
             self.ttl_sw_main.off()
             self.ttl_sw_cancel.off()
+
 
     @kernel(flags={"fast-math"})
     def DMArecord(self):
