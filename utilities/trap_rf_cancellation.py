@@ -182,6 +182,6 @@ class TrapRFCancellation(EnvExperiment):
 
     def analyze(self):
         print('test done')
-        print('\ttimings: {:.4f} +/- {:.4f}'.format(np.mean(self.rf_cancellation), np.std(self.rf_cancellation)))
-        print('\trange: {:.4f}'.format(np.max(self.rf_cancellation) - np.min(self.rf_cancellation)))
-        print('\tmax: {:.4f}, min: {:.4f}'.format(np.max(self.rf_cancellation), np.min(self.rf_cancellation)))
+        # print('\ttimings: {:.4f} +/- {:.4f}'.format(np.mean(self.rf_cancellation), np.std(self.rf_cancellation)))
+        # print('\trange: {:.4f}'.format(np.max(self.rf_cancellation) - np.min(self.rf_cancellation)))
+        # print('\tmax: {:.4f}, min: {:.4f}'.format(np.max(self.rf_cancellation), np.min(self.rf_cancellation)))
