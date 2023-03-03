@@ -22,7 +22,7 @@ class TrapRFCancellation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("time_run_s",                     NumberValue(default=120, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_run_s",                     NumberValue(default=10, ndecimals=5, step=0.1, min=0, max=1000000))
 
         # trap cancellation parameters
         self.setattr_argument("time_rf_cancel_us",              NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=1000000))
@@ -48,7 +48,7 @@ class TrapRFCancellation(EnvExperiment):
 
         # trigger values
         self.time_trigger_gating_mu =                           self.core.seconds_to_mu(1 / (self.freq_trig_hz * 1))
-        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(161.36 * us)
+        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(161.38 * us)
 
         # rf values (for synchronization)
         self.time_rf_period_s =                                 1 / (self.freq_rf_mhz * MHz)
@@ -63,6 +63,11 @@ class TrapRFCancellation(EnvExperiment):
         # # trap cancellation values - unsynced
         # self.time_rf_cancel_mu =                                self.core.seconds_to_mu(self.time_rf_cancel_us * us)
         # self.time_rf_restore_mu =                               self.core.seconds_to_mu(self.time_rf_restore_us * us)
+
+        # tmp remove
+        self._iter_dataset =                                    0
+        self.set_dataset("rf_cancellation",                     np.zeros(len(self._iter_loop)))
+        self.setattr_dataset("rf_cancellation")
 
 
     @kernel(flags={"fast-math"})
@@ -87,7 +92,6 @@ class TrapRFCancellation(EnvExperiment):
             # wait for trigger input
             self.counter_trigger._set_sensitivity(1)
             time_trigger_mu = self.counter_trigger.timestamp_mu(now_mu() + self.time_trigger_gating_mu)
-            # time_trigger_mu = self.counter_trigger.timestamp_mu(self.counter_trigger.gate_rising_mu(self.time_trigger_gating_mu))
 
             # respond to trigger input
             if time_trigger_mu > 0:
@@ -97,7 +101,6 @@ class TrapRFCancellation(EnvExperiment):
                 # wait until next RF pulse for synchronization
                 self.counter_rf._set_sensitivity(1)
                 time_rf_mu = self.counter_rf.timestamp_mu(now_mu() + self.time_rf_gating_mu)
-                #time_rf_mu = self.counter_rf.timestamp_mu(self.counter_rf.gate_rising_mu(200))
 
                 # start RF sequence
                 if time_rf_mu > 0:
@@ -106,10 +109,10 @@ class TrapRFCancellation(EnvExperiment):
                     # # run pulse sequence
                     self.core_dma.playback_handle(_handle_seq)
 
-                    # tmp remove
-                    self.core.break_realtime()
-                    self.print_async(time_rf_mu - time_trigger_mu)
-                    self.core.break_realtime()
+                    # # save timing data
+                    # self.core.break_realtime()
+                    # self.update_dataset(time_rf_mu - time_trigger_mu)
+                    # self.core.break_realtime()
 
             # reset input buffers
             self.core.reset()
@@ -167,9 +170,18 @@ class TrapRFCancellation(EnvExperiment):
             self.ttl_sw_cancel.off()
 
     @rpc(flags={"async"})
-    def print_async(self, val):
-        print(val)
+    def update_dataset(self, val):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        # save data to datasets and update iterator
+        self.mutate_dataset('rf_cancellation', self._iter_dataset, val)
+        self._iter_dataset += 1
+        #print(val)
 
 
     def analyze(self):
         print('test done')
+        print('\ttimings: {:.4f} +/- {:.4f}'.format(np.mean(self.rf_cancellation), np.std(self.rf_cancellation)))
+        print('\trange: {:.4f}'.format(np.max(self.rf_cancellation) - np.min(self.rf_cancellation)))
+        print('\tmax: {:.4f}, min: {:.4f}'.format(np.max(self.rf_cancellation), np.min(self.rf_cancellation)))
