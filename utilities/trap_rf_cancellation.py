@@ -18,7 +18,7 @@ class TrapRFCancellation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("time_run_s",                     NumberValue(default=600, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_run_s",                     NumberValue(default=10, ndecimals=5, step=0.1, min=0, max=1000000))
 
         # trap cancellation parameters
         self.setattr_argument("time_rf_cancel_us",              NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=1000000))
@@ -34,6 +34,7 @@ class TrapRFCancellation(EnvExperiment):
         """
         # alias devices
         self.counter_trigger =                                  self.get_device('ttl4')
+        self.counter_rf =                                       self.get_device('ttl3')
         self.ttl_sw_main =                                      self.get_device('ttl12')
         self.ttl_sw_cancel =                                    self.get_device('ttl13')
 
@@ -64,6 +65,9 @@ class TrapRFCancellation(EnvExperiment):
         _handle_tmp = self.core_dma.get_handle(_DMA_HANDLE_SEQUENCE)
         self.core.break_realtime()
 
+        # tmp remove
+        tmphandle = self.core_dma.get_handle('tmpseq')
+
 
         # MAIN LOOP
         for i in self._iter_loop:
@@ -76,15 +80,36 @@ class TrapRFCancellation(EnvExperiment):
             if time_trigger_mu > 0:
 
                 # set rtio clock to input trigger time
-                at_mu(time_trigger_mu)
+                at_mu(time_trigger_mu + 1000)
                 self.core.break_realtime()
 
-                # run pulse sequence
-                self.core_dma.playback_handle(_handle_tmp)
+                # wait until next RF pulse
+                time_rf_mu = self.counter_rf.timestamp_mu(self.counter_rf.gate_rising_mu(1000))
+
+                if time_rf_mu > 0:
+                    #print(self.core.get_rtio_counter_mu() - now_mu())
+                    #self.core.break_realtime()
+                    # delay_mu(100000)
+                    # print(now_mu() - time_rf_mu)
+                    # at_mu(time_rf_mu + 1000)
+                    #self.core.break_realtime()
+
+                    at_mu(time_rf_mu + 12000)
+                    #with parallel:
+                    self.counter_rf._set_sensitivity(0)
+                    #at_mu(self.core.get_rtio_counter_mu() + 500000)
+
+                    # run pulse sequence
+                    #self.core.break_realtime()
+                    self.core_dma.playback_handle(_handle_tmp)
+                    self.core.break_realtime()
 
             # wait for next pulse
             else:
                 self.core.break_realtime()
+
+            # tmp remove
+            self.core.reset()
 
 
         # finish and unset TTLs
@@ -121,6 +146,13 @@ class TrapRFCancellation(EnvExperiment):
             with parallel:
                 self.ttl_sw_main.off()
                 self.ttl_sw_cancel.off()
+
+        # tmp remove
+        # trap sequence
+        with self.core_dma.record('tmpseq'):
+            with parallel:
+                self.counter_trigger._set_sensitivity(0)
+                self.counter_rf._set_sensitivity(1)
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
