@@ -1,5 +1,9 @@
 import numpy as np
+from numpy import int32, int64
+
 from artiq.experiment import *
+from artiq.coredevice.rtio import *
+
 _DMA_HANDLE_SEQUENCE = "TRAP_PWM_SEQUENCE"
 
 
@@ -18,7 +22,7 @@ class TrapRFCancellation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("time_run_s",                     NumberValue(default=10, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_run_s",                     NumberValue(default=120, ndecimals=5, step=0.1, min=0, max=1000000))
 
         # trap cancellation parameters
         self.setattr_argument("time_rf_cancel_us",              NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=1000000))
@@ -26,6 +30,7 @@ class TrapRFCancellation(EnvExperiment):
 
         # trigger timing
         self.setattr_argument("freq_trig_hz",                   NumberValue(default=10, ndecimals=3, step=0.1, min=0.001, max=10000))
+        self.setattr_argument("freq_rf_mhz",                    NumberValue(default=19.0435, ndecimals=7, step=0.001, min=0.000001, max=10000000))
 
 
     def prepare(self):
@@ -41,13 +46,23 @@ class TrapRFCancellation(EnvExperiment):
         # experiment runs
         self._iter_loop =                                       np.arange(int(self.time_run_s * (self.freq_trig_hz * 1)))
 
-        # trap cancellation values
-        self.time_rf_cancel_mu =                                self.core.seconds_to_mu(self.time_rf_cancel_us * us)
-        self.time_rf_restore_mu =                               self.core.seconds_to_mu(self.time_rf_restore_us * us)
-
         # trigger values
         self.time_trigger_gating_mu =                           self.core.seconds_to_mu(1 / (self.freq_trig_hz * 1))
-        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(50.88 * us)
+        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(161.36 * us)
+
+        # rf values (for synchronization)
+        self.time_rf_period_s =                                 1 / (self.freq_rf_mhz * MHz)
+        self.time_rf_gating_mu =                                self.core.seconds_to_mu(2 * self.time_rf_period_s)
+
+        # try to sync cancellation time to rf period
+        self.num_periods_cancel =                               round((self.time_rf_cancel_us * us) / self.time_rf_period_s)
+        self.num_periods_restore =                              round((self.time_rf_restore_us * us) / self.time_rf_period_s)
+        self.time_rf_cancel_mu =                                self.core.seconds_to_mu(self.num_periods_cancel * self.time_rf_period_s)
+        self.time_rf_restore_mu =                               self.core.seconds_to_mu(self.num_periods_restore * self.time_rf_period_s)
+
+        # # trap cancellation values - unsynced
+        # self.time_rf_cancel_mu =                                self.core.seconds_to_mu(self.time_rf_cancel_us * us)
+        # self.time_rf_restore_mu =                               self.core.seconds_to_mu(self.time_rf_restore_us * us)
 
 
     @kernel(flags={"fast-math"})
@@ -62,53 +77,41 @@ class TrapRFCancellation(EnvExperiment):
 
         # record dma and get handle
         self.DMArecord()
-        _handle_tmp = self.core_dma.get_handle(_DMA_HANDLE_SEQUENCE)
+        _handle_seq = self.core_dma.get_handle(_DMA_HANDLE_SEQUENCE)
         self.core.break_realtime()
-
-        # tmp remove
-        tmphandle = self.core_dma.get_handle('tmpseq')
 
 
         # MAIN LOOP
         for i in self._iter_loop:
-            self.core.break_realtime()
 
             # wait for trigger input
-            time_trigger_mu = self.counter_trigger.timestamp_mu(self.counter_trigger.gate_rising_mu(self.time_trigger_gating_mu))
+            self.counter_trigger._set_sensitivity(1)
+            time_trigger_mu = self.counter_trigger.timestamp_mu(now_mu() + self.time_trigger_gating_mu)
+            # time_trigger_mu = self.counter_trigger.timestamp_mu(self.counter_trigger.gate_rising_mu(self.time_trigger_gating_mu))
 
             # respond to trigger input
             if time_trigger_mu > 0:
 
-                # set rtio clock to input trigger time
-                at_mu(time_trigger_mu + 1000)
-                self.core.break_realtime()
+                # set rtio hardware time to input trigger time
+                at_mu(time_trigger_mu + 7000)
+                # wait until next RF pulse for synchronization
+                self.counter_rf._set_sensitivity(1)
+                time_rf_mu = self.counter_rf.timestamp_mu(now_mu() + self.time_rf_gating_mu)
+                #time_rf_mu = self.counter_rf.timestamp_mu(self.counter_rf.gate_rising_mu(200))
 
-                # wait until next RF pulse
-                time_rf_mu = self.counter_rf.timestamp_mu(self.counter_rf.gate_rising_mu(1000))
-
+                # start RF sequence
                 if time_rf_mu > 0:
-                    #print(self.core.get_rtio_counter_mu() - now_mu())
-                    #self.core.break_realtime()
-                    # delay_mu(100000)
-                    # print(now_mu() - time_rf_mu)
-                    # at_mu(time_rf_mu + 1000)
-                    #self.core.break_realtime()
+                    # set rtio hardware time to RF pulse time
+                    at_mu(time_rf_mu + 8000)
+                    # # run pulse sequence
+                    self.core_dma.playback_handle(_handle_seq)
 
-                    at_mu(time_rf_mu + 12000)
-                    #with parallel:
-                    self.counter_rf._set_sensitivity(0)
-                    #at_mu(self.core.get_rtio_counter_mu() + 500000)
-
-                    # run pulse sequence
-                    #self.core.break_realtime()
-                    self.core_dma.playback_handle(_handle_tmp)
+                    # tmp remove
+                    self.core.break_realtime()
+                    self.print_async(time_rf_mu - time_trigger_mu)
                     self.core.break_realtime()
 
-            # wait for next pulse
-            else:
-                self.core.break_realtime()
-
-            # tmp remove
+            # reset input buffers
             self.core.reset()
 
 
@@ -127,8 +130,11 @@ class TrapRFCancellation(EnvExperiment):
         # trap sequence
         with self.core_dma.record(_DMA_HANDLE_SEQUENCE):
 
-            # match trigger delay
-            delay_mu(self.time_trigger_delay_mu)
+            # stop rf counting and match trigger delay
+            with parallel:
+                self.counter_rf._set_sensitivity(0)
+                self.counter_trigger._set_sensitivity(0)
+                delay_mu(self.time_trigger_delay_mu)
 
             # rf off
             with parallel:
@@ -147,12 +153,6 @@ class TrapRFCancellation(EnvExperiment):
                 self.ttl_sw_main.off()
                 self.ttl_sw_cancel.off()
 
-        # tmp remove
-        # trap sequence
-        with self.core_dma.record('tmpseq'):
-            with parallel:
-                self.counter_trigger._set_sensitivity(0)
-                self.counter_rf._set_sensitivity(1)
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -165,6 +165,10 @@ class TrapRFCancellation(EnvExperiment):
         with parallel:
             self.ttl_sw_main.off()
             self.ttl_sw_cancel.off()
+
+    @rpc(flags={"async"})
+    def print_async(self, val):
+        print(val)
 
 
     def analyze(self):
