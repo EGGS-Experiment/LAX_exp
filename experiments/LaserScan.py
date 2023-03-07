@@ -50,6 +50,7 @@ class LaserScan2(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         # reduce attenuation/power of qubit beam to resolve lines
+        self.core.break_realtime()
         self.qubit.set_att(self.att_qubit_db * dB)
         self.core.break_realtime()
 
