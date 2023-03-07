@@ -100,11 +100,11 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # todo: document different
         # write code which initializes the relevant modules directly without RPCs
-        _initialize_code =                      "self.core.reset()"
+        _initialize_code =                      "self.core.reset()\n"
         for device_name in _initialize_device_list:
             self.setattr_device(device_name)
-            _initialize_code +=                 "self.{}.initialize_device()".format(device_name)
-            _initialize_code +=                 "self.core.break_realtime()"
+            _initialize_code +=                 "self.{}.initialize_device()\n".format(device_name)
+            _initialize_code +=                 "self.core.break_realtime()\n"
         # for subsequence_name in _initialize_subsequence_list:
         #     _initialize_code +=                 "self.{}.initialize_subsequence()".format(subsequence_name)
         #     _initialize_code +=                 "self.core.break_realtime()"
@@ -113,6 +113,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         #     _initialize_code +=                 "self.core.break_realtime()"
         # todo: somehow either get the sequence names we set them as, or pass them as objects to the kernel function
         # maybe: just look at all entities in experiment and get their names that way
+        _initialize_code += "self.core.break_realtime()"
 
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
@@ -155,7 +156,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         time1 = datetime.timestamp(datetime.now())
 
         # initialize children
-        self._initialize_experiment()
+        self._initialize_experiment(self)
 
         # tmp remove
         time2 = datetime.timestamp(datetime.now())

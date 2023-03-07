@@ -74,6 +74,7 @@ class ParameterSet(EnvExperiment):
         timing_parameters = {
             # general
             "timing.time_profileswitch_delay_us":                       1,
+            "timing.time_rescue_us":                                    1,
 
             # standard
             "timing.time_spinpol_us":                                   20,
