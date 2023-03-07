@@ -2,7 +2,8 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
-from LAX_exp.experiments.SidebandCooling import SidebandCooling2 as _SidebandCooling
+from LAX_exp.experiments.SidebandCoolingyz import _SidebandCooling2 as _SidebandCooling
+print(_SidebandCooling.__name__)
 
 
 class HeatingRate(_SidebandCooling):

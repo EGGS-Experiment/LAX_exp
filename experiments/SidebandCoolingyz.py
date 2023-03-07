@@ -7,7 +7,7 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, SidebandCool, RabiFlop, Readout
 
 
-class SidebandCooling2(LAXExperiment, Experiment):
+class _SidebandCooling2(LAXExperiment, Experiment):
     """
     Experiment: Sideband Cooling 2
 
