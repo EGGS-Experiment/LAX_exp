@@ -110,9 +110,9 @@ class TrapRFCancellation(EnvExperiment):
                     self.core_dma.playback_handle(_handle_seq)
 
                     # # save timing data
-                    # self.core.break_realtime()
-                    # self.update_dataset(time_rf_mu - time_trigger_mu)
-                    # self.core.break_realtime()
+                    self.core.break_realtime()
+                    self.update_dataset(time_rf_mu - time_trigger_mu)
+                    self.core.break_realtime()
 
             # reset input buffers
             self.core.reset()
@@ -177,11 +177,11 @@ class TrapRFCancellation(EnvExperiment):
         # save data to datasets and update iterator
         self.mutate_dataset('rf_cancellation', self._iter_dataset, val)
         self._iter_dataset += 1
-        #print(val)
+        print(val)
 
 
     def analyze(self):
         print('test done')
-        # print('\ttimings: {:.4f} +/- {:.4f}'.format(np.mean(self.rf_cancellation), np.std(self.rf_cancellation)))
-        # print('\trange: {:.4f}'.format(np.max(self.rf_cancellation) - np.min(self.rf_cancellation)))
-        # print('\tmax: {:.4f}, min: {:.4f}'.format(np.max(self.rf_cancellation), np.min(self.rf_cancellation)))
+        print('\ttimings: {:.4f} +/- {:.4f}'.format(np.mean(self.rf_cancellation), np.std(self.rf_cancellation)))
+        print('\trange: {:.4f}'.format(np.max(self.rf_cancellation) - np.min(self.rf_cancellation)))
+        print('\tmax: {:.4f}, min: {:.4f}'.format(np.max(self.rf_cancellation), np.min(self.rf_cancellation)))
