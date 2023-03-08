@@ -13,7 +13,7 @@ class Beam729(LAXDevice):
     name = "qubit"
     core_device = ('beam', 'urukul0_ch1')
     devices ={
-        'rf_switch',    'ttl22'
+        'rf_switch':    'ttl22'
     }
 
     def prepare_device(self):

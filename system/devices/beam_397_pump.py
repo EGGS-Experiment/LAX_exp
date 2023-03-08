@@ -13,7 +13,7 @@ class Beam397Pump(LAXDevice):
     name = "pump"
     core_device = ('beam', 'urukul1_ch1')
     devices ={
-        'rf_switch',    'ttl20'
+        'rf_switch':    'ttl20'
     }
 
     def prepare_device(self):

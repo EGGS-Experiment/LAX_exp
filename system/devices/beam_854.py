@@ -13,7 +13,7 @@ class Beam854(LAXDevice):
     name = "repump_qubit"
     core_device = ('beam', 'urukul1_ch3')
     devices ={
-        'rf_switch',    'ttl21'
+        'rf_switch':    'ttl21'
     }
 
     def prepare_device(self):
