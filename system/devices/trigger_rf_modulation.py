@@ -9,18 +9,17 @@ class RFSync(LAXDevice):
     Correlates PMT counts with the phase of the modulation signal.
     """
     name = "rf_sync"
-
-    parameters = {
-        'pmt_gating_edge':          ('pmt.pmt_gating_edge',                 None),
-        'rf_gating_edge':           ('rf.rfsync_gating_edge',               None),
-
-        'pmt_gating_timeout_mu':    ('pmt.pmt_gating_timeout_us',           seconds_to_mu),
-        'rf_gating_timeout_mu':     ('rf.rfsync_gating_timeout_us',         seconds_to_mu),
-    }
-    core_devices = {
+    devices = {
         'pmt':          'ttl0',
-        'rf_sync':      'ttl3'
+        'rf_sync':      'ttl4'
     }
+
+    def prepare_device(self):
+        self.pmt_gating_edge =              self.get_parameter('pmt_gating_edge', group='pmt', override=False)
+        self.rf_gating_edge =               self.get_parameter('rf_gating_edge', group='rf', override=False)
+        self.pmt_gating_timeout_mu =        self.get_parameter('pmt_gating_timeout_mu', group='pmt', override=False, conversion_function=seconds_to_mu)
+        self.rf_gating_edge =               self.get_parameter('rf_gating_edge', group='rf', override=False, conversion_function=seconds_to_mu)
+
 
     @kernel(flags={"fast-math"})
     def correlate_count(self, timeout_mu):

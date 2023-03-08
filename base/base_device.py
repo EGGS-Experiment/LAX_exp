@@ -16,12 +16,15 @@ class LAXDevice(LAXEnvironment, ABC):
 
     Attributes:
         name                    str                     : the name of the device (will be used to refer to the device by other objects).
-        core_devices            dict(str, str)          : dict of devices used where the key is the device nickname (e.g. "beam_854")
+        core_device             tuple(str, str)         : a tuple of (<device_nickname>, <actual_device_name>). All instance methods from
+                                                            this device will also become methods of this LAXDevice object.
+        devices                 dict(str, str)          : dict of devices used where the key is the device nickname (e.g. "beam_854")
                                                             and the value is the actual device name (e.g. "urukul1_ch3").
     """
     # Class attributes
     name =                  None
-    core_devices =          dict()
+    core_device =           None
+    devices =               dict()
 
 
     '''
@@ -41,7 +44,7 @@ class LAXDevice(LAXEnvironment, ABC):
         self._build_arguments = kwargs
 
         # get device(s) & set them as class attributes
-        for device_nickname, device_name in self.core_devices.items():
+        for device_nickname, device_name in self.devices.items():
             # set device as class attribute
             try:
                 device_object = self.get_device(device_name)
@@ -51,16 +54,16 @@ class LAXDevice(LAXEnvironment, ABC):
                 # logger.warning("Device unavailable: {:s}".format(device_name))
                 raise Exception("Device unavailable: {:s}".format(device_name))
 
-        # if class only uses one device, break out original device methods
-        if len(self.core_devices) == 1:
-            # verifies that a function is not magic
+        # break out core device methods
+        if self.core_device is not None:
+            # verifies that a function is not magic (i.e. a special function, e.g. "__dir__")
             isDeviceFunction = lambda func_obj: (callable(func_obj)) and (ismethod(func_obj)) and (func_obj.__name__ != "__init__")
 
             # get device
-            dev_tmp = getattr(self, list(self.core_devices.keys())[0])
+            core_dev = getattr(self, self.core_device[0])
 
             # steal all relevant methods of underlying device objects so users can directly call methods from this wrapper
-            for (function_name, function_object) in getmembers(dev_tmp, isDeviceFunction):
+            for (function_name, function_object) in getmembers(core_dev, isDeviceFunction):
                 setattr(self, function_name, function_object)
 
         # call user-defined build function

@@ -11,10 +11,7 @@ class Beam866(LAXDevice):
     Uses the DDS channel to drive an AOM.
     """
     name = "repump_cooling"
-
-    core_devices = {
-        'beam': 'urukul1_ch2'
-    }
+    core_device = ('beam', 'urukul1_ch2')
 
     def prepare_device(self):
         self.freq_repump_cooling_ftw = self.get_parameter('freq_repump_cooling_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

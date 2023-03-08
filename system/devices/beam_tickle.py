@@ -11,10 +11,7 @@ class BeamTickle(LAXDevice):
     Uses the DDS channel to apply a tickle on one of the radial
     """
     name = "tickle"
-
-    core_devices = {
-        'beam': 'urukul0_ch3'
-    }
+    core_device = ('beam', 'urukul0_ch3')
 
     def prepare_device(self):
         self.freq_tickle_ftw = hz_to_ftw(1 * MHz)

@@ -11,10 +11,7 @@ class Beam854(LAXDevice):
     Uses the DDS channel to drive an AOM.
     """
     name = "repump_qubit"
-
-    core_devices = {
-        'beam': 'urukul1_ch3'
-    }
+    core_device = ('beam', 'urukul1_ch3')
 
     def prepare_device(self):
         self.freq_repump_qubit_ftw = self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

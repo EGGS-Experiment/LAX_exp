@@ -9,13 +9,7 @@ class PMTCounter(LAXDevice):
     Wrapper for the TTL edge_counter object for the PMT.
     """
     name = "pmt"
-
-    parameters = {
-        'gating_edge':          ('pmt.gating_edge', None)
-    }
-    core_devices = {
-        'pmt': 'ttl0_counter'
-    }
+    core_device = ('pmt', 'ttl0_counter')
 
     def prepare_device(self):
         self.gating_edge = self.get_parameter('gating_edge', group='pmt', override=False)

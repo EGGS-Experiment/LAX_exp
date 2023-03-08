@@ -12,10 +12,7 @@ class Linetrigger(LAXDevice):
     Requires the AC line to already be converted into a TTL signal.
     """
     name = "linetrigger"
-
-    core_devices = {
-        'trigger': 'ttl4'
-    }
+    core_device = ('trigger', 'ttl4')
 
     def prepare_device(self):
         self.gating_edge = self.get_parameter('gating_edge', group='linetrigger', override=False)
