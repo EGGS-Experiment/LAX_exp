@@ -5,7 +5,7 @@ from LAX_exp.extensions import *
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
 
-class HeatingRate(SidebandCooling.SidebandCooling2):
+class HeatingRate(SidebandCooling.SidebandCooling):
     """
     Experiment: Heating Rate
 

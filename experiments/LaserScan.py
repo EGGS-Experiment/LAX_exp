@@ -6,9 +6,9 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
 
-class LaserScan2(LAXExperiment, Experiment):
+class LaserScan(LAXExperiment, Experiment):
     """
-    Experiment: 729nm Laser Scan2
+    Experiment: Laser Scan
 
     Gets the number of counts as a function of frequency for a fixed time.
     """

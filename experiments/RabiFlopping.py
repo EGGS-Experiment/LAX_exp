@@ -6,14 +6,14 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
 
-class RabiFlopping2(LAXExperiment, Experiment):
+class RabiFlopping(LAXExperiment, Experiment):
     """
-    Experiment: Rabi Flopping 2
+    Experiment: Rabi Flopping
 
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
-    name = 'Rabi Flopping 2'
+    name = 'Rabi Flopping'
 
     def build_experiment(self):
         # core arguments
