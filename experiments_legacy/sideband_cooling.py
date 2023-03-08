@@ -272,7 +272,7 @@ class SidebandCooling(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-        self.dds_repump_qubit_switch.on()
+        self.dds_repump_qubit_switch.off()
 
 
     @kernel(flags={"fast-math"})
@@ -285,14 +285,14 @@ class SidebandCooling(EnvExperiment):
 
             # enable 854 rf switch
             # with parallel:
-            self.dds_repump_qubit_switch.on()
+            self.dds_repump_qubit_switch.off()
             delay_mu(self.time_rfswitch_delay_mu)
             self.dds_board.cfg_switches(0b1100)
 
             # qubit repump (854) pulse
             delay_mu(self.time_repump_qubit_mu)
             # with parallel:
-            self.dds_repump_qubit_switch.on()
+            self.dds_repump_qubit_switch.off()
             self.dds_board.cfg_switches(0b0100)
             delay_mu(self.time_rfswitch_delay_mu)
 
