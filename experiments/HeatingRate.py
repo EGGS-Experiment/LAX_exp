@@ -3,11 +3,11 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 #from LAX_exp.experiments.SidebandCooling import SidebandCooling2 as _SidebandCooling
-import LAX_exp.experiments.SidebandCooling.SidebandCooling2 as _SidebandCooling
+import LAX_exp.experiments.SidebandCooling as _SidebandCooling
 print(_SidebandCooling.__name__)
 
 
-class HeatingRate(_SidebandCooling):
+class HeatingRate(_SidebandCooling.SidebandCooling2):
     """
     Experiment: Heating Rate
 
