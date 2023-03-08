@@ -49,7 +49,7 @@ class LAXDevice(LAXEnvironment, ABC):
 
             try:
                 # set device as class attribute
-                device_object = self.get_device(self.core_device[0])
+                device_object = self.get_device(device_name)
                 setattr(self, device_nickname, device_object)
                 self.kernel_invariants.add(device_nickname)
 
