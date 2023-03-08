@@ -98,7 +98,8 @@ class SidebandCool(LAXSubsequence):
                     self.qubit.set_profile(i)
 
                     # qubit pi-pulse
-                    self.qubit.cfg_sw(self.calibration_qubit_status)
+                    # todo: somehow do calib?
+                    self.qubit.on()
                     delay_mu(time_modes_mu[i - 1])
                     self.qubit.off()
 
