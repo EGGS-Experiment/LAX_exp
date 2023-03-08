@@ -12,6 +12,9 @@ class Beam729(LAXDevice):
     """
     name = "qubit"
     core_device = ('beam', 'urukul0_ch1')
+    devices ={
+        'rf_switch',    'ttl22'
+    }
 
     def prepare_device(self):
         self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
@@ -26,11 +29,24 @@ class Beam729(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def on(self):
-        self.beam.cfg_sw(True)
+        with parallel:
+            # enable RF switch onboard Urukul
+            self.beam.cfg_sw(True)
+
+            # enable external RF switch
+            with sequential:
+                self.rf_switch.off()
+                delay_mu(TIME_RFSWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def off(self):
+        # disable RF switch onboard Urukul
         self.beam.cfg_sw(False)
+
+        # disable external RF switch
+        with sequential:
+            self.rf_switch.on()
+            delay_mu(TIME_RFSWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def carrier(self):

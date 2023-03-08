@@ -18,7 +18,7 @@ class PMTCounter(LAXDevice):
         self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
         self.kernel_invariants.add('counting_method')
 
-    @kernel
+    @kernel(flags={"fast-math"})
     def count(self, time_mu):
         """
         Counts the specified gating edges for a given time.

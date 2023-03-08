@@ -12,6 +12,9 @@ class Beam397Pump(LAXDevice):
     """
     name = "pump"
     core_device = ('beam', 'urukul1_ch1')
+    devices ={
+        'rf_switch',    'ttl20'
+    }
 
     def prepare_device(self):
         # get frequency parameters
@@ -37,11 +40,26 @@ class Beam397Pump(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def on(self):
-        self.beam.cfg_sw(True)
+        with parallel:
+            # enable RF switch onboard Urukul
+            self.beam.cfg_sw(True)
+
+            # enable external RF switch
+            with sequential:
+                self.rf_switch.off()
+                delay_mu(TIME_RFSWITCH_DELAY_MU)
+
 
     @kernel(flags={"fast-math"})
     def off(self):
-        self.beam.cfg_sw(False)
+        with parallel:
+            # disable RF switch onboard Urukul
+            self.beam.cfg_sw(False)
+
+            # disable external RF switch
+            with sequential:
+                self.rf_switch.on()
+                delay_mu(TIME_RFSWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def cooling(self):

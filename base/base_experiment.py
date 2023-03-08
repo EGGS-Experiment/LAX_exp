@@ -188,16 +188,26 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         self.core.reset()
 
-        # reset qubit board
-        self.urukul0_cpld.set_profile(0)
-        self.urukul0_cpld.io_update.pulse_mu(8)
-        self.urukul0_cpld.cfg_switches(0b0000)
-        self.core.break_realtime()
+        # reset hardware to allow use
+        with parallel:
 
-        # reset main board to rescue parameters
-        self.urukul1_cpld.set_profile(2)
-        self.urukul1_cpld.io_update.pulse_mu(8)
-        self.urukul1_cpld.cfg_switches(0b1110)
+            # reset qubit board
+            with sequential:
+                self.urukul0_cpld.set_profile(0)
+                self.urukul0_cpld.io_update.pulse_mu(8)
+                self.urukul0_cpld.cfg_switches(0b0000)
+
+            # reset main board to rescue parameters
+            with sequential:
+                self.urukul1_cpld.set_profile(2)
+                self.urukul1_cpld.io_update.pulse_mu(8)
+                self.urukul1_cpld.cfg_switches(0b1110)
+
+            # enable all RF switches
+            self.ttl20.off()
+            self.ttl21.off()
+            self.ttl22.off()
+
         self.core.break_realtime()
 
     @rpc(flags={"async"})
