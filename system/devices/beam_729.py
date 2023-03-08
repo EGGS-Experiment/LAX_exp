@@ -40,13 +40,14 @@ class Beam729(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def off(self):
-        # disable RF switch onboard Urukul
-        self.beam.cfg_sw(False)
+        with parallel:
+            # disable RF switch onboard Urukul
+            self.beam.cfg_sw(False)
 
-        # disable external RF switch
-        with sequential:
-            self.rf_switch.on()
-            delay_mu(TIME_RFSWITCH_DELAY_MU)
+            # disable external RF switch
+            with sequential:
+                self.rf_switch.on()
+                delay_mu(TIME_RFSWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def carrier(self):
