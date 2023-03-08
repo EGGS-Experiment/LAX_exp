@@ -56,6 +56,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device("core_dma")
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
+        self.setattr_device('ttl20')
+        self.setattr_device('ttl21')
+        self.setattr_device('ttl22')
         setattr(self,'_result_iter', 0)
 
     def build_experiment(self):
