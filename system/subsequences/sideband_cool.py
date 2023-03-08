@@ -42,8 +42,8 @@ class SidebandCool(LAXSubsequence):
         assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
 
         # timing parameters
-        self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
-        self.time_spinpol_mu = self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_repump_qubit_mu =         self.get_parameter('time_repump_qubit_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_spinpol_mu =              self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
         # calibration setup
         self.calibration_qubit_status =                                 not self.calibration
