@@ -17,20 +17,24 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate wait times
-        self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 2]))
+        self.setattr_argument("time_heating_rate_ms_list",                      PYONValue([1, 2]))
 
         # run regular sideband cooling build
         super().build_experiment()
 
     def prepare_experiment(self):
         # convert heating rate timings to machine units
-        self.time_heating_rate_mu_list =                                np.array([seconds_to_mu(time_ms * ms)
-                                                                                  for time_ms in self.time_heating_rate_ms_list],
-                                                                                 dtype=np.int64)
+        self.time_heating_rate_mu_list =                                        np.array([seconds_to_mu(time_ms * ms)
+                                                                                          for time_ms in self.time_heating_rate_ms_list], dtype=np.int64)
 
         # run regular sideband cooling prepare
         super().prepare_experiment()
-        # todo: think about how to do dataset setup since prepare sets up datasets
+
+
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.time_heating_rate_mu_list) * len(self.freq_readout_ftw_list),
+                3)
 
     # MAIN SEQUENCE
     @kernel
@@ -69,7 +73,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
                     # update dataset
                     with parallel:
-                        self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count())
+                        self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
                         self.core.break_realtime()
 
             self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)

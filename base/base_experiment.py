@@ -4,8 +4,8 @@ import os
 import time
 import h5py
 import logging
-from abc import ABC
 from numpy import array
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
 
@@ -133,13 +133,12 @@ class LAXExperiment(LAXEnvironment, ABC):
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
         # need: wavemeter frequencies, DDS attenuation, B-fields
 
-        # todo: create dataset to hold results
-        # todo: maybe specify dimensionality of results
-        #self.set_dataset('results', list())
-        #self.setattr_dataset('results')
-
         # call prepare methods of all child objects
         self.call_child_method('prepare')
+
+        # create dataset for results
+        self.set_dataset('results', self.results_shape)
+        self.setattr_dataset('results')
 
     def prepare_experiment(self):
         """
@@ -165,7 +164,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         # tmp remove
         time1 = datetime.timestamp(datetime.now())
 
-        # initialize children
+        # call initialize_* functions for all children in order of abstraction level (lowest first)
         self._initialize_experiment(self)
 
         # tmp remove
@@ -173,9 +172,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         print('\tinitialize time: {:.2f}'.format(time2-time1))
 
         # call user-defined initialize function
+        # todo: see if we can move this into _initialize_experiment for speed
         self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
+        # todo: move _load_dma onto initialize for speed
         self.call_child_method('_load_dma')
 
         # run the main part of the experiment
@@ -189,13 +190,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Call the initialize functions of devices and sub/sequences (in that order).
         """
-        # todo: see if necessary
-        # self.core.break_realtime()
-        # self.urukul1_cpld.cfg_sw(0b1111)
-        # delay_mu(1000000000)
-        # print('scde1243')
-        # self.urukul1_cpld.cfg_sw(0b0000)
-        # self.core.break_realtime()
         pass
 
     @kernel(flags={"fast-math"})
@@ -226,18 +220,6 @@ class LAXExperiment(LAXEnvironment, ABC):
             self.ttl22.off()
 
         self.core.break_realtime()
-
-    @rpc(flags={"async"})
-    def update_dataset(self, *args):
-        """
-        Records data from the main sequence in the experiment dataset.
-
-        Parameters passed to this function will be converted into a 1D array and added to the dataset.
-        For efficiency, data is added by mutating indices of a preallocated dataset.
-        Contains an internal iterator to keep track of the current index.
-        """
-        self.results[self._result_iter] = array(args)
-        self._result_iter += 1
 
     def initialize_experiment(self):
         """
@@ -277,6 +259,25 @@ class LAXExperiment(LAXEnvironment, ABC):
     '''
     Results
     '''
+    @rpc(flags={"async"})
+    def update_results(self, *args):
+        """
+        Records data from the main sequence in the experiment dataset.
+
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
+        """
+        self.results[self._result_iter] = array(args)
+        self._result_iter += 1
+
+    @property
+    @abstractmethod
+    def results_shape(self):
+        """
+        todo: document
+        """
+        pass
 
     def write_results(self, exp_params):
         """

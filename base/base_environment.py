@@ -121,7 +121,7 @@ class LAXEnvironment(HasEnvironment, ABC):
             else:
                 parameter_value = self.__dataset_mgr.get(key, False, parameter=True)
 
-            # get parameter from _build_arguments
+            # get parameter from _build_arguments only if override is True
             if (override is True) and (key in self._build_arguments):
                 parameter_value = self._build_arguments[key]
                 self.__dataset_mgr.set(key, parameter_value, archive=False, parameter=True, argument=False)

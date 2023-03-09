@@ -9,22 +9,34 @@ class RamseySpectroscopy(LAXSubsequence):
     """
     Subsequence: Ramsey Spectroscopy
 
-    Cool the ion to the doppler limit using the pump beam.
+    Do two pi/2 pulses, separated by a given delay.
     """
     name = 'ramsey_spectroscopy'
 
     def build_subsequence(self):
-        self.setattr_device('pump')
+        # get devices
+        self.setattr_device('qubit')
+
+        # get argume
+        self.setattr_argument('time_half_pipulse_us',                   NumberValue(default=125, ndecimals=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
+        self.setattr_argument('time_ramsey_delay_us',                   NumberValue(default=1000, ndecimals=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
 
     def prepare_subsequence(self):
-        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        # convert parameters to machine units
+        self.time_half_pipulse_mu =                                     self.core.seconds_to_mu(self.time_half_pipulse_us * us)
+        self.time_ramsey_delay_mu =                                     self.core.seconds_to_mu(self.time_ramsey_delay_mu * mu)
 
     @kernel(flags={"fast-math"})
     def run(self):
-        # set cooling waveform
-        self.pump.cooling()
+        # initial pi/2 pulse
+        self.qubit.on()
+        delay_mu(self.time_half_pipulse_mu)
+        self.qubit.off()
 
-        # doppler cooling
-        self.pump.on()
-        delay_mu(self.time_doppler_cooling_mu)
-        self.pump.off()
+        # ramsey delay
+        delay_mu(self.time_ramsey_delay_mu)
+
+        # final pi/2 pulse
+        self.qubit.on()
+        delay_mu(self.time_half_pipulse_mu)
+        self.qubit.off()
