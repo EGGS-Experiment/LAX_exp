@@ -6,7 +6,7 @@ __all__ = []
 
 # general
 from LAX_exp.system.subsequences.rescue_ion import RescueIon
-from LAX_exp.system.subsequences.cleanupo import Cleanup
+from LAX_exp.system.subsequences.cleanup import Cleanup
 __all__.extend(['RescueIon', 'Cleanup'])
 
 
