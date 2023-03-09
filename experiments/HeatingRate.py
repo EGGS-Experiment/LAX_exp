@@ -24,7 +24,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def prepare_experiment(self):
         # convert heating rate timings to machine units
-        self.time_heating_rate_mu_list =                                np.array(seconds_to_mu(self.time_heating_rate_mu_list * ms), dtype=np.int64)
+        self.time_heating_rate_mu_list =                                np.array([seconds_to_mu(time_ms * ms)
+                                                                                  for time_ms in self.time_heating_rate_ms_list],
+                                                                                 dtype=np.int64)
 
         # run regular sideband cooling prepare
         super().prepare_experiment()
@@ -38,10 +40,10 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         for trial_num in range(self.repetitions):
 
             # sweep times to measure heating rate
-            for time_heating_delay_mu in self.time_heating_rate_list_mu:
+            for time_heating_delay_mu in self.time_heating_rate_mu_list:
 
                 # sweep frequency
-                for freq_ftw in self.freq_qubit_scan_ftw:
+                for freq_ftw in self.freq_readout_ftw_list:
 
                     # set frequency
                     self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
