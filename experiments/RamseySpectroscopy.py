@@ -65,14 +65,17 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     def run_main(self):
         for trial_num in range(self.repetitions):
 
-            # sweep time
-            for time_rabi_pair_mu in self.freq_rabiflop_ftw:
+            # sweep ramsey detunings
+            for freq_ftw in self.freq_ramsey_ftw_list:
+
+                # set ramsey detuning
+                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # do ramsey spectroscopy
+                # do ramsey sequence
                 self.ramsey_subsequence.run_dma()
 
                 # do readout
