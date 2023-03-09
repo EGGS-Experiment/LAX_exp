@@ -31,6 +31,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # run regular sideband cooling prepare
         super().prepare_experiment()
         # todo: think about how to do dataset setup since prepare sets up datasets
+        self.set_dataset('results',                                     np.zeros((self.repetitions * len(self.time_heating_rate_mu_list)* len(list(self.freq_readout_ftw_list)),
+                                                                                  3)))
+        self.setattr_dataset('results')
 
     # MAIN SEQUENCE
     @kernel
@@ -69,7 +72,12 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
                     # update dataset
                     with parallel:
-                        self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count())
+                        self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
                         self.core.break_realtime()
 
             self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)
+
+    @rpc(flags={"async"})
+    def update_dataset(self, freq_ftw, counts, time_heating_mu):
+        self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw) / MHz, counts, self.core.mu_to_seconds(time_heating_mu)])
+        self._result_iter += 1

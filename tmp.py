@@ -29,77 +29,38 @@ class testarg12(EnvExperiment):
         #                                                                     unit="MHz", scale=1, ndecimals=5
         #                                                                 ))
 
-        # self.setattr_device("core_dma")
-        # self.setattr_device('urukul1_ch0')
-
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
     def prepare(self):
-        # arg vals
-        self.set_dataset('timing.time_rescue_us', 0.2, persist=True, broadcast=True)
-        # self.num_counts =           1
-        # self.pwm_duty_cycle_pct =   50
-        # self.pwm_freq_hz =          100000
-        # self.time_holdoff_ns =      10
-        #
-        # # tmp remove
-        # self.time_pulseoff_us =     20
-        # self.time_pulseoff_mu =     self.core.seconds_to_mu(self.time_pulseoff_us * us)
-        #
-        # # exp vals
-        # self._iter_loop =           np.arange(self.num_counts)
-        # self._handle_dma =          "TMP_DMA"
-        #
-        # # conv vals
-        # self.pwm_delay_on_mu =      self.core.seconds_to_mu((self.pwm_duty_cycle_pct / 100) / self.pwm_freq_hz)
-        # self.pwm_delay_off_mu =     self.core.seconds_to_mu((1 - self.pwm_duty_cycle_pct / 100) / self.pwm_freq_hz)
-        # self.time_holdoff_mu =      self.core.seconds_to_mu(self.time_holdoff_ns * ns)
-        #
-        # # alias devices
-        # self.ttl_rf =               self.get_device('ttl10')
-        # self.ttl_os =               self.get_device('ttl11')
-        # self.ttl_sw =               self.get_device('ttl12')
+        self.setattr_device('urukul0_cpld')
+        self.setattr_device('urukul0_ch0')
+        self.delayth = np.int64(100)
 
 
+    # @kernel(flags={"fast-math"})
     @kernel
     def run(self):
-        pass
-        # todo: record dma
-        #
-        # # reset
-        # self.core.reset()
-        # # with parallel:
-        # self.ttl_rf.off()
-        # self.ttl_os.off()
-        # self.ttl_sw.off()
-        # delay_mu(5000)
-        #
-        # # trigger scope
-        # self.ttl_os.on()
-        # delay_mu(self.time_holdoff_mu)
+        self.core.reset()
+        #self.core.break_realtime()
 
-        # # blank PWM
-        # for i in self._iter_loop:
-        #     self.ttl_sw.on()
-        #     delay_mu(self.pwm_delay_on_mu)
-        #     self.ttl_sw.off()
-        #     delay_mu(self.pwm_delay_off_mu)
+        #at_mu(now_mu())
+        self.urukul0_ch0.set_mu(472446402, asf=3276)
+        #delay_mu(10)
+        self.urukul0_ch0.set_mu(515396075, asf=3276)
+        #delay_mu(10)
+        self.urukul0_ch0.set_mu(558345748, asf=3276)
+        #delay_mu(10)
 
-        # one-shot pulse
-        # self.ttl_sw.on()
-        # delay_mu(self.time_pulseoff_mu)
-        # self.ttl_sw.off()
-        # delay_mu(self.time_pulseoff_mu)
-        #
-        # # unset
-        # self.ttl_rf.off()
-        # self.ttl_os.off()
-        # self.ttl_sw.off()
+        self.core.break_realtime()
 
     @kernel
     def recordDMA(self):
         pass
+
+    @rpc(flags={"async"})
+    def print_rpc(self, text):
+        print(text)
 
     def analyze(self):
         print('test done')
