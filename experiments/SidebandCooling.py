@@ -13,8 +13,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     Measures temperature after a given number of RSB pulses.
     """
-
     name = 'Sideband Cooling'
+
 
     def build_experiment(self):
         # core arguments

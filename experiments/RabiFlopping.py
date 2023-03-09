@@ -12,8 +12,8 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
-
     name = 'Rabi Flopping'
+
 
     def build_experiment(self):
         # core arguments

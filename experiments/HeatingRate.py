@@ -12,8 +12,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     Measures the heating rate by doing sideband cooling, then waiting
     a variable amount of time before readout.
     """
-
     name = 'Heating Rate'
+
 
     def build_experiment(self):
         # heating rate wait times

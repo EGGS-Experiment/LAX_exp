@@ -12,8 +12,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     Measures ion fluorescence after conducting a Ramsey Spectroscopy sequence.
     """
-
     name = 'Ramsey Spectroscopy'
+
 
     def build_experiment(self):
         # core arguments

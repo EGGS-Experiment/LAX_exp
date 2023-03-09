@@ -9,7 +9,6 @@ from LAX_exp.system.subsequences.rescue_ion import RescueIon
 from LAX_exp.system.subsequences.cleanup import Cleanup
 __all__.extend(['RescueIon', 'Cleanup'])
 
-
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
 from LAX_exp.system.subsequences.sideband_cool import SidebandCool
@@ -28,4 +27,5 @@ __all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout
-__all__.extend(['Readout'])
+from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
+__all__.extend(['AbsorptionProbe'])

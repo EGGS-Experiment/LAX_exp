@@ -13,7 +13,7 @@ class LaserScan(LAXExperiment, Experiment):
     Gets the number of counts as a function of frequency for a fixed time.
     """
 
-    name = 'Laser Scan 2'
+    name = 'Laser Scan'
 
     def build_experiment(self):
         # core arguments
