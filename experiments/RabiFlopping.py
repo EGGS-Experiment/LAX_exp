@@ -53,7 +53,7 @@ class RabiFlopping(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -67,6 +67,8 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
+        self.core.reset()
+
         for trial_num in range(self.repetitions):
 
             # sweep time

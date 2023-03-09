@@ -4,13 +4,14 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
 # todo: on/off, set carrier via DUC, pulse shape
 
+
 class PhaserEGGS(LAXDevice):
     """
     Device: Phaser (EGGS)
 
     Use the Phaser AWG to create the EGGS RF
     """
-    name = "pump"
+    name = "phaser_eggs"
     core_device = ('beam', 'phaser0')
 
     def prepare_device(self):

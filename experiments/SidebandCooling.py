@@ -63,7 +63,7 @@ class SidebandCooling(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel
     def initialize_experiment(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()

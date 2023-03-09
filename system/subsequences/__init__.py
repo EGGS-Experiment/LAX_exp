@@ -4,11 +4,16 @@ Contains specifically constructed subsequences for LAX.
 
 __all__ = []
 
+# general
+from LAX_exp.system.subsequences.rescue_ion import RescueIon
+from LAX_exp.system.subsequences.cleanupo import Cleanup
+__all__.extend(['RescueIon', 'Cleanup'])
+
+
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
 from LAX_exp.system.subsequences.sideband_cool import SidebandCool
-from LAX_exp.system.subsequences.rescue_ion import RescueIon
-__all__.extend(['DopplerCool', 'SidebandCool', 'RescueIon'])
+__all__.extend(['DopplerCool', 'SidebandCool'])
 
 # state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization
