@@ -34,8 +34,8 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
         calib_timestamp = datetime.timestamp(datetime.now())
-        th0 = np.arange(85,135,2)
-        th1 = np.array([0.15625, 0.140625, 0.125, 0.1171875, 0.109375, 0.109375,
+        th0 = np.arange(85,137,2)
+        th1 = np.array([0.15625, 0.15625, 0.140625, 0.125, 0.1171875, 0.109375, 0.109375,
                         0.109375, 0.1171875, 0.1171875, 0.109375, 0.109375, 0.109375,
                         0.1171875, 0.125, 0.125, 0.125, 0.1328125, 0.140625, 0.140625,
                         0.15625, 0.171875, 0.203125, 0.25, 0.28125, 0.34375]) * 100

@@ -17,23 +17,25 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
-                                                                            default=RangeScan(80, 140, 25, randomize=True),
-                                                                            global_min=10, global_max=200, global_step=1,
+                                                                            default=RangeScan(85, 135, 50, randomize=True),
+                                                                            global_min=85, global_max=135, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
         # relevant devices
+        self.setattr_device('pump')
         self.setattr_device('repump_cooling')
+        self.setattr_device('pmt')
 
         # subsequences
         self.probe_subsequence =                                        AbsorptionProbe(self)
 
     def prepare_experiment(self):
         # convert probe frequency scans
-        self.freq_probe_scan_mhz =                                      np.array([freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_mhz =                                      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
         self.freq_probe_scan_ftw =                                      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
         # get amplitude calibration curve from dataset maanger and interpolate the points
@@ -43,8 +45,8 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # get calibrated amplitude values
-        ampl_probe_scan_pct =                                           ampl_calib_curve(self.freq_probe_scan_mhz)
-        self.ampl_probe_scan_asf =                                      pct_to_asf(ampl_probe_scan_pct)
+        ampl_probe_scan_pct =                                           np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
+        self.ampl_probe_scan_asf =                                      np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
 
         # set up probe waveform config
         self.waveform_probe_scan =                                      np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
@@ -90,7 +92,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_results(freq_ftw, 1, self.readout_subsequence.fetch_count())
+                    self.update_results(freq_ftw, 1, self.pmt.fetch_count())
                     self.core.break_realtime()
 
                 # disable cooling repump (to measure background)
@@ -101,5 +103,5 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_results(freq_ftw, 0, self.readout_subsequence.fetch_count())
+                    self.update_results(freq_ftw, 0, self.pmt.fetch_count())
                     self.core.break_realtime()
