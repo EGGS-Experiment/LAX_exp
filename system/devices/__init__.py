@@ -18,6 +18,10 @@ __all__.extend([
     'BeamTickle'
 ])
 
+# AWG
+from LAX_exp.system.devices.phaser_eggs import PhaserEGGS
+__all__.extend(['PhaserEGGS'])
+
 # PMT
 from LAX_exp.system.devices.pmt import PMTCounter
 __all__.extend(['PMTCounter'])

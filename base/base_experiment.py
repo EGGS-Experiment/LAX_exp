@@ -4,16 +4,18 @@ import os
 import time
 import h5py
 import logging
-from abc import ABC
-from numpy import array
+from numpy import array, zeros
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
 
-from LAX_exp.base import LAXBase
-from LAX_exp.base.manager_wrappers import LAXDeviceManager, LAXDatasetManager
+from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
+
+# tmp remove
+from datetime import datetime
 
 
-class LAXExperiment(LAXBase, ABC):
+class LAXExperiment(LAXEnvironment, ABC):
     """
     Base class for experiment objects.
 
@@ -21,29 +23,17 @@ class LAXExperiment(LAXBase, ABC):
     Instantiates and initalizes all relevant devices, sequences, and subsequences.
 
     Attributes:
-        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        devices                     list(LAXDevice)         : list of devices used by the subsequence.
     """
-    instance_number = 0
+    # Class attributes
+    name =                  None
+    _dma_count =            0
+
 
     '''
     BUILD
     '''
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # wrap manager objects
-        self._HasEnvironment__device_mgr = LAXDeviceManager(self._HasEnvironment__device_mgr, self)
-        self._HasEnvironment__dataset_mgr = LAXDatasetManager(self._HasEnvironment__dataset_mgr, self)
-
-        # save wrapped manager objects as private variables
-        self.__device_mgr = self._HasEnvironment__device_mgr
-        self.__dataset_mgr = self._HasEnvironment__dataset_mgr
-
-
-    # BUILD - BASE
     def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
@@ -66,13 +56,11 @@ class LAXExperiment(LAXBase, ABC):
         self.setattr_device("core_dma")
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
+        self.setattr_device('ttl20')
+        self.setattr_device('ttl21')
+        self.setattr_device('ttl22')
         setattr(self,'_result_iter', 0)
 
-        # universal arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
-
-
-    # BUILD - USER FUNCTIONS
     def build_experiment(self):
         """
         To be subclassed.
@@ -87,7 +75,6 @@ class LAXExperiment(LAXBase, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         General construction of the experiment object.
@@ -96,43 +83,65 @@ class LAXExperiment(LAXBase, ABC):
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
             values computed only in prepare_experiment.
         """
+        # store arguments in dataset manager
+        self._save_arguments()
+
+        # call user-defined prepare function
         self.prepare_experiment()
-        self._prepare_experiment()
 
-    def _prepare_experiment(self):
-        """
-        General construction of the experiment object.
-        Must happen after the user-defined prepare_experiment method.
-        """
-        # add arguments to the dataset manager
-        for arg_key in self._build_arguments.keys():
+        # collate initialize functions to speed up initialization
+        # note: devices should be initialized first
+        _initialize_device_list =               [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXDevice)]
+        _initialize_subsequence_list =          [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXSubsequence)]
+        _initialize_sequence_list =             [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXSequence)]
 
-            try:
-                arg_val = getattr(self, arg_key)
 
-                # convert scan objects into an array
-                if issubclass(type(arg_val), ScanObject):
-                    arg_val = array(list(arg_val))
+        # write code which initializes the relevant modules entirely on the kernel, without any RPCs
+        _initialize_code =                      "self.core.reset()\n"
 
-                self.__dataset_mgr.set(arg_key, arg_val, archive=False, parameter=False, argument=True)
-            except KeyError:
-                logger.warning("Argument unavailable: {:s}".format(arg_val))
+        # code to initialize devices
+        for i, obj in enumerate(_initialize_device_list):
+            if isinstance(obj, LAXDevice):
+                setattr(self, '_LAXDevice_{}'.format(i), obj)
+                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
+
+        # code to initialize subsequences
+        for i, obj in enumerate(_initialize_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
+                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
+
+        # code to initialize sequences
+        for i, obj in enumerate(_initialize_sequence_list):
+            if isinstance(obj, LAXSequence):
+                setattr(self, '_LAXSequence_{}'.format(i), obj)
+                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
+        _initialize_code += "self.core.break_realtime()"
+
+        # create kernel from code string and set as _initialize_experiment
+        initialize_func = kernel_from_string(["self"], _initialize_code)
+        setattr(self, '_initialize_experiment', initialize_func)
+
 
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
-        # need: wavemeter frequencies
-        # need: DDS attenuation
-        # need: B-fields
+        # need: wavemeter frequencies, DDS attenuation, B-fields
 
-        # create dataset to hold results
-        #self.set_dataset('results', list())
-        #self.setattr_dataset('results')
 
-        # prepare children
+        # call prepare methods of all child objects
         self.call_child_method('prepare')
 
 
-    # PREPARE - USER FUNCTIONS
+        # create dataset for results
+        self.set_dataset('results', zeros(self.results_shape))
+        self.setattr_dataset('results')
+
     def prepare_experiment(self):
         """
         To be subclassed.
@@ -146,19 +155,30 @@ class LAXExperiment(LAXBase, ABC):
     RUN
     '''
 
-    # RUN - BASE
     def run(self):
         """
         Main sequence of the experiment.
         Repeat a given sequence a number of times.
         """
-        # todo: completion monitor stuff
+        # set up completion monitor
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # set up the run
-        self.run_initialize()
+        # tmp remove
+        time1 = datetime.timestamp(datetime.now())
+
+        # call initialize_* functions for all children in order of abstraction level (lowest first)
+        self._initialize_experiment(self)
+
+        # tmp remove
+        time2 = datetime.timestamp(datetime.now())
+        print('\tinitialize time: {:.2f}'.format(time2-time1))
+
+        # call user-defined initialize function
+        # todo: see if we can move this into _initialize_experiment for speed
+        self.initialize_experiment()
 
         # get DMA handles for subsequences recorded onto DMA
+        # todo: move _load_dma onto initialize for speed
         self.call_child_method('_load_dma')
 
         # run the main part of the experiment
@@ -168,32 +188,42 @@ class LAXExperiment(LAXBase, ABC):
         self._run_cleanup()
 
     @kernel(flags={"fast-math"})
+    def _initialize_experiment(self):
+        """
+        Call the initialize functions of devices and sub/sequences (in that order).
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
     def _run_cleanup(self):
         """
         Set all devices back to their original state.
         """
+        self.core.reset()
+
+        # reset hardware to allow use
+        with parallel:
+
+            # reset qubit board
+            with sequential:
+                self.urukul0_cpld.set_profile(0)
+                self.urukul0_cpld.io_update.pulse_mu(8)
+                self.urukul0_cpld.cfg_switches(0b0000)
+
+            # reset main board to rescue parameters
+            with sequential:
+                self.urukul1_cpld.set_profile(2)
+                self.urukul1_cpld.io_update.pulse_mu(8)
+                self.urukul1_cpld.cfg_switches(0b1110)
+
+            # enable all RF switches
+            self.ttl20.off()
+            self.ttl21.off()
+            self.ttl22.off()
+
         self.core.break_realtime()
-        self.urukul0_cpld.set_profile(0)
-        self.urukul0_cpld.cfg_switches(0b0000)
-        self.core.break_realtime()
-        self.urukul1_cpld.cfg_switches(0b1110)
-        self.core.break_realtime()
 
-    @rpc(flags={"async"})
-    def update_dataset(self, *args):
-        """
-        Records data from the main sequence in the experiment dataset.
-
-        Parameters passed to this function will be converted into a 1D array and added to the dataset.
-        For efficiency, data is added by mutating indices of a preallocated dataset.
-        Contains an internal iterator to keep track of the current index.
-        """
-        self.results[self._result_iter] = array(args)
-        self._result_iter += 1
-
-
-    # RUN - USER FUNCTIONS
-    def run_initialize(self):
+    def initialize_experiment(self):
         """
         To be subclassed.
 
@@ -208,17 +238,18 @@ class LAXExperiment(LAXBase, ABC):
         todo: document
         """
         # repeat the experiment a given number of times
+        # todo: repetitions sort out
         for trial_num in range(self.repetitions):
 
             # run the trial
             try:
-                self.loop()
+                self.run_loop()
 
             # allow clean termination
             except TerminationRequested:
                 break
 
-    def loop(self):
+    def run_loop(self):
         """
         To be subclassed.
 
@@ -230,6 +261,25 @@ class LAXExperiment(LAXBase, ABC):
     '''
     Results
     '''
+    @rpc(flags={"async"})
+    def update_results(self, *args):
+        """
+        Records data from the main sequence in the experiment dataset.
+
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
+        """
+        self.mutate_dataset('results', self._result_iter, array(args))
+        self._result_iter += 1
+
+    @property
+    @abstractmethod
+    def results_shape(self):
+        """
+        todo: document
+        """
+        pass
 
     def write_results(self, exp_params):
         """
@@ -260,7 +310,7 @@ class LAXExperiment(LAXBase, ABC):
                 with h5py.File(filename, "w") as f:
 
                     # save data from experiment via the dataset manager of the LAXExperiment
-                    self.__dataset_mgr.write_hdf5(f)
+                    self._LAXEnvironment__dataset_mgr.write_hdf5(f)
 
                     # store experiment parameters in a separate group as attributes
                     experiment_group = f.create_group("experiment")

@@ -6,26 +6,27 @@ from LAX_exp.base import LAXDevice
 
 class Beam397Probe(LAXDevice):
     """
-    Wrapper for the 397nm probe beam (polarized).
-        Uses the DDS channel to drive an AOM in double-pass configuration.
+    Device: Probe Beam (397nm, polarized)
+
+    Uses the DDS channel to drive an AOM in double-pass configuration.
     """
     name = "probe"
+    core_device = ('beam', 'urukul1_ch0')
 
-    parameters = {
-        'freq_spinpol_ftw':          ('beams.freq_mhz.freq_probe_spinpol_mhz',      mhz_to_ftw),
-        'ampl_spinpol_asf':          ('beams.ampl_pct.ampl_probe_spinpol_pct',      pct_to_asf)
-    }
-    core_devices = {
-        'beam': 'urukul1_ch0'
-    }
+    def prepare_device(self):
+        self.freq_spinpol_ftw = self.get_parameter('freq_probe_spinpol_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
+        self.ampl_spinpol_asf = self.get_parameter('ampl_probe_spinpol_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def prepare_device(self):
+    def initialize_device(self):
         # set cooling and readout profiles
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
+        self.core.break_realtime()
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=2)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def on(self):

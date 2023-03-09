@@ -6,47 +6,35 @@ from LAX_exp.base import LAXDevice
 
 class Linetrigger(LAXDevice):
     """
+    Device: Linetrigger
+
     Triggers an event off the AC line.
         Requires the AC line to already be converted into a TTL signal.
     """
     name = "linetrigger"
+    core_device = ('trigger', 'ttl5')
 
-    # todo: have an ms to mu function instead maybe???
-    parameters = {
-        'gating_edge':                  ('linetrigger.gating_edge',                 None),
-        'time_timeout_mu':              ('linetrigger.time_timeout_ms',             seconds_to_mu),
-        'time_holdoff_mu':              ('linetrigger.time_holdoff_us',             seconds_to_mu),
-    }
-    core_devices = {
-        'trigger': 'ttl4'
-    }
-
-
-    @kernel(flags={"fast-math"})
     def prepare_device(self):
-        self.trigger.input()
-
+        # get triggering parameters
+        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=ms)
+        self.time_holdoff_mu = self.get_parameter('time_holdoff_us', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def trigger(self):
         """
         Block until either the timeout period is reached, or a TTL edge is detected.
         """
-        # wait for PMT count
-        self.trigger._set_sensitivity(1)
-        time_input_mu = self.trigger.timestamp_mu(self.time_timeout_mu)
+        self.core.break_realtime()
 
-        # check if event has fired
-        if time_input_mu > 0:
+        # wait for trigger input
+        time_trigger_mu = self.counter_trigger.timestamp_mu(self.trigger.gate_rising_mu(self.time_timeout_mu))
 
-            # set RTIO time
-            at_mu(time_input_mu)
+        # respond to trigger input
+        if time_trigger_mu > 0:
 
-            # close gating and add holdoff
-            with parallel:
-                self.trigger._set_sensitivity(0)
-                delay_mu(self.holdoff_mu)
+            # set rtio hardware time to input trigger time
+            at_mu(time_trigger_mu + self.time_holdoff_mu)
+            return time_trigger_mu
 
-            return time_input_mu
-
+        # if no input detected, return -1
         return -1

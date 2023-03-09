@@ -7,20 +7,20 @@ from LAX_exp.base import LAXSubsequence
 class SpinPolarization(LAXSubsequence):
     """
     Subsequence: Spin Polarization
-        Place the ion in the S-1/2 mj=-1/2 state using the polarized 397 probe beam.
+
+    Place the ion in the S-1/2 mj=-1/2 state using the polarized 397 probe beam.
     """
     name = 'spin_polarization'
 
-    parameters = {
-        'time_spinpol_mu':                   ('timing.time_spinpol_us',                   us_to_mu)
-    }
-    devices = [
-        'probe'
-    ]
-    
+    def build_subsequence(self):
+        self.setattr_device('probe')
+
+    def prepare_subsequence(self):
+        self.time_spinpol_mu = self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+
     @kernel(flags={"fast-math"})
     def run(self):
         # probe pulse
-        self.probe.cfg_sw(True)
+        self.probe.on()
         delay_mu(self.time_spinpol_mu)
-        self.probe.cfg_sw(False)
+        self.probe.off()

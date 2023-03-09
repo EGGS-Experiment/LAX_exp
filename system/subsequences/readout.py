@@ -7,17 +7,17 @@ from LAX_exp.base import LAXSubsequence
 class Readout(LAXSubsequence):
     """
     Subsequence: Readout
-        Read out the ion state by shining the pump beam and reading fluorescence via PMT counts.
+
+    Read out the ion state by shining the pump beam and reading fluorescence via PMT counts.
     """
     name = 'readout'
 
-    devices = [
-        'pump',
-        'pmt'
-    ]
-    parameters = {
-        'time_readout_mu':                  ('timing.time_readout_us',                  us_to_mu)
-    }
+    def build_subsequence(self):
+        self.setattr_device('pump')
+        self.setattr_device('pmt')
+
+    def prepare_subsequence(self):
+        self.time_readout_mu = self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -25,9 +25,9 @@ class Readout(LAXSubsequence):
         self.pump.readout()
 
         # readout pulse
-        self.pump.cfg_sw(True)
+        self.pump.on()
         self.pmt.count(self.time_readout_mu)
-        self.pump.cfg_sw(False)
+        self.pump.off()
 
     @kernel(flags={"fast-math"})
     def fetch_count(self):

@@ -7,16 +7,16 @@ from LAX_exp.base import LAXSubsequence
 class DopplerCool(LAXSubsequence):
     """
     Subsequence: Doppler Cooling
-        Cool the ion to the doppler limit using the pump beam.
+
+    Cool the ion to the doppler limit using the pump beam.
     """
     name = 'doppler_cool'
 
-    parameters = {
-        'time_doppler_cooling_mu':          ('timing.time_doppler_cooling_us',          us_to_mu)
-    }
-    devices = [
-        'pump'
-    ]
+    def build_subsequence(self):
+        self.setattr_device('pump')
+
+    def prepare_subsequence(self):
+        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -24,6 +24,6 @@ class DopplerCool(LAXSubsequence):
         self.pump.cooling()
 
         # doppler cooling
-        self.pump.cfg_sw(True)
+        self.pump.on()
         delay_mu(self.time_doppler_cooling_mu)
-        self.pump.cfg_sw(False)
+        self.pump.off()

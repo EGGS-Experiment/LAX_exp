@@ -4,6 +4,11 @@ Contains specifically constructed subsequences for LAX.
 
 __all__ = []
 
+# general
+from LAX_exp.system.subsequences.rescue_ion import RescueIon
+from LAX_exp.system.subsequences.cleanup import Cleanup
+__all__.extend(['RescueIon', 'Cleanup'])
+
 
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
@@ -18,7 +23,8 @@ __all__.extend(['SpinPolarization', 'InitializeQubit'])
 # state manipulation
 from LAX_exp.system.subsequences.tickle import Tickle
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
-__all__.extend(['Tickle', 'RabiFlop'])
+from LAX_exp.system.subsequences.ramsey import Ramsey
+__all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout

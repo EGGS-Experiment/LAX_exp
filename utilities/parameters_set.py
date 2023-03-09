@@ -7,7 +7,7 @@ class ParameterSet(EnvExperiment):
     Sets all relevant parameters (persistent) for experiment.
     """
 
-    def build(self):
+    def prepare(self):
         """
         Set devices and arguments for the experiment.
         """
@@ -15,14 +15,12 @@ class ParameterSet(EnvExperiment):
         # readout parameters
         readout_parameters = {
             # PMT
-            "pmt.pmt_input_channel":                                    0,
-            "pmt.pmt_gating_edge":                                      "rising",
-            "pmt.pmt_discrimination":                                   11,
+            "pmt.gating_edge":                                          "rising",
 
             # todo: distinguish between the 3 photodiodes
             # photodiode
-            "photodiode.photodiode_channel_sampler":                    0,
-            "photodiode.photodiode_gain":                               1
+            "photodiode.sampler_channel":                               0,
+            "photodiode.gain":                                          1
         }
 
         # ttl parameters
@@ -36,7 +34,7 @@ class ParameterSet(EnvExperiment):
 
         # rf parameters
         rf_parameters = {
-            "rf.ttl_channel_rf_modulation":                             3
+            "rf.input_channel":                                         3
         }
 
 
@@ -46,6 +44,7 @@ class ParameterSet(EnvExperiment):
             "beams.freq_mhz.freq_probe_spinpol_mhz":                    114.0,
             "beams.freq_mhz.freq_pump_cooling_mhz":                     110.0,
             "beams.freq_mhz.freq_pump_readout_mhz":                     110.0,
+            "beams.freq_mhz.freq_pump_rescue_mhz":                      110.0,
             "beams.freq_mhz.freq_repump_cooling_mhz":                   110.0,
             "beams.freq_mhz.freq_repump_qubit_mhz":                     110.0,
             "beams.freq_mhz.freq_qubit_carrier_mhz":                    110.771,
@@ -56,6 +55,7 @@ class ParameterSet(EnvExperiment):
             "beams.ampl_pct.ampl_probe_spinpol_pct":                    20.0,
             "beams.ampl_pct.ampl_pump_cooling_pct":                     19.0,
             "beams.ampl_pct.ampl_pump_readout_pct":                     45.0,
+            "beams.ampl_pct.ampl_pump_rescue_pct":                      45.0,
             "beams.ampl_pct.ampl_repump_cooling_pct":                   15.0,
             "beams.ampl_pct.ampl_repump_qubit_pct":                     15.0,
             "beams.ampl_pct.ampl_qubit_pct":                            50.0,
@@ -74,6 +74,7 @@ class ParameterSet(EnvExperiment):
         timing_parameters = {
             # general
             "timing.time_profileswitch_delay_us":                       1,
+            "timing.time_rescue_us":                                    1,
 
             # standard
             "timing.time_spinpol_us":                                   20,

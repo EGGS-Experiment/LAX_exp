@@ -3,65 +3,42 @@ from numpy import int64, int32
 from abc import ABC, abstractmethod
 
 from artiq.experiment import *
-from LAX_exp.base import LAXBase
+from LAX_exp.base import LAXEnvironment
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXSequence(LAXBase, ABC):
+class LAXSequence(LAXEnvironment, ABC):
     """
     Base class for Sequence objects.
 
-    Defines a single short and regularly used pulse sequence to be recorded onto DMA.
+    Defines a single short and regularly used pulse sequence.
     Assumes that the relevant devices have already been initialized.
 
     Attributes:
-        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        devices                     list(LAXDevice)         : list of devices used by the sequence.
-        parameters                  dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
-                                                            and the value is a tuple of the parameter name as stored in dataset_db,
-                                                            together with a conversion function (None if no conversion needed).
     """
     # Class attributes
-    devices =                       list()
+    name = None
 
     '''
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
         Get core devices and their parameters from the master, and instantiate them.
 
         Will be called upon instantiation.
         """
-        self._build_arguments = kwargs
-        self._build_sequence()
-        self.build_sequence()
-
-    def _build_sequence(self):
-        """
-        General construction of the sequence object.
-
-        Gets/sets instance attributes, devices, and process build arguments.
-        Called before build_sequence.
-        """
         # get core devices
         self.setattr_device("core")
-        self.setattr_device("core_dma")
 
-        # set devices as class attributes
-        for device_name in self.devices:
-            try:
-                device_object = self.get_device(device_name)
-                setattr(self, device_name, device_object)
-                self.kernel_invariants.add(device_name)
-            except Exception as e:
-                logger.warning("Device unavailable: {:s}".format(device_name))
+        # store arguments passed during init for later processing
+        self._build_arguments = kwargs
 
+        # call user-defined build function
+        self.build_sequence()
 
-    # BUILD - USER FUNCTIONS
     def build_sequence(self, **kwargs):
         """
         To be subclassed.
@@ -76,7 +53,6 @@ class LAXSequence(LAXBase, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -84,11 +60,12 @@ class LAXSequence(LAXBase, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters(**self._build_arguments)
+        # store arguments in dataset manager
+        self._save_arguments()
+
+        # call user-defined prepare function
         self.prepare_sequence()
 
-
-    # PREPARE - USER FUNCTIONS
     def prepare_sequence(self):
         """
         To be subclassed.
@@ -103,7 +80,16 @@ class LAXSequence(LAXBase, ABC):
     RUN
     '''
 
-    # RUN - USER FUNCTIONS
+    @kernel(flags={"fast-math"})
+    def initialize_sequence(self):
+        """
+        To be subclassed.
+
+        todo: document
+        note: don't initialize devices here, otherwise lots of redundancy and overhead
+        """
+        pass
+
     @abstractmethod
     def run(self):
         """

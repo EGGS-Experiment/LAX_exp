@@ -3,65 +3,72 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
+from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
 
-class RabiFlopping2(LAXExperiment, Experiment):
+class RabiFlopping(LAXExperiment, Experiment):
     """
-    Rabi Flopping 2
+    Experiment: Rabi Flopping
+
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
 
-    name = 'Rabi Flopping 2'
+    name = 'Rabi Flopping'
 
     def build_experiment(self):
-        # rabi flopping parameters
+        # core arguments
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+
+        # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 400, 201, randomize=True),
+                                                                        default=RangeScan(0, 250, 251, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
-                                                                    ))
+                                                                    ), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000), group=self.name)
 
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.3895, ndecimals=5, step=1, min=1, max=10000))
-
-    def prepare_experiment(self):
         # get devices
         self.setattr_device('qubit')
-
-        # rabi flopping timing
-        max_time_us =                                               np.max(list(self.time_rabi_us_list))
-        self.time_rabiflop_mu_list =                                np.array([
-                                                                        [us_to_mu(max_time_us - time_us), us_to_mu(time_us)]
-                                                                        for time_us in self.time_rabi_us_list
-                                                                    ])
-
-        # rabi flopping frequency
-        self.freq_rabiflop_ftw =                                    mhz_to_ftw(self.freq_rabiflop_mhz)
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
+        self.rescue_subsequence =                                   RescueIon(self)
 
-        # dataset
-        self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
-        self.setattr_dataset('results')
+    def prepare_experiment(self):
+        # convert rabi flopping arguments
+        max_time_us =                                               np.max(list(self.time_rabi_us_list))
+        self.time_rabiflop_mu_list =                                np.array([
+                                                                        [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
+                                                                        for time_us in self.time_rabi_us_list
+                                                                    ])
+        self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
+
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.time_rabiflop_mu_list),
+                2)
 
 
     # MAIN SEQUENCE
-    @kernel
-    def run_initialize(self):
-        self.core.reset()
+    @kernel(flags={"fast-math"})
+    def initialize_experiment(self):
+        self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
         # set qubit beam parameters
+        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
+        # todo: check if this gives us problems like before related to profile=0
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
         self.core.break_realtime()
 
-    @kernel
+    @kernel(flags={"fast-math"})
     def run_main(self):
+        self.core.reset()
+
         for trial_num in range(self.repetitions):
 
             # sweep time
@@ -84,10 +91,5 @@ class RabiFlopping2(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
-
-    @rpc(flags={"async"})
-    def update_dataset(self, time_mu, counts):
-        self.results[self._result_iter] = np.array([self.core.mu_to_seconds(time_mu), counts])
-        self._result_iter += 1

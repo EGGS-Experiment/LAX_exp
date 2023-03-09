@@ -7,9 +7,9 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class TTLTriggerFrequencySweepNew(EnvExperiment):
+class ParametricSweep(EnvExperiment):
     """
-    TTL Trigger Frequency SweepNew
+    Parametric Sweep
     """
     kernel_invariants = {
         'time_timeout_pmt_mu',
@@ -29,18 +29,17 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
-        # repetitions
-        self.setattr_argument("repetitions",                        NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000000))
-        self.setattr_argument("counts_per_repetition",              NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000000))
+        # num_counts
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # timing
-        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=10, ndecimals=5, step=1, min=1, max=1000000))
+        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=0.1, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=RangeScan(1.585, 1.615, 51, randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=0.1,
+                                                                        default=CenterScan(0.588, 0.01, 0.0002, randomize=True),
+                                                                        global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
 
@@ -53,11 +52,6 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
-
-        # connect to labrad
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-        self.fg = self.cxn.function_generator_server
-        self.dc = self.cxn.dc_server
 
 
     def prepare(self):
@@ -83,19 +77,22 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.mod_clock_att_db =                                     0 * dB
         self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
 
-        # set voltage
-        self.dc.voltage(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-
         # set up datasets
-        self.set_dataset("ttl_trigger",                             np.zeros([self.repetitions, len(self.freq_mod_mhz_list), self.counts_per_repetition]))
+        self._dataset_counter                                       = 0
+        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
         self.setattr_dataset("ttl_trigger")
 
         # record parameters
-        self.set_dataset('xArr', self.freq_mod_mhz_list)
-        self.set_dataset('repetitions', self.repetitions)
-        self.set_dataset('modulation_amplitude_vpp', self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_num', self.dc_micromotion_channel)
-        self.set_dataset('dc_channel_voltage', self.dc_micromotion_voltage_v)
+        self.set_dataset('xArr',                                    self.freq_mod_mhz_list)
+        self.set_dataset('num_counts',                              self.num_counts)
+        self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
+        self.set_dataset('dc_channel_n',                          self.dc_micromotion_channel)
+        self.set_dataset('dc_channel_voltage',                      self.dc_micromotion_voltage_v)
+
+        # connect to labrad
+        self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.fg =                                                   self.cxn.function_generator_server
+        self.dc =                                                   self.cxn.dc_server
 
         # set up function generator
         # get list of function generators
@@ -121,6 +118,9 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
 
+        # set voltage
+        #self.dc.voltage(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -143,72 +143,69 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg_write(':ROSC:SOUR EXT')
 
         # MAIN LOOP
-        for i in range(self.repetitions):
+        # sweep frequency
+        for freq_val_mhz in self.freq_mod_mhz_list:
 
-            # loop reset
-            dataset_counter = 0
+            # reset FIFOs
             self.core.reset()
 
-            # sweep frequency
-            for freq_val_mhz in self.freq_mod_mhz_list:
+            # set frequency
+            self.frequency_set(freq_val_mhz * 1e6)
 
-                # reset FIFOs
-                # todo: remove?
-                self.core.reset()
+            # set up loop variables
+            counter = 0
+            timestamp_mu_list = [0] * self.num_counts
+            self.core.break_realtime()
 
-                # set frequency
-                self.frequency_set(freq_val_mhz * 1e6)
+            # synchronize timings with DDS clock
+            # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+            # delay_mu(self.mod_clock_delay_mu)
 
-                # set up loop variables
-                counter = 0
-                timestamp_mu_list = [0] * self.counts_per_repetition
-                self.core.break_realtime()
+            # activate modulation and wait for change in output
+            self.mod_toggle.on()
+            delay_mu(self.mod_clock_delay_mu)
+            time_start_mu = now_mu()
 
-                # synchronize timings with DDS clock
-                # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-                # delay_mu(self.mod_clock_delay_mu)
+            # start counting photons
+            time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
+            while counter < self.num_counts:
 
-                # activate modulation and wait for change in output
-                self.mod_toggle.on()
-                delay_mu(self.mod_clock_delay_mu)
-                time_start_mu = now_mu()
+                # move timestamped photon into buffer
+                time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
 
-                # start counting photons
-                time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-                while counter < self.counts_per_repetition:
+                # increase gating time
+                if time_mu_tmp < 0:
+                    print('\t\tError: increased gating time.')
+                    self.core.break_realtime()
+                    #self.mod_toggle.off()
+                    #delay_mu(1000)
+                    time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
+                else:
+                    timestamp_mu_list[counter] = time_mu_tmp
+                    counter += 1
 
-                    # move timestamped photons into buffer
-                    time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
+            # stop loop and reset
+            self.core.break_realtime()
+            with parallel:
+                self.pmt_counter._set_sensitivity(0)
+                self.mod_toggle.off()
 
-                    # increase gating time
-                    if time_mu_tmp < 0:
-                        print('\t\tError: increased gating time. Stopping to recool.')
-                        self.core.break_realtime()
-                        # todo: delay and let recool
-                        #self.mod_toggle.off()
-                        #delay_mu(1000)
-                        time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-                    else:
-                        timestamp_mu_list[counter] = time_mu_tmp
-                        counter += 1
-
-                # stop loop and reset
-                self.core.break_realtime()
-                with parallel:
-                    self.pmt_counter._set_sensitivity(0)
-                    self.mod_toggle.off()
-
-                self.update_dataset(i, dataset_counter, time_start_mu, timestamp_mu_list)
-                dataset_counter += 1
-                self.core.reset()
+            # store data
+            self.update_dataset(time_start_mu, timestamp_mu_list)
+            self.core.reset()
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, repetition, dataset_counter, time_start_mu, time_stop_mu_list):
+    def update_dataset(self, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
-        self.ttl_trigger[repetition, dataset_counter] = self.core.mu_to_seconds(np.array(time_stop_mu_list) - time_start_mu)
+        self.mutate_dataset(
+            'ttl_trigger',
+            self._dataset_counter,
+            np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
+        )
+        self._dataset_counter += 1
 
 
     # LABRAD FUNCTIONS
@@ -217,8 +214,18 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
+        # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        #print('\tvoltage set: {}'.format(voltage_set_v))
+        sleep(0.2)
+
+        # wait until voltage updates
+        voltage_get_v = self.dc.voltage(channel)
+        while np.abs(voltage_set_v - voltage_get_v) > 0.05:
+            sleep(0.2)
+            voltage_get_v = self.dc.voltage(channel)
+
+        # print current voltage for verification
+        print('\tvoltage set: {}'.format(voltage_get_v))
 
     @rpc
     def frequency_set(self, freq_hz):
@@ -226,7 +233,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         Set the RF to the desired frequency.
         """
         freq_set_hz = self.fg.frequency(freq_hz)
-        #print('\tfrequency set: {}'.format(freq_set_hz))
+        print('\tfrequency set: {}'.format(freq_set_hz))
 
     def fg_write(self, msg):
         """
@@ -239,7 +246,7 @@ class TTLTriggerFrequencySweepNew(EnvExperiment):
         self.fg.toggle(0)
 
         # process data
-        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.repetitions, 2))
+        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.num_counts, 2))
         # ind_arr = np.argsort(self.freq_mod_mhz_list)
         # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
         #

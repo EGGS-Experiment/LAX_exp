@@ -34,17 +34,17 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
+        "freq_pump_rescue_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
+        "ampl_pump_rescue_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-
-        "pmt_discrimination"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -103,6 +103,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.time_redist_mu =                                   self.core.seconds_to_mu(self.time_redist_us * us)
         self.time_readout_mu =                                  self.core.seconds_to_mu(self.time_readout_us * us)
         self.time_profileswitch_delay_mu =                      self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_rfswitch_delay_mu =                           self.core.seconds_to_mu(2 * us)
 
         # DDS devices
         self.dds_board =                                        self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
@@ -114,11 +115,15 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.dds_repump_qubit =                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
         self.dds_qubit =                                        self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
+        # RF switches
+        self.dds_repump_qubit_switch =                          self.get_device("ttl21")
+
         # convert frequency to ftw
         self.ftw_to_mhz =                                       1e3 / (2 ** 32 - 1)
         self.freq_redist_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_rescue_ftw =                             self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                          self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                            self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
         self.freq_qubit_ftw =                                   self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
@@ -127,6 +132,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.ampl_redist_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_pump_rescue_asf =                             self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
         self.ampl_repump_cooling_asf =                          self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                                   self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
@@ -188,7 +194,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for i in range(self.repetitions):
+        for trial_num in range(self.repetitions):
 
             # sweep pi-pulse time
             for time_rabiflop_mu_list in self.time_rabiflop_mu_list:
@@ -221,12 +227,14 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                 self.core.break_realtime()
 
             # add post repetition cooling
-            if (i % self.repetitions_per_cooling) == 0:
-                # set readout waveform
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
+            if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
+                # set rescue waveform
+                with parallel:
+                    self.dds_board.set_profile(2)
+                    delay_mu(self.time_profileswitch_delay_mu)
 
-                # doppler cooling
+                # start rescuing
+                self.dds_board.io_update.pulse_mu(8)
                 self.dds_board.cfg_switches(0b0110)
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
@@ -238,6 +246,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
+        self.dds_repump_qubit_switch.off()
 
 
     @kernel(flags={"fast-math"})
@@ -247,6 +256,19 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         """
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
+
+            # enable 854 rf switch
+            # with parallel:
+            self.dds_repump_qubit_switch.off()
+            delay_mu(self.time_rfswitch_delay_mu)
+            self.dds_board.cfg_switches(0b1100)
+
+            # qubit repump (854) pulse
+            delay_mu(self.time_repump_qubit_mu)
+            # with parallel:
+            self.dds_repump_qubit_switch.off()
+            self.dds_board.cfg_switches(0b0100)
+            delay_mu(self.time_rfswitch_delay_mu)
 
             # set cooling waveform
             with parallel:
@@ -296,8 +318,6 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
 
-            # todo: do we need to state prep by spin polarization here?
-
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
 
@@ -323,19 +343,26 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         # profile 0 = cooling; profile 1 = readout (red-detuned); profile 2 = readout (blue-detuned)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
+
+        # set rf switches
+        self.dds_repump_qubit_switch.off()
 
         # set sideband cooling profiles
         # profile 0 = readout pi-pulse

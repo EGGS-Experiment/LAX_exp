@@ -36,17 +36,17 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
         "freq_redist_mhz",
         "freq_pump_cooling_mhz",
         "freq_pump_readout_mhz",
+        "freq_pump_rescue_mhz",
         "freq_repump_cooling_mhz",
         "freq_repump_qubit_mhz",
 
         "ampl_redist_pct",
         "ampl_pump_cooling_pct",
         "ampl_pump_readout_pct",
+        "ampl_pump_rescue_pct",
         "ampl_repump_cooling_pct",
         "ampl_repump_qubit_pct",
-        "ampl_qubit_pct",
-
-        "pmt_discrimination"
+        "ampl_qubit_pct"
     ]
 
     def build(self):
@@ -132,6 +132,7 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
         self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
         self.freq_pump_cooling_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
         self.freq_pump_readout_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_rescue_ftw =                                     self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
@@ -144,6 +145,7 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
         self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
         self.ampl_pump_readout_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_pump_rescue_asf =                                     self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
         self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
@@ -205,7 +207,7 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
         self.core.break_realtime()
 
         # MAIN SEQUENCE
-        for i in range(self.repetitions):
+        for trial_num in range(self.repetitions):
 
             # sweep times to measure heating rate
             for time_heating_delay_mu in self.time_heating_rate_list_mu:
@@ -234,17 +236,21 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
                     self.core.break_realtime()
 
             # add post repetition cooling
-            if (i % self.repetitions_per_cooling) == 0:
-                # set readout waveform
-                self.dds_board.set_profile(1)
-                delay_mu(self.time_profileswitch_delay_mu)
+            if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
+                # set rescue waveform
+                with parallel:
+                    self.dds_board.set_profile(2)
+                    delay_mu(self.time_profileswitch_delay_mu)
 
-                # doppler cooling
+                # start rescuing
+                self.dds_board.io_update.pulse_mu(8)
                 self.dds_board.cfg_switches(0b0110)
                 delay(self.additional_cooling_time_s)
                 self.dds_board.cfg_switches(0b0100)
 
         # reset board profiles
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=0)
+        self.core.break_realtime()
         self.dds_board.set_profile(0)
         self.dds_qubit_board.set_profile(0)
 
@@ -340,18 +346,22 @@ class HeatingRateMeasurementQubitReadoutAdjust(EnvExperiment):
         # profile 0 = cooling; profile 1 = readout (red-detuned); profile 2 = readout (blue-detuned)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=0)
         self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=1)
+        self.dds_probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=0)
         self.dds_pump.set_mu(self.freq_pump_readout_ftw, asf=self.ampl_pump_readout_asf, profile=1)
+        self.dds_pump.set_mu(self.freq_pump_rescue_ftw, asf=self.ampl_pump_rescue_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
+        self.dds_repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
         self.core.break_realtime()
 
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1)
+        self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
         # set sideband cooling profiles

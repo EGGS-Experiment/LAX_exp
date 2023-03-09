@@ -3,11 +3,11 @@ from numpy import int64, int32
 from abc import ABC, abstractmethod
 
 from artiq.experiment import *
-from LAX_exp.base import LAXBase
+from LAX_exp.base import LAXEnvironment
 logger = logging.getLogger("artiq.master.experiments")
 
 
-class LAXSubsequence(LAXBase, ABC):
+class LAXSubsequence(LAXEnvironment, ABC):
     """
     Base class for subsequence objects.
 
@@ -15,71 +15,51 @@ class LAXSubsequence(LAXBase, ABC):
     Assumes that the relevant devices have already been initialized.
 
     Attributes:
-        kernel_invariants           set(str)                : list of attribute names that won't change while kernel is running
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
-        devices                     list(LAXDevice)         : list of devices used by the subsequence.
-        parameters                  dict(str, (str, func)   : a dict of device parameters. The key will serve as the attribute name,
-                                                            and the value is a tuple of the parameter name as stored in dataset_db,
-                                                            together with a conversion function (None if no conversion needed).
     """
     # Class attributes
-    devices =                       list()
-
+    name = None
 
     def __init__(self, managers_or_parent, *args, **kwargs):
         # get unique subsequence number to distinguish different DMA handles from the same class
-        instance_number = 0
-        if (not isinstance(managers_or_parent, tuple)) and (hasattr(managers_or_parent, 'instance_number')):
-            instance_number = getattr(managers_or_parent, 'instance_number')
-            managers_or_parent.instance_number += 1
+        _dma_count = 0
+        if (not isinstance(managers_or_parent, tuple)) and (hasattr(managers_or_parent, '_dma_count')):
+            _dma_count = getattr(managers_or_parent, '_dma_count')
+            managers_or_parent._dma_count += 1
 
-        setattr(self, 'instance_number', instance_number)
+        # register our dma number for later reference
+        setattr(self, '_dma_count', _dma_count)
 
-        # do regular initialization
+        # complete regular initialization
         super().__init__(managers_or_parent, *args, **kwargs)
+
 
     '''
     BUILD
     '''
 
-    # BUILD - BASE
     def build(self, **kwargs):
         """
-        Get core devices and their parameters from the master, and instantiate them.
-
-        Will be called upon instantiation.
-        """
-        self._build_arguments = kwargs
-        self._build_subsequence()
-        self.build_subsequence()
-
-    def _build_subsequence(self):
-        """
         General construction of the subsequence object.
+        Gets/sets instance attributes and process build arguments.
 
-        Gets/sets instance attributes, devices, and process build arguments.
-        Called before build_subsequence.
+        Called upon instantiation.
         """
         # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
+        # store arguments passed during init for later processing
+        self._build_arguments = kwargs
+
         # set instance variables
-        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self.instance_number))
+        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self._dma_count))
         setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
         setattr(self,   '_dma_record_flag',         False)
 
-        # set devices as class attributes
-        for device_name in self.devices:
-            try:
-                device_object = self.get_device(device_name)
-                setattr(self, device_name, device_object)
-                self.kernel_invariants.add(device_name)
-            except Exception as e:
-                logger.warning("Device unavailable: {:s}".format(device_name))
+        # call user-defined build function
+        self.build_subsequence()
 
-
-    # BUILD - USER FUNCTIONS
     def build_subsequence(self, **kwargs):
         """
         To be subclassed.
@@ -94,7 +74,6 @@ class LAXSubsequence(LAXBase, ABC):
     PREPARE
     '''
 
-    # PREPARE - BASE
     def prepare(self):
         """
         Get and convert parameters from the master for use by the device,
@@ -102,11 +81,12 @@ class LAXSubsequence(LAXBase, ABC):
 
         Will be called by parent classes.
         """
-        self._prepare_parameters(**self._build_arguments)
+        # store arguments passed during init for later processing
+        self._save_arguments()
+
+        # call user-defined prepare function
         self.prepare_subsequence()
 
-
-    # PREPARE - USER FUNCTIONS
     def prepare_subsequence(self):
         """
         To be subclassed.
@@ -142,12 +122,6 @@ class LAXSubsequence(LAXBase, ABC):
         if self._dma_record_flag == True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
-
-    '''
-    RUN
-    '''
-
-    # RUN - BASE
     @kernel(flags={"fast-math"})
     def run_dma(self):
         """
@@ -157,7 +131,20 @@ class LAXSubsequence(LAXBase, ABC):
         self.core_dma.playback_handle(self.dma_handle)
 
 
-    # RUN - USER FUNCTIONS
+    '''
+    RUN
+    '''
+
+    @kernel(flags={"fast-math"})
+    def initialize_subsequence(self):
+        """
+        To be subclassed.
+
+        todo: document
+        note: don't initialize devices here, otherwise lots of redundancy and overhead
+        """
+        pass
+
     @abstractmethod
     def run(self):
         """
