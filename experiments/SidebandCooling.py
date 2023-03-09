@@ -18,7 +18,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=4, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
@@ -54,9 +54,10 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
         self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
-        # dataset
-        self.set_dataset('results',                                     np.zeros((self.repetitions * len(list(self.freq_readout_ftw_list)), 2)))
-        self.setattr_dataset('results')
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.freq_readout_ftw_list),
+                2)
 
 
     # MAIN SEQUENCE
@@ -100,12 +101,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(freq_ftw, self.readout_subsequence.fetch_count())
+                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
 
-            self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)
-
-    @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, counts):
-        self.results[self._result_iter] = np.array([self.qubit.ftw_to_frequency(freq_ftw) / MHz, counts])
-        self._result_iter += 1
+            # self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)

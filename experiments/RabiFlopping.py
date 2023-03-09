@@ -44,9 +44,10 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                                     ])
         self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
 
-        # set up dataset
-        self.set_dataset('results',                                 np.zeros((self.repetitions * len(self.time_rabiflop_mu_list), 2)))
-        self.setattr_dataset('results')
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.time_rabiflop_mu_list),
+                2)
 
 
     # MAIN SEQUENCE
@@ -88,13 +89,5 @@ class RabiFlopping(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_dataset(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
-
-            # update completion monitor
-            self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)
-
-    @rpc(flags={"async"})
-    def update_dataset(self, time_mu, counts):
-        self.results[self._result_iter] = np.array([self.core.mu_to_seconds(time_mu), counts])
-        self._result_iter += 1

@@ -4,7 +4,7 @@ import os
 import time
 import h5py
 import logging
-from numpy import array
+from numpy import array, zeros
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
@@ -133,11 +133,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
         # need: wavemeter frequencies, DDS attenuation, B-fields
 
+
         # call prepare methods of all child objects
         self.call_child_method('prepare')
 
+
         # create dataset for results
-        self.set_dataset('results', self.results_shape)
+        self.set_dataset('results', zeros(self.results_shape))
         self.setattr_dataset('results')
 
     def prepare_experiment(self):
@@ -268,7 +270,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         For efficiency, data is added by mutating indices of a preallocated dataset.
         Contains an internal iterator to keep track of the current index.
         """
-        self.results[self._result_iter] = array(args)
+        self.mutate_dataset('results', self._result_iter, array(args))
         self._result_iter += 1
 
     @property

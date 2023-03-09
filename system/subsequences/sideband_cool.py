@@ -46,7 +46,7 @@ class SidebandCool(LAXSubsequence):
         self.time_spinpol_mu =              self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
         # calibration setup
-        self.qubit_func =                                               self.qubit.off() if self.calibration is True else self.qubit.on()
+        self.qubit_func =                                               self.qubit.off if self.calibration is True else self.qubit.on
 
         # calculate number of spin polarizations
         # todo: do number of spin polarizations more accurately
