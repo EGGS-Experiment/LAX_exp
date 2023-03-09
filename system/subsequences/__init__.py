@@ -23,8 +23,8 @@ __all__.extend(['SpinPolarization', 'InitializeQubit'])
 # state manipulation
 from LAX_exp.system.subsequences.tickle import Tickle
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
-from LAX_exp.system.subsequences.ramsey_spectroscopy import RamseySpectroscopy
-__all__.extend(['Tickle', 'RabiFlop', 'RamseySpectroscopy'])
+from LAX_exp.system.subsequences.ramsey import Ramsey
+__all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout

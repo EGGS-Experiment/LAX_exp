@@ -2,16 +2,15 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-# todo: finish implementing
 
 
-class RamseySpectroscopy(LAXSubsequence):
+class Ramsey(LAXSubsequence):
     """
-    Subsequence: Ramsey Spectroscopy
+    Subsequence: Ramsey
 
     Do two pi/2 pulses, separated by a given delay.
     """
-    name = 'ramsey_spectroscopy'
+    name = 'ramsey'
 
     def build_subsequence(self):
         # get devices

@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, RamseySpectroscopy, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, Ramsey, Readout, RescueIon
 
 
 class RamseySpectroscopy(LAXExperiment, Experiment):
@@ -31,7 +31,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
         self.readout_subsequence =                                  Readout(self)
-        self.ramsey_subsequence =                                   RamseySpectroscopy(self)
+        self.ramsey_subsequence =                                   Ramsey(self)
         self.rescue_subsequence =                                   RescueIon(self)
 
     def prepare_experiment(self):
