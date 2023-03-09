@@ -13,11 +13,11 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     Measures ion fluorescence after conducting a Ramsey Spectroscopy sequence.
     """
 
-    name = 'Rabi Flopping'
+    name = 'Ramsey Spectroscopy'
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # ramsey parameters
         self.setattr_argument("freq_ramsey_mhz_list",               Scannable(
@@ -55,21 +55,17 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.ramsey_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-        # set qubit beam parameters
-        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
-        # todo: check if this gives us problems like before related to profile=0
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
-        self.core.break_realtime()
-
     @kernel(flags={"fast-math"})
     def run_main(self):
+        self.core.reset()
+
         for trial_num in range(self.repetitions):
 
             # sweep ramsey detunings
             for freq_ftw in self.freq_ramsey_ftw_list:
 
                 # set ramsey detuning
-                self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
+                self.qubit.set_mu(freq_ftw, asf=self.qubit.ampl_qubit_asf)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
@@ -83,5 +79,5 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
                     self.core.break_realtime()

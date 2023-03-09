@@ -23,7 +23,7 @@ class Ramsey(LAXSubsequence):
     def prepare_subsequence(self):
         # convert parameters to machine units
         self.time_half_pipulse_mu =                                     self.core.seconds_to_mu(self.time_half_pipulse_us * us)
-        self.time_ramsey_delay_mu =                                     self.core.seconds_to_mu(self.time_ramsey_delay_mu * mu)
+        self.time_ramsey_delay_mu =                                     self.core.seconds_to_mu(self.time_ramsey_delay_us * us)
 
     @kernel(flags={"fast-math"})
     def run(self):
