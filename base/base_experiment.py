@@ -91,34 +91,43 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # collate initialize functions to speed up initialization
         # note: devices should be initialized first
-        _initialize_device_list =               [inst_name
-                                                for (inst_name, inst_obj) in self.__dict__.items()
-                                                if isinstance(inst_obj, LAXDevice)]
-        _initialize_subsequence_list =          [inst_name
-                                                for (inst_name, inst_obj) in self.__dict__.items()
-                                                if isinstance(inst_obj, LAXSubsequence)]
-        _initialize_sequence_list =             [inst_name
-                                                for (inst_name, inst_obj) in self.__dict__.items()
-                                                if isinstance(inst_obj, LAXSequence)]
+        _initialize_device_list =               [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXDevice)]
+        _initialize_subsequence_list =          [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXSubsequence)]
+        _initialize_sequence_list =             [obj
+                                                for obj in self.children
+                                                if isinstance(obj, LAXSequence)]
 
 
         # write code which initializes the relevant modules entirely on the kernel, without any RPCs
         _initialize_code =                      "self.core.reset()\n"
-        for device_name in _initialize_device_list:
-            self.setattr_device(device_name)
-            _initialize_code +=                 "self.{}.initialize_device()\n".format(device_name)
-            _initialize_code +=                 "self.core.break_realtime()\n"
-        for subsequence_name in _initialize_subsequence_list:
-            _initialize_code +=                 "self.{}.initialize_subsequence()\n".format(subsequence_name)
-            _initialize_code +=                 "self.core.break_realtime()\n"
-        for sequence_name in _initialize_sequence_list:
-            _initialize_code +=                 "self.{}.initialize_sequence()\n".format(sequence_name)
-            _initialize_code +=                 "self.core.break_realtime()\n"
+
+        # code to initialize devices
+        for i, obj in enumerate(_initialize_device_list):
+            if isinstance(obj, LAXDevice):
+                setattr(self, '_LAXDevice_{}'.format(i), obj)
+                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
+
+        # code to initialize subsequences
+        for i, obj in enumerate(_initialize_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
+                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
+
+        # code to initialize sequences
+        for i, obj in enumerate(_initialize_sequence_list):
+            if isinstance(obj, LAXSequence):
+                setattr(self, '_LAXSequence_{}'.format(i), obj)
+                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
         _initialize_code += "self.core.break_realtime()"
 
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
         setattr(self, '_initialize_experiment', initialize_func)
+
 
         # todo: get a labrad snapshot
         # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
@@ -128,7 +137,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         # todo: maybe specify dimensionality of results
         #self.set_dataset('results', list())
         #self.setattr_dataset('results')
-
 
         # call prepare methods of all child objects
         self.call_child_method('prepare')
@@ -182,6 +190,12 @@ class LAXExperiment(LAXEnvironment, ABC):
         Call the initialize functions of devices and sub/sequences (in that order).
         """
         # todo: see if necessary
+        # self.core.break_realtime()
+        # self.urukul1_cpld.cfg_sw(0b1111)
+        # delay_mu(1000000000)
+        # print('scde1243')
+        # self.urukul1_cpld.cfg_sw(0b0000)
+        # self.core.break_realtime()
         pass
 
     @kernel(flags={"fast-math"})
