@@ -239,7 +239,7 @@ class MicromotionComparison(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-        self.dds_repump_qubit_switch.on()
+        self.dds_repump_qubit_switch.off()
 
 
     @kernel(flags={"fast-math"})
@@ -252,7 +252,7 @@ class MicromotionComparison(EnvExperiment):
             with sequential:
                 # enable 854 rf switch
                 # with parallel:
-                self.dds_repump_qubit_switch.on()
+                self.dds_repump_qubit_switch.off()
                 delay_mu(self.time_rfswitch_delay_mu)
                 self.dds_board.cfg_switches(0b1100)
 

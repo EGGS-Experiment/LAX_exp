@@ -203,7 +203,7 @@ class RabiFloppingTesting(EnvExperiment):
         # reset AOMs after experiment
         self.dds_board.cfg_switches(0b1110)
         self.dds_qubit.cfg_sw(False)
-        self.dds_repump_qubit_switch.on()
+        self.dds_repump_qubit_switch.off()
 
 
     @kernel(flags={"fast-math"})
@@ -215,7 +215,7 @@ class RabiFloppingTesting(EnvExperiment):
         with self.core_dma.record(_DMA_HANDLE_RESET):
             with sequential:
                 # enable 854 rf switch
-                self.dds_repump_qubit_switch.on()
+                self.dds_repump_qubit_switch.off()
                 delay_mu(2000)
 
                 # qubit repump (854) pulse
