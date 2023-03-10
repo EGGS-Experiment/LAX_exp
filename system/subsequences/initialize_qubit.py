@@ -28,7 +28,7 @@ class InitializeQubit(LAXSubsequence):
         # set cooling waveform
         self.pump.cooling()
 
-        # permanently enable cooling repump
+        # enable cooling repump
         self.repump_cooling.on()
 
         # repump pulse

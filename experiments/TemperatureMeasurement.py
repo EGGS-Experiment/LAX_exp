@@ -17,11 +17,11 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
-                                                                            default=RangeScan(85, 135, 50, randomize=True),
+                                                                            default=RangeScan(85, 135, 10, randomize=True),
                                                                             global_min=85, global_max=135, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
@@ -84,24 +84,15 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
                 self.core.break_realtime()
 
-                # enable cooling repump
-                self.repump_cooling.on()
-
                 # probe absorption at detuning (repump on)
                 self.probe_subsequence.run_dma()
 
-                # update dataset
+                # get counts and update datasets
+                counts_actual = self.pmt.fetch_count()
+                counts_control = self.pmt.fetch_count()
+
+                # update datasets
                 with parallel:
-                    self.update_results(freq_ftw, 1, self.pmt.fetch_count())
                     self.core.break_realtime()
-
-                # disable cooling repump (to measure background)
-                self.repump_cooling.off()
-
-                # probe absorption at detuning (repump on)
-                self.probe_subsequence.run_dma()
-
-                # update dataset
-                with parallel:
-                    self.update_results(freq_ftw, 0, self.pmt.fetch_count())
-                    self.core.break_realtime()
+                    self.update_results(freq_ftw, 1, counts_actual)
+                    self.update_results(freq_ftw, 0, counts_control)

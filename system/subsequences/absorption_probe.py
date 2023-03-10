@@ -14,6 +14,7 @@ class AbsorptionProbe(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
 
     def prepare_subsequence(self):
@@ -22,8 +23,26 @@ class AbsorptionProbe(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        # set cooling waveform
+        # set cooling waveform and activate cooling repump
         self.pump.cooling()
+        self.repump_cooling.on()
+
+        # doppler cooling
+        self.pump.on()
+        delay_mu(self.time_doppler_cooling_mu)
+        self.pump.off()
+
+        # switch to probe waveform
+        self.pump.set_profile(1)
+
+        # record fluorescence of probe beam
+        self.pump.on()
+        self.pmt.count(self.time_probe_mu)
+        self.pump.off()
+
+        # set cooling waveform and disable cooling repump
+        self.pump.cooling()
+        self.repump_cooling.off()
 
         # doppler cooling
         self.pump.on()
