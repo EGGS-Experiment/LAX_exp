@@ -65,7 +65,7 @@ class RabiFlopping(EnvExperiment):
 
         # qubit parameters
         self.setattr_argument("time_rabi_us_list",                      Scannable(
-                                                                            default=RangeScan(0, 100, 401, randomize=True),
+                                                                            default=RangeScan(0, 400, 100, randomize=True),
                                                                             global_min=1, global_max=100000, global_step=1,
                                                                             unit="us", scale=1, ndecimals=5
                                                                         ))
