@@ -54,7 +54,7 @@ class RabiFlopping(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
@@ -65,13 +65,13 @@ class RabiFlopping(EnvExperiment):
 
         # qubit parameters
         self.setattr_argument("time_rabi_us_list",                      Scannable(
-                                                                            default=RangeScan(0, 400, 401, randomize=True),
+                                                                            default=RangeScan(0, 100, 401, randomize=True),
                                                                             global_min=1, global_max=100000, global_step=1,
                                                                             unit="us", scale=1, ndecimals=5
                                                                         ))
 
         # AOM values
-        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.1055, ndecimals=5, step=1, min=1, max=10000))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -243,7 +243,7 @@ class RabiFlopping(EnvExperiment):
                 # qubit repump (854) pulse
                 delay_mu(self.time_repump_qubit_mu)
                 # with parallel:
-                self.dds_repump_qubit_switch.off()
+                self.dds_repump_qubit_switch.on()
                 self.dds_board.cfg_switches(0b0100)
                 delay_mu(self.time_rfswitch_delay_mu)
 
