@@ -40,49 +40,54 @@ class testarg12(EnvExperiment):
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
-        # calib_timestamp = datetime.timestamp(datetime.now())
+        calib_timestamp = datetime.timestamp(datetime.now())
         # th0 = np.arange(85,137,2)
         # th1 = np.array([0.15625, 0.15625, 0.140625, 0.125, 0.1171875, 0.109375, 0.109375,
         #                 0.109375, 0.1171875, 0.1171875, 0.109375, 0.109375, 0.109375,
         #                 0.1171875, 0.125, 0.125, 0.125, 0.1328125, 0.140625, 0.140625,
         #                 0.15625, 0.171875, 0.203125, 0.25, 0.28125, 0.34375]) * 100
         #
-        # self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
-        # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
+        th0 = np.linspace(85,140,56)
+        th1 = np.array([0.40625, 0.34375, 0.296875, 0.265625, 0.234375, 0.21875, 0.203125, 0.1875, 0.1796875, 0.171875, 0.171875, 0.1640625, 0.16015625, 0.15625, 0.15625, 0.1484375, 0.1484375, 0.1484375, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.14453125, 0.14453125, 0.1484375, 0.1484375, 0.1484375, 0.15234375, 0.15625, 0.15625, 0.15625, 0.1640625, 0.1640625, 0.1640625, 0.171875, 0.171875, 0.171875, 0.1796875, 0.1875, 0.1875, 0.1953125, 0.203125, 0.21875, 0.2265625, 0.2421875, 0.2578125, 0.2734375, 0.296875, 0.3125, 0.34375, 0.375, 0.390625, 0.421875])*100
+        # print(np.array([th0,th1]))
+        self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
+        self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        self.set_dataset('results', np.zeros((self.repetitions, 3)), broadcast=False)
-        self.set_dataset('results2', np.zeros((self.repetitions, 3)), broadcast=False)
-        self._iter_dataset = 0
-        self._iter_dataset2 = 0
+        pass
+        # self.set_dataset('results', np.zeros((self.repetitions, 3)), broadcast=False)
+        # self.set_dataset('results2', np.zeros((self.repetitions, 3)), broadcast=False)
+        # self._iter_dataset = 0
+        # self._iter_dataset2 = 0
         pass
         # self.setattr_device('urukul0_cpld')
         # self.setattr_device('urukul0_ch0')
         # self.delayth = np.int64(100)
 
 
-    @kernel(flags={"fast-math"})
+    #@kernel(flags={"fast-math"})
     def run(self):
-        self.core.reset()
-        self.recordDMA()
-        self.core.break_realtime()
-        handle1 = self.core_dma.get_handle('tmphandle')
-        handle2 = self.core_dma.get_handle('tmphandle2')
-        self.core.break_realtime()
-        for i in range(self.repetitions):
-            self.core_dma.playback_handle(handle1)
-            self.core.break_realtime()
-            self.core_dma.playback_handle(handle2)
-            counts1 = self.ttl0_counter.fetch_count()
-            self.core.break_realtime()
-            counts2 = self.ttl0_counter.fetch_count()
-
-
-            with parallel:
-                with sequential:
-                    self.update_dataset(counts1)
-                    self.update_dataset2(counts2)
-                self.core.break_realtime()
+        pass
+        # self.core.reset()
+        # self.recordDMA()
+        # self.core.break_realtime()
+        # handle1 = self.core_dma.get_handle('tmphandle')
+        # handle2 = self.core_dma.get_handle('tmphandle2')
+        # self.core.break_realtime()
+        # for i in range(self.repetitions):
+        #     self.core_dma.playback_handle(handle1)
+        #     self.core.break_realtime()
+        #     self.core_dma.playback_handle(handle2)
+        #     counts1 = self.ttl0_counter.fetch_count()
+        #     self.core.break_realtime()
+        #     counts2 = self.ttl0_counter.fetch_count()
+        #
+        #
+        #     with parallel:
+        #         with sequential:
+        #             self.update_dataset(counts1)
+        #             self.update_dataset2(counts2)
+        #         self.core.break_realtime()
 
     @kernel
     def recordDMA(self):
