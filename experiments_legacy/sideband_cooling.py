@@ -74,7 +74,7 @@ class SidebandCooling(EnvExperiment):
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([50, 75, 80, 91]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([250, 271, 239, 241]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.7765]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([104.012, 103.012, 105.012, 107.711]))
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=50))
 
         # readout
@@ -92,6 +92,11 @@ class SidebandCooling(EnvExperiment):
                                                                         ))
 
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000000000))
+
+        # attenuations
+        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=0, step=0.5, min=8, max=31.5))
+
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -192,6 +197,11 @@ class SidebandCooling(EnvExperiment):
         # calibration setup
         self.calibration_qubit_status =                         not self.calibration
 
+        # attenuations
+        self.att_sidebandcooling_mu =                           self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_readout_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
+
+
         # set up datasets
         self._iter_dataset =                                    0
         self.set_dataset("sideband_cooling",                    np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 2)))
@@ -283,6 +293,9 @@ class SidebandCooling(EnvExperiment):
         # doppler cooling sequence
         with self.core_dma.record(_DMA_HANDLE_INITIALIZE):
 
+            # set 729nm sideband cooling attenuation
+            self.dds_qubit.set_att_mu(self.att_sidebandcooling_mu)
+
             # enable 854 rf switch
             # with parallel:
             self.dds_repump_qubit_switch.off()
@@ -350,6 +363,10 @@ class SidebandCooling(EnvExperiment):
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
+
+            # set 729nm sideband cooling attenuation
+            self.dds_qubit.set_att_mu(self.att_readout_mu)
+
             # set pump readout waveform and qubit pi-pulse waveform
             with parallel:
                 self.dds_board.set_profile(1)
