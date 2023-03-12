@@ -3,9 +3,9 @@ from artiq.experiment import *
 _DMA_HANDLE_LASERSCAN = "laserscan_sequence"
 
 
-class LaserScan(EnvExperiment):
+class LaserScanLinetrigger(EnvExperiment):
     """
-    729nm Laser Scan
+    729nm Laser Scan - Linetrigger
     Gets the number of counts as a function of frequency for a fixed time.
     """
 
@@ -69,10 +69,9 @@ class LaserScan(EnvExperiment):
         self.setattr_argument("freq_qubit_scan_mhz",                    Scannable(
                                                                             default=CenterScan(103.77, 0.02, 0.00025, randomize=True),
                                                                             global_min=60, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
+                                                                            unit="MHz", scale=1, ndecimals=7
                                                                         ))
         self.setattr_argument("att_729_db",                             NumberValue(default=28, ndecimals=1, step=0.5, min=8, max=32))
-
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -87,6 +86,11 @@ class LaserScan(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                      self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                  getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+
+        # linetrigger
+        self.linetrigger =                                      self.get_device("ttl5")
+        self.time_linetrigger_timeout_mu =                      self.core.seconds_to_mu(30 * ms)
+        self.time_linetrigger_holdoff_mu =                      self.core.seconds_to_mu(5 * us)
 
         # ADC
         self.adc =                                              self.get_device("sampler0")
@@ -179,17 +183,29 @@ class LaserScan(EnvExperiment):
                 self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf)
                 self.core.break_realtime()
 
-                # run sequence
-                self.core_dma.playback_handle(handle)
+                # wait for linetrigger to read rising edge
+                time_linetrigger_wait_mu = self.linetrigger.gate_rising_mu(self.time_linetrigger_timeout_mu)
+                if self.linetrigger.timestamp_mu(time_linetrigger_wait_mu) > 0:
 
-                # get ADC values
-                self.adc.sample_mu(sampler_buffer)
-                self.core.break_realtime()
+                    # set time to now, with some additional holdoff
+                    at_mu(time_linetrigger_wait_mu + self.time_linetrigger_holdoff_mu)
 
-                # update dataset
-                with parallel:
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), now_mu(), sampler_buffer)
+                    with parallel:
+
+                        # stop linetrigger input
+                        self.linetrigger._set_sensitivity(0)
+
+                        # run sequence
+                        self.core_dma.playback_handle(handle)
+
+                    # get ADC values
+                    self.adc.sample_mu(sampler_buffer)
                     self.core.break_realtime()
+
+                    # update dataset
+                    with parallel:
+                        self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), now_mu(), sampler_buffer)
+                        self.core.reset()
 
             # add post repetition cooling
             if (trial_num > 0) and (trial_num % self.repetitions_per_cooling == 0):
