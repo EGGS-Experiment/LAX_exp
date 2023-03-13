@@ -17,15 +17,15 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(104.35, 0.2, 0.001, randomize=True),
+                                                                        default=CenterScan(103.77, 0.02, 0.00025, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ), group=self.name)
-        self.setattr_argument("time_qubit_us",                      NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("time_qubit_us",                      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("att_qubit_db",                       NumberValue(default=28, ndecimals=2, step=1, min=8, max=31.5), group=self.name)
 
         # relevant devices
@@ -73,7 +73,7 @@ class LaserScan(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=0x1FFF, profile=0)
+                self.qubit.set_mu(freq_ftw, asf=0x1FFF)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
@@ -81,6 +81,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
+                # self.qubit.on()
 
                 # read out
                 self.readout_subsequence.run_dma()
