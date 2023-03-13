@@ -81,7 +81,6 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
-                # self.qubit.on()
 
                 # read out
                 self.readout_subsequence.run_dma()
