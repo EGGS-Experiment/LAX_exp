@@ -73,6 +73,9 @@ class RabiFlopping(EnvExperiment):
         # AOM values
         self.setattr_argument("freq_qubit_mhz",                         NumberValue(default=104.1055, ndecimals=5, step=1, min=1, max=10000))
 
+        # attenuations
+        self.setattr_argument("att_rabiflopping_db",                    NumberValue(default=22, ndecimals=1, step=0.5, min=8, max=31.5))
+
         # get global parameters
         for param_name in self.global_parameters:
             self.setattr_dataset(param_name, archive=True)
@@ -137,6 +140,9 @@ class RabiFlopping(EnvExperiment):
         self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
         self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+
+        # attenuations
+        self.att_rabiflopping_mu =                                      self.dds_qubit.cpld.att_to_mu(self.att_rabiflopping_db * dB)
 
         # set up datasets
         self._iter_dataset =                                            0
@@ -304,6 +310,7 @@ class RabiFlopping(EnvExperiment):
         self.dds_repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2)
         self.core.break_realtime()
 
+        self.dds_qubit.set_att_mu(self.att_rabiflopping_mu)
         self.dds_qubit.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf)
         self.core.break_realtime()
 

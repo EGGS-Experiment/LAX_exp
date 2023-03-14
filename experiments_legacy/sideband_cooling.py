@@ -95,8 +95,7 @@ class SidebandCooling(EnvExperiment):
 
         # attenuations
         self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=0, step=0.5, min=8, max=31.5))
-
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -200,10 +199,6 @@ class SidebandCooling(EnvExperiment):
         # attenuations
         self.att_sidebandcooling_mu =                           self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
         self.att_readout_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
-
-        print(self.att_sidebandcooling_mu)
-        print(self.att_readout_mu)
-
 
         # set up datasets
         self._iter_dataset =                                    0
