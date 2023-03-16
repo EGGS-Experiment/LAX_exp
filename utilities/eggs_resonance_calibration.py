@@ -241,6 +241,10 @@ class EGGSResonanceCalibration(EnvExperiment):
         # reenable spec anal display
         self.sa.gpib_write('DISP:ENAB 1')
 
+        # store calibration timestamp
+        calib_timestamp = datetime.timestamp(datetime.now())
+        self.set_dataset('calibration.eggs.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
+
         # convert dbm to volts
         power_dataset_tmp = np.array(self.eggs_resonance_calibration)
         power_dataset_tmp[:, 1] = 10 ** (power_dataset_tmp[:, 1] / 20)
@@ -248,5 +252,3 @@ class EGGSResonanceCalibration(EnvExperiment):
         # scale relative to max
         power_dataset_tmp[:, 1] /= np.max(power_dataset_tmp[:, 1])
         self.set_dataset('calibration.eggs.resonance_ratio_curve_mhz', power_dataset_tmp, persist=True, broadcast=True)
-        # turn dataset into numpy array for ease of use
-        #self.eggs_heating = np.array(self.eggs_heating)
