@@ -56,7 +56,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
 
         # convert attenuation to machine units
-        self.att_readout_mu =                                           att_to_mu(self.att_readout_mu * dB)
+        self.att_readout_mu =                                           att_to_mu(self.att_readout_db * dB)
 
     @property
     def results_shape(self):
