@@ -57,7 +57,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # reduce attenuation/power of qubit beam to resolve lines
-        self.qubit.set_att_mu(self.att_qubit_mu * dB)
+        self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
 
         # record subsequences onto DMA
