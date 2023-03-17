@@ -17,7 +17,7 @@ class DACFast(EnvExperiment):
 
         # arguments
         self.setattr_argument("channel_num",                        NumberValue(default=0, ndecimals=0, step=1, min=0, max=15))
-        self.setattr_argument("voltage_v",                          NumberValue(default=9.9, ndecimals=3, step=1, min=0, max=10))
+        self.setattr_argument("voltage_v",                          NumberValue(default=1.2, ndecimals=3, step=1, min=0, max=10))
         self.setattr_argument("time_hold_ms",                       NumberValue(default=0.2, ndecimals=3, step=1, min=0.001, max=10000000000))
 
     def prepare(self):
@@ -27,8 +27,8 @@ class DACFast(EnvExperiment):
     def run(self):
         self.core.reset()
         self.fastino0.set_dac(self.channel_num, self.voltage_v)
-        delay(self.time_hold_ms * ms)
-        self.fastino0.set_dac(self.channel_num, 0.)
+        # delay(self.time_hold_ms * ms)
+        # self.fastino0.set_dac(self.channel_num, 0.)
 
     def analyze(self):
         pass
