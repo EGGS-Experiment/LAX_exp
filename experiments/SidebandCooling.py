@@ -33,7 +33,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                                                                         ), group='sideband_readout')
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
         self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=16.1, ndecimals=5, step=1, min=1, max=100), group='sideband_readout')
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_readout')
 
         # get relevant devices
         self.setattr_device('qubit')
