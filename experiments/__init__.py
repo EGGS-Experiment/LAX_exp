@@ -6,5 +6,5 @@ __all__ = []
 
 
 # spectroscopy
-# from .LaserScan import LaserScan2
-# __all__.extend(['LaserScan2'])
+# from .LaserScan import LaserScan
+# __all__.extend(['LaserScan'])

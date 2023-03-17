@@ -79,6 +79,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                 # get waveform parameters
                 freq_ftw = waveform_params[0]
                 ampl_asf = waveform_params[1]
+                self.core.break_realtime()
 
                 # set probe beam frequency
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)

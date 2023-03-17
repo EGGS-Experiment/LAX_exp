@@ -32,6 +32,7 @@ class SidebandCool(LAXSubsequence):
         # sideband cooling waveform
         self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([104.012, 103.012, 105.012, 107.711]), group='sideband_cooling')
         self.setattr_argument('ampl_sideband_cooling_pct',              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100), group='sideband_cooling')
+        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling')
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)

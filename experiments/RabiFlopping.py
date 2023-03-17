@@ -21,11 +21,13 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 250, 251, randomize=True),
+                                                                        default=RangeScan(0, 100, 101, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.335, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.06, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("att_qubit_db",                       NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+
 
         # get devices
         self.setattr_device('qubit')
@@ -60,9 +62,11 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # set qubit beam parameters
-        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
+        self.qubit.set_att(self.att_qubit_db * dB)
+        self.core.break_realtime()
         # todo: check if this gives us problems like before related to profile=0
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
+        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
