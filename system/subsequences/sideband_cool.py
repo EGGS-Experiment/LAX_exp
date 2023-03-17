@@ -22,15 +22,15 @@ class SidebandCool(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling')
-        self.setattr_argument('sideband_cycles',                        NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
-        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=11, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
 
         # sideband cooling timing
-        self.setattr_argument('time_min_sideband_cooling_us_list',      PYONValue([50, 75, 80, 91]), group='sideband_cooling')
-        self.setattr_argument('time_max_sideband_cooling_us_list',      PYONValue([250, 271, 239, 241]), group='sideband_cooling')
+        self.setattr_argument('time_min_sideband_cooling_us_list',      PYONValue([30]), group='sideband_cooling')
+        self.setattr_argument('time_max_sideband_cooling_us_list',      PYONValue([150]), group='sideband_cooling')
 
         # sideband cooling waveform
-        self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([104.012, 103.012, 105.012, 107.711]), group='sideband_cooling')
+        self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([103.77]), group='sideband_cooling')
         self.setattr_argument('ampl_sideband_cooling_pct',              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100), group='sideband_cooling')
         self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling')
 
