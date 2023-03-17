@@ -46,6 +46,9 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                                     ])
         self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
 
+        # convert attenuation to machine units
+        self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.time_rabiflop_mu_list),
@@ -62,10 +65,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # set qubit beam parameters
-        self.qubit.set_att(self.att_qubit_db * dB)
-        self.core.break_realtime()
+        self.qubit.set_att_mu(self.att_qubit_mu * dB)
         # todo: check if this gives us problems like before related to profile=0
-        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
+        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
         self.core.break_realtime()
 

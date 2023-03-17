@@ -46,14 +46,17 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # convert readout frequencies to machine units
-        self.freq_readout_ftw_list =                                    [self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                        for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))]
+        self.freq_readout_ftw_list =                                    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                        for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))])
         # combine & shuffle readout frequencies
         shuffle(self.freq_readout_ftw_list)
 
         # convert readout parameters
         self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
         self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
+
+        # convert attenuation to machine units
+        self.att_readout_mu =                                           att_to_mu(self.att_readout_mu * dB)
 
     @property
     def results_shape(self):
@@ -65,8 +68,6 @@ class SidebandCooling(LAXExperiment, Experiment):
     @kernel
     def initialize_experiment(self):
         self.core.break_realtime()
-
-        # set
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -93,8 +94,9 @@ class SidebandCooling(LAXExperiment, Experiment):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
-                # set readout profile for qubit
-                self.qubit.carrier()
+                # set readout waveform for qubit
+                self.qubit.set_profile(0)
+                self.qubit.set_att_mu(self.att_readout_mu)
 
                 # rabi flop
                 self.rabiflop_subsequence.run_dma()
@@ -106,5 +108,3 @@ class SidebandCooling(LAXExperiment, Experiment):
                 with parallel:
                     self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
-
-            # self.set_dataset('management.completion_pct', (trial_num + 1) / self.repetitions * 100., broadcast=True, persist=True, archive=False)

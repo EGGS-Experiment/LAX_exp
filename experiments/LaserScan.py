@@ -41,6 +41,10 @@ class LaserScan(LAXExperiment, Experiment):
         # convert frequencies to machine units
         self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
 
+        # convert attenuation to machine units
+        self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
+
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.freq_qubit_scan_mhz),
@@ -53,7 +57,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # reduce attenuation/power of qubit beam to resolve lines
-        self.qubit.set_att(self.att_qubit_db * dB)
+        self.qubit.set_att_mu(self.att_qubit_mu * dB)
         self.core.break_realtime()
 
         # record subsequences onto DMA

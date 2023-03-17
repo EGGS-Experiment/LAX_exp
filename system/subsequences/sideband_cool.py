@@ -68,6 +68,7 @@ class SidebandCool(LAXSubsequence):
         # sideband cooling waveforms
         self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
         self.ampl_sideband_cooling_asf =                                pct_to_asf(self.ampl_sideband_cooling_pct)
+        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_db * dB)
         self.iter_sideband_cooling_modes_list =                         np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
     @kernel(flags={"fast-math"})
@@ -81,6 +82,9 @@ class SidebandCool(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self):
+        # set sideband cooling attenuation
+        self.qubit.set_att_mu(self.att_sidebandcooling_mu)
+
         # run sideband cooling with interspersed spin polarization
         for time_list_mu in self.time_sideband_cooling_list_mu:
 

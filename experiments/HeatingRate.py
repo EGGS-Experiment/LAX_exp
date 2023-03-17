@@ -59,11 +59,16 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                     # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
-                    # wait given time
-                    delay_mu(time_heating_delay_mu)
+                    # prepare for readout
+                    with parallel:
 
-                    # set readout profile for qubit
-                    self.qubit.carrier()
+                        # wait given time
+                        delay_mu(time_heating_delay_mu)
+
+                        # set readout waveform for qubit
+                        with sequential:
+                            self.qubit.set_profile(0)
+                            self.qubit.set_att_mu(self.att_readout_mu)
 
                     # rabi flop
                     self.rabiflop_subsequence.run_dma()
