@@ -32,12 +32,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=CenterScan(0.594, 0.01, 0.0002, randomize=True),
+                                                                        default=CenterScan(1.385, 0.01, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
