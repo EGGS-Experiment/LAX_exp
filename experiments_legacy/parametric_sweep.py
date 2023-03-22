@@ -32,12 +32,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=2.0, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=CenterScan(0.588, 0.01, 0.0002, randomize=True),
+                                                                        default=CenterScan(0.594, 0.01, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -45,7 +45,7 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=55.5, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=50.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
         # get global parameters
@@ -72,11 +72,12 @@ class ParametricSweep(EnvExperiment):
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
         self.mod_clock_att_db =                                     4 * dB
+        # self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
         self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
-        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(7000 * ns)
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(10000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(100 * ns)
 
 
@@ -161,7 +162,7 @@ class ParametricSweep(EnvExperiment):
             # set up loop variables
             counter = 0
             timestamp_mu_list = [0] * self.num_counts
-
+            self.core.break_realtime()
 
             # trigger sequence off same phase of RF
             self.rf_clock._set_sensitivity(1)
@@ -172,19 +173,22 @@ class ParametricSweep(EnvExperiment):
 
                 # set rtio hardware time to rising edge of RF
                 at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
-                # prepare to start counting photons
-                with parallel:
-                    # stop listening to RF triggers
-                    self.rf_clock._set_sensitivity(0)
+                self.rf_clock._set_sensitivity(0)
 
-                    # activate modulation
+                # prepare to start counting photons
+                # with parallel:
+                #     # stop listening to RF triggers
+
+                # activate modulation
+                at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu + self.time_rf_holdoff_mu)
+                with parallel:
                     self.mod_toggle.on()
+                    self.pmt_counter._set_sensitivity(1)
                     time_start_mu = now_mu() + self.time_mod_delay_mu
 
-
-                # enable photon counting
-                at_mu(time_start_mu)
-                self.pmt_counter._set_sensitivity(1)
+                #
+                # # enable photon counting
+                # at_mu(time_start_mu)
                 # start counting photons
                 while counter < self.num_counts:
 
@@ -197,6 +201,7 @@ class ParametricSweep(EnvExperiment):
                         counter += 1
 
                 # stop counting and upload
+                self.core.break_realtime()
                 with parallel:
                     self.pmt_counter._set_sensitivity(0)
                     self.mod_toggle.off()
@@ -216,7 +221,7 @@ class ParametricSweep(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         self.mutate_dataset(
-            'ttl_trigger',
+            'results',
             self._dataset_counter,
             np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
         )
@@ -261,8 +266,8 @@ class ParametricSweep(EnvExperiment):
         self.fg.toggle(0)
 
         # process data
-        # ttl_trigger_tmp = np.array(self.ttl_trigger).reshape((len(self.freq_mod_mhz_list), self.num_counts, 2))
+        # results_tmp = np.array(self.results).reshape((len(self.freq_mod_mhz_list), self.num_counts, 2))
         # ind_arr = np.argsort(self.freq_mod_mhz_list)
-        # ttl_trigger_tmp = ttl_trigger_tmp[ind_arr]
+        # results_tmp = results_tmp[ind_arr]
         #
-        # self.ttl_trigger_processed = ttl_trigger_tmp
+        # self.results_processed = results_tmp
