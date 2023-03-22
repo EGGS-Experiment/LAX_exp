@@ -1,9 +1,11 @@
 import labrad
 import numpy as np
+from time import sleep
 
 from os import environ
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
+
 from EGGS_labrad.config.dc_config import dc_config
 
 
@@ -12,7 +14,7 @@ class ParametricSweep(EnvExperiment):
     Parametric Sweep
     """
     kernel_invariants = {
-        'time_timeout_pmt_mu',
+        'time_pmt_gating_mu',
         'dc_micromotion_channel',
         'ampl_mod_vpp',
         'freq_mod_mhz_list',
@@ -31,9 +33,6 @@ class ParametricSweep(EnvExperiment):
 
         # num_counts
         self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
-
-        # timing
-        self.setattr_argument("time_timeout_pmt_s",                 NumberValue(default=25, ndecimals=5, step=1, min=1, max=1000000))
 
         # modulation
         self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.5, ndecimals=3, step=0.01, min=0, max=1000000))
@@ -58,9 +57,7 @@ class ParametricSweep(EnvExperiment):
         # PMT devices
         self.pmt_counter =                                          self.get_device("ttl{:d}".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
-
-        # convert time values to machine units
-        self.time_timeout_pmt_mu =                                  self.core.seconds_to_mu(self.time_timeout_pmt_s * s)
+        self.time_pmt_gating_mu =                                   self.core.seconds_to_mu(100 * us)
 
         # get voltage parameters
         self.set_dataset('dc_channel_name', self.dc_micromotion_channel)
@@ -69,24 +66,30 @@ class ParametricSweep(EnvExperiment):
         # reformat frequency list
         self.freq_mod_mhz_list =                                    np.array(list(self.freq_mod_mhz_list))
 
-        # RF modulation synchronization clock
-        self.mod_clock =                                            self.get_device("urukul0_ch3")
+        # modulation control and synchronization
         self.mod_toggle =                                           self.get_device("ttl8")
+        self.mod_clock =                                            self.get_device("urukul0_ch3")
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
-        self.mod_clock_att_db =                                     0 * dB
-        self.mod_clock_delay_mu =                                   self.core.seconds_to_mu(300 * ns)
+        self.mod_clock_att_db =                                     4 * dB
+        self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
+
+        # RF synchronization
+        self.rf_clock =                                             self.get_device('ttl7')
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(7000 * ns)
+        self.time_rf_gating_mu =                                    self.core.seconds_to_mu(100 * ns)
+
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("ttl_trigger",                             np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
-        self.setattr_dataset("ttl_trigger")
+        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
+        self.setattr_dataset("results")
 
         # record parameters
         self.set_dataset('xArr',                                    self.freq_mod_mhz_list)
         self.set_dataset('num_counts',                              self.num_counts)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
-        self.set_dataset('dc_channel_n',                          self.dc_micromotion_channel)
+        self.set_dataset('dc_channel_n',                            self.dc_micromotion_channel)
         self.set_dataset('dc_channel_voltage',                      self.dc_micromotion_voltage_v)
 
         # connect to labrad
@@ -124,12 +127,15 @@ class ParametricSweep(EnvExperiment):
 
     @kernel(flags={"fast-math"})
     def run(self):
+        # reset core device
         self.core.reset()
 
         # set ttl directions
-        self.pmt_counter.input()
-        self.mod_toggle.output()
-        self.mod_toggle.off()
+        with parallel:
+            self.pmt_counter.input()
+            self.rf_clock.input()
+            self.mod_toggle.output()
+            self.mod_toggle.off()
         self.core.break_realtime()
 
         # configure rf mod clock
@@ -142,56 +148,65 @@ class ParametricSweep(EnvExperiment):
         # enable external clocking
         self.fg_write(':ROSC:SOUR EXT')
 
+
         # MAIN LOOP
-        # sweep frequency
+        # sweep modulation frequency
         for freq_val_mhz in self.freq_mod_mhz_list:
 
-            # reset FIFOs
-            self.core.reset()
+            self.core.break_realtime()
 
-            # set frequency
+            # set modulation frequency
             self.frequency_set(freq_val_mhz * 1e6)
 
             # set up loop variables
             counter = 0
             timestamp_mu_list = [0] * self.num_counts
-            self.core.break_realtime()
 
-            # synchronize timings with DDS clock
-            # self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-            # delay_mu(self.mod_clock_delay_mu)
 
-            # activate modulation and wait for change in output
-            self.mod_toggle.on()
-            delay_mu(self.mod_clock_delay_mu)
-            time_start_mu = now_mu()
+            # trigger sequence off same phase of RF
+            self.rf_clock._set_sensitivity(1)
+            time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu() + self.time_rf_gating_mu)
 
-            # start counting photons
-            time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-            while counter < self.num_counts:
+            # start photon correlation sequence
+            if time_trigger_rf_mu > 0:
 
-                # move timestamped photon into buffer
-                time_mu_tmp = self.pmt_counter.timestamp_mu(time_stop_mu)
+                # set rtio hardware time to rising edge of RF
+                at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
+                # prepare to start counting photons
+                with parallel:
+                    # stop listening to RF triggers
+                    self.rf_clock._set_sensitivity(0)
 
-                # increase gating time
-                if time_mu_tmp < 0:
-                    print('\t\tError: increased gating time.')
-                    self.core.break_realtime()
-                    #self.mod_toggle.off()
-                    #delay_mu(1000)
-                    time_stop_mu = self.pmt_counter.gate_rising_mu(self.time_timeout_pmt_mu)
-                else:
-                    timestamp_mu_list[counter] = time_mu_tmp
-                    counter += 1
+                    # activate modulation
+                    self.mod_toggle.on()
+                    time_start_mu = now_mu() + self.time_mod_delay_mu
 
-            # stop loop and reset
-            self.core.break_realtime()
-            with parallel:
-                self.pmt_counter._set_sensitivity(0)
-                self.mod_toggle.off()
 
-            # store data
-            self.update_dataset(time_start_mu, timestamp_mu_list)
+                # enable photon counting
+                at_mu(time_start_mu)
+                self.pmt_counter._set_sensitivity(1)
+                # start counting photons
+                while counter < self.num_counts:
+
+                    # get photon timestamp
+                    time_photon_mu = self.pmt_counter.timestamp_mu(now_mu() + self.time_pmt_gating_mu)
+
+                    # move timestamped photon into buffer if valid
+                    if time_photon_mu >= 0:
+                        timestamp_mu_list[counter] = time_photon_mu
+                        counter += 1
+
+                # stop counting and upload
+                with parallel:
+                    self.pmt_counter._set_sensitivity(0)
+                    self.mod_toggle.off()
+                    self.update_dataset(time_start_mu, timestamp_mu_list)
+
+            # if we don't get rf trigger for some reason, just reset
+            else:
+                self.rf_clock._set_sensitivity(0)
+
+            # reset FIFOs
             self.core.reset()
 
 
