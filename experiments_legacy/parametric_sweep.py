@@ -148,6 +148,11 @@ class ParametricSweep(EnvExperiment):
 
         # enable external clocking
         self.fg_write(':ROSC:SOUR EXT')
+        self.core.break_realtime()
+
+        # set voltage
+        self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
+        self.core.break_realtime()
 
 
         # MAIN LOOP
@@ -174,10 +179,6 @@ class ParametricSweep(EnvExperiment):
                 # set rtio hardware time to rising edge of RF
                 at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
                 self.rf_clock._set_sensitivity(0)
-
-                # prepare to start counting photons
-                # with parallel:
-                #     # stop listening to RF triggers
 
                 # activate modulation
                 at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu + self.time_rf_holdoff_mu)
