@@ -241,7 +241,7 @@ class MicromotionCompensation(EnvExperiment):
         """
         # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(0.8)
+        sleep(2.0)
 
         # wait until voltage updates
         voltage_get_v = self.dc.voltage(channel)
