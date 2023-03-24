@@ -241,12 +241,12 @@ class MicromotionCompensation(EnvExperiment):
         """
         # set desired voltgae
         voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(0.2)
+        sleep(0.8)
 
         # wait until voltage updates
         voltage_get_v = self.dc.voltage(channel)
         while np.abs(voltage_set_v - voltage_get_v) > 0.05:
-            sleep(0.2)
+            sleep(0.8)
             print('voltage problem teehee')
             voltage_get_v = self.dc.voltage(channel)
 
