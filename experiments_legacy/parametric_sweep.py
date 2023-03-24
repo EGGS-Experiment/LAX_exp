@@ -159,10 +159,13 @@ class ParametricSweep(EnvExperiment):
         # sweep modulation frequency
         for freq_val_mhz in self.freq_mod_mhz_list:
 
-            self.core.break_realtime()
+            # give ion time to recool
+            # todo: make param
+            delay_mu(3000000)
 
             # set modulation frequency
             self.frequency_set(freq_val_mhz * 1e6)
+            self.core.break_realtime()
 
             # set up loop variables
             counter = 0
@@ -174,7 +177,7 @@ class ParametricSweep(EnvExperiment):
             time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu() + self.time_rf_gating_mu)
 
             # start photon correlation sequence
-            if time_trigger_rf_mu > 0:
+            if time_trigger_rf_mu >= 0:
 
                 # set rtio hardware time to rising edge of RF
                 at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
@@ -211,6 +214,7 @@ class ParametricSweep(EnvExperiment):
             # if we don't get rf trigger for some reason, just reset
             else:
                 self.rf_clock._set_sensitivity(0)
+                self.core.break_realtime()
 
             # reset FIFOs
             self.core.reset()
