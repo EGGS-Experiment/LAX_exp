@@ -35,11 +35,11 @@ class MicromotionCompensation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=50000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.25, ndecimals=3, step=0.01, min=0, max=1000000))
-        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.400, ndecimals=5, step=0.001, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.05, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.220, ndecimals=5, step=0.001, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
@@ -52,7 +52,7 @@ class MicromotionCompensation(EnvExperiment):
 
         self.setattr_argument("dc_micromotion_channel_2",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_2",   Scannable(
-                                                                        default=CenterScan(35.0, 10.0, 0.1, randomize=True),
+                                                                        default=CenterScan(35.0, 10.0, 0.5, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -152,6 +152,9 @@ class MicromotionCompensation(EnvExperiment):
             # sweep voltage 2
             for voltage_2_v in self.dc_micromotion_voltages_v_list_2:
 
+                # reset timestamping loop counter
+                counter = 0
+
                 # set voltage 2
                 self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
                 self.core.break_realtime()
@@ -227,6 +230,15 @@ class MicromotionCompensation(EnvExperiment):
         self.mod_clock.cfg_sw(True)
         self.core.break_realtime()
 
+        # prepare LabRAD devices
+        self._prepareDevicesLabrad()
+        self.core.break_realtime()
+
+    @rpc
+    def _prepareDevicesLabrad(self):
+        """
+        Prepare LabRAD devices for the experiment via RPC.
+        """
         # set up function generator
         self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
@@ -236,7 +248,6 @@ class MicromotionCompensation(EnvExperiment):
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
         self.fg.gpib_write(':ROSC:SOUR EXT')
-        sleep(1.0)
 
         # set up amo8
         self.dc.polling(False)
@@ -282,6 +293,7 @@ class MicromotionCompensation(EnvExperiment):
             np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
         )
         self._dataset_counter += 1
+
 
     def analyze(self):
         # turn off modulation

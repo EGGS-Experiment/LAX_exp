@@ -1,6 +1,6 @@
 import labrad
 import numpy as np
-# from time import sleep
+from time import sleep
 
 from os import environ
 from artiq.experiment import *
@@ -32,12 +32,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.05, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.385, 0.01, 0.0002, randomize=True),
+                                                                        default=CenterScan(1.212, 0.01, 0.0001, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -45,7 +45,7 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=50.0, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=40.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
         # get global parameters
@@ -132,6 +132,9 @@ class ParametricSweep(EnvExperiment):
         # sweep modulation frequency
         for freq_val_mhz in self.freq_mod_mhz_list:
 
+            # reset timestamping loop counter
+            counter = 0
+
             # give ion time to recool
             # todo: make param
             delay_mu(3000000)
@@ -207,6 +210,15 @@ class ParametricSweep(EnvExperiment):
         self.mod_clock.cfg_sw(True)
         self.core.break_realtime()
 
+        # prepare LabRAD devices
+        self._prepareDevicesLabrad()
+        self.core.break_realtime()
+
+    @rpc
+    def _prepareDevicesLabrad(self):
+        """
+        Prepare LabRAD devices for the experiment via RPC.
+        """
         # set up function generator
         self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
@@ -215,7 +227,6 @@ class ParametricSweep(EnvExperiment):
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
         self.fg.gpib_write(':ROSC:SOUR EXT')
-        # sleep(1.0)
 
         # set up amo8
         self.dc.polling(False)
@@ -223,7 +234,6 @@ class ParametricSweep(EnvExperiment):
 
         # set voltage
         self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-        self.core.break_realtime()
 
 
     @rpc(flags={"async"})
@@ -245,9 +255,22 @@ class ParametricSweep(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
+        # # set desired voltage
+        # voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        # print('\tvoltage set: {}'.format(voltage_set_v))
+
         # set desired voltage
-        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
-        print('\tvoltage set: {}'.format(voltage_set_v))
+        voltage_set_v = self.dc.voltage(channel, voltage_v)
+        sleep(0.2)
+
+        # wait until voltage updates
+        voltage_get_v = self.dc.voltage(channel)
+        while np.abs(voltage_set_v - voltage_get_v) > 0.05:
+            sleep(0.2)
+            voltage_get_v = self.dc.voltage(channel)
+
+        # print current voltage for verification
+        print('\tvoltage set: {}'.format(voltage_get_v))
 
     @rpc
     def frequency_set(self, freq_hz):
