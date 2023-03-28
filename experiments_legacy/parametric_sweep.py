@@ -80,7 +80,6 @@ class ParametricSweep(EnvExperiment):
         self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(10000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(100 * ns)
 
-
         # set up datasets
         self._dataset_counter                                       = 0
         self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
@@ -114,44 +113,19 @@ class ParametricSweep(EnvExperiment):
         if not dev_exists:
             raise Exception("Error: modulation function generator not detected.")
 
-        # set up function generator
-        self.fg.gpib_write(':OUTP:IMP 50')
-        self.fg.toggle(0)
-        self.fg.amplitude(self.ampl_mod_vpp)
-        self.fg.burst(True)
-        self.fg.burst_mode('GAT')
-        self.fg.toggle(1)
-
-        # set voltage
-        #self.dc.voltage(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-
 
     @kernel(flags={"fast-math"})
     def run(self):
         # reset core device
         self.core.reset()
 
-        # set ttl directions
-        with parallel:
-            self.pmt_counter.input()
-            self.rf_clock.input()
-            self.mod_toggle.output()
-            self.mod_toggle.off()
+        # prepare devices for experiment
+        self.prepareDevices()
         self.core.break_realtime()
 
-        # configure rf mod clock
-        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.mod_clock.set_att(self.mod_clock_att_db)
-        self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-        self.mod_clock.cfg_sw(True)
-        self.core.break_realtime()
-
-        # enable external clocking
-        self.fg_write(':ROSC:SOUR EXT')
-        self.core.break_realtime()
-
-        # set voltage
-        self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
+        # set up loop variables
+        counter = 0
+        timestamp_mu_list = [0] * self.num_counts
         self.core.break_realtime()
 
 
@@ -167,11 +141,6 @@ class ParametricSweep(EnvExperiment):
             self.frequency_set(freq_val_mhz * 1e6)
             self.core.break_realtime()
 
-            # set up loop variables
-            counter = 0
-            timestamp_mu_list = [0] * self.num_counts
-            self.core.break_realtime()
-
             # trigger sequence off same phase of RF
             self.rf_clock._set_sensitivity(1)
             time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu() + self.time_rf_gating_mu)
@@ -183,16 +152,14 @@ class ParametricSweep(EnvExperiment):
                 at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
                 self.rf_clock._set_sensitivity(0)
 
-                # activate modulation
-                at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu + self.time_rf_holdoff_mu)
+                # activate modulation and enable photon counting
+                at_mu(time_trigger_rf_mu + 2 * self.time_rf_holdoff_mu)
                 with parallel:
                     self.mod_toggle.on()
                     self.pmt_counter._set_sensitivity(1)
                     time_start_mu = now_mu() + self.time_mod_delay_mu
 
-                #
-                # # enable photon counting
-                # at_mu(time_start_mu)
+
                 # start counting photons
                 while counter < self.num_counts:
 
@@ -218,6 +185,41 @@ class ParametricSweep(EnvExperiment):
 
             # reset FIFOs
             self.core.reset()
+
+
+    @kernel(flags={"fast-math"})
+    def prepareDevices(self):
+        """
+        Prepare devices for the experiment.
+        """
+        # set ttl directions
+        with parallel:
+            self.pmt_counter.input()
+            self.rf_clock.input()
+            self.mod_toggle.output()
+            self.mod_toggle.off()
+        self.core.break_realtime()
+
+        # configure rf mod clock
+        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.mod_clock.set_att(self.mod_clock_att_db)
+        self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+        self.mod_clock.cfg_sw(True)
+        self.core.break_realtime()
+
+        # set up function generator
+        self.fg.gpib_write(':OUTP:IMP 50')
+        self.fg.toggle(0)
+        self.fg.amplitude(self.ampl_mod_vpp)
+        self.fg.burst(True)
+        self.fg.burst_mode('GAT')
+        self.fg.toggle(1)
+        self.fg_write(':ROSC:SOUR EXT')
+        sleep(1.0)
+
+        # set voltage
+        self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
+        self.core.break_realtime()
 
 
     @rpc(flags={"async"})
