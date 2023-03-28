@@ -1,6 +1,6 @@
 import labrad
 import numpy as np
-from time import sleep
+# from time import sleep
 
 from os import environ
 from artiq.experiment import *
@@ -97,7 +97,6 @@ class ParametricSweep(EnvExperiment):
         self.fg =                                                   self.cxn.function_generator_server
         self.dc =                                                   self.cxn.dc_server
 
-        # set up function generator
         # get list of function generators
         fg_dev_list = self.fg.list_devices()
         fg_dev_dict = dict(tuple(fg_dev_list))
@@ -171,6 +170,7 @@ class ParametricSweep(EnvExperiment):
                         timestamp_mu_list[counter] = time_photon_mu
                         counter += 1
 
+
                 # stop counting and upload
                 self.core.break_realtime()
                 with parallel:
@@ -214,8 +214,12 @@ class ParametricSweep(EnvExperiment):
         self.fg.burst(True)
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
-        self.fg_write(':ROSC:SOUR EXT')
-        sleep(1.0)
+        self.fg.gpib_write(':ROSC:SOUR EXT')
+        # sleep(1.0)
+
+        # set up amo8
+        self.dc.polling(False)
+        # todo: deactivate alarm
 
         # set voltage
         self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
@@ -241,18 +245,9 @@ class ParametricSweep(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
-        # set desired voltgae
-        voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(0.2)
-
-        # wait until voltage updates
-        voltage_get_v = self.dc.voltage(channel)
-        while np.abs(voltage_set_v - voltage_get_v) > 0.05:
-            sleep(0.2)
-            voltage_get_v = self.dc.voltage(channel)
-
-        # print current voltage for verification
-        print('\tvoltage set: {}'.format(voltage_get_v))
+        # set desired voltage
+        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        print('\tvoltage set: {}'.format(voltage_set_v))
 
     @rpc
     def frequency_set(self, freq_hz):
@@ -262,11 +257,6 @@ class ParametricSweep(EnvExperiment):
         freq_set_hz = self.fg.frequency(freq_hz)
         print('\tfrequency set: {}'.format(freq_set_hz))
 
-    def fg_write(self, msg):
-        """
-        Write a GPIB message to the function generator.
-        """
-        self.fg.gpib_write(msg)
 
     def analyze(self):
         # turn off modulation

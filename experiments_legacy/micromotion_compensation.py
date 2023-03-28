@@ -110,7 +110,6 @@ class MicromotionCompensation(EnvExperiment):
         self.fg =                                                   self.cxn.function_generator_server
         self.dc =                                                   self.cxn.dc_server
 
-        # set up function generator
         # get list of function generators
         fg_dev_list = self.fg.list_devices()
         fg_dev_dict = dict(tuple(fg_dev_list))
@@ -191,6 +190,7 @@ class MicromotionCompensation(EnvExperiment):
                             timestamp_mu_list[counter] = time_photon_mu
                             counter += 1
 
+
                     # stop counting and upload
                     self.core.break_realtime()
                     with parallel:
@@ -235,8 +235,12 @@ class MicromotionCompensation(EnvExperiment):
         self.fg.burst(True)
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
-        self.fg_write(':ROSC:SOUR EXT')
+        self.fg.gpib_write(':ROSC:SOUR EXT')
         sleep(1.0)
+
+        # set up amo8
+        self.dc.polling(False)
+        # todo: deactivate alarm
 
 
     # LABRAD FUNCTIONS
@@ -266,12 +270,6 @@ class MicromotionCompensation(EnvExperiment):
         """
         freq_set_hz = self.fg.frequency(freq_hz)
         print('\tfrequency set: {}'.format(freq_set_hz))
-
-    def fg_write(self, msg):
-        """
-        Write a GPIB message to the function generator.
-        """
-        self.fg.gpib_write(msg)
 
     @rpc(flags={"async"})
     def update_dataset(self, time_start_mu, timestamp_mu_list):
