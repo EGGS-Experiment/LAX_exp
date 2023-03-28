@@ -82,11 +82,10 @@ class ParametricSweep(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
+        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 2]))
         self.setattr_dataset("results")
 
         # record parameters
-        self.set_dataset('xArr',                                    self.freq_mod_mhz_list)
         self.set_dataset('num_counts',                              self.num_counts)
         self.set_dataset('modulation_amplitude_vpp',                self.ampl_mod_vpp)
         self.set_dataset('dc_channel_n',                            self.dc_micromotion_channel)
@@ -176,7 +175,7 @@ class ParametricSweep(EnvExperiment):
                 with parallel:
                     self.pmt_counter._set_sensitivity(0)
                     self.mod_toggle.off()
-                    self.update_dataset(time_start_mu, timestamp_mu_list)
+                    self.update_dataset(freq_val_mhz, time_start_mu, timestamp_mu_list)
 
             # if we don't get rf trigger for some reason, just reset
             else:
@@ -227,14 +226,18 @@ class ParametricSweep(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, time_start_mu, timestamp_mu_list):
+    def update_dataset(self, freq_mod_mhz, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
+        # remove starting time and digitally demodulate counts
+        counts_demod = np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * (np.array(timestamp_mu_list) - time_start_mu))
+
+        # update dataset
         self.mutate_dataset(
             'results',
             self._dataset_counter,
-            np.array(self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu))
+            np.array([freq_mod_mhz * 1e6, counts_demod])
         )
         self._dataset_counter += 1
 
@@ -252,7 +255,7 @@ class ParametricSweep(EnvExperiment):
     @rpc
     def frequency_set(self, freq_hz):
         """
-        Set the RF to the desired frequency.
+        Set the desired modulation frequency.
         """
         freq_set_hz = self.fg.frequency(freq_hz)
         print('\tfrequency set: {}'.format(freq_set_hz))
@@ -261,10 +264,3 @@ class ParametricSweep(EnvExperiment):
     def analyze(self):
         # turn off modulation
         self.fg.toggle(0)
-
-        # process data
-        # results_tmp = np.array(self.results).reshape((len(self.freq_mod_mhz_list), self.num_counts, 2))
-        # ind_arr = np.argsort(self.freq_mod_mhz_list)
-        # results_tmp = results_tmp[ind_arr]
-        #
-        # self.results_processed = results_tmp
