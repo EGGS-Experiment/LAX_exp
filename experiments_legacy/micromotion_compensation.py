@@ -126,38 +126,20 @@ class MicromotionCompensation(EnvExperiment):
         if not dev_exists:
             raise Exception("Error: modulation function generator not detected.")
 
-        # set up function generator
-        self.fg.gpib_write(':OUTP:IMP 50')
-        self.fg.toggle(0)
-        self.fg.amplitude(self.ampl_mod_vpp)
-        self.fg.frequency(self.freq_mod_mhz * 1e6)
-        self.fg.burst(True)
-        self.fg.burst_mode('GAT')
-        self.fg.toggle(1)
-
 
     @kernel(flags={"fast-math"})
     def run(self):
         # reset core device
         self.core.reset()
 
-        # set ttl directions
-        with parallel:
-            self.pmt_counter.input()
-            self.rf_clock.input()
-            self.mod_toggle.output()
-            self.mod_toggle.off()
+        # prepare devices for experiment
+        self.prepareDevices()
         self.core.break_realtime()
 
-        # configure rf mod clock
-        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.mod_clock.set_att(self.mod_clock_att_db)
-        self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
-        self.mod_clock.cfg_sw(True)
+        # set up loop variables
+        counter = 0
+        timestamp_mu_list = [0] * self.num_counts
         self.core.break_realtime()
-
-        # enable external clocking
-        self.fg_write(':ROSC:SOUR EXT')
 
 
         # MAIN LOOP
@@ -171,16 +153,13 @@ class MicromotionCompensation(EnvExperiment):
             # sweep voltage 2
             for voltage_2_v in self.dc_micromotion_voltages_v_list_2:
 
-                self.core.break_realtime()
-
                 # set voltage 2
                 self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
                 self.core.break_realtime()
 
-                # set up loop variables
-                counter = 0
-                timestamp_mu_list = [0] * self.num_counts
-                self.core.break_realtime()
+                # give ion time to recool
+                # todo: make param
+                delay_mu(3000000)
 
                 # trigger sequence off same phase of RF
                 self.rf_clock._set_sensitivity(1)
@@ -193,20 +172,14 @@ class MicromotionCompensation(EnvExperiment):
                     at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
                     self.rf_clock._set_sensitivity(0)
 
-                    # prepare to start counting photons
-                    # with parallel:
-                    #     # stop listening to RF triggers
-
-                    # activate modulation
-                    at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu + self.time_rf_holdoff_mu)
+                    # activate modulation and enable photon counting
+                    at_mu(time_trigger_rf_mu + 2 * self.time_rf_holdoff_mu)
                     with parallel:
                         self.mod_toggle.on()
                         self.pmt_counter._set_sensitivity(1)
                         time_start_mu = now_mu() + self.time_mod_delay_mu
 
-                    #
-                    # # enable photon counting
-                    # at_mu(time_start_mu)
+
                     # start counting photons
                     while counter < self.num_counts:
 
@@ -228,9 +201,42 @@ class MicromotionCompensation(EnvExperiment):
                 # if we don't get rf trigger for some reason, just reset
                 else:
                     self.rf_clock._set_sensitivity(0)
+                self.core.break_realtime()
 
                 # reset FIFOs
                 self.core.reset()
+
+
+    @kernel(flags={"fast-math"})
+    def prepareDevices(self):
+        """
+        Prepare devices for the experiment.
+        """
+        # set ttl directions
+        with parallel:
+            self.pmt_counter.input()
+            self.rf_clock.input()
+            self.mod_toggle.output()
+            self.mod_toggle.off()
+        self.core.break_realtime()
+
+        # configure rf mod clock
+        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.mod_clock.set_att(self.mod_clock_att_db)
+        self.mod_clock.set_mu(self.mod_clock_freq_ftw, asf=self.mod_clock_ampl_pct)
+        self.mod_clock.cfg_sw(True)
+        self.core.break_realtime()
+
+        # set up function generator
+        self.fg.gpib_write(':OUTP:IMP 50')
+        self.fg.toggle(0)
+        self.fg.amplitude(self.ampl_mod_vpp)
+        self.fg.frequency(self.freq_mod_mhz * 1e6)
+        self.fg.burst(True)
+        self.fg.burst_mode('GAT')
+        self.fg.toggle(1)
+        self.fg_write(':ROSC:SOUR EXT')
+        sleep(1.0)
 
 
     # LABRAD FUNCTIONS
@@ -239,7 +245,7 @@ class MicromotionCompensation(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
-        # set desired voltgae
+        # set desired voltage
         voltage_set_v = self.dc.voltage(channel, voltage_v)
         sleep(2.0)
 
