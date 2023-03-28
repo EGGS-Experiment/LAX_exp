@@ -239,7 +239,7 @@ class ParametricSweep(EnvExperiment):
         """
         Set the channel to the desired voltage.
         """
-        # set desired voltgae
+        # set desired voltage
         voltage_set_v = self.dc.voltage(channel, voltage_v)
         sleep(0.2)
 
