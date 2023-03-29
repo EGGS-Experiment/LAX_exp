@@ -1,6 +1,6 @@
 import labrad
 import numpy as np
-# from time import sleep
+from time import sleep
 
 from os import environ
 from artiq.experiment import *
@@ -32,12 +32,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.2, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.05, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.385, 0.01, 0.0002, randomize=True),
+                                                                        default=CenterScan(1.212, 0.01, 0.0001, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -45,7 +45,7 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=50.0, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=40.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
         # get global parameters
@@ -72,7 +72,6 @@ class ParametricSweep(EnvExperiment):
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
         self.mod_clock_att_db =                                     4 * dB
-        # self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
         self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
 
         # RF synchronization
@@ -130,6 +129,9 @@ class ParametricSweep(EnvExperiment):
         # MAIN LOOP
         # sweep modulation frequency
         for freq_val_mhz in self.freq_mod_mhz_list:
+
+            # reset timestamping loop counter
+            counter = 0
 
             # give ion time to recool
             # todo: make param
@@ -206,6 +208,15 @@ class ParametricSweep(EnvExperiment):
         self.mod_clock.cfg_sw(True)
         self.core.break_realtime()
 
+        # prepare LabRAD devices
+        self._prepareDevicesLabrad()
+        self.core.break_realtime()
+
+    @rpc
+    def _prepareDevicesLabrad(self):
+        """
+        Prepare LabRAD devices for the experiment via RPC.
+        """
         # set up function generator
         self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
@@ -214,15 +225,13 @@ class ParametricSweep(EnvExperiment):
         self.fg.burst_mode('GAT')
         self.fg.toggle(1)
         self.fg.gpib_write(':ROSC:SOUR EXT')
-        # sleep(1.0)
 
         # set up amo8
         self.dc.polling(False)
-        # todo: deactivate alarm
+        self.dc.alarm(False)
 
         # set voltage
         self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-        self.core.break_realtime()
 
 
     @rpc(flags={"async"})

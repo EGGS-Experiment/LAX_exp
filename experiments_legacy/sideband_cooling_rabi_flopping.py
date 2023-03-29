@@ -56,7 +56,7 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=200, ndecimals=0, step=1, min=1, max=10000))
@@ -66,16 +66,16 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.setattr_argument("sideband_cycles",                            NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([30]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([111]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.710]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.3815]))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # rabi-flopping readout
-        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=103.710, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.0015, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_rabi_us_list",                          Scannable(default=
-                                                                                RangeScan(0, 1000, 101, randomize=True),
+                                                                                RangeScan(0, 100, 101, randomize=True),
                                                                                 global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
+                                                                                unit="us", scale=1, ndecimals=8
                                                                             ))
 
         # attenuations
