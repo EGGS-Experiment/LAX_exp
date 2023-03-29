@@ -82,7 +82,6 @@ class MicromotionCompensation(EnvExperiment):
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)
         self.mod_clock_att_db =                                     4 * dB
-        # self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
         self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
 
         # RF synchronization
@@ -251,7 +250,7 @@ class MicromotionCompensation(EnvExperiment):
 
         # set up amo8
         self.dc.polling(False)
-        # todo: deactivate alarm
+        self.dc.alarm(False)
 
 
     # LABRAD FUNCTIONS
@@ -261,18 +260,8 @@ class MicromotionCompensation(EnvExperiment):
         Set the channel to the desired voltage.
         """
         # set desired voltage
-        voltage_set_v = self.dc.voltage(channel, voltage_v)
-        sleep(2.0)
-
-        # wait until voltage updates
-        voltage_get_v = self.dc.voltage(channel)
-        while np.abs(voltage_set_v - voltage_get_v) > 0.1:
-            sleep(2.0)
-            print('voltage problem teehee')
-            voltage_get_v = self.dc.voltage(channel)
-
-        # print current voltage for verification
-        print('\tvoltage set: {}'.format(voltage_get_v))
+        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        print('\tvoltage set: {}'.format(voltage_set_v))
 
     @rpc
     def frequency_set(self, freq_hz):
