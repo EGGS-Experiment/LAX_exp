@@ -69,9 +69,12 @@ class SidebandCooling(EnvExperiment):
         # adc recording
         self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
 
-        # sideband cooling
+        # sideband cooling config
         self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+
+        # sideband cooling timing
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([30]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([500]))
         self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.771]))
@@ -177,9 +180,10 @@ class SidebandCooling(EnvExperiment):
                                                                 ])
 
         # *** tmp remove *** todo formalize
-        num_extra_sideband_cycles =                             20
-        extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[-1], (num_extra_sideband_cycles, 1))
-        self.time_sideband_cooling_list_mu =                    np.concatenate([self.time_sideband_cooling_list_mu, extra_cycles_arr])
+        extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                    np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+        # print(self.time_sideband_cooling_list_mu)
+        # raise Exception('stop here, testing in')
         # *** tmp remove *** todo formalize
 
         # calculate number of spin polarizations
