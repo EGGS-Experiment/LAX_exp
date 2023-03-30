@@ -71,7 +71,7 @@ class SidebandCooling(EnvExperiment):
 
         # sideband cooling config
         self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000))
         self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling timing
@@ -170,21 +170,40 @@ class SidebandCooling(EnvExperiment):
         self.ampl_repump_qubit_asf =                            self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                    np.array([
-                                                                    self.core.seconds_to_mu(time_us * us)
-                                                                    for time_us in np.linspace(
-                                                                        self.time_min_sideband_cooling_us_list,
-                                                                        self.time_max_sideband_cooling_us_list,
-                                                                        self.sideband_cycles
-                                                                    )
-                                                                ])
+        # self.time_sideband_cooling_list_mu =                    np.array([
+        #                                                             self.core.seconds_to_mu(time_us * us)
+        #                                                             for time_us in np.linspace(
+        #                                                                 self.time_min_sideband_cooling_us_list,
+        #                                                                 self.time_max_sideband_cooling_us_list,
+        #                                                                 self.sideband_cycles
+        #                                                             )
+        #                                                         ])
+        # self.time_sideband_cooling_list_mu =                    np.linspace(
+        #                                                             self.time_min_sideband_cooling_us_list,
+        #                                                             self.time_max_sideband_cooling_us_list,
+        #                                                             self.sideband_cycles
+        #                                                         )
 
-        # *** tmp remove *** todo formalize
+        # *** tmp remove *** todo
+        # alias variables for compactness of notation
+        steps =                                                 self.sideband_cycles
+        (t_min, t_max) =                                        (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+
+        # calculate timeshaping *** todo
+        timeshape_t0 =                                          np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
+        timeshape_n0 =                                          np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
+
+        # calculate timeshape
+        self.time_sideband_cooling_list_mu =                    timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+        # *** tmp remove *** todo
+
+
+        # *** tmp remove *** todo
         extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
         self.time_sideband_cooling_list_mu =                    np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
         # print(self.time_sideband_cooling_list_mu)
         # raise Exception('stop here, testing in')
-        # *** tmp remove *** todo formalize
+        # *** tmp remove *** todo
 
         # calculate number of spin polarizations
         num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
