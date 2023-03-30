@@ -176,6 +176,12 @@ class SidebandCooling(EnvExperiment):
                                                                     )
                                                                 ])
 
+        # *** tmp remove *** todo formalize
+        num_extra_sideband_cycles =                             20
+        extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[-1], (num_extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                    np.concatenate([self.time_sideband_cooling_list_mu, extra_cycles_arr])
+        # *** tmp remove *** todo formalize
+
         # calculate number of spin polarizations
         num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
         if (num_spin_depolarizations < 1):
