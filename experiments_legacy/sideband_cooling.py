@@ -239,7 +239,6 @@ class SidebandCooling(EnvExperiment):
         self.setattr_dataset("sideband_cooling_processed")
         self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 1 + len(self.adc_channel_list))))
         self.setattr_dataset("adc_values")
-        raise Exception('stop here tmp')
 
 
     @kernel(flags={"fast-math"})
