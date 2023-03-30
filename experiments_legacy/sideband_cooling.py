@@ -195,14 +195,16 @@ class SidebandCooling(EnvExperiment):
 
         # calculate timeshape
         self.time_sideband_cooling_list_mu =                    timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+        self.time_sideband_cooling_list_mu =                    np.array([
+                                                                    self.core.seconds_to_mu(time_mode_list_us * us)
+                                                                    for time_mode_list_us in self.time_sideband_cooling_list_mu
+                                                                ])
         # *** tmp remove *** todo
 
 
         # *** tmp remove *** todo
         extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
         self.time_sideband_cooling_list_mu =                    np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
-        # print(self.time_sideband_cooling_list_mu)
-        # raise Exception('stop here, testing in')
         # *** tmp remove *** todo
 
         # calculate number of spin polarizations
@@ -237,6 +239,7 @@ class SidebandCooling(EnvExperiment):
         self.setattr_dataset("sideband_cooling_processed")
         self.set_dataset("adc_values",                          np.zeros((self.repetitions * len(self.freq_qubit_scan_ftw), 1 + len(self.adc_channel_list))))
         self.setattr_dataset("adc_values")
+        raise Exception('stop here tmp')
 
 
     @kernel(flags={"fast-math"})
