@@ -1,4 +1,9 @@
+import labrad
+import numpy as np
+from os import environ
+
 from artiq.experiment import *
+
 
 class SchedulerExperimentScan(EnvExperiment):
     def build(self):

@@ -218,6 +218,7 @@ class ParametricSweep(EnvExperiment):
         Prepare LabRAD devices for the experiment via RPC.
         """
         # set up function generator
+        self.fg.gpib_write(':VOLT:UNIT VPP')
         self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)

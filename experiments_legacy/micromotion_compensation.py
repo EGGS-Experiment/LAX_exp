@@ -35,24 +35,24 @@ class MicromotionCompensation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.05, ndecimals=3, step=0.01, min=0, max=1000000))
-        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.220, ndecimals=5, step=0.001, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.4, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("freq_mod_mhz",                       NumberValue(default=1.190, ndecimals=5, step=0.001, min=0, max=1000000))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='H Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_1",   Scannable(
-                                                                        default=CenterScan(60.0, 1.0, 0.5, randomize=True),
+                                                                        default=CenterScan(36.0, 1.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
 
         self.setattr_argument("dc_micromotion_channel_2",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_2",   Scannable(
-                                                                        default=CenterScan(35.0, 10.0, 0.5, randomize=True),
+                                                                        default=CenterScan(50.0, 100.0, 2.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -239,6 +239,7 @@ class MicromotionCompensation(EnvExperiment):
         Prepare LabRAD devices for the experiment via RPC.
         """
         # set up function generator
+        self.fg.gpib_write(':VOLT:UNIT VPP')
         self.fg.gpib_write(':OUTP:IMP 50')
         self.fg.toggle(0)
         self.fg.amplitude(self.ampl_mod_vpp)
