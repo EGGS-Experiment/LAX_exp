@@ -32,12 +32,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.01, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.1, ndecimals=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.378, 0.01, 0.0004, randomize=True),
+                                                                        default=CenterScan(1.206, 0.04, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -45,7 +45,7 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=38.0, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
         # get global parameters
@@ -82,6 +82,7 @@ class ParametricSweep(EnvExperiment):
         # set up datasets
         self._dataset_counter                                       = 0
         self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 3]))
+        # self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
         self.setattr_dataset("results")
 
         # record parameters
@@ -238,8 +239,8 @@ class ParametricSweep(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         # remove starting time and digitally demodulate counts
-        counts_demod = np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * (np.array(timestamp_mu_list) - time_start_mu))
-        counts_demod = np.sum(counts_demod) / self.num_counts
+        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * counts_mu)) / self.num_counts
 
         # update dataset
         self.mutate_dataset(
