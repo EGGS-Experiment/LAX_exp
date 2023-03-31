@@ -20,10 +20,7 @@ class ParametricSweepUrukul(EnvExperiment):
         'dc_micromotion_voltage_v'
     }
 
-    global_parameters = [
-        "pmt_input_channel",
-        "pmt_gating_edge"
-    ]
+    global_parameters = []
 
 
     def build(self):
@@ -36,7 +33,7 @@ class ParametricSweepUrukul(EnvExperiment):
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=30, ndecimals=1, step=0.5, min=5, max=31.5))
         self.setattr_argument("mod_freq_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.209, 0.02, 0.0004, randomize=True),
+                                                                        default=CenterScan(1.209, 0.04, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -45,23 +42,22 @@ class ParametricSweepUrukul(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=1000000))
-
-
-        # get global parameters
-        for param_name in self.global_parameters:
-            self.setattr_dataset(param_name, archive=True)
+        self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
+                                                                        default=CenterScan(50.0, 100.0, 1.0, randomize=True),
+                                                                        global_min=0, global_max=1000, global_step=1,
+                                                                        unit="V", scale=1, ndecimals=4
+                                                                    ))
 
 
     def prepare(self):
         # PMT devices
-        self.pmt_counter =                                          self.get_device("ttl{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                          self.get_device("ttl0")
         self.time_pmt_gating_mu =                                   self.core.seconds_to_mu(100 * us)
 
         # get voltage parameters
-        self.set_dataset('dc_channel_name', self.dc_micromotion_channel)
-        self.dc_micromotion_channel =                               self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
+        self.dc_micromotion_channel_num =                           self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
+        self.dc_micromotion_channel_name =                          self.dc_micromotion_channel
+        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
 
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
@@ -71,23 +67,23 @@ class ParametricSweepUrukul(EnvExperiment):
                                                                         self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in self.mod_freq_mhz_list
                                                                     ])
-        self.time_mod_delay_mu =                                    self.core.seconds_to_mu(1000 * ns)
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
-        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(10000 * ns)
-        self.time_rf_gating_mu =                                    self.core.seconds_to_mu(100 * ns)
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(20000 * ns)
+        self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_mhz_list), 3]))
+        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_mhz_list) * len(self.dc_micromotion_voltages_v_list),
+                                                                              4]))
         self.setattr_dataset("results")
 
         # record parameters
         self.set_dataset('num_counts',                              self.num_counts)
         self.set_dataset('modulation_attenuation_db',               self.mod_att_db)
-        self.set_dataset('dc_channel_n',                            self.dc_micromotion_channel)
-        self.set_dataset('dc_channel_voltage',                      self.dc_micromotion_voltage_v)
+        self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel_num)
+        self.set_dataset('dc_channel_name',                         self.dc_micromotion_channel_name)
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
@@ -100,7 +96,9 @@ class ParametricSweepUrukul(EnvExperiment):
         self.core.reset()
 
         # prepare devices for experiment
-        self.prepareDevices()
+        with parallel:
+            self.prepareDevices()
+            self.prepareDevicesLabrad()
 
         # set up loop variables
         counter = 0
@@ -109,66 +107,64 @@ class ParametricSweepUrukul(EnvExperiment):
 
 
         # MAIN LOOP
-        # sweep modulation frequency
-        for freq_mu in self.mod_freq_mu_list:
+        # sweep voltage
+        for voltage_v in self.dc_micromotion_voltages_v_list:
 
-            # reset timestamping loop counter
-            counter = 0
+            # set DC voltage
+            self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
+            self.core.break_realtime()
 
-            # set modulation frequency
-            self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
-            self.mod_dds.set_cfr1(phase_autoclear=1)
 
-            # trigger sequence off same phase of RF
-            self.rf_clock._set_sensitivity(1)
-            time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu() + self.time_rf_gating_mu)
+            # sweep modulation frequency
+            for freq_mu in self.mod_freq_mu_list:
 
-            # start photon correlation sequence
-            if time_trigger_rf_mu >= 0:
+                # reset timestamping loop counter
+                counter = 0
 
-                # set rtio hardware time to rising edge of RF
-                at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
-                self.rf_clock._set_sensitivity(0)
+                # set modulation frequency
+                self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
+                self.mod_dds.set_cfr1(phase_autoclear=1)
 
-                # activate modulation and enable photon counting
-                at_mu(time_trigger_rf_mu + 4 * self.time_rf_holdoff_mu)
-                with parallel:
-                    self.pmt_counter._set_sensitivity(1)
-                    with sequential:
-                        self.mod_dds.cfg_sw(True)
+                # trigger sequence off same phase of RF
+                self.rf_clock.gate_rising_mu(self.time_rf_gating_mu)
+                time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu())
+
+                # start photon correlation sequence
+                if time_trigger_rf_mu >= 0:
+
+                    # activate modulation and enable photon counting
+                    at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
+                    self.mod_dds.cfg_sw(True)
+                    with parallel:
+                        self.pmt_counter._set_sensitivity(1)
                         time_start_mu = now_mu()
                         self.mod_dds.cpld.io_update.pulse_mu(8)
 
-                # start counting photons
-                while counter < self.num_counts:
+                    # start counting photons
+                    while counter < self.num_counts:
 
-                    # get photon timestamp
-                    time_photon_mu = self.pmt_counter.timestamp_mu(now_mu() + self.time_pmt_gating_mu)
+                        # get photon timestamp
+                        time_photon_mu = self.pmt_counter.timestamp_mu(now_mu() + self.time_pmt_gating_mu)
 
-                    # move timestamped photon into buffer if valid
-                    if time_photon_mu >= 0:
-                        timestamp_mu_list[counter] = time_photon_mu
-                        counter += 1
-
-
-                # stop counting and upload
-                # self.core.break_realtime()
-                with parallel:
-                    self.pmt_counter._set_sensitivity(0)
-                    self.mod_dds.cfg_sw(False)
-                    self.update_dataset(freq_mu, time_start_mu, timestamp_mu_list)
-
-            # if we don't get rf trigger for some reason, just reset
-            else:
-                self.rf_clock._set_sensitivity(0)
-                self.core.break_realtime()
-
-            # reset FIFOs
-            self.core.reset()
+                        # move timestamped photon into buffer if valid
+                        if time_photon_mu >= 0:
+                            timestamp_mu_list[counter] = time_photon_mu
+                            counter += 1
 
 
-        # finish
+                    # stop counting and upload
+                    self.core.break_realtime()
+                    with parallel:
+                        self.pmt_counter._set_sensitivity(0)
+                        self.mod_dds.cfg_sw(False)
+                        self.update_dataset(freq_mu, voltage_v, time_start_mu, timestamp_mu_list)
 
+                # if we don't get rf trigger for some reason, just reset
+                else:
+                    self.rf_clock._set_sensitivity(0)
+
+                # reset FIFOs
+                self.core.reset()
 
 
     @kernel(flags={"fast-math"})
@@ -180,20 +176,14 @@ class ParametricSweepUrukul(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
-        self.core.break_realtime()
 
         # configure rf mod clock
         self.mod_dds.cfg_sw(False)
         self.mod_dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
         self.mod_dds.set_att(self.mod_dds_att_db)
-        self.core.break_realtime()
-
-        # prepare LabRAD devices
-        self._prepareDevicesLabrad()
-        self.core.break_realtime()
 
     @rpc
-    def _prepareDevicesLabrad(self):
+    def prepareDevicesLabrad(self):
         """
         Prepare LabRAD devices for the experiment via RPC.
         """
@@ -201,12 +191,9 @@ class ParametricSweepUrukul(EnvExperiment):
         self.dc.polling(False)
         self.dc.alarm(False)
 
-        # set voltage
-        self.voltage_set(self.dc_micromotion_channel, self.dc_micromotion_voltage_v)
-
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_mu, time_start_mu, timestamp_mu_list):
+    def update_dataset(self, freq_mu, voltage_v, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
@@ -221,7 +208,7 @@ class ParametricSweepUrukul(EnvExperiment):
         self.mutate_dataset(
             'results',
             self._dataset_counter,
-            np.array([freq_mhz, np.abs(counts_demod), np.angle(counts_demod)])
+            np.array([freq_mhz, voltage_v, np.abs(counts_demod), np.angle(counts_demod)])
         )
         self._dataset_counter += 1
 
