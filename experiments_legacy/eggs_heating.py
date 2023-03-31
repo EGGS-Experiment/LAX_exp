@@ -65,13 +65,17 @@ class EGGSHeating(EnvExperiment):
         self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=0.2, ndecimals=5, step=0.1, min=0, max=10000))
 
-        # sideband cooling
-        self.setattr_argument("sideband_cycles",                            NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([37]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.526]))
-        self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
+        # sideband cooling config
+        self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'))
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+
+        # sideband cooling timing
+        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.5075]))
+        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
         self.setattr_argument("shuffle_rsb_and_bsb",                        BooleanValue(default=True))
@@ -102,6 +106,10 @@ class EGGSHeating(EnvExperiment):
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
+
+        # attenuations
+        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # get global parameters
         for param_name in self.global_parameters:
@@ -195,6 +203,10 @@ class EGGSHeating(EnvExperiment):
 
         # calibration setup
         self.calibration_qubit_status =                                 not self.calibration
+
+        # attenuations
+        self.att_sidebandcooling_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_readout_mu =                                           self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
 
 
         # eggs heating
@@ -293,6 +305,7 @@ class EGGSHeating(EnvExperiment):
                     self.core.break_realtime()
 
                     # initialize by running doppler cooling and spin polarization
+                    self.dds_qubit.set_att_mu(self.att_sidebandcooling_mu)
                     self.core_dma.playback_handle(handle_initialize)
 
                     # run sideband cooling cycles and repump afterwards
@@ -309,6 +322,7 @@ class EGGSHeating(EnvExperiment):
                     self.core_dma.playback_handle(handle_eggs_off)
 
                     # read out
+                    self.dds_qubit.set_att_mu(self.att_readout_mu)
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
@@ -361,7 +375,7 @@ class EGGSHeating(EnvExperiment):
             # qubit repump (854) pulse
             delay_mu(self.time_repump_qubit_mu)
             # with parallel:
-            self.dds_repump_qubit_switch.off()
+            self.dds_repump_qubit_switch.on()
             self.dds_board.cfg_switches(0b0100)
             delay_mu(self.time_rfswitch_delay_mu)
 
@@ -404,14 +418,18 @@ class EGGSHeating(EnvExperiment):
                         self.dds_qubit.cfg_sw(False)
 
                         # qubit repump
+                        self.dds_repump_qubit_switch.off()
                         self.dds_board.cfg_switches(0b1100)
                         delay_mu(self.time_repump_qubit_mu)
                         self.dds_board.cfg_switches(0b0100)
+                        self.dds_repump_qubit_switch.on()
 
             # repump qubit after sideband cooling
+            self.dds_repump_qubit_switch.off()
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
+            self.dds_repump_qubit_switch.on()
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):

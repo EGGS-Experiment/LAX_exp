@@ -68,9 +68,13 @@ class HeatingRateMeasurement(EnvExperiment):
         # adc recording
         self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
 
-        # sideband cooling
-        self.setattr_argument("sideband_cycles",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=150, ndecimals=0, step=1, min=1, max=10000))
+        # sideband cooling config
+        self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'))
+        self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+
+        # sideband cooling timing
         self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
         self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
         self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.5075]))
@@ -92,6 +96,10 @@ class HeatingRateMeasurement(EnvExperiment):
 
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=400, ndecimals=5, step=1, min=1, max=10000))
         #self.setattr_argument("ampl_readout_pipulse_pct",              NumberValue(default=50, ndecimals=5, step=1, min=1, max=100))
+
+        # attenuations
+        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # heating rate
         self.setattr_argument("time_heating_rate_ms_list",              PYONValue([1, 2]))
@@ -166,7 +174,10 @@ class HeatingRateMeasurement(EnvExperiment):
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                            np.array([
+        # set time sweep waveform: linear
+        self.time_sideband_cooling_list_mu =                            np.array([])
+        if self.time_form_sideband_cooling == 'Linear':
+            self.time_sideband_cooling_list_mu =                        np.array([
                                                                             self.core.seconds_to_mu(time_us * us)
                                                                             for time_us in np.linspace(
                                                                                 self.time_min_sideband_cooling_us_list,
@@ -174,6 +185,41 @@ class HeatingRateMeasurement(EnvExperiment):
                                                                                 self.sideband_cycles
                                                                             )
                                                                         ])
+
+        # set time sweep waveform: inverse square root
+        elif self.time_form_sideband_cooling == 'Inverse Square Root':
+
+            # alias variables for compactness of notation
+            steps =                                                 self.sideband_cycles
+            (t_min, t_max) =                                        (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+
+            # calculate timeshaping *** todo
+            timeshape_t0 =                                          np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
+            timeshape_n0 =                                          np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
+
+            # calculate timeshape
+            self.time_sideband_cooling_list_mu =                    timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+            self.time_sideband_cooling_list_mu =                    np.array([
+                                                                        self.core.seconds_to_mu(time_mode_list_us * us)
+                                                                        for time_mode_list_us in self.time_sideband_cooling_list_mu
+                                                                    ])
+
+        # set time sweep waveform: inverse square root
+        else:
+            raise Exception('Unknown Error')
+
+
+        # extra sideband cooling cycles
+        extra_cycles_arr =                                      np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                    np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+        # self.time_sideband_cooling_list_mu =                            np.array([
+        #                                                                     self.core.seconds_to_mu(time_us * us)
+        #                                                                     for time_us in np.linspace(
+        #                                                                         self.time_min_sideband_cooling_us_list,
+        #                                                                         self.time_max_sideband_cooling_us_list,
+        #                                                                         self.sideband_cycles
+        #                                                                     )
+        #                                                                 ])
 
         # calculate number of spin polarizations
         num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
@@ -196,6 +242,11 @@ class HeatingRateMeasurement(EnvExperiment):
 
         # calibration setup
         self.calibration_qubit_status =                                 not self.calibration
+
+        # attenuations
+        self.att_sidebandcooling_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_readout_mu =                                           self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
+
 
         # set up datasets
         self._iter_dataset =                                            0
@@ -242,6 +293,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     self.core.break_realtime()
 
                     # initialize by running doppler cooling
+                    self.dds_qubit.set_att_mu(self.att_sidebandcooling_mu)
                     self.core_dma.playback_handle(handle_initialize)
 
                     # run sideband cooling cycles and repump afterwards
@@ -251,6 +303,7 @@ class HeatingRateMeasurement(EnvExperiment):
                     delay_mu(time_heating_delay_mu)
 
                     # read out
+                    self.dds_qubit.set_att_mu(self.att_readout_mu)
                     self.core_dma.playback_handle(handle_readout)
 
                     # get ADC values
@@ -301,7 +354,7 @@ class HeatingRateMeasurement(EnvExperiment):
             # qubit repump (854) pulse
             delay_mu(self.time_repump_qubit_mu)
             # with parallel:
-            self.dds_repump_qubit_switch.off()
+            self.dds_repump_qubit_switch.on()
             self.dds_board.cfg_switches(0b0100)
             delay_mu(self.time_rfswitch_delay_mu)
 
@@ -344,14 +397,18 @@ class HeatingRateMeasurement(EnvExperiment):
                         self.dds_qubit.cfg_sw(False)
 
                         # qubit repump
+                        self.dds_repump_qubit_switch.off()
                         self.dds_board.cfg_switches(0b1100)
                         delay_mu(self.time_repump_qubit_mu)
                         self.dds_board.cfg_switches(0b0100)
+                        self.dds_repump_qubit_switch.on()
 
             # repump qubit after sideband cooling
+            self.dds_repump_qubit_switch.off()
             self.dds_board.cfg_switches(0b1100)
             delay_mu(self.time_repump_qubit_mu)
             self.dds_board.cfg_switches(0b0100)
+            self.dds_repump_qubit_switch.on()
 
         # readout sequence
         with self.core_dma.record(_DMA_HANDLE_READOUT):
