@@ -9,15 +9,14 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class ParametricSweep(EnvExperiment):
+class ParametricSweepUrukul(EnvExperiment):
     """
-    Parametric Sweep
+    Parametric Sweep Urukul
     """
     kernel_invariants = {
         'time_pmt_gating_mu',
         'dc_micromotion_channel',
         'ampl_mod_vpp',
-        'freq_mod_mhz_list',
         'dc_micromotion_voltage_v'
     }
 
@@ -35,9 +34,9 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=5, max=31.5))
+        self.setattr_argument("mod_att_db",                         NumberValue(default=30, ndecimals=1, step=0.5, min=5, max=31.5))
         self.setattr_argument("mod_freq_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.212, 0.01, 0.0001, randomize=True),
+                                                                        default=CenterScan(1.374, 0.04, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -46,7 +45,7 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=40.0, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
         # get global parameters
@@ -72,7 +71,7 @@ class ParametricSweep(EnvExperiment):
                                                                         self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in self.mod_freq_mhz_list
                                                                     ])
-        self.time_mod_delay_mu =                                    self.core.seconds_to_mu(300 * ns)
+        self.time_mod_delay_mu =                                    self.core.seconds_to_mu(1000 * ns)
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
@@ -81,7 +80,7 @@ class ParametricSweep(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 3]))
+        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_mhz_list), 3]))
         self.setattr_dataset("results")
 
         # record parameters
@@ -112,13 +111,13 @@ class ParametricSweep(EnvExperiment):
 
         # MAIN LOOP
         # sweep modulation frequency
-        for freq_val_mhz in self.freq_mod_mhz_list:
+        for freq_mu in self.mod_freq_mu_list:
 
             # reset timestamping loop counter
             counter = 0
 
             # set modulation frequency
-            self.mod_dds(freq_val_mhz * 1e6, asf=self.mod_dds_ampl_pct)
+            self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
 
             # trigger sequence off same phase of RF
             self.rf_clock._set_sensitivity(1)
@@ -132,15 +131,18 @@ class ParametricSweep(EnvExperiment):
                 self.rf_clock._set_sensitivity(0)
 
                 # activate modulation and enable photon counting
-                at_mu(time_trigger_rf_mu + 2 * self.time_rf_holdoff_mu)
+                at_mu(time_trigger_rf_mu + 4 * self.time_rf_holdoff_mu)
                 with parallel:
-                    self.mod_dds.cfg_sw(True)
-                    # todo: set cfr1
                     self.pmt_counter._set_sensitivity(1)
-                    time_start_mu = now_mu() + self.time_mod_delay_mu
-
+                    with sequential:
+                        self.mod_dds.set_cfr1(phase_autoclear=1)
+                        delay_mu(8)
+                        self.mod_dds.cpld.io_update.pulse_mu(8)
+                        delay_mu(8)
+                        self.mod_dds.cfg_sw(True)
 
                 # start counting photons
+                time_start_mu = now_mu()
                 while counter < self.num_counts:
 
                     # get photon timestamp
@@ -157,7 +159,7 @@ class ParametricSweep(EnvExperiment):
                 with parallel:
                     self.pmt_counter._set_sensitivity(0)
                     self.mod_dds.cfg_sw(False)
-                    self.update_dataset(freq_val_mhz, time_start_mu, timestamp_mu_list)
+                    self.update_dataset(freq_mu, time_start_mu, timestamp_mu_list)
 
             # if we don't get rf trigger for some reason, just reset
             else:
@@ -166,6 +168,10 @@ class ParametricSweep(EnvExperiment):
 
             # reset FIFOs
             self.core.reset()
+
+
+        # finish
+
 
 
     @kernel(flags={"fast-math"})
@@ -203,19 +209,22 @@ class ParametricSweep(EnvExperiment):
 
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_mod_mhz, time_start_mu, timestamp_mu_list):
+    def update_dataset(self, freq_mu, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
+        # convert frequency to mhz
+        freq_mhz = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
+
         # remove starting time and digitally demodulate counts
         counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
-        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * counts_mu)) / self.num_counts
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mhz * 1e6) * counts_mu)) / self.num_counts
 
         # update dataset
         self.mutate_dataset(
             'results',
             self._dataset_counter,
-            np.array([freq_mod_mhz, np.abs(counts_demod), np.angle(counts_demod)])
+            np.array([freq_mhz, np.abs(counts_demod), np.angle(counts_demod)])
         )
         self._dataset_counter += 1
 
