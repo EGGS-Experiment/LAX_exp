@@ -82,7 +82,6 @@ class ParametricSweep(EnvExperiment):
         # set up datasets
         self._dataset_counter                                       = 0
         self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 3]))
-        # self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), self.num_counts]))
         self.setattr_dataset("results")
 
         # record parameters

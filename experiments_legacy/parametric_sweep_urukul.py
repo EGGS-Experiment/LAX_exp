@@ -66,8 +66,8 @@ class ParametricSweep(EnvExperiment):
 
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
-        self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.35)
-        self.mod_clock_att_db =                                     20. * dB
+        self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
+        self.mod_dds_att_db =                                       20. * dB
         self.mod_freq_mu_list =                                     np.array([
                                                                         self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in self.mod_freq_mhz_list
@@ -81,7 +81,7 @@ class ParametricSweep(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 2]))
+        self.set_dataset("results",                                 np.zeros([len(self.freq_mod_mhz_list), 3]))
         self.setattr_dataset("results")
 
         # record parameters
@@ -118,8 +118,7 @@ class ParametricSweep(EnvExperiment):
             counter = 0
 
             # set modulation frequency
-            # todo
-            self.mod_freq_mu_list(freq_val_mhz * 1e6)
+            self.mod_dds(freq_val_mhz * 1e6, asf=self.mod_dds_ampl_pct)
 
             # trigger sequence off same phase of RF
             self.rf_clock._set_sensitivity(1)
@@ -135,7 +134,8 @@ class ParametricSweep(EnvExperiment):
                 # activate modulation and enable photon counting
                 at_mu(time_trigger_rf_mu + 2 * self.time_rf_holdoff_mu)
                 with parallel:
-                    self.mod_toggle.on()
+                    self.mod_dds.cfg_sw(True)
+                    # todo: set cfr1
                     self.pmt_counter._set_sensitivity(1)
                     time_start_mu = now_mu() + self.time_mod_delay_mu
 
@@ -156,7 +156,7 @@ class ParametricSweep(EnvExperiment):
                 self.core.break_realtime()
                 with parallel:
                     self.pmt_counter._set_sensitivity(0)
-                    self.mod_toggle.off()
+                    self.mod_dds.cfg_sw(False)
                     self.update_dataset(freq_val_mhz, time_start_mu, timestamp_mu_list)
 
             # if we don't get rf trigger for some reason, just reset
@@ -180,9 +180,9 @@ class ParametricSweep(EnvExperiment):
         self.core.break_realtime()
 
         # configure rf mod clock
-        self.mod_clock.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.mod_clock.set_att(self.mod_clock_att_db)
-        self.mod_clock.cfg_sw(True)
+        self.mod_dds.cfg_sw(False)
+        self.mod_dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.mod_dds.set_att(self.mod_dds_att_db)
         self.core.break_realtime()
 
         # prepare LabRAD devices
@@ -208,13 +208,14 @@ class ParametricSweep(EnvExperiment):
         Records values via rpc to minimize kernel overhead.
         """
         # remove starting time and digitally demodulate counts
-        counts_demod = np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * (np.array(timestamp_mu_list) - time_start_mu))
+        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mod_mhz * 1e6) * counts_mu)) / self.num_counts
 
         # update dataset
         self.mutate_dataset(
             'results',
             self._dataset_counter,
-            np.array([freq_mod_mhz * 1e6, counts_demod])
+            np.array([freq_mod_mhz, np.abs(counts_demod), np.angle(counts_demod)])
         )
         self._dataset_counter += 1
 
