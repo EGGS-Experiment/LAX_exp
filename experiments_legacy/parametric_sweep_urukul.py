@@ -118,6 +118,7 @@ class ParametricSweepUrukul(EnvExperiment):
 
             # set modulation frequency
             self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
+            self.mod_dds.set_cfr1(phase_autoclear=1)
 
             # trigger sequence off same phase of RF
             self.rf_clock._set_sensitivity(1)
@@ -135,14 +136,11 @@ class ParametricSweepUrukul(EnvExperiment):
                 with parallel:
                     self.pmt_counter._set_sensitivity(1)
                     with sequential:
-                        self.mod_dds.set_cfr1(phase_autoclear=1)
-                        delay_mu(8)
-                        self.mod_dds.cpld.io_update.pulse_mu(8)
-                        delay_mu(8)
                         self.mod_dds.cfg_sw(True)
+                        time_start_mu = now_mu()
+                        self.mod_dds.cpld.io_update.pulse_mu(8)
 
                 # start counting photons
-                time_start_mu = now_mu()
                 while counter < self.num_counts:
 
                     # get photon timestamp
