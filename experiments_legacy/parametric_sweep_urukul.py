@@ -101,7 +101,6 @@ class ParametricSweepUrukul(EnvExperiment):
 
         # prepare devices for experiment
         self.prepareDevices()
-        # self.core.break_realtime()
 
         # set up loop variables
         counter = 0
@@ -153,7 +152,7 @@ class ParametricSweepUrukul(EnvExperiment):
 
 
                 # stop counting and upload
-                self.core.break_realtime()
+                # self.core.break_realtime()
                 with parallel:
                     self.pmt_counter._set_sensitivity(0)
                     self.mod_dds.cfg_sw(False)
