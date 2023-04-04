@@ -167,43 +167,43 @@ class EGGSHeating(EnvExperiment):
             shuffle(self.freq_qubit_scan_ftw)
 
         # convert amplitude to asf
-        self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
-        self.ampl_pump_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
-        self.ampl_pump_readout_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
-        self.ampl_pump_rescue_asf =                                     self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
-        self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
-        self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
+        self.ampl_redist_asf =                                              self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
+        self.ampl_pump_cooling_asf =                                        self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
+        self.ampl_pump_readout_asf =                                        self.dds_qubit.amplitude_to_asf(self.ampl_pump_readout_pct / 100)
+        self.ampl_pump_rescue_asf =                                         self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
+        self.ampl_repump_cooling_asf =                                      self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
+        self.ampl_repump_qubit_asf =                                        self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
 
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                            np.array([])
+        self.time_sideband_cooling_list_mu =                                np.array([])
         if self.time_form_sideband_cooling == 'Linear':
-            self.time_sideband_cooling_list_mu =                        np.array([
-                                                                            self.core.seconds_to_mu(time_us * us)
-                                                                            for time_us in np.linspace(
-                                                                                self.time_min_sideband_cooling_us_list,
-                                                                                self.time_max_sideband_cooling_us_list,
-                                                                                self.sideband_cycles
-                                                                            )
-                                                                        ])
+            self.time_sideband_cooling_list_mu =                            np.array([
+                                                                                self.core.seconds_to_mu(time_us * us)
+                                                                                for time_us in np.linspace(
+                                                                                    self.time_min_sideband_cooling_us_list,
+                                                                                    self.time_max_sideband_cooling_us_list,
+                                                                                    self.sideband_cycles
+                                                                                )
+                                                                            ])
 
         # set time sweep waveform: inverse square root
         elif self.time_form_sideband_cooling == 'Inverse Square Root':
 
             # alias variables for compactness of notation
-            steps =                                                     self.sideband_cycles
-            (t_min, t_max) =                                            (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+            steps =                                                         self.sideband_cycles
+            (t_min, t_max) =                                                (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
 
             # calculate timeshaping *** todo
-            timeshape_t0 =                                              np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
-            timeshape_n0 =                                              np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
+            timeshape_t0 =                                                  np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
+            timeshape_n0 =                                                  np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
 
             # calculate timeshape
-            self.time_sideband_cooling_list_mu =                        timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
-            self.time_sideband_cooling_list_mu =                        np.array([
-                                                                            self.core.seconds_to_mu(time_mode_list_us * us)
-                                                                            for time_mode_list_us in self.time_sideband_cooling_list_mu
-                                                                        ])
+            self.time_sideband_cooling_list_mu =                            timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+            self.time_sideband_cooling_list_mu =                            np.array([
+                                                                                self.core.seconds_to_mu(time_mode_list_us * us)
+                                                                                for time_mode_list_us in self.time_sideband_cooling_list_mu
+                                                                            ])
 
         # set time sweep waveform: inverse square root
         else:
@@ -211,8 +211,8 @@ class EGGSHeating(EnvExperiment):
 
 
         # extra sideband cooling cycles
-        extra_cycles_arr =                                              np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
-        self.time_sideband_cooling_list_mu =                            np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+        extra_cycles_arr =                                                  np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                                np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
 
 
         # calculate number of spin polarizations
@@ -220,32 +220,32 @@ class EGGSHeating(EnvExperiment):
         if (num_spin_depolarizations < 1):
             num_spin_depolarizations = 1
 
-        self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
+        self.time_sideband_cooling_list_mu =                                np.array_split(self.time_sideband_cooling_list_mu, num_spin_depolarizations)
 
         # other sideband cooling parameters
-        self.freq_sideband_cooling_ftw_list =                           [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
-        self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
-        self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
+        self.freq_sideband_cooling_ftw_list =                               [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list]
+        self.ampl_sideband_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
+        self.iter_sideband_cooling_modes_list =                             list(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
         # readout pi-pulse
-        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
+        self.time_readout_pipulse_mu =                                      self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
+        self.ampl_qubit_asf =                                               self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
         # calibration setup
-        self.calibration_qubit_status =                                 not self.calibration
+        self.calibration_qubit_status =                                     not self.calibration
 
         # attenuations
-        self.att_sidebandcooling_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
-        self.att_readout_mu =                                           self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
+        self.att_sidebandcooling_mu =                                       self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_readout_mu =                                               self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
 
 
         # eggs heating
-        self.awg_board =                                                self.get_device("phaser0")
-        self.awg_eggs =                                                 self.awg_board.channel[0]
-        self.time_phaser_sample_mu =                                    np.int64(40)
+        self.awg_board =                                                    self.get_device("phaser0")
+        self.awg_eggs =                                                     self.awg_board.channel[0]
+        self.time_phaser_sample_mu =                                        np.int64(40)
 
         # eggs timing values
-        self.time_eggs_heating_mu =                                     self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
+        self.time_eggs_heating_mu =                                         self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
         # ensure eggs heating time is a multiple of the phaser frame period
         # 4 ns/clock * 8 clock cycles * 10 words = 320ns
@@ -254,18 +254,18 @@ class EGGSHeating(EnvExperiment):
             self.time_eggs_heating_mu = np.int64(self.awg_board.t_frame * t_frame_multiples)
 
         # convert eggs heating frequency values for use
-        self.freq_eggs_heating_center_hz =                              85 * MHz
-        self.freq_eggs_carrier_hz_list =                                np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - self.freq_eggs_heating_center_hz
-        self.freq_eggs_secular_hz_list =                                np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
+        self.freq_eggs_heating_center_hz =                                  85 * MHz
+        self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - self.freq_eggs_heating_center_hz
+        self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
 
         # set up eggs config
-        self.config_eggs_heating_list =                                 np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 4), dtype=float)
-        self.config_eggs_heating_list[:, :2] =                          np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 4), dtype=float)
+        self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
 
         # create interpolated coupling resonance curve
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                             self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
-        ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+        ampl_calib_points =                                                 self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # calculate calibrated eggs sidebands amplitudes
         for i, config_freqs in enumerate(self.config_eggs_heating_list):
@@ -275,12 +275,12 @@ class EGGSHeating(EnvExperiment):
             self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
 
         # set up datasets
-        self.set_dataset("eggs_heating",                                np.zeros([len(self.config_eggs_heating_list) * len(self.freq_qubit_scan_ftw) * self.repetitions, 4]))
+        self.set_dataset("eggs_heating",                                    np.zeros([len(self.config_eggs_heating_list) * len(self.freq_qubit_scan_ftw) * self.repetitions, 4]))
         self.setattr_dataset("eggs_heating")
         self._iter_dataset = 0
 
         # store config just in case
-        self.set_dataset("config_vals",                                 self.config_eggs_heating_list)
+        self.set_dataset("config_vals",                                     self.config_eggs_heating_list)
 
 
     @kernel(flags={"fast-math"})
