@@ -392,7 +392,10 @@ class SidebandCooling(EnvExperiment):
             # repump qubit after sideband cooling
             self.dds_repump_qubit_switch.off()
             self.dds_board.cfg_switches(0b1100)
-            delay_mu(self.time_repump_qubit_mu)
+            # delay_mu(self.time_repump_qubit_mu)
+            # tmp remove
+            delay_mu(self.time_repump_qubit_mu + 100000)
+            # tmp remove
             self.dds_board.cfg_switches(0b0100)
             self.dds_repump_qubit_switch.on()
 
