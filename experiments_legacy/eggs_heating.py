@@ -121,48 +121,48 @@ class EGGSHeating(EnvExperiment):
         Prepare things such that kernel functions have minimal overhead.
         """
         # ensure input has correct dimensions
-        min_time_length =                                               len(list(self.time_min_sideband_cooling_us_list))
-        max_time_length =                                               len(list(self.time_max_sideband_cooling_us_list))
-        modes_length =                                                  len(list(self.freq_sideband_cooling_mhz_list))
+        min_time_length =                                                   len(list(self.time_min_sideband_cooling_us_list))
+        max_time_length =                                                   len(list(self.time_max_sideband_cooling_us_list))
+        modes_length =                                                      len(list(self.freq_sideband_cooling_mhz_list))
         assert min_time_length == max_time_length == modes_length
 
         # PMT devices
-        self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                                  self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
+        self.pmt_gating_edge =                                              getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
 
         # convert time values to machine units
-        self.time_doppler_cooling_mu =                                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
-        self.time_repump_qubit_mu =                                     self.core.seconds_to_mu(self.time_repump_qubit_us * us)
-        self.time_redist_mu =                                           self.core.seconds_to_mu(self.time_redist_us * us)
-        self.time_readout_mu =                                          self.core.seconds_to_mu(self.time_readout_us * us)
-        self.time_profileswitch_delay_mu =                              self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
-        self.time_rfswitch_delay_mu =                                   self.core.seconds_to_mu(2 * us)
+        self.time_doppler_cooling_mu =                                      self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
+        self.time_repump_qubit_mu =                                         self.core.seconds_to_mu(self.time_repump_qubit_us * us)
+        self.time_redist_mu =                                               self.core.seconds_to_mu(self.time_redist_us * us)
+        self.time_readout_mu =                                              self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_profileswitch_delay_mu =                                  self.core.seconds_to_mu(self.time_profileswitch_delay_us * us)
+        self.time_rfswitch_delay_mu =                                       self.core.seconds_to_mu(2 * us)
 
         # DDS devices
-        self.dds_board =                                                self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
-        self.dds_qubit_board =                                          self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
+        self.dds_board =                                                    self.get_device("urukul{:d}_cpld".format(self.dds_board_num))
+        self.dds_qubit_board =                                              self.get_device("urukul{:d}_cpld".format(self.dds_board_qubit_num))
 
-        self.dds_probe =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
-        self.dds_pump =                                                 self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
-        self.dds_repump_cooling =                                       self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
-        self.dds_repump_qubit =                                         self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
-        self.dds_qubit =                                                self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
+        self.dds_probe =                                                    self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_probe_channel))
+        self.dds_pump =                                                     self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_pump_channel))
+        self.dds_repump_cooling =                                           self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_cooling_channel))
+        self.dds_repump_qubit =                                             self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_num, self.dds_repump_qubit_channel))
+        self.dds_qubit =                                                    self.get_device("urukul{:d}_ch{:d}".format(self.dds_board_qubit_num, self.dds_qubit_channel))
 
         # RF switches
-        self.dds_repump_qubit_switch =                                  self.get_device("ttl21")
+        self.dds_repump_qubit_switch =                                      self.get_device("ttl21")
 
         # convert frequency to ftw
-        self.ftw_to_mhz =                                               1e3 / (2 ** 32 - 1)
-        self.freq_redist_ftw =                                          self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
-        self.freq_pump_cooling_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
-        self.freq_pump_readout_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
-        self.freq_pump_rescue_ftw =                                     self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
-        self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
-        self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.ftw_to_mhz =                                                   1e3 / (2 ** 32 - 1)
+        self.freq_redist_ftw =                                              self.dds_qubit.frequency_to_ftw(self.freq_redist_mhz * MHz)
+        self.freq_pump_cooling_ftw =                                        self.dds_qubit.frequency_to_ftw(self.freq_pump_cooling_mhz * MHz)
+        self.freq_pump_readout_ftw =                                        self.dds_qubit.frequency_to_ftw(self.freq_pump_readout_mhz * MHz)
+        self.freq_pump_rescue_ftw =                                             self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
+        self.freq_repump_cooling_ftw =                                      self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
+        self.freq_repump_qubit_ftw =                                        self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
         # process scan frequencies
-        self.freq_qubit_scan_ftw =                                      [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                        for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
+        self.freq_qubit_scan_ftw =                                          [self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                            for freq_mhz in list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz)]
         if self.shuffle_rsb_and_bsb is True:
             shuffle(self.freq_qubit_scan_ftw)
 
@@ -176,7 +176,9 @@ class EGGSHeating(EnvExperiment):
 
 
         # sideband cooling
-        self.time_sideband_cooling_list_mu =                            np.array([
+        self.time_sideband_cooling_list_mu =                            np.array([])
+        if self.time_form_sideband_cooling == 'Linear':
+            self.time_sideband_cooling_list_mu =                        np.array([
                                                                             self.core.seconds_to_mu(time_us * us)
                                                                             for time_us in np.linspace(
                                                                                 self.time_min_sideband_cooling_us_list,
@@ -184,6 +186,34 @@ class EGGSHeating(EnvExperiment):
                                                                                 self.sideband_cycles
                                                                             )
                                                                         ])
+
+        # set time sweep waveform: inverse square root
+        elif self.time_form_sideband_cooling == 'Inverse Square Root':
+
+            # alias variables for compactness of notation
+            steps =                                                     self.sideband_cycles
+            (t_min, t_max) =                                            (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+
+            # calculate timeshaping *** todo
+            timeshape_t0 =                                              np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
+            timeshape_n0 =                                              np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
+
+            # calculate timeshape
+            self.time_sideband_cooling_list_mu =                        timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+            self.time_sideband_cooling_list_mu =                        np.array([
+                                                                            self.core.seconds_to_mu(time_mode_list_us * us)
+                                                                            for time_mode_list_us in self.time_sideband_cooling_list_mu
+                                                                        ])
+
+        # set time sweep waveform: inverse square root
+        else:
+            raise Exception('Unknown Error')
+
+
+        # extra sideband cooling cycles
+        extra_cycles_arr =                                              np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                            np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+
 
         # calculate number of spin polarizations
         num_spin_depolarizations = int(self.sideband_cycles / self.cycles_per_spin_polarization)
