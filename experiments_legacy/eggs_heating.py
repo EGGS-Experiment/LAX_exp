@@ -66,16 +66,16 @@ class EGGSHeating(EnvExperiment):
         self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=0.2, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling config
-        self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'))
-        self.setattr_argument("sideband_cycles",                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000))
-        self.setattr_argument("cycles_per_spin_polarization",           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("time_form_sideband_cooling",                 EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'))
+        self.setattr_argument("sideband_cycles",                            NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("extra_sideband_cycles",                      NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000))
+        self.setattr_argument("cycles_per_spin_polarization",               NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling timing
-        self.setattr_argument("time_min_sideband_cooling_us_list",      PYONValue([20]))
-        self.setattr_argument("time_max_sideband_cooling_us_list",      PYONValue([200]))
-        self.setattr_argument("freq_sideband_cooling_mhz_list",         PYONValue([103.5075]))
-        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
+        self.setattr_argument("time_min_sideband_cooling_us_list",          PYONValue([20]))
+        self.setattr_argument("time_max_sideband_cooling_us_list",          PYONValue([200]))
+        self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.5075]))
+        self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
         # readout
         self.setattr_argument("shuffle_rsb_and_bsb",                        BooleanValue(default=True))
@@ -95,7 +95,7 @@ class EGGSHeating(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=10, max=31.5))
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=5, ndecimals=1, step=0.5, min=10, max=31.5))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
                                                                                 default=CenterScan(85.1, 0.020, 0.001, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
@@ -108,8 +108,8 @@ class EGGSHeating(EnvExperiment):
                                                                             ))
 
         # attenuations
-        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_sidebandcooling_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_readout_db",                             NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # get global parameters
         for param_name in self.global_parameters:
