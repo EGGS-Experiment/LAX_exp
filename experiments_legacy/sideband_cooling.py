@@ -413,14 +413,6 @@ class SidebandCooling(EnvExperiment):
             delay_mu(self.time_readout_pipulse_mu)
             self.dds_qubit.cfg_sw(False)
 
-            # tmp remove
-            self.dds_repump_qubit_switch.off()
-            self.dds_board.cfg_switches(0b1100)
-            delay_mu(30000)
-            self.dds_board.cfg_switches(0b0100)
-            self.dds_repump_qubit_switch.on()
-            # tmp remove
-
             # readout pulse
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
