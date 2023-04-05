@@ -21,14 +21,6 @@ class Beam729(LAXDevice):
         self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
-        # set waveform for carrier interrogation
-        self.core.break_realtime()
-        # todo: figure out 729 profile configs?
-        # self.beam.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=0)
-        # self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
     def on(self):
         with parallel:
             # enable RF switch onboard Urukul
@@ -50,20 +42,8 @@ class Beam729(LAXDevice):
                 self.rf_switch.on()
                 delay_mu(TIME_RFSWITCH_DELAY_MU)
 
-    # @kernel(flags={"fast-math"})
-    # def carrier(self):
-    #     """
-    #     Set carrier profile
-    #     todo: document
-    #     """
-    #     self.beam.cpld.set_profile(0)
-    #     self.beam.cpld.io_update.pulse_mu(8)
-    #     delay_mu(TIME_PROFILESWITCH_DELAY_MU)
-
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
-        # self.beam.cpld.set_profile(profile_num)
-        # todo: double check that recent changes (all in this function below this line) work
         self.beam.cpld.set_profile(profile_num)
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)

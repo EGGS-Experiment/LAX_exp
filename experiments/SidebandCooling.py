@@ -72,12 +72,25 @@ class SidebandCooling(LAXExperiment, Experiment):
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.rabiflop_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
+
+        # record custom readout sequence
+        with self.core_dma.record('_SBC_READOUT'):
+            # set readout waveform for qubit
+            self.qubit.set_profile(0)
+            self.qubit.set_att_mu(self.att_readout_mu)
+
+            # transfer population to D-5/2 state
+            self.rabiflop_subsequence.run()
+
+            # read out fluorescence
+            self.readout_subsequence.run()
 
     @kernel
     def run_main(self):
         self.core.reset()
+
+        # get custom readout handle
+        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
 
         for trial_num in range(self.repetitions):
 
@@ -94,15 +107,8 @@ class SidebandCooling(LAXExperiment, Experiment):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_readout_mu)
-
-                # rabi flop
-                self.rabiflop_subsequence.run_dma()
-
-                # read out
-                self.readout_subsequence.run_dma()
+                # custom SBC readout
+                self.sidebandcool_subsequence.playback_handle(_handle_sbc_readout)
 
                 # update dataset
                 with parallel:

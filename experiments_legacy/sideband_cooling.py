@@ -202,7 +202,7 @@ class SidebandCooling(EnvExperiment):
                                                                         for time_mode_list_us in self.time_sideband_cooling_list_mu
                                                                     ])
 
-        # set time sweep waveform: inverse square root
+        # account for errors in timing
         else:
             raise Exception('Unknown Error')
 

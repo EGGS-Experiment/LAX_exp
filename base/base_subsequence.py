@@ -105,9 +105,6 @@ class LAXSubsequence(LAXEnvironment, ABC):
     def record_dma(self):
         """
         Records the run subsequence onto core DMA and sets the trace name as an instance attribute.
-
-        Returns:
-            str: the DMA handle for the sequence.
         """
         # record sequence
         with self.core_dma.record(self.dma_name):

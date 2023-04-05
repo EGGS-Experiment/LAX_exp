@@ -66,8 +66,6 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # set qubit beam parameters
         self.qubit.set_att_mu(self.att_qubit_mu)
-        # todo: check if this gives us problems like before related to profile=0
-        #self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf)
         self.core.break_realtime()
 

@@ -23,9 +23,11 @@ class SidebandCool(LAXSubsequence):
         # sideband cooling configuration
         self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling')
         self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling')
         self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
 
         # sideband cooling timing
+        self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'), group='sideband_cooling')
         self.setattr_argument('time_min_sideband_cooling_us_list',      PYONValue([30]), group='sideband_cooling')
         self.setattr_argument('time_max_sideband_cooling_us_list',      PYONValue([150]), group='sideband_cooling')
 
@@ -43,26 +45,61 @@ class SidebandCool(LAXSubsequence):
         assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
 
         # timing parameters
-        self.time_repump_qubit_mu =         self.get_parameter('time_repump_qubit_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
-        self.time_spinpol_mu =              self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
+                                                                                           group='timing', override=True,
+                                                                                           conversion_function=seconds_to_mu, units=us)
+        self.time_spinpol_mu =                                          self.get_parameter('time_spinpol_us',
+                                                                                           group='timing', override=True,
+                                                                                           conversion_function=seconds_to_mu, units=us)
 
         # calibration setup
         self.qubit_func =                                               self.qubit.off if self.calibration is True else self.qubit.on
 
-        # calculate number of spin polarizations
-        # todo: do number of spin polarizations more accurately
-        num_spin_polarizations =                                        int(self.sideband_cycles / self.cycles_per_spin_polarization + 1)
 
-        # sequence sideband cooling pulses for each mode
-        self.time_sideband_cooling_list_mu =                            np.array(
-                                                                            self.core.seconds_to_mu(
-                                                                                np.linspace(
-                                                                                    self.time_min_sideband_cooling_us_list,
-                                                                                    self.time_max_sideband_cooling_us_list,
-                                                                                    self.sideband_cycles
-                                                                                ) * us
-                                                                            )
-                                                                        )
+        # timing
+        self.time_sideband_cooling_list_mu =                            np.array([])
+
+        # calculate cooling timeform: linear
+        if self.time_form_sideband_cooling == 'Linear':
+
+            self.time_sideband_cooling_list_mu = np.array([
+                self.core.seconds_to_mu(time_us * us)
+                for time_us in np.linspace(
+                    self.time_min_sideband_cooling_us_list,
+                    self.time_max_sideband_cooling_us_list,
+                    self.sideband_cycles
+                )
+            ])
+
+        # calculate cooling timeform: inverse square root
+        elif self.time_form_sideband_cooling == 'Inverse Square Root':
+
+            # alias variables for compactness of notation
+            steps = self.sideband_cycles
+            (t_min, t_max) = (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+
+            # calculate timeshaping
+            timeshape_t0 = np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
+            timeshape_n0 = np.power(timeshape_t0 / t_max, 2.) + (steps - 1)
+
+            # calculate timeshape
+            self.time_sideband_cooling_list_mu = timeshape_t0 / np.sqrt(timeshape_n0 - np.array([np.arange(steps)] * len(t_min)).transpose())
+            self.time_sideband_cooling_list_mu = np.array([
+                self.core.seconds_to_mu(time_mode_list_us * us)
+                for time_mode_list_us in self.time_sideband_cooling_list_mu
+            ])
+
+        # account for errors in timing
+        else:
+            raise Exception('Unknown Error')
+
+
+        # extra sideband cooling cycles
+        extra_cycles_arr = np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu = np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+
+        # split up sideband cooling times to intersperse spin polarization
+        num_spin_polarizations =                                        int(self.sideband_cycles / self.cycles_per_spin_polarization + 0.5)
         self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # sideband cooling waveforms
@@ -112,3 +149,9 @@ class SidebandCool(LAXSubsequence):
                     self.repump_qubit.on()
                     delay_mu(self.time_repump_qubit_mu)
                     self.repump_qubit.off()
+
+            # repump qubit after sideband cooling
+            self.repump_qubit.on()
+            delay_mu(self.time_repump_qubit_mu)
+            self.repump_qubit.off()
+
