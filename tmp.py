@@ -27,6 +27,11 @@ class testarg12(EnvExperiment):
         self.setattr_device("urukul1_ch2")
         self.setattr_device("urukul1_cpld")
         self.setattr_device("ttl0_counter")
+        self.setattr_argument("thkim",         Scannable(
+                                                                                default=CenterScan(85.1, 0.020, 0.001, randomize=True),
+                                                                                global_min=30, global_max=400, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                            ))
 
         self.repetitions = 200
 
@@ -65,9 +70,10 @@ class testarg12(EnvExperiment):
         # self.delayth = np.int64(100)
 
 
-    @kernel(flags={"fast-math"})
+    # @kernel(flags={"fast-math"})
     def run(self):
-        self.urukul0_ch1.cfg_sw(True)
+        pass
+        # self.urukul0_ch1.cfg_sw(True)
         # self.core.reset()
         # self.recordDMA()
         # self.core.break_realtime()
