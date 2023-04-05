@@ -59,7 +59,8 @@ class testarg12(EnvExperiment):
         # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        print(self.thkim)
+        self.yzde=list(self.thkim)
+        print(self.yzde)
         pass
         # self.set_dataset('results', np.zeros((self.repetitions, 3)), broadcast=False)
         # self.set_dataset('results2', np.zeros((self.repetitions, 3)), broadcast=False)
