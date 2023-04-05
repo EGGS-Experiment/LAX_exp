@@ -21,7 +21,7 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('ttl22')
 
     @kernel(flags={"fast-math"})
-    def run(self, i):
+    def run(self):
         # reset core device, RTIOs, and FIFOs
         self.core.reset()
 

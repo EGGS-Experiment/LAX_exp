@@ -212,7 +212,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # reset main board to rescue parameters
             with sequential:
-                self.urukul1_cpld.set_profile(2)
+                self.urukul1_cpld.set_profile(0)
                 self.urukul1_cpld.io_update.pulse_mu(8)
                 self.urukul1_cpld.cfg_switches(0b1110)
 
