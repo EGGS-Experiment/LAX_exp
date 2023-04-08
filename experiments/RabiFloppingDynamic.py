@@ -6,21 +6,21 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
 _THRESHOLD1 = 56
-_THRESHOLD2 = 141
+_THRESHOLD2 = 282
 
 
 class RabiFloppingDynamic(LAXExperiment, Experiment):
     """
-    Experiment: Rabi Flopping
+    Experiment: Rabi Flopping Dynamic
 
-    Measures ion fluorescence vs 729nm pulse time and frequency.
+    Measures ion fluorescence vs 729nm pulse time and frequency. dynamic
     """
     name = 'Rabi Flopping Dynamic'
 
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list",                  Scannable(
@@ -53,9 +53,12 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
         self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
 
         # tmp remove
-        self.set_dataset('datatmp', np.zeros((len(self.time_rabiflop_mu_list), 2)), broadcast=True,persist=True,archive=True)
-        self.setattr_dataset('datatmp')
+        self.datatmp = np.zeros(len(self.time_rabiflop_mu_list))
+        self.set_dataset('datatmp_holder', np.zeros((len(self.time_rabiflop_mu_list), 2)))
+        self.setattr_dataset('datatmp_holder')
+        self._iter_tmp = 0
         # tmp remove
+
 
     @property
     def results_shape(self):
@@ -81,15 +84,7 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
     def run_main(self):
         self.core.reset()
 
-        # tmp remove
-        data_tmp = np.zeros((len(self.time_rabiflop_mu_list, 2)))
-        # tmp remove
-
         for trial_num in range(self.repetitions):
-
-            # tmp remove
-            _iter_tmp = 0
-            # tmp remove
 
             # sweep time
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
@@ -109,34 +104,40 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
                 # do readout
                 self.readout_subsequence.run_dma()
 
+                # tmp remove
+                counts = self.readout_subsequence.fetch_count()
+                # tmp remove
+
                 # update dataset
                 with parallel:
-                    # tmp remove
-                    with sequential:
-                        data_tmp[_iter_tmp] = time_rabi_pair_mu
-                        _iter_tmp += 1
-                    # tmp remove
-
-                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.update_results(time_rabi_pair_mu[1], counts)
+                    self.update_results2(time_rabi_pair_mu[1], counts)
                     self.core.break_realtime()
+
 
             # tmp remove
             with parallel:
-                self.update_results_dynamic(data_tmp, trial_num)
+                self.update_results_dynamic(trial_num)
                 self.core.break_realtime()
             # tmp remove
 
     # tmp remove
     @rpc(flags={"async"})
-    def update_results_dynamic(self, data_tmp, n):
+    def update_results2(self, time, counts):
+        self.mutate_dataset('datatmp_holder', self._iter_tmp, np.array([time, counts]))
+        self._iter_tmp = (self._iter_tmp + 1) % len(self.time_rabiflop_mu_list)
+
+    @rpc(flags={"async"})
+    def update_results_dynamic(self, n):
         """
         todo: document
         """
+        tmp = np.array(self.datatmp_holder)
         # get counts
-        counts = np.sort(data_tmp, axis=0)[:, 1]
+        counts = tmp[np.argsort(tmp, axis=0)[:, 0]][:, 1]
         probability = (counts >= _THRESHOLD1) * 0.5 + (counts >= _THRESHOLD2) * 0.5
 
-
-        self.datatmp = (self.datatmp * (n + 1) + probability) / (n + 2)
+        # calculate moving average and update
+        self.datatmp = np.array((self.datatmp * (n) + probability) / (n + 1))
+        self.set_dataset('datatmp', self.datatmp, broadcast=True,persist=True,archive=True)
     # tmp remove
-
