@@ -133,6 +133,7 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
         todo: document
         """
         tmp = np.array(self.datatmp_holder)
+
         # get counts
         counts = tmp[np.argsort(tmp, axis=0)[:, 0]][:, 1]
         probability = (counts >= _THRESHOLD1) * 0.5 + (counts >= _THRESHOLD2) * 0.5
