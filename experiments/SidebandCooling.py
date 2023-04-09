@@ -91,6 +91,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # get custom readout handle
         _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
 
@@ -108,7 +109,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 # custom SBC readout
-                self.sidebandcool_subsequence.playback_handle(_handle_sbc_readout)
+                self.core_dma.playback_handle(_handle_sbc_readout)
 
                 # update dataset
                 with parallel:
