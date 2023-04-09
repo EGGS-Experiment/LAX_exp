@@ -63,15 +63,15 @@ class SidebandCoolingContinuous(EnvExperiment):
         self.setattr_argument("repetitions",                            NumberValue(default=60, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=200, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=2000, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # adc recording
         self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
 
         # sideband cooling config
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=3000, ndecimals=3, step=100, min=0.001, max=100000000))
-        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000000))
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=1000, ndecimals=3, step=100, min=0.001, max=100000000))
+        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000000))
         self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({103.314: 100}))
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=15, ndecimals=3, step=1, min=0.01, max=100))
 
@@ -172,10 +172,10 @@ class SidebandCoolingContinuous(EnvExperiment):
                                                                                   for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
 
         # sideband cooling timing
-        self.delay_sideband_cooling_cycle_mu_list =                     self.core.seconds_to_mu(np.array(self.freq_sideband_cooling_mhz_pct_list.values()) *
-                                                                                                (self.time_sideband_cooling_us / self.num_sideband_cycles))
+        self.delay_sideband_cooling_cycle_mu_list =                     self.core.seconds_to_mu(np.array(list(self.freq_sideband_cooling_mhz_pct_list.values())) / 100 *
+                                                                                                ((self.time_sideband_cooling_us * us) / self.num_sideband_cycles))
         self.time_spinpolarization_mu_list =                            self.core.seconds_to_mu(np.arange(0, 1, self.pct_per_spin_polarization / 100)
-                                                                                                * self.time_sideband_cooling_us)
+                                                                                                * (self.time_sideband_cooling_us * us))
 
         # other sideband cooling parameters
         self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
@@ -220,6 +220,7 @@ class SidebandCoolingContinuous(EnvExperiment):
         handle_sideband = self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout = self.core_dma.get_handle(_DMA_HANDLE_READOUT)
         self.core.break_realtime()
+
 
         # MAIN SEQUENCE
         for trial_num in range(self.repetitions):
