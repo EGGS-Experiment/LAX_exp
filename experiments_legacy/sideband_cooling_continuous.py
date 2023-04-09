@@ -70,8 +70,8 @@ class SidebandCoolingContinuous(EnvExperiment):
         self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
 
         # sideband cooling config
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=3000, ndecimals=3, step=100, min=0.001, max=10000000000))
-        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000000000))
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=3000, ndecimals=3, step=100, min=0.001, max=100000000))
+        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000000))
         self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({103.314: 100}))
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=15, ndecimals=3, step=1, min=0.01, max=100))
 
@@ -82,7 +82,7 @@ class SidebandCoolingContinuous(EnvExperiment):
 
         # sideband cooling readout
         self.setattr_argument("shuffle_rsb_and_bsb",                    BooleanValue(default=True))
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=10000000000))
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=100000000))
         self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=CenterScan(103.314, 0.02, 0.0005),
