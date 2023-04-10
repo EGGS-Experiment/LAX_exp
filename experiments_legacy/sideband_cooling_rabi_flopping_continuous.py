@@ -172,7 +172,6 @@ class SidebandCoolingRabiFloppingContinuous(EnvExperiment):
         self.ampl_quench_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_quench_pct / 100)
         self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
         self.att_sidebandcooling_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
-        self.att_readout_mu =                                           self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
 
 
         ### RABI FLOPPING ###
