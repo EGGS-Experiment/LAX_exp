@@ -22,7 +22,10 @@ class SidebandCool(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling')
-        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
+        self.setattr_argument('type',                                   EnumerationValue(['Continuous', 'Pulsed'], default='Continuous'), group='sideband_cooling')
+
+        # pulsed sideband cooling
+        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
         self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling')
         self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
 
@@ -41,8 +44,8 @@ class SidebandCool(LAXSubsequence):
         num_min_times =                                                 len(list(self.time_min_sideband_cooling_us_list))
         num_max_times =                                                 len(list(self.time_max_sideband_cooling_us_list))
         num_modes =                                                     len(list(self.freq_sideband_cooling_mhz_list))
-        assert num_modes < 7, "Exceeded maximum number of cooling frequencies."
-        assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
+        assert num_modes < 7,                                           "Exceeded maximum number of cooling frequencies."
+        assert num_min_times == num_max_times == num_modes,             "Number of modes and timings are not equal."
 
         # timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
