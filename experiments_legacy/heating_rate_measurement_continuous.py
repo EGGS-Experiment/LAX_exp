@@ -9,9 +9,10 @@ _DMA_HANDLE_READOUT = "heating_rate_readout"
 # todo: make max time the same as readout time
 
 
-class HeatingRateMeasurement(EnvExperiment):
+class HeatingRateMeasurementContinuous(EnvExperiment):
     """
-    Heating Rate Measurement
+    Heating Rate Measurement - Continuous
+
     Does sideband cooling then waits a variable amount of time before measuring the sidebands.
     """
 
