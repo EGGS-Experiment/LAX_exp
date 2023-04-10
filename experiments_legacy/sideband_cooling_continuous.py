@@ -336,7 +336,7 @@ class SidebandCoolingContinuous(EnvExperiment):
             # turn off spin polarization beams; leave qubit repump on; prepare qubit beam
             with parallel:
                 self.dds_board.cfg_switches(0b1000)
-                self.dds_qubit_board.cfg_switches(0b0010)
+                self.dds_qubit.cfg_sw(self.calibration_qubit_status)
 
             # intersperse state preparation with normal SBC
             time_start_mu = now_mu()
@@ -357,6 +357,9 @@ class SidebandCoolingContinuous(EnvExperiment):
                     self.dds_board.cfg_switches(0b1101)
                     delay_mu(self.time_redist_mu)
                     self.dds_board.cfg_switches(0b1000)
+
+            # turn off qubit DDS
+            self.dds_qubit.cfg_sw(False)
 
             # repump qubit after sideband cooling
             self.dds_board.set_profile(1)
