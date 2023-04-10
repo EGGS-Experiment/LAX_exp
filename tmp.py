@@ -30,7 +30,7 @@ class testarg12(EnvExperiment):
 
         self.setattr_argument("calibration_th0",                                BooleanValue(default=False), group='test0')
 
-        if self.calibratino_th0 == True:
+        if self.calibration_th0 == True:
             self.setattr_argument("thkim", Scannable(
                 default=CenterScan(85.1, 0.020, 0.001, randomize=True),
                 global_min=30, global_max=400, global_step=1,
