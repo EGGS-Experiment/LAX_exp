@@ -63,14 +63,14 @@ class SidebandCoolingContinuous(EnvExperiment):
         self.setattr_argument("repetitions",                            NumberValue(default=60, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=2000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # adc recording
         self.setattr_argument("adc_channel_gain_dict",                  PYONValue({0: 1000, 1: 10}))
 
         # sideband cooling config
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=1000, ndecimals=3, step=100, min=0.001, max=100000000))
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=3000, ndecimals=3, step=100, min=0.001, max=100000000))
         self.setattr_argument("num_sideband_cycles",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000000))
         self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({103.314: 100}))
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=15, ndecimals=3, step=1, min=0.01, max=100))
@@ -151,11 +151,6 @@ class SidebandCoolingContinuous(EnvExperiment):
         self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
 
-        # process scan frequencies
-        self.freq_qubit_scan_ftw =                                      np.array([self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                                  for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))])
-        if self.shuffle_rsb_and_bsb is True:                            shuffle(self.freq_qubit_scan_ftw)
-
         # convert amplitude to asf
         self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
         self.ampl_pump_cooling_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_pump_cooling_pct / 100)
@@ -163,32 +158,48 @@ class SidebandCoolingContinuous(EnvExperiment):
         self.ampl_pump_rescue_asf =                                     self.dds_qubit.amplitude_to_asf(self.ampl_pump_rescue_pct / 100)
         self.ampl_repump_cooling_asf =                                  self.dds_qubit.amplitude_to_asf(self.ampl_repump_cooling_pct / 100)
         self.ampl_repump_qubit_asf =                                    self.dds_qubit.amplitude_to_asf(self.ampl_repump_qubit_pct / 100)
-        self.ampl_quench_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_quench_pct / 100)
         self.ampl_qubit_asf =                                           self.dds_qubit.amplitude_to_asf(self.ampl_qubit_pct / 100)
 
-        # sideband cooling config
-        self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list)))
+
+        ### SIDEBAND COOLING ###
+
+        # CONFIG
+        self.calibration_qubit_status =                                 not self.calibration
         self.freq_sideband_cooling_ftw_list =                           np.array([self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
                                                                                   for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
+        self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list)))
 
-        # sideband cooling timing
-        self.delay_sideband_cooling_cycle_mu_list =                     self.core.seconds_to_mu(np.array(list(self.freq_sideband_cooling_mhz_pct_list.values())) / 100 *
-                                                                                                ((self.time_sideband_cooling_us * us) / self.num_sideband_cycles))
+        # TIMING
+        # create list of cycle times
+        cycle_time_us =                                                 self.time_sideband_cooling_us / self.num_sideband_cycles
+        cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.num_sideband_cycles + 1)[:-1]
+        # create list of SBC profile times within a cycle
+        cycle_profile_times_pct =                                       np.array([0] + list(self.freq_sideband_cooling_mhz_pct_list.values()))
+        cycle_profile_times_us =                                        cycle_profile_times_pct / 100 * cycle_time_us
+        cycle_profile_timings_us =                                      np.cumsum(cycle_profile_times_us)
+        # create final timing list
+        self.delay_sideband_cooling_cycle_us_list =                     np.array([time_cycle_start_us + cycle_profile_timings_us[:-1]
+                                                                                 for time_cycle_start_us in cycle_timings_us_list])
+        self.delay_sideband_cooling_cycle_mu_list =                     np.array([self.core.seconds_to_mu(time_us_list * us)
+                                                                                  for time_us_list in self.delay_sideband_cooling_cycle_us_list])
+        # spin polarization timings
         self.time_spinpolarization_mu_list =                            self.core.seconds_to_mu(np.arange(0, 1, self.pct_per_spin_polarization / 100)
                                                                                                 * (self.time_sideband_cooling_us * us))
+        self.time_spinpolarization_mu_list =                            self.time_spinpolarization_mu_list[1:]
 
-        # other sideband cooling parameters
+        # POWER
+        self.ampl_quench_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_quench_pct / 100)
         self.ampl_sideband_cooling_asf =                                self.dds_qubit.amplitude_to_asf(self.ampl_sideband_cooling_pct / 100)
-
-        # readout pi-pulse
-        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-
-        # calibration setup
-        self.calibration_qubit_status =                                 not self.calibration
-
-        # attenuations
         self.att_sidebandcooling_mu =                                   self.dds_qubit.cpld.att_to_mu(self.att_sidebandcooling_db * dB)
         self.att_readout_mu =                                           self.dds_qubit.cpld.att_to_mu(self.att_readout_db * dB)
+
+        # READOUT
+        # process scan frequencies
+        self.freq_qubit_scan_ftw =                                      np.array([self.dds_qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                                                  for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))])
+        if self.shuffle_rsb_and_bsb is True:                            shuffle(self.freq_qubit_scan_ftw)
+        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
+
 
         # set up datasets
         self._iter_dataset =                                            0
@@ -313,24 +324,35 @@ class SidebandCoolingContinuous(EnvExperiment):
 
         # sideband cooling sequence
         with self.core_dma.record(_DMA_HANDLE_SIDEBAND):
+
             # prepare beams for sideband cooling
-            self.dds_board.set_profile(3)
             with parallel:
                 self.dds_repump_qubit_switch.off()
+                self.dds_board.set_profile(3)
+
+            # do spin polarization before SBC per Guggemos' thesis
+            self.dds_board.cfg_switches(0b0101)
+            delay_mu(self.time_redist_mu)
+            # turn off spin polarization beams; leave qubit repump on; prepare qubit beam
+            with parallel:
                 self.dds_board.cfg_switches(0b1000)
                 self.dds_qubit_board.cfg_switches(0b0010)
 
             # intersperse state preparation with normal SBC
             time_start_mu = now_mu()
             with parallel:
-                # interleaved multi-mode sideband cooling
-                for i in range(self.num_sideband_cycles):
-                    for time_delay_mu in self.delay_sideband_cooling_cycle_mu_list:
-                        self.dds_qubit_board.set_profile(i)
-                        delay_mu(time_delay_mu)
+                # interleave sideband cooling of different modes every cycle
+                for time_delay_mu_list in self.delay_sideband_cooling_cycle_mu_list:
+                    # for i in self.iter_sideband_cooling_modes_list:
+                    for i in range(len(time_delay_mu_list)):
+                        # switch profile at set time
+                        at_mu(time_start_mu + time_delay_mu_list[i])
+                        self.dds_qubit_board.set_profile(self.iter_sideband_cooling_modes_list[i])
+                        self.dds_qubit_board.io_update.pulse_mu(8)
 
-                # state preparation
+                # spin polarization
                 for time_spinpol_mu in self.time_spinpolarization_mu_list:
+                    # do spin polarization at set time
                     at_mu(time_start_mu + time_spinpol_mu)
                     self.dds_board.cfg_switches(0b1101)
                     delay_mu(self.time_redist_mu)
@@ -439,24 +461,3 @@ class SidebandCoolingContinuous(EnvExperiment):
             print('\tch {:d}: {:.3f} +/- {:.3f} mV'.format(self.adc_channel_list[i],
                                                            np.mean(self.adc_values[:, i + 1]) * 1000,
                                                            np.std(self.adc_values[:, i + 1]) * 1000))
-        # # tmp remove
-        # self.pmt_discrimination = 17
-        #
-        # # turn dataset into numpy array for ease of use
-        # self.sideband_cooling = np.array(self.sideband_cooling)
-        #
-        # # get sorted x-values (frequency)
-        # freq_list_mhz = sorted(set(self.sideband_cooling[:, 0]))
-        #
-        # # collate results
-        # collated_results = {
-        #     freq: []
-        #     for freq in freq_list_mhz
-        # }
-        # for freq_mhz, pmt_counts in self.sideband_cooling:
-        #     collated_results[freq_mhz].append(pmt_counts)
-        #
-        # # process counts for mean and std and put into processed dataset
-        # for i, (freq_mhz, count_list) in enumerate(collated_results.items()):
-        #     binned_count_list = np.heaviside(np.array(count_list) - self.pmt_discrimination, 1)
-        #     self.sideband_cooling_processed[i] = np.array([freq_mhz, np.mean(binned_count_list), np.std(binned_count_list)])
