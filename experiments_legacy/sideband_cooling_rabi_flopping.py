@@ -70,6 +70,10 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
         self.setattr_argument("freq_sideband_cooling_mhz_list",             PYONValue([103.3815]))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=5, step=1, min=10, max=100))
 
+        # attenuations
+        self.setattr_argument("att_sidebandcooling_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_rabiflopping_db",                        NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+
         # rabi-flopping readout
         self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.0015, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_rabi_us_list",                          Scannable(default=
@@ -77,10 +81,6 @@ class SidebandCoolingRabiFlopping(EnvExperiment):
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=8
                                                                             ))
-
-        # attenuations
-        self.setattr_argument("att_sidebandcooling_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("att_rabiflopping_db",                        NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
 
         # get global parameters
         for param_name in self.global_parameters:
