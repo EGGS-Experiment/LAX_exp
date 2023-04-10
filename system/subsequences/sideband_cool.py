@@ -38,9 +38,9 @@ class SidebandCool(LAXSubsequence):
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)
-        num_min_times = len(list(self.time_min_sideband_cooling_us_list))
-        num_max_times = len(list(self.time_max_sideband_cooling_us_list))
-        num_modes =     len(list(self.freq_sideband_cooling_mhz_list))
+        num_min_times =                                                 len(list(self.time_min_sideband_cooling_us_list))
+        num_max_times =                                                 len(list(self.time_max_sideband_cooling_us_list))
+        num_modes =                                                     len(list(self.freq_sideband_cooling_mhz_list))
         assert num_modes < 7, "Exceeded maximum number of cooling frequencies."
         assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
 
