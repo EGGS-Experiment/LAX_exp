@@ -93,20 +93,14 @@ class SidebandCoolingRabiFloppingContinuous(EnvExperiment):
         Prepare things such that kernel functions have minimal overhead.
         """
         # ensure input has correct dimensions
-        min_time_length =                                               len(list(self.time_min_sideband_cooling_us_list))
-        max_time_length =                                               len(list(self.time_max_sideband_cooling_us_list))
-        modes_length =                                                  len(list(self.freq_sideband_cooling_mhz_list))
-        assert min_time_length == max_time_length == modes_length
+        # min_time_length =                                               len(list(self.time_min_sideband_cooling_us_list))
+        # max_time_length =                                               len(list(self.time_max_sideband_cooling_us_list))
+        # modes_length =                                                  len(list(self.freq_sideband_cooling_mhz_list))
+        # assert min_time_length == max_time_length == modes_length
 
         # PMT devices
         self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
         self.pmt_gating_edge =                                          getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
-
-        # ADC
-        self.adc =                                                      self.get_device("sampler0")
-        self.adc_channel_list =                                         list(self.adc_channel_gain_dict.keys())
-        self.adc_gain_list_mu =                                         [int(np.log10(gain_mu)) for gain_mu in self.adc_channel_gain_dict.values()]
-        self.adc_mu_to_v_list =                                         np.array([10 / (2**15 * gain_mu) for gain_mu in self.adc_channel_gain_dict.values()])
 
         # convert time values to machine units
         self.time_doppler_cooling_mu =                                  self.core.seconds_to_mu(self.time_doppler_cooling_us * us)
