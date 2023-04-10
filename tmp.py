@@ -28,7 +28,7 @@ class testarg12(EnvExperiment):
         self.setattr_device("urukul1_cpld")
         self.setattr_device("ttl0_counter")
 
-        self.setattr_argument("calibration_th0",                                BooleanValue(default=False), group='test0')
+        self.setattr_argument("calibration_th0",                                BooleanValue(), group='test0')
 
         if self.calibration_th0 == True:
             self.setattr_argument("thkim", Scannable(
