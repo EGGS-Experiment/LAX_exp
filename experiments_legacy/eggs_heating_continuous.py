@@ -8,9 +8,9 @@ _DMA_HANDLE_READOUT =           "eggs_heating_readout"
 _DMA_HANDLE_EGGS_OFF =          "eggs_heating_eggs_off"
 
 
-class EGGSHeating(EnvExperiment):
+class EGGSHeatingContinuous(EnvExperiment):
     """
-    EGGS Heating
+    EGGS Heating - Continuous
 
     Does sideband cooling, then applies EGGS heating, then measures the sidebands.
     """
