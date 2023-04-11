@@ -22,10 +22,7 @@ class SidebandCool(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling')
-        self.setattr_argument('type',                                   EnumerationValue(['Continuous', 'Pulsed'], default='Continuous'), group='sideband_cooling')
-
-        # pulsed sideband cooling
-        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
         self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling')
         self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling')
 
