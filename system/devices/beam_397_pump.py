@@ -93,8 +93,6 @@ class Beam397Pump(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
-        # self.beam.cpld.set_profile(profile_num)
-        # todo: double check that recent changes (all in this function below this line) work
         self.beam.cpld.set_profile(profile_num)
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)

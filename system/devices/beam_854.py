@@ -43,10 +43,17 @@ class Beam854(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def off(self):
-        # disable RF switch onboard Urukul
-        self.beam.cfg_sw(False)
+        with parallel:
+            # disable RF switch onboard Urukul
+            self.beam.cfg_sw(False)
 
-        # disable external RF switch
-        with sequential:
-            self.rf_switch.on()
-            delay_mu(TIME_RFSWITCH_DELAY_MU)
+            # disable external RF switch
+            with sequential:
+                self.rf_switch.on()
+                delay_mu(TIME_RFSWITCH_DELAY_MU)
+
+    @kernel(flags={"fast-math"})
+    def set_profile(self, profile_num):
+        self.beam.cpld.set_profile(profile_num)
+        self.beam.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
