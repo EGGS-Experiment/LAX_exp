@@ -28,21 +28,6 @@ class testarg12(EnvExperiment):
         self.setattr_device("urukul1_cpld")
         self.setattr_device("ttl0_counter")
 
-        self.setattr_argument("calibration_th0",                                BooleanValue(), group='test0')
-
-        if self.calibration_th0 == True:
-            self.setattr_argument("thkim", Scannable(
-                default=CenterScan(85.1, 0.020, 0.001, randomize=True),
-                global_min=30, global_max=400, global_step=1,
-                unit="MHz", scale=1, ndecimals=6
-            ), group='test1')
-        else:
-            self.setattr_argument("yzde", Scannable(
-                default=CenterScan(85.1, 0.020, 0.001, randomize=True),
-                global_min=30, global_max=400, global_step=1,
-                unit="MHz", scale=1, ndecimals=6
-            ), group='test1')
-
         self.repetitions = 200
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
