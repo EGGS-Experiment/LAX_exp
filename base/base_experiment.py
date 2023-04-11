@@ -13,6 +13,8 @@ from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 
 # tmp remove
 from datetime import datetime
+# todo: get labrad data
+# todo: add dynamic updates
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -163,15 +165,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set up completion monitor
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # tmp remove
-        time1 = datetime.timestamp(datetime.now())
+        # start counting initialization time
+        time_init_start = datetime.timestamp(datetime.now())
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
         self._initialize_experiment(self)
 
-        # tmp remove
-        time2 = datetime.timestamp(datetime.now())
-        print('\tinitialize time: {:.2f}'.format(time2-time1))
+        # record initialization time
+        time_init_stop = datetime.timestamp(datetime.now())
+        print('\tinitialize time: {:.2f}'.format(time_init_start - time_init_stop))
 
         # call user-defined initialize function
         # todo: see if we can move this into _initialize_experiment for speed
