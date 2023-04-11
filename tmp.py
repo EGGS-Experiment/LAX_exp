@@ -27,42 +27,30 @@ class testarg12(EnvExperiment):
         self.setattr_device("urukul1_ch2")
         self.setattr_device("urukul1_cpld")
         self.setattr_device("ttl0_counter")
-        self.setattr_argument("thkim",         Scannable(
-                                                                                default=CenterScan(85.1, 0.020, 0.001, randomize=True),
-                                                                                global_min=30, global_max=400, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=6
-                                                                            ))
 
         self.repetitions = 200
-
-        # self.setattr_argument("freq_eggs_heating_secular_mhz",          NumberValue(default=1.6, ndecimals=5, step=0.1, min=0.001, max=1000000))
-        # self.setattr_argument("freq_eggs_heating_mhz_list",             Scannable(
-        #                                                                     default=CenterScan(85, 5, 0.2, randomize=True),
-        #                                                                     global_min=30, global_max=400, global_step=1,
-        #                                                                     unit="MHz", scale=1, ndecimals=5
-        #                                                                 ))
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
         # self.set_dataset('ampl_repump_cooling_pct', 10.0, broadcast=True, persist=True)
 
-        calib_timestamp = datetime.timestamp(datetime.now())
+        # calib_timestamp = datetime.timestamp(datetime.now())
         # th0 = np.arange(85,137,2)
         # th1 = np.array([0.15625, 0.15625, 0.140625, 0.125, 0.1171875, 0.109375, 0.109375,
         #                 0.109375, 0.1171875, 0.1171875, 0.109375, 0.109375, 0.109375,
         #                 0.1171875, 0.125, 0.125, 0.125, 0.1328125, 0.140625, 0.140625,
         #                 0.15625, 0.171875, 0.203125, 0.25, 0.28125, 0.34375]) * 100
 
-        th0 = np.linspace(90,130,56)
-        th1 = np.array([0.171875, 0.15625, 0.1484375, 0.1484375, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625,
-         0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.13671875, 0.13671875, 0.140625,
-         0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.14453125,
-         0.1484375, 0.1484375, 0.1484375, 0.1484375, 0.1484375, 0.15625, 0.15625, 0.15625, 0.15625, 0.1640625,
-         0.1640625, 0.1640625, 0.171875, 0.171875, 0.171875, 0.1796875, 0.1796875, 0.1875, 0.1953125, 0.203125,
-         0.2109375, 0.21875, 0.234375, 0.25])*100
-
-        # print(np.array([th0,th1]))
-        self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
-        self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
+        # th0 = np.linspace(90,130,56)
+        # th1 = np.array([0.171875, 0.15625, 0.1484375, 0.1484375, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625,
+        #  0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.13671875, 0.13671875, 0.140625,
+        #  0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.140625, 0.14453125,
+        #  0.1484375, 0.1484375, 0.1484375, 0.1484375, 0.1484375, 0.15625, 0.15625, 0.15625, 0.15625, 0.1640625,
+        #  0.1640625, 0.1640625, 0.171875, 0.171875, 0.171875, 0.1796875, 0.1796875, 0.1875, 0.1953125, 0.203125,
+        #  0.2109375, 0.21875, 0.234375, 0.25])*100
+        #
+        # # print(np.array([th0,th1]))
+        # self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
+        # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
         # self.yzde=list(self.thkim)
