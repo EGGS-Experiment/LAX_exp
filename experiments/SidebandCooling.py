@@ -4,7 +4,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandCool, RabiFlop, Readout
+from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -19,6 +19,10 @@ class SidebandCooling(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                            NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+
+        # sideband cooling type
+        self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
+
 
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
@@ -40,11 +44,18 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # get subsequences
         self.initialize_subsequence =                                   InitializeQubit(self)
-        self.sidebandcool_subsequence =                                 SidebandCool(self)
+        self.sidebandcool_pulsed_subsequence =                          SidebandCoolPulsed(self)
+        self.sidebandcool_continuous_subsequence =                      SidebandCoolContinuous(self)
         self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
         self.readout_subsequence =                                      Readout(self)
 
     def prepare_experiment(self):
+        # choose correct cooling subsequence
+        if self.cooling_type == "Continuous":
+            self.sidebandcool_subsequence =                             self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "Pulsed":
+            self.sidebandcool_subsequence =                             self.sidebandcool_pulsed_subsequence
+
         # convert readout frequencies to machine units
         self.freq_readout_ftw_list =                                    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))])
@@ -74,6 +85,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.sidebandcool_subsequence.record_dma()
 
         # record custom readout sequence
+        # note: this is necessary since DMA sequences will preserve urukul attenuation register
         with self.core_dma.record('_SBC_READOUT'):
             # set readout waveform for qubit
             self.qubit.set_profile(0)

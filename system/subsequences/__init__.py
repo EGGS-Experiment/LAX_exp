@@ -11,8 +11,9 @@ __all__.extend(['RescueIon', 'Cleanup'])
 
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
-from LAX_exp.system.subsequences.sideband_cool import SidebandCool
-__all__.extend(['DopplerCool', 'SidebandCool'])
+from LAX_exp.system.subsequences.sideband_cool_pulsed import SidebandCoolPulsed
+from LAX_exp.system.subsequences.sideband_cool_continuous import SidebandCoolContinuous
+__all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous'])
 
 # state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization
