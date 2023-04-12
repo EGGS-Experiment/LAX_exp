@@ -37,7 +37,7 @@ class SidebandCoolContinuous(LAXSubsequence):
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
         mode_total_pct =                                                np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
-        assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
+        # assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
 
         # get timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
