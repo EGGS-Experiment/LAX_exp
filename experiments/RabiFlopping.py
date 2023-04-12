@@ -98,7 +98,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
                 # prepare qubit beam for readout
                 self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_readout_db)
+                self.qubit.set_att_mu(self.att_readout_mu)
                 delay_mu(time_rabi_pair_mu[0])
 
                 # rabi flop
