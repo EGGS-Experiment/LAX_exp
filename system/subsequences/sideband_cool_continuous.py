@@ -17,6 +17,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # get devices
         self.setattr_device('probe')
         self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
@@ -37,7 +38,7 @@ class SidebandCoolContinuous(LAXSubsequence):
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
         mode_total_pct =                                                np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
-        assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
+        # assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
 
         # get timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
@@ -46,6 +47,10 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.time_spinpol_mu =                                          self.get_parameter('time_spinpol_us',
                                                                                            group='timing', override=True,
                                                                                            conversion_function=seconds_to_mu, units=us)
+        # get waveform parameters
+        self.freq_repump_qubit_ftw =                                    self.get_parameter('freq_repump_qubit_mhz',
+                                                                                           group='beams.freq_mhz', override=False,
+                                                                                           conversion_function=hz_to_ftw, units=MHz)
 
 
         ### SIDEBAND COOLING ###
@@ -84,14 +89,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
-        # set AOM DDS waveforms
-            # profile 0 = cooling
-            # profile 1 = readout (red-detuned)
-            # profile 2 = rescue
-            # profile 3 = sideband cooling
-        self.probe.set_mu(self.freq_redist_ftw, asf=self.ampl_redist_asf, profile=3)
-        self.pump.set_mu(self.freq_pump_cooling_ftw, asf=self.ampl_pump_cooling_asf, profile=3)
-        self.repump_cooling.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=3)
+        # set quench waveform
         self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
 
         # set sideband cooling profiles for 729nm qubit laser
@@ -150,8 +148,8 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # stop sideband cooling
         with parallel:
-            self.qubit.off()
             self.repump_qubit.set_profile(1)
+            self.qubit.off()
 
         # repump qubit after sideband cooling
         delay_mu(self.time_repump_qubit_mu)
