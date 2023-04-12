@@ -36,7 +36,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
-        self.doppler_subsequence =                                  NoOperation()
+        self.doppler_subsequence =                                  NoOperation(self)
         self.sidebandcool_pulsed_subsequence =                      SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence =                  SidebandCoolContinuous(self)
         self.readout_subsequence =                                  Readout(self)
