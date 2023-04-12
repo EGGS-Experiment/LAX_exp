@@ -22,7 +22,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.setattr_device('qubit')
 
         # sideband cooling configuration
-        self.setattr_argument("calibration",                            BooleanValue(default=False), group='sideband_cooling.continuous')
+        self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
         self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=8000, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
         self.setattr_argument("num_sideband_cycles",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=20, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
@@ -56,7 +56,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         ### SIDEBAND COOLING ###
 
         # CONFIG
-        self.qubit_func =                                               self.qubit.off if self.calibration is True else self.qubit.on
+        self.qubit_func =                                               self.qubit.off if self.calibration_continuous is True else self.qubit.on
         self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz)
                                                                                   for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
         self.iter_sideband_cooling_modes_list =                         np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))

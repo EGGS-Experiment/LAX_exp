@@ -21,9 +21,9 @@ class SidebandCoolPulsed(LAXSubsequence):
         self.setattr_device('qubit')
 
         # sideband cooling configuration
-        self.setattr_argument('calibration',                            BooleanValue(default=False), group='sideband_cooling.pulsed')
+        self.setattr_argument('calibration_pulsed',                     BooleanValue(default=False), group='sideband_cooling.pulsed')
         self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
-        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=20, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=0, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
         self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
 
         # sideband cooling timing
@@ -53,7 +53,7 @@ class SidebandCoolPulsed(LAXSubsequence):
                                                                                            conversion_function=seconds_to_mu, units=us)
 
         # calibration setup
-        self.qubit_func =                                               self.qubit.off if self.calibration is True else self.qubit.on
+        self.qubit_func =                                               self.qubit.off if self.calibration_pulsed is True else self.qubit.on
 
 
         # timing
