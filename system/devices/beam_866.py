@@ -26,6 +26,8 @@ class Beam866(LAXDevice):
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
         self.core.break_realtime()
+        self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=3)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def on(self):

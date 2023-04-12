@@ -37,6 +37,9 @@ class Beam397Pump(LAXDevice):
         self.core.break_realtime()
         self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
         self.core.break_realtime()
+        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3)
+        self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def on(self):
