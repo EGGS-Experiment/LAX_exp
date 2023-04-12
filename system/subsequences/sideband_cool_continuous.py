@@ -17,6 +17,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # get devices
         self.setattr_device('probe')
         self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
