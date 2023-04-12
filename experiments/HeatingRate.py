@@ -25,9 +25,10 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     def prepare_experiment(self):
         # convert heating rate timings to machine units
         self.time_heating_rate_mu_list =                                        np.array([seconds_to_mu(time_ms * ms)
-                                                                                          for time_ms in self.time_heating_rate_ms_list], dtype=np.int64)
+                                                                                          for time_ms in self.time_heating_rate_ms_list],
+                                                                                         dtype=np.int64)
 
-        # run regular sideband cooling prepare
+        # run preparations for sideband cooling
         super().prepare_experiment()
 
     @property
@@ -40,6 +41,10 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     @kernel
     def run_main(self):
         self.core.reset()
+
+        # get custom readout handle
+        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
 
@@ -59,22 +64,11 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                     # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
-                    # prepare for readout
-                    with parallel:
+                    # wait time to measure heating rate
+                    delay_mu(time_heating_delay_mu)
 
-                        # wait given time
-                        delay_mu(time_heating_delay_mu)
-
-                        # set readout waveform for qubit
-                        with sequential:
-                            self.qubit.set_profile(0)
-                            self.qubit.set_att_mu(self.att_readout_mu)
-
-                    # rabi flop
-                    self.rabiflop_subsequence.run_dma()
-
-                    # read out
-                    self.readout_subsequence.run_dma()
+                    # custom SBC readout
+                    self.core_dma.playback_handle(_handle_sbc_readout)
 
                     # update dataset
                     with parallel:
