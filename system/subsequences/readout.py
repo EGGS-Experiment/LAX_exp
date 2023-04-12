@@ -14,6 +14,7 @@ class Readout(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
 
     def prepare_subsequence(self):
@@ -26,6 +27,7 @@ class Readout(LAXSubsequence):
 
         # readout pulse
         self.pump.on()
+        self.repump_cooling.on()
         self.pmt.count(self.time_readout_mu)
         self.pump.off()
 

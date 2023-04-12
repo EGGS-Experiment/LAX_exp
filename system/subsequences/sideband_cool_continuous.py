@@ -148,8 +148,8 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # stop sideband cooling
         with parallel:
-            self.qubit.off()
             self.repump_qubit.set_profile(1)
+            self.qubit.off()
 
         # repump qubit after sideband cooling
         delay_mu(self.time_repump_qubit_mu)
