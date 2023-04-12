@@ -408,9 +408,6 @@ class SidebandCoolingRabiFloppingContinuous(EnvExperiment):
             self.core.break_realtime()
 
 
-
-
-
     @rpc(flags={"async"})
     def update_dataset(self, time_mu, pmt_counts):
         """
