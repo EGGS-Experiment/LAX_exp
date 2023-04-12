@@ -57,26 +57,26 @@ class SidebandCoolingRabiFloppingContinuous(EnvExperiment):
 
         # experiment runs
         self.setattr_argument("calibration",                                BooleanValue(default=False))
-        self.setattr_argument("repetitions",                                NumberValue(default=60, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
         self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling config
-        self.setattr_argument("time_sideband_cooling_us",                   NumberValue(default=3000, ndecimals=3, step=100, min=0.001, max=100000000))
-        self.setattr_argument("num_sideband_cycles",                        NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000000))
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",         PYONValue({103.314: 100}))
+        self.setattr_argument("time_sideband_cooling_us",                   NumberValue(default=6000, ndecimals=3, step=100, min=0.001, max=100000000))
+        self.setattr_argument("num_sideband_cycles",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000000))
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",         PYONValue({103.556: 100}))
         self.setattr_argument("pct_per_spin_polarization",                  NumberValue(default=15, ndecimals=3, step=1, min=0.01, max=100))
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("ampl_quench_pct",                            NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
+        self.setattr_argument("ampl_quench_pct",                            NumberValue(default=10, ndecimals=2, step=1, min=5, max=50))
         self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
 
         # rabi-flopping readout
         self.setattr_argument("att_rabiflopping_db",                        NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.0015, ndecimals=5, step=1, min=1, max=10000))
+        self.setattr_argument("freq_qubit_mhz",                             NumberValue(default=104.25, ndecimals=5, step=1, min=1, max=10000))
         self.setattr_argument("time_rabi_us_list",                          Scannable(default=
                                                                                 RangeScan(0, 100, 101, randomize=True),
                                                                                 global_min=1, global_max=100000, global_step=1,
@@ -131,6 +131,7 @@ class SidebandCoolingRabiFloppingContinuous(EnvExperiment):
         self.freq_pump_rescue_ftw =                                     self.dds_qubit.frequency_to_ftw(self.freq_pump_rescue_mhz * MHz)
         self.freq_repump_cooling_ftw =                                  self.dds_qubit.frequency_to_ftw(self.freq_repump_cooling_mhz * MHz)
         self.freq_repump_qubit_ftw =                                    self.dds_qubit.frequency_to_ftw(self.freq_repump_qubit_mhz * MHz)
+        self.freq_qubit_ftw =                                           self.dds_qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
 
         # convert amplitude to asf
         self.ampl_redist_asf =                                          self.dds_qubit.amplitude_to_asf(self.ampl_redist_pct / 100)
