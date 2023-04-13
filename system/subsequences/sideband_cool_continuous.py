@@ -23,22 +23,26 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
+        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
         self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=8000, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
-        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=20, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
         self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({103.314: 100}), group='sideband_cooling.continuous')
 
         # sideband cooling powers
-        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
+        self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
         self.setattr_argument("ampl_quench_pct",                        NumberValue(default=10, ndecimals=2, step=1, min=5, max=50),    group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=2, step=1, min=5, max=50),    group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
         mode_total_pct =                                                np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
         # assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
+
+        # DDS parameters
+        self.ampl_qubit_asf =                                           self.get_parameter('ampl_qubit_pct',
+                                                                                           group='beams.ampl_pct', override=True,
+                                                                                           conversion_function=seconds_to_mu, units=us)
 
         # get timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
@@ -63,13 +67,12 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # POWER
         self.ampl_quench_asf =                                          pct_to_asf(self.ampl_quench_pct)
-        self.ampl_sideband_cooling_asf =                                pct_to_asf(self.ampl_sideband_cooling_pct)
-        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
 
         # TIMING
         # create list of cycle times
-        cycle_time_us =                                                 self.time_sideband_cooling_us / self.num_sideband_cycles
-        cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.num_sideband_cycles + 1)[:-1]
+        cycle_time_us =                                                 self.time_sideband_cooling_us / self.sideband_cycles_continuous
+        cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.sideband_cycles_continuous + 1)[:-1]
 
         # create list of SBC profile times within a cycle
         cycle_profile_times_pct =                                       np.array([0] + list(self.freq_sideband_cooling_mhz_pct_list.values()))
@@ -96,7 +99,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             # profile 0: reserved for readout
             # profile 1 & greater: sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
-            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
+            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
