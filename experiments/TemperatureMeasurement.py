@@ -21,7 +21,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
-                                                                            default=RangeScan(85, 135, 10, randomize=True),
+                                                                            default=RangeScan(91, 129, 100, randomize=True),
                                                                             global_min=85, global_max=135, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
@@ -63,7 +63,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # record subsequences onto DMA
-        self.probe_subsequence.record_dma()
+        # self.probe_subsequence.record_dma()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
@@ -86,7 +86,8 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # probe absorption at detuning (repump on)
-                self.probe_subsequence.run_dma()
+                # self.probe_subsequence.run_dma()
+                self.probe_subsequence.run()
 
                 # get counts and update datasets
                 counts_actual = self.pmt.fetch_count()
