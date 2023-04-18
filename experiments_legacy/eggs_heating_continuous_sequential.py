@@ -79,7 +79,7 @@ class EGGSHeatingContinuous(EnvExperiment):
         # sideband cooling readout
         self.setattr_argument("shuffle_rsb_and_bsb",                    BooleanValue(default=True))
         self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=200, ndecimals=5, step=1, min=1, max=100000000))
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=CenterScan(103.314, 0.02, 0.0005),
                                                                             global_min=30, global_max=200, global_step=1,
@@ -94,7 +94,7 @@ class EGGSHeatingContinuous(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=5, max=31.5))
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
                                                                                 default=CenterScan(85.1, 0.020, 0.001, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
