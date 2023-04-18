@@ -263,6 +263,7 @@ class LAXExperiment(LAXEnvironment, ABC):
     '''
     Results
     '''
+
     @rpc(flags={"async"})
     def update_results(self, *args):
         """
@@ -319,6 +320,92 @@ class LAXExperiment(LAXEnvironment, ABC):
                     for k, v in exp_params.items():
                         experiment_group.attrs[k] = v
 
+                    # get system parameters from labrad
+                    sys_params = self._save_labrad()
+                    # save labrad system parameters data as attributes in separate group
+                    system_group = f.create_group("system")
+                    for k, v in sys_params.items():
+                        system_group.attrs[k] = v
+
             # catch any errors
             except Exception as e:
                 print("Warning: unable to create and save file in LAX format: {}".format(e))
+
+    def _save_labrad(self):
+        """
+        Extract system parameters from LabRAD and format for saving with the experiment results.
+        """
+        try:
+
+            # import relevant modules
+            import labrad
+            from os import environ
+            from socket import gethostname
+
+            # get default labrad connection values
+            LABRADHOST =       environ['LABRADHOST']
+            LABRADPORT =       environ['LABRADHOST']
+            LABRADPASSWORD =   environ['LABRADPASSWORD']
+
+            # create a synchronous connection to labrad
+            cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
+
+            # connect to relevant servers
+            rf = cxn.rf_server
+            dc = cxn.dc_server
+            ls = cxn.lakeshore336_server
+
+            # get rf values
+            rf.select_device()
+            rf_freq_hz = rf.frequency()
+            rf_ampl_dbm = rf.amplitude()
+
+            # import dc config and get relevant parameters
+            from EGGS_labrad.config.dc_config import dc_config
+            active_channels = dc_config.channeldict
+
+            # extract dc values of channels in use
+            dc_vals = {}
+            for channel_name, channel_params in active_channels.items():
+
+                try:
+                    # get channel number
+                    channelnum = channel_params['num']
+
+                    # store channel number
+                    key_channelnum = "dc_channel_num_{:s}".format(channel_name)
+                    dc_vals[key_channelnum] = channelnum
+
+                    # store channel voltage
+                    key_voltage = "dc_voltage_{:s}".format(channel_name)
+                    voltage_v = dc.voltage(channelnum)
+                    dc_vals[key_voltage] = voltage_v
+
+                except Exception as e:
+                    pass
+
+            # get temperature values
+            temp_vals_k = ls.read_temperature()
+            temp_vals_k = array(list(temp_vals_k))
+
+            # store all system values in a combined dict
+            sys_vals = {
+                "rf_freq_hz":   rf_freq_hz,
+                "rf_ampl_dbm":  rf_ampl_dbm,
+                "temp_vals_k":  temp_vals_k
+            }
+            sys_vals.update(dc_vals)
+
+            # return combined system values
+            return sys_vals
+
+
+        except Exception as e:
+            pass
+
+        finally:
+            # ensure labrad connection disconnects
+            cxn.disconnect()
+
+        # return empty dict to handle exception case
+        return {}
