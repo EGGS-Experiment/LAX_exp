@@ -72,7 +72,7 @@ class EGGSHeatingContinuous(EnvExperiment):
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=15, ndecimals=3, step=1, min=0.01, max=100))
 
         # sideband cooling powers
-        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("ampl_quench_pct",                        NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
         self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
 
