@@ -44,6 +44,12 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         ampl_calib_points =                                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
         ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
+        # verify scan range is servicable by calibration values
+        min_freq_mhz =                                                  np.min(self.freq_probe_scan_mhz)
+        max_freq_mhz =                                                  np.max(self.freq_probe_scan_mhz)
+        assert (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])), "Error: lower bound of frequency scan range below valid calibration range."
+        assert (max_freq_mhz < np.max(ampl_calib_points[:, 0])) & (max_freq_mhz > np.min(ampl_calib_points[:, 0])), "Error: upper bound of frequency scan range above valid calibration range."
+
         # get calibrated amplitude values
         ampl_probe_scan_pct =                                           np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
         self.ampl_probe_scan_asf =                                      np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
