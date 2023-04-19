@@ -9,14 +9,13 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 from EGGS_labrad.config.dc_config import dc_config
 
 
-class ParametricSweepUrukul(EnvExperiment):
+class ParametricSweep(EnvExperiment):
     """
-    Parametric Sweep Urukul
+    Parametric Sweep
     """
     kernel_invariants = {
         'time_pmt_gating_mu',
         'dc_micromotion_channel',
-        'ampl_mod_vpp',
         'dc_micromotion_voltage_v'
     }
 
@@ -28,12 +27,12 @@ class ParametricSweepUrukul(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=30, ndecimals=1, step=0.5, min=5, max=31.5))
+        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("mod_freq_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.209, 0.04, 0.0002, randomize=True),
+                                                                        default=CenterScan(1.408, 0.04, 0.0004, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -43,7 +42,7 @@ class ParametricSweepUrukul(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=CenterScan(50.0, 100.0, 1.0, randomize=True),
+                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -62,7 +61,7 @@ class ParametricSweepUrukul(EnvExperiment):
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
-        self.mod_dds_att_db =                                       10. * dB
+        self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu_list =                                     np.array([
                                                                         self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in self.mod_freq_mhz_list
@@ -177,10 +176,10 @@ class ParametricSweepUrukul(EnvExperiment):
             self.pmt_counter.input()
             self.rf_clock.input()
 
-        # configure rf mod clock
+        # configure rf modulation source
         self.mod_dds.cfg_sw(False)
         self.mod_dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.mod_dds.set_att(self.mod_dds_att_db)
+        self.mod_dds.set_att_mu(self.mod_dds_att_mu)
 
     @rpc
     def prepareDevicesLabrad(self):
