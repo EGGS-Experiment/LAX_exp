@@ -79,7 +79,7 @@ class MicromotionCompensation(EnvExperiment):
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
-        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(20000 * ns)
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
 
