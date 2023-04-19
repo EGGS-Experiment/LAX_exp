@@ -80,6 +80,11 @@ class LAXDatasetManager:
         for k, v in self.local.items():
             _write(datasets_group, k, v)
 
+        # store archived datasets (e.g. calibrations) in the archive group
+        archive_group = f.create_group("archive")
+        for k, v in self.archive.items():
+            _write(archive_group, k, v)
+
         # store parameters in a separate group as attributes
         parameters_group = f.create_group("parameters")
         for k, v in self.parameters.items():

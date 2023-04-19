@@ -79,7 +79,7 @@ class MicromotionCompensation(EnvExperiment):
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
-        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(20000 * ns)
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
 
@@ -133,6 +133,10 @@ class MicromotionCompensation(EnvExperiment):
 
                 # reset timestamping loop counter
                 counter = 0
+
+                # set voltage 2
+                self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
+                self.core.break_realtime()
 
                 # trigger sequence off same phase of RF
                 self.rf_clock.gate_rising_mu(self.time_rf_gating_mu)
