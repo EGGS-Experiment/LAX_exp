@@ -5,12 +5,12 @@ from artiq.experiment import *
 _DMA_HANDLE_INITIALIZE =        "eggs_heating_initialize"
 _DMA_HANDLE_SIDEBAND =          "eggs_heating_pulse"
 _DMA_HANDLE_READOUT =           "eggs_heating_readout"
-_DMA_HANDLE_EGGS_OFF =          "eggs_heating_eggs_off"
+_DMA_HANDLE_EGGS_SEQ =          "eggs_heating_eggs_seq"
 
 
-class EGGSHeatingContinuous(EnvExperiment):
+class EGGSHeatingContinuousSequential(EnvExperiment):
     """
-    EGGS Heating - Continuous
+    EGGS Heating - Continuous Sequential
 
     Does sideband cooling, then applies EGGS heating, then measures the sidebands.
     """
@@ -101,7 +101,7 @@ class EGGSHeatingContinuous(EnvExperiment):
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.41, 0.001, 0.0001, randomize=True),
+                                                                                default=ExplicitScan([1.409, 1.410, 1.411]),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
@@ -124,6 +124,8 @@ class EGGSHeatingContinuous(EnvExperiment):
         # max_time_length =                                                   len(list(self.time_max_sideband_cooling_us_list))
         # modes_length =                                                      len(list(self.freq_sideband_cooling_mhz_list))
         # assert min_time_length == max_time_length == modes_length
+
+        # todo: check that sideband freqs aren't too spread apart
 
         # PMT devices
         self.pmt_counter =                                              self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
@@ -231,7 +233,7 @@ class EGGSHeatingContinuous(EnvExperiment):
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
 
         # EGGS HEATING - CONFIG
-        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 4), dtype=float)
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list), 3), dtype=float)
         self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
 
         # EGGS HEATING - CALIBRATION
@@ -249,7 +251,8 @@ class EGGSHeatingContinuous(EnvExperiment):
 
         # set up datasets
         self._iter_dataset =                                                0
-        self.set_dataset("eggs_heating",                                    np.zeros([len(self.config_eggs_heating_list) * len(self.freq_qubit_scan_ftw) * self.repetitions, 4]))
+        self.set_dataset("eggs_heating",                                    np.zeros([len(self.config_eggs_heating_list) * len(self.freq_qubit_scan_ftw) * self.repetitions,
+                                                                                      3]))
         self.setattr_dataset("eggs_heating")
 
         # store config just in case
@@ -271,7 +274,7 @@ class EGGSHeatingContinuous(EnvExperiment):
         handle_initialize =     self.core_dma.get_handle(_DMA_HANDLE_INITIALIZE)
         handle_sideband =       self.core_dma.get_handle(_DMA_HANDLE_SIDEBAND)
         handle_readout =        self.core_dma.get_handle(_DMA_HANDLE_READOUT)
-        handle_eggs_off =       self.core_dma.get_handle(_DMA_HANDLE_EGGS_OFF)
+        handle_eggs_seq =       self.core_dma.get_handle(_DMA_HANDLE_EGGS_SEQ)
         self.core.break_realtime()
 
 
@@ -282,55 +285,49 @@ class EGGSHeatingContinuous(EnvExperiment):
             for config_vals in self.config_eggs_heating_list:
 
                 # extract values from config list
-                carrier_freq_hz =       config_vals[0]
-                sideband_freq_hz =      config_vals[1]
+                freq_carrier_hz =       config_vals[0]
                 ampl_rsb_frac =         config_vals[2]
                 ampl_bsb_frac =         config_vals[3]
 
                 # set eggs carrier via the DUC
                 at_mu(self.awg_board.get_next_frame_mu())
-                self.awg_eggs.set_duc_frequency(carrier_freq_hz * MHz)
+                self.awg_eggs.set_duc_frequency(freq_carrier_hz * MHz)
                 at_mu(self.awg_board.get_next_frame_mu())
                 self.awg_board.duc_stb()
-                self.core.break_realtime()
-
-                # set sideband frequencies
-                at_mu(self.awg_board.get_next_frame_mu())
-                self.awg_eggs.oscillator[0].set_frequency(-sideband_freq_hz)
-                delay_mu(self.time_phaser_sample_mu)
-                self.awg_eggs.oscillator[1].set_frequency(sideband_freq_hz)
                 self.core.break_realtime()
 
                 # sweep final pi-pulse frequency
                 for freq_ftw in self.freq_qubit_scan_ftw:
 
-                    # set readout frequency in advance
+                    # set qubit readout waveform in advance
                     self.dds_qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                    self.dds_qubit.set_att_mu(self.att_sidebandcooling_mu)
                     self.core.break_realtime()
 
                     # initialize by running doppler cooling and spin polarization
-                    self.dds_qubit.set_att_mu(self.att_sidebandcooling_mu)
                     self.core_dma.playback_handle(handle_initialize)
 
                     # run sideband cooling cycles and repump afterwards
                     self.core_dma.playback_handle(handle_sideband)
 
-                    # enable eggs heating output
+                    # enable eggs output
                     at_mu(self.awg_board.get_next_frame_mu())
                     self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, clr=0)
                     delay_mu(self.time_phaser_sample_mu)
                     self.awg_eggs.oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, clr=0)
 
-                    # let eggs heating run, then turn off
-                    at_mu(self.awg_board.get_next_frame_mu())
-                    self.core_dma.playback_handle(handle_eggs_off)
+                    with parallel:
+                        # run eggs heating sequence
+                        self.core_dma.playback_handle(handle_eggs_seq)
+
+                        # prepare qubit readout waveform
+                        self.dds_qubit.set_att_mu(self.att_readout_mu)
 
                     # read out
-                    self.dds_qubit.set_att_mu(self.att_readout_mu)
                     self.core_dma.playback_handle(handle_readout)
 
                     # record data
-                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), (carrier_freq_hz + self.freq_eggs_heating_center_hz) / MHz, sideband_freq_hz)
+                    self.update_dataset(freq_ftw, self.pmt_counter.fetch_count(), (freq_carrier_hz + self.freq_eggs_heating_center_hz) / MHz)
                     self.core.break_realtime()
 
             # add post repetition cooling
@@ -460,12 +457,24 @@ class EGGSHeatingContinuous(EnvExperiment):
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
 
+
         # eggs sequence
-        with self.core_dma.record(_DMA_HANDLE_EGGS_OFF):
-            # apply eggs heating for given time;
-            # no need to align here since we ensure time_eggs_heating_mu is an integer
-            # multiple of phaser0.t_frame in prepare()
-            delay_mu(self.time_eggs_heating_mu)
+        with self.core_dma.record(_DMA_HANDLE_EGGS_SEQ):
+            # scan eggs heating at different secular frequencies
+            for config_params in self.config_eggs_heating_list:
+
+                # get params
+                freq_sideband_hz = config_params[0]
+                time_heating_mu = config_params[1]
+
+                # set sideband frequencies
+                at_mu(self.awg_board.get_next_frame_mu())
+                self.awg_eggs.oscillator[0].set_frequency(-freq_sideband_hz)
+                delay_mu(self.time_phaser_sample_mu)
+                self.awg_eggs.oscillator[1].set_frequency(freq_sideband_hz)
+                
+                # heat for specified time
+                delay_mu(time_heating_mu)
 
             # disable output
             self.awg_eggs.oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
