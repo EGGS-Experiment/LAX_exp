@@ -69,8 +69,12 @@ class ParametricSweep(EnvExperiment):
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
-        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(20000 * ns)
+        self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
+
+        # cooling holdoff time
+        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
+
 
         # set up datasets
         self._dataset_counter                                       = 0
@@ -119,6 +123,9 @@ class ParametricSweep(EnvExperiment):
 
                 # reset timestamping loop counter
                 counter = 0
+
+                # add holdoff period for recooling the ion
+                delay_mu(self.time_cooling_holdoff_mu)
 
                 # set modulation frequency
                 self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)

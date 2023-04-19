@@ -60,6 +60,8 @@ class testarg12(EnvExperiment):
         # self.set_dataset('results2', np.zeros((self.repetitions, 3)), broadcast=False)
         # self._iter_dataset = 0
         # self._iter_dataset2 = 0
+        yz0=self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
+        print(yz0)
         pass
         # self.setattr_device('urukul0_cpld')
         # self.setattr_device('urukul0_ch0')

@@ -44,14 +44,14 @@ class MicromotionCompensation(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_1",   Scannable(
-                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
+                                                                        default=CenterScan(80.0, 60.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
 
         self.setattr_argument("dc_micromotion_channel_2",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='H Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_2",   Scannable(
-                                                                        default=CenterScan(50.0, 40.0, 1.0, randomize=True),
+                                                                        default=CenterScan(80.0, 60.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -76,11 +76,13 @@ class MicromotionCompensation(EnvExperiment):
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_ftw =                                         self.mod_dds.frequency_to_ftw(self.mod_freq_mhz * MHz)
 
-
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
         self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
+
+        # cooling holdoff time
+        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
 
 
         # set up datasets
@@ -128,11 +130,15 @@ class MicromotionCompensation(EnvExperiment):
             self.voltage_set(self.dc_micromotion_channel_1, voltage_1_v)
             self.core.break_realtime()
 
+
             # sweep voltage 2
             for voltage_2_v in self.dc_micromotion_voltages_v_list_2:
 
                 # reset timestamping loop counter
                 counter = 0
+
+                # add holdoff period for recooling the ion
+                delay_mu(self.time_cooling_holdoff_mu)
 
                 # set voltage 2
                 self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
