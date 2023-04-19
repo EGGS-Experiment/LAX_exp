@@ -25,6 +25,7 @@ __all__.extend(['SpinPolarization', 'InitializeQubit'])
 from LAX_exp.system.subsequences.tickle import Tickle
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.ramsey import Ramsey
+# from LAX_exp.system.subsequences.phaser_pulse import PhaserPulse
 __all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
 
 # readout

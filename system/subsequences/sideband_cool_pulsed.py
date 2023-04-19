@@ -22,7 +22,7 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration_pulsed',                     BooleanValue(default=False), group='sideband_cooling.pulsed')
-        self.setattr_argument('sideband_cycles',                        NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument('sideband_cycles_pulsed',                 NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
         self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=0, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
         self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
 
@@ -33,8 +33,7 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # sideband cooling waveform
         self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([103.77]), group='sideband_cooling.pulsed')
-        self.setattr_argument('ampl_sideband_cooling_pct',              NumberValue(default=50, ndecimals=5, step=1, min=10, max=100), group='sideband_cooling.pulsed')
-        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.pulsed')
+        self.setattr_argument("att_sidebandcooling_pulsed_db",          NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.pulsed')
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)
@@ -43,6 +42,11 @@ class SidebandCoolPulsed(LAXSubsequence):
         num_modes =                                                     len(list(self.freq_sideband_cooling_mhz_list))
         assert num_modes < 7,                                           "Exceeded maximum number of cooling frequencies."
         assert num_min_times == num_max_times == num_modes,             "Number of modes and timings are not equal."
+
+        # DDS parameters
+        self.ampl_qubit_asf =                                           self.get_parameter('ampl_qubit_pct',
+                                                                                           group='beams.ampl_pct', override=True,
+                                                                                           conversion_function=seconds_to_mu, units=us)
 
         # timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
@@ -67,7 +71,7 @@ class SidebandCoolPulsed(LAXSubsequence):
                 for time_us in np.linspace(
                     self.time_min_sideband_cooling_us_list,
                     self.time_max_sideband_cooling_us_list,
-                    self.sideband_cycles
+                    self.sideband_cycles_pulsed
                 )
             ])
 
@@ -75,7 +79,7 @@ class SidebandCoolPulsed(LAXSubsequence):
         elif self.time_form_sideband_cooling == 'Inverse Square Root':
 
             # alias variables for compactness of notation
-            steps = self.sideband_cycles
+            steps = self.sideband_cycles_pulsed
             (t_min, t_max) = (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
 
             # calculate timeshaping
@@ -99,13 +103,12 @@ class SidebandCoolPulsed(LAXSubsequence):
         self.time_sideband_cooling_list_mu = np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
 
         # split up sideband cooling times to intersperse spin polarization
-        num_spin_polarizations =                                        int(self.sideband_cycles / self.cycles_per_spin_polarization + 0.5)
+        num_spin_polarizations =                                        int(self.sideband_cycles_pulsed / self.cycles_per_spin_polarization + 0.5)
         self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # sideband cooling waveforms
         self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
-        self.ampl_sideband_cooling_asf =                                pct_to_asf(self.ampl_sideband_cooling_pct)
-        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_db * dB)
+        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_pulsed_db * dB)
         self.iter_sideband_cooling_modes_list =                         np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
     @kernel(flags={"fast-math"})
@@ -114,7 +117,7 @@ class SidebandCoolPulsed(LAXSubsequence):
         # profile 0: reserved for readout
         # profile 1 & greater: sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
-            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_sideband_cooling_asf, profile=i)
+            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -154,4 +157,3 @@ class SidebandCoolPulsed(LAXSubsequence):
             self.repump_qubit.on()
             delay_mu(self.time_repump_qubit_mu)
             self.repump_qubit.off()
-
