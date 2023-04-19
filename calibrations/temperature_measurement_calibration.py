@@ -33,7 +33,7 @@ class TemperatureMeasurementCalibration(EnvExperiment):
         self.setattr_argument("dds_attenuation_db",                         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5))
 
         # sampler setup
-        self.setattr_argument("adc_channel_num",                            NumberValue(default=6, ndecimals=0, step=1, min=0, max=3))
+        self.setattr_argument("adc_channel_num",                            NumberValue(default=6, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("adc_gain_num",                               EnumerationValue(['1', '10', '100', '1000'], default='100'))
         self.setattr_argument("adc_sample_num",                             NumberValue(default=100, ndecimals=0, step=1, min=1, max=5000))
 
