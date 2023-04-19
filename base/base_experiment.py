@@ -173,7 +173,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # record initialization time
         time_init_stop = datetime.timestamp(datetime.now())
-        print('\tinitialize time: {:.2f}'.format(time_init_start - time_init_stop))
+        print('\tInitialize Time: {:.2f}'.format(time_init_stop - time_init_start))
 
         # call user-defined initialize function
         # todo: see if we can move this into _initialize_experiment for speed
