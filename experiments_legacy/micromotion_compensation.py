@@ -134,6 +134,10 @@ class MicromotionCompensation(EnvExperiment):
                 # reset timestamping loop counter
                 counter = 0
 
+                # set voltage 2
+                self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
+                self.core.break_realtime()
+
                 # trigger sequence off same phase of RF
                 self.rf_clock.gate_rising_mu(self.time_rf_gating_mu)
                 time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu())
