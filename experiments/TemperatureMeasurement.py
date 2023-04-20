@@ -25,13 +25,20 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                                                                             global_min=85, global_max=135, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
+
+        # adc (sampler) recording
+        self.setattr_argument("adc_channel_num",                        NumberValue(default=3, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("adc_channel_gain",                       EnumerationValue(['1', '10', '100', '1000'], default='100'))
+
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
+        self.setattr_device('sampler0')
 
         # subsequences
         self.probe_subsequence =                                        AbsorptionProbe(self)
+
 
     def prepare_experiment(self):
         # convert probe frequency scans
@@ -57,10 +64,16 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         # set up probe waveform config
         self.waveform_probe_scan =                                      np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
 
+        # tmp remove
+        # set adc holdoff time to ensure adc records when probe beam is actually on
+        self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(3050 * us)
+        self.adc_channel_gain_mu =                                      int(np.log10(self.adc_channel_gain))
+
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.freq_probe_scan_ftw) * 2,
-                3)
+                4)
 
 
     # MAIN SEQUENCE
@@ -68,32 +81,58 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
     def initialize_experiment(self):
         self.core.break_realtime()
 
-        # record subsequences onto DMA
-        # self.probe_subsequence.record_dma()
+        # set ADC channel gains
+        self.sampler0.set_gain_mu(self.adc_channel_num, self.adc_channel_gain_mu)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
-        for trial_num in range(self.repetitions):
+        # create buffer to hold sampler values
+        buffer_sampler = [0] * 8
+        read_actual = 0
+        read_control = 0
 
+        # main loop
+        for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
             # sweep frequency
             for waveform_params in self.waveform_probe_scan:
-
-                # get waveform parameters
-                freq_ftw = waveform_params[0]
-                ampl_asf = waveform_params[1]
                 self.core.break_realtime()
 
-                # set probe beam frequency
+                # get waveform parameters and set probe beam frequency
+                freq_ftw = waveform_params[0]
+                ampl_asf = waveform_params[1]
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
                 self.core.break_realtime()
 
-                # probe absorption at detuning (repump on)
-                # self.probe_subsequence.run_dma()
-                self.probe_subsequence.run()
+                # get actual data
+                with parallel:
+                    # probe absorption at detuning (repump on)
+                    with sequential:
+                        self.repump_cooling.on()
+                        self.probe_subsequence.run()
+
+                    # record beam intensity via photodiode
+                    with sequential:
+                        delay_mu(self.time_adc_holdoff_mu)
+                        self.sampler0.sample_mu(buffer_sampler)
+                        read_actual = buffer_sampler[6]
+
+                # get control data
+                with parallel:
+                    # probe absorption at detuning (repump off)
+                    with sequential:
+                        self.repump_cooling.off()
+                        self.probe_subsequence.run()
+
+                    # record beam intensity via photodiode
+                    with sequential:
+                        delay_mu(self.time_adc_holdoff_mu)
+                        self.sampler0.sample_mu(buffer_sampler)
+                        read_control = buffer_sampler[6]
 
                 # get counts and update datasets
                 counts_actual = self.pmt.fetch_count()
@@ -102,5 +141,5 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                 # update datasets
                 with parallel:
                     self.core.break_realtime()
-                    self.update_results(freq_ftw, 1, counts_actual)
-                    self.update_results(freq_ftw, 0, counts_control)
+                    self.update_results(freq_ftw, 1, counts_actual, read_actual)
+                    self.update_results(freq_ftw, 0, counts_control, read_control)

@@ -22,7 +22,7 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000), group='rescue_ion')
 
     def prepare_subsequence(self):
-        self.time_rescue_mu = self.get_parameter('time_rescue_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_rescue_mu =                                           self.get_parameter('time_rescue_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self, i):
