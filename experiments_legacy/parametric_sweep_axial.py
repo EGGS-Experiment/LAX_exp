@@ -27,7 +27,7 @@ class ParametricSweepAxial(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                             NumberValue(default=5000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                             NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                             NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5))
@@ -46,7 +46,7 @@ class ParametricSweepAxial(EnvExperiment):
         self.setattr_argument("dc_micromotion_voltage_v_2",             NumberValue(default=214, ndecimals=4, step=1, min=0, max=400))
         self.setattr_argument("dc_micromotion_voltage_ratio",           NumberValue(default=1.41, ndecimals=4, step=0.1, min=-2, max=2))
         self.setattr_argument("dc_micromotion_search_voltage_v_list",   Scannable(
-                                                                            default=CenterScan(0.0, 20.0, 1.0, randomize=True),
+                                                                            default=CenterScan(0.0, 40.0, 1.0, randomize=True),
                                                                             global_min=-200, global_max=200, global_step=1,
                                                                             unit="V", scale=1, ndecimals=4
                                                                         ))
@@ -99,6 +99,12 @@ class ParametricSweepAxial(EnvExperiment):
         self.set_dataset('modulation_attenuation_db',               self.mod_att_db)
         self.set_dataset('dc_channel_num',                          27)
         self.set_dataset('dc_channel_name',                         'Axial IP ({:.4f})'.format(self.dc_micromotion_voltage_ratio))
+
+        # tmp remove
+        self.set_dataset('dc_channel_name_1',                       self.dc_micromotion_channel_1_name)
+        self.set_dataset('dc_channel_name_2',                       self.dc_micromotion_channel_2_name)
+        self.set_dataset('dc_voltage_arr_2',                        self.dc_micromotion_voltages_v_list[:, 1])
+        # tmp remove
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
