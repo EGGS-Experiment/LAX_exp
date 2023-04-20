@@ -43,7 +43,7 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
                                                                         default=CenterScan(60.0, 40.0, 1.0, randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=1,
+                                                                        global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
 
