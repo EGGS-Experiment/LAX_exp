@@ -215,4 +215,4 @@ class TemperatureMeasurementCalibration(EnvExperiment):
         # tmp remove
 
         # add calibration values to dataset manager
-        self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([calib_freq_mhz, calib_ampl_frac]).transpose(), broadcast=True, persist=True)
+        self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', calib_final, broadcast=True, persist=True)
