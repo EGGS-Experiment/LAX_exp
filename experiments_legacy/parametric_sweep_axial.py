@@ -30,9 +30,9 @@ class ParametricSweepAxial(EnvExperiment):
         self.setattr_argument("num_counts",                             NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                             NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("mod_att_db",                             NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("mod_freq_mhz_list",                      Scannable(
-                                                                            default=CenterScan(0.611, 0.04, 0.0004, randomize=True),
+                                                                            default=CenterScan(0.632, 0.025, 0.0005, randomize=True),
                                                                             global_min=0, global_max=1000, global_step=0.001,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ))
@@ -42,11 +42,11 @@ class ParametricSweepAxial(EnvExperiment):
         self.dc_micromotion_channeldict =                               dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",               EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='W Endcap'))
         self.setattr_argument("dc_micromotion_channel_2",               EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='E Endcap'))
-        self.setattr_argument("dc_micromotion_voltage_v_1",             NumberValue(default=169, ndecimals=4, step=1, min=0, max=400))
+        self.setattr_argument("dc_micromotion_voltage_v_1",             NumberValue(default=189, ndecimals=4, step=1, min=0, max=400))
         self.setattr_argument("dc_micromotion_voltage_v_2",             NumberValue(default=214, ndecimals=4, step=1, min=0, max=400))
         self.setattr_argument("dc_micromotion_voltage_ratio",           NumberValue(default=1.41, ndecimals=4, step=0.1, min=-2, max=2))
         self.setattr_argument("dc_micromotion_search_voltage_v_list",   Scannable(
-                                                                            default=CenterScan(0.0, 40.0, 1.0, randomize=True),
+                                                                            default=CenterScan(0.0, 40.0, 2.5, randomize=True),
                                                                             global_min=-200, global_max=200, global_step=1,
                                                                             unit="V", scale=1, ndecimals=4
                                                                         ))
