@@ -42,7 +42,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # DDS parameters
         self.ampl_qubit_asf =                                           self.get_parameter('ampl_qubit_pct',
                                                                                            group='beams.ampl_pct', override=True,
-                                                                                           conversion_function=seconds_to_mu, units=us)
+                                                                                           conversion_function=pct_to_asf)
 
         # get timing parameters
         self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',

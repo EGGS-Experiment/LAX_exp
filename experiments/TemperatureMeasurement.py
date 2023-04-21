@@ -66,7 +66,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
         # tmp remove
         # set adc holdoff time to ensure adc records when probe beam is actually on
-        self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(3050 * us)
+        self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(1000 * us)
         self.adc_channel_gain_mu =                                      int(np.log10(int(self.adc_channel_gain)))
 
 
