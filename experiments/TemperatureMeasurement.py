@@ -27,7 +27,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                                                                         ))
 
         # adc (sampler) recording
-        self.setattr_argument("adc_channel_num",                        NumberValue(default=3, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("adc_channel_num",                        NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("adc_channel_gain",                       EnumerationValue(['1', '10', '100', '1000'], default='100'))
 
         # relevant devices
@@ -67,7 +67,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         # tmp remove
         # set adc holdoff time to ensure adc records when probe beam is actually on
         self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(3050 * us)
-        self.adc_channel_gain_mu =                                      int(np.log10(self.adc_channel_gain))
+        self.adc_channel_gain_mu =                                      int(np.log10(int(self.adc_channel_gain)))
 
 
     @property
@@ -120,6 +120,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                         delay_mu(self.time_adc_holdoff_mu)
                         self.sampler0.sample_mu(buffer_sampler)
                         read_actual = buffer_sampler[6]
+                self.core.break_realtime()
 
                 # get control data
                 with parallel:
@@ -143,3 +144,10 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                     self.core.break_realtime()
                     self.update_results(freq_ftw, 1, counts_actual, read_actual)
                     self.update_results(freq_ftw, 0, counts_control, read_control)
+
+        # tmp remove
+        self.core.break_realtime()
+        self.pump.set_profile(1)
+        self.core.break_realtime()
+        # tmp remove
+
