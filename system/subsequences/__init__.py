@@ -31,4 +31,5 @@ __all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
 # readout
 from LAX_exp.system.subsequences.readout import Readout
 from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
-__all__.extend(['AbsorptionProbe'])
+from LAX_exp.system.subsequences.absorption_probe2 import AbsorptionProbe2
+__all__.extend(['AbsorptionProbe', 'AbsorptionProbe2'])

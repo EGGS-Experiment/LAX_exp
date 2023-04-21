@@ -4,13 +4,14 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import AbsorptionProbe
+from LAX_exp.system.subsequences import AbsorptionProbe2
 
 
-class TemperatureMeasurement(LAXExperiment, Experiment):
+class TemperatureMeasurement2(LAXExperiment, Experiment):
     """
-    Experiment: Temperature Measurement
+    Experiment: Temperature Measurement2
 
-    Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape.
+    Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape - 2.
     """
 
     name = 'Temperature Measurement'
@@ -45,7 +46,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         self.freq_probe_scan_mhz =                                      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
         self.freq_probe_scan_ftw =                                      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
-        # get amplitude calibration curve from dataset manager and interpolate the points
+        # get amplitude calibration curve from dataset maanger and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
         ampl_calib_points =                                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
@@ -92,7 +93,6 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         # create buffer to hold sampler values
         buffer_sampler = [0] * 8
         read_actual = 0
-        read_control = 0
 
         # main loop
         for trial_num in range(self.repetitions):
@@ -109,45 +109,9 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # get actual data
-                with parallel:
-                    # probe absorption at detuning (repump on)
-                    with sequential:
-                        self.repump_cooling.on()
-                        self.probe_subsequence.run()
-
-                    # record beam intensity via photodiode
-                    with sequential:
-                        delay_mu(self.time_adc_holdoff_mu)
-                        self.sampler0.sample_mu(buffer_sampler)
-                        read_actual = buffer_sampler[6]
-                self.core.break_realtime()
-
-                # get control data
-                with parallel:
-                    # probe absorption at detuning (repump off)
-                    with sequential:
-                        self.repump_cooling.off()
-                        self.probe_subsequence.run()
-
-                    # record beam intensity via photodiode
-                    with sequential:
-                        delay_mu(self.time_adc_holdoff_mu)
-                        self.sampler0.sample_mu(buffer_sampler)
-                        read_control = buffer_sampler[6]
-
-                # get counts and update datasets
-                counts_actual = self.pmt.fetch_count()
-                counts_control = self.pmt.fetch_count()
+                counts_res = self.probe_subsequence.run()
 
                 # update datasets
-                with parallel:
-                    self.core.break_realtime()
-                    self.update_results(freq_ftw, 1, counts_actual, read_actual)
-                    self.update_results(freq_ftw, 0, counts_control, read_control)
-
-        # tmp remove
-        self.core.break_realtime()
-        self.pump.set_profile(0)
-        self.core.break_realtime()
-        # tmp remove
-
+                self.core.break_realtime()
+                self.update_results(freq_ftw, 1, counts_res, 0)
+                self.core.break_realtime()
