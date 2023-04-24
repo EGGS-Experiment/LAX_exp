@@ -20,15 +20,15 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 100, 101, randomize=True),
+                                                                        default=RangeScan(0, 50, 101, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=103.9335, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=103.855, ndecimals=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("att_qubit_db",                       NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
 
@@ -139,6 +139,8 @@ class RabiFloppingDynamic(LAXExperiment, Experiment):
         probability = (counts >= _THRESHOLD1) * 0.5 + (counts >= _THRESHOLD2) * 0.5
 
         # calculate moving average and update
-        self.datatmp = np.array((self.datatmp * (n) + probability) / (n + 1))
+        # self.datatmp = np.array((self.datatmp * (n) + probability) / (n + 1))
+        alpha = 0.25
+        self.datatmp = np.array(alpha * probability + (1 - alpha) * self.datatmp)
         self.set_dataset('datatmp', self.datatmp, broadcast=True,persist=True,archive=True)
     # tmp remove

@@ -18,7 +18,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
@@ -38,7 +38,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
         self.setattr_device('sampler0')
 
         # subsequences
-        self.probe_subsequence =                                        AbsorptionProbe(self)
+        self.probe_subsequence =                                        AbsorptionProbe2(self)
 
 
     def prepare_experiment(self):

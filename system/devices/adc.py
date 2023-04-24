@@ -2,14 +2,14 @@ from artiq.experiment import *
 from LAX_exp.base import LAXDevice
 
 
-class PMTCounter(LAXDevice):
+class ADC(LAXDevice):
     """
-    Device: PMT photon counter
+    Device: ADC (Analog-Digital Converter)
 
-    Wrapper for the TTL edge_counter object for the PMT.
+    Wrapper for the Sampler object.
     """
-    name = "pmt"
-    core_device = ('pmt', 'ttl0_counter')
+    name = "adc"
+    core_device = ('adc', 'sampler0')
 
     def prepare_device(self):
         self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
