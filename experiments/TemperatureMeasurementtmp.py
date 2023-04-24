@@ -73,7 +73,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_probe_scan_ftw),
+        return (self.repetitions * len(self.freq_probe_scan_ftw) * 2,
                 4)
 
 
@@ -109,4 +109,5 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
                 # update dataset
                 self.update_results(freq_ftw, 1, self.probe_subsequence.counts_store, 0)
+                self.update_results(freq_ftw, 0, 0, 0)
                 self.core.break_realtime()
