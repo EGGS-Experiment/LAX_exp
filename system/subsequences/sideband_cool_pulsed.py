@@ -99,8 +99,8 @@ class SidebandCoolPulsed(LAXSubsequence):
 
 
         # extra sideband cooling cycles
-        extra_cycles_arr = np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
-        self.time_sideband_cooling_list_mu = np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+        extra_cycles_arr =                                              np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu =                            np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
 
         # split up sideband cooling times to intersperse spin polarization
         num_spin_polarizations =                                        int(self.sideband_cycles_pulsed / self.cycles_per_spin_polarization + 0.5)

@@ -19,6 +19,7 @@ class AbsorptionProbe(LAXSubsequence):
     def build_subsequence(self):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
     def prepare_subsequence(self):
@@ -29,6 +30,8 @@ class AbsorptionProbe(LAXSubsequence):
     def run(self):
         # set cooling waveform
         self.pump.cooling()
+        # enable 854nm during sequence to evacuate D-5/2 population
+        self.repump_qubit.on()
 
         # doppler cooling
         self.pump.on()
