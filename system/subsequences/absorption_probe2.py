@@ -23,8 +23,8 @@ class AbsorptionProbe2(LAXSubsequence):
         self.setattr_device('pmt')
         self.setattr_device('ttl0')
 
-        self.setattr_argument("repetitions",                                NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
-        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=300, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions_per_point",                                NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("repetitions_per_cooling_per_point",                    NumberValue(default=300, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_probe_us",                              NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_reset_us",                              NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
@@ -35,7 +35,7 @@ class AbsorptionProbe2(LAXSubsequence):
                                                                                                conversion_function=seconds_to_mu, units=us)
 
         # tmp
-        self._iter_loop_1 = np.array_split(np.arange(self.repetitions), self.repetitions / self.repetitions_per_cooling)
+        self._iter_loop_1 = np.array_split(np.arange(self.repetitions_per_point), self.repetitions_per_point / self.repetitions_per_cooling_per_point)
         self.counts_store = np.int32(0)
 
         self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
