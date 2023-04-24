@@ -18,11 +18,11 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
-                                                                            default=RangeScan(91, 129, 100, randomize=True),
+                                                                            default=RangeScan(91, 129, 25, randomize=True),
                                                                             global_min=85, global_max=135, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
@@ -73,7 +73,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_probe_scan_ftw) * 2,
+        return (self.repetitions * len(self.freq_probe_scan_ftw),
                 4)
 
 
@@ -90,10 +90,6 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
     def run_main(self):
         self.core.reset()
 
-        # create buffer to hold sampler values
-        buffer_sampler = [0] * 8
-        read_actual = 0
-
         # main loop
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
@@ -108,10 +104,9 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
                 self.core.break_realtime()
 
-                # get actual data
-                counts_res = self.probe_subsequence.run()
+                # run probe sequence
+                self.probe_subsequence.run()
 
-                # update datasets
-                self.core.break_realtime()
-                self.update_results(freq_ftw, 1, counts_res, 0)
+                # update dataset
+                self.update_results(freq_ftw, 1, self.probe_subsequence.counts_store, 0)
                 self.core.break_realtime()

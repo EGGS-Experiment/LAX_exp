@@ -19,12 +19,13 @@ class AbsorptionProbe2(LAXSubsequence):
     def build_subsequence(self):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
         self.setattr_device('ttl0')
 
         self.setattr_argument("repetitions",                                NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
-        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("time_probe_us",                              NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=300, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("time_probe_us",                              NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("time_reset_us",                              NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
     def prepare_subsequence(self):
@@ -34,8 +35,8 @@ class AbsorptionProbe2(LAXSubsequence):
                                                                                                conversion_function=seconds_to_mu, units=us)
 
         # tmp
-        self._iter_loop_1 = np.arange(int(self.repetitions_per_point / self.repetitions_per_cooling))
-        self._iter_loop_2 = np.arange(self.repetitions_per_cooling)
+        self._iter_loop_1 = np.array_split(np.arange(self.repetitions), self.repetitions / self.repetitions_per_cooling)
+        self.counts_store = np.int32(0)
 
         self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
         self.time_reset_mu = self.core.seconds_to_mu(self.time_reset_us * us)
@@ -43,16 +44,26 @@ class AbsorptionProbe2(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
 
-        counts_store = np.int32(0)
+        # with parallel:
+        # reset counts store
+        self.counts_store = np.int32(0)
+
+        # ensure 854nm on during sequence
+        self.repump_qubit.on()
+
+        # todo: move counter forward to schedule a very long pulse sequence
+        # min_now = self.core.rtio_get_counter() + self.time_sequence_delay
+        # if now_mu() < min_now:
+        #     at_mu(min_now)
 
         # loop
-        for i in self._iter_loop_1:
+        for _iter_arr in self._iter_loop_1:
             self.core.break_realtime()
 
             # DOPPLER COOLING
             # prepare beams for doppler cooling
-            self.repump_cooling.on()
             self.pump.cooling()
+            self.repump_cooling.on()
 
             # doppler cool
             self.pump.on()
@@ -60,33 +71,22 @@ class AbsorptionProbe2(LAXSubsequence):
             self.pump.off()
 
             # prepare probe beam
-            # self.pump.set_profile(1)
             self.pump.set_profile(1)
-            self.repump_cooling.off()
 
-            self.core.break_realtime()
+            # get counts
+            for _iter_i in _iter_arr:
 
-            # GET PROBE FLUORESCENCE
-            # get probe fluorescence
-            for j in self._iter_loop_2:
-
-                # record probe fluorescence
-                self.pump.on()
-                start_time = now_mu()
-                stop_time = self.ttl0.gate_rising_mu(self.time_probe_mu)
-                at_mu(stop_time)
-                self.pump.off()
-                self.repump_cooling.on()
-                delay_mu(self.time_reset_mu)
+                # schedule pulse sequence
                 self.repump_cooling.off()
-                at_mu(start_time)
-                counts_store += self.ttl0.count(stop_time)
+
+                # apply probe beam
+                self.pump.on()
+                self.pmt.count(self.time_probe_mu)
+                self.pump.off()
 
                 # with parallel:
-                #     start_time = no
-                # counts_store += self.ttl0.count(self.ttl0.gate_rising_mu(self.time_probe_mu))
-                # self.pump.off()
+                # apply reset beam
+                self.repump_cooling.on()
+                delay_mu(self.time_reset_mu)
 
-
-
-        return float(counts_store) / float(self.repetitions_per_point)
+                self.counts_store += self.pmt.fetch_count()
