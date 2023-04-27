@@ -27,12 +27,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=20000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("mod_freq_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.408, 0.04, 0.0004, randomize=True),
+                                                                        default=CenterScan(1.686, 0.01, 0.0001, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ))
@@ -41,8 +41,13 @@ class ParametricSweep(EnvExperiment):
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        # self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
+        #                                                                 default=CenterScan(60.0, 40.0, 1.0, randomize=True),
+        #                                                                 global_min=0, global_max=400, global_step=1,
+        #                                                                 unit="V", scale=1, ndecimals=4
+        #                                                             ))
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
+                                                                        default=ExplicitScan([71.3]),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
@@ -191,7 +196,7 @@ class ParametricSweep(EnvExperiment):
             self.rf_clock.input()
 
         # configure cooling dds
-        self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_pct)
+        self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
         # self.cooling_dds.set_att_mu(self.cooling_dds_att_mu)
         # self.cooling_dds.cfg_sw(True)
         self.cooling_dds.cpld.cfg_switches(0b1110)
