@@ -58,6 +58,14 @@ class ParametricSweep(EnvExperiment):
         self.dc_micromotion_channel_name =                          self.dc_micromotion_channel
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
 
+        # cooling lasers
+        self.cooling_dds =                                          self.get_device("urukul1_ch1")
+        self.cooling_dds_ampl_pct =                                 self.get_dataset("beams.ampl_pct.ampl_pump_readout_pct")
+        self.cooling_dds_freq_mhz =                                 self.get_dataset("beams.freq_mhz.freq_pump_readout_mhz")
+        self.cooling_dds_ampl_asf =                                 self.cooling_dds.amplitude_to_asf(self.cooling_dds_ampl_pct / 100)
+        self.cooling_dds_freq_ftw =                                 self.cooling_dds.frequency_to_ftw(self.cooling_dds_freq_mhz * MHz)
+        self.cooling_dds_att_mu =                                   self.cooling_dds.cpld.att_to_mu(14 * dB)
+
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
@@ -116,7 +124,6 @@ class ParametricSweep(EnvExperiment):
             # set DC voltage
             self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
             self.core.break_realtime()
-
 
             # sweep modulation frequency
             for freq_mu in self.mod_freq_mu_list:
@@ -182,6 +189,12 @@ class ParametricSweep(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
+
+        # configure cooling dds
+        self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_pct)
+        # self.cooling_dds.set_att_mu(self.cooling_dds_att_mu)
+        # self.cooling_dds.cfg_sw(True)
+        self.cooling_dds.cpld.cfg_switches(0b1110)
 
         # configure rf modulation source
         self.mod_dds.cfg_sw(False)
