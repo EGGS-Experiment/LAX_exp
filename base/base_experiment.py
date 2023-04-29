@@ -3,7 +3,10 @@ from artiq.experiment import *
 import os
 import time
 import h5py
+import socket
 import logging
+
+from sipyco import pyon
 from numpy import array, zeros
 from abc import ABC, abstractmethod
 
@@ -13,6 +16,7 @@ from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 
 # tmp remove
 from datetime import datetime
+from LAX_exp.base.manager_wrappers import _write_to_group
 # todo: get labrad data
 # todo: add dynamic updates
 
@@ -292,7 +296,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set variables
         rid = exp_params["rid"]
         start_time = time.localtime(exp_params["start_time"])
-        save_dir_list = ['Z:\\Motion\\Data']
+        expid = exp_params["expid"]
+        # todo: try to get default save dir list
+        # try:
+        #     th0 = self.get_dataset('management.dataset_save_locations')
+        #     print(th0)
+        # except Exception as e:
+        #     print(e)
+        #     print('whoops')
+        save_dir_list = ['Z:\\Motion\\yzde']
 
         # save to all relevant directories
         for save_dir in save_dir_list:
@@ -315,20 +327,24 @@ class LAXExperiment(LAXEnvironment, ABC):
                     # save data from experiment via the dataset manager of the LAXExperiment
                     self._LAXEnvironment__dataset_mgr.write_hdf5(f)
 
+                    # save expid separately to allow dashboard to run from hdf5 file
+                    # note: expid has already been converted to hdf5-savable form in main artiq package
+                    f["expid"] = expid
+
                     # store experiment parameters in a separate group as attributes
                     experiment_group = f.create_group("experiment")
                     for k, v in exp_params.items():
-                        experiment_group.attrs[k] = v
+                        _write_to_group(experiment_group.attrs, k, v)
 
-                    # get system parameters from labrad
+                    # get system parameters from labrad and save as attributes in a separate group
                     sys_params = self._save_labrad()
-                    # save labrad system parameters data as attributes in separate group
                     system_group = f.create_group("system")
                     for k, v in sys_params.items():
-                        system_group.attrs[k] = v
+                        _write_to_group(system_group.attrs, k, v)
 
             # catch any errors
             except Exception as e:
+                # todo: create error message
                 print("Warning: unable to create and save file in LAX format: {}".format(e))
 
     def _save_labrad(self):
@@ -339,16 +355,14 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # import relevant modules
             import labrad
-            from os import environ
-            from socket import gethostname
 
             # get default labrad connection values
-            LABRADHOST =       environ['LABRADHOST']
-            LABRADPORT =       environ['LABRADHOST']
-            LABRADPASSWORD =   environ['LABRADPASSWORD']
-
+            LABRADHOST =       os.environ['LABRADHOST']
+            LABRADPORT =       os.environ['LABRADPORT']
+            LABRADPASSWORD =   os.environ['LABRADPASSWORD']
             # create a synchronous connection to labrad
-            cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
+            # cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
+            cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
 
             # connect to relevant servers
             rf = cxn.rf_server

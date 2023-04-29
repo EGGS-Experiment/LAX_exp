@@ -10,6 +10,21 @@ from LAX_exp.system.device_db_ext import device_db_ext
 logger = logging.getLogger("artiq.master.experiments")
 
 
+def _write_to_group(group, k, v):
+    """
+    Wrap ARTIQs base "_write" function with slightly more error handling
+    and add support for dictionaries.
+    """
+    try:
+        if type(v) is not dict:
+            _write(group, k, v)
+        else:
+            # convert any dicts to text
+            _write(group, k, str(v))
+    except Exception as e:
+        print(e)
+        pass
+
 
 class LAXDatasetManager:
     """
@@ -65,8 +80,9 @@ class LAXDatasetManager:
         # handle parameters
         if parameter:
             if key in self.parameters:
-                logger.warning("Parameter '%s' is already in parameter storage, "
-                               "overwriting", key, stack_info=True)
+                # logger.warning("Parameter '%s' is already in parameter storage, "
+                #                "overwriting", key, stack_info=True)
+                pass
             self.parameters[key] = data
 
         return data
@@ -78,22 +94,22 @@ class LAXDatasetManager:
         # store datasets in a separate group
         datasets_group = f.create_group("datasets")
         for k, v in self.local.items():
-            _write(datasets_group, k, v)
+            _write_to_group(datasets_group, k, v)
 
         # store archived datasets (e.g. calibrations) in the archive group
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
-            _write(archive_group, k, v)
+            _write_to_group(archive_group, k, v)
 
         # store parameters in a separate group as attributes
         parameters_group = f.create_group("parameters")
         for k, v in self.parameters.items():
-            _write(parameters_group.attrs, k, v)
+            _write_to_group(parameters_group.attrs, k, v)
 
         # store arguments in a separate group as attributes
         arguments_group = f.create_group("arguments")
         for k, v in self.arguments.items():
-            _write(arguments_group.attrs, k, v)
+            _write_to_group(arguments_group.attrs, k, v)
 
 
 class LAXDeviceManager:
