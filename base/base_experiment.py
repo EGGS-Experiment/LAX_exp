@@ -304,7 +304,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         # except Exception as e:
         #     print(e)
         #     print('whoops')
-        save_dir_list = ['Z:\\Motion\\yzde']
+        save_dir_list = ['Z:\\Motion\\Data']
 
         # save to all relevant directories
         for save_dir in save_dir_list:
