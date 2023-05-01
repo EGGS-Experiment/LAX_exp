@@ -9,8 +9,6 @@ class ProphylacticSweep(EnvExperiment):
     Apply a tickle on top of the RF rods as a prophylaxis against undesired
     mass species from being trapped.
     """
-    kernel_invariants = {
-    }
 
 
     def build(self):
