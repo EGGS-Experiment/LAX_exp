@@ -120,10 +120,6 @@ class SidebandCooling(LAXExperiment, Experiment):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
-                # tmp remove
-                delay_mu(1000000)
-                # tmp remove
-
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
 
