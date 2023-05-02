@@ -7,7 +7,7 @@ from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous,
 
 
 
-class HeatingRate(SidebandCooling.SidebandCooling):
+class HeatingRate(LAXExperiment):
     """
     Experiment: Heating Rate
 
