@@ -3,6 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 # import LAX_exp.experiments.SidebandCooling as SidebandCooling
+from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout
 
 
