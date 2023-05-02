@@ -65,7 +65,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                     self.sidebandcool_subsequence.run_dma()
 
                     # wait time to measure heating rate
-                    delay_mu(time_heating_delay_mu)
+                    # delay_mu(time_heating_delay_mu)
 
                     # custom SBC readout
                     self.core_dma.playback_handle(_handle_sbc_readout)
