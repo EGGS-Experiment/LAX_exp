@@ -48,29 +48,23 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep times to measure heating rate
-            for time_heating_delay_mu in self.time_heating_rate_mu_list:
+            # sweep frequency
+            for freq_ftw in self.freq_readout_ftw_list:
 
-                # sweep frequency
-                for freq_ftw in self.freq_readout_ftw_list:
+                # set frequency
+                self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.core.break_realtime()
 
-                    # set frequency
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                # custom SBC readout
+                self.core_dma.playback_handle(_handle_sbc_readout)
+
+                # update dataset
+                with parallel:
+                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), 0)
                     self.core.break_realtime()
-
-                    # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
-
-                    # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
-
-                    # wait time to measure heating rate
-                    delay_mu(time_heating_delay_mu)
-
-                    # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
-
-                    # update dataset
-                    with parallel:
-                        self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
-                        self.core.break_realtime()
