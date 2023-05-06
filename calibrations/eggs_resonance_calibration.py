@@ -26,7 +26,7 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("freq_eggs_heating_mhz_list",                     Scannable(
-                                                                                    default=RangeScan(70, 95, 200, randomize=False),
+                                                                                    default=RangeScan(75, 90, 151, randomize=False),
                                                                                     global_min=30, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=5
                                                                                 ))
@@ -99,7 +99,10 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.dv.new(
             dataset_title_tmp,
             [('Frequency', 'MHz')],
-            [('Pickoff Power', 'Power', 'dBm')],
+            [
+                ('Transmission',            'Power',        'dBm'),
+                ('Normalized Amplitude',    'Fraction',     'frac')
+            ],
             context=self.cr
         )
         print("Data vault setup successful.")
@@ -163,7 +166,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.core.break_realtime()
 
         # trf setup, and disable rf output while we set things up
-        self.awg_eggs.set_att(20 * dB)
+        self.awg_eggs.set_att(3 * dB)
         self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
@@ -230,9 +233,6 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.mutate_dataset('eggs_resonance_calibration', self._iter_dataset, np.array([peak_freq_mhz, peak_power_dbm_avg]))
         self._iter_dataset += 1
 
-        # save to dataset (labrad)
-        self.dv.add(peak_freq_mhz, peak_power_dbm_avg, context=self.cr)
-
 
     def analyze(self):
         """
@@ -245,10 +245,16 @@ class EGGSResonanceCalibration(EnvExperiment):
         calib_timestamp = datetime.timestamp(datetime.now())
         self.set_dataset('calibration.eggs.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
-        # convert dbm to volts
+        # copy calibration results to temporary array for convenience
         power_dataset_tmp = np.array(self.eggs_resonance_calibration)
-        power_dataset_tmp[:, 1] = 10 ** (power_dataset_tmp[:, 1] / 20)
 
-        # scale relative to max
-        power_dataset_tmp[:, 1] /= np.max(power_dataset_tmp[:, 1])
-        self.set_dataset('calibration.eggs.resonance_ratio_curve_mhz', power_dataset_tmp, persist=True, broadcast=True)
+        # convert power to normalized amplitude values
+        norm_ampl_dataset = np.zeros((2, len(power_dataset_tmp)))
+        norm_ampl_dataset[:, 0] = power_dataset_tmp[:, 0]
+        norm_ampl_dataset[:, 1] = 10 ** (power_dataset_tmp[:, 1] / 20)
+        norm_ampl_dataset[:, 1] /= np.max(power_dataset_tmp[:, 1])
+        self.set_dataset('calibration.eggs.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
+
+        # add data to data vault for visualization
+        for i in range(len(power_dataset_tmp)):
+            self.dv.add([power_dataset_tmp[0], power_dataset_tmp[1], norm_ampl_dataset[2]], context=self.cr)
