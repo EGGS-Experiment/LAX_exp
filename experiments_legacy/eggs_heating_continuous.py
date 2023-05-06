@@ -243,8 +243,9 @@ class EGGSHeatingContinuous(EnvExperiment):
         for i, config_freqs in enumerate(self.config_eggs_heating_list):
             carrier_freq, secular_freq = config_freqs[:2]
             carrier_freq += self.freq_eggs_heating_center_hz
-            #print(ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz]))
-            self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
+            print(ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz]))
+            # self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
+            self.config_eggs_heating_list[i, 2:] = [0.499,0.499]
 
 
         # set up datasets
