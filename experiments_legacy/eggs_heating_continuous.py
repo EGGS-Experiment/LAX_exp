@@ -290,7 +290,7 @@ class EGGSHeatingContinuous(EnvExperiment):
 
                 # set eggs carrier via the DUC
                 at_mu(self.awg_board.get_next_frame_mu())
-                self.awg_eggs.set_duc_frequency(carrier_freq_hz * MHz)
+                self.awg_eggs.set_duc_frequency(carrier_freq_hz)
                 at_mu(self.awg_board.get_next_frame_mu())
                 self.awg_board.duc_stb()
                 self.core.break_realtime()
