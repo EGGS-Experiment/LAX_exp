@@ -178,6 +178,7 @@ class EGGSHeatingContinuous(EnvExperiment):
         self.iter_sideband_cooling_modes_list =                         list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list)))
 
         # SIDEBAND COOLING - TIMING
+        self.time_sideband_cooling_mu =                                 self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
         # create list of cycle times
         cycle_time_us =                                                 self.time_sideband_cooling_us / self.num_sideband_cycles
         cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.num_sideband_cycles + 1)[:-1]
@@ -415,6 +416,7 @@ class EGGSHeatingContinuous(EnvExperiment):
             # intersperse state preparation with normal SBC
             time_start_mu = now_mu()
             with parallel:
+
                 # interleave sideband cooling of different modes every cycle
                 for time_delay_mu_list in self.delay_sideband_cooling_cycle_mu_list:
                     # for i in self.iter_sideband_cooling_modes_list:
@@ -432,6 +434,8 @@ class EGGSHeatingContinuous(EnvExperiment):
                     delay_mu(self.time_redist_mu)
                     self.dds_board.cfg_switches(0b1000)
 
+            # resume RTIO counter at where we should be
+            at_mu(time_start_mu + self.time_sideband_cooling_mu)
             # turn off qubit DDS
             self.dds_qubit.cfg_sw(False)
 
@@ -460,6 +464,7 @@ class EGGSHeatingContinuous(EnvExperiment):
             self.dds_board.cfg_switches(0b0110)
             self.pmt_gating_edge(self.time_readout_mu)
             self.dds_board.cfg_switches(0b0100)
+
 
         # eggs sequence
         with self.core_dma.record(_DMA_HANDLE_EGGS_OFF):

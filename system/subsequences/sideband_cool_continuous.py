@@ -70,6 +70,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
 
         # TIMING
+        self.time_sideband_cooling_mu =                                 self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
         # create list of cycle times
         cycle_time_us =                                                 self.time_sideband_cooling_us / self.sideband_cycles_continuous
         cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.sideband_cycles_continuous + 1)[:-1]
@@ -131,6 +132,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # intersperse state preparation with normal SBC
         time_start_mu = now_mu()
         with parallel:
+
             # interleave sideband cooling of different modes every cycle
             for time_delay_mu_list in self.delay_sideband_cooling_cycle_mu_list:
                 # for i in self.iter_sideband_cooling_modes_list:
@@ -150,6 +152,7 @@ class SidebandCoolContinuous(LAXSubsequence):
                 self.repump_cooling.off()
 
         # stop sideband cooling
+        at_mu(time_start_mu + self.time_sideband_cooling_mu)
         with parallel:
             self.repump_qubit.set_profile(1)
             self.qubit.off()
