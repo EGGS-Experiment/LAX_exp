@@ -201,7 +201,6 @@ class ParametricSweep(EnvExperiment):
         # configure cooling dds
         self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
         # self.cooling_dds.set_att_mu(self.cooling_dds_att_mu)
-        # self.cooling_dds.cfg_sw(True)
         self.cooling_dds.cpld.cfg_switches(0b1110)
 
         # configure rf modulation source
