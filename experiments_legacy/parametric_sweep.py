@@ -19,8 +19,6 @@ class ParametricSweep(EnvExperiment):
         'dc_micromotion_voltage_v'
     }
 
-    global_parameters = []
-
 
     def build(self):
         self.setattr_device("core")
@@ -30,54 +28,59 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5))
-        self.setattr_argument("mod_freq_mhz_list",                  Scannable(
-                                                                        default=CenterScan(1.686, 0.01, 0.0001, randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=0.001,
-                                                                        unit="MHz", scale=1, ndecimals=5
-                                                                    ))
+        self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
+        self.setattr_argument("mod_freq_khz_list",                  Scannable(
+                                                                        default=CenterScan(1686, 10, 0.1, randomize=True),
+                                                                        global_min=1, global_max=200000, global_step=1,
+                                                                        unit="kHz", scale=1, ndecimals=4
+                                                                    ), group='mod')
 
 
-        # voltage values
+        # voltage
         self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
+        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         # self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
         #                                                                 default=CenterScan(60.0, 40.0, 1.0, randomize=True),
         #                                                                 global_min=0, global_max=400, global_step=1,
         #                                                                 unit="V", scale=1, ndecimals=4
-        #                                                             ))
+        #                                                             ), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=ExplicitScan([71.3]),
+                                                                        default=ExplicitScan([66]),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
-                                                                    ))
+                                                                    ), group='voltage')
+
+        # cooling
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=1, min=5, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=110, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
 
     def prepare(self):
         # PMT devices
         self.pmt_counter =                                          self.get_device("ttl0")
         self.time_pmt_gating_mu =                                   self.core.seconds_to_mu(100 * us)
+        self.pmt_flipper =                                          self.get_device("ttl23")
 
         # get voltage parameters
         self.dc_micromotion_channel_num =                           self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
         self.dc_micromotion_channel_name =                          self.dc_micromotion_channel
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
 
-        # cooling lasers
+        # cooling beam
         self.cooling_dds =                                          self.get_device("urukul1_ch1")
-        self.cooling_dds_ampl_pct =                                 self.get_dataset("beams.ampl_pct.ampl_pump_readout_pct")
-        self.cooling_dds_freq_mhz =                                 self.get_dataset("beams.freq_mhz.freq_pump_readout_mhz")
-        self.cooling_dds_ampl_asf =                                 self.cooling_dds.amplitude_to_asf(self.cooling_dds_ampl_pct / 100)
-        self.cooling_dds_freq_ftw =                                 self.cooling_dds.frequency_to_ftw(self.cooling_dds_freq_mhz * MHz)
+        self.cooling_dds_ampl_asf =                                 self.cooling_dds.amplitude_to_asf(self.ampl_cooling_pct / 100)
+        self.cooling_dds_freq_ftw =                                 self.cooling_dds.frequency_to_ftw(self.freq_cooling_mhz * MHz)
         self.cooling_dds_att_mu =                                   self.cooling_dds.cpld.att_to_mu(14 * dB)
+        # cooling holdoff time
+        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu_list =                                     np.array([
-                                                                        self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
-                                                                        for freq_mhz in self.mod_freq_mhz_list
+                                                                        self.mod_dds.frequency_to_ftw(freq_mhz * kHz)
+                                                                        for freq_mhz in self.mod_freq_khz_list
                                                                     ])
 
         # RF synchronization
@@ -85,13 +88,10 @@ class ParametricSweep(EnvExperiment):
         self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
-        # cooling holdoff time
-        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
-
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_mhz_list) * len(self.dc_micromotion_voltages_v_list),
+        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_khz_list) * len(self.dc_micromotion_voltages_v_list),
                                                                               4]))
         self.setattr_dataset("results")
 
@@ -100,6 +100,8 @@ class ParametricSweep(EnvExperiment):
         self.set_dataset('modulation_attenuation_db',               self.mod_att_db)
         self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel_num)
         self.set_dataset('dc_channel_name',                         self.dc_micromotion_channel_name)
+        self.set_dataset('cooling_freq_mhz',                        self.freq_cooling_mhz)
+        self.set_dataset('cooling_ampl_pct',                        self.ampl_cooling_pct)
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
@@ -194,6 +196,7 @@ class ParametricSweep(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
+            self.pmt_flipper.on()
 
         # configure cooling dds
         self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
