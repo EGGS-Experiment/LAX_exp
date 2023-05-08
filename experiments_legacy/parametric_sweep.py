@@ -28,12 +28,12 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default=CenterScan(1712.5, 2.5, 0.025, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
-                                                                    ), group='mod')
+                                                                    ), group='modulation')
 
 
         # voltage
@@ -196,7 +196,7 @@ class ParametricSweep(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
-            self.pmt_flipper.off()
+            # self.pmt_flipper.off()
 
         # configure cooling dds
         self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
