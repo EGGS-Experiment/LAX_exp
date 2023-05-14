@@ -26,7 +26,7 @@ class vsweeptmp(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
@@ -37,7 +37,7 @@ class vsweeptmp(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
+                                                                        default=CenterScan(60.0, 5.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
@@ -261,15 +261,15 @@ class vsweeptmp(EnvExperiment):
         m_c, b_c = fit_complex.slope, fit_complex.intercept
 
         # get the projection of the DV onto the fitted line
-        vec_complex = np.linalg.norm(np.array([1, m_c]))
+        vec_complex = np.array([1, m_c]) / np.linalg.norm(np.array([1, m_c]))
         dataset_proj = np.dot(dataset_y, vec_complex)
 
         # fit the x dataset to the parameterized line
         fit_parameterized = stats.linregress(dataset_x, dataset_proj)
-        m_p, b_p = fit_complex.slope, fit_complex.intercept
+        m_p, b_p = fit_parameterized.slope, fit_parameterized.intercept
 
         # extract x_min
-        x_min = - (m_c * b_c)/(1 + np.pow(m_c, 2))
+        x_min = - (m_c * b_c)/(1 + np.power(m_c, 2))
 
         # convert x_min to V_min
         V_min = (x_min - b_p) / m_p
@@ -285,7 +285,7 @@ class vsweeptmp(EnvExperiment):
         self.tmp0 = np.array([
             self.tmp0[:, 1],
             self.tmp0[:, 2] * np.exp(1.j * self.tmp0[:, 3])
-        ], dtype='complex128')
+        ], dtype='complex')
         self.tmp0 = self.tmp0.transpose()
 
         # extract minimum voltage
