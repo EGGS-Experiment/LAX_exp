@@ -26,7 +26,7 @@ class vsweeptmp(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
@@ -37,7 +37,7 @@ class vsweeptmp(EnvExperiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=CenterScan(60.0, 5.0, 1.0, randomize=True),
+                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
@@ -293,6 +293,3 @@ class vsweeptmp(EnvExperiment):
 
         # tmp remove
         print('\t\tmin voltage: {:f} V'.format(min_voltage))
-
-
-
