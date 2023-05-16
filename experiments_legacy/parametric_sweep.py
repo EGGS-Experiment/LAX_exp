@@ -83,6 +83,10 @@ class ParametricSweep(EnvExperiment):
                                                                         for freq_mhz in self.mod_freq_khz_list
                                                                     ])
 
+        # modulation switches
+        self.mod_sw_1 =                                             self.get_device("ttl12")
+        self.mod_sw_2 =                                             self.get_device("ttl13")
+
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
         self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
@@ -196,6 +200,8 @@ class ParametricSweep(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
+            self.mod_sw_1.on()
+            self.mod_sw_2.off()
             # self.pmt_flipper.off()
 
         # configure cooling dds
