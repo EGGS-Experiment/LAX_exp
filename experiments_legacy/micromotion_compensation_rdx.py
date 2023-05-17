@@ -12,7 +12,7 @@ from EGGS_labrad.config.dc_config import dc_config
 
 class MicromotionCompensation(EnvExperiment):
     """
-    Micromotion Compensation
+    DONT USE - TESTING
 
     Compensates micromotion by correlating photon counts with a modulation signal applied to the trapping RF.
     """
@@ -29,6 +29,10 @@ class MicromotionCompensation(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
+
+        # general
+        self.setattr_argument("iterations",                         NumberValue(default=1, ndecimals=0, step=1, min=1, max=10))
+
 
         # num_counts
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
@@ -102,6 +106,11 @@ class MicromotionCompensation(EnvExperiment):
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
 
+        # create compensation bases
+        self.dc_compensation_voltages =
+        self.dc_compensation_frequencies =                          np.
+
+
         # set up datasets
         self._dataset_counter                                       = 0
         self.set_dataset("results",                                 np.zeros([len(self.mod_freq_khz_list) * len(self.dc_micromotion_voltages_v_list),
@@ -135,36 +144,75 @@ class MicromotionCompensation(EnvExperiment):
 
 
         # MAIN LOOP
-        # sweep voltage
-        for voltage_v in self.dc_micromotion_voltages_v_list:
+        # do number of iterations
+        for num_iteration in range(self.iterations):
 
-            # set DC voltage
-            self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
-            self.core.break_realtime()
+            # todo: store voltage values each time
+            # todo: get voltage bases to use
+
+            # alternate optimization of each motional mode
+            for mode_freq_mu in self.mod_freq_mu_list:
+
+                # todo: store voltage values each time
+
+                # alternate optimization of each shim voltage
+                # for voltage_basis_vec in self.dc_micromotion_voltages_basis:
+                for
+
+                    # todo: get list of frequencies to sweep at
+                    # todo: create voltage frequency config list
+
+                    # optimize micromotion along given basis
+                    voltage_optimal_v_set = self.optimizeVoltageBasis(0)
+                    # todo: store optimal voltage in dataaset
+
+                    # set voltage to optimal value
+                    for voltage_set in voltage_optimal_v_set:
+                        voltage_channel_num = voltage_set[0]
+                        voltage_v = voltage_set[1]
+                        self.voltage_set(voltage_channel_num, voltage_v)
+
+
+
 
 
 
 
     @kernel(flags={"fast-math"})
-    def _sweep_voltage(self, voltage_freq_list):
+    def optimizeVoltageBasis(self, voltage_freq_config_list):
         """
         todo: document
         Arguments:
-            voltage_list_v  list(list(list(tuple(int, float)), float))): the list of voltages and frequencies to sweep.
+            voltage_freq_config_list    list(list(list(tuple(int, float)), float))): the list of voltages and frequencies to sweep.
 
         Returns:
-                            list(list(float, float)): the correlated amplitude
-                            and phase for each voltage.
+                                        list(list(float, float)): the correlated amplitude
+                                        and phase for each voltage.
         """
+        # todo: not sure if i should make rpc or not
+        # set up loop variables
+        correlated_signal_dataset = np.zeros((len(voltage_freq_config_list), 4), dtype=('f4', 'f4', 'f4', 'f4'))
+        self.core.break_realtime()
+
         # sweep over voltages
-        for sweep_params in voltage_freq_list:
+        for i in range(len(voltage_freq_config_list)):
 
-            # extract_params
-            voltage_config_list = sweep_params[0]
-            freq_mu = sweep_params[1]
+            # extract params
+            voltage_config_list = voltage_freq_config_list[i, 0]
+            freq_mu = voltage_freq_config_list[i, 1]
 
-            # prepare ions and devices
+            # store voltage and frequency in dataset
+            correlated_signal_dataset[i, 0] = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
+            correlated_signal_dataset[i, 1] = voltage_config_list[0, 1]
+
+            # prepare shim voltages and modulation signal
             with parallel:
+
+                # set modulation frequency
+                self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
+
+                # add holdoff period for recooling the ion
+                delay_mu(self.time_cooling_holdoff_mu)
 
                 # set electrode voltages
                 with sequential:
@@ -177,33 +225,31 @@ class MicromotionCompensation(EnvExperiment):
                         voltage_v = voltage_params[1]
 
                         # set voltage
-                        self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
+                        self.voltage_set(voltage_channel_num, voltage_v)
                         self.core.break_realtime()
 
-                # set modulation frequency
-                with sequential:
-                    self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
-                    self.mod_dds.set_cfr1(phase_autoclear=1)
+            # get timestamped counts and demodulate
+            self.core.break_realtime()
+            timestamped_counts_list_mu = self.getTimestampedCounts()
+            correlated_signal_dataset[i, 2:] = self.demodulateCounts(freq_mu, timestamped_counts_list_mu[0], timestamped_counts_list_mu)
 
+        # todo: parameterize the voltage along the basis
+        # todo: extract the voltage minimum via complex linear regression
+        # todo: convert the parameter back into the basis
+        # todo: ensure voltage in range
+        # todo: return the optimal voltage set
 
-
-            # add holdoff period for recooling the ion
-            delay_mu(self.time_cooling_holdoff_mu)
-
-            # get timestamped counts
-            counts_timestamped_mu = self._timestamp_counts()
-
-            # demodulate counts
-            counts_demodulated_absarg = self._demodulate_counts(counts_timestamped_mu)
+        return 0
 
 
     @kernel(flags={"fast-math"})
-    def _timestamp_counts(self):
+    def getTimestampedCounts(self):
         """
         ***todo
         """
         # set up loop variables
         counter = 0
+        time_start_mu = 0
         timestamp_mu_list = [0] * self.num_counts
         self.core.break_realtime()
 
@@ -233,17 +279,19 @@ class MicromotionCompensation(EnvExperiment):
                     timestamp_mu_list[counter] = time_photon_mu
                     counter += 1
 
-            # stop counting and upload
+            # stop counting and reset hardware
             self.core.break_realtime()
             self.pmt_counter._set_sensitivity(0)
             self.mod_dds.cfg_sw(False)
+            # reset FIFOs
+            self.core.reset()
 
         # if we don't get rf trigger for some reason, just reset
         else:
+            self.core.break_realtime()
             self.rf_clock._set_sensitivity(0)
-
-        # reset FIFOs
-        self.core.reset()
+            # reset FIFOs
+            self.core.reset()
 
         return timestamp_mu_list
 
@@ -269,6 +317,7 @@ class MicromotionCompensation(EnvExperiment):
         self.mod_dds.cfg_sw(False)
         self.mod_dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
         self.mod_dds.set_att_mu(self.mod_dds_att_mu)
+        self.mod_dds.set_cfr1(phase_autoclear=1)
 
     @rpc
     def prepareDevicesLabrad(self):
@@ -293,7 +342,7 @@ class MicromotionCompensation(EnvExperiment):
 
     # ANALYSIS
     @rpc(flags={"async"})
-    def _demodulate_counts(self, freq_mu, time_start_mu, timestamp_mu_list):
+    def demodulateCounts(self, freq_mu, time_start_mu, timestamp_mu_list):
         """
         Records values via rpc to minimize kernel overhead.
         """
@@ -308,7 +357,7 @@ class MicromotionCompensation(EnvExperiment):
         return np.abs(counts_demod), np.angle(counts_demod)
 
     @rpc
-    def _complexFitMinimize(self, dataset):
+    def complexFitMinimize(self, dataset):
         """
         Extract the optimal voltage to minimize complex displacement
         from the RF origin.

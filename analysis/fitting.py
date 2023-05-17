@@ -4,7 +4,7 @@ LAX.analysis.fitting
 Contains modules used for fitting datasets.
 """
 
-# __all__ = []
+__all__ = []
 
 
 # necessary imports
