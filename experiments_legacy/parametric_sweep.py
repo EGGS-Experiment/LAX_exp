@@ -79,8 +79,8 @@ class ParametricSweep(EnvExperiment):
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu_list =                                     np.array([
-                                                                        self.mod_dds.frequency_to_ftw(freq_mhz * kHz)
-                                                                        for freq_mhz in self.mod_freq_khz_list
+                                                                        self.mod_dds.frequency_to_ftw(freq_khz * kHz)
+                                                                        for freq_khz in self.mod_freq_khz_list
                                                                     ])
 
         # modulation switches
