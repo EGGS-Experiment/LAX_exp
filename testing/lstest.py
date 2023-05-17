@@ -1,6 +1,8 @@
 import numpy as np
 from artiq.experiment import *
-from LAX_exp.extensions.analysis import groupBy, discriminateCounts
+from LAX_exp.analysis.processing import groupBy
+from LAX_exp.analysis.segregation import discriminateCounts
+
 
 class analtest(EnvExperiment):
     """
