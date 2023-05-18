@@ -28,10 +28,13 @@ device_db_ext = {
         "module": "LAX_exp.system.devices.beam_729",
         "class": "Beam729"
     },
-    "tickle": {
+
+
+    # DDS
+    "dds_modulation": {
         "type": "local",
-        "module": "LAX_exp.system.devices.beam_tickle",
-        "class": "BeamTickle"
+        "module": "LAX_exp.system.devices.dds_modulation",
+        "class": "DDSModulation"
     },
 
     # PMT
@@ -42,14 +45,14 @@ device_db_ext = {
     },
 
     # TTL
-    "linetrigger": {
+    "trigger_line": {
         "type": "local",
-        "module": "LAX_exp.system.devices.trigger_linetrigger",
-        "class": "Linetrigger"
+        "module": "LAX_exp.system.devices.trigger_line",
+        "class": "TriggerLine"
     },
-    "rf_sync": {
+    "trigger_rf": {
         "type": "local",
-        "module": "LAX_exp.system.devices.trigger_rf_modulation",
-        "class": "RFSync"
+        "module": "LAX_exp.system.devices.trigger_rf",
+        "class": "TriggerRF"
     }
 }
