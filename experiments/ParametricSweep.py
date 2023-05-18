@@ -140,7 +140,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # sweep modulation frequencies
-                for freq_mu in self.mod_freq_mu_list:
+                for freq_mu in self.freq_modulation_list_mu:
 
                     # add holdoff period for recooling the ion
                     delay_mu(self.time_cooling_holdoff_mu)

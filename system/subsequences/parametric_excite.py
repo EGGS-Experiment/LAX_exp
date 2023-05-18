@@ -17,7 +17,7 @@ class ParametricExcite(LAXSubsequence):
     def build_subsequence(self):
         # get relevant devices
         self.setattr_device('pmt')
-        self.setattr_device('pump')
+        # self.setattr_device('pump')
         self.setattr_device('trigger_rf')
         self.setattr_device('dds_modulation')
 
@@ -34,27 +34,32 @@ class ParametricExcite(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self, num_counts: TInt32) -> TArray(TInt64, 1):
-        # turn on cooling beam and allow ion to recool
-        self.pump.on()
-        delay_mu(self.time_cooling_holdoff_mu)
+
+        # # turn on cooling beam and allow ion to recool
+        # self.pump.on()
+        # delay_mu(self.time_cooling_holdoff_mu)
 
         # trigger sequence off same phase of RF
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
         at_mu(now_mu())
 
         # reset modulation DDS phase
-        self.mod_dds.cpld.io_update.pulse_mu(8)
+        self.dds_modulation.reset_phase()
         # turn modulation on, then wait a given time to reduce effect of initial conditions
-        self.mod_dds.on()
+        self.dds_modulation.on()
         delay_mu(self.time_mod_delay_mu)
 
         # get timestamped photon counts
         time_start_mu = now_mu()
-        timestamped_count_list = self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu)
+        timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu))
 
         # turn off modulation and reset
-        self.mod_dds.cfg_sw(False)
+        self.dds_modulation.cfg_sw(False)
         self.core.reset()
 
+        # remove initial time
+        timestamped_count_list -= time_start_mu
+
+
         # return timestamped counts
-        return array(timestamped_count_list) - time_start_mu
+        return timestamped_count_list
