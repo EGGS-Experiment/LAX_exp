@@ -24,7 +24,7 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_counts",                         NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
@@ -170,4 +170,4 @@ class ParametricSweep(LAXExperiment, Experiment):
         correlated_signal = np.mean(np.exp((2.j * np.pi * freq_mhz * 1e6) * timestamps_s))
 
         # update dataset
-        self.update_dataset(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal))
+        self.update_results(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal))
