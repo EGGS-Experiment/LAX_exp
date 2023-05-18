@@ -1,6 +1,7 @@
 import labrad
 import numpy as np
 from time import sleep
+from scipy import stats
 
 from os import environ
 from artiq.experiment import *
@@ -11,12 +12,11 @@ from EGGS_labrad.config.dc_config import dc_config
 
 class MicromotionCompensation(EnvExperiment):
     """
-    Micromotion Compensation
+    DONT USE - TESTING
 
     Compensates micromotion by correlating photon counts with a modulation signal applied to the trapping RF.
     """
     kernel_invariants = {
-        'time_timeout_pmt_mu',
         'time_pmt_gating_mu',
         'dc_micromotion_channel_1',
         'dc_micromotion_channel_2',
@@ -25,22 +25,30 @@ class MicromotionCompensation(EnvExperiment):
         'mod_freq_mhz'
     }
 
-    global_parameters = []
-
 
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
 
+        # general
+        self.setattr_argument("iterations",                         NumberValue(default=1, ndecimals=0, step=1, min=1, max=10))
+
+
         # num_counts
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5))
-        self.setattr_argument("mod_freq_mhz",                       NumberValue(default=1.415, ndecimals=5, step=0.001, min=0, max=1000000))
+        self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
+        self.setattr_argument("mod_freq_khz_list",                  Scannable(
+                                                                        default=ExplicitScan([1.702, 1.545]),
+                                                                        global_min=1, global_max=200000, global_step=1,
+                                                                        unit="kHz", scale=1, ndecimals=4
+                                                                    ), group='mod')
+        self.setattr_argument("mod_freq_khz",                       NumberValue(default=1415, ndecimals=4, step=1, min=0, max=400000), group='mod')
 
 
-        # voltage values
+
+        # voltage
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel_1",           EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
         self.setattr_argument("dc_micromotion_voltages_v_list_1",   Scannable(
@@ -56,50 +64,68 @@ class MicromotionCompensation(EnvExperiment):
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ))
 
+        # cooling
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=35, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=100, ndecimals=6, step=1, min=1, max=500), group='cooling')
+
 
     def prepare(self):
         # PMT devices
         self.pmt_counter =                                          self.get_device("ttl0")
         self.time_pmt_gating_mu =                                   self.core.seconds_to_mu(100 * us)
+        self.pmt_flipper =                                          self.get_device("ttl23")
 
         # get voltage parameters
         self.dc_micromotion_voltages_v_list_1 =                     np.array(list(self.dc_micromotion_voltages_v_list_1))
         self.dc_micromotion_voltages_v_list_2 =                     np.array(list(self.dc_micromotion_voltages_v_list_2))
         self.dc_micromotion_channel_1_name =                        self.dc_micromotion_channel_1
-        self.dc_micromotion_channel_1 =                             self.dc_micromotion_channeldict[self.dc_micromotion_channel_1]['num']
+        self.dc_micromotion_channel_1_num =                         self.dc_micromotion_channeldict[self.dc_micromotion_channel_1]['num']
         self.dc_micromotion_channel_2_name =                        self.dc_micromotion_channel_2
-        self.dc_micromotion_channel_2 =                             self.dc_micromotion_channeldict[self.dc_micromotion_channel_2]['num']
+        self.dc_micromotion_channel_2_num =                         self.dc_micromotion_channeldict[self.dc_micromotion_channel_2]['num']
+
+        # cooling beam
+        self.cooling_dds =                                          self.get_device("urukul1_ch1")
+        self.cooling_dds_ampl_asf =                                 self.cooling_dds.amplitude_to_asf(self.ampl_cooling_pct / 100)
+        self.cooling_dds_freq_ftw =                                 self.cooling_dds.frequency_to_ftw(self.freq_cooling_mhz * MHz)
+        self.cooling_dds_att_mu =                                   self.cooling_dds.cpld.att_to_mu(14 * dB)
+        # cooling holdoff time
+        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
         self.mod_dds =                                              self.get_device("urukul0_ch2")
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
-        self.mod_freq_ftw =                                         self.mod_dds.frequency_to_ftw(self.mod_freq_mhz * MHz)
+        self.mod_freq_mu_list =                                     np.array([
+                                                                        self.mod_dds.frequency_to_ftw(freq_mhz * kHz)
+                                                                        for freq_mhz in self.mod_freq_khz_list
+                                                                    ])
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
         self.time_rf_holdoff_mu =                                   self.core.seconds_to_mu(100000 * ns)
         self.time_rf_gating_mu =                                    self.core.seconds_to_mu(150 * ns)
 
-        # cooling holdoff time
-        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
+
+        # create compensation bases
+        self.dc_compensation_voltages =
+        self.dc_compensation_frequencies =                          np.
 
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([len(self.dc_micromotion_voltages_v_list_1) * len(self.dc_micromotion_voltages_v_list_2),
+        self.set_dataset("results",                                 np.zeros([len(self.mod_freq_khz_list) * len(self.dc_micromotion_voltages_v_list),
                                                                               4]))
         self.setattr_dataset("results")
 
-
         # record parameters
         self.set_dataset('num_counts',                              self.num_counts)
-        self.set_dataset('modulation_frequency_mhz',                self.mod_freq_mhz)
         self.set_dataset('modulation_attenuation_db',               self.mod_att_db)
-        self.set_dataset('dc_channel_num_1',                        self.dc_micromotion_channel_1)
-        self.set_dataset('dc_channel_num_2',                        self.dc_micromotion_channel_2)
-        self.set_dataset('dc_channel_name_1',                       self.dc_micromotion_channel_1_name)
-        self.set_dataset('dc_channel_name_2',                       self.dc_micromotion_channel_2_name)
+        self.set_dataset('dc_channel_1_num',                        self.dc_micromotion_channel_1_num)
+        self.set_dataset('dc_channel_1_name',                       self.dc_micromotion_channel_1_name)
+        self.set_dataset('dc_channel_2_num',                        self.dc_micromotion_channel_2_num)
+        self.set_dataset('dc_channel_2_name',                       self.dc_micromotion_channel_2_name)
+        self.set_dataset('cooling_freq_mhz',                        self.freq_cooling_mhz)
+        self.set_dataset('cooling_ampl_pct',                        self.ampl_cooling_pct)
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
@@ -116,76 +142,161 @@ class MicromotionCompensation(EnvExperiment):
             self.prepareDevices()
             self.prepareDevicesLabrad()
 
-        # set up loop variables
-        counter = 0
-        timestamp_mu_list = [0] * self.num_counts
-        self.core.break_realtime()
-
 
         # MAIN LOOP
-        # sweep voltage 1
-        for voltage_1_v in self.dc_micromotion_voltages_v_list_1:
+        # do number of iterations
+        for num_iteration in range(self.iterations):
 
-            # set voltage 1
-            self.voltage_set(self.dc_micromotion_channel_1, voltage_1_v)
-            self.core.break_realtime()
+            # todo: store voltage values each time
+            # todo: get voltage bases to use
+
+            # alternate optimization of each motional mode
+            for mode_freq_mu in self.mod_freq_mu_list:
+
+                # todo: store voltage values each time
+
+                # alternate optimization of each shim voltage
+                # for voltage_basis_vec in self.dc_micromotion_voltages_basis:
+                for
+
+                    # todo: get list of frequencies to sweep at
+                    # todo: create voltage frequency config list
+
+                    # optimize micromotion along given basis
+                    voltage_optimal_v_set = self.optimizeVoltageBasis(0)
+                    # todo: store optimal voltage in dataaset
+
+                    # set voltage to optimal value
+                    for voltage_set in voltage_optimal_v_set:
+                        voltage_channel_num = voltage_set[0]
+                        voltage_v = voltage_set[1]
+                        self.voltage_set(voltage_channel_num, voltage_v)
 
 
-            # sweep voltage 2
-            for voltage_2_v in self.dc_micromotion_voltages_v_list_2:
 
-                # reset timestamping loop counter
-                counter = 0
+
+
+
+
+    @kernel(flags={"fast-math"})
+    def optimizeVoltageBasis(self, voltage_freq_config_list):
+        """
+        todo: document
+        Arguments:
+            voltage_freq_config_list    list(list(list(tuple(int, float)), float))): the list of voltages and frequencies to sweep.
+
+        Returns:
+                                        list(list(float, float)): the correlated amplitude
+                                        and phase for each voltage.
+        """
+        # todo: not sure if i should make rpc or not
+        # set up loop variables
+        correlated_signal_dataset = np.zeros((len(voltage_freq_config_list), 4), dtype=('f4', 'f4', 'f4', 'f4'))
+        self.core.break_realtime()
+
+        # sweep over voltages
+        for i in range(len(voltage_freq_config_list)):
+
+            # extract params
+            voltage_config_list = voltage_freq_config_list[i, 0]
+            freq_mu = voltage_freq_config_list[i, 1]
+
+            # store voltage and frequency in dataset
+            correlated_signal_dataset[i, 0] = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
+            correlated_signal_dataset[i, 1] = voltage_config_list[0, 1]
+
+            # prepare shim voltages and modulation signal
+            with parallel:
+
+                # set modulation frequency
+                self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
 
                 # add holdoff period for recooling the ion
                 delay_mu(self.time_cooling_holdoff_mu)
 
-                # set voltage 2
-                self.voltage_set(self.dc_micromotion_channel_2, voltage_2_v)
-                self.core.break_realtime()
+                # set electrode voltages
+                with sequential:
 
-                # trigger sequence off same phase of RF
-                self.rf_clock.gate_rising_mu(self.time_rf_gating_mu)
-                time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu())
+                    for voltage_params in voltage_config_list:
+                        self.core.break_realtime()
 
-                # start photon correlation sequence
-                if time_trigger_rf_mu >= 0:
+                        # extract parameters
+                        voltage_channel_num = voltage_params[0]
+                        voltage_v = voltage_params[1]
 
-                    # activate modulation and enable photon counting
-                    at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
-                    self.mod_dds.cfg_sw(True)
-                    with parallel:
-                        self.pmt_counter._set_sensitivity(1)
-                        time_start_mu = now_mu()
-                        self.mod_dds.cpld.io_update.pulse_mu(8)
+                        # set voltage
+                        self.voltage_set(voltage_channel_num, voltage_v)
+                        self.core.break_realtime()
 
-                    # start counting photons
-                    while counter < self.num_counts:
+            # get timestamped counts and demodulate
+            self.core.break_realtime()
+            timestamped_counts_list_mu = self.getTimestampedCounts()
+            correlated_signal_dataset[i, 2:] = self.demodulateCounts(freq_mu, timestamped_counts_list_mu[0], timestamped_counts_list_mu)
 
-                        # get photon timestamp
-                        time_photon_mu = self.pmt_counter.timestamp_mu(now_mu() + self.time_pmt_gating_mu)
+        # todo: parameterize the voltage along the basis
+        # todo: extract the voltage minimum via complex linear regression
+        # todo: convert the parameter back into the basis
+        # todo: ensure voltage in range
+        # todo: return the optimal voltage set
 
-                        # move timestamped photon into buffer if valid
-                        if time_photon_mu >= 0:
-                            timestamp_mu_list[counter] = time_photon_mu
-                            counter += 1
+        return 0
 
 
-                    # stop counting and upload
-                    self.core.break_realtime()
-                    with parallel:
-                        self.pmt_counter._set_sensitivity(0)
-                        self.mod_dds.cfg_sw(False)
-                        self.update_dataset(voltage_1_v, voltage_2_v, time_start_mu, timestamp_mu_list)
+    @kernel(flags={"fast-math"})
+    def getTimestampedCounts(self):
+        """
+        ***todo
+        """
+        # set up loop variables
+        counter = 0
+        time_start_mu = 0
+        timestamp_mu_list = [0] * self.num_counts
+        self.core.break_realtime()
 
-                # if we don't get rf trigger for some reason, just reset
-                else:
-                    self.rf_clock._set_sensitivity(0)
+        # trigger sequence off same phase of RF
+        self.rf_clock.gate_rising_mu(self.time_rf_gating_mu)
+        time_trigger_rf_mu = self.rf_clock.timestamp_mu(now_mu())
 
-                # reset FIFOs
-                self.core.reset()
+        # start photon correlation sequence
+        if time_trigger_rf_mu >= 0:
+
+            # activate modulation and enable photon counting
+            at_mu(time_trigger_rf_mu + self.time_rf_holdoff_mu)
+            self.mod_dds.cfg_sw(True)
+            with parallel:
+                self.pmt_counter._set_sensitivity(1)
+                time_start_mu = now_mu()
+                self.mod_dds.cpld.io_update.pulse_mu(8)
+
+            # start counting photons
+            while counter < self.num_counts:
+
+                # get photon timestamp
+                time_photon_mu = self.pmt_counter.timestamp_mu(now_mu() + self.time_pmt_gating_mu)
+
+                # move timestamped photon into buffer if valid
+                if time_photon_mu >= 0:
+                    timestamp_mu_list[counter] = time_photon_mu
+                    counter += 1
+
+            # stop counting and reset hardware
+            self.core.break_realtime()
+            self.pmt_counter._set_sensitivity(0)
+            self.mod_dds.cfg_sw(False)
+            # reset FIFOs
+            self.core.reset()
+
+        # if we don't get rf trigger for some reason, just reset
+        else:
+            self.core.break_realtime()
+            self.rf_clock._set_sensitivity(0)
+            # reset FIFOs
+            self.core.reset()
+
+        return timestamp_mu_list
 
 
+    # PREPARE
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
         """
@@ -195,17 +306,18 @@ class MicromotionCompensation(EnvExperiment):
         with parallel:
             self.pmt_counter.input()
             self.rf_clock.input()
+            self.pmt_flipper.off()
+
+        # configure cooling dds
+        self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
+        # self.cooling_dds.set_att_mu(self.cooling_dds_att_mu)
+        self.cooling_dds.cpld.cfg_switches(0b1110)
 
         # configure rf modulation source
         self.mod_dds.cfg_sw(False)
         self.mod_dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.mod_dds.set_cfr1(phase_autoclear=1)
-        self.core.break_realtime()
-
-        # set rf modulation waveform
-        self.mod_dds.set_mu(self.mod_freq_ftw, asf=self.mod_dds_ampl_pct)
         self.mod_dds.set_att_mu(self.mod_dds_att_mu)
-        self.core.break_realtime()
+        self.mod_dds.set_cfr1(phase_autoclear=1)
 
     @rpc
     def prepareDevicesLabrad(self):
@@ -217,24 +329,6 @@ class MicromotionCompensation(EnvExperiment):
         self.dc.alarm(False)
 
 
-    @rpc(flags={"async"})
-    def update_dataset(self, voltage_1_v, voltage_2_v, time_start_mu, timestamp_mu_list):
-        """
-        Records values via rpc to minimize kernel overhead.
-        """
-        # remove starting time and digitally demodulate counts
-        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
-        counts_demod = np.sum(np.exp((2.j * np.pi * self.mod_freq_mhz * 1e6) * counts_mu)) / self.num_counts
-
-        # update dataset
-        self.mutate_dataset(
-            'results',
-            self._dataset_counter,
-            np.array([voltage_1_v, voltage_2_v, np.abs(counts_demod), np.angle(counts_demod)])
-        )
-        self._dataset_counter += 1
-
-
     # LABRAD FUNCTIONS
     @rpc
     def voltage_set(self, channel, voltage_v):
@@ -244,6 +338,81 @@ class MicromotionCompensation(EnvExperiment):
         # set desired voltage
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         print('\tvoltage set: {}'.format(voltage_set_v))
+
+
+    # ANALYSIS
+    @rpc(flags={"async"})
+    def demodulateCounts(self, freq_mu, time_start_mu, timestamp_mu_list):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        # convert frequency to mhz
+        freq_mhz = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
+
+        # remove starting time and digitally demodulate counts
+        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mhz * 1e6) * counts_mu)) / len(timestamp_mu_list)
+
+        # return demodulated counts
+        return np.abs(counts_demod), np.angle(counts_demod)
+
+    @rpc
+    def complexFitMinimize(self, dataset):
+        """
+        Extract the optimal voltage to minimize complex displacement
+        from the RF origin.
+
+        Arguments:
+            dataset (list(list(float, complex)): the dataset comprised of the real
+                independent variable, and the complex dependent variable.
+
+        Returns:
+            (float) : the value of the independent variable that minimizes the complex amplitude.
+        """
+        # split dataset into IV/DV, and real/imaginary
+        dataset_x = dataset[:, 0]
+        dataset_y = np.array([np.real(dataset[:, 1]), np.imag(dataset[:, 1])]).transpose()
+
+        # fit the DV in the complex plane and get the unit vector of the line
+        fit_complex = stats.linregress(dataset_y[:, 0], dataset_y[:, 1])
+        m_c, b_c = fit_complex.slope, fit_complex.intercept
+
+        # get the projection of the DV onto the fitted line
+        vec_complex = np.linalg.norm(np.array([1, m_c]))
+        dataset_proj = np.dot(dataset_y, vec_complex)
+
+        # fit the x dataset to the parameterized line
+        fit_parameterized = stats.linregress(dataset_x, dataset_proj)
+        m_p, b_p = fit_complex.slope, fit_complex.intercept
+
+        # extract x_min
+        x_min = - (m_c * b_c)/(1 + np.pow(m_c, 2))
+
+        # convert x_min to V_min
+        V_min = (x_min - b_p) / m_p
+
+        return V_min
+
+    @rpc(flags={"async"})
+    def update_dataset(self, freq_mu, voltage_v, time_start_mu, timestamp_mu_list):
+        """
+        Records values via rpc to minimize kernel overhead.
+        """
+        # convert frequency to mhz
+        freq_mhz = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
+
+        # remove starting time and digitally demodulate counts
+        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mhz * 1e6) * counts_mu)) / self.num_counts
+
+        # update dataset
+        self.mutate_dataset(
+            'results',
+            self._dataset_counter,
+            np.array([freq_mhz, voltage_v, np.abs(counts_demod), np.angle(counts_demod)])
+        )
+        self._dataset_counter += 1
+
 
     def analyze(self):
         pass

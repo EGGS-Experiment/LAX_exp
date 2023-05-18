@@ -13,8 +13,8 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
     Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape - 2.
     """
-
     name = 'Temperature Measurement'
+
 
     def build_experiment(self):
         # core arguments

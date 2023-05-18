@@ -16,6 +16,7 @@ class ParameterSet(EnvExperiment):
         readout_parameters = {
             # PMT
             "pmt.gating_edge":                                          "rising",
+            "pmt.time_pmt_gating_us":                                   100,
 
             # todo: distinguish between the 3 photodiodes
             # photodiode
@@ -23,6 +24,7 @@ class ParameterSet(EnvExperiment):
             "photodiode.gain":                                          1
         }
 
+        # todo: maybe merge pmt, linetrigger, and rf parameters into one holding block?
         # ttl parameters
         ttl_parameters = {
             # linetrigger
@@ -34,7 +36,17 @@ class ParameterSet(EnvExperiment):
 
         # rf parameters
         rf_parameters = {
-            "rf.input_channel":                                         3
+            "rf.gating_edge":                                           "rising",
+            "rf.time_rf_holdoff_us":                                    100.0,
+            "rf.time_rf_gating_ns":                                     150.0,
+
+        }
+
+
+        # dds parameters
+        dds_parameters = {
+            # amplitude
+            "dds.ampl_pct.ampl_modulation_pct":                         35.0,
         }
 
 
@@ -59,7 +71,6 @@ class ParameterSet(EnvExperiment):
             "beams.ampl_pct.ampl_repump_cooling_pct":                   15.0,
             "beams.ampl_pct.ampl_repump_qubit_pct":                     15.0,
             "beams.ampl_pct.ampl_qubit_pct":                            50.0,
-            'beams.ampl_pct.ampl_tickle_radial_pct':                    50.0
         }
 
 
@@ -85,9 +96,6 @@ class ParameterSet(EnvExperiment):
 
             # qubit manipulation
             "timing.time_rabiflop_us":                                  50,
-
-            # tickle
-            "timing.time_tickle_us":                                    500
         }
 
 
@@ -112,6 +120,7 @@ class ParameterSet(EnvExperiment):
         }
 
 
+        # experiment management parameters
         management_parameters = {
             # experiments
             "management.completion_pct":                                0.00,
