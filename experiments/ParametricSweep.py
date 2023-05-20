@@ -24,12 +24,12 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_counts",                         NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1712.5, 20, 0.25, randomize=True),
+                                                                        default=CenterScan(1207, 8, 0.2, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -38,7 +38,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=ExplicitScan([47.5]),
+                                                                        default=ExplicitScan([30.5]),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
@@ -143,7 +143,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                 for freq_mu in self.freq_modulation_list_mu:
 
                     # add holdoff period for recooling the ion
-                    delay_mu(self.time_cooling_holdoff_mu)
+                    at_mu(now_mu() + self.time_cooling_holdoff_mu)
 
                     # set modulation frequency and run parametric excitation
                     self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf)
@@ -151,6 +151,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     # process results (stores them in our results dataset for us)
                     self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
+                    self.core.break_realtime()
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
