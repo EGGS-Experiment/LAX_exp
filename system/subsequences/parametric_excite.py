@@ -49,6 +49,9 @@ class ParametricExcite(LAXSubsequence):
         time_start_mu = now_mu()
         timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu))
 
+        # add slack
+        self.core.break_realtime()
+
         # turn off modulation and reset
         self.dds_modulation.off()
         self.core.reset()
