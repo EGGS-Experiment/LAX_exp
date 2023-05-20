@@ -45,19 +45,13 @@ class ParametricExcite(LAXSubsequence):
         # add extra delay for slack and to reduce effects of initial conditions
         at_mu(now_mu() + self.time_mod_delay_mu)
 
-        # get timestamped photon counts
+        # get timestamped photon counts, subtract initial time
         time_start_mu = now_mu()
-        timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu))
+        timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu)) - time_start_mu
 
-        # add slack
+        # add slack and turn off modulation
         self.core.break_realtime()
-
-        # turn off modulation and reset
         self.dds_modulation.off()
-        self.core.reset()
-
-        # remove initial time
-        timestamped_count_list -= time_start_mu
 
         # return timestamped counts
         return timestamped_count_list

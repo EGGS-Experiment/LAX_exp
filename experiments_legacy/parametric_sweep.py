@@ -96,7 +96,7 @@ class ParametricSweep(EnvExperiment):
         # set up datasets
         self._dataset_counter                                       = 0
         self.set_dataset("results",                                 np.zeros([len(self.mod_freq_khz_list) * len(self.dc_micromotion_voltages_v_list),
-                                                                              4]))
+                                                                              5]))
         self.setattr_dataset("results")
 
         # record parameters
@@ -233,14 +233,17 @@ class ParametricSweep(EnvExperiment):
         freq_mhz = self.mod_dds.ftw_to_frequency(freq_mu) / MHz
 
         # remove starting time and digitally demodulate counts
-        counts_mu = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
-        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mhz * 1e6) * counts_mu)) / self.num_counts
+        counts_s = self.core.mu_to_seconds(np.array(timestamp_mu_list) - time_start_mu)
+        counts_demod = np.sum(np.exp((2.j * np.pi * freq_mhz * 1e6) * counts_s)) / self.num_counts
+
+        # get count rate
+        count_rate_s = len(counts_s) / (counts_s[-1] - counts_s[0])
 
         # update dataset
         self.mutate_dataset(
             'results',
             self._dataset_counter,
-            np.array([freq_mhz, voltage_v, np.abs(counts_demod), np.angle(counts_demod)])
+            np.array([freq_mhz, voltage_v, np.abs(counts_demod), np.angle(counts_demod), count_rate_s])
         )
         self._dataset_counter += 1
 

@@ -151,8 +151,9 @@ class ParametricSweep(LAXExperiment, Experiment):
                     pmt_timestamp_list = self.parametric_subsequence.run(self.num_counts)
 
                     # process results (stores them in our results dataset for us)
-                    self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
-                    self.core.break_realtime()
+                    with parallel:
+                        self.core.reset()
+                        self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
