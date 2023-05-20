@@ -42,11 +42,6 @@ class vsweeptmp(EnvExperiment):
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
-        # self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-        #                                                                 default=ExplicitScan([66]),
-        #                                                                 global_min=0, global_max=400, global_step=1,
-        #                                                                 unit="V", scale=1, ndecimals=4
-        #                                                             ), group='voltage')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
@@ -268,6 +263,7 @@ class vsweeptmp(EnvExperiment):
         res_intercept, res_slope = res.x
 
         # extract optimal voltage to minimize displacement
+        print('yzde0')
         voltage_optimal = - (np.real(res_intercept) * np.real(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / (
             np.power(np.abs(res_slope), 2))
 

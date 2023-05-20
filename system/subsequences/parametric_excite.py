@@ -43,11 +43,12 @@ class ParametricExcite(LAXSubsequence):
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
         at_mu(now_mu())
 
-        # reset modulation DDS phase
+        # reset modulation DDS phase and turn modulation on
         self.dds_modulation.reset_phase()
-        # turn modulation on, then wait a given time to reduce effect of initial conditions
         self.dds_modulation.on()
-        delay_mu(self.time_mod_delay_mu)
+
+        # add extra delay for slack and to reduce effects of initial conditions
+        at_mu(now_mu() + self.time_mod_delay_mu())
 
         # get timestamped photon counts
         time_start_mu = now_mu()
