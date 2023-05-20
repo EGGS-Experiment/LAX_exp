@@ -11,7 +11,7 @@ class TriggerRF(LAXDevice):
     Wrapper for the ttl_input object that reads in the RF synchronization signal.
     """
     name = "trigger_rf"
-    core_device = ('input', 'ttl7')
+    core_device = ('ttl_input', 'ttl7')
 
     def prepare_device(self):
         pass
@@ -29,8 +29,8 @@ class TriggerRF(LAXDevice):
                             (int64) : the input time of the trigger signal.
         """
         # trigger sequence off same phase of RF
-        self.input.gate_rising_mu(time_gating_mu)
-        time_trigger_mu = self.input.timestamp_mu(now_mu())
+        self.ttl_input.gate_rising_mu(time_gating_mu)
+        time_trigger_mu = self.ttl_input.timestamp_mu(now_mu())
 
         # ensure input timestamp is valid
         if time_trigger_mu >= 0:
@@ -43,7 +43,7 @@ class TriggerRF(LAXDevice):
         else:
             # add holdoff delay before resetting system
             self.core.break_realtime()
-            self.rf_clock._set_sensitivity(0)
+            self.ttl_input._set_sensitivity(0)
             self.core.reset()
 
         # return -1 if we time out

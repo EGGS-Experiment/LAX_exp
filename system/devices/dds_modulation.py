@@ -14,8 +14,7 @@ class DDSModulation(LAXDevice):
     name = "dds_modulation"
     core_device = ('dds', 'urukul0_ch2')
     devices ={
-        'mod_switch_1': 'ttl12',
-        'mod_switch_2': 'ttl13'
+        'mod_switch': 'ttl12'
     }
 
     def prepare_device(self):
@@ -29,9 +28,8 @@ class DDSModulation(LAXDevice):
 
         # enable modulation signal to feed through
         with parallel:
-            self.mod_switch_1.on()
-            self.mod_switch_2.off()
-            self.cfg_sw.off()
+            self.mod_switch.on()
+            self.cfg_sw(False)
 
         # set up DDS to reinitialize phase each time it turns on/off
         self.set_mu(self.freq_modulation_ftw, asf=self.ampl_modulation_asf, profile=0)
@@ -44,15 +42,18 @@ class DDSModulation(LAXDevice):
     def on(self):
         with parallel:
             # enable RF switch onboard Urukul
-            self.dds.cfg_sw(True)
+            self.cfg_sw(True)
             # enable modulation RF switch to DDS
-            self.mod_switch_1.on()
-            self.mod_switch_2.off()
+            self.mod_switch.on()
 
     @kernel(flags={"fast-math"})
     def off(self):
         with parallel:
             # disable RF switch onboard Urukul
-            self.dds.cfg_sw(False)
+            self.cfg_sw(False)
             # disable modulation RF switch for DDS
-            self.mod_switch_1.off()
+            self.mod_switch.off()
+
+    @kernel(flags={"fast-math"})
+    def reset_phase(self):
+        self.dds.cpld.io_update.pulse_mu(8)

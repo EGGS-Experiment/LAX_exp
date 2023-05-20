@@ -17,15 +17,15 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(103.77, 0.02, 0.01, randomize=True),
+                                                                        default=CenterScan(103.7385, 0.02, 0.0005, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ), group=self.name)
-        self.setattr_argument("time_qubit_us",                      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("time_qubit_us",                      NumberValue(default=3000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("att_qubit_db",                       NumberValue(default=28, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices

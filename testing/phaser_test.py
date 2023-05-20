@@ -75,13 +75,13 @@ class PhaserTest(EnvExperiment):
         self.core.break_realtime()
 
         at_mu(self.phaser0.get_next_frame_mu())
-        ch.en_trf_out(rf=1, lo=0)
+        ch.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
 
         # duc
         at_mu(self.phaser0.get_next_frame_mu())
-        ch.set_duc_frequency(-2 * MHz)
+        ch.set_duc_frequency(1.1 * MHz)
         self.core.break_realtime()
 
         at_mu(self.phaser0.get_next_frame_mu())
@@ -101,7 +101,7 @@ class PhaserTest(EnvExperiment):
         # pwd_out_buff
         # pwd_lo_div
         # pwd_tx_div
-        osc_freq_list = [1.693, -1.693, 0.0, 0.0, 0.0]
+        osc_freq_list = [1.696, -1.696, 0.0, 0.0, 0.0]
         osc_ampl_list = [0.499, 0.499, 0.0, 0.0, 0.0]
 
         for i in range(5):

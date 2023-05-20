@@ -2,6 +2,7 @@ import labrad
 import numpy as np
 from time import sleep
 from scipy import stats
+from scipy import optimize
 
 from os import environ
 from artiq.experiment import *
@@ -29,27 +30,22 @@ class vsweeptmp(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
-        self.setattr_argument("mod_freq_khz",                       NumberValue(default=1701, ndecimals=4, step=1, min=0, max=400000), group='mod')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='mod')
+        self.setattr_argument("mod_freq_khz",                       NumberValue(default=1396, ndecimals=4, step=1, min=0, max=400000), group='mod')
 
 
         # voltage
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=CenterScan(60.0, 40.0, 1.0, randomize=True),
+                                                                        default=CenterScan(30.0, 30.0, 0.2, randomize=True),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
-        # self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-        #                                                                 default=ExplicitScan([66]),
-        #                                                                 global_min=0, global_max=400, global_step=1,
-        #                                                                 unit="V", scale=1, ndecimals=4
-        #                                                             ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=35, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=100, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
 
     def prepare(self):
@@ -239,6 +235,8 @@ class vsweeptmp(EnvExperiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         print('\tvoltage set: {}'.format(voltage_set_v))
 
+
+    # ANALYSIS
     @rpc
     def _complexFitMinimize(self, dataset):
         """
@@ -252,29 +250,24 @@ class vsweeptmp(EnvExperiment):
         Returns:
             (float) : the value of the independent variable that minimizes the complex amplitude.
         """
-        # split dataset into IV/DV, and real/imaginary
-        dataset_x = dataset[:, 0]
-        dataset_y = np.array([np.real(dataset[:, 1]), np.imag(dataset[:, 1])]).transpose()
 
-        # fit the DV in the complex plane and get the unit vector of the line
-        fit_complex = stats.linregress(dataset_y[:, 0], dataset_y[:, 1])
-        m_c, b_c = fit_complex.slope, fit_complex.intercept
+        # create norm function for least squares optimization
+        def func_norm(b_params, x, y):
+            return b_params[0] + b_params[1] * x[1] - y
 
-        # get the projection of the DV onto the fitted line
-        vec_complex = np.array([1, m_c]) / np.linalg.norm(np.array([1, m_c]))
-        dataset_proj = np.dot(dataset_y, vec_complex)
+        # guess starting b_params
+        b_guess = [0.1, 0.1]
 
-        # fit the x dataset to the parameterized line
-        fit_parameterized = stats.linregress(dataset_x, dataset_proj)
-        m_p, b_p = fit_parameterized.slope, fit_parameterized.intercept
+        # do a complex least squares fit
+        res = optimize.least_squares(func_norm, b_guess, args=(dataset[:, 0], dataset[:, 1]))
+        res_intercept, res_slope = res.x
 
-        # extract x_min
-        x_min = - (m_c * b_c)/(1 + np.power(m_c, 2))
+        # extract optimal voltage to minimize displacement
+        print('yzde0')
+        voltage_optimal = - (np.real(res_intercept) * np.real(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / (
+            np.power(np.abs(res_slope), 2))
 
-        # convert x_min to V_min
-        V_min = (x_min - b_p) / m_p
-
-        return V_min
+        return voltage_optimal
 
     def analyze(self):
         """
