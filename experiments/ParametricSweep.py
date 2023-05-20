@@ -24,7 +24,7 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_counts",                         NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=6000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
@@ -87,7 +87,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     # LABRAD FUNCTIONS
     @rpc
-    def voltage_set(self, channel: TInt32, voltage_v: TFloat):
+    def voltage_set(self, channel: TInt32, voltage_v: TFloat) -> TNone:
         """
         Set the channel to the desired voltage.
         """
@@ -95,7 +95,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         print('\tvoltage set: {}'.format(voltage_set_v))
 
-    @rpc
+    @rpc(flags={"async"})
     def prepareDevicesLabrad(self):
         """
         Prepare LabRAD devices for the experiment via RPC.
@@ -131,12 +131,12 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # run given number of repetitions
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
 
             # sweep voltage
             for voltage_v in self.dc_micromotion_voltages_v_list:
 
                 # set DC voltage
-                self.core.break_realtime()
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
                 self.core.break_realtime()
 
@@ -144,7 +144,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                 for freq_mu in self.freq_modulation_list_mu:
 
                     # add holdoff period for recooling the ion
-                    at_mu(now_mu() + self.time_cooling_holdoff_mu)
+                    delay_mu(self.time_cooling_holdoff_mu)
 
                     # set modulation frequency and run parametric excitation
                     self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf)
@@ -152,8 +152,8 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     # process results (stores them in our results dataset for us)
                     with parallel:
-                        self.core.reset()
                         self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
+                        self.core.reset()
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
