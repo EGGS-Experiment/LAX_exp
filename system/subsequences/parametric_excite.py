@@ -50,7 +50,7 @@ class ParametricExcite(LAXSubsequence):
         timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu))
 
         # turn off modulation and reset
-        self.dds_modulation.cfg_sw(False)
+        self.dds_modulation.off()
         self.core.reset()
 
         # remove initial time
