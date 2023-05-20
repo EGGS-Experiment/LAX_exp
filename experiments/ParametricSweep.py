@@ -82,7 +82,7 @@ class ParametricSweep(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.dc_micromotion_voltages_v_list) * len(self.mod_freq_khz_list),
-                4)
+                5)
 
 
     # LABRAD FUNCTIONS
@@ -169,5 +169,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         timestamps_s = self.core.mu_to_seconds(np.array(timestamp_mu_list))
         correlated_signal = np.mean(np.exp((2.j * np.pi * freq_mhz * 1e6) * timestamps_s))
 
+        # get count rate in seconds
+        count_rate_hz = len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
+
         # update dataset
-        self.update_dataset(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal))
+        self.update_dataset(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
