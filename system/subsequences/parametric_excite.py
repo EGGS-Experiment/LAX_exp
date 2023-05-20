@@ -34,11 +34,6 @@ class ParametricExcite(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self, num_counts: TInt32) -> TArray(TInt64, 1):
-
-        # # turn on cooling beam and allow ion to recool
-        # self.pump.on()
-        # delay_mu(self.time_cooling_holdoff_mu)
-
         # trigger sequence off same phase of RF
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
         at_mu(now_mu())
@@ -48,7 +43,7 @@ class ParametricExcite(LAXSubsequence):
         self.dds_modulation.on()
 
         # add extra delay for slack and to reduce effects of initial conditions
-        at_mu(now_mu() + self.time_mod_delay_mu())
+        at_mu(now_mu() + self.time_mod_delay_mu)
 
         # get timestamped photon counts
         time_start_mu = now_mu()
@@ -60,7 +55,6 @@ class ParametricExcite(LAXSubsequence):
 
         # remove initial time
         timestamped_count_list -= time_start_mu
-
 
         # return timestamped counts
         return timestamped_count_list
