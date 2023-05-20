@@ -174,4 +174,4 @@ class ParametricSweep(LAXExperiment, Experiment):
         count_rate_hz = len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
 
         # update dataset
-        self.update_dataset(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
+        self.update_results(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
