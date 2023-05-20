@@ -136,6 +136,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             for voltage_v in self.dc_micromotion_voltages_v_list:
 
                 # set DC voltage
+                self.core.break_realtime()
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
                 self.core.break_realtime()
 

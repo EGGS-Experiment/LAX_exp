@@ -49,6 +49,7 @@ class PMTCounter(LAXDevice):
         # set counting variables
         counter = 0
         timestamp_mu_list = [0] * num_counts
+        self.core.break_realtime()
 
         # start counting photons
         self.input._set_sensitivity(1)
