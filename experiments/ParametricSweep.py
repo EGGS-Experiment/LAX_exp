@@ -27,7 +27,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default=CenterScan(1396, 20, 0.25, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
@@ -167,8 +167,6 @@ class ParametricSweep(LAXExperiment, Experiment):
                 # tmp remove
                 self.stop_time_mu = self.core.get_rtio_counter_mu()
                 # tmp remove
-
-        # todo: turn dds sw off
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):

@@ -28,7 +28,7 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default=CenterScan(1396, 20, 0.25, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
