@@ -28,9 +28,9 @@ class ParametricSweep(EnvExperiment):
         self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=22.5, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1712.5, 2.5, 0.025, randomize=True),
+                                                                        default=CenterScan(1396, 20, 0.25, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -39,20 +39,15 @@ class ParametricSweep(EnvExperiment):
         # voltage
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
-        # self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-        #                                                                 default=CenterScan(60.0, 40.0, 1.0, randomize=True),
-        #                                                                 global_min=0, global_max=400, global_step=1,
-        #                                                                 unit="V", scale=1, ndecimals=4
-        #                                                             ), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=ExplicitScan([66]),
+                                                                        default=ExplicitScan([30.5]),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=35, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=100, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
 
     def prepare(self):
@@ -111,6 +106,11 @@ class ParametricSweep(EnvExperiment):
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
 
+        # tmp remove
+        self.start_time_mu = np.int64(0)
+        self.stop_time_mu = np.int64(0)
+        # tmp remove
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -135,6 +135,10 @@ class ParametricSweep(EnvExperiment):
             # set DC voltage
             self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
             self.core.break_realtime()
+
+            # tmp remove
+            self.start_time_mu = self.core.get_rtio_counter_mu()
+            # tmp remove
 
             # sweep modulation frequency
             for freq_mu in self.mod_freq_mu_list:
@@ -189,6 +193,14 @@ class ParametricSweep(EnvExperiment):
 
                 # reset FIFOs
                 self.core.reset()
+
+            # tmp remove
+            self.stop_time_mu = self.core.get_rtio_counter_mu()
+            # tmp remove
+
+        # turn modulation switches off
+        self.mod_sw_1.off()
+        self.mod_sw_2.off()
 
 
     @kernel(flags={"fast-math"})
@@ -259,4 +271,9 @@ class ParametricSweep(EnvExperiment):
         print('\tvoltage set: {}'.format(voltage_set_v))
 
     def analyze(self):
-        pass
+        # pass
+        # tmp remove
+        print("\n")
+        print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))
+        print("\n")
+        # tmp remove

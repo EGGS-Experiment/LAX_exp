@@ -24,12 +24,12 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_counts",                         NumberValue(default=6000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1207, 8, 0.2, randomize=True),
+                                                                        default=CenterScan(1396, 20, 0.25, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -78,6 +78,11 @@ class ParametricSweep(LAXExperiment, Experiment):
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
+
+        # tmp remove
+        self.start_time_mu = np.int64(0)
+        self.stop_time_mu = np.int64(0)
+        # tmp remove
 
     @property
     def results_shape(self):
@@ -140,6 +145,10 @@ class ParametricSweep(LAXExperiment, Experiment):
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
                 self.core.break_realtime()
 
+                # tmp remove
+                self.start_time_mu = self.core.get_rtio_counter_mu()
+                # tmp remove
+
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
 
@@ -154,6 +163,12 @@ class ParametricSweep(LAXExperiment, Experiment):
                     with parallel:
                         self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
                         self.core.reset()
+
+                # tmp remove
+                self.stop_time_mu = self.core.get_rtio_counter_mu()
+                # tmp remove
+
+        # todo: turn dds sw off
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
@@ -177,3 +192,10 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # update dataset
         self.update_results(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
+
+    def analyze(self):
+        # tmp remove
+        print("\n")
+        print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))
+        print("\n")
+        # tmp remove
