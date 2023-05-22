@@ -216,3 +216,5 @@ class TemperatureMeasurementCalibration(EnvExperiment):
 
         # add calibration values to dataset manager
         self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', calib_final, broadcast=True, persist=True)
+
+        # todo: upload dataset to labrad
