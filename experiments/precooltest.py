@@ -19,15 +19,14 @@ class precooltest(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
-        # todo: set readout freq and ampl
-
-        # scan parameters
-        self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(103.7385, 0.02, 0.0005, randomize=True),
-                                                                        global_min=60, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=5
-                                                                    ), group=self.name)
-        self.setattr_argument("time_qubit_us",                      NumberValue(default=3000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
+        # precooling configuration
+        self.setattr_argument("ampl_readout_list_pct",              Scannable(
+                                                                        default=RangeScan(10, 50, 41, randomize=True),
+                                                                        global_min=1, global_max=50, global_step=1,
+                                                                        unit="pct", scale=1, ndecimals=2
+                                                                    ), group='precool')
+        self.setattr_argument("freq_readout_mhz",                   NumberValue(default=120, ndecimals=5, step=1, min=70, max=400), group='precool')
+        self.setattr_argument("time_readout_us",                    NumberValue(default=100, ndecimals=3, step=10, min=1, max=10000000), group='precool')
 
         # get devices
         self.setattr_device('pump')
@@ -39,21 +38,17 @@ class precooltest(LAXExperiment, Experiment):
         self.dopplercool_subsequence =                              DopplerCool(self)
 
     def prepare_experiment(self):
-        # convert frequencies to machine units
-        self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
-
-        # convert attenuation to machine units
-        self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
-
         # get previous readout time to be used for precooling
         self.time_precool_mu =                                      self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
-        # get new actual readout time
-        self.time_readout_mu =                                      self.core.seconds_to_mu(100 * us)
+        # convert readout config to machine units
+        self.ampl_readout_list_asf =                                np.array([pct_to_asf(ampl_pct) for ampl_pct in list(self.ampl_readout_list_pct)])
+        self.freq_readout_ftw =                                     hz_to_ftw(self.freq_readout_mhz * MHz)
+        self.time_readout_mu =                                      self.core.seconds_to_mu(self.time_readout_us * us)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_qubit_scan_mhz),
+        return (self.repetitions * len(self.ampl_readout_list_pct),
                 2)
 
 
@@ -83,7 +78,7 @@ class precooltest(LAXExperiment, Experiment):
             self.pmt.count(self.time_readout_mu)
             self.pump.off()
 
-        self.core.break_realtime()
+        # self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
@@ -97,16 +92,15 @@ class precooltest(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # sweep frequency
-            for freq_ftw in self.freq_qubit_scan_ftw:
+            for ampl_asf in self.ampl_readout_list_asf:
 
                 # set new readout params in profile 3
-                self.pump.set_mu(freq_ftw, asf=0x1FFF, profile=3)
-                self.core.break_realtime()
+                self.pump.set_mu(self.freq_readout_ftw, asf=ampl_asf, profile=3)
 
                 # run precool test
                 self.core_dma.playback_handle('_PRECOOLTEST')
 
                 # update dataset
                 with parallel:
-                    self.update_results(freq_ftw, self.pmt.fetch_count())
+                    self.update_results(self.pump.asf_to_amplitude(ampl_asf) * 100, self.pmt.fetch_count())
                     self.core.break_realtime()
