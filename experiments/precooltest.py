@@ -98,7 +98,7 @@ class precooltest(LAXExperiment, Experiment):
                 self.pump.set_mu(self.freq_readout_ftw, asf=ampl_asf, profile=3)
 
                 # run precool test
-                self.core_dma.playback_handle('_PRECOOLTEST')
+                self.core_dma.playback_handle(_handle_precool_test)
 
                 # update dataset
                 with parallel:
