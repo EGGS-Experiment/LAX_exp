@@ -72,6 +72,8 @@ class vsweeptmp(EnvExperiment):
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu =                                          self.mod_dds.frequency_to_ftw(self.mod_freq_khz * kHz)
+        self.mod_sw_1 =                                             self.get_device("ttl12")
+        self.mod_sw_2 =                                             self.get_device("ttl13")
 
         # RF synchronization
         self.rf_clock =                                             self.get_device('ttl7')
@@ -168,6 +170,10 @@ class vsweeptmp(EnvExperiment):
             # reset FIFOs
             self.core.reset()
 
+        # turn off modulation rf switch
+        self.mod_sw_1.off()
+        self.mod_sw_2.off()
+
 
     @kernel(flags={"fast-math"})
     def prepareDevices(self):
@@ -179,6 +185,8 @@ class vsweeptmp(EnvExperiment):
             self.pmt_counter.input()
             self.rf_clock.input()
             self.pmt_flipper.off()
+            self.mod_sw_1.on()
+            self.mod_sw_2.off()
 
         # configure cooling dds
         self.cooling_dds.set_mu(self.cooling_dds_freq_ftw, asf=self.cooling_dds_ampl_asf)
