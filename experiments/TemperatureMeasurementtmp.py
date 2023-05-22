@@ -3,8 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import AbsorptionProbe
-from LAX_exp.system.subsequences import AbsorptionProbe2
+from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2
 
 
 class TemperatureMeasurement2(LAXExperiment, Experiment):
@@ -38,6 +37,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
         self.setattr_device('sampler0')
 
         # subsequences
+        self.dopplercool_subsequence =                                  DopplerCool(self)
         self.probe_subsequence =                                        AbsorptionProbe2(self)
 
 
@@ -86,6 +86,10 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
         self.sampler0.set_gain_mu(self.adc_channel_num, self.adc_channel_gain_mu)
         self.core.break_realtime()
 
+        # record sequences onto DMA
+        self.dopplercool_subsequence.record_dma()
+        self.probe_subsequence.record_dma()
+
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
@@ -98,16 +102,21 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
             for waveform_params in self.waveform_probe_scan:
                 self.core.break_realtime()
 
-                # get waveform parameters and set probe beam frequency
+                # set probe beam waveform
                 freq_ftw = waveform_params[0]
                 ampl_asf = waveform_params[1]
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
-                self.core.break_realtime()
 
-                # run probe sequence
-                self.probe_subsequence.run()
+                # run doppler cooling
+                self.dopplercool_subsequence.run_dma()
+
+                # run probe subsequence
+                self.probe_subsequence.run_dma()
+
+                # get counts
+                counts_tmp = self.probe_subsequence.get_counts()
 
                 # update dataset
-                self.update_results(freq_ftw, 1, self.probe_subsequence.counts_store, 0)
+                self.update_results(freq_ftw, 1, counts_tmp, 0)
                 self.update_results(freq_ftw, 0, 0, 0)
                 self.core.break_realtime()

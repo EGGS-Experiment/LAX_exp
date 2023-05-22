@@ -14,14 +14,24 @@ class DopplerCool(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
 
     def prepare_subsequence(self):
-        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        # get doppler cooling time
+        self.time_doppler_cooling_mu =                                      self.get_parameter('time_doppler_cooling_us',
+                                                                                               group='timing',
+                                                                                               override=False,
+                                                                                               conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):
         # set cooling waveform
         self.pump.cooling()
+
+        # turn repumps on
+        self.repump_cooling.on()
+        self.repump_qubit.on()
 
         # doppler cooling
         self.pump.on()
