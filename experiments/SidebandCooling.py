@@ -4,7 +4,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout
+from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout, RescueIon
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -48,6 +48,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.sidebandcool_continuous_subsequence =                      SidebandCoolContinuous(self)
         self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
         self.readout_subsequence =                                      Readout(self)
+        self.rescue_subsequence =                                       RescueIon(self)
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
