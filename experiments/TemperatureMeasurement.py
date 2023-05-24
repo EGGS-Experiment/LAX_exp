@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import AbsorptionProbe
+from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 
 
 class TemperatureMeasurement(LAXExperiment, Experiment):
@@ -37,6 +37,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
 
         # subsequences
         self.probe_subsequence =                                        AbsorptionProbe(self)
+        self.rescue_subsequence =                                       RescueIon(self)
 
 
     def prepare_experiment(self):
@@ -143,6 +144,9 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
                     self.core.break_realtime()
                     self.update_results(freq_ftw, 1, counts_actual, read_actual)
                     self.update_results(freq_ftw, 0, counts_control, read_control)
+
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)
 
         # tmp remove
         self.core.break_realtime()

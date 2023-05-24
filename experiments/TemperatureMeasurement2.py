@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2
+from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2, RescueIon
 
 
 class TemperatureMeasurement2(LAXExperiment, Experiment):
@@ -40,6 +40,7 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
         # subsequences
         self.dopplercool_subsequence =                                  DopplerCool(self)
         self.probe_subsequence =                                        AbsorptionProbe2(self)
+        self.rescue_subsequence =                                       RescueIon(self)
 
 
     def prepare_experiment(self):
@@ -121,3 +122,6 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
                 self.update_results(freq_ftw, 1, counts_tmp, 0)
                 self.update_results(freq_ftw, 0, 0, 0)
                 self.core.break_realtime()
+
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)

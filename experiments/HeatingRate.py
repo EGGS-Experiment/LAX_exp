@@ -74,3 +74,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                     with parallel:
                         self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
                         self.core.break_realtime()
+
+                # rescue ion as needed
+                self.rescue_subsequence.run(trial_num)
