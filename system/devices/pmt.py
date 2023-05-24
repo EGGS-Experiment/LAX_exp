@@ -69,3 +69,39 @@ class PMTCounter(LAXDevice):
 
         # return timestamps
         return array(timestamp_mu_list)
+
+    # @kernel(flags={"fast-math"})
+    # def get_timestamp(self) -> TInt64:
+    #     """
+    #     # tmp rename
+    #     Timestamp the incoming counts.
+    #     Does not time out until we read finish reading the given number of counts.
+    #     Arguments:
+    #         num_counts      (int)   : the number of counts to read.
+    #         time_gating_mu  (int64) : the maximum waiting time (in machine units) for each count.
+    #     Returns:
+    #                         list(int64): the list of count timestamps (in machine units).
+    #     """
+    #     # set counting variables
+    #     counter = 0
+    #     timestamp_mu_list = [0] * num_counts
+    #     # self.core.break_realtime()
+    #
+    #     # start counting photons
+    #     self.input._set_sensitivity(1)
+    #     while counter < num_counts:
+    #
+    #         # get count timestamp
+    #         time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
+    #
+    #         # move timestamped photon into buffer if valid
+    #         if time_photon_mu >= 0:
+    #             timestamp_mu_list[counter] = time_photon_mu
+    #             counter += 1
+    #
+    #     # stop counting
+    #     self.core.break_realtime()
+    #     self.input._set_sensitivity(0)
+    #
+    #     # return timestamps
+    #     return array(timestamp_mu_list)
