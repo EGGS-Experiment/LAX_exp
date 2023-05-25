@@ -60,45 +60,45 @@ class EGGSHeatingContinuousFake(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("calibration",                            BooleanValue(default=False))
-        self.setattr_argument("repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("calibration",                                BooleanValue(default=False))
+        self.setattr_argument("repetitions",                                NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # additional cooling
-        self.setattr_argument("repetitions_per_cooling",                NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
+        self.setattr_argument("repetitions_per_cooling",                    NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("additional_cooling_time_s",                  NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000))
 
         # sideband cooling config
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=21000, ndecimals=3, step=100, min=0.001, max=100000000))
-        self.setattr_argument("num_sideband_cycles",                    NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000000))
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({102.882: 100}))
-        self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=20, ndecimals=3, step=1, min=0.01, max=100))
+        self.setattr_argument("time_sideband_cooling_us",                   NumberValue(default=21000, ndecimals=3, step=100, min=0.001, max=100000000))
+        self.setattr_argument("num_sideband_cycles",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000000))
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",         PYONValue({102.892: 100}))
+        self.setattr_argument("pct_per_spin_polarization",                  NumberValue(default=20, ndecimals=3, step=1, min=0.01, max=100))
 
         # sideband cooling powers
-        self.setattr_argument("att_sidebandcooling_db",                 NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=13, ndecimals=2, step=1, min=5, max=50))
-        self.setattr_argument("ampl_sideband_cooling_pct",              NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
+        self.setattr_argument("att_sidebandcooling_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("ampl_quench_pct",                            NumberValue(default=13, ndecimals=2, step=1, min=5, max=50))
+        self.setattr_argument("ampl_sideband_cooling_pct",                  NumberValue(default=50, ndecimals=2, step=1, min=5, max=50))
 
         # sideband cooling readout
-        self.setattr_argument("shuffle_rsb_and_bsb",                    BooleanValue(default=True))
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=150, ndecimals=5, step=1, min=1, max=100000000))
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
-        self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            # default=CenterScan(103.314, 0.02, 0.0005),
-                                                                            default=ExplicitScan([102.8835]),
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ))
+        self.setattr_argument("shuffle_rsb_and_bsb",                        BooleanValue(default=True))
+        self.setattr_argument("time_readout_pipulse_us",                    NumberValue(default=150, ndecimals=5, step=1, min=1, max=100000000))
+        self.setattr_argument("att_readout_db",                             NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5))
+        self.setattr_argument("freq_rsb_scan_mhz",                          Scannable(
+                                                                                default=CenterScan(102.897, 0.01, 0.0005),
+                                                                                # default=ExplicitScan([102.8835]),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
 
-        self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            # default=CenterScan(104.553, 0.02, 0.0005),
-                                                                            default=ExplicitScan([104.4405]),
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ))
+        self.setattr_argument("freq_bsb_scan_mhz",                          Scannable(
+                                                                                default=CenterScan(104.454, 0.01, 0.0005),
+                                                                                #default=ExplicitScan([104.4405]),
+                                                                                global_min=30, global_max=200, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                            ))
 
         # eggs heating
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=4, ndecimals=5, step=1, min=0.000001, max=10000))
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000))
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=30, ndecimals=1, step=0.5, min=0, max=31.5))
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
                                                                                 # default=CenterScan(85.1, 0.020, 0.001, randomize=True),
                                                                                 default=ExplicitScan([85.1]),
@@ -106,8 +106,8 @@ class EGGSHeatingContinuousFake(EnvExperiment):
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
         self.setattr_argument("freq_eggs_heating_secular_mhz_list",         Scannable(
-                                                                                default=CenterScan(1.558, 0.1, 0.001, randomize=True),
-                                                                                # default=ExplicitScan([1.558]),
+                                                                                #default=CenterScan(1.558, 0.1, 0.001, randomize=True),
+                                                                                default=ExplicitScan([1.5605, 8.88]),
                                                                                 global_min=0, global_max=10000, global_step=0.1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ))
@@ -346,7 +346,9 @@ class EGGSHeatingContinuousFake(EnvExperiment):
 
                     # tmp remove
                     self.core.break_realtime()
-                    self.dds_mod.set(sideband_freq_hz, amplitude=0.35)
+                    self.dds_mod.set(sideband_freq_hz, amplitude=0.35, profile=0)
+                    self.dds_mod.cpld.set_profile(0)
+                    self.dds_mod.cpld.io_update.pulse_mu(8)
                     self.dds_mod.set_att(self.att_eggs_heating_db)
                     self.dds_mod.cfg_sw(True)
                     delay_mu(self.time_eggs_heating_mu)
