@@ -206,15 +206,43 @@ class TemperatureMeasurementCalibration(EnvExperiment):
         calib_ampl_frac = np.array(self.dds.asf_to_amplitude(calib_ampl_asf)) * 100
         calib_final = np.array([calib_freq_mhz, calib_ampl_frac]).transpose()
 
-        # tmp remove
+        # print run time
         time_stop = datetime.timestamp(datetime.now())
         print()
         print('\t\t\tDONE')
         print('\t\t\t\tTOTAL RUN TIME: {:.2f}'.format(time_stop-self.time_start))
         print()
-        # tmp remove
 
         # add calibration values to dataset manager
         self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', calib_final, broadcast=True, persist=True)
 
-        # todo: upload dataset to labrad
+
+        ### LABRAD UPLOAD ###
+        # upload data to labrad for visualization in RealSimpleGrapher
+        try:
+            # create connections to labrad servers
+            cxn =                   labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+            dv =                    cxn.data_vault
+            cr =                    cxn.context()
+
+            # create labrad dataset title
+            date =                  datetime.now()
+            dataset_title_tmp =     'DDS Amplitude Calibration'
+            trunk =                 '{0:s}_{1:02d}:{2:02d}'.format(dataset_title_tmp, date.hour, date.minute)
+            trunk_tmp =             ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk]
+
+            # create labrad dataset
+            dv.cd(trunk_tmp, True, context=cr)
+            dv.new(
+                dataset_title_tmp,
+                [('DDS Frequency', 'MHz')],
+                [('DDS Amplitude', 'Amplitude', 'pct')],
+                context=cr
+            )
+            print("Data vault setup successful.")
+
+            # upload data to labrad's Data Vault
+            self.dv.add(calib_final, context=self.cr)
+
+        except Exception as e:
+            print("Warning: unable to upload data to labrad.")
