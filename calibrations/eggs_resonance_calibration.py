@@ -91,10 +91,13 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.sa.gpib_write('DISP:ENAB 1')
 
         # set up data vault
-        date = datetime.now()
-        dataset_title_tmp = 'EGGS Resonance Calibration'
-        trunk = '{0:s}_{1:02d}:{2:02d}'.format(dataset_title_tmp, date.hour, date.minute)
-        trunk_tmp = ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk]
+        # create labrad dataset title
+        date =                  datetime.now()
+        dataset_title_tmp =     'EGGS Resonance Calibration'
+        trunk =                 '{0:s}_{1:02d}:{2:02d}'.format(dataset_title_tmp, date.hour, date.minute)
+        trunk_tmp =             ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk]
+
+        # create labrad dataset
         self.dv.cd(trunk_tmp, True, context=self.cr)
         self.dv.new(
             dataset_title_tmp,
@@ -256,5 +259,4 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.set_dataset('calibration.eggs.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
 
         # add data to data vault for visualization
-        for i in range(len(power_dataset_tmp)):
-            self.dv.add([power_dataset_tmp[0], power_dataset_tmp[1], norm_ampl_dataset[2]], context=self.cr)
+        self.dv.add(np.array([power_dataset_tmp[:, 0], power_dataset_tmp[:, 1], norm_ampl_dataset[:, 1]]).transpose(), context=self.cr)
