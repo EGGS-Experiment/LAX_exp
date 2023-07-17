@@ -278,6 +278,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         Contains an internal iterator to keep track of the current index.
         """
         self.mutate_dataset('results', self._result_iter, array(args))
+        # self.set_dataset('management.completion_pct', self._result_iter / len(self.results), broadcast=True)
         self._result_iter += 1
 
     @property
