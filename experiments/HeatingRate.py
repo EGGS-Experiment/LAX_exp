@@ -38,7 +38,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
 
     # MAIN SEQUENCE
-    @kernel
+    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
