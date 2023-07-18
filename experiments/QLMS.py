@@ -4,15 +4,18 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
+# todo: use dds modulation subsequence stuff
 
-class EGGSHeating(SidebandCooling.SidebandCooling):
+
+class QLMS(SidebandCooling.SidebandCooling):
     """
-    Experiment: EGGS Heating
+    Experiment: QLMS
 
+    Quantum Logic Mass Spectroscopy.
     Cool the ions to the ground state of motion via sideband cooling,
-    then apply bichromatic heating tones, and try to read out the fluorescence.
+    then apply a quadrupole tickle to create a coherent state to be read out via RSB/BSB comparison.
     """
-    name = 'EGGS Heating'
+    name = 'QLMS'
 
 
     def build_experiment(self):
@@ -46,9 +49,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
     def prepare_experiment(self):
+        # todo: check input
         # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling
-        assert total_phaser_channel_amplitude < 100.,                       "Error: total phaser amplitude exceeds 100%."
+        # min_time_length =                                                   len(list(self.time_min_sideband_cooling_us_list))
+        # max_time_length =                                                   len(list(self.time_max_sideband_cooling_us_list))
+        # modes_length =                                                      len(list(self.freq_sideband_cooling_mhz_list))
+        # assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
 
         ### EGGS HEATING - TIMING ###
         self.time_eggs_heating_mu =                                         self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
@@ -61,36 +67,34 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             self.time_eggs_heating_mu = np.int64(self.phaser_eggs.t_frame_mu * t_frame_multiples)
 
         ### EGGS HEATING - FREQUENCIES ###
-        self.freq_eggs_carrier_offset_hz_list =                             np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - (self.phaser_eggs.freq_center_mhz * MHz)
+        self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - (self.phaser_eggs.freq_center_mhz * MHz)
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
 
-        ### EGGS HEATING - CONFIG ###
-        # create config data structure with amplitude values
-        # note: 5 values are [center_offset_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
-        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_offset_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
-        self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_offset_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
-        self.config_eggs_heating_list[:, 2:] =                              np.array([0.499 * self.ampl_eggs_heating_pct,
-                                                                                      0.499 * self.ampl_eggs_heating_pct,
-                                                                                      self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        ### EGGS HEATING - CONFIG/CALIBRATION ###
+        # create config data structure
+        # note: 5 values are [center_offset_freq_hz, sideband_freq_hz, rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct]
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
+        self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
 
-        ### EGGS HEATING - CALIBRATION ###
         # interpolate calibration dataset
-        # note: we choose 1D interpolator since it ensures smoothness at each point
+        # note: choose 1D interpolator since it ensures smoothness at each point
         from scipy.interpolate import Akima1DInterpolator
         ampl_calib_points =                                                 self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # calculate calibrated eggs sidebands amplitudes
-        if self.enable_amplitude_calibration:
-            for i, (carrier_offset_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
-                # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz = (np.array([-secular_freq_hz, secular_freq_hz]) + (carrier_offset_freq_hz + self.freq_eggs_heating_center_hz)) / MHz
-                # get normalized transmission through system
-                transmitted_power_frac = ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
-                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-                scaled_power_pct = np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) * ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1]))
-                # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, 2:] = np.array([scaled_power_pct[0], scaled_power_pct[1], self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # todo: implement boolean check for enable_amplitude_calibration
+        # todo: correctly set amplitudes
+        for i, config_freqs in enumerate(self.config_eggs_heating_list):
+            # get relevant frequency values
+            carrier_freq, secular_freq = config_freqs[:2]
+            carrier_freq += self.freq_eggs_heating_center_hz
+            # tmp remove
+            print(ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz]))
+            # calibrate amplitude values
+            # self.config_eggs_heating_list[i, 2:] = ampl_calib_curve([(carrier_freq - secular_freq) / MHz, (carrier_freq + secular_freq) / MHz])
+            # self.config_eggs_heating_list[i, 2:] = [0.499, 0.499]
+            self.config_eggs_heating_list[i, 2:] = [0.49, 0.49, self.ampl_eggs_dynamical_decoupling_pct]
 
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
         if not self.enable_dynamical_decoupling:
