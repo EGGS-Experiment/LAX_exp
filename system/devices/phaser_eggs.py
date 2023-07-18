@@ -3,10 +3,6 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-
-# todo: on/off, set carrier via DUC, pulse shape
-
-
 # todo: prepare - sample time, frame time
 # todo: on/off func
 # todo: att func
@@ -18,16 +14,16 @@ class PhaserEGGS(LAXDevice):
 
     Use the Phaser AWG to create the EGGS RF
     """
-    name = "phaser_eggs"
-    core_device = ('phaser', 'phaser0')
+    name =          "phaser_eggs"
+    core_device =   ('phaser', 'phaser0')
 
     def build_device(self):
         # alias both phaser output channels
-        self.channel =              self.phaser0.channel
+        self.channel =                      self.phaser0.channel
 
         # set phaser sample/frame timings
-        self.t_sample_mu =          int64(40)
-        self.t_frame_mu =           int64(320)
+        self.t_sample_mu =                  int64(40)
+        self.t_frame_mu =                   int64(320)
 
     def prepare_device(self):
         # get frequency parameters

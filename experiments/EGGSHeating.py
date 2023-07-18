@@ -77,7 +77,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # interpolate calibration dataset
         # note: we choose 1D interpolator since it ensures smoothness at each point
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                                 self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        ampl_calib_points =                                                 self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # calculate calibrated eggs sidebands amplitudes

@@ -246,7 +246,7 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # store calibration timestamp
         calib_timestamp = datetime.timestamp(datetime.now())
-        self.set_dataset('calibration.eggs.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
+        self.set_dataset('calibration.eggs.transmission.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
         # copy calibration results to temporary array for convenience
         power_dataset_tmp = np.array(self.eggs_resonance_calibration)
@@ -256,7 +256,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         norm_ampl_dataset[:, 0] = power_dataset_tmp[:, 0]
         norm_ampl_dataset[:, 1] = 10 ** (power_dataset_tmp[:, 1] / 20)
         norm_ampl_dataset[:, 1] /= np.max(power_dataset_tmp[:, 1])
-        self.set_dataset('calibration.eggs.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
+        self.set_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
 
         # add data to data vault for visualization
         self.dv.add(np.array([power_dataset_tmp[:, 0], power_dataset_tmp[:, 1], norm_ampl_dataset[:, 1]]).transpose(), context=self.cr)

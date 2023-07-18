@@ -243,7 +243,7 @@ class EGGSHeatingContinuousFake(EnvExperiment):
 
         # EGGS HEATING - CALIBRATION
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                                 self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        ampl_calib_points =                                                 self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # calculate calibrated eggs sidebands amplitudes

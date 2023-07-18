@@ -42,7 +42,8 @@ class testarg34(EnvExperiment):
         # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        yz0=self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz')
+        yz0=np.array(self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz'))
+        yz0=self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz', persist=True)
         print(yz0)
 
     def run(self):
