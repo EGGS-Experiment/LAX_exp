@@ -17,6 +17,8 @@ class PMTCounter(LAXDevice):
         'input':    'ttl0'
     }
 
+    PMT_KEY = "pmt_counts"
+
 
     def prepare_device(self):
         self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
@@ -24,6 +26,7 @@ class PMTCounter(LAXDevice):
 
         # get default gating edge for counting
         self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
+        self.set_dataset(self.PMT_KEY, [])
         self.kernel_invariants.add('counting_method')
 
     @kernel(flags={"fast-math"})
@@ -105,3 +108,33 @@ class PMTCounter(LAXDevice):
     #
     #     # return timestamps
     #     return array(timestamp_mu_list)
+
+    @kernel(flags={"fast-math"})
+    def timestamp_counts_fixed_time(self, time_interval_mu: TInt32, time_gating_mu: TInt64) -> TArray(TInt64, 1):
+        """
+        Timestamp the incoming counts.
+        Does not time out until we read finish reading the given number of counts.
+        Arguments:
+            time_interval_mu      (int)   : machine units to read processes
+            time_gating_mu  (int64) : the maximum waiting time (in machine units) for each count.
+        Returns:
+                            list(int64): the list of count timestamps (in machine units).
+        """
+        # start counting photons
+        self.input.gate_rising_mu(time_interval_mu)
+
+        # get count timestamp
+        time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
+
+        # move timestamped photon into buffer if valid
+        if time_photon_mu >= 0:
+            while time_photon_mu >= 0:
+                self.append_to_dataset(self.PMT_KEY, time_photon_mu)
+                time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
+
+        # stop counting
+        self.core.break_realtime()
+        self.input._set_sensitivity(0)
+        timestamp_mu_list = self.get_dataset(self.PMT_KEY)
+        # return timestamps
+        return array(timestamp_mu_list)
