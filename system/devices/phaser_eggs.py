@@ -27,15 +27,12 @@ class PhaserEGGS(LAXDevice):
 
     def prepare_device(self):
         # get frequency parameters
-        # todo: get carrier center freq from dashboard instead
-        self.freq_center_mhz =              85. * MHz
+        self.freq_center_mhz =              self.get_parameter('freq_center_mhz', group='eggs', override=False)
         self.freq_center_ftw =              int32(hz_to_ftw(self.freq_center_mhz * MHz))
 
         # get phase delay parameters
-        # todo: inherent ch1 phase delay
-        # todo: system ch1 phase delay
-        self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
-        self.phase_system_ch1_turns =       self.get_parameter('phas_ch1_system_turns', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
+        self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
+        self.phase_system_ch1_turns =       self.get_parameter('phas_ch1_system_turns', group='eggs', override=False)
 
     @kernel(flags={'fast-math'})
     def initialize_device(self):
@@ -55,7 +52,6 @@ class PhaserEGGS(LAXDevice):
         # sync DAC for both channels
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.dac_sync()
-
         # todo: set carrier frequency via DAC NCO frequency for both channels
 
 
