@@ -38,7 +38,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
 
     # MAIN SEQUENCE
-    @kernel
+    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
@@ -75,5 +75,5 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                         self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
                         self.core.break_realtime()
 
-                # rescue ion as needed
-                self.rescue_subsequence.run(trial_num)
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)

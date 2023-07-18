@@ -58,6 +58,8 @@ class vsweeptmp(EnvExperiment):
         self.dc_micromotion_channel_num =                           self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
         self.dc_micromotion_channel_name =                          self.dc_micromotion_channel
         self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
+        # dc settling time
+        self.dc_settle_time_mu =                                    self.core.seconds_to_mu(3000 * us)
 
         # cooling beam
         self.cooling_dds =                                          self.get_device("urukul1_ch1")
@@ -124,8 +126,9 @@ class vsweeptmp(EnvExperiment):
             counter = 0
 
             # set DC voltage
-            self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
-            self.core.break_realtime()
+            with parallel:
+                self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
+                delay_mu(self.dc_settle_time_mu)
 
             # add holdoff period for recooling the ion
             delay_mu(self.time_cooling_holdoff_mu)
