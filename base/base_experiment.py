@@ -90,6 +90,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._save_arguments()
 
         # todo: call device prepare method first
+        # tmp remove
+        self.call_child_method("prepare_device")
 
         # call user-defined prepare function
         self.prepare_experiment()
@@ -134,6 +136,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         setattr(self, '_initialize_experiment', initialize_func)
 
 
+        # todo: somehow call prepare method for everything not devices
         # call prepare methods of all child objects
         self.call_child_method('prepare')
 
@@ -345,7 +348,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Extract system parameters from LabRAD and format for saving with the experiment results.
         """
-        # todo: get wavemeter snapshot
         try:
 
             # import relevant modules
@@ -355,29 +357,37 @@ class LAXExperiment(LAXEnvironment, ABC):
             LABRADHOST =       os.environ['LABRADHOST']
             LABRADPORT =       os.environ['LABRADPORT']
             LABRADPASSWORD =   os.environ['LABRADPASSWORD']
+
             # create a synchronous connection to labrad
             # cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
             cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
-            # cxn_wm = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
+
+            # create a synchronous connection to wavemeter labrad
+            from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
+            cxn_wm = labrad.connect(multiplexer_config.ip, name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
 
             # connect to relevant servers
             rf = cxn.rf_server
             dc = cxn.dc_server
             ls = cxn.lakeshore336_server
+            wm = cxn_wm.multiplexerserver
 
             # get rf values
             rf.select_device()
             rf_freq_hz = rf.frequency()
             rf_ampl_dbm = rf.amplitude()
 
+            # get temperature values
+            temp_vals_k = ls.read_temperature()
+            temp_vals_k = array(list(temp_vals_k))
+
             # import dc config and get relevant parameters
             from EGGS_labrad.config.dc_config import dc_config
-            active_channels = dc_config.channeldict
+            dc_channels = dc_config.channeldict
 
-            # extract dc values of channels in use
+            # extract values for DC channels in use
             dc_vals = {}
-            for channel_name, channel_params in active_channels.items():
-
+            for channel_name, channel_params in dc_channels.items():
                 try:
                     # get channel number
                     channelnum = channel_params['num']
@@ -387,16 +397,29 @@ class LAXExperiment(LAXEnvironment, ABC):
                     dc_vals[key_channelnum] = channelnum
 
                     # store channel voltage
-                    key_voltage = "dc_voltage_{:s}".format(channel_name)
+                    key_voltage = "dc_voltage_{:s}_v".format(channel_name)
                     voltage_v = dc.voltage(channelnum)
                     dc_vals[key_voltage] = voltage_v
 
                 except Exception as e:
                     pass
 
-            # get temperature values
-            temp_vals_k = ls.read_temperature()
-            temp_vals_k = array(list(temp_vals_k))
+            # extract frequencies of wavemeter channels in use
+            # extract dc values of channels in use
+            wm_vals = {}
+            wm_channels = multiplexer_config.channels
+            for channel_name, channel_params in wm_channels.items():
+                try:
+                    # get channel number
+                    channelnum = channel_params[0]
+
+                    # store channel frequency
+                    key_frequency = "wm_frequency_{:s}_thz".format(channel_name)
+                    freq_thz = wm.get_frequency(channelnum)
+                    wm_vals[key_frequency] = freq_thz
+
+                except Exception as e:
+                    pass
 
             # store all system values in a combined dict
             sys_vals = {
@@ -405,6 +428,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 "temp_vals_k":  temp_vals_k
             }
             sys_vals.update(dc_vals)
+            sys_vals.update(wm_vals)
 
             # return combined system values
             return sys_vals
@@ -414,8 +438,9 @@ class LAXExperiment(LAXEnvironment, ABC):
             pass
 
         finally:
-            # ensure labrad connection disconnects
+            # ensure labrad connections disconnect
             cxn.disconnect()
+            cxn_wm.disconnect()
 
         # return empty dict to handle exception case
         return {}
