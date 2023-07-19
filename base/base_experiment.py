@@ -7,18 +7,14 @@ import socket
 import logging
 
 from sipyco import pyon
+from datetime import datetime
 from numpy import array, zeros
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
 
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
-
-# tmp remove
-from datetime import datetime
 from LAX_exp.base.manager_wrappers import _write_to_group
-# todo: get labrad data
-# todo: add dynamic updates
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -133,11 +129,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
         setattr(self, '_initialize_experiment', initialize_func)
-
-
-        # todo: get a labrad snapshot
-        # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
-        # need: wavemeter frequencies, DDS attenuation, B-fields
 
 
         # call prepare methods of all child objects
@@ -352,6 +343,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Extract system parameters from LabRAD and format for saving with the experiment results.
         """
+        # todo: get wavemeter snapshot
         try:
 
             # import relevant modules
@@ -364,6 +356,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             # create a synchronous connection to labrad
             # cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
             cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
+            # cxn_wm = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
 
             # connect to relevant servers
             rf = cxn.rf_server
