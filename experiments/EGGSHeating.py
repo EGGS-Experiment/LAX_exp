@@ -18,7 +18,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # EGGS RF scan configuration
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=CenterScan(85.1, 0.04, 0.001, randomize=True),
+                                                                                default=CenterScan(85.1, 0.004, 0.001, randomize=True),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
@@ -40,14 +40,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=5, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
 
         # get devices
+        # tmp remove
+        self.setattr_device('qubit')
         self.setattr_device('phaser_eggs')
 
         # run regular sideband cooling build
         super().build_experiment()
 
     def prepare_experiment(self):
+        # print(self.qubit.freq_qubit_ftw)
+
         # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling
+        total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling_pct
         assert total_phaser_channel_amplitude < 100.,                       "Error: total phaser amplitude exceeds 100%."
 
         ### EGGS HEATING - TIMING ###
@@ -62,7 +66,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         ### EGGS HEATING - FREQUENCIES ###
         self.freq_eggs_carrier_offset_hz_list =                             np.array(list(self.freq_eggs_heating_mhz_carrier_list)) * MHz - (self.phaser_eggs.freq_center_mhz * MHz)
-        self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_mhz_list)) * MHz
+        self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
 
         ### EGGS HEATING - CONFIG ###
         # create config data structure with amplitude values
@@ -84,7 +88,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         if self.enable_amplitude_calibration:
             for i, (carrier_offset_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz = (np.array([-secular_freq_hz, secular_freq_hz]) + (carrier_offset_freq_hz + self.freq_eggs_heating_center_hz)) / MHz
+                rsb_freq_mhz, bsb_freq_mhz = (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_offset_freq_hz) / MHz + self.phaser_eggs.freq_center_mhz
                 # get normalized transmission through system
                 transmitted_power_frac = ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
                 # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
@@ -94,7 +98,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
         if not self.enable_dynamical_decoupling:
-            self.config_eggs_heating_list[:, 5] = 0.
+            self.config_eggs_heating_list[:, 4] = 0.
 
         # run preparations for sideband cooling
         super().prepare_experiment()
@@ -108,11 +112,33 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        # run parent initialization
-        super().initialize_experiment()
-        # self.core.break_realtime()
+        # note: bulk of this code is copy and pasted from SidebandCooling
+        # since we can't call "super().initialize_experiment" in a kernel function
+
+        ### BEGIN COPY AND PASTE FROM SIDEBANDCOOLING ###
+        self.core.break_realtime()
+
+        # record subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
+
+        # record custom readout sequence
+        # note: this is necessary since DMA sequences will preserve urukul attenuation register
+        with self.core_dma.record('_SBC_READOUT'):
+            # set readout waveform for qubit
+            self.qubit.set_profile(0)
+            self.qubit.set_att_mu(self.att_readout_mu)
+
+            # transfer population to D-5/2 state
+            self.rabiflop_subsequence.run()
+
+            # read out fluorescence
+            self.readout_subsequence.run()
+
+        ### END COPY AND PASTE FROM SIDEBANDCOOLING ###
 
         # set attenuations for phaser outputs
+        self.core.break_realtime()
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
@@ -124,7 +150,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # get custom sequence handles
         _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
-        _handle_eggs_heating = self.core_dma.get_handle('_EGGS_HEATING')
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
@@ -167,7 +192,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                         self.update_results(
                             freq_ftw,
                             self.readout_subsequence.fetch_count(),
-                            (carrier_offset_freq_hz + self.freq_eggs_heating_center_hz) / MHz,
+                            (carrier_offset_freq_hz / MHz) + self.phaser_eggs.freq_center_mhz,
                             sideband_freq_hz
                         )
                         self.core.break_realtime()
@@ -215,6 +240,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def phaser_run(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):

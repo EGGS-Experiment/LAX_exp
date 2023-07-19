@@ -21,7 +21,7 @@ class PhaserEGGS(LAXDevice):
 
     def build_device(self):
         # alias both phaser output channels
-        self.channel =                      self.phaser0.channel
+        self.channel =                      self.phaser.channel
 
         # set phaser sample/frame timings
         self.t_sample_mu =                  int64(40)
@@ -42,18 +42,18 @@ class PhaserEGGS(LAXDevice):
         Clear the DUC phase accumulators and sync the DAC.
         """
         # clear channel DUC phase accumulators
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_duc_cfg(clr_once=1)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_cfg(clr_once=1)
         delay_mu(self.t_sample_mu)
-        self.phaser0.channel[1].set_duc_cfg(clr_once=1)
+        self.phaser.channel[1].set_duc_cfg(clr_once=1)
 
         # strobe update register for both DUCs
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.duc_stb()
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.duc_stb()
 
         # sync DAC for both channels
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.dac_sync()
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
 
 
@@ -64,13 +64,13 @@ class PhaserEGGS(LAXDevice):
         """
         for i in range(5):
             # clear channel 0 oscillator
-            at_mu(self.phaser0.get_next_frame_mu())
-            self.phaser0.channel[0].oscillator[i].set_frequency(0 * MHz)
-            delay_mu(self.time_phaser_sample_mu)
-            self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[0].oscillator[i].set_frequency(0 * MHz)
+            delay_mu(self.t_sample_mu)
+            self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
 
             # clear channel 1 oscillator
-            at_mu(self.phaser0.get_next_frame_mu())
-            self.phaser0.channel[1].oscillator[i].set_frequency(0 * MHz)
-            delay_mu(self.time_phaser_sample_mu)
-            self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[1].oscillator[i].set_frequency(0 * MHz)
+            delay_mu(self.t_sample_mu)
+            self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
