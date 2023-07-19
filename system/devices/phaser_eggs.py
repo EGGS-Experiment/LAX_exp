@@ -14,8 +14,10 @@ class PhaserEGGS(LAXDevice):
 
     Use the Phaser AWG to create the EGGS RF
     """
-    name =          "phaser_eggs"
-    core_device =   ('phaser', 'phaser0')
+    name = "phaser_eggs"
+    core_device = ('phaser', 'phaser0')
+    devices = {}
+
 
     def build_device(self):
         # alias both phaser output channels

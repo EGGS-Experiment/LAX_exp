@@ -26,16 +26,16 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(103.655, 0.04, 0.0005),
+                                                                            default=CenterScan(103.078, 0.02, 0.0005),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(105.271, 0.04, 0.0005),
+                                                                            default=CenterScan(103.783, 0.02, 0.0005),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=250, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=90, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
         self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100), group='sideband_readout')
         self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_readout')
 

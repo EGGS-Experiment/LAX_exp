@@ -12,7 +12,7 @@ class Beam854(LAXDevice):
     """
     name = "repump_qubit"
     core_device = ('beam', 'urukul1_ch3')
-    devices ={
+    devices = {
         'rf_switch':    'ttl21'
     }
 
