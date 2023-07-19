@@ -36,6 +36,11 @@ device_db_ext = {
         "module": "LAX_exp.system.devices.dds_modulation",
         "class": "DDSModulation"
     },
+    "phaser_eggs": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.phaser_eggs",
+        "class": "PhaserEGGS"
+    },
 
     # PMT
     "pmt": {

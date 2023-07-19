@@ -86,11 +86,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         General construction of the experiment object.
 
         Called right before run (unlike build, which is called upon instantiation).
+        ***todo*** prepare_device is called before prepare_experiment to ensure that any values in prepare_device
         _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
             values computed only in prepare_experiment.
         """
         # store arguments in dataset manager
         self._save_arguments()
+
+        # todo: call device prepare method first
 
         # call user-defined prepare function
         self.prepare_experiment()
@@ -135,14 +138,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         setattr(self, '_initialize_experiment', initialize_func)
 
 
-        # todo: get a labrad snapshot
-        # need: trap rf amp/freq/locking, 6x dc voltages & on/off, temp, pressure
-        # need: wavemeter frequencies, DDS attenuation, B-fields
-
-
         # call prepare methods of all child objects
         self.call_child_method('prepare')
-
 
         # create dataset for results
         self.set_dataset('results', zeros(self.results_shape))
