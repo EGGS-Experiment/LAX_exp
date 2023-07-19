@@ -26,12 +26,14 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(103.078, 0.02, 0.0005),
+                                                                            # default=CenterScan(103.078, 0.02, 0.0005),
+                                                                            default=(ExplicitScan([103.078])),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            default=CenterScan(103.783, 0.02, 0.0005),
+                                                                            # default=CenterScan(103.783, 0.02, 0.0005),
+                                                                            default=(ExplicitScan([103.783])),
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')

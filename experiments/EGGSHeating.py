@@ -41,6 +41,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
+        # tmp remove
+        self.setattr_device('ttl16')
+        # tmp remove
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -255,36 +258,80 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # todo: see if we can set oscillators parallel
         # activate eggs heating output - channel 0
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=0., clr=0)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=0., clr=0)
+        # tmp remove
+        with parallel:
+            self.ttl16.on()
+            delay_mu(320)
+        # tmp remove
 
-        # activate eggs heating output - channel 1
-        # todo: get phase from phaser_eggs
+        # self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # # self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=0., clr=0)
+        # self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # # self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=0., clr=0)
+        # self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+        #
+        # # activate eggs heating output - channel 1
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_eggs_delay_turns, clr=0)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # # self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_eggs_delay_turns, clr=0)
+        # self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_eggs_delay_turns, clr=0)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_eggs_delay_turns, clr=0)
+        # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_eggs_delay_turns, clr=0)
+
+        # activate eggs heating output
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac,
+                                                                          phase=self.phase_eggs_delay_turns, clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_eggs_delay_turns, clr=0)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac,
+                                                                          phase=self.phase_eggs_delay_turns, clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_eggs_delay_turns, clr=0)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
+                                                                          phase=self.phase_eggs_delay_turns, clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_eggs_delay_turns, clr=0)
 
         # leave eggs heating running
         delay_mu(self.time_eggs_heating_mu)
 
-        # disable eggs heating output - channel 0
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., clr=1)
+        # # disable eggs heating output - channel 0
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., clr=1)
+        #
+        # # disable eggs heating output - channel 1
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., clr=1)
 
-        # activate eggs heating output - channel 1
+        # disable eggs phaser output
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., clr=1)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., clr=1)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., clr=1)
+
+        # tmp remove
+        self.ttl16.off()
+        # tmp remove
