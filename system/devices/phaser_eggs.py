@@ -48,13 +48,22 @@ class PhaserEGGS(LAXDevice):
         self.phaser.channel[1].set_duc_cfg(clr_once=1)
 
         # strobe update register for both DUCs
-        at_mu(self.phaser.get_next_frame_mu())
+        delay_mu(self.t_sample_mu)
         self.phaser.duc_stb()
 
         # sync DAC for both channels
-        at_mu(self.phaser.get_next_frame_mu())
+        delay_mu(self.t_sample_mu)
         self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
+
+    # todo: create clear channel phase function that consists of the following
+    # at_mu(self.phaser_eggs.get_next_frame_mu())
+    # self.phaser_eggs.channel[0].set_duc_cfg(clr_once=1)
+    # delay_mu(self.phaser_eggs.t_sample_mu)
+    # self.phaser_eggs.channel[1].set_duc_cfg(clr_once=1)
+    # # strobe update register for both DUCs
+    # delay_mu(self.phaser_eggs.t_sample_mu)
+    # self.phaser_eggs.duc_stb()
 
 
     @kernel(flags={"fast-math"})
@@ -63,14 +72,17 @@ class PhaserEGGS(LAXDevice):
         Reset frequency and amplitude for all oscillators on both channels of the phaser.
         """
         for i in range(5):
-            # clear channel 0 oscillator
+            # synchronize to frame
             at_mu(self.phaser.get_next_frame_mu())
-            self.phaser.channel[0].oscillator[i].set_frequency(0 * MHz)
-            delay_mu(self.t_sample_mu)
-            self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
 
-            # clear channel 1 oscillator
-            at_mu(self.phaser.get_next_frame_mu())
-            self.phaser.channel[1].oscillator[i].set_frequency(0 * MHz)
-            delay_mu(self.t_sample_mu)
-            self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+            # clear oscillator frequencies
+            with parallel:
+                self.phaser.channel[0].oscillator[i].set_frequency(0.)
+                self.phaser.channel[1].oscillator[i].set_frequency(0.)
+                delay_mu(self.t_sample_mu)
+
+            # clear oscillator amplitudes
+            with parallel:
+                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                delay_mu(self.t_sample_mu)

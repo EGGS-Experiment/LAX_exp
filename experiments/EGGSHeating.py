@@ -170,6 +170,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 # configure EGGS tones
                 self.phaser_configure(carrier_offset_freq_hz, sideband_freq_hz)
+                self.core.break_realtime()
 
                 # sweep 729nm readout frequency
                 for freq_ftw in self.freq_readout_ftw_list:
@@ -219,41 +220,22 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             carrier_offset_freq_hz  (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
-        # set carrier offset frequency via the DUC
+        # set sideband frequencies
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(carrier_offset_freq_hz)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(carrier_offset_freq_hz)
-        # strobe updates for both channels
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.duc_stb()
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
+            delay_mu(self.phaser_eggs.t_sample_mu)
 
-        # # set sideband frequencies
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
-
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
-        #     self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
-        #     self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-
-        # set carrier frequency (i.e. 0 Hz) for dynamical decoupling
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
-        self.core.break_realtime()
+        # # set carrier frequency (i.e. 0 Hz) for dynamical decoupling
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
+            self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
+            delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_run(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
@@ -265,6 +247,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
             ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
         """
+        # tmp remove
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_duc_cfg(clr_once=1)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_duc_cfg(clr_once=1)
+        # strobe update register for both DUCs
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.duc_stb()
+        # tmp remove
+
         # activate eggs heating output - channel 0
         at_mu(self.phaser_eggs.get_next_frame_mu())
         # tmp remove
