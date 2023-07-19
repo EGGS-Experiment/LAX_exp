@@ -18,13 +18,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # EGGS RF scan configuration
         self.setattr_argument("freq_eggs_heating_mhz_carrier_list",         Scannable(
-                                                                                default=CenterScan(85.1, 0.002, 0.001, randomize=True),
+                                                                                # default=CenterScan(85.1, 0.002, 0.001, randomize=True),
+                                                                                default=ExplicitScan([87.8273, 82.1923]),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 # default=CenterScan(1410, 0.001, 0.0001, randomize=True),
-                                                                                default=ExplicitScan([1716, 1545]),
+                                                                                default=ExplicitScan([800, 3400]),
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating')
@@ -32,12 +33,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # EGGS RF pulse configuration
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=90, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=50, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=500, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
 
         # EGGS RF error correction configuration (e.g. dynamical decoupling)
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=5, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=1, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
@@ -220,6 +221,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             carrier_offset_freq_hz  (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
+        # set carrier offset frequency via the DUC
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_duc_frequency(carrier_offset_freq_hz)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_duc_frequency(carrier_offset_freq_hz)
+        # strobe updates for both channels
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.duc_stb()
+
         # set sideband frequencies
         at_mu(self.phaser_eggs.get_next_frame_mu())
         with parallel:
@@ -272,13 +282,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.,
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac,
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.,
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
 
