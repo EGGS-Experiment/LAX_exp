@@ -228,7 +228,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.duc_stb()
 
-        # set sideband frequencies
+        # # set sideband frequencies
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
         delay_mu(self.phaser_eggs.t_sample_mu)
@@ -237,6 +237,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
+
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # with parallel:
+        #     self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
+        #     self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # with parallel:
+        #     self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
+        #     self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
 
         # set carrier frequency (i.e. 0 Hz) for dynamical decoupling
         at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -270,13 +280,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac,
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.,
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.,
                                                                           phase=self.phase_eggs_delay_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
 
