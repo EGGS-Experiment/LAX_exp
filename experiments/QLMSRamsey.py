@@ -26,7 +26,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
                                                                                     default=CenterScan(1558, 100, 1, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
-                                                                                ), self.name)
+                                                                                ), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_modulation')
