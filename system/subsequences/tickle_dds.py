@@ -18,8 +18,8 @@ class TickleDDS(LAXSubsequence):
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
-        self.att_tickle_mu =    self.get_parameter('att_tickle_db', override=True, conversion_function=seconds_to_mu, units=ms)
         self.time_tickle_mu =   self.get_parameter('time_tickle_ms', override=True, conversion_function=seconds_to_mu, units=ms)
+        self.att_tickle_mu =    self.get_parameter('att_tickle_db', override=True, conversion_function=seconds_to_mu, units=ms)
 
     @kernel(flags={"fast-math"})
     def run(self):

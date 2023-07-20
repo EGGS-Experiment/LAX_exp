@@ -2,7 +2,6 @@ from numpy import int64
 from artiq.experiment import *
 
 
-
 class PhaserInitialize(EnvExperiment):
     """
     Phaser Initialize
