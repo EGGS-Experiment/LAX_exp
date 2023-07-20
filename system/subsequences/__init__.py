@@ -11,7 +11,7 @@ from LAX_exp.system.subsequences.no_operation import NoOperation
 __all__.extend(['RescueIon', 'Cleanup', 'NoOperation'])
 
 # motional
-from LAX_exp.system.subsequences.tickle import TickleDDS
+from LAX_exp.system.subsequences.tickle_dds import TickleDDS
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
 __all__.extend(['TickleDDS', 'ParametricExcite'])
 
