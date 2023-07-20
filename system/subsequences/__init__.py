@@ -11,8 +11,9 @@ from LAX_exp.system.subsequences.no_operation import NoOperation
 __all__.extend(['RescueIon', 'Cleanup', 'NoOperation'])
 
 # motional
+from LAX_exp.system.subsequences.tickle import TickleDDS
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
-__all__.extend(['ParametricExcite'])
+__all__.extend(['TickleDDS', 'ParametricExcite'])
 
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
@@ -26,14 +27,12 @@ from LAX_exp.system.subsequences.initialize_qubit import InitializeQubit
 __all__.extend(['SpinPolarization', 'InitializeQubit'])
 
 # state manipulation
-from LAX_exp.system.subsequences.tickle import Tickle
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.ramsey import Ramsey
-# from LAX_exp.system.subsequences.phaser_pulse import PhaserPulse
-__all__.extend(['Tickle', 'RabiFlop', 'Ramsey'])
+__all__.extend(['RabiFlop', 'Ramsey'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout
 from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
 from LAX_exp.system.subsequences.absorption_probe2 import AbsorptionProbe2
-__all__.extend(['AbsorptionProbe', 'AbsorptionProbe2'])
+__all__.extend(['Readout', 'AbsorptionProbe', 'AbsorptionProbe2'])

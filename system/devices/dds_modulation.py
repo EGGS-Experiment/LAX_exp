@@ -55,5 +55,11 @@ class DDSModulation(LAXDevice):
             self.mod_switch.off()
 
     @kernel(flags={"fast-math"})
+    def set_profile(self, profile_num):
+        self.dds.cpld.set_profile(profile_num)
+        self.dds.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+
+    @kernel(flags={"fast-math"})
     def reset_phase(self):
         self.dds.cpld.io_update.pulse_mu(8)

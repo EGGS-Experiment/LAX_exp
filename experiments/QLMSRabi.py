@@ -2,6 +2,7 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
+from LAX_exp.system.subsequences import TickleDDS
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
 
@@ -25,22 +26,59 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
                                                                                 ))
+
+        # get relevant devices
+        self.setattr_device('dds_modulation')
+
+        # subsequences
+        self.tickle_subsequence =                                               TickleDDS(self, time_tickle_ms=self.time_qlms_heating_ms, att_tickle_db=self.att_qlms_heating_db)
+
         # run regular sideband cooling build
         super().build_experiment()
 
     def prepare_experiment(self):
-        # todo: convert QLMS heating to machine units
+        # convert QLMS modulation to machine units
+        self.freq_modulation_mu_list =                                          np.array([
+                                                                                    self.dds_modulation.frequency_to_ftw(freq_mhz * kHz)
+                                                                                    for freq_mhz in self.freq_qlms_heating_khz_list
+                                                                                ])
 
         # run preparations for sideband cooling
         super().prepare_experiment()
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.time_heating_rate_mu_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.freq_qlms_heating_khz_list) * len(self.freq_readout_ftw_list),
                 3)
 
 
     # MAIN SEQUENCE
+    @kernel(flags={"fast-math"})
+    def initialize_experiment(self):
+        self.core.break_realtime()
+
+        # set attenuation for mod dds here to preserve it during DMA sequences
+        self.dds_modulation.set_att_mu(self.att_qlms_heating_mu)
+
+        # record subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
+        self.tickle_subsequence.record_dma()
+
+        # record custom readout sequence
+        # note: this is necessary since DMA sequences will preserve urukul attenuation register
+        with self.core_dma.record('_SBC_READOUT'):
+            # set readout waveform for qubit
+            self.qubit.set_profile(0)
+            self.qubit.set_att_mu(self.att_readout_mu)
+
+            # transfer population to D-5/2 state
+            self.rabiflop_subsequence.run()
+
+            # read out fluorescence
+            self.readout_subsequence.run()
+
+
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
@@ -51,14 +89,17 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep times to measure heating rate
-            for time_heating_delay_mu in self.time_heating_rate_mu_list:
+            # sweep QLMS modulation frequency
+            for freq_qlms_ftw in self.freq_modulation_mu_list:
+
+                # set QLMS modulation frequency
+                self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
 
                 # sweep frequency
-                for freq_ftw in self.freq_readout_ftw_list:
+                for freq_readout_ftw in self.freq_readout_ftw_list:
 
                     # set frequency
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                    self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                     self.core.break_realtime()
 
                     # initialize ion in S-1/2 state
@@ -67,23 +108,15 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
                     # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
-                    # tmp remove
-                    self.core.break_realtime()
-                    self.dds_mod.set(sideband_freq_hz, amplitude=0.35, profile=0)
-                    self.dds_mod.cpld.set_profile(0)
-                    self.dds_mod.cpld.io_update.pulse_mu(8)
-                    self.dds_mod.set_att(self.att_eggs_heating_db)
-                    self.dds_mod.cfg_sw(True)
-                    delay_mu(self.time_eggs_heating_mu)
-                    self.dds_mod.cfg_sw(False)
-                    # tmp remove
+                    # QLMS tickle
+                    self.tickle_subsequence.run_dma()
 
                     # custom SBC readout
                     self.core_dma.playback_handle(_handle_sbc_readout)
 
                     # update dataset
                     with parallel:
-                        self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
+                        self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw)
                         self.core.break_realtime()
 
             # rescue ion as needed

@@ -79,7 +79,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
 
     # MAIN SEQUENCE
-    @kernel
+    @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
 
@@ -100,7 +100,7 @@ class SidebandCooling(LAXExperiment, Experiment):
             # read out fluorescence
             self.readout_subsequence.run()
 
-    @kernel
+    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
