@@ -6,22 +6,23 @@ from LAX_exp.system.subsequences import TickleDDS
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
 
-class QLMSRabi(SidebandCooling.SidebandCooling):
+class QLMSRamsey(SidebandCooling.SidebandCooling):
     """
-    Experiment: QLMS Rabi
+    Experiment: QLMS Ramsey
 
-    Quantum Logic Mass Spectroscopy - Rabi Flopping
+    Quantum Logic Mass Spectroscopy - Ramsey Spectroscopy
     Cool the ions to the ground state of motion via sideband cooling,
-    then apply a tickle to create a coherent state to be read out via RSB/BSB comparison.
+    then conduct ramsey spectroscopy on a coherent state (created via tickle) to be read out via RSB/BSB comparison.
     """
-    name = 'QLMSRabi'
+    name = 'QLMSRamsey'
 
 
     def build_experiment(self):
         # QLMS configuration
-        self.setattr_argument("time_qlms_rabi_ms",                              NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
-        self.setattr_argument("att_qlms_rabi_db",                               NumberValue(default=30, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
-        self.setattr_argument("freq_qlms_rabi_khz_list",                        Scannable(
+        self.setattr_argument("time_qlms_ramsey_heat_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
+        self.setattr_argument("time_qlms_ramsey_delay_ms",                      NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
+        self.setattr_argument("att_qlms_ramsey_db",                             NumberValue(default=30, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument("freq_qlms_ramsey_khz_list",                      Scannable(
                                                                                     default=CenterScan(1558, 100, 1, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
@@ -32,17 +33,18 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
         # subsequences
         self.tickle_subsequence =                                               TickleDDS(self,
-                                                                                          time_tickle_ms=self.time_qlms_rabi_ms,
-                                                                                          att_tickle_db=self.att_qlms_rabi_db)
+                                                                                          time_tickle_ms=self.time_qlms_ramsey_heat_ms,
+                                                                                          att_tickle_db=self.att_qlms_ramsey_db)
 
         # run regular sideband cooling build
         super().build_experiment()
 
     def prepare_experiment(self):
-        # convert QLMS modulation to machine units
-        self.freq_qlms_rabi_ftw_list =                                          np.array([
+        # convert QLMS parameters to machine units
+        self.time_qlms_ramsey_delay_mu =                                        self.core.seconds_to_mu(self.time_qlms_ramsey_delay_ms)
+        self.freq_qlms_ramsey_ftw_list =                                        np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
-                                                                                    for freq_khz in self.freq_qlms_rabi_khz_list
+                                                                                    for freq_khz in self.freq_qlms_ramsey_khz_list
                                                                                 ])
 
         # run preparations for sideband cooling
@@ -50,7 +52,7 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_qlms_heating_khz_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.freq_qlms_ramsey_khz_list) * len(self.freq_readout_ftw_list),
                 3)
 
 
@@ -60,7 +62,7 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
         self.core.break_realtime()
 
         # set attenuation for mod dds here to preserve it during DMA sequences
-        self.dds_modulation.set_att_mu(self.att_qlms_rabi_mu)
+        self.dds_modulation.set_att_mu(self.att_qlms_ramsey_mu)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -92,7 +94,7 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
         for trial_num in range(self.repetitions):
 
             # sweep QLMS modulation frequency
-            for freq_qlms_ftw in self.freq_qlms_rabi_ftw_list:
+            for freq_qlms_ftw in self.freq_qlms_ramsey_ftw_list:
 
                 # set QLMS modulation frequency
                 self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
@@ -110,7 +112,9 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
                     # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
-                    # QLMS tickle
+                    # QLMS ramsey
+                    self.tickle_subsequence.run_dma()
+                    delay_mu(self.time_qlms_ramsey_delay_mu)
                     self.tickle_subsequence.run_dma()
 
                     # custom SBC readout
@@ -123,3 +127,4 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
