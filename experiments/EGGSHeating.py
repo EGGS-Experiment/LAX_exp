@@ -46,7 +46,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # get relevant devices
         self.setattr_device('phaser_eggs')
         # tmp remove
+        self.setattr_device('ttl13')
         self.setattr_device('ttl16')
+        self.setattr_device('ttl17')
         # tmp remove
 
         # run regular sideband cooling build
@@ -75,8 +77,19 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phase_eggs_delay_turns =                                       self.phaser_eggs.phase_system_ch1_turns + self.phaser_eggs.phase_inherent_ch1_turns
 
         # tmp remove
+        self.time_ch0_osc1_latency_ns = np.float(61)
+        self.time_ch0_osc2_latency_ns = np.float(61)
+
+        self.time_ch1_all_latency_ns =  np.float(10)
+        self.time_ch1_osc1_latency_ns = np.float(61)
+        self.time_ch1_osc2_latency_ns = np.float(61)
+
         self.time_eggs_delay_ch1_ns = np.float(6.)
         self.time_eggs_sample_delay_ns = np.float(29.)
+        # tmp remove
+
+        # tmp remove
+        # preallocate variables for phase
         self.phase_ch0_osc1 = np.float(0)
         self.phase_ch0_osc2 = np.float(0)
         self.phase_ch1_osc0 = np.float(0)
@@ -188,33 +201,33 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 for freq_ftw in self.freq_readout_ftw_list:
 
                     # set frequency
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                    # self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                     self.core.break_realtime()
 
                     # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
+                    # self.initialize_subsequence.run_dma()
 
                     # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
+                    # self.sidebandcool_subsequence.run_dma()
 
                     # run eggs heating
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
                     # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
+                    # self.core_dma.playback_handle(_handle_sbc_readout)
 
                     # update dataset
-                    with parallel:
-                        self.update_results(
-                            freq_ftw,
-                            self.readout_subsequence.fetch_count(),
-                            (carrier_offset_freq_hz / MHz) + self.phaser_eggs.freq_center_mhz,
-                            sideband_freq_hz
-                        )
-                        self.core.break_realtime()
+                    # with parallel:
+                    #     self.update_results(
+                    #         freq_ftw,
+                    #         self.readout_subsequence.fetch_count(),
+                    #         (carrier_offset_freq_hz / MHz) + self.phaser_eggs.freq_center_mhz,
+                    #         sideband_freq_hz
+                    #     )
+                    #     self.core.break_realtime()
 
             # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
+            # self.rescue_subsequence.run(trial_num)
 
         # CLEANUP
         self.core.break_realtime()
@@ -233,6 +246,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
         # tmp remove
+        # self.phase_ch1_osc1 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
+        # self.phase_ch1_osc2 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + 2. * self.time_eggs_sample_delay_ns) * ns )
+        #
+        # self.phase_ch1_osc0 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
+        # self.phase_ch1_osc1 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
+        # self.phase_ch1_osc2 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + 2. * self.time_eggs_sample_delay_ns) * ns )
+        self.phase_ch1_osc1 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
+        self.phase_ch1_osc2 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + 2. * self.time_eggs_sample_delay_ns) * ns )
+
+        self.phase_ch1_osc0 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
         self.phase_ch1_osc1 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + self.time_eggs_sample_delay_ns) * ns)
         self.phase_ch1_osc2 = ((self.phaser_eggs.freq_center_mhz * MHz + carrier_offset_freq_hz) + (-sideband_freq_hz)) * ((self.time_eggs_delay_ch1_ns + 2. * self.time_eggs_sample_delay_ns) * ns )
         # self.core.break_realtime()
@@ -297,32 +320,43 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # activate eggs heating output - channel 0
         at_mu(self.phaser_eggs.get_next_frame_mu())
         # tmp remove
-        with parallel:
-            self.ttl16.on()
-            delay_mu(320)
+        # with parallel:
+        #     self.ttl13.on()
+        #     delay_mu(320)
         # tmp remove
 
         # activate eggs heating output
+        # set oscillator 0
         with parallel:
+            # tmp remove
+            self.ttl13.on()
+            # tmp remove
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.,
-                                                                          phase=self.phase_eggs_delay_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
+
+        # set oscillator 1
         with parallel:
+            # tmp remove
+            self.ttl16.on()
+            # tmp remove
             # note: magic number is -0.83 turns for ch1 here (87.2831 carrier, -0.8 sideband)
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
             # self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.,
             #                                                               phase=self.phase_eggs_delay_turns-0.83, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_rsb_frac,
-                                                                          phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
+
+        # set oscillator 2
         with parallel:
+            # tmp remove
+            self.ttl17.on()
+            # tmp remove
             # note: magic number is +0.135 turns for ch1 here (87.2831 carrier, -0.8 sideband)
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
             # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.,
             #                                                               phase=self.phase_eggs_delay_turns+0.135, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.,
-                                                                          phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
 
         # leave eggs heating running
@@ -343,7 +377,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             delay_mu(self.phaser_eggs.t_sample_mu)
 
         # tmp remove
+        self.ttl13.off()
         self.ttl16.off()
+        self.ttl17.off()
         # tmp remove
 
     # tmp remove
