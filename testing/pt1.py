@@ -2,9 +2,13 @@ import numpy as np
 from artiq.experiment import *
 
 class pt1(EnvExperiment):
+
     def build(self):
-        self.freq_carrier_hz_list =                 np.array([70.4]) * MHz
-        self.freq_sideband_hz_list =                np.array([5000]) * kHz
+        # 82, 83, 86.7 carriers
+        # 1.202, 1 kHz, 200 Hz step
+        # RSB/BSB/DD 40%/40%/20%
+        self.freq_carrier_hz_list =                 np.array([82]) * MHz
+        self.freq_sideband_hz_list =                np.array([1200]) * kHz
         self.time_pulse_ms =                        0.1
 
 
@@ -44,16 +48,16 @@ class pt1(EnvExperiment):
 
         # global latency values
         self.time_output_delay_mu =                 np.int64(1933)
-        self.time_ch1_all_latency_ns =              0.
+        self.phas_ch1_global_latency_turns =        0.15
 
-        # store ch1 latency values
+        # store ch0 latency values
         self.time_ch0_osc1_latency_ns =             40.
-        self.time_ch0_osc2_latency_ns =             0.
+        self.time_ch0_osc2_latency_ns =             80.
 
         # store ch1 latency values
         self.time_ch1_osc0_latency_ns =             0.
-        self.time_ch1_osc1_latency_ns =             0.
-        self.time_ch1_osc2_latency_ns =             0.
+        self.time_ch1_osc1_latency_ns =             40.
+        self.time_ch1_osc2_latency_ns =             80.
 
 
     @kernel(flags={"fast-math"})
@@ -76,7 +80,6 @@ class pt1(EnvExperiment):
             self.phaser_reset()
             # set oscillator waveforms
             self.phaser_run()
-
             # 2 ms delay
             delay_mu(2000000)
 
@@ -112,16 +115,15 @@ class pt1(EnvExperiment):
     @kernel(flags={"fast-math"})
     def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
         # osc 0
-        self.phase_ch1_osc0 = (-sideband_freq_hz) * ((self.time_ch1_osc0_latency_ns) * ns)
+        self.phase_ch1_osc0 = self.phas_ch1_global_latency_turns
 
         # osc 1
-        # self.phase_ch0_osc1 = (carrier_freq_hz - sideband_freq_hz) * ((self.time_ch0_osc1_latency_ns) * ns)
-        self.phase_ch0_osc1 = (-sideband_freq_hz) * ((self.time_ch0_osc1_latency_ns) * ns)
-        self.phase_ch1_osc1 = (-sideband_freq_hz) * ((self.time_ch1_osc1_latency_ns) * ns)
+        self.phase_ch0_osc1 = (sideband_freq_hz) * ((self.time_ch0_osc1_latency_ns) * ns)
+        self.phase_ch1_osc1 = (sideband_freq_hz) * ((self.time_ch1_osc1_latency_ns) * ns) + self.phas_ch1_global_latency_turns
 
         # osc 2
-        self.phase_ch0_osc2 = (- sideband_freq_hz) * ((self.time_ch0_osc2_latency_ns) * ns)
-        self.phase_ch1_osc2 = (- sideband_freq_hz) * ((self.time_ch1_osc2_latency_ns) * ns)
+        self.phase_ch0_osc2 = 0.
+        self.phase_ch1_osc2 = self.phas_ch1_global_latency_turns
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser0.get_next_frame_mu())
@@ -141,13 +143,13 @@ class pt1(EnvExperiment):
             delay_mu(self.t_sample_mu)
         # set osc 1: bsb
         with parallel:
-            self.phaser0.channel[0].oscillator[1].set_frequency(-sideband_freq_hz)
-            self.phaser0.channel[1].oscillator[1].set_frequency(-sideband_freq_hz)
+            self.phaser0.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
+            self.phaser0.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
             delay_mu(self.t_sample_mu)
         # set osc 2: carrier
         with parallel:
-            self.phaser0.channel[0].oscillator[2].set_frequency(-sideband_freq_hz)
-            self.phaser0.channel[1].oscillator[2].set_frequency(-sideband_freq_hz)
+            self.phaser0.channel[0].oscillator[2].set_frequency(0.)
+            self.phaser0.channel[1].oscillator[2].set_frequency(0.)
             delay_mu(self.t_sample_mu)
 
     @kernel(flags={"fast-math"})
@@ -156,8 +158,8 @@ class pt1(EnvExperiment):
         at_mu(self.phaser0.get_next_frame_mu())
         time_start_mu = now_mu()
         with parallel:
-            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0.15, clr=0)
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=0., clr=0)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
             with sequential:
                 delay_mu(self.time_output_delay_mu)
                 self.ttl13.on()
@@ -165,8 +167,8 @@ class pt1(EnvExperiment):
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0.15, clr=0)
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc1, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -175,8 +177,8 @@ class pt1(EnvExperiment):
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.99, phase=0., clr=0)
-            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.99, phase=0.15, clr=0)
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
