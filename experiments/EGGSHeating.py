@@ -282,7 +282,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_duc_frequency(carrier_offset_freq_hz)
         # strobe updates for both channels
-        at_mu(self.phaser_eggs.get_next_frame_mu())
+        delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.duc_stb()
 
         # set sideband frequencies
