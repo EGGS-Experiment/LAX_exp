@@ -232,7 +232,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # channel 1
         self.phase_ch1_osc0 = self.phaser_eggs.phase_inherent_ch1_turns
         self.phase_ch1_osc1 = (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) + self.phaser_eggs.phase_inherent_ch1_turns
-        self.phase_ch1_osc2 = 0. + self.phaser_eggs.phase_inherent_ch1_turns
+        # note: extra 0.5 here is to put carrier in dipole config
+        self.phase_ch1_osc2 = 0. + self.phaser_eggs.phase_inherent_ch1_turns + 0.5
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser_eggs.get_next_frame_mu())
