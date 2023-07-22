@@ -162,7 +162,7 @@ class pt1(EnvExperiment):
             self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl13.on()
+                self.ttl16.on()
 
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
@@ -172,13 +172,13 @@ class pt1(EnvExperiment):
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl16.on()
+                self.ttl13.on()
 
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
         with parallel:
             self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2 + 0.5, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -197,7 +197,7 @@ class pt1(EnvExperiment):
         print("\t\t{}".format(self.config_frequencies_list / MHz))
 
         print("\tosc0:")
-        print("\t\tphase ch1 osc0 {:.3f}\n".format(self.phase_ch1_osc0))
+        print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
 
         print("\tosc1:")
         print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))

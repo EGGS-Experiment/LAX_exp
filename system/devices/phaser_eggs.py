@@ -29,12 +29,11 @@ class PhaserEGGS(LAXDevice):
 
     def prepare_device(self):
         # get frequency parameters
-        self.freq_center_mhz =              self.get_parameter('freq_center_mhz', group='eggs', override=False)
-        self.freq_center_ftw =              int32(hz_to_ftw(self.freq_center_mhz * MHz))
+        self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
+        self.freq_center_ftw =              int32(hz_to_ftw(self.freq_center_hz))
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
-        self.phase_system_ch1_turns =       self.get_parameter('phas_ch1_system_turns', group='eggs', override=False)
 
     @kernel(flags={'fast-math'})
     def initialize_device(self):
@@ -56,15 +55,39 @@ class PhaserEGGS(LAXDevice):
         self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
 
-    # todo: create clear channel phase function that consists of the following
-    # at_mu(self.phaser_eggs.get_next_frame_mu())
-    # self.phaser_eggs.channel[0].set_duc_cfg(clr_once=1)
-    # delay_mu(self.phaser_eggs.t_sample_mu)
-    # self.phaser_eggs.channel[1].set_duc_cfg(clr_once=1)
-    # # strobe update register for both DUCs
-    # delay_mu(self.phaser_eggs.t_sample_mu)
-    # self.phaser_eggs.duc_stb()
+    @kernel(flags={"fast-math"})
+    def reset_duc_phase(self):
+        """
+        Disable amplitude and phase accumulator for all oscillators.
+        """
+        # synchronize to frame
+        at_mu(self.phaser.get_next_frame_mu())
 
+        # clear DUC phase accumulator for both channels
+        self.phaser.channel[0].set_duc_cfg(clr_once=1)
+        delay_mu(self.t_frame_mu)
+        self.phaser.channel[1].set_duc_cfg(clr_once=1)
+        delay_mu(self.t_frame_mu)
+
+        # strobe update register for both DUCs
+        self.phaser.duc_stb()
+
+    @kernel(flags={"fast-math"})
+    def disable_oscillators(self):
+        """
+        Set amplitude to 0 and keep phase accumulator cleared for all oscillators.
+        """
+        # synchronize to frame
+        at_mu(self.phaser.get_next_frame_mu())
+
+        # clear oscillator amplitudes
+        for i in range(5):
+
+            # do it for both channels
+            with parallel:
+                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+                delay_mu(self.t_sample_mu)
 
     @kernel(flags={"fast-math"})
     def reset_oscillators(self):
