@@ -19,13 +19,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # EGGS RF scan configuration
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 # default=CenterScan(85.1, 0.002, 0.001, randomize=True),
-                                                                                default=ExplicitScan([87.8273, 82.1923]),
+                                                                                default=ExplicitScan([82, 83, 86.7]),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
-                                                                                # default=CenterScan(1410, 0.001, 0.0001, randomize=True),
-                                                                                default=ExplicitScan([800, 3400]),
+                                                                                default=CenterScan(1410, 2, 0.2, randomize=True),
+                                                                                # default=ExplicitScan([800, 3400]),
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating')
@@ -79,6 +79,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         ### EGGS HEATING - CONFIG ###
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
+        # todo: shuffle config order
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
         self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
         self.config_eggs_heating_list[:, 2:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
