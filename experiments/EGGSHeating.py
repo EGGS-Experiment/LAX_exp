@@ -314,18 +314,3 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             delay_mu(self.phaser_eggs.t_sample_mu)
-
-    def analyze(self):
-        print("\tconfig:")
-        print("\t\t{}\n".format(self.config_eggs_heating_list))
-
-        print("\tosc0:")
-        print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
-
-        print("\tosc1:")
-        print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))
-        print("\t\tphase ch1 osc1: {:.3f}\n".format(self.phase_ch1_osc1))
-
-        print("\tosc2:")
-        print("\t\tphase ch0 osc2: {:.3f}".format(self.phase_ch0_osc2))
-        print("\t\tphase ch1 osc2: {:.3f}\n".format(self.phase_ch1_osc2))
