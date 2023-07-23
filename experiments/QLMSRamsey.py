@@ -19,7 +19,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # QLMS configuration
-        self.setattr_argument("time_qlms_ramsey_delay_ms",                      NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
+        self.setattr_argument("time_qlms_ramsey_delay_ms",                      NumberValue(default=0.5, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
         self.setattr_argument("freq_qlms_ramsey_khz_list",                      Scannable(
                                                                                     default=CenterScan(1558, 5, 1, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
