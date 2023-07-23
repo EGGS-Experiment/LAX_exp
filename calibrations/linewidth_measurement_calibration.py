@@ -239,10 +239,10 @@ class LinewidthMeasurementCalibration(EnvExperiment):
                 [('DDS Amplitude', 'Amplitude', 'pct')],
                 context=cr
             )
-            print("Data vault setup successful.")
 
             # upload data to labrad's Data Vault
             dv.add(calib_final, context=cr)
+            print("\tLabRAD upload successful.")
 
         except Exception as e:
             print(e)
