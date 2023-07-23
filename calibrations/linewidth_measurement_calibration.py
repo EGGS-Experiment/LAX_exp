@@ -242,7 +242,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
             print("Data vault setup successful.")
 
             # upload data to labrad's Data Vault
-            self.dv.add(calib_final, context=cr)
+            dv.add(calib_final, context=cr)
 
         except Exception as e:
             print(e)
