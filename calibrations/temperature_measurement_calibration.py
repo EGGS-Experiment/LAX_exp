@@ -22,8 +22,8 @@ class TemperatureMeasurementCalibration(EnvExperiment):
         self.setattr_device("core_dma")
 
         # search parameters
-        self.setattr_argument("target_voltage_mv",                          NumberValue(default=40, ndecimals=3, step=1, min=-10000, max=10000), group='ADC')
-        self.setattr_argument("target_tolerance_mv",                        NumberValue(default=1, ndecimals=3, step=1, min=0, max=1000), group='ADC')
+        self.setattr_argument("target_voltage_mv",                          NumberValue(default=40, ndecimals=3, step=1, min=-10000, max=10000))
+        self.setattr_argument("target_tolerance_mv",                        NumberValue(default=1, ndecimals=3, step=1, min=0, max=1000))
 
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",                          Scannable(
