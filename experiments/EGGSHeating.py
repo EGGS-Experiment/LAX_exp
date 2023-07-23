@@ -19,13 +19,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # EGGS RF scan configuration
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 # default=CenterScan(85.1, 0.002, 0.001, randomize=True),
-                                                                                default=ExplicitScan([82, 83, 86.7]),
+                                                                                default=ExplicitScan([82]),
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
-                                                                                default=CenterScan(1202, 2, 0.2, randomize=True),
-                                                                                # default=ExplicitScan([800, 3400]),
+                                                                                # default=CenterScan(1202, 2, 0.2, randomize=True),
+                                                                                default=ExplicitScan([1200]),
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating')
@@ -33,7 +33,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # EGGS RF pulse configuration
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
 
         # EGGS RF error correction configuration (e.g. dynamical decoupling)
@@ -222,16 +222,19 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
-        # calculate phase delays for oscillators
-        phase_system_ch1_turns =        (carrier_freq_hz - sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
         # channel 0
         self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
         self.phase_ch0_osc2 =           0.
         # channel 1
-        self.phase_ch1_osc0 =           self.phaser_eggs.phase_inherent_ch1_turns
-        self.phase_ch1_osc1 =           (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) + self.phaser_eggs.phase_inherent_ch1_turns + phase_system_ch1_turns
+        self.phase_ch1_osc0 =           self.phaser_eggs.phase_inherent_ch1_turns +\
+                                        ((carrier_freq_hz - sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns))
+        self.phase_ch1_osc1 =           self.phaser_eggs.phase_inherent_ch1_turns +\
+                                        (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) +\
+                                        (carrier_freq_hz + sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
         # note: extra 0.5 here is to put carrier in dipole config
-        self.phase_ch1_osc2 =           0. + self.phaser_eggs.phase_inherent_ch1_turns + 0.5 + phase_system_ch1_turns
+        self.phase_ch1_osc2 =           self.phaser_eggs.phase_inherent_ch1_turns +\
+                                        ((carrier_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)) +\
+                                        0.5
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -314,3 +317,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             delay_mu(self.phaser_eggs.t_sample_mu)
+
+    def analyze(self):
+        print("\tconfig:")
+        print("\t\t{}".format(self.config_eggs_heating_list))
+
+        print("\tosc0:")
+        print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
+
+        print("\tosc1:")
+        print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))
+        print("\t\tphase ch1 osc1: {:.3f}\n".format(self.phase_ch1_osc1))
+
+        print("\tosc2:")
+        print("\t\tphase ch0 osc2: {:.3f}".format(self.phase_ch0_osc2))
+        print("\t\tphase ch1 osc2: {:.3f}\n".format(self.phase_ch1_osc2))
