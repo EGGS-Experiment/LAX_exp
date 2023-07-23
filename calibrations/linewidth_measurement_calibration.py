@@ -6,9 +6,9 @@ from datetime import datetime
 from artiq.experiment import *
 
 
-class TemperatureMeasurementCalibration(EnvExperiment):
+class LinewidthMeasurementCalibration(EnvExperiment):
     """
-    Calibration: Temperature Measurement Calibration
+    Calibration: Linewidth Measurement Calibration
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """
@@ -245,4 +245,5 @@ class TemperatureMeasurementCalibration(EnvExperiment):
             self.dv.add(calib_final, context=cr)
 
         except Exception as e:
+            print(e)
             print("Warning: unable to upload data to labrad.")
