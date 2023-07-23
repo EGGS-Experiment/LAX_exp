@@ -27,7 +27,7 @@ class TemperatureMeasurementCalibration(EnvExperiment):
 
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",                          Scannable(
-                                                                                default=RangeScan(95, 125, 20, randomize=True),
+                                                                                default=RangeScan(95, 125, 121, randomize=True),
                                                                                 global_min=70, global_max=140, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ), group='DDS')
@@ -37,7 +37,7 @@ class TemperatureMeasurementCalibration(EnvExperiment):
         self.setattr_argument("dds_attenuation_db",                         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup
-        self.setattr_argument("adc_channel_num",                            NumberValue(default=6, ndecimals=0, step=1, min=0, max=7), group='ADC')
+        self.setattr_argument("adc_channel_num",                            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='ADC')
         self.setattr_argument("adc_gain_num",                               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
         self.setattr_argument("adc_sample_num",                             NumberValue(default=100, ndecimals=0, step=1, min=1, max=5000), group='ADC')
 
@@ -242,7 +242,7 @@ class TemperatureMeasurementCalibration(EnvExperiment):
             print("Data vault setup successful.")
 
             # upload data to labrad's Data Vault
-            self.dv.add(calib_final, context=self.cr)
+            self.dv.add(calib_final, context=cr)
 
         except Exception as e:
             print("Warning: unable to upload data to labrad.")
