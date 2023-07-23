@@ -31,10 +31,9 @@ class DDSModulation(LAXDevice):
             self.mod_switch.on()
             self.cfg_sw(False)
 
-        # set up DDS to reinitialize phase each time it turns on/off
+        # set up DDS to reinitialize phase each time we set waveform values
         self.set_mu(self.freq_modulation_ftw, asf=self.ampl_modulation_asf, profile=0)
         self.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.set_cfr1(phase_autoclear=1)
         self.core.break_realtime()
 
 
@@ -62,4 +61,5 @@ class DDSModulation(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def reset_phase(self):
+        self.set_cfr1(phase_autoclear=1)
         self.dds.cpld.io_update.pulse_mu(8)
