@@ -223,7 +223,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
         # calculate phase delays for oscillators
-        phase_system_ch1_turns =        (carrier_freq_hz - sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
+        phase_system_ch1_turns =        (carrier_freq_hz - sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
         # channel 0
         self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
         self.phase_ch0_osc2 =           0.
