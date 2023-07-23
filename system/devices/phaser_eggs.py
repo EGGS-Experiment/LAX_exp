@@ -34,6 +34,7 @@ class PhaserEGGS(LAXDevice):
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
+        self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='eggs', override=False)
 
     @kernel(flags={'fast-math'})
     def initialize_device(self):

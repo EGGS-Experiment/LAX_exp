@@ -66,9 +66,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
 
         ### EGGS HEATING - PHASES/TIMING ###
-        # todo: get system time delay between outputs
-        # self.phase_inherent_ch1_turns =                                     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
-
         # preallocate variables for phase
         self.phase_ch0_osc1 = np.float(0)
         self.phase_ch0_osc2 = np.float(0)
@@ -226,14 +223,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
         # calculate phase delays for oscillators
+        phase_system_ch1_turns =        (carrier_freq_hz - sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
         # channel 0
-        self.phase_ch0_osc1 = sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
-        self.phase_ch0_osc2 = 0.
+        self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
+        self.phase_ch0_osc2 =           0.
         # channel 1
-        self.phase_ch1_osc0 = self.phaser_eggs.phase_inherent_ch1_turns
-        self.phase_ch1_osc1 = (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) + self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_ch1_osc0 =           self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_ch1_osc1 =           (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) + self.phaser_eggs.phase_inherent_ch1_turns + phase_system_ch1_turns
         # note: extra 0.5 here is to put carrier in dipole config
-        self.phase_ch1_osc2 = 0. + self.phaser_eggs.phase_inherent_ch1_turns + 0.5
+        self.phase_ch1_osc2 =           0. + self.phaser_eggs.phase_inherent_ch1_turns + 0.5 + phase_system_ch1_turns
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser_eggs.get_next_frame_mu())
