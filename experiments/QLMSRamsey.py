@@ -37,7 +37,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
     def prepare_experiment(self):
         # convert QLMS parameters to machine units
-        self.time_qlms_ramsey_delay_mu =                                        self.core.seconds_to_mu(self.time_qlms_ramsey_delay_ms)
+        self.time_qlms_ramsey_delay_mu =                                        self.core.seconds_to_mu(self.time_qlms_ramsey_delay_ms * ms)
         self.freq_qlms_ramsey_ftw_list =                                        np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_ramsey_khz_list
