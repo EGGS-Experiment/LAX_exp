@@ -19,22 +19,18 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # QLMS configuration
-        self.setattr_argument("time_qlms_ramsey_heat_ms",                       NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
         self.setattr_argument("time_qlms_ramsey_delay_ms",                      NumberValue(default=2, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
-        self.setattr_argument("att_qlms_ramsey_db",                             NumberValue(default=30, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
         self.setattr_argument("freq_qlms_ramsey_khz_list",                      Scannable(
-                                                                                    default=CenterScan(1558, 100, 1, randomize=True),
+                                                                                    default=CenterScan(1558, 5, 1, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
 
+        # subsequences
+        self.tickle_subsequence =                                               TickleDDS(self)
+
         # get relevant devices
         self.setattr_device('dds_modulation')
-
-        # subsequences
-        self.tickle_subsequence =                                               TickleDDS(self,
-                                                                                          time_tickle_ms=self.time_qlms_ramsey_heat_ms,
-                                                                                          att_tickle_db=self.att_qlms_ramsey_db)
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -60,9 +56,6 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
-
-        # set attenuation for mod dds here to preserve it during DMA sequences
-        self.dds_modulation.set_att_mu(self.att_qlms_ramsey_mu)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()

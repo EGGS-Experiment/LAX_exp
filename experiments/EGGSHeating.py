@@ -24,7 +24,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
-                                                                                default=CenterScan(1410, 2, 0.2, randomize=True),
+                                                                                default=CenterScan(1202, 2, 0.2, randomize=True),
                                                                                 # default=ExplicitScan([800, 3400]),
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
@@ -34,7 +34,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating')
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
 
         # EGGS RF error correction configuration (e.g. dynamical decoupling)
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
