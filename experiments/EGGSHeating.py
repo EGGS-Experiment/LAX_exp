@@ -17,6 +17,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # EGGS RF scan configuration
+        self.setattr_argument("randomize_config",                           BooleanValue(default=True), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 # default=CenterScan(85.1, 0.002, 0.001, randomize=True),
                                                                                 default=ExplicitScan([82]),
@@ -105,6 +106,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
         if not self.enable_dynamical_decoupling:
             self.config_eggs_heating_list[:, 4] = 0.
+
+        # if randomize_config is enabled, completely randomize the sweep order
+        # i.e. random readout and EGGS heating parameters each iteration, instead of sweeping 1D by 1D
+        if self.randomize_config:
+            np.random.shuffle(self.config_eggs_heating_list)
 
         # run preparations for sideband cooling
         super().prepare_experiment()
