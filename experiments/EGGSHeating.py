@@ -19,14 +19,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # EGGS RF scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=True), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
-                                                                                # default=CenterScan(85.1, 0.002, 0.001, randomize=True),
-                                                                                default=ExplicitScan([82]),
+                                                                                default=[
+                                                                                    ExplicitScan([82, 83, 86.7]),
+                                                                                    CenterScan(85.1, 0.002, 0.001, randomize=True)
+                                                                                ],
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
-                                                                                # default=CenterScan(1202, 2, 0.2, randomize=True),
-                                                                                default=ExplicitScan([1200]),
+                                                                                default=[
+                                                                                    ExplicitScan([1200]),
+                                                                                    CenterScan(1202, 2, 0.2, randomize=True)
+                                                                                ],
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating')

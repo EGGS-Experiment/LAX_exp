@@ -20,7 +20,7 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_khz_list",                        Scannable(
-                                                                                    default=CenterScan(1558, 10, 1, randomize=True),
+                                                                                    default=CenterScan(1101, 10, 0.25, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)

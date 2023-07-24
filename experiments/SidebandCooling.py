@@ -26,14 +26,19 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            # default=CenterScan(102.766, 0.02, 0.0005),
-                                                                            default=(ExplicitScan([102.766])),
+                                                                            default=[
+                                                                                CenterScan(102.766, 0.02, 0.0005, randomize=True),
+                                                                                ExplicitScan([102.766])
+                                                                            ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
-                                                                            default=(ExplicitScan([104.064])),
+                                                                            default=[
+                                                                                CenterScan(104.064, 0.02, 0.0005, randomize=True),
+                                                                                ExplicitScan([104.064])
+                                                                            ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')

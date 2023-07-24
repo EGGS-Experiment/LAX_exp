@@ -83,7 +83,10 @@ class pt1(EnvExperiment):
             # set oscillator waveforms
             self.phaser_run()
             # 2 ms delay
-            delay_mu(2000000)
+            delay_mu(10)
+
+        # tmp remove
+        self.phaser_reset()
 
     @kernel(flags={"fast-math"})
     def phaser_reset(self):
