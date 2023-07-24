@@ -20,14 +20,14 @@ class PhaserEGGS(LAXDevice):
 
 
     def build_device(self):
-        # alias both phaser output channels
-        self.channel =                      self.phaser.channel
-
         # set phaser sample/frame timings
         self.t_sample_mu =                  int64(40)
         self.t_frame_mu =                   int64(320)
 
     def prepare_device(self):
+        # alias both phaser output channels
+        self.channel =                      self.phaser.channel
+
         # get frequency parameters
         self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
         self.freq_center_ftw =              int32(hz_to_ftw(self.freq_center_hz))
