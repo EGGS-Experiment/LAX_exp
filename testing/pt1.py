@@ -88,6 +88,11 @@ class pt1(EnvExperiment):
         # tmp remove
         self.phaser_reset()
 
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser0.channel[1].set_att(31.5 * dB)
+
     @kernel(flags={"fast-math"})
     def phaser_reset(self):
         # clear oscillators
