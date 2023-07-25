@@ -8,7 +8,7 @@ class pt1(EnvExperiment):
         # 1.202, 1 kHz, 200 Hz step
         # RSB/BSB/DD 40%/40%/20%
         self.freq_carrier_hz_list =                 np.array([82]) * MHz
-        self.freq_sideband_hz_list =                np.array([1200]) * kHz
+        self.freq_sideband_hz_list =                np.array([1101]) * kHz
         self.time_pulse_ms =                        0.1
 
 
@@ -67,9 +67,9 @@ class pt1(EnvExperiment):
         # initialize
         self.core.reset()
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(30. * dB)
+        self.phaser0.channel[0].set_att(31.5 * dB)
         delay_mu(self.t_sample_mu)
-        self.phaser0.channel[1].set_att(30. * dB)
+        self.phaser0.channel[1].set_att(31.5 * dB)
 
         # run
         for config_vals in self.config_frequencies_list:
@@ -120,18 +120,22 @@ class pt1(EnvExperiment):
     @kernel(flags={"fast-math"})
     def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
         # calculate ch1 latency through system
-        self.phase_ch1_system_latency_turns = (carrier_freq_hz - sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
+        # self.phase_ch1_system_latency_turns = (carrier_freq_hz - sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
 
         # osc 0
-        self.phase_ch1_osc0 = (self.phas_ch1_global_latency_turns + self.phase_ch1_system_latency_turns)
+        self.phase_ch1_osc0 = self.phas_ch1_global_latency_turns + \
+                              (carrier_freq_hz - sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
 
         # osc 1
-        self.phase_ch0_osc1 = (sideband_freq_hz) * ((self.time_ch0_osc1_latency_ns) * ns)
-        self.phase_ch1_osc1 = (sideband_freq_hz) * ((self.time_ch1_osc1_latency_ns) * ns) + (self.phas_ch1_global_latency_turns + self.phase_ch1_system_latency_turns)
+        self.phase_ch0_osc1 = sideband_freq_hz * (self.time_ch0_osc1_latency_ns * ns)
+        self.phase_ch1_osc1 = self.phas_ch1_global_latency_turns +\
+                              sideband_freq_hz * (self.time_ch1_osc1_latency_ns * ns) +\
+                              (carrier_freq_hz + sideband_freq_hz) * (self.time_ch1_system_latency_ns * ns)
 
         # osc 2
         self.phase_ch0_osc2 = 0.
-        self.phase_ch1_osc2 = (self.phas_ch1_global_latency_turns + self.phase_ch1_system_latency_turns)
+        self.phase_ch1_osc2 = self.phas_ch1_global_latency_turns +\
+                              carrier_freq_hz * (self.time_ch1_system_latency_ns * ns)
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser0.get_next_frame_mu())
