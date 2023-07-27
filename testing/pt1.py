@@ -85,7 +85,7 @@ class pt1(EnvExperiment):
             # 2 ms delay
             delay_mu(10)
 
-        self.tmp()
+        # self.tmp()
 
 
     @kernel(flags={"fast-math"})
