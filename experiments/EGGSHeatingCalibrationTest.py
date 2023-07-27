@@ -1,18 +1,19 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
 
-class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
+class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
     """
-    Experiment: EGGS Heating Single
+    Experiment: EGGS Heating Dipole Test
 
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
     """
-    name = 'EGGS Heating'
+    name = 'EGGS Heating Dipole Test'
 
 
     def build_experiment(self):
@@ -47,6 +48,9 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
+        self.setattr_device('urukul0_cpld')
+        self.setattr_device('urukul0_ch2')
+        self.setattr_device('urukul0_ch3')
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -70,18 +74,9 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
         self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
 
-        ### EGGS HEATING - PHASES/TIMING ###
-        # preallocate variables for phase
-        self.phase_ch0_osc1 = np.float(0)
-        self.phase_ch0_osc2 = np.float(0)
-        self.phase_ch1_osc0 = np.float(0)
-        self.phase_ch1_osc1 = np.float(0)
-        self.phase_ch1_osc2 = np.float(0)
-
         ### EGGS HEATING - CONFIG ###
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
-        # todo: shuffle config order
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
         self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
         self.config_eggs_heating_list[:, 2:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
@@ -116,6 +111,23 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
         if self.randomize_config:
             np.random.shuffle(self.config_eggs_heating_list)
 
+
+        # tmp remove
+        self.dds_asf = self.urukul0_ch2.amplitude_to_asf(0.35)
+        # tmp remove
+
+        # tmp remove: create empty phase holder
+        self.dds_pow = np.int32(0)
+        self.dds_phase_ch3_turns = 0.5
+        self.dds_delay_ch3_ns = 0.01
+        # tmp remove
+
+        # tmp remove: calculate attenuation register for urukul
+        att_val = self.urukul0_cpld.att_to_mu(self.att_eggs_heating_db * dB)
+        self.dds_att_reg = np.int32(0x0000FFFF)
+        self.dds_att_reg |= ((att_val << (3 * 8)) | (att_val << (2 * 8)))
+        # tmp remove
+
         # run preparations for sideband cooling
         super().prepare_experiment()
 
@@ -133,6 +145,12 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
 
         ### BEGIN COPY AND PASTE FROM SIDEBANDCOOLING ###
         self.core.break_realtime()
+
+        # tmp remove: set urukul phase mode
+        self.urukul0_ch2.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        # tmp remove
+
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -152,12 +170,24 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
             self.readout_subsequence.run()
         ### END COPY AND PASTE FROM SIDEBANDCOOLING ###
 
-        # set attenuations for phaser outputs
-        self.core.break_realtime()
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+        # tmp remove: dipole heating sequence
+        with self.core_dma.record('_DDS_DIPOLE'):
+            # set dds attenuation here - ensures that dds channel will have correct attenuation
+            self.urukul0_cpld.set_all_att_mu(self.dds_att_reg)
+            self.urukul0_cpld.set_profile(0)
+
+            # reset signal phase
+            with parallel:
+                self.urukul0_ch2.set_cfr1(phase_autoclear=1)
+                self.urukul0_ch3.set_cfr1(phase_autoclear=1)
+            # latch phase reset
+            self.urukul0_cpld.io_update.pulse_mu(8)
+
+            # tickle for given time
+            self.urukul0_cpld.cfg_switches(0b1100)
+            delay_mu(self.time_eggs_heating_mu)
+            self.urukul0_cpld.cfg_switches(0b0000)
+
 
     @kernel(flags={"fast-math"})
     def run_main(self):
@@ -165,6 +195,7 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
 
         # get custom sequence handles
         _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
+        _handle_dds_dipole = self.core_dma.get_handle('_DDS_DIPOLE')
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
@@ -180,9 +211,17 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
                 ampl_dd_frac =              config_vals[4]
                 self.core.break_realtime()
 
-                # configure EGGS tones
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
-                self.core.break_realtime()
+                # tmp remove: set up urukul channel frequencies and phase
+                freq_dds_ftw = self.urukul0_ch2.frequency_to_ftw(sideband_freq_hz)
+                self.dds_pow = self.urukul0_ch2.turns_to_pow((self.dds_delay_ch3_ns * ns * sideband_freq_hz) + self.dds_phase_ch3_turns)
+                # tmp remove
+
+                # tmp remove: set urukul0_ch2 and urukul0_ch3 frequencies
+                with parallel:
+                    self.urukul0_ch2.set_mu(freq_dds_ftw, asf=self.dds_asf, pow=0, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
+                    self.urukul0_ch2.set_mu(freq_dds_ftw, asf=self.dds_asf, pow=self.dds_pow, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
+                # tmp remove: set urukul0_ch2 and urukul0_ch3 frequencies
+
 
                 # sweep 729nm readout frequency
                 for freq_ftw in self.freq_readout_ftw_list:
@@ -197,8 +236,8 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
                     # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
-                    # run eggs heating
-                    self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
+                    # run eggs heating (dds dipole, calibration test)
+                    self.core_dma.playback_handle(_handle_dds_dipole)
 
                     # custom SBC readout
                     self.core_dma.playback_handle(_handle_sbc_readout)
@@ -215,138 +254,3 @@ class EGGSHeatingSingle(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
-
-        # CLEANUP
-        self.core.break_realtime()
-        # reset all oscillator frequencies and amplitudes
-        self.phaser_eggs.reset_oscillators()
-        # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-
-
-    # HELPER FUNCTIONS
-    @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
-        """
-        Configure the tones on phaser for EGGS.
-        Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
-        Arguments:
-            carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
-            sideband_freq_hz        (float)     : the holdoff time (in machine units)
-        """
-        # channel 0
-        self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
-        self.phase_ch0_osc2 =           0.
-        # channel 1
-        self.phase_ch1_osc0 =           self.phaser_eggs.phase_inherent_ch1_turns +\
-                                        ((carrier_freq_hz - sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns))
-        self.phase_ch1_osc1 =           self.phaser_eggs.phase_inherent_ch1_turns +\
-                                        (sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)) +\
-                                        (carrier_freq_hz + sideband_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
-        # note: extra 0.5 here is to put carrier in dipole config
-        self.phase_ch1_osc2 =           self.phaser_eggs.phase_inherent_ch1_turns +\
-                                        ((carrier_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)) +\
-                                        0.5
-
-        # set carrier offset frequency via the DUC
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        # strobe updates for both channels
-        self.phaser_eggs.duc_stb()
-
-        # set sideband frequencies
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        # RSB
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # BSB
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # carrier for dynamical decoupling
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
-            self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_run(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
-        """
-        Activate phaser channel outputs for EGGS heating.
-        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # align DUCs of both channels by clearing their phase accumulators
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_cfg(clr_once=1)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_cfg(clr_once=1)
-        # strobe update register to latch change (does simultaneously for both DUCs)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.duc_stb()
-
-        # activate eggs heating output
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        time_start_mu = now_mu()
-
-        # set oscillator 0
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-            # self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
-        # set oscillator 1
-        at_mu(time_start_mu + self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
-            # self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
-        # set oscillator 2
-        at_mu(time_start_mu + 2 * self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
-            # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
-
-        # leave eggs heating running
-        delay_mu(self.time_eggs_heating_mu)
-
-        # disable eggs phaser output
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-
-    def analyze(self):
-        print("\tconfig:")
-        print("\t\t{}".format(self.config_eggs_heating_list))
-
-        print("\tosc0:")
-        print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
-
-        print("\tosc1:")
-        print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))
-        print("\t\tphase ch1 osc1: {:.3f}\n".format(self.phase_ch1_osc1))
-
-        print("\tosc2:")
-        print("\t\tphase ch0 osc2: {:.3f}".format(self.phase_ch0_osc2))
-        print("\t\tphase ch1 osc2: {:.3f}\n".format(self.phase_ch1_osc2))
