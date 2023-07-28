@@ -120,7 +120,7 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
 
         # tmp remove: create empty phase holder
         self.dds_pow = np.int32(0)
-        self.dds_phase_ch3_turns = 0.
+        self.dds_phase_ch3_turns = 0.5
         self.dds_delay_ch3_ns = 2.5
         # tmp remove
 
