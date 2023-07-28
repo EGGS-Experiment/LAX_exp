@@ -21,16 +21,17 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
         self.setattr_argument("randomize_config",                           BooleanValue(default=True), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([82, 83, 86.7]),
-                                                                                    CenterScan(85.1, 0.002, 0.001, randomize=True)
+                                                                                    ExplicitScan([82]),
+                                                                                    # ExplicitScan([82, 83, 86.7]),
+                                                                                    # CenterScan(85.1, 0.002, 0.001, randomize=True)
                                                                                 ],
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([1200]),
-                                                                                    CenterScan(1202, 2, 0.2, randomize=True)
+                                                                                    ExplicitScan([10000]),
+                                                                                    # CenterScan(1202, 2, 0.2, randomize=True)
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=3
@@ -40,7 +41,7 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating')
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
 
         # EGGS RF error correction configuration (e.g. dynamical decoupling)
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
@@ -48,6 +49,7 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
+        self.setattr_device('ttl13')
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul0_ch2')
         self.setattr_device('urukul0_ch3')
@@ -118,8 +120,8 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
 
         # tmp remove: create empty phase holder
         self.dds_pow = np.int32(0)
-        self.dds_phase_ch3_turns = 0.5
-        self.dds_delay_ch3_ns = 0.01
+        self.dds_phase_ch3_turns = 0.
+        self.dds_delay_ch3_ns = 2.5
         # tmp remove
 
         # tmp remove: calculate attenuation register for urukul
@@ -147,8 +149,11 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
         self.core.break_realtime()
 
         # tmp remove: set urukul phase mode
+        # with parallel:
         self.urukul0_ch2.set_phase_mode(PHASE_MODE_ABSOLUTE)
         self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.ttl13.off()
+        self.core.break_realtime()
         # tmp remove
 
 
@@ -177,14 +182,16 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
             self.urukul0_cpld.set_profile(0)
 
             # reset signal phase
-            with parallel:
-                self.urukul0_ch2.set_cfr1(phase_autoclear=1)
-                self.urukul0_ch3.set_cfr1(phase_autoclear=1)
+            # with parallel:
+            self.urukul0_ch2.set_cfr1(phase_autoclear=1)
+            self.urukul0_ch3.set_cfr1(phase_autoclear=1)
             # latch phase reset
             self.urukul0_cpld.io_update.pulse_mu(8)
 
             # tickle for given time
-            self.urukul0_cpld.cfg_switches(0b1100)
+            with parallel:
+                self.urukul0_cpld.cfg_switches(0b1100)
+                self.ttl13.on()
             delay_mu(self.time_eggs_heating_mu)
             self.urukul0_cpld.cfg_switches(0b0000)
 
@@ -217,9 +224,9 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
                 # tmp remove
 
                 # tmp remove: set urukul0_ch2 and urukul0_ch3 frequencies
-                with parallel:
-                    self.urukul0_ch2.set_mu(freq_dds_ftw, asf=self.dds_asf, pow=0, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
-                    self.urukul0_ch2.set_mu(freq_dds_ftw, asf=self.dds_asf, pow=self.dds_pow, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
+                # with parallel:
+                self.urukul0_ch2.set_mu(freq_dds_ftw, pow_=0, asf=self.dds_asf, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
+                self.urukul0_ch3.set_mu(freq_dds_ftw, pow_=self.dds_pow, asf=self.dds_asf, phase_mode=PHASE_MODE_ABSOLUTE, profile=0)
                 # tmp remove: set urukul0_ch2 and urukul0_ch3 frequencies
 
 
@@ -254,3 +261,7 @@ class EGGSHeatingDipoleTest(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+        # tmp remove
+        self.ttl13.off()
+        # tmp remove
