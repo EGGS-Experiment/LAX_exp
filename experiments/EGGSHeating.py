@@ -56,6 +56,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling_pct
         assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
+
         ### EGGS HEATING - TIMING ###
         self.time_eggs_heating_mu =                                         self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
@@ -81,12 +85,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         ### EGGS HEATING - CONFIG ###
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
-        # todo: integrate config with readout frequency
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
         self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
         self.config_eggs_heating_list[:, 2:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
                                                                                       0.4999 * self.ampl_eggs_heating_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # todo: integrate config with readout frequency
 
         ### EGGS HEATING - CALIBRATION ###
         # interpolate calibration dataset
@@ -115,9 +119,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # i.e. random readout and EGGS heating parameters each iteration, instead of sweeping 1D by 1D
         if self.randomize_config:
             np.random.shuffle(self.config_eggs_heating_list)
-
-        # run preparations for sideband cooling
-        super().prepare_experiment()
 
     @property
     def results_shape(self):

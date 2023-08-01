@@ -23,13 +23,13 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
     def prepare_experiment(self):
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
         # convert heating rate timings to machine units
         self.time_heating_rate_mu_list =                                        np.array([seconds_to_mu(time_ms * ms)
                                                                                           for time_ms in self.time_heating_rate_ms_list],
                                                                                          dtype=np.int64)
-
-        # run preparations for sideband cooling
-        super().prepare_experiment()
 
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
@@ -54,8 +54,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep heating rate and readout frequency
-            for config_vals in self.config_eggs_heating_list:
+            # sweep experiment config: heating time and readout frequency
+            for config_vals in self.config_heating_rate_list:
 
                 # extract values from config list
                 time_heating_delay_mu =     config_vals[0]

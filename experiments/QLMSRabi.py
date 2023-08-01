@@ -35,14 +35,19 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
     def prepare_experiment(self):
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
         # convert QLMS modulation to machine units
         self.freq_qlms_rabi_ftw_list =                                          np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_rabi_khz_list
                                                                                 ])
 
-        # run preparations for sideband cooling
-        super().prepare_experiment()
+        # create an array of values for the experiment to sweep
+        # (i.e. DDS tickle frequency & readout FTW)
+        self.config_qlms_rabi_list =                                            np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list, self.freq_readout_ftw_list), -1).reshape(-1, 2)
+        np.random.shuffle(self.config_qlms_rabi_list)
 
     @property
     def results_shape(self):
@@ -84,35 +89,37 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep QLMS modulation frequency
-            for freq_qlms_ftw in self.freq_qlms_rabi_ftw_list:
+            # sweep experiment config: heating time and readout frequency
+            for config_vals in self.config_qlms_rabi_list:
+
+                # extract values from config list
+                freq_qlms_ftw =     config_vals[0]
+                freq_readout_ftw =  config_vals[1]
+                self.core.break_realtime()
 
                 # set QLMS modulation frequency
                 self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
 
-                # sweep readout frequency
-                for freq_readout_ftw in self.freq_readout_ftw_list:
+                # set readout frequency
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.core.break_realtime()
 
-                    # set readout frequency
-                    self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                # QLMS tickle
+                self.tickle_subsequence.run_dma()
+
+                # custom SBC readout
+                self.core_dma.playback_handle(_handle_sbc_readout)
+
+                # update dataset
+                with parallel:
+                    self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw)
                     self.core.break_realtime()
-
-                    # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
-
-                    # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
-
-                    # QLMS tickle
-                    self.tickle_subsequence.run_dma()
-
-                    # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
-
-                    # update dataset
-                    with parallel:
-                        self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw)
-                        self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

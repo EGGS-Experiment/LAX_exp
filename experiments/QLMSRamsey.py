@@ -36,15 +36,16 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
     def prepare_experiment(self):
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
         # convert QLMS parameters to machine units
         self.time_qlms_ramsey_delay_mu =                                        self.core.seconds_to_mu(self.time_qlms_ramsey_delay_ms * ms)
         self.freq_qlms_ramsey_ftw_list =                                        np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_ramsey_khz_list
                                                                                 ])
-
-        # run preparations for sideband cooling
-        super().prepare_experiment()
+        # todo: maybe add sweep for time delay?
 
     @property
     def results_shape(self):
