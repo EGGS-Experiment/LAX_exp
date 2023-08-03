@@ -219,12 +219,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # CLEANUP
         self.core.break_realtime()
         # reset all oscillator frequencies and amplitudes
-        # self.phaser_eggs.reset_oscillators()
-        # # set max attenuations for phaser outputs to reduce effect of internal noise
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # self.phaser_eggs.channel[1].set_att(31.5 * dB)
+        self.phaser_eggs.reset_oscillators()
+        # set max attenuations for phaser outputs to reduce effect of internal noise
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_att(31.5 * dB)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
 
     # HELPER FUNCTIONS
@@ -320,18 +320,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         delay_mu(self.time_eggs_heating_mu)
 
         # disable eggs phaser output
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     delay_mu(self.phaser_eggs.t_sample_mu)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     delay_mu(self.phaser_eggs.t_sample_mu)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-        #     delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.phaser_eggs.t_sample_mu)
 
     def analyze(self):
         print("\tconfig:")
