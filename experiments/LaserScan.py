@@ -96,3 +96,11 @@ class LaserScan(LAXExperiment, Experiment):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+
+    # ANALYSIS
+    def analyze(self):
+        """
+        Fit data and guess potential spectral peaks.
+        """
+        pass

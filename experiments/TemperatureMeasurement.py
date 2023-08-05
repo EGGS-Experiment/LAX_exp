@@ -155,3 +155,10 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         self.core.break_realtime()
         # tmp remove
 
+
+    # ANALYSIS
+    def analyze(self):
+        """
+        Process resultant spectrum and attempt to fit.
+        """
+        pass

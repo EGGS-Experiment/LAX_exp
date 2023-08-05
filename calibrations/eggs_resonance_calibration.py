@@ -8,7 +8,7 @@ from artiq.experiment import *
 
 class EGGSResonanceCalibration(EnvExperiment):
     """
-    Calibration: EGGS Resonance Calibration
+    Calibration: EGGS Resonance
 
     Examines the resonance for the EGGS feedthrough and calculates the appropriate amplitude scalings.
     """

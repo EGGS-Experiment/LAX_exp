@@ -125,3 +125,11 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+
+    # ANALYSIS
+    def analyze(self):
+        """
+        Fit data and extract resonance and linewidth.
+        """
+        pass
