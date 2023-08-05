@@ -27,7 +27,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         super().prepare_experiment()
 
         # convert heating rate timings to machine units
-        self.time_heating_rate_mu_list =                                        np.array([seconds_to_mu(time_ms * ms)
+        self.time_heating_rate_mu_list =                                        np.array([self.core.seconds_to_mu(time_ms * ms)
                                                                                           for time_ms in self.time_heating_rate_ms_list],
                                                                                          dtype=np.int64)
 

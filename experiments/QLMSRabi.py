@@ -89,7 +89,7 @@ class QLMSRabi(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep experiment config: heating time and readout frequency
+            # sweep experiment config: tickle frequency and readout frequency
             for config_vals in self.config_qlms_rabi_list:
 
                 # extract values from config list
