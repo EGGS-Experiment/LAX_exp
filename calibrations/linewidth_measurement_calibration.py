@@ -12,7 +12,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """
-    # kernel_invariants = {}
+    kernel_invariants = {}
 
     def build(self):
         """
@@ -75,6 +75,8 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         # convert target voltage values into ADC machine units
         self.target_voltage_mu =                                            np.int32((self.target_voltage_mv / 1000) * self.adc_v_to_mu)
         self.target_tolerance_mu =                                          np.int32((self.target_tolerance_mv / 1000) * self.adc_v_to_mu)
+
+        # todo: add values to kernel invariants
 
         # set up local datasets
         self._iter_dataset = 0

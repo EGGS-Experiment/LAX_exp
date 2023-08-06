@@ -103,4 +103,9 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
+        # todo: separate results readout frequency (bsb vs rsb)
+        # todo: calculate count threshold and binarize
+        # todo: find peaks
+        # todo: save result to dataset
+        # todo: print result
         pass

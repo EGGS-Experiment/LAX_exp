@@ -145,11 +145,10 @@ class SidebandCooling(LAXExperiment, Experiment):
         """
         Fit resultant spectrum with a sinc profile.
         """
-        # todo: separate results readout frequency (bsb vs rsb)
+        # todo: separate results by readout frequency (bsb vs rsb)
         # todo: calculate count threshold and binarize
         # todo: extract start parameter guesses
         # todo: fit sinc profile
         # todo: extract fit parameters
         # todo: extract phonon number from result
         pass
-
