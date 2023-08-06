@@ -57,8 +57,11 @@ def fitRabiFlopping(data):
     # fit!
     param_fit, param_cov = curve_fit(fit_func, data_x, data_y, param_guess)
     # convert coveriance matrix to error (1 stdev)
-    param_err = np.sqrt(np.cov(param_cov))
+    param_err = np.sqrt(np.diag(param_cov))
     # print('\tactual: {}'.format(param_fit))
+
+    # tmp
+    print(param_cov)
 
     return param_fit, param_err
 

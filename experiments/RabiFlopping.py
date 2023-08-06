@@ -21,16 +21,16 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type",                       EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
         self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=RangeScan(0, 100, 101, randomize=True),
+                                                                        default=RangeScan(0, 50, 51, randomize=True),
                                                                         global_min=1, global_max=100000, global_step=1,
                                                                         unit="us", scale=1, ndecimals=5
                                                                     ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=104.06, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=103.3455, ndecimals=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("att_readout_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
 
@@ -132,7 +132,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         counts_arr = np.array(results_tmp[:, 1])
 
         # convert x-axis (time) from machine units to seconds
-        results_tmp[:, 0] = np.array(self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0])
+        results_tmp[:, 0] = np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
 
 
         # calculate fluorescence detection threshold
@@ -145,6 +145,9 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # process dataset into x, y, with y being averaged probability
         results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        # convert y-axis from D-state probability to S-state probability
+        results_tmp[:, 1] = 1. - results_tmp[:, 1]
 
 
         # fit rabi flopping using damped harmonic oscillator
@@ -164,4 +167,4 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # print out fitted parameters
         print("\tResults - Rabi Flopping:")
-        print("\t\tPeriod (us):\t{.2f} +/- {.2f}".format(fit_period_us, fit_period_err_us))
+        print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
