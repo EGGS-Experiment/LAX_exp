@@ -33,7 +33,7 @@ class ReadoutCalibration(LAXExperiment, Experiment):
         self.setattr_argument("time_readout_us",                            NumberValue(default=3000, ndecimals=3, step=100, min=1, max=100000), group='Readout')
         self.setattr_argument("freq_readout_mhz_list",                      Scannable(
                                                                                 default=[
-                                                                                    RangeScan(100, 115, 16, randomize=True),
+                                                                                    RangeScan(100, 110, 21, randomize=True),
                                                                                     ExplicitScan([105])
                                                                                 ],
                                                                                 global_min=70, global_max=140, global_step=1,
@@ -41,7 +41,7 @@ class ReadoutCalibration(LAXExperiment, Experiment):
                                                                             ), group='Readout')
         self.setattr_argument("ampl_readout_pct_list",                      Scannable(
                                                                                 default=[
-                                                                                    RangeScan(10, 50, 41, randomize=True),
+                                                                                    RangeScan(20, 50, 61, randomize=True),
                                                                                     ExplicitScan([45])
                                                                                 ],
                                                                                 global_min=1, global_max=50, global_step=1,
@@ -62,8 +62,8 @@ class ReadoutCalibration(LAXExperiment, Experiment):
         """
         # convert DDS values
         self.time_readout_mu =                                              self.core.seconds_to_mu(self.time_readout_us * us)
-        self.freq_readout_ftw_list =                                        np.array(self.pump.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_readout_mhz_list))
-        self.ampl_readout_asf_list =                                        np.array(self.pump.amplitude_to_asf(ampl_pct / 100.) for ampl_pct in list(self.ampl_readout_pct_list))
+        self.freq_readout_ftw_list =                                        np.array([self.pump.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_readout_mhz_list)])
+        self.ampl_readout_asf_list =                                        np.array([self.pump.amplitude_to_asf(ampl_pct / 100.) for ampl_pct in list(self.ampl_readout_pct_list)])
 
         # create experimental config
         self.config_readout_calibration_list =                              np.stack(np.meshgrid(self.freq_readout_ftw_list, self.ampl_readout_asf_list), -1).reshape(-1, 2)
