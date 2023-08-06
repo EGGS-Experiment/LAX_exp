@@ -136,6 +136,11 @@ class ReadoutCalibration(LAXExperiment, Experiment):
         Analyze the results from the experiment.
         """
         print('idk')
+
+        # todo: groupBy twice
+        # todo: mean the signal and noise separately, then take ratio
+        # todo: print optimal
+
         # # set calibration timestamp
         # calib_timestamp = datetime.timestamp(datetime.now())
         # self.set_dataset('calibration.readout.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
