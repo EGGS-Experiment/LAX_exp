@@ -60,9 +60,6 @@ def fitRabiFlopping(data):
     param_err = np.sqrt(np.diag(param_cov))
     # print('\tactual: {}'.format(param_fit))
 
-    # tmp
-    print(param_cov)
-
     return param_fit, param_err
 
 
