@@ -31,7 +31,7 @@ def fitRabiFlopping(data):
         """
         todo: document arguments
         """
-        return a * np.exp(-b * x) * np.power(np.sin(c * x), 2.)
+        return 0.5 * (1. - a * np.exp(-b * x) * np.cos(c * x))
 
     # separate data into x and y
     data = np.array(data)
@@ -43,19 +43,24 @@ def fitRabiFlopping(data):
     max_ind0 = np.argmax(data_y)
     t0, a0 = data[max_ind0]
     # get position of next peak and use to find decay constant
-    points_margin = max_ind0 + np.round(max_ind0 * 2.)
+    points_margin = int(np.round(max_ind0 * 1.5))
     max_ind1 = np.argmax(data_y[points_margin])
     t1, a1 = data[points_margin + max_ind1]
 
     # create array of initial guess parameters
-    a_guess = a0
-    b_guess = np.log(a1 / a0) / (t0 - t1)
-    c_guess = np.pi / (2. * t0)
+    a_guess = np.abs(1. - 2. * a0)
+    b_guess = 0.5 * np.log(a1 / a0) / (t0 - t1)
+    c_guess = np.pi / t0
     param_guess = np.array([a_guess, b_guess, c_guess])
+    # print('\tguess: {}'.format(param_guess))
 
     # fit!
     param_fit, param_cov = curve_fit(fit_func, data_x, data_y, param_guess)
-    return param_fit
+    # convert coveriance matrix to error (1 stdev)
+    param_err = np.sqrt(np.cov(param_cov))
+    # print('\tactual: {}'.format(param_fit))
+
+    return param_fit, param_err
 
 
 def fitSidebandCooling(data):

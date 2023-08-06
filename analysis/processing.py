@@ -4,7 +4,7 @@ LAX.analysis.processing
 Contains helpful/commonly used modules for processing datasets.
 """
 
-__all__ = ['findThreshold', 'groupBy']
+__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy']
 
 
 # necessary imports
@@ -14,14 +14,67 @@ from itertools import groupby
 
 from scipy.stats import iqr
 from scipy.signal import find_peaks
+from skimage.filters import threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 
 
 '''
 Dataset Processing
 '''
-def findThreshold(counts_arr):
+def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None):
     """
-    Get the binary discrimination threshold for a dataset.
+    Get the binary discrimination threshold for a dataset
+    by using thresholding methods from scikit-image.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # todo: implement error handling somehow
+
+    # calculate num_bins if no value is provided
+    if num_bins is None:
+        # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
+        # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
+        # edit: actually, use scott's normal reference rule instead
+        bin_width = np.round(3.49 * np.std(counts_arr) / np.power(len(counts_arr), 1. / 3.))
+        # calculate number of bins
+        num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
+
+    # guess number of ions (i.e. thresholding classes) if no value is provided
+    if num_ions is None:
+        # histogram counts
+        hist_counts, hist_bins = np.histogram(counts_arr, int(num_bins * 2.5))
+        # get max count bin
+        max_counts = np.max(hist_bins)
+        # guess number of ions using heuristic values (~20 background counts, ~150 max counts per ion)
+        num_ions = int(np.round((max_counts - 20.) / 150.))
+
+
+    # use multi-otsu thresholding to get base list of threshold values
+    thresh_values = threshold_multiotsu(counts_arr, classes=num_ions+1, nbins=num_bins)
+    # create list of threshold functions
+    threshold_functions = [threshold_minimum, threshold_isodata, threshold_yen, threshold_triangle]
+
+    # ensure duplicate thresholds are not added to list
+    for thresh_func in threshold_functions:
+        # get threshold value
+        thresh_val = thresh_func(counts_arr, nbins=num_bins)
+
+        # only recognize value if different from existing thresholds by thresh_dist
+        if np.all((thresh_values - thresh_val) > thresh_dist):
+            thresh_values = np.append(thresh_values, thresh_val)
+
+    # return sorted threshold values
+    return np.sort(thresh_values)[: num_ions]
+
+
+def findThresholdPeaks(counts_arr):
+    """
+    Get the binary discrimination threshold for a dataset
+    by finding histogram peaks and applying minimum error thresholding.
+
     Arguments:
         ***todo
 
@@ -29,13 +82,15 @@ def findThreshold(counts_arr):
         ***todo
     """
     # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
-    #
-    bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
+    # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
+    # edit: actually, use scott's normal reference rule instead
+    bin_width = np.round(3.49 * np.std(counts_arr) / np.power(len(counts_arr), 1. / 3.))
     # calculate number of bins
     num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
 
     # get histogram
     hist_counts, hist_bins = np.histogram(counts_arr, int(num_bins * 2.5))
+    # plt.stairs(hist_counts, hist_bins)
 
     # find peaks
     # set minimum distance between peaks as half typical ion counts (convert to bins)
