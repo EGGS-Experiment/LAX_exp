@@ -6,9 +6,9 @@ from datetime import datetime
 from artiq.experiment import *
 
 
-class LinewidthMeasurementCalibration(EnvExperiment):
+class PMTReadoutCalibration(EnvExperiment):
     """
-    Calibration: Linewidth Measurement
+    Calibration: PMT Readout
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """

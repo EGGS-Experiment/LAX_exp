@@ -341,7 +341,6 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # catch any errors
             except Exception as e:
-                # todo: create error message
                 print("Warning: unable to create and save file in LAX format: {}".format(e))
 
     def _save_labrad(self):
@@ -373,13 +372,19 @@ class LAXExperiment(LAXEnvironment, ABC):
             wm = cxn_wm.multiplexerserver
 
             # get rf values
-            rf.select_device()
-            rf_freq_hz = rf.frequency()
-            rf_ampl_dbm = rf.amplitude()
+            try:
+                rf.select_device()
+                rf_freq_hz = rf.frequency()
+                rf_ampl_dbm = rf.amplitude()
+            except Exception as e:
+                print("Warning: unable to retrieve and store trap RF values in dataset.")
 
             # get temperature values
-            temp_vals_k = ls.read_temperature()
-            temp_vals_k = array(list(temp_vals_k))
+            try:
+                temp_vals_k = ls.read_temperature()
+                temp_vals_k = array(list(temp_vals_k))
+            except Exception as e:
+                print("Warning: unable to retrieve and store temperature values in dataset.")
 
             # import dc config and get relevant parameters
             from EGGS_labrad.config.dc_config import dc_config
@@ -402,7 +407,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                     dc_vals[key_voltage] = voltage_v
 
                 except Exception as e:
-                    pass
+                    print("Warning: unable to retrieve and store trap DC values in dataset.")
 
             # extract frequencies of wavemeter channels in use
             # extract dc values of channels in use
@@ -419,7 +424,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                     wm_vals[key_frequency] = freq_thz
 
                 except Exception as e:
-                    pass
+                    print("Warning: unable to retrieve and store {:s} values from wavemeter in dataset.".format(channel_name))
 
             # store all system values in a combined dict
             sys_vals = {
@@ -435,7 +440,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
 
         except Exception as e:
-            pass
+            print("Warning: error retrieving and saving LabRAD values in dataset.")
 
         finally:
             # ensure labrad connections disconnect

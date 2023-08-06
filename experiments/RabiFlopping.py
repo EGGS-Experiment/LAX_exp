@@ -6,6 +6,9 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
 
+# tmp testing
+from LAX_exp.analysis import *
+
 
 class RabiFlopping(LAXExperiment, Experiment):
     """
@@ -116,3 +119,46 @@ class RabiFlopping(LAXExperiment, Experiment):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+
+    # ANALYSIS
+    def analyze(self):
+        """
+        Fit rabi flopping data with an exponentially damped sine curve
+        """
+        # # create data structures for processing
+        # results_tmp = np.array(self.results)
+        # probability_vals = np.zeros(len(results_tmp))
+        # counts_arr = np.array(results_tmp[:, 1])
+        #
+        #
+        # # convert x-axis (time) from machine units to seconds
+        # results_tmp[:, 0] = np.array(self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0])
+        #
+        #
+        # # calculate fluorescence detection threshold
+        # counts_signal, counts_bgr, counts_threshold, num_ions = findThreshold(results_tmp[:, 1])
+        # # threshold counts for single ion
+        # probability_vals[np.where(counts_arr) > (counts_threshold)] += 1.
+        #
+        # # threshold counts for n > 1
+        # for n in range(num_ions - 1):
+        #     probability_vals[np.where(counts_arr) > (counts_signal * np.sqrt(n))] += 1.
+        #
+        # # assign normalized probabilities to results_tmp
+        # results_tmp[:, 1] = probability_vals / num_ions
+        #
+        #
+        # # process dataset into x, y, with y being averaged probability
+        # results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+
+
+        # todo: extract start parameter guesses
+        # todo: fit rabi flopping
+        # todo: extract fit parameters
+
+        # todo: extract rabi frequency/period
+        # todo: use damped sine fit parameters to attempt to fit roos eqn(A.5)
+        # we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
+        # todo: attempt to extract phonon number
+        pass

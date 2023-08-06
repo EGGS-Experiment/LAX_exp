@@ -56,6 +56,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling_pct
         assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
+
         ### EGGS HEATING - TIMING ###
         self.time_eggs_heating_mu =                                         self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
@@ -81,10 +85,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         ### EGGS HEATING - CONFIG ###
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
-        # todo: shuffle config order
-        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 5), dtype=float)
-        self.config_eggs_heating_list[:, :2] =                              np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
-        self.config_eggs_heating_list[:, 2:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) * len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 6), dtype=float)
+        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_readout_ftw_list, self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
+        self.config_eggs_heating_list[:, 3:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
                                                                                       0.4999 * self.ampl_eggs_heating_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
@@ -97,7 +100,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (carrier_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz = (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
                 # get normalized transmission through system
@@ -105,23 +108,20 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
                 scaled_power_pct = np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) * ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1]))
                 # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, 2:] = np.array([scaled_power_pct[0], scaled_power_pct[1], self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+                self.config_eggs_heating_list[i, 3:] = np.array([scaled_power_pct[0], scaled_power_pct[1], self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
         if not self.enable_dynamical_decoupling:
-            self.config_eggs_heating_list[:, 4] = 0.
+            self.config_eggs_heating_list[:, 5] = 0.
 
         # if randomize_config is enabled, completely randomize the sweep order
         # i.e. random readout and EGGS heating parameters each iteration, instead of sweeping 1D by 1D
         if self.randomize_config:
             np.random.shuffle(self.config_eggs_heating_list)
 
-        # run preparations for sideband cooling
-        super().prepare_experiment()
-
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_eggs_heating_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.config_eggs_heating_list),
                 4)
 
 
@@ -173,45 +173,43 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             for config_vals in self.config_eggs_heating_list:
 
                 # extract values from config list
-                carrier_freq_hz =           config_vals[0]
-                sideband_freq_hz =          config_vals[1]
-                ampl_rsb_frac =             config_vals[2]
-                ampl_bsb_frac =             config_vals[3]
-                ampl_dd_frac =              config_vals[4]
+                freq_readout_ftw =          config_vals[0]
+                carrier_freq_hz =           config_vals[1]
+                sideband_freq_hz =          config_vals[2]
+                ampl_rsb_frac =             config_vals[3]
+                ampl_bsb_frac =             config_vals[4]
+                ampl_dd_frac =              config_vals[5]
                 self.core.break_realtime()
 
                 # configure EGGS tones
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
                 self.core.break_realtime()
 
-                # sweep 729nm readout frequency
-                for freq_ftw in self.freq_readout_ftw_list:
+                # set readout frequency
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.core.break_realtime()
 
-                    # set frequency
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                # run eggs heating
+                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
+
+                # custom SBC readout
+                self.core_dma.playback_handle(_handle_sbc_readout)
+
+                # update dataset
+                with parallel:
+                    self.update_results(
+                        freq_readout_ftw,
+                        self.readout_subsequence.fetch_count(),
+                        carrier_freq_hz,
+                        sideband_freq_hz
+                    )
                     self.core.break_realtime()
-
-                    # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
-
-                    # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
-
-                    # run eggs heating
-                    self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
-
-                    # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
-
-                    # update dataset
-                    with parallel:
-                        self.update_results(
-                            freq_ftw,
-                            self.readout_subsequence.fetch_count(),
-                            carrier_freq_hz,
-                            sideband_freq_hz
-                        )
-                        self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

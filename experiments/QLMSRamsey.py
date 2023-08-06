@@ -19,7 +19,14 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # QLMS configuration
-        self.setattr_argument("time_qlms_ramsey_delay_ms",                      NumberValue(default=0.5, ndecimals=5, step=1, min=0.000001, max=10000), group=self.name)
+        self.setattr_argument("time_qlms_ramsey_delay_ms_list",                Scannable(
+                                                                                    default=[
+                                                                                        RangeScan(1, 10, 11, randomize=True),
+                                                                                        ExplicitScan([1])
+                                                                                    ],
+                                                                                    global_min=0.000001, global_max=1000000, global_step=1,
+                                                                                    unit="ms", scale=1, ndecimals=3
+                                                                                ), group=self.name)
         self.setattr_argument("freq_qlms_ramsey_khz_list",                      Scannable(
                                                                                     default=CenterScan(1101, 10, 0.25, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
@@ -36,19 +43,26 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
     def prepare_experiment(self):
+        # run preparations for sideband cooling
+        super().prepare_experiment()
+
         # convert QLMS parameters to machine units
-        self.time_qlms_ramsey_delay_mu =                                        self.core.seconds_to_mu(self.time_qlms_ramsey_delay_ms * ms)
+        self.time_qlms_ramsey_delay_mu_list =                                   np.array([self.core.seconds_to_mu(time_ms * ms)
+                                                                                          for time_ms in self.time_qlms_ramsey_delay_ms],
+                                                                                         dtype=np.int64)
         self.freq_qlms_ramsey_ftw_list =                                        np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_ramsey_khz_list
                                                                                 ])
 
-        # run preparations for sideband cooling
-        super().prepare_experiment()
+        # create an array of values for the experiment to sweep
+        # (i.e. DDS tickle frequency & readout FTW)
+        self.config_qlms_ramsey_list =                                          np.stack(np.meshgrid(self.time_qlms_ramsey_delay_mu_list, self.freq_qlms_ramsey_ftw_list, self.freq_readout_ftw_list), -1).reshape(-1, 3)
+        np.random.shuffle(self.config_qlms_ramsey_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_qlms_ramsey_khz_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.time_qlms_ramsey_delay_mu_list) * len(self.freq_qlms_ramsey_ftw_list) * len(self.freq_readout_ftw_list),
                 3)
 
 
@@ -86,37 +100,40 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
         for trial_num in range(self.repetitions):
 
-            # sweep QLMS modulation frequency
-            for freq_qlms_ftw in self.freq_qlms_ramsey_ftw_list:
+            # sweep experiment config: ramsey time, tickle frequency, and readout frequency
+            for config_vals in self.config_qlms_rabi_list:
+
+                # extract values from config list
+                time_qlms_mu =      config_vals[0]
+                freq_qlms_ftw =     config_vals[1]
+                freq_readout_ftw =  config_vals[2]
+                self.core.break_realtime()
 
                 # set QLMS modulation frequency
                 self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
 
-                # sweep readout frequency
-                for freq_readout_ftw in self.freq_readout_ftw_list:
+                # set readout frequency
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.core.break_realtime()
 
-                    # set readout frequency
-                    self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                # QLMS ramsey
+                self.tickle_subsequence.run_dma()
+                delay_mu(time_qlms_mu)
+                self.tickle_subsequence.run_dma()
+
+                # custom SBC readout
+                self.core_dma.playback_handle(_handle_sbc_readout)
+
+                # update dataset
+                with parallel:
+                    self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw, time_qlms_mu)
                     self.core.break_realtime()
-
-                    # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
-
-                    # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
-
-                    # QLMS ramsey
-                    self.tickle_subsequence.run_dma()
-                    delay_mu(self.time_qlms_ramsey_delay_mu)
-                    self.tickle_subsequence.run_dma()
-
-                    # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
-
-                    # update dataset
-                    with parallel:
-                        self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw)
-                        self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
