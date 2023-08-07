@@ -28,7 +28,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
                                                                                 CenterScan(102.7765, 0.02, 0.0005, randomize=True),
-                                                                                ExplicitScan([102.766])
+                                                                                ExplicitScan([102.7765])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
@@ -37,7 +37,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
                                                                                 CenterScan(103.9135, 0.02, 0.0005, randomize=True),
-                                                                                ExplicitScan([104.064])
+                                                                                ExplicitScan([103.9135])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
