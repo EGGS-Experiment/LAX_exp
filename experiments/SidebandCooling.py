@@ -18,7 +18,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -27,7 +27,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
-                                                                                CenterScan(102.766, 0.02, 0.0005, randomize=True),
+                                                                                CenterScan(102.7765, 0.02, 0.0005, randomize=True),
                                                                                 ExplicitScan([102.766])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
@@ -36,13 +36,13 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
-                                                                                CenterScan(104.064, 0.02, 0.0005, randomize=True),
+                                                                                CenterScan(103.9135, 0.02, 0.0005, randomize=True),
                                                                                 ExplicitScan([104.064])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=165, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=140, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
         self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100), group='sideband_readout')
         self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_readout')
 

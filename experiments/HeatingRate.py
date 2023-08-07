@@ -17,7 +17,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate wait times
-        self.setattr_argument("time_heating_rate_ms_list",                      PYONValue([1, 2]))
+        self.setattr_argument("time_heating_rate_ms_list",                      PYONValue([1, 2, 5, 10, 50]))
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -34,12 +34,12 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
         self.config_heating_rate_list =                                         np.stack(np.meshgrid(self.time_heating_rate_mu_list, self.freq_readout_ftw_list), -1).reshape(-1, 2)
+        self.config_heating_rate_list =                                         np.array(self.config_heating_rate_list, dtype=np.int64)
         np.random.shuffle(self.config_heating_rate_list)
-
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.time_heating_rate_mu_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.config_heating_rate_list),
                 3)
 
 
@@ -59,7 +59,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
                 # extract values from config list
                 time_heating_delay_mu =     config_vals[0]
-                freq_readout_ftw =          config_vals[1]
+                freq_readout_ftw =          np.int32(config_vals[1])
                 self.core.break_realtime()
 
                 # set frequency
