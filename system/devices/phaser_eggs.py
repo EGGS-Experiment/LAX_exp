@@ -6,6 +6,7 @@ from LAX_exp.base import LAXDevice
 # todo: prepare - sample time, frame time
 # todo: on/off func
 # todo: att func
+# todo: add conversion functions since artiq doesn't have them
 
 
 class PhaserEGGS(LAXDevice):
@@ -77,6 +78,8 @@ class PhaserEGGS(LAXDevice):
     def disable_oscillators(self):
         """
         Set amplitude to 0 and keep phase accumulator cleared for all oscillators.
+        # todo: document
+        # note: this is different from reset_oscillators since it doesn't reset frequency, and persistently clears the phase accumulator
         """
         # synchronize to frame
         at_mu(self.phaser.get_next_frame_mu())
