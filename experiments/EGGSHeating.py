@@ -92,7 +92,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) * len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 6), dtype=float)
-        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_readout_ftw_list, self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 2)
+        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_readout_ftw_list, self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 3)
         self.config_eggs_heating_list[:, 3:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
                                                                                       0.4999 * self.ampl_eggs_heating_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
