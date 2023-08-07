@@ -41,9 +41,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating')
 
-        # EGGS RF error correction configuration (e.g. dynamical decoupling)
+        # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
         self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=20, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
+
+        # EGGS RF - pulse shaping
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("pulse_shape_type",                           EnumerationValue(['sine_squared'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("pulse_shape_rise_time_us",                   NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("pulse_shape_sample_rate_khz",                NumberValue(default=1000, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
@@ -119,6 +125,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         if self.randomize_config:
             np.random.shuffle(self.config_eggs_heating_list)
 
+        # todo: better implementation
+        # configure pulse shaping
+        if self.enable_pulse_shaping:
+            self._prepare_pulseshape()
+
+    def _prepare_pulseshape(self):
+        pass
+
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
@@ -173,7 +188,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             for config_vals in self.config_eggs_heating_list:
 
                 # extract values from config list
-                freq_readout_ftw =          config_vals[0]
+                # todo: ensure that readout ftw is ok
+                freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
                 sideband_freq_hz =          config_vals[2]
                 ampl_rsb_frac =             config_vals[3]
@@ -299,22 +315,22 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         at_mu(self.phaser_eggs.get_next_frame_mu())
         time_start_mu = now_mu()
 
-        # set oscillator 0
+        # set oscillator 0 (RSB)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
-        # set oscillator 1
+        # set oscillator 1 (BSB)
         at_mu(time_start_mu + self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
             self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
-        # set oscillator 2
+        # set oscillator 2 (carrier)
         at_mu(time_start_mu + 2 * self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
-        # leave eggs heating running
+        # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
 
         # disable eggs phaser output
