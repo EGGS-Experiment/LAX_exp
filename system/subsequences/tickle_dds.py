@@ -14,8 +14,8 @@ class TickleDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('time_tickle_us',         NumberValue(default=1000, ndecimals=3, step=10, min=1, max=1000000), group='tickle_dds')
-        self.setattr_argument('att_tickle_db',          NumberValue(default=30, ndecimals=1, step=0.5, min=8, max=31.5), group='tickle_dds')
+        self.setattr_argument('time_tickle_us',         NumberValue(default=100, ndecimals=3, step=100, min=1, max=1000000), group='tickle_dds')
+        self.setattr_argument('att_tickle_db',          NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_dds')
 
         # get relevant devices
         self.setattr_device('dds_modulation')

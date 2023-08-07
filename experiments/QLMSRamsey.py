@@ -28,7 +28,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
                                                                                     unit="ms", scale=1, ndecimals=3
                                                                                 ), group=self.name)
         self.setattr_argument("freq_qlms_ramsey_khz_list",                      Scannable(
-                                                                                    default=CenterScan(1101, 10, 0.25, randomize=True),
+                                                                                    default=CenterScan(1101, 10, 0.5, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
@@ -48,7 +48,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
         # convert QLMS parameters to machine units
         self.time_qlms_ramsey_delay_mu_list =                                   np.array([self.core.seconds_to_mu(time_ms * ms)
-                                                                                          for time_ms in self.time_qlms_ramsey_delay_ms],
+                                                                                          for time_ms in self.time_qlms_ramsey_delay_ms_list],
                                                                                          dtype=np.int64)
         self.freq_qlms_ramsey_ftw_list =                                        np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
@@ -58,6 +58,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
         # create an array of values for the experiment to sweep
         # (i.e. DDS tickle frequency & readout FTW)
         self.config_qlms_ramsey_list =                                          np.stack(np.meshgrid(self.time_qlms_ramsey_delay_mu_list, self.freq_qlms_ramsey_ftw_list, self.freq_readout_ftw_list), -1).reshape(-1, 3)
+        self.config_qlms_ramsey_list =                                          np.array(self.config_qlms_ramsey_list, dtype=np.int64)
         np.random.shuffle(self.config_qlms_ramsey_list)
 
     @property
@@ -101,12 +102,12 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
         for trial_num in range(self.repetitions):
 
             # sweep experiment config: ramsey time, tickle frequency, and readout frequency
-            for config_vals in self.config_qlms_rabi_list:
+            for config_vals in self.config_qlms_ramsey_list:
 
                 # extract values from config list
                 time_qlms_mu =      config_vals[0]
-                freq_qlms_ftw =     config_vals[1]
-                freq_readout_ftw =  config_vals[2]
+                freq_qlms_ftw =     np.int32(config_vals[1])
+                freq_readout_ftw =  np.int32(config_vals[2])
                 self.core.break_realtime()
 
                 # set QLMS modulation frequency
