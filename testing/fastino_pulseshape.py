@@ -1,15 +1,16 @@
 import numpy as np
 from artiq.experiment import *
 
-class pt1(EnvExperiment):
+class FastinoPulseshape(EnvExperiment):
 
     def build(self):
-        # 82, 83, 86.7 carriers
-        # 1.202, 1 kHz, 200 Hz step
         # RSB/BSB/DD 40%/40%/20%
         self.freq_carrier_hz_list =                 np.array([82]) * MHz
         self.freq_sideband_hz_list =                np.array([1101]) * kHz
-        self.time_pulse_ms =                        0.1
+        self.time_pulse_ms =                        5
+
+        # pulse shaping
+        self.time_rolloff_us =                      1000
 
 
     def _prepare(self):
@@ -17,6 +18,7 @@ class pt1(EnvExperiment):
         self.setattr_device('core')
         self.setattr_device('core_dma')
         self.setattr_device('phaser0')
+        self.setattr_device('fastino0')
         self.setattr_device('ttl13')
         self.setattr_device('ttl16')
         self.setattr_device('ttl17')
@@ -44,6 +46,9 @@ class pt1(EnvExperiment):
         self.config_frequencies_list =              np.zeros((len(self.freq_carrier_hz_list) * len(self.freq_sideband_hz_list), 2), dtype=float)
         self.config_frequencies_list[:, :2] =       np.stack(np.meshgrid(self.freq_carrier_hz_list, self.freq_sideband_hz_list), -1).reshape(-1, 2)
 
+        ### PULSE SHAPING ###
+        self.time_rolloff_mu =                      self.core.seconds_to_mu(self.time_rolloff_us * us)
+
     def prepare(self):
         self._prepare()
 
@@ -61,6 +66,32 @@ class pt1(EnvExperiment):
         self.time_ch1_osc1_latency_ns =             40.
         self.time_ch1_osc2_latency_ns =             80.
 
+        # set up windowing variables
+        # instead of having to deal with adjusting shape, etc., will just add the pulse shaping in addition to the actual pulse
+        self.time_window_sample_mu =                                    20 * self.t_sample_mu
+        num_samples =                                                   np.int32(self.time_rolloff_mu / (self.time_window_sample_mu + 2 * self.t_sample_mu))
+
+        # create holder object for pulse amplitudes
+        self.ampl_pulse_frac_list =                                     np.ones((num_samples, 3))
+        self.ampl_pulse_frac_list *=                                    np.array([0.4, 0.4, 0.2])
+
+        # calculate windowing values - hann window
+        self.ampl_window_frac_list =                                    np.power(np.sin((np.pi / (2. * num_samples)) * np.linspace(1, num_samples, num_samples)), 2)
+        self.ampl_window_frac_list =                                    np.array([self.ampl_window_frac_list]).transpose()
+        # convet values to machine units (0x3FFF is full scale)
+        # self.ampl_window_mu_list =                                      np.int32(self.ampl_window_mu_list * max_amplitude)
+
+        # apply window to pulse shape
+        self.ampl_pulse_frac_list =                                     self.ampl_pulse_frac_list * self.ampl_window_frac_list
+        self.ampl_pulse_reverse_frac_list =                             self.ampl_pulse_frac_list[::-1]
+
+        print('\tnum samples: {}'.format(num_samples))
+        # tmp remove
+        # print(self.ampl_pulse_frac_list)
+
+        # tmp remove
+        # raise Exception('stop here tmp remove idk')
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -71,31 +102,53 @@ class pt1(EnvExperiment):
         delay_mu(self.t_sample_mu)
         self.phaser0.channel[1].set_att(0. * dB)
 
-        # run
+        # record and retrieve DMA sequence
+        self.core.break_realtime()
+        self.record_dma()
+        handle_rise_dma = self.core_dma.get_handle('PT1_RISE')
+        self.core.break_realtime()
+        handle_fall_dma = self.core_dma.get_handle('PT1_FALL')
+        self.core.break_realtime()
+
+
+        # run main pulse
         for config_vals in self.config_frequencies_list:
             self.core.break_realtime()
 
             # configure oscillator frequencies
             self.phaser_configure(config_vals[0], config_vals[1])
-            self.core.break_realtime()
+
             # clear old hardware config and resync
             self.phaser_reset()
+
             # set oscillator waveforms
-            self.phaser_run()
-            # 2 ms delay
-            delay_mu(10)
+            # self.phaser_run()
 
-        # self.tmp()
+            # tmp remove
+            self.core.break_realtime()
 
+            at_mu(self.phaser0.get_next_frame_mu())
+            self.ttl17.on()
+            self.core_dma.playback_handle(handle_rise_dma)
+            self.ttl16.on()
+            delay_mu(self.time_pulse_mu)
+            self.core_dma.playback_handle(handle_fall_dma)
+            # tmp remove
 
-    @kernel(flags={"fast-math"})
-    def tmp(self):
-        self.phaser_reset()
-        # reset attenuators
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(31.5 * dB)
-        delay_mu(self.t_sample_mu)
-        self.phaser0.channel[1].set_att(31.5 * dB)
+            # turn off ttl outputs
+            self.core.break_realtime()
+            with parallel:
+                self.ttl13.off()
+                self.ttl16.off()
+                self.ttl17.off()
+            delay_mu(100000)
+
+        # reset phaser oscillators and rail up attenuation to reduce RF leakage
+        self.core.break_realtime()
+        self.core.reset()
+        self.phaser_cleanup()
+        self.core.break_realtime()
+        self.core.reset()
 
 
     # HELPER FUNCTIONS
@@ -147,45 +200,6 @@ class pt1(EnvExperiment):
             delay_mu(self.t_sample_mu)
 
     @kernel(flags={"fast-math"})
-    def phaser_run(self):
-        # set oscillator 0
-        at_mu(self.phaser0.get_next_frame_mu())
-        time_start_mu = now_mu()
-        with parallel:
-            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=0., clr=0)
-            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
-            with sequential:
-                delay_mu(self.time_output_delay_mu)
-                self.ttl17.on()
-
-        # set oscillator 1
-        at_mu(time_start_mu + self.t_sample_mu)
-        with parallel:
-            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc1, clr=0)
-
-            with sequential:
-                delay_mu(self.time_output_delay_mu)
-                self.ttl16.on()
-
-        # set oscillator 2
-        at_mu(time_start_mu + 2 * self.t_sample_mu)
-        with parallel:
-            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2 + 0.5, clr=0)
-
-            with sequential:
-                delay_mu(self.time_output_delay_mu)
-                self.ttl13.on()
-
-        # wait for heating time
-        with parallel:
-            self.ttl13.off()
-            self.ttl16.off()
-            self.ttl17.off()
-            delay_mu(self.time_pulse_mu)
-
-    @kernel(flags={"fast-math"})
     def phaser_reset(self):
         # clear oscillators
         at_mu(self.phaser0.get_next_frame_mu())
@@ -212,6 +226,109 @@ class pt1(EnvExperiment):
         # delay_mu(self.t_frame_mu)
         self.phaser0.duc_stb()
 
+    @kernel(flags={"fast-math"})
+    def phaser_cleanup(self):
+        self.phaser_reset()
+        # reset attenuators
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser0.channel[1].set_att(31.5 * dB)
+
+
+    # ACTUAL OUTPUT
+    @kernel(flags={"fast-math"})
+    def phaser_run(self):
+        # set oscillator 0
+        at_mu(self.phaser0.get_next_frame_mu())
+        time_start_mu = now_mu()
+        with parallel:
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=0., clr=0)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
+            with sequential:
+                delay_mu(self.time_output_delay_mu)
+                self.ttl13.on()
+
+        # set oscillator 1
+        at_mu(time_start_mu + self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc1, clr=0)
+
+            with sequential:
+                delay_mu(self.time_output_delay_mu)
+                self.ttl16.on()
+
+        # set oscillator 2
+        at_mu(time_start_mu + 2 * self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2 + 0.5, clr=0)
+
+            with sequential:
+                delay_mu(self.time_output_delay_mu)
+                self.ttl17.on()
+
+        # wait for heating time
+        delay_mu(self.time_pulse_mu)
+        # turn off ttl outputs
+        with parallel:
+            self.ttl13.off()
+            self.ttl16.off()
+            self.ttl17.off()
+        delay_mu(100000)
+
+    @kernel(flags={"fast-math"})
+    def phaser_pulseshape_point(self, rsb_ampl: TFloat, bsb_ampl: TFloat, dd_ampl: TFloat):
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=rsb_ampl, phase=0., clr=0)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=rsb_ampl, phase=self.phase_ch1_osc0, clr=0)
+
+        # set oscillator 1 (BSB)
+        delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=bsb_ampl, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=bsb_ampl, phase=self.phase_ch1_osc1, clr=0)
+
+        # set oscillator 2 (carrier)
+        delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=dd_ampl, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=dd_ampl, phase=self.phase_ch1_osc2 + 0.5, clr=0)
+
+    @kernel(flags={"fast-math"})
+    def record_dma(self):
+        self.core.break_realtime()
+        self.core.break_realtime()
+        self.core.break_realtime()
+        self.core.break_realtime()
+
+        # record pulse up DMA sequence
+        with self.core_dma.record('PT1_RISE'):
+
+            # pulse shape - up
+            for ampl_val_list in self.ampl_pulse_frac_list:
+                self.phaser_pulseshape_point(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
+                delay_mu(self.time_window_sample_mu)
+
+        # record pulse down DMA sequence
+        with self.core_dma.record('PT1_FALL'):
+
+            # pulse shape - down
+            for ampl_val_list in self.ampl_pulse_reverse_frac_list:
+                self.phaser_pulseshape_point(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
+                delay_mu(self.time_window_sample_mu)
+
+            # # turn off ttl outputs
+            # with parallel:
+            #     self.ttl13.off()
+            #     self.ttl16.off()
+            #     self.ttl17.off()
+            # delay_mu(100000)
+
+
+    # ANALYZE
     def analyze(self):
         print("\tconfig:")
         print("\t\t{}".format(self.config_frequencies_list / MHz))
