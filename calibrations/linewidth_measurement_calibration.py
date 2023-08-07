@@ -12,7 +12,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """
-    kernel_invariants = {}
+    # kernel_invariants = {}
 
     def build(self):
         """
