@@ -11,6 +11,7 @@ __all__ = ['fitRabiFlopping']
 import numpy as np
 
 from scipy.optimize import curve_fit
+# todo: separate damped exponential fit from rabi flopping fit
 
 
 '''

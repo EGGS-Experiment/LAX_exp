@@ -127,43 +127,42 @@ class RabiFlopping(LAXExperiment, Experiment):
         Fit rabi flopping data with an exponentially damped sine curve
         """
         # create data structures for processing
-        results_tmp = np.array(self.results)
-        probability_vals = np.zeros(len(results_tmp))
-        counts_arr = np.array(results_tmp[:, 1])
+        results_tmp =           np.array(self.results)
+        probability_vals =      np.zeros(len(results_tmp))
+        counts_arr =            np.array(results_tmp[:, 1])
 
         # convert x-axis (time) from machine units to seconds
-        results_tmp[:, 0] = np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
+        results_tmp[:, 0] =     np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
 
 
         # calculate fluorescence detection threshold
-        threshold_list = findThresholdScikit(results_tmp[:, 1])
-        # threshold counts
+        threshold_list =        findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
         # normalize probabilities
-        results_tmp[:, 1] = probability_vals / len(threshold_list)
+        results_tmp[:, 1] =     probability_vals / len(threshold_list)
 
         # process dataset into x, y, with y being averaged probability
-        results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
         # convert y-axis from D-state probability to S-state probability
-        results_tmp[:, 1] = 1. - results_tmp[:, 1]
+        results_tmp[:, 1] =     1. - results_tmp[:, 1]
 
 
         # fit rabi flopping using damped harmonic oscillator
-        fit_params, fit_err = fitRabiFlopping(results_tmp)
+        fit_params, fit_err =   fitRabiFlopping(results_tmp)
         # todo: use damped sine fit parameters to attempt to fit roos eqn(A.5)
         # we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
         # process fit parameters to give values of interest
-        fit_period_us = (2 * np.pi * 1.e6) / fit_params[2]
-        fit_period_err_us = fit_period_us * (fit_err[2] / fit_params[2])
+        fit_period_us =         (2 * np.pi * 1.e6) / fit_params[2]
+        fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
         # todo: extract phonon number
 
 
         # save results to hdf5 as a dataset
-        self.set_dataset('fit_params', fit_params)
-        self.set_dataset('fit_err', fit_err)
+        self.set_dataset('fit_params',  fit_params)
+        self.set_dataset('fit_err',     fit_err)
 
         # print out fitted parameters
         print("\tResults - Rabi Flopping:")

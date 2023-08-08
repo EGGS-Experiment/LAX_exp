@@ -5,6 +5,9 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 
+# tmp testing
+from LAX_exp.analysis import *
+
 
 class LaserScan(LAXExperiment, Experiment):
     """
@@ -103,9 +106,48 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
-        # todo: separate results readout frequency (bsb vs rsb)
-        # todo: calculate count threshold and binarize
-        # todo: find peaks
-        # todo: save result to dataset
-        # todo: print result
-        pass
+        # create data structures for processing
+        results_tmp =           np.array(self.results)
+        probability_vals =      np.zeros(len(results_tmp))
+        counts_arr =            np.array(results_tmp[:, 1])
+
+        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
+        results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
+
+
+        # calculate fluorescence detection threshold
+        threshold_list =        findThresholdScikit(results_tmp[:, 1])
+        for threshold_val in threshold_list:
+            probability_vals[np.where(counts_arr > threshold_val)] += 1.
+        # normalize probabilities
+        results_tmp[:, 1] =     probability_vals / len(threshold_list)
+
+        # process dataset into x, y, with y being averaged probability
+        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        # convert y-axis from D-state probability to S-state probability
+        results_tmp[:, 1] =     1. - results_tmp[:, 1]
+
+
+        # calculate peak criteria from data
+        # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
+        # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
+        # _peak_height =          np.power(self.repetitions, -0.5)
+        _peak_height =          0.15
+        _peak_thresh =          0.05
+        # peak distance criteria is set as ~4 kHz between points
+        _peak_dist =            int(2.e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
+
+        # calculate peaks from data
+        from scipy.signal import find_peaks
+        peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
+        # extract peak values
+        peak_vals =             results_tmp[peaks]
+
+        # save results to hdf5 as a dataset
+        self.set_dataset('spectrum_peaks',  peak_vals)
+
+        # print peaks to log for user convenience
+        print("\tPeaks - Laser Scan:")
+        for peak_freq, peak_prob in peak_vals:
+            print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))

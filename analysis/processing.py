@@ -14,7 +14,7 @@ from itertools import groupby
 
 from scipy.stats import iqr
 from scipy.signal import find_peaks
-from skimage.filters import threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
+from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 
 
 '''
@@ -52,6 +52,8 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
         num_ions = int(np.round((max_counts - 20.) / 150.))
 
 
+    # todo: fix thresholding somehow - want to use minimum error thresholding as the first
+    # todo: maybe we can start with minimum threshold value, and if num_ions > 1, then we can start with multiotsu instead
     # use multi-otsu thresholding to get base list of threshold values
     thresh_values = threshold_multiotsu(counts_arr, classes=num_ions+1, nbins=num_bins)
     # create list of threshold functions
