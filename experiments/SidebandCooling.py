@@ -6,6 +6,9 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout, RescueIon
 
+# tmp testing
+from LAX_exp.analysis import *
+
 
 class SidebandCooling(LAXExperiment, Experiment):
     """
@@ -18,7 +21,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -27,8 +30,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
-                                                                                ExplicitScan([102.751]),
-                                                                                CenterScan(102.7765, 0.02, 0.0005, randomize=True)
+                                                                                CenterScan(102.7745, 0.02, 0.0005, randomize=True),
+                                                                                ExplicitScan([102.7745])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
@@ -36,13 +39,13 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
-                                                                                ExplicitScan([103.917]),
-                                                                                CenterScan(103.9135, 0.02, 0.0005, randomize=True)
+                                                                                CenterScan(103.9135, 0.02, 0.0005, randomize=True),
+                                                                                ExplicitScan([103.9135])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group='sideband_readout')
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=140, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
+        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=130, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
         self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100), group='sideband_readout')
         self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_readout')
 
@@ -150,8 +153,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
 
-        # convert x-axis (time) from machine units to seconds
-        results_tmp[:, 0] =     np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
+        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
+        results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
 
 
         # calculate fluorescence detection threshold
@@ -174,18 +177,17 @@ class SidebandCooling(LAXExperiment, Experiment):
         # split data into RSB and BSB
         def split(arr, cond):
             return [arr[cond], arr[~cond]]
-        results_rsb, results_bsb =      split(results_tmp, results_tmp < guess_carrier_mhz)
+        results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb)
-        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb)
+        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, self.time_readout_pipulse_us)
+        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, self.time_readout_pipulse_us)
 
         # process fit parameters to give values of interest
-        rabi_ratio =                    fit_params_rsb[0] / fit_params_rsb[1]
+        rabi_ratio =                    fit_params_rsb[0] / fit_params_bsb[0]
         phonon_n =                      rabi_ratio / (1. - rabi_ratio)
         phonon_err =                    0.
         # todo: calculate error
         # fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
-
 
         # save results to hdf5 as a dataset
         self.set_dataset('fit_params_rsb',  fit_params_rsb)
