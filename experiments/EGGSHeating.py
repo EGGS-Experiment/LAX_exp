@@ -41,7 +41,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.025, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=2, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.config')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
