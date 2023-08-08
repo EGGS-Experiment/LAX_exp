@@ -145,10 +145,54 @@ class SidebandCooling(LAXExperiment, Experiment):
         """
         Fit resultant spectrum with a sinc profile.
         """
-        # todo: separate results by readout frequency (bsb vs rsb)
-        # todo: calculate count threshold and binarize
-        # todo: extract start parameter guesses
-        # todo: fit sinc profile
-        # todo: extract fit parameters
-        # todo: extract phonon number from result
-        pass
+        # create data structures for processing
+        results_tmp =           np.array(self.results)
+        probability_vals =      np.zeros(len(results_tmp))
+        counts_arr =            np.array(results_tmp[:, 1])
+
+        # convert x-axis (time) from machine units to seconds
+        results_tmp[:, 0] =     np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
+
+
+        # calculate fluorescence detection threshold
+        threshold_list =        findThresholdScikit(results_tmp[:, 1])
+        for threshold_val in threshold_list:
+            probability_vals[np.where(counts_arr > threshold_val)] += 1.
+        # normalize probabilities
+        results_tmp[:, 1] =     probability_vals / len(threshold_list)
+
+        # process dataset into x, y, with y being averaged probability
+        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        # convert y-axis from D-state probability to S-state probability
+        results_tmp[:, 1] =     1. - results_tmp[:, 1]
+
+
+        # separate spectrum into RSB & BSB and fit using sinc profile
+        # guess carrier as mean of highest and lowest frequencies
+        guess_carrier_mhz =             (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
+        # split data into RSB and BSB
+        def split(arr, cond):
+            return [arr[cond], arr[~cond]]
+        results_rsb, results_bsb =      split(results_tmp, results_tmp < guess_carrier_mhz)
+        # fit sinc profile
+        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb)
+        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb)
+
+        # process fit parameters to give values of interest
+        rabi_ratio =                    fit_params_rsb[0] / fit_params_rsb[1]
+        phonon_n =                      rabi_ratio / (1. - rabi_ratio)
+        phonon_err =                    0.
+        # todo: calculate error
+        # fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
+
+
+        # save results to hdf5 as a dataset
+        self.set_dataset('fit_params_rsb',  fit_params_rsb)
+        self.set_dataset('fit_params_bsb',  fit_params_bsb)
+        self.set_dataset('fit_err_rsb',     fit_err_rsb)
+        self.set_dataset('fit_err_bsb',     fit_err_bsb)
+
+        # print out fitted parameters
+        print("\tResults - Sideband Cooling:")
+        print("\t\tn:\t{:.3f} +/- {:.3f}".format(phonon_n, phonon_err))

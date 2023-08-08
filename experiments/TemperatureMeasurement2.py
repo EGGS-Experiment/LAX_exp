@@ -130,6 +130,9 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
     # ANALYSIS
     def analyze(self):
         """
-        Fit data and extract resonance and linewidth.
+        Process resultant spectrum and attempt to fit.
         """
+        # todo: subtract background
+        # todo: try to fit gaussian, lorentzian, and voigt profiles
+        # todo: extract linecenter and FWHM
         pass

@@ -16,6 +16,8 @@ from scipy.stats import iqr
 from scipy.signal import find_peaks
 from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 
+# todo: move from np.power to **
+
 
 '''
 Dataset Processing

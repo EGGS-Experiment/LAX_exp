@@ -85,3 +85,12 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+
+    # ANALYSIS
+    def analyze(self):
+        """
+        Fit resultant spectra with a sinc profile to extract n,
+        then fit a line to extract heating rate
+        """
+        pass

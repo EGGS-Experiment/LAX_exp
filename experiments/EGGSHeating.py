@@ -177,6 +177,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # calculate windowing values
         if self.type_pulse_shape == 'sine_squared':
             # calculate sine squared window
+            # todo: use **2 instead of np.power
             self.ampl_window_frac_list =                                    np.power(np.sin(
                                                                                 (np.pi / (2. * self.num_pulse_shape_samples)) *
                                                                                 np.linspace(1, self.num_pulse_shape_samples, self.num_pulse_shape_samples)),

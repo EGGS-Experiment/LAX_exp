@@ -161,4 +161,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         """
         Process resultant spectrum and attempt to fit.
         """
+        # todo: subtract background
+        # todo: try to fit gaussian, lorentzian, and voigt profiles
+        # todo: extract linecenter and FWHM
         pass
