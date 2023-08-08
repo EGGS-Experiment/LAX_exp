@@ -1,7 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-class pt1(EnvExperiment):
+class pt1_pulseshape(EnvExperiment):
 
     def build(self):
         # RSB/BSB/DD 40%/40%/20%
