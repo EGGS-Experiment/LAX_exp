@@ -139,14 +139,12 @@ class RabiFlopping(LAXExperiment, Experiment):
         threshold_list =        findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities
-        results_tmp[:, 1] =     probability_vals / len(threshold_list)
+        # normalize probabilities and convert from D-state probability to S-state probability
+        results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
 
         # process dataset into x, y, with y being averaged probability
         results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
         results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        # convert y-axis from D-state probability to S-state probability
-        results_tmp[:, 1] =     1. - results_tmp[:, 1]
 
 
         # fit rabi flopping using damped harmonic oscillator

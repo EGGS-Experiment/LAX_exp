@@ -71,6 +71,10 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
         if np.all((thresh_values - thresh_val) > thresh_dist):
             thresh_values = np.append(thresh_values, thresh_val)
 
+    # tmp remove
+    print('\t\t\tthresholds: {}'.format(np.sort(thresh_values)[: num_ions]))
+    # tmp remove
+
     # return sorted threshold values
     return np.sort(thresh_values)[: num_ions]
 
