@@ -17,6 +17,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
     def build_experiment(self):
+        # run regular sideband cooling build
+        super().build_experiment()
+
         # EGGS RF scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=True), group='EGGS_Heating')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
@@ -61,9 +64,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_device('ttl16')
         self.setattr_device('ttl17')
         # tmp remove
-
-        # run regular sideband cooling build
-        super().build_experiment()
 
     def prepare_experiment(self):
         # ensure phaser amplitudes sum to less than 100%
@@ -177,7 +177,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # calculate windowing values
         if self.type_pulse_shape == 'sine_squared':
             # calculate sine squared window
-            # todo: use **2 instead of np.power
             self.ampl_window_frac_list =                                    np.power(np.sin(
                                                                                 (np.pi / (2. * self.num_pulse_shape_samples)) *
                                                                                 np.linspace(1, self.num_pulse_shape_samples, self.num_pulse_shape_samples)),
