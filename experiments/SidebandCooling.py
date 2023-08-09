@@ -179,9 +179,9 @@ class SidebandCooling(LAXExperiment, Experiment):
         fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, self.time_readout_pipulse_us)
         fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, self.time_readout_pipulse_us)
         # process fit parameters to give values of interest
-        phonon_n =                      fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+        phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
+                                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                                     )**0.5
 
         # save results to hdf5 as a dataset
