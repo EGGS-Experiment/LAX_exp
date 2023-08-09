@@ -131,10 +131,10 @@ class LaserScan(LAXExperiment, Experiment):
         # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
         # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
         # _peak_height =          np.power(self.repetitions, -0.5)
-        _peak_height =          0.15
+        _peak_height =          0.2
         _peak_thresh =          0.05
-        # peak distance criteria is set as ~4 kHz between points
-        _peak_dist =            int(2.e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
+        # peak distance criteria is set as ~8 kHz between points
+        _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
 
         # calculate peaks from data
         from scipy.signal import find_peaks
