@@ -16,11 +16,9 @@ from scipy.stats import iqr
 from scipy.signal import find_peaks
 from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 
-# todo: move from np.power to **
-
 
 '''
-Dataset Processing
+Thresholding
 '''
 def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None):
     """
@@ -40,7 +38,7 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
         # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
         # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
         # edit: actually, use scott's normal reference rule instead
-        bin_width = np.round(3.49 * np.std(counts_arr) / np.power(len(counts_arr), 1. / 3.))
+        bin_width = np.round(3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.)))
         # calculate number of bins
         num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
 
@@ -88,7 +86,7 @@ def findThresholdPeaks(counts_arr):
     # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
     # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
     # edit: actually, use scott's normal reference rule instead
-    bin_width = np.round(3.49 * np.std(counts_arr) / np.power(len(counts_arr), 1. / 3.))
+    bin_width = np.round(3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.)))
     # calculate number of bins
     num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
 
@@ -114,6 +112,10 @@ def findThresholdPeaks(counts_arr):
     return counts_signal, counts_bgr, counts_threshold, num_ions
 
 
+
+'''
+Dataset Processing
+'''
 def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
     """
     Groups a 2-D array by a given column.
@@ -139,5 +141,28 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
     return dataset_processed
 
 
-def importDatasetArtiq(dataset, *args, **kwargs):
-    pass
+def processDataset2D(dataset):
+    """
+    todo: document
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # create data structures for processing
+    probability_vals =      np.zeros(len(dataset))
+
+    # calculate fluorescence detection threshold
+    threshold_list =        findThresholdScikit(dataset[:, 1])
+    for threshold_val in threshold_list:
+        probability_vals[np.where(dataset[:, 1] > threshold_val)] += 1.
+    # normalize probabilities and convert from D-state probability to S-state probability
+    dataset[:, 1] =         1. - probability_vals / len(threshold_list)
+
+    # process dataset into x, y, with y being averaged probability
+    dataset_processed =     groupBy(dataset, column_num=0, reduce_func=np.mean)
+    dataset_processed =     np.array([list(dataset_processed.keys()),
+                                      list(dataset_processed.values())]).transpose()
+    return dataset_processed

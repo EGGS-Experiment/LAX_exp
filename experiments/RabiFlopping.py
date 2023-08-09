@@ -150,14 +150,14 @@ class RabiFlopping(LAXExperiment, Experiment):
 
 
         # fit rabi flopping using damped harmonic oscillator
-        fit_params, fit_err =   fitRabiFlopping(results_tmp)
-        # todo: use damped sine fit parameters to attempt to fit roos eqn(A.5)
-        # we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
+        fit_params, fit_err =   fitDampedOscillator(results_tmp)
+        # todo: use fit parameters to attempt to fit roos eqn(A.5)
+        # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
         # process fit parameters to give values of interest
         fit_period_us =         (2 * np.pi * 1.e6) / fit_params[2]
         fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
-        # todo: extract phonon number
+        # todo: extract phonon number from fit
 
 
         # save results to hdf5 as a dataset

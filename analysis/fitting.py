@@ -4,22 +4,22 @@ LAX.analysis.fitting
 Contains modules used for fitting datasets.
 """
 
-__all__ = ['fitRabiFlopping', 'fitSinc']
+__all__ = ['fitDampedOscillator', 'fitSinc', 'fitLine']
 
 
 # necessary imports
 import numpy as np
 
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, least_squares
 # todo: separate damped exponential fit from rabi flopping fit
 
 
 '''
 Fitting
 '''
-def fitRabiFlopping(data):
+def fitDampedOscillator(data):
     """
-    Fit Rabi Flopping population data.
+    Fit exponentially damped harmonic oscillator to data.
 
     Arguments:
         ***todo
@@ -61,6 +61,19 @@ def fitRabiFlopping(data):
     return param_fit, param_err
 
 
+def fitRabiFlopping(data):
+    """
+    todo: document
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    pass
+
+
 def fitSinc(data, time_fit_s):
     """
     Fit sinc profile to data.
@@ -71,15 +84,12 @@ def fitSinc(data, time_fit_s):
     Returns:
         ***todo
     """
-    # sinc profile fitting function
+    # use sinc profile with lorentzian amplitude per optical bloch equations
     def fit_func(x, a, b, c):
         """
         todo: document arguments
         """
-        # return (np.power(
-        #     (a * np.pi * time_fit_s) * np.sinc(() * np.sqrt(np.power)),
-        #     2.) + d)
-        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * np.sqrt(a**2. + (x - b)**2.))**2. + c)
+        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
 
     # separate data into x and y
     data =              np.array(data)
@@ -112,3 +122,31 @@ def fitSpectralLine(data):
         ***todo
     """
     pass
+
+
+def fitLine(data):
+    """
+    Fit linear trend to data.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # create norm function for least squares optimization
+    def func_norm(b_params, x, y):
+        """
+        todo: document arguments
+        """
+        return b_params[0] + (b_params[1] * x[1]) - y
+
+    # guess starting parameters for the line fit
+    b_guess =           np.min(data[:, 1])
+    m_guess =           np.mean(data[:, 1] / data[:, 0])
+
+    # do a linear least squares fit to the data
+    res =               least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]))
+    res_intercept, res_slope = res.x
+
+    return res_intercept, res_slope
