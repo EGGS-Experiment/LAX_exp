@@ -32,15 +32,14 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
         ***todo
     """
     # todo: implement error handling somehow
-
     # calculate num_bins if no value is provided
     if num_bins is None:
         # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
         # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
         # edit: actually, use scott's normal reference rule instead
-        bin_width = np.round(3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.)))
+        bin_width = 3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.))
         # calculate number of bins
-        num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
+        num_bins = round((np.max(counts_arr) - np.min(counts_arr)) / bin_width)
 
     # guess number of ions (i.e. thresholding classes) if no value is provided
     if num_ions is None:
@@ -49,8 +48,12 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
         # get max count bin
         max_counts = np.max(hist_bins)
         # guess number of ions using heuristic values (~20 background counts, ~150 max counts per ion)
-        num_ions = int(np.round((max_counts - 20.) / 150.))
+        num_ions = round((max_counts - 20.) / 150.)
 
+    # tmp remove
+    if num_ions == 0:
+        num_ions = 1
+    # tmp remove
 
     # todo: fix thresholding somehow - want to use minimum error thresholding as the first
     # todo: maybe we can start with minimum threshold value, and if num_ions > 1, then we can start with multiotsu instead
@@ -86,9 +89,9 @@ def findThresholdPeaks(counts_arr):
     # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
     # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
     # edit: actually, use scott's normal reference rule instead
-    bin_width = np.round(3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.)))
+    bin_width = 3.49 * np.std(counts_arr) / (len(counts_arr) ** (1. / 3.))
     # calculate number of bins
-    num_bins = np.round(int((np.max(counts_arr) - np.min(counts_arr)) / bin_width))
+    num_bins = round((np.max(counts_arr) - np.min(counts_arr)) / bin_width)
 
     # get histogram
     hist_counts, hist_bins = np.histogram(counts_arr, int(num_bins * 2.5))
@@ -96,7 +99,7 @@ def findThresholdPeaks(counts_arr):
 
     # find peaks
     # set minimum distance between peaks as half typical ion counts (convert to bins)
-    _peak_dist = np.round((90./1.5) / bin_width)
+    _peak_dist = round((90./1.5) / bin_width)
     peaks, props = find_peaks(hist_counts, distance=_peak_dist)
 
     # assume first and second peaks are the counts for background and 1 ion fluorescence, respectively

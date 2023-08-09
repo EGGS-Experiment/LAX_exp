@@ -21,16 +21,15 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=3, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
 
-
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
-                                                                                CenterScan(102.7745, 0.02, 0.0005, randomize=True),
+                                                                                CenterScan(102.7745, 0.01, 0.0005, randomize=True),
                                                                                 ExplicitScan([102.7745])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
@@ -39,7 +38,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
-                                                                                CenterScan(103.9135, 0.02, 0.0005, randomize=True),
+                                                                                CenterScan(103.9135, 0.01, 0.0005, randomize=True),
                                                                                 ExplicitScan([103.9135])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
@@ -161,14 +160,12 @@ class SidebandCooling(LAXExperiment, Experiment):
         threshold_list =        findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities
-        results_tmp[:, 1] =     probability_vals / len(threshold_list)
+        # normalize probabilities and convert from D-state probability to S-state probability
+        results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
 
         # process dataset into x, y, with y being averaged probability
         results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
         results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        # convert y-axis from D-state probability to S-state probability
-        results_tmp[:, 1] =     1. - results_tmp[:, 1]
 
 
         # separate spectrum into RSB & BSB and fit using sinc profile

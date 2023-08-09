@@ -134,7 +134,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         print("\t\tSlope:\t{:.3f} quanta/s".format(fit_params_heating_rate[0]))
         print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[1]))
 
-
     def _extract_phonon(self, dataset, time_fit_us):
         """
         idk
