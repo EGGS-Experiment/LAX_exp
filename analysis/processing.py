@@ -44,39 +44,44 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
     # guess number of ions (i.e. thresholding classes) if no value is provided
     if num_ions is None:
         # histogram counts
-        hist_counts, hist_bins = np.histogram(counts_arr, int(num_bins * 2.5))
-        # get max count bin
-        max_counts = np.max(hist_bins)
+        hist_counts, hist_bins = np.histogram(counts_arr, int(num_bins * 1.8))
         # guess number of ions using heuristic values (~20 background counts, ~150 max counts per ion)
-        num_ions = round((max_counts - 20.) / 150.)
+        num_ions = round((np.max(hist_bins) - 20.) / 150.)
 
     # tmp remove
-    if num_ions == 0:
-        num_ions = 1
+    if num_ions == 0: num_ions = 1
     # tmp remove
 
-    # todo: fix thresholding somehow - want to use minimum error thresholding as the first
-    # todo: maybe we can start with minimum threshold value, and if num_ions > 1, then we can start with multiotsu instead
-    # use multi-otsu thresholding to get base list of threshold values
-    thresh_values = threshold_multiotsu(counts_arr, classes=num_ions+1, nbins=num_bins)
-    # create list of threshold functions
-    threshold_functions = [threshold_minimum, threshold_isodata, threshold_yen, threshold_triangle]
+    # start with minimum error thresholding since it's most likely to recognize the signal/background threshold
+    thresh_values_start =  np.array([threshold_minimum(counts_arr)])
+    # use multi-otsu thresholding to get threshold values in case of num_ions > 1
+    thresh_multiotsu_values = threshold_multiotsu(counts_arr, classes=num_ions+1, nbins=num_bins)
 
     # ensure duplicate thresholds are not added to list
-    for thresh_func in threshold_functions:
-        # get threshold value
-        thresh_val = thresh_func(counts_arr, nbins=num_bins)
-
+    for thresh_val in thresh_multiotsu_values:
         # only recognize value if different from existing thresholds by thresh_dist
-        if np.all((thresh_values - thresh_val) > thresh_dist):
-            thresh_values = np.append(thresh_values, thresh_val)
+        if np.all(np.abs(thresh_values_start - thresh_val) > thresh_dist):
+            thresh_values_start = np.append(thresh_values_start, thresh_val)
+
+
+    # # create list of threshold functions
+    # threshold_functions = [threshold_isodata, threshold_yen, threshold_triangle]
+    #
+    # # ensure duplicate thresholds are not added to list
+    # for thresh_func in threshold_functions:
+    #     # get threshold value
+    #     thresh_val = thresh_func(counts_arr, nbins=num_bins)
+    #
+    #     # only recognize value if different from existing thresholds by thresh_dist
+    #     if np.all((thresh_values - thresh_val) > thresh_dist):
+    #         thresh_values = np.append(thresh_values, thresh_val)
 
     # tmp remove
-    print('\t\t\tthresholds: {}'.format(np.sort(thresh_values)[: num_ions]))
+    print('\t\t\tthresholds: {}'.format(np.sort(thresh_values_start)[: num_ions]))
     # tmp remove
 
     # return sorted threshold values
-    return np.sort(thresh_values)[: num_ions]
+    return np.sort(thresh_values_start)[: num_ions]
 
 
 def findThresholdPeaks(counts_arr):
