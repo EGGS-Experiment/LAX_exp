@@ -136,10 +136,9 @@ class LaserScan(LAXExperiment, Experiment):
         # peak distance criteria is set as ~8 kHz between points
         _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
 
-        # calculate peaks from data
+        # calculate peaks from data and extract values
         from scipy.signal import find_peaks
         peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
-        # extract peak values
         peak_vals =             results_tmp[peaks]
 
         # save results to hdf5 as a dataset

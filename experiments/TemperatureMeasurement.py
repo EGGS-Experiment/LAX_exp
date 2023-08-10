@@ -6,6 +6,9 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 # todo: unify temperature measurement
 
+# tmp testing
+from LAX_exp.analysis import *
+
 
 class TemperatureMeasurement(LAXExperiment, Experiment):
     """
@@ -15,14 +18,15 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
     """
     name = 'Temperature Measurement'
 
+
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
-                                                                            default=RangeScan(91, 129, 100, randomize=True),
-                                                                            global_min=85, global_max=135, global_step=1,
+                                                                            default=RangeScan(85, 129, 45, randomize=True),
+                                                                            global_min=80, global_max=140, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=6
                                                                         ))
 
@@ -194,7 +198,7 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         fit_gaussian_params, fit_gaussian_err =         fitGaussian(res_final[:, :2])
         fit_lorentzian_params, fit_lorentzian_err =     fitLorentzian(res_final[:, :2])
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
-        fit_gaussian_fwmh_mhz =                         (2. * fit_gaussian_params[1]) ** -0.5
+        fit_gaussian_fwmh_mhz =                         2 * (2. * fit_gaussian_params[1]) ** -0.5
         fit_gaussian_fwmh_mhz_err =                     fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])
 
         # save fitted results to hdf5 as a dataset
@@ -210,11 +214,11 @@ class TemperatureMeasurement(LAXExperiment, Experiment):
         # print out fitted parameters
         print("\tResults - Linewidth Measurement:")
         print("\t\tGaussian Fit:")
-        print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
-        print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+        print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
+        print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
         print("\t\tLorentzian Fit:")
-        print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
-        print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
+        print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
+        print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
         # print("\t\tVoigt Fit:")
         # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
         # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
