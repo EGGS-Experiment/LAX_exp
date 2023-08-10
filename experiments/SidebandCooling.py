@@ -21,7 +21,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=3, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -29,8 +29,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
-                                                                                CenterScan(102.7745, 0.01, 0.0005, randomize=True),
-                                                                                ExplicitScan([102.7745])
+                                                                                ExplicitScan([102.7745]),
+                                                                                CenterScan(102.7745, 0.01, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
@@ -38,8 +38,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
-                                                                                CenterScan(103.9135, 0.01, 0.0005, randomize=True),
-                                                                                ExplicitScan([103.9135])
+                                                                                ExplicitScan([103.9135]),
+                                                                                CenterScan(103.9135, 0.01, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
