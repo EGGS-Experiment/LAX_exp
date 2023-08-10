@@ -138,7 +138,60 @@ class TemperatureMeasurement2(LAXExperiment, Experiment):
         """
         Process resultant spectrum and attempt to fit.
         """
-        # todo: subtract background
-        # todo: try to fit gaussian, lorentzian, and voigt profiles
-        # todo: extract linecenter and FWHM
-        pass
+        # create data structures for processing
+        results_tmp =           np.array(self.results)[:, :3]
+        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
+        results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
+
+        # separate results into signal counts and background counts
+        results_tmp =           groupBy(results_tmp, column_num=1)
+        _reduce_func =          lambda data: np.array([np.mean(data), np.std(data)])
+
+        # format the results into [freq_mhz, mean_counts, stdev_counts]
+        res_bgr =               groupBy(results_tmp[0], column_num=0, reduce_func=_reduce_func)
+        res_bgr =               np.concatenate((np.array([list(res_bgr.keys())]).transpose(),
+                                                np.array(list(res_bgr.values()))),
+                                               axis=-1)
+
+        res_signal =            groupBy(results_tmp[1], column_num=0, reduce_func=_reduce_func)
+        res_signal =            np.concatenate((np.array([list(res_signal.keys())]).transpose(),
+                                                np.array(list(res_signal.values()))),
+                                               axis=-1)
+
+        # process results into final form
+        res_final =             res_signal.copy()
+        res_final[:, 2] -=      res_bgr[:, 2]
+
+        # save processed results to hdf5 as a dataset
+        self.set_dataset('res_signal',  res_signal)
+        self.set_dataset('res_bgr',     res_bgr)
+
+        # fit gaussian, lorentzian, and voigt profiles
+        # todo: fit voigt profile
+        fit_gaussian_params, fit_gaussian_err =         fitGaussian(res_final[:, :2])
+        fit_lorentzian_params, fit_lorentzian_err =     fitLorentzian(res_final[:, :2])
+        # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
+        fit_gaussian_fwmh_mhz =                         (2. * fit_gaussian_params[1]) ** -0.5
+        fit_gaussian_fwmh_mhz_err =                     fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])
+
+        # save fitted results to hdf5 as a dataset
+        self.set_dataset('fit_gaussian_params',         fit_gaussian_params)
+        self.set_dataset('fit_gaussian_err',            fit_gaussian_err)
+
+        self.set_dataset('fit_lorentzian_params',       fit_lorentzian_params)
+        self.set_dataset('fit_lorentzian_err',          fit_lorentzian_err)
+
+        # self.set_dataset('fit_voigt_params',            fit_voigt_params)
+        # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
+
+        # print out fitted parameters
+        print("\tResults - Linewidth Measurement:")
+        print("\t\tGaussian Fit:")
+        print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
+        print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+        print("\t\tLorentzian Fit:")
+        print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
+        print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
+        # print("\t\tVoigt Fit:")
+        # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
+        # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))

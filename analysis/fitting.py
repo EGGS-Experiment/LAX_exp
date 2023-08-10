@@ -4,18 +4,17 @@ LAX.analysis.fitting
 Contains modules used for fitting datasets.
 """
 
-__all__ = ['fitDampedOscillator', 'fitSinc', 'fitLine']
+__all__ = ['fitDampedOscillator', 'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt', 'fitLine']
 
 
 # necessary imports
 import numpy as np
-
+from scipy.special import wofz
 from scipy.optimize import curve_fit, least_squares
-# todo: separate damped exponential fit from rabi flopping fit
 
 
 '''
-Fitting
+Fitting: Oscillators
 '''
 def fitDampedOscillator(data):
     """
@@ -57,7 +56,6 @@ def fitDampedOscillator(data):
     # fit and convert covariance matrix to error (1 stdev)
     param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
     param_err =             np.sqrt(np.diag(param_cov))
-
     return param_fit, param_err
 
 
@@ -74,9 +72,12 @@ def fitRabiFlopping(data):
     pass
 
 
+'''
+Fitting: Spectroscopy Profiles
+'''
 def fitSinc(data, time_fit_s):
     """
-    Fit sinc profile to data.
+    Fit Sinc profile to data.
 
     Arguments:
         ***todo
@@ -96,7 +97,7 @@ def fitSinc(data, time_fit_s):
     data_x, data_y =    data.transpose()
 
     # extract starting parameter guesses
-    # get position of max as line center
+    # get position of max as linecenter
     b0, a0 =            data[np.argmax(data_y)]
     # get offset as average of (median, mean) of data
     c0 =                np.mean([np.median(data_y), np.mean(data_y)])
@@ -107,13 +108,12 @@ def fitSinc(data, time_fit_s):
     # fit and convert covariance matrix to error (1 stdev)
     param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
     param_err =             np.sqrt(np.diag(param_cov))
-
     return param_fit, param_err
 
 
-def fitSpectralLine(data):
+def fitGaussian(data):
     """
-    Fit spectral line.
+    Fit gaussian profile to data.
 
     Arguments:
         ***todo
@@ -121,9 +121,110 @@ def fitSpectralLine(data):
     Returns:
         ***todo
     """
-    pass
+    # regular old gaussian
+    def fit_func(x, a, b, mu):
+        """
+        todo: document arguments
+        """
+        return a * np.exp(-b * (x - mu)**2.)
+
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # extract starting parameter guesses
+    # get position of max as linecenter
+    mu0, a0 =           data[np.argmax(data_y)]
+    # get b0 by numerically guessing FWHM
+    gamma0 =            data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    # create array of initial guess parameters
+    param_guess =       np.array([a0, b0, mu0])
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_err =             np.sqrt(np.diag(param_cov))
+    return param_fit, param_err
 
 
+def fitLorentzian(data):
+    """
+    Fit Lorentzian profile to data.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # regular old lorentzin
+    def fit_func(x, a, b, mu):
+        """
+        todo: document arguments
+        """
+        return a / ((x - mu)**2. + (b)**2.)
+
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # extract starting parameter guesses
+    # get position of max as linecenter
+    mu0, a0 =           data[np.argmax(data_y)]
+    # get b0 by numerically guessing FWHM
+    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    # create array of initial guess parameters
+    param_guess =       np.array([a0, b0, mu0])
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_err =             np.sqrt(np.diag(param_cov))
+
+    # convert b_fit to \Gamma / 2 (i.e. linewidth)
+    param_fit[1] *= 2.
+    param_err[1] *= 2.
+    return param_fit, param_err
+
+
+def fitVoigt(data):
+    """
+    Fit Voigt profile to data.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # voigt profile: convolution of lorentzian (e.g. spectrum) with gaussian (e.g. temperature)
+    def fit_func(x, a, b, mu):
+        """
+        todo: document arguments
+        """
+        return a * np.exp(-b * (x - mu)**2.)
+
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # extract starting parameter guesses
+    # get position of max as line center
+    mu0, a0 =           data[np.argmax(data_y)]
+    # get b0 by numerically guessing FWHM
+    gamma0 =            data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    # create array of initial guess parameters
+    param_guess =       np.array([a0, b0, mu0])
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_err =             np.sqrt(np.diag(param_cov))
+    return param_fit, param_err
+
+
+'''
+Fitting: Other
+'''
 def fitLine(data):
     """
     Fit linear trend to data.
@@ -148,5 +249,4 @@ def fitLine(data):
     # do a linear least squares fit to the data
     res =               least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]))
     res_intercept, res_slope = res.x
-
     return res_intercept, res_slope

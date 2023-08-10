@@ -124,7 +124,6 @@ def findThresholdPeaks(counts_arr):
     return counts_signal, counts_bgr, counts_threshold, num_ions
 
 
-
 '''
 Dataset Processing
 '''
