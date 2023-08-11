@@ -1,106 +1,58 @@
+import labrad
+import numpy as np
+from os import environ
 from artiq.experiment import *
+from datetime import datetime
+from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
+from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
+                                   rtio_input_data)
 
-# todo: duty cycle
-
-
-class DDSClock(EnvExperiment):
+class testarg34(EnvExperiment):
     """
-    DDS Clock
-    Use the DIO-BNC TTLs to create a clock pulse.
+    testarg34
+    Testing
     """
 
     def build(self):
-        """
-        Set devices and arguments for the experiment.
-        """
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.time_trigger_delay_mu =                                self.core.seconds_to_mu(50.88 * us)
+        self.setattr_device("ttl8")
+        self.setattr_device("ttl9")
 
-        # timing
-        self.setattr_argument('frequency_clock_khz',                NumberValue(default=1, ndecimals=3, step=1, min=0.001, max=1000))
-        self.setattr_argument('duty_cycle_frac',                    NumberValue(default=0.5, ndecimals=6, step=1, min=0.0000001, max=1000))
-        self.setattr_argument('time_total_s',                       NumberValue(default=10, ndecimals=6, step=1, min=0.00001, max=100000000))
-        #self.setattr_argument('time_off_us', NumberValue(default=100, ndecimals=3, step=1, min=0, max=100))
+        self.setattr_device("ttl10")    # rf blank
+        self.setattr_device("ttl11")    # oscilloscope trigger
+        self.setattr_device("ttl12")    # rf switch
 
-        # TTL channel
-        self.setattr_argument("ttl_channel",                        NumberValue(default=14, ndecimals=0, step=1, min=8, max=23))
-        self.setattr_argument("ttl_trigger",                        NumberValue(default=15, ndecimals=0, step=1, min=8, max=23))
+        self.setattr_device("urukul1_ch1")
+        self.setattr_device("urukul1_ch2")
+        self.setattr_device("urukul1_cpld")
+        self.setattr_device("ttl0_counter")
 
+        # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
+
+        # calib_timestamp = datetime.timestamp(datetime.now())
+        # th0 = np.arange(85,137,2)
+        # th1 = np.array([0.15625, 0.15625, 0.140625, 0.125, 0.1171875, 0.109375, 0.109375,
+        #                 0.109375, 0.1171875, 0.1171875, 0.109375, 0.109375, 0.109375,
+        #                 0.1171875, 0.125, 0.125, 0.125, 0.1328125, 0.140625, 0.140625,
+        #                 0.15625, 0.171875, 0.203125, 0.25, 0.28125, 0.34375]) * 100
+
+        # # print(np.array([th0,th1]))
+        # self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
+        # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        """
-        Set up the dataset and prepare things such that the kernel functions have minimal overhead.
-        """
-        # devices
-        self.ttl_clock =                                            self.get_device("ttl{:d}".format(self.ttl_channel))
-        self.ttl_trigger =                                          self.get_device("ttl{:d}".format(self.ttl_trigger))
+        # yz0=np.array(self.get_dataset('calibration.eggs.resonance_ratio_curve_mhz'))
+        yz0=self.set_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz', yz0, persist=True)
+        print(yz0)
 
-        # timing
-        self.time_on_mu = self.core.seconds_to_mu(self.duty_cycle_frac / (self.frequency_clock_khz * kHz))
-        self.time_on_mu = self.core.seconds_to_mu((1 - self.duty_cycle_frac) / (self.frequency_clock_khz * kHz))
-        self.num_repetitions = int(self.frequency_clock_khz * self.time_total_ms)
-
-        # self.time_off_mu = self.core.seconds_to_mu(self.time_reset_us * us)
-
-        # tmp remove
-        self.dds = self.get_device('urukul0_ch1')
-        self.dds_sw = self.get_device('ttl22')
-
-
-    @kernel(flags={"fast-math"})
     def run(self):
-        """
-        Run the experimental sequence.
-        """
-        self.core.break_realtime()
+        pass
 
-        # prepare devices
-        self.ttl_trigger.off()
 
-        # record dma
-        # todo
+    def analyze(self):
+        pass
+        # res_fin = np.array([self._results0, self._results1]).transpose()
+        # self.set_dataset('results', res_fin)
+        # print(res_fin)
 
-        # MAIN LOOP
-        for i in range(self.num_repetitions):
-
-            # OUTPUT ON
-            with parallel:
-
-                # toggle devices
-                with sequential:
-                    self.ttl_trigger.on()
-                    self.dds.cpld.cfg_sw(0b0100)
-
-                # on time
-                delay_mu(self.time_delay_mu)
-
-            # OUTPUT OFF
-            with parallel:
-
-                # toggle devices
-                with sequential:
-                    self.ttl_trigger.off()
-                    self.dds.cpld.cfg_sw(0b0000)
-
-                # off time
-                delay_mu(self.time_delay_mu)
-
-    @kernel
-    def configure_ram_mode(self):
-        self.core.break_realtime()
-
-        self.dds.set_cfr1(ram_enable=0)
-        self.cpld.io_update.pulse_mu(8)
-        self.cpld.set_profile(0)  # Enable the corresponding RAM profile
-        # Profile 0 is the default
-        self.dds.set_profile_ram(start=0, end=len(self.asf_ram) - 1,
-                            step=250, profile=0, mode=RAM_MODE_CONT_RAMPUP)
-        self.cpld.io_update.pulse_mu(8)
-        self.dds.amplitude_to_ram(self.amp, self.asf_ram)
-        self.dds.write_ram(self.asf_ram)
-        self.core.break_realtime()
-        self.dds.set(frequency=5 * MHz, ram_destination=RAM_DEST_ASF)
-        # Pass osk_enable=1 to set_cfr1() if it is not an amplitude RAM
-        self.dds.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_ASF)
-        self.cpld.io_update.pulse_mu(8)
