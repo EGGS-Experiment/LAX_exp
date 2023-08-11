@@ -25,6 +25,12 @@ class PhaserEGGS(LAXDevice):
         self.t_sample_mu =                  int64(40)
         self.t_frame_mu =                   int64(320)
 
+        # todo: max phaser sample rate
+
+        # conversion factors
+        self.ftw_per_hz =                   (1 << 32) / 1e9
+
+
     def prepare_device(self):
         # alias both phaser output channels
         self.channel =                      self.phaser.channel
@@ -57,6 +63,10 @@ class PhaserEGGS(LAXDevice):
         self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
 
+
+    '''
+    DUC Methods
+    '''
     @kernel(flags={"fast-math"})
     def reset_duc_phase(self):
         """
@@ -74,6 +84,10 @@ class PhaserEGGS(LAXDevice):
         # strobe update register for both DUCs
         self.phaser.duc_stb()
 
+
+    '''
+    Oscillator Methods
+    '''
     @kernel(flags={"fast-math"})
     def disable_oscillators(self):
         """
@@ -113,3 +127,52 @@ class PhaserEGGS(LAXDevice):
                 self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(self.t_sample_mu)
+
+
+    '''
+    Helper Methods
+    '''
+    @portable(flags={"fast-math"})
+    def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
+        """
+        todo: document
+        """
+        code = int32(round(amplitude * 0x7FFF))
+        if code < 0 or code > 0x7FFF:
+            raise ValueError("Error: Invalid fractional amplitude")
+        return code
+
+    @portable(flags={"fast-math"})
+    def asf_to_amplitude(self, asf: TInt32) -> TFloat:
+        """
+        todo: document
+        """
+        return asf / float(0x7FFF)
+
+    @portable(flags={"fast-math"})
+    def turns_to_pow(self, turns: TFloat) -> TInt32:
+        """
+        todo: document
+        """
+        return int32(round(turns * 0x10000)) & int32(0xFFFF)
+
+    @portable(flags={"fast-math"})
+    def pow_to_turns(self, pow_: TInt32) -> TFloat:
+        """
+        todo: document
+        """
+        return pow_ / 0x10000
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+        """
+         todo: document
+         """
+        return int32(round(self.ftw_per_hz * frequency))
+
+    @portable(flags={"fast-math"})
+    def ftw_to_frequency(self, ftw: TInt32) -> TFloat:
+        """
+         todo: document
+         """
+        return ftw / self.ftw_per_hz
