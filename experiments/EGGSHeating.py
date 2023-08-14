@@ -43,27 +43,27 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF pulse configuration
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
-        self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=10, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
+        self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.5, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
         self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=5, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
         # EGGS RF - dynamical decoupling PSK (Phase-shift Keying)
-        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=True), group='EGGS_Heating.decoupling')
+        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling')
         self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=10, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling')
         # EGGS RF - dynamical decoupling - active cancellation
-        self.setattr_argument("enable_dd_active_cancel",                    BooleanValue(default=True), group='EGGS_Heating.decoupling')
+        self.setattr_argument("enable_dd_active_cancel",                    BooleanValue(default=False), group='EGGS_Heating.decoupling')
         self.setattr_argument("ampl_dd_active_cancel_pct",                  NumberValue(default=35, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
-        self.setattr_argument("att_dd_active_cancel_db",                    NumberValue(default=20, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling')
+        self.setattr_argument("att_dd_active_cancel_db",                    NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling')
         self.setattr_argument("phas_dd_active_cancel_turns",                NumberValue(default=0., ndecimals=3, step=0.1, min=-1, max=1), group='EGGS_Heating.decoupling')
 
         # EGGS RF - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=1500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
@@ -360,16 +360,23 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
+
                 ### RUN EGGS HEATING ###
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
 
-                self.ttl16.on()
-                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
-                self.ttl17.on()
+                # with parallel:
+                #     self.ttl17.on()
+                #     self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 with parallel:
                     # ??? why activecancel run before phaser run is OK, but other way is not???
+                    # tmp remove
+                    with sequential:
+                        # delay_mu(self.phaser_eggs.t_output_delay_mu)
+                        delay_mu(1860)
+                        self.ttl16.on()
+                    # tmp remove
                     self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
@@ -379,6 +386,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                     self.phaser_stop()
                     self.phaser_activecancel_stop()
                 ### STOP EGGS HEATING ###
+
 
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
@@ -405,12 +413,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_eggs.channel[0].set_att(31.5 * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
-
-        # tmp remove
-        self.ttl13.off()
-        self.ttl16.off()
-        self.ttl17.off()
-        # tmp remove
 
 
     # ANALYSIS
@@ -541,24 +543,24 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
             ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
         """
-        # todo: check if we can avoid this by having exact delays
-        # synchronize to frame to activate eggs heating output
-        at_mu(self.phaser_eggs.get_next_frame_mu())
+        # tmp remove
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # tmp remove
 
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
@@ -573,24 +575,24 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
             ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
         """
-        # todo: check if we can avoid this by having exact delays
-        # synchronize to frame to activate eggs heating output
-        at_mu(self.phaser_eggs.get_next_frame_mu())
+        # tmp remove
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # tmp remove
 
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
 
         # conduct PSK on carrier
         for dd_config_vals in self.config_dynamical_decoupling_psk_list:
@@ -665,26 +667,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         phase_activecancel_pow = self.urukul0_ch3.turns_to_pow(self.phase_activecancel_turns)
         self.urukul0_ch3.set_mu(freq_activecancel_ftw, pow_=phase_activecancel_pow, asf=self.ampl_dd_active_cancel_asf, phase_mode=PHASE_MODE_ABSOLUTE, profile=1)
 
-        # set up urukul attenuation
-        self.urukul0_ch3.set_att_mu(self.att_dd_active_cancel_mu)
-
-        # configure DDS phase mode
-        self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
-        self.urukul0_ch3.set_cfr1(phase_autoclear=1)
-        self.urukul0_cpld.io_update.pulse_mu(8)
-
     @kernel(flags={"fast-math"})
     def phaser_activecancel_run_actual(self):
         """
         todo: document
         """
-        # todo: set attenuation (maybe?)
         # reset signal phase
+        delay_mu(350)
         self.urukul0_ch3.cpld.set_profile(1)
         self.urukul0_ch3.set_cfr1(phase_autoclear=1)
         self.urukul0_ch3.cpld.io_update.pulse_mu(8)
-
-        # enable output
         self.urukul0_ch3.cfg_sw(True)
 
     @kernel(flags={"fast-math"})
@@ -692,7 +684,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         todo: document
         """
-        self.urukul0_ch3.cfg_sw(False)
+        # self.urukul0_ch3.cfg_sw(False)
+        pass
 
     @kernel(flags={"fast-math"})
     def phaser_activecancel_stop(self):
@@ -701,5 +694,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         # tmp do better/implement better
         self.urukul0_ch3.cfg_sw(False)
-        self.urukul0_ch3.set(350 * MHz, amplitude=0.01)
-        self.urukul0_ch3.set_att(31.5 * dB)
+        # self.urukul0_ch3.set(350 * MHz, amplitude=0.01)
+        # self.urukul0_ch3.set_att_mu(0xFF)
+
+        # tmp remove
+        with parallel:
+            self.ttl13.off()
+            self.ttl16.off()
+            self.ttl17.off()
+        # tmp remove
