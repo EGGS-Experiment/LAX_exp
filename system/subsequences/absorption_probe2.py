@@ -66,6 +66,9 @@ class AbsorptionProbe2(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def get_counts(self) -> TInt32:
+        """
+        todo: documentz
+        """
         # reset counts store
         self.counts_store = np.int32(0)
         self.core.break_realtime()
