@@ -269,8 +269,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         else:
             self.phaser_activecancel_run = self.phaser_activecancel_run_pass
 
-
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
@@ -440,7 +438,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         todo: document
         """
         # todo: document better
-        # get start ### todo: document better
+        # get starting phase values for pulse shaping ### todo: document better
         carrier_freq_hz =   self.config_eggs_heating_list[0, 1]
         sideband_freq_hz =  self.config_eggs_heating_list[0, 2]
         self.core.break_realtime()
@@ -449,6 +447,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
 
         # record phaser rising pulse shape DMA sequence
+        # todo: check if pass in pulse shaping is valid
         self.core.break_realtime()
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
@@ -458,9 +457,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                     delay_mu(self.time_pulse_shape_delay_mu)
         else:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
-                delay_mu(self.phaser_eggs.t_sample_mu)
+                pass
+                # delay_mu(self.phaser_eggs.t_sample_mu)
 
         # record phaser falling pulse shape DMA sequence
+        # todo: check if pass in pulse shaping is valid
         self.core.break_realtime()
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
@@ -470,7 +471,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                     delay_mu(self.time_pulse_shape_delay_mu)
         else:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
-                delay_mu(self.phaser_eggs.t_sample_mu)
+                pass
+                # delay_mu(self.phaser_eggs.t_sample_mu)
 
         # set attenuations for phaser outputs
         self.core.break_realtime()
@@ -489,6 +491,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
+        # calculate phase delays between CH0 and CH1
+        self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
+                                         (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
+
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # channel 0
         self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
@@ -517,17 +523,71 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # set sideband frequencies
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        # RSB
+        # set oscillator 0 (RSB)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
             self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
-        # BSB
+        # set oscillator 1 (BSB)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
             self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
-        # carrier for dynamical decoupling
+        # set oscillator 2 (carrier)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
+            self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+
+    @kernel(flags={"fast-math"})
+    def phaser_configure_new(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
+        """
+        Configure the tones on phaser for EGGS.
+        Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
+
+        Arguments:
+            carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
+            sideband_freq_hz        (float)     : the holdoff time (in machine units)
+        """
+        # calculate phase delays between CH0 and CH1
+        self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
+                                         (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
+
+        # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
+        # oscillator 0 (RSB)
+        self.phase_ch1_osc0 =           - sideband_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns
+        # oscillator 1 (BSB)
+        self.phase_ch0_osc1 =           sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns
+        self.phase_ch1_osc1 =           sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns
+        # oscillator 2 (carrier)
+        self.phase_ch0_osc2 =           0.
+        # note: extra 0.5 here is to put carrier in dipole config
+        self.phase_ch1_osc2 =           0.5
+
+
+        # set carrier offset frequency via the DUC
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
+        delay_mu(self.phaser_eggs.t_frame_mu)
+        self.phaser_eggs.channel[1].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
+        delay_mu(self.phaser_eggs.t_frame_mu)
+        # strobe updates for both channels
+        self.phaser_eggs.duc_stb()
+
+
+        # set sideband frequencies
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 1 (BSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 2 (carrier)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
             self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
