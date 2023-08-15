@@ -49,18 +49,20 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating.frequencies')
 
-        # EGGS RF pulse configuration
+        # EGGS RF - pulse configuration
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.5, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=3, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=5, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=20, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
+
         # EGGS RF - dynamical decoupling PSK (Phase-shift Keying)
-        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling')
-        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=10, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling')
+        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=True), group='EGGS_Heating.decoupling')
+        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling')
+
         # EGGS RF - dynamical decoupling - active cancellation
         self.setattr_argument("enable_dd_active_cancel",                    BooleanValue(default=False), group='EGGS_Heating.decoupling')
         self.setattr_argument("ampl_dd_active_cancel_pct",                  NumberValue(default=35, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
@@ -234,8 +236,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         todo: document
         """
         # create config holder for dynamical decoupling PSK; holds time_mu and phase in turns
-        self.config_dynamical_decoupling_psk_list =                         np.ones((self.num_dynamical_decoupling_phase_shifts + 1, 2), dtype=np.int64)
-        self.config_dynamical_decoupling_psk_list[1::2] =                   -1
+        self.config_dynamical_decoupling_psk_list =                         np.zeros((self.num_dynamical_decoupling_phase_shifts + 1, 2), dtype=np.int64)
+        self.config_dynamical_decoupling_psk_list[0::2] =                   1
 
         # divide total eggs heating time into PSK segments
         self.time_psk_delay_mu =                                            np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
@@ -355,13 +357,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
-                self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
-                self.core.break_realtime()
-                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
-                self.phaser_activecancel_configure(sideband_freq_hz)
-                self.core.break_realtime()
+                with parallel:
+                    self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
+                    with sequential:
+                        self.core.break_realtime()
+                        self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
+                        self.core.break_realtime()
+                        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                        self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
@@ -375,9 +378,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
 
-                # with parallel:
-                #     self.ttl17.on()
-                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
+                with parallel:
+                    self.ttl16.on()
+                    self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
                 with parallel:
@@ -386,7 +389,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                     with sequential:
                         # delay_mu(self.phaser_eggs.t_output_delay_mu)
                         delay_mu(1860)
-                        self.ttl16.on()
+                        self.ttl17.on()
                     # tmp remove
                     self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
@@ -429,6 +432,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
     # ANALYSIS
     def analyze(self):
+        print(self.config_dynamical_decoupling_psk_list)
         pass
         # print("\tconfig:")
         # print("\t\t{}".format(self.config_eggs_heating_list))
@@ -461,7 +465,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
 
         # record phaser rising pulse shape DMA sequence
-        # todo: check if pass in pulse shaping is valid
         self.core.break_realtime()
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
@@ -475,7 +478,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # delay_mu(self.phaser_eggs.t_sample_mu)
 
         # record phaser falling pulse shape DMA sequence
-        # todo: check if pass in pulse shaping is valid
         self.core.break_realtime()
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
@@ -505,10 +507,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
-        # calculate phase delays between CH0 and CH1
-        self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
-                                         (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
-
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # channel 0
         self.phase_ch0_osc1 =           sideband_freq_hz * (self.phaser_eggs.t_sample_mu * ns)
@@ -654,7 +652,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
     # HELPER FUNCTIONS - PSK
-    @kernel(flags={"fast-math"})
+    # @kernel(flags={"fast-math"})
     def phaser_psk_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
         """
         todo: document
@@ -666,24 +664,28 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # calculate scaled detuning timings
         time_period_scaled =                                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
         time_sample_scaled =                                                round(40e-9 * self.time_psk_scaling_factor)
-        self.core.break_realtime()
 
         # calculate lowest common multiple of the scaled detuning period and the scaled sample period
-        time_lcm_mu =                                                       round((time_period_scaled * time_sample_scaled) / (self.time_psk_scaling_factor * gcd(time_period_scaled, time_sample_scaled)))
+        time_lcm_mu =                                                       round((time_period_scaled * time_sample_scaled) /
+                                                                                  gcd(time_period_scaled, time_sample_scaled) *
+                                                                                  (1e9 / self.time_psk_scaling_factor))
         # divide total eggs heating time into PSK segments
-        time_psk_tmp_delay_mu =                                             np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
-        self.core.break_realtime()
+        time_psk_tmp_delay_mu =                                             round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1))
+
+        # print(time_period_scaled)
+        # print(time_sample_scaled)
+        # print('\n')
+        # print(time_lcm_mu)
+        # print(time_psk_tmp_delay_mu)
 
         # ensure PSK interval time is very close to a multiple of the carrier detuning period
         if time_psk_tmp_delay_mu % time_lcm_mu:
             # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
             t_period_multiples =                                            round(time_psk_tmp_delay_mu / time_lcm_mu)
-            time_psk_tmp_delay_mu =                                         np.int64(t_period_multiples * time_lcm_mu)
-        self.core.break_realtime()
+            time_psk_tmp_delay_mu =                                         t_period_multiples * time_lcm_mu
 
         # update dynamical decoupling config list with new PSK time
-        self.config_dynamical_decoupling_psk_list[:, 0] =                   time_psk_tmp_delay_mu
-        self.core.break_realtime()
+        self.config_dynamical_decoupling_psk_list[:, 0] =                   np.int64(time_psk_tmp_delay_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
@@ -701,8 +703,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
@@ -711,8 +713,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
@@ -729,48 +731,21 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
-
-        # # set oscillator 0 (RSB)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
-        #     self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
-        #     delay_mu(self.phaser_eggs.t_sample_mu)
-        # # set oscillator 1 (BSB)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
-        #     self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
-        #     delay_mu(self.phaser_eggs.t_sample_mu)
-        # # set oscillator 2 (carrier)
-        # with parallel:
-        #     self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
-        #     self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
-
-        # # conduct PSK on carrier
-        # for dd_config_vals in self.config_dynamical_decoupling_psk_list:
-        #     # delay given time for PSK update
-        #     delay_mu(dd_config_vals[0])
-        #     # set oscillator 2 (carrier) with phase shift
-        #     with parallel:
-        #         self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-        #         self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-        #
-        # # delay remaining time after last phase-shift key
-        # delay_mu(self.time_psk_final_delay_mu)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
         # first PSK delay period
-        delay_mu(self.config_dynamical_decoupling_psk_list[0])
+        delay_mu(self.config_dynamical_decoupling_psk_list[0][0])
 
         # conduct PSK on carrier
         for dd_config_vals in self.config_dynamical_decoupling_psk_list[1:]:
