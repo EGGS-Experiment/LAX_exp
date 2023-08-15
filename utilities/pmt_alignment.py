@@ -1,77 +1,100 @@
+import numpy as np
 from artiq.experiment import *
-from numpy import zeros, arange, mean, std, int32, array
 
-_DMA_HANDLE = 'PMT_ALIGN'
+from LAX_exp.extensions import *
+from LAX_exp.base import LAXExperiment
+
+# todo: sort out labrad imports
 
 
-class pmt_alignment(EnvExperiment):
+class PMTAlignment(LAXExperiment, Experiment):
     """
-    PMT Alignment
+    Utility: PMT Alignment
 
     Read PMT counts over time with cooling repump on/off to compare signal/background.
     """
-    kernel_invariants = {
-        'time_bin_mu',
-        'time_reset_mu'
-    }
+    name = 'PMT Alignment'
 
-    def build(self):
+
+    def build_experiment(self):
         """
         Set devices and arguments for the experiment.
         """
-        # set necessary devices
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-        self.setattr_device("urukul1_cpld")
-
         # timing
         self.setattr_argument('time_total_s',                       NumberValue(default=10000, ndecimals=6, step=1, min=0, max=100000), group='timing')
-        self.setattr_argument('time_bin_us',                        NumberValue(default=500, ndecimals=3, step=1, min=0.01, max=10000000), group='timing')
-        self.setattr_argument("sample_rate_hz",                     NumberValue(default=1000, ndecimals=3, step=1, min=1, max=100000), group='timing')
-        # todo: create update iter argument which sets update rate
+        self.setattr_argument("samples_per_point",                  NumberValue(default=50, ndecimals=0, step=10, min=1, max=500), group='timing')
 
-        # PMT
-        self.setattr_argument("pmt_input_channel",                  NumberValue(default=0, ndecimals=0, step=1, min=0, max=7), group='pmt')
-        self.setattr_argument("pmt_gating_edge",                    EnumerationValue(["rising", "falling", "both"], default="rising"), group='pmt')
+        # relevant devices
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        self.setattr_device('pmt')
+
+        # todo: idk
+        self.setattr_device('urukul1_cpld')
+
+    def prepare_experiment(self):
+        # get relevant timings and calculate the number of repetitions
+        self.time_readout_mu =                                      self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.repetitions =                                          round(self.core.seconds_to_mu(self.time_total_s) / (2 * self.time_readout_mu))
+
+        # todo: create holder variable that can store averaged counts
+        # todo: store absolute time variables
+        
+
+    @property
+    def results_shape(self):
+        return (self.repetitions, 3)
 
 
-    def prepare(self):
-        """
-        Set up the dataset and prepare things such that the kernel functions have minimal overhead.
-        """
-        # PMT devices
-        self.pmt_counter =                                          self.get_device("ttl{:d}_counter".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
-
-        # iterators
-        self.loop_iter =                                            arange(self.time_total_s * self.sample_rate_hz, dtype=int32)
-        self.update_iter =                                          arange(self.time_total_s * self.sample_rate_hz, dtype=int32)
-
-        # timing
-        self.time_bin_mu =                                          self.core.seconds_to_mu(self.time_bin_us * us)
-        self.time_reset_mu =                                        self.core.seconds_to_mu(1 / self.sample_rate_hz - self.time_bin_us * us)
-
-        # set up datasets
-        self.set_dataset('pmt_dataset',                             zeros((len(self.loop_iter)), 3))
-        self.setattr_dataset('pmt_dataset')
-
+    # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def run(self):
-        """
-        Run the experimental sequence.
-        """
-        self.core.reset()
-
-        # program pulse sequence onto core DMA
-        self.DMArecord()
+    def initialize_experiment(self):
         self.core.break_realtime()
+
+        # ensure beams are prepared for DMA
+        self.pump.readout()
+
+        # record custom sequence
+        with self.core_dma.record('_PMT_ALIGNMENT'):
+            # set readout beams and
+            self.urukul1_cpld.cfg_switches(0b1110)
+            self.pmt.count(self.time_readout_mu)
+            self.pump.off()
+            # self.
+
+        # tmp remove
+        # set profile
+        # record DMA
+        # for loop
+        # 0b1110
+        # delay readout time
+        # 0b0010
+        # delay readout time
+
+        # note: bulk of this code is copy
+
+        # set readout waveform
+        self.pump.readout()
+
+        # readout pulse
+        self.pump.on()
+        self.repump_cooling.on()
+        self.pmt.count(self.time_readout_mu)
+        self.pump.off()
+        
+        
+    @kernel(flags={"fast-math"})
+    def run_main(self):
+        self.core.reset()
 
         # retrieve pulse sequence handle
         handle = self.core_dma.get_handle(_DMA_HANDLE)
         self.core.break_realtime()
 
-        # run the experiment
-        for i in self.loop_iter:
+
+        # MAIN LOOP
+        for i in self.repetitions:
 
             # run pulse sequence from core DMA
             self.core_dma.playback_handle(handle)
@@ -81,24 +104,11 @@ class pmt_alignment(EnvExperiment):
                 self.update_dataset(i, self.pmt_counter.fetch_count(), self.pmt_counter.fetch_count())
                 delay_mu(self.time_reset_mu)
 
-    @kernel
-    def DMArecord(self):
-        """
-        Record onto core DMA the AOM sequence for a single data point.
-        """
-        with self.core_dma.record(_DMA_HANDLE):
-            # record total signal
-            self.urukul1_cpld.cfg_switches(0b1110)
-            self.pmt_gating_edge(self.time_bin_mu)
-
-            # turn off repump to record background signal
-            self.urukul1_cpld.cfg_switches(0b0110)
-            self.pmt_gating_edge(self.time_bin_mu)
 
     @rpc(flags={"async"})
-    def updateDataset(self, index, counts_signal, counts_background):
+    def updateLabrad(self, index, counts_signal, counts_background):
         # create update array todo: document better
-        update_arr = array([counts_signal, counts_background, counts_signal - counts_background])
+        update_arr = np.array([counts_signal, counts_background, counts_signal - counts_background])
 
         # update dataset
         self.mutate_dataset('pmt_dataset', index, update_arr)
@@ -106,6 +116,7 @@ class pmt_alignment(EnvExperiment):
         # todo: if index % update_iter, update labrad
 
 
+    # ANALYZE
     def analyze(self):
         """
         Analyze the results from the experiment.
