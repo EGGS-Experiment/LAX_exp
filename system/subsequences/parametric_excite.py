@@ -60,6 +60,7 @@ class ParametricExcite(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run_fixed_time(self, num_counts: TInt32) -> TArray(TInt64, 1):
+
         # trigger sequence off same phase of RF
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
 
