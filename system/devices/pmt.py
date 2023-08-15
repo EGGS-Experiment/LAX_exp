@@ -3,6 +3,8 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
+from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
+                                   rtio_input_data)
 
 
 class PMTCounter(LAXDevice):
@@ -110,19 +112,19 @@ class PMTCounter(LAXDevice):
     #     return array(timestamp_mu_list)
 
     @kernel(flags={"fast-math"})
-    def timestamp_counts_fixed_time(self, time_interval_mu: TInt32, time_gating_mu: TInt64) -> TArray(TInt64, 1):
+    def timestamp_counts_fixed_time(self, time_interval_mu: TInt32) -> TArray(TInt64, 1):
 
         # start counting photons
         self.input.gate_rising_mu(time_interval_mu)
 
         # get count timestamp
-        time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
+        time_photon_mu = self.input.timestamp_mu(now_mu() + time_interval_mu)
 
         # move timestamped photon into buffer if valid
         if time_photon_mu >= 0:
             while time_photon_mu >= 0:
                 self.append_to_dataset(self.PMT_KEY, time_photon_mu)
-                time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
+                time_photon_mu = self.input.timestamp_mu(now_mu() + time_interval_mu)
 
         # stop counting
         self.core.break_realtime()

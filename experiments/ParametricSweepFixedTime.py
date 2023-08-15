@@ -24,7 +24,7 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("time_interval",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000, unit="s"))
+        self.setattr_argument("time_interval",       NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000000, unit="ms"))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')

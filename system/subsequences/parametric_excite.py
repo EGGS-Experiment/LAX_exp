@@ -59,7 +59,7 @@ class ParametricExcite(LAXSubsequence):
         return timestamped_count_list
 
     @kernel(flags={"fast-math"})
-    def run_fixed_time(self, num_counts: TInt32) -> TArray(TInt64, 1):
+    def run_fixed_time(self, pmt_time_interval: TInt32) -> TArray(TInt64, 1):
 
         # trigger sequence off same phase of RF
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
@@ -73,7 +73,7 @@ class ParametricExcite(LAXSubsequence):
 
         # get timestamped photon counts
         time_start_mu = now_mu()
-        timestamped_count_list = array(self.pmt.timestamp_counts_fixed_time(num_counts, self.time_pmt_gating_mu))
+        timestamped_count_list = array(self.pmt.timestamp_counts_fixed_time(pmt_time_interval))
 
         # add slack and turn off modulation
         self.core.break_realtime()
