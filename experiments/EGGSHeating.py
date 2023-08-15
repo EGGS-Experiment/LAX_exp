@@ -102,16 +102,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # ensure eggs heating time is a multiple of the phaser frame period
         # note: 1 frame period = 4 ns/clock * 8 clock cycles * 10 words = 320ns
         # todo: see if it's ok to use sample period instead of frame period
-        if self.time_eggs_heating_mu % self.phaser_eggs.t_frame_mu:
+        if self.time_eggs_heating_mu % self.phaser_eggs.t_sample_mu:
             # round eggs heating time up to the nearest multiple of phaser frame period
-            t_frame_multiples =                                             round(self.time_eggs_heating_mu / self.phaser_eggs.t_frame_mu + 0.5)
-            self.time_eggs_heating_mu =                                     np.int64(self.phaser_eggs.t_frame_mu * t_frame_multiples)
+            t_sample_multiples =                                            round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
+            self.time_eggs_heating_mu =                                     np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
-        ### EGGS HEATING - FREQUENCIES ###
-        self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
-        self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
 
-        ### EGGS HEATING - PHASES/TIMING ###
+        ### EGGS HEATING - PHASES ###
         # preallocate variables for phase
         self.phase_ch0_osc1 = np.float(0)
         self.phase_ch0_osc2 = np.float(0)
@@ -119,7 +116,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phase_ch1_osc1 = np.float(0)
         self.phase_ch1_osc2 = np.float(0)
 
+
         ### EGGS HEATING - CONFIG ###
+        # convert build arguments to Hz
+        self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
+        self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
+
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) * len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 6), dtype=float)
@@ -150,6 +152,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                                       scaled_power_pct[1],
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
+
+        ### EGGS HEATING - EGGS RF CONFIGURATION ###
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
         if not self.enable_dynamical_decoupling:                            self.config_eggs_heating_list[:, 5] = 0.
 
@@ -157,16 +161,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # i.e. random readout and EGGS heating parameters each iteration, instead of sweeping 1D by 1D
         if self.randomize_config:                                           np.random.shuffle(self.config_eggs_heating_list)
 
-        # todo: better documentation/implementation
         # configure pulse shaping
         # note: instead of having to deal with adjusting shape, etc., will just add the pulse shaping in addition to the actual pulse
         self._prepare_pulseshape()
 
-        # todo: better documentation/implementation
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
-        # todo: better documentation/implementation
         # configure active cancellation for dynamical decoupling
         self._prepare_activecancel()
 
@@ -377,7 +378,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
-
                 with parallel:
                     self.ttl16.on()
                     self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
@@ -385,7 +385,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # EGGS - RUN
                 with parallel:
                     # ??? why activecancel run before phaser run is OK, but other way is not???
-                    # tmp remove
+                    # set TTL for synchronization trigger on a scope
                     with sequential:
                         # delay_mu(self.phaser_eggs.t_output_delay_mu)
                         delay_mu(1860)
@@ -396,7 +396,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-
                 with parallel:
                     self.phaser_stop()
                     self.phaser_activecancel_stop()
