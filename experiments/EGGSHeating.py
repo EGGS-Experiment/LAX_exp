@@ -4,7 +4,15 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
+
+from math import gcd
+
 # todo: generally migrate everything over to machine units
+
+# todo: program phase/profile onto urukul
+# todo: synchronize timing for carrier/urukul
+# todo: ensure attenuations/power/freq are correctly set
+# todo: do timings
 
 
 class EGGSHeating(SidebandCooling.SidebandCooling):
@@ -244,13 +252,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # calculate final delay time as total eggs heating time minus all PSK time
         # note: this pushes all rounding/noninteger problems onto the final delay interval
-        self.time_psk_final_delay_mu =                                      self.time_eggs_heating_mu - np.sum(self.config_dynamical_decoupling_psk_list[:, 0])
+        # self.time_psk_final_delay_mu =                                      self.time_eggs_heating_mu - np.sum(self.config_dynamical_decoupling_psk_list[:, 0])
+
+        # todo: document
+        # set scaling factor to increase resolution of detuned carrier period for PSK period calculation
+        self.time_psk_scaling_factor =                                      1e11
 
         # set appropriate phaser run method for dynamical decoupling PSK
-        if self.enable_dd_phase_shift_keying:
-            self.phaser_run = self.phaser_run_psk
-        else:
-            self.phaser_run = self.phaser_run_nopsk
+        if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
+        else:                                                               self.phaser_run = self.phaser_run_nopsk
 
     def _prepare_activecancel(self):
         """
@@ -349,6 +359,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                 self.core.break_realtime()
+                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
                 self.phaser_activecancel_configure(sideband_freq_hz)
                 self.core.break_realtime()
 
@@ -360,13 +371,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
                 ### RUN EGGS HEATING ###
+                # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
 
                 # with parallel:
                 #     self.ttl17.on()
-                #     self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
+                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
+                # EGGS - RUN
                 with parallel:
                     # ??? why activecancel run before phaser run is OK, but other way is not???
                     # tmp remove
@@ -378,6 +391,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                     self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
+                # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
 
                 with parallel:
@@ -594,79 +608,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})
-    def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
-        """
-        Activate phaser channel outputs for EGGS heating.
-        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # tmp remove
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # tmp remove
-
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
-
-        # main eggs pulse
-        delay_mu(self.time_eggs_heating_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
-        """
-        Activate phaser channel outputs for EGGS heating.
-        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # tmp remove
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # tmp remove
-
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
-
-        # conduct PSK on carrier
-        for dd_config_vals in self.config_dynamical_decoupling_psk_list:
-            # delay given time for PSK update
-            delay_mu(dd_config_vals[0])
-            # set oscillator 2 (carrier) with phase shift
-            with parallel:
-                self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-
-        # delay remaining time after last phase-shift key
-        delay_mu(self.time_psk_final_delay_mu)
-
-    @kernel(flags={"fast-math"})
     def phaser_stop(self):
         """
         tmp remove
@@ -711,6 +652,132 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
+
+    # HELPER FUNCTIONS - PSK
+    @kernel(flags={"fast-math"})
+    def phaser_psk_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
+        """
+        todo: document
+
+        Arguments:
+            carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
+            sideband_freq_hz        (float)     : the holdoff time (in machine units)
+        """
+        # calculate scaled detuning timings
+        time_period_scaled =                                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
+        time_sample_scaled =                                                round(40e-9 * self.time_psk_scaling_factor)
+
+        # calculate lowest common multiple of the scaled detuning period and the scaled sample period
+        time_lcm_mu =                                                       round((time_period_scaled * time_sample_scaled) / (self.time_psk_scaling_factor * gcd(time_period_scaled, time_sample_scaled)))
+        # divide total eggs heating time into PSK segments
+        time_psk_tmp_delay_mu =                                             np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
+
+        # ensure PSK interval time is very close to a multiple of the carrier detuning period
+        if time_psk_tmp_delay_mu % time_lcm_mu:
+            # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
+            t_period_multiples =                                            round(time_psk_tmp_delay_mu / time_lcm_mu)
+            time_psk_tmp_delay_mu =                                         np.int64(t_period_multiples * time_lcm_mu)
+
+        # update dynamical decoupling config list with new PSK time
+        self.config_dynamical_decoupling_psk_list[:, 0] =                   time_psk_tmp_delay_mu
+
+    @kernel(flags={"fast-math"})
+    def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
+        """
+        Activate phaser channel outputs for EGGS heating.
+        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
+        Arguments:
+            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
+            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
+            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
+        """
+        # tmp remove
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # tmp remove
+
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc0, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 1 (BSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 2 (carrier)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
+
+        # main eggs pulse
+        delay_mu(self.time_eggs_heating_mu)
+
+    @kernel(flags={"fast-math"})
+    def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
+        """
+        Activate phaser channel outputs for EGGS heating.
+        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
+        Arguments:
+            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
+            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
+            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
+        """
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 1 (BSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 2 (carrier)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
+
+        # # set oscillator 0 (RSB)
+        # with parallel:
+        #     self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+        #     self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
+        #     delay_mu(self.phaser_eggs.t_sample_mu)
+        # # set oscillator 1 (BSB)
+        # with parallel:
+        #     self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
+        #     self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
+        #     delay_mu(self.phaser_eggs.t_sample_mu)
+        # # set oscillator 2 (carrier)
+        # with parallel:
+        #     self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
+        #     self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
+
+        # # conduct PSK on carrier
+        # for dd_config_vals in self.config_dynamical_decoupling_psk_list:
+        #     # delay given time for PSK update
+        #     delay_mu(dd_config_vals[0])
+        #     # set oscillator 2 (carrier) with phase shift
+        #     with parallel:
+        #         self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+        #         self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+        #
+        # # delay remaining time after last phase-shift key
+        # delay_mu(self.time_psk_final_delay_mu)
+
+        # first PSK delay period
+        delay_mu(self.config_dynamical_decoupling_psk_list[0])
+
+        # conduct PSK on carrier
+        for dd_config_vals in self.config_dynamical_decoupling_psk_list[1:]:
+            # set oscillator 2 (carrier) with phase shift
+            with parallel:
+                self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                delay_mu(dd_config_vals[0])
+
+
+    # HELPER FUNCTIONS - ACTIVE CANCELLATION
     @kernel(flags={"fast-math"})
     def phaser_activecancel_configure(self, sideband_freq_hz: TFloat):
         """
