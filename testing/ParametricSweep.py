@@ -24,7 +24,6 @@ class ParametricSweep(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("num_counts",                         NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000))
 
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
@@ -152,12 +151,14 @@ class ParametricSweep(LAXExperiment, Experiment):
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
 
-                    # add holdoff period for recooling the ion
-                    delay_mu(self.time_cooling_holdoff_mu)
+                    with parallel:
+                        # set modulation frequency
+                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf)
+                        # add holdoff period for recooling the ion
+                        delay_mu(self.time_cooling_holdoff_mu)
 
-                    # set modulation frequency and run parametric excitation
-                    self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf)
-                    pmt_timestamp_list = self.parametric_subsequence.run(self.num_counts)
+                    # run parametric excitation
+                    pmt_timestamp_list = self.parametric_subsequence.run()
 
                     # process results (stores them in our results dataset for us)
                     with parallel:
