@@ -666,20 +666,24 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # calculate scaled detuning timings
         time_period_scaled =                                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
         time_sample_scaled =                                                round(40e-9 * self.time_psk_scaling_factor)
+        self.core.break_realtime()
 
         # calculate lowest common multiple of the scaled detuning period and the scaled sample period
         time_lcm_mu =                                                       round((time_period_scaled * time_sample_scaled) / (self.time_psk_scaling_factor * gcd(time_period_scaled, time_sample_scaled)))
         # divide total eggs heating time into PSK segments
         time_psk_tmp_delay_mu =                                             np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
+        self.core.break_realtime()
 
         # ensure PSK interval time is very close to a multiple of the carrier detuning period
         if time_psk_tmp_delay_mu % time_lcm_mu:
             # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
             t_period_multiples =                                            round(time_psk_tmp_delay_mu / time_lcm_mu)
             time_psk_tmp_delay_mu =                                         np.int64(t_period_multiples * time_lcm_mu)
+        self.core.break_realtime()
 
         # update dynamical decoupling config list with new PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   time_psk_tmp_delay_mu
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
