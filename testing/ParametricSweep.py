@@ -78,10 +78,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
 
-        # store variables to
+        # create variables for recording runtime
         self.start_time_mu = np.int64(0)
         self.stop_time_mu = np.int64(0)
-        # tmp remove
 
     @property
     def results_shape(self):
@@ -144,9 +143,8 @@ class ParametricSweep(LAXExperiment, Experiment):
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
                 self.core.break_realtime()
 
-                # tmp remove
+                # record loop start time
                 self.start_time_mu = self.core.get_rtio_counter_mu()
-                # tmp remove
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
@@ -166,9 +164,8 @@ class ParametricSweep(LAXExperiment, Experiment):
                         self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
                         self.core.reset()
 
-                # tmp remove
+                # record loop stop time
                 self.stop_time_mu = self.core.get_rtio_counter_mu()
-                # tmp remove
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
@@ -194,8 +191,10 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.update_results(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
 
     def analyze(self):
-        # tmp remove
+        # print runtime per loop
         print("\n")
         print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))
         print("\n")
-        # tmp remove
+
+        # todo: fit data for voltage where we get the largest correlated amplitude
+        # todo: extract uncertainties
