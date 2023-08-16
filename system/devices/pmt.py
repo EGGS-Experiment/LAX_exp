@@ -47,14 +47,14 @@ class PMTCounter(LAXDevice):
         The passed-in array timestamp_mu_list will be directly modified.
 
         Arguments:
-            # todo: modify and fix
             timestamp_mu_list   array(int64): an array of timestamps to be filled.
             time_gating_mu      (int64)     : the maximum waiting time (in machine units) for each count.
         """
         # start counting photons
+        time_start_mu = now_mu()
         self.input._set_sensitivity(1)
-        while self.counter < len(timestamp_mu_list):
 
+        while self.counter < len(timestamp_mu_list):
             # get count timestamp
             time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
 
@@ -66,6 +66,9 @@ class PMTCounter(LAXDevice):
         # add slack and stop counting
         self.core.break_realtime()
         self.input._set_sensitivity(0)
+
+        # remove timestamping start time
+        timestamp_mu_list -= time_start_mu
 
         # reset loop counter
         # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical

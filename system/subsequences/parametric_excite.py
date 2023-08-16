@@ -45,20 +45,13 @@ class ParametricExcite(LAXSubsequence):
         # reset modulation DDS phase and turn modulation on
         self.dds_modulation.on()
         self.dds_modulation.reset_phase()
-        # add extra delay for RTIO slack (min 200us), as well as to reduce effects of initial conditions
-        delay_mu(self.time_mod_delay_mu)
 
         # get timestamped photon counts
-        time_start_mu = now_mu()
         self.pmt.timestamp_counts(self.timestamp_mu_list, self.time_pmt_gating_mu)
 
         # add slack and turn off modulation
-        with parallel:
-            self.core.break_realtime()
-            self.dds_modulation.off()
-
-        # remove initial time
-        self.timestamp_mu_list -= time_start_mu
+        self.core.break_realtime()
+        self.dds_modulation.off()
 
         # return timestamped counts
         return self.timestamp_mu_list
