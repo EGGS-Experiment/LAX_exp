@@ -27,7 +27,8 @@ class PMTCounter(LAXDevice):
         self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
         self.kernel_invariants.add('counting_method')
 
-        # todo: create counter variable for timestamping
+        # create counter variable for list timestamping
+        self.counter = np.int64(0)
 
     @kernel(flags={"fast-math"})
     def count(self, time_mu: TInt64):
@@ -43,31 +44,29 @@ class PMTCounter(LAXDevice):
         """
         Timestamp the incoming counts.
         Does not time out until we read finish reading the given number of counts.
-        # todo: write that it modifies the list object passed to it
+        The passed-in array timestamp_mu_list will be directly modified.
 
         Arguments:
             # todo: modify and fix
-            num_counts      (int)   : the number of counts to read.
-            time_gating_mu  (int64) : the maximum waiting time (in machine units) for each count.
-        Returns:
-                            list(int64): the list of count timestamps (in machine units).
+            timestamp_mu_list   array(int64): an array of timestamps to be filled.
+            time_gating_mu      (int64)     : the maximum waiting time (in machine units) for each count.
         """
-        # set counting variables
-        counter = 0
-
         # start counting photons
         self.input._set_sensitivity(1)
-        while counter < len(timestamp_mu_list):
+        while self.counter < len(timestamp_mu_list):
 
             # get count timestamp
             time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
 
             # move timestamped photon into buffer if valid
             if time_photon_mu >= 0:
-                timestamp_mu_list[counter] = time_photon_mu
-                counter += 1
+                timestamp_mu_list[self.counter] = time_photon_mu
+                self.counter += 1
 
-        # stop counting
-        with parallel:
-            self.core.break_realtime()
-            self.input._set_sensitivity(0)
+        # add slack and stop counting
+        self.core.break_realtime()
+        self.input._set_sensitivity(0)
+
+        # reset loop counter
+        # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical
+        self.counter = 0

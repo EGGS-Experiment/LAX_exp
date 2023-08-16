@@ -61,5 +61,9 @@ class DDSModulation(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def reset_phase(self):
+        """
+        todo: document
+        :return:
+        """
         self.set_cfr1(phase_autoclear=1)
         self.dds.cpld.io_update.pulse_mu(8)

@@ -37,21 +37,19 @@ class ParametricExcite(LAXSubsequence):
         self.timestamp_mu_list =                np.zeros(self.num_counts, dtype=np.int64)
 
 
-
     @kernel(flags={"fast-math"})
     def run(self) -> TArray(TInt64, 1):
         # trigger sequence off same phase of RF
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
 
         # reset modulation DDS phase and turn modulation on
-        self.dds_modulation.reset_phase()
         self.dds_modulation.on()
+        self.dds_modulation.reset_phase()
         # add extra delay for RTIO slack (min 200us), as well as to reduce effects of initial conditions
         delay_mu(self.time_mod_delay_mu)
 
         # get timestamped photon counts
         time_start_mu = now_mu()
-        # timestamped_count_list = array(self.pmt.timestamp_counts(num_counts, self.time_pmt_gating_mu))
         self.pmt.timestamp_counts(self.timestamp_mu_list, self.time_pmt_gating_mu)
 
         # add slack and turn off modulation

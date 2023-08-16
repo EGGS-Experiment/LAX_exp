@@ -26,9 +26,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1720, 20, 0.25, randomize=True),
+                                                                        default=CenterScan(1007, 10, 0.25, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -37,14 +37,14 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=ExplicitScan([52.5]),
+                                                                        default=ExplicitScan([40.7]),
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=4
                                                                     ), group='voltage')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=110, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get devices
         self.setattr_device('pump')
@@ -78,7 +78,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
 
-        # tmp remove
+        # store variables to
         self.start_time_mu = np.int64(0)
         self.stop_time_mu = np.int64(0)
         # tmp remove
@@ -150,6 +150,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
+                    self.core.break_realtime()
 
                     with parallel:
                         # set modulation frequency
