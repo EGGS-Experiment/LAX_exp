@@ -32,7 +32,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
         self.setattr_argument("att_mod_db",                         NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
 
         # modulation - mode #1
@@ -40,7 +40,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("dc_channel_mod0",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_1')
         self.setattr_argument("dc_voltages_mod0_v_list",            Scannable(
                                                                             default=[
-                                                                                CenterScan(45., 60., 3., randomize=True),
+                                                                                CenterScan(45., 40., 2.5, randomize=True),
                                                                                 ExplicitScan([40.])
                                                                             ],
                                                                             global_min=0, global_max=200, global_step=1,
@@ -55,7 +55,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("dc_channel_mod1",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_2')
         self.setattr_argument("dc_voltages_mod1_v_list",            Scannable(
                                                                         default=[
-                                                                            CenterScan(45., 60., 3., randomize=True),
+                                                                            CenterScan(45., 40., 2.5, randomize=True),
                                                                             ExplicitScan([40.])
                                                                         ],
                                                                         global_min=0, global_max=200, global_step=1,
