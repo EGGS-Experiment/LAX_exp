@@ -5,6 +5,7 @@ from EGGS_labrad.config.dc_config import dc_config
 import numpy as np
 from artiq.experiment import *
 
+from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import ParametricExcite
@@ -97,7 +98,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         """
         # set desired voltage
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
-        print('\tvoltage set: {}'.format(voltage_set_v))
+        # print('\tvoltage set: {}'.format(voltage_set_v))
 
     @rpc(flags={"async"})
     def prepareDevicesLabrad(self):

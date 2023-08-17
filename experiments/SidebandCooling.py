@@ -2,12 +2,10 @@ import numpy as np
 from random import shuffle
 from artiq.experiment import *
 
+from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout, RescueIon
-
-# tmp testing
-from LAX_exp.analysis import *
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -21,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=200, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))

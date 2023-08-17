@@ -41,8 +41,7 @@ def complexFitMinimize(dataset):
     res_intercept, res_slope = res.x
 
     # extract optimal voltage to minimize displacement
-    voltage_optimal = - (np.re(res_intercept) * np.re(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / np.abs(res_slope)**2.
-
+    voltage_optimal = - (np.real(res_intercept) * np.real(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / np.abs(res_slope)**2.
     return voltage_optimal
 
 def complexParametricFitMinimize(dataset):
