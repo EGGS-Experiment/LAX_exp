@@ -72,6 +72,86 @@ def fitRabiFlopping(data):
     pass
 
 
+def fitDampedDrivenOscillatorAmplitude(data):
+    """
+    Fit amplitude response of the damped driven harmonic oscillator.
+    Note: amplitude response lineshape of the damped driven harmonic oscillator
+    is also called a Breit-Wigner profile.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # regular old lorentzin
+    def fit_func(x, a, b, mu):
+        """
+        todo: document arguments
+        """
+        return a / ((x - mu)**2. + (b)**2.)
+
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # extract starting parameter guesses
+    # get position of max as linecenter
+    mu0, a0 =           data[np.argmax(data_y)]
+    # get b0 by numerically guessing FWHM
+    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    # create array of initial guess parameters
+    param_guess =       np.array([a0, b0, mu0])
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_err =             np.sqrt(np.diag(param_cov))
+
+    # convert b_fit to \Gamma / 2 (i.e. linewidth)
+    param_fit[1] *= 2.
+    param_err[1] *= 2.
+    return param_fit, param_err
+
+
+def fitDampedDrivenOscillatorPhase(data):
+    """
+    Fit phase response of the damped driven harmonic oscillator.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # regular old lorentzin
+    def fit_func(x, a, b, mu):
+        """
+        todo: document arguments
+        """
+        return a / ((x - mu)**2. + (b)**2.)
+
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # extract starting parameter guesses
+    # get position of max as linecenter
+    mu0, a0 =           data[np.argmax(data_y)]
+    # get b0 by numerically guessing FWHM
+    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    # create array of initial guess parameters
+    param_guess =       np.array([a0, b0, mu0])
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_err =             np.sqrt(np.diag(param_cov))
+
+    # convert b_fit to \Gamma / 2 (i.e. linewidth)
+    param_fit[1] *= 2.
+    param_err[1] *= 2.
+    return param_fit, param_err
+
+
 '''
 Fitting: Spectroscopy Profiles
 '''

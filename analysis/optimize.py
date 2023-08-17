@@ -1,11 +1,10 @@
 """
-LAX.analysis.signals
+LAX.analysis.optimize
 
-Contains modules used for signal analysis (e.g. demodulation)
+Contains modules used for optimization.
 """
 
-# __all__ = ["demodulateTimestamps", "complexFitMinimize"]
-__all__ = ["complexFitMinimize"]
+__all__ = ['complexFitMinimize', 'complexParametricFitMinimize']
 
 
 # necessary imports
@@ -34,6 +33,7 @@ def complexFitMinimize(dataset):
         return b_params[0] + b_params[1] * x[1] - y
 
     # guess starting b_params
+    # todo: is this the best guess we can do? try to improve somehow
     b_guess = [0.1, 0.1]
 
     # do a complex least squares fit
@@ -41,7 +41,7 @@ def complexFitMinimize(dataset):
     res_intercept, res_slope = res.x
 
     # extract optimal voltage to minimize displacement
-    voltage_optimal = - (np.re(res_intercept) * np.re(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / (np.power(np.abs(res_slope), 2))
+    voltage_optimal = - (np.re(res_intercept) * np.re(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / np.abs(res_slope)**2.
 
     return voltage_optimal
 
@@ -49,6 +49,7 @@ def complexParametricFitMinimize(dataset):
     """
     Extract the optimal voltage to minimize complex displacement
     from the RF origin.
+    # todo: note this is deprecated
 
     Arguments:
         dataset (list(list(float, complex)): the dataset comprised of the real

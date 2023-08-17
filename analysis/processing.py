@@ -4,17 +4,17 @@ LAX.analysis.processing
 Contains helpful/commonly used modules for processing datasets.
 """
 
-__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy']
+__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy', 'processDataset2D']
 
 
 # necessary imports
 import numpy as np
-
 from itertools import groupby
 
-from scipy.stats import iqr
+# from scipy.stats import iqr
 from scipy.signal import find_peaks
-from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
+# from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
+from skimage.filters import threshold_multiotsu, threshold_minimum
 
 
 '''

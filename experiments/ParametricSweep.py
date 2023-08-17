@@ -8,7 +8,6 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import ParametricExcite
-# from LAX_exp.analysis.signals import demodulateCounts
 
 
 class ParametricSweep(LAXExperiment, Experiment):
@@ -37,22 +36,25 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
-                                                                        default=ExplicitScan([40.7]),
+                                                                        default=[
+                                                                            ExplicitScan([40.]),
+                                                                            CenterScan(40., 20., 1., randomize=True)
+                                                                        ],
                                                                         global_min=0, global_max=400, global_step=1,
-                                                                        unit="V", scale=1, ndecimals=4
+                                                                        unit="V", scale=1, ndecimals=1
                                                                     ), group='voltage')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=40, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
         self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
-        # get devices
+        # get relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('dds_modulation')
 
-        # subsequences
+        # get relevant subsequences
         self.parametric_subsequence =                               ParametricExcite(self)
 
 
@@ -64,7 +66,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =                                     self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
         self.freq_cooling_ftw =                                     self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
-        self.att_cooling_mu =                                       att_to_mu(14 * dB)
         self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
@@ -173,22 +174,25 @@ class ParametricSweep(LAXExperiment, Experiment):
         Convert modulation frequency and timestamps from machine units and demodulate.
 
         Arguments:
-            freq_mu             (int)           : the modulation frequency (in machine units).
+            freq_ftw            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
             voltage_v           (float)         : the current shim voltage (in volts).
             timestamp_mu_list   (list(int64))   : the list of timestamps (in machine units) to demodulate.
         """
         # convert frequency to mhz
         freq_mhz = self.dds_modulation.ftw_to_frequency(freq_mu) / MHz
 
-        # remove starting time and digitally demodulate counts
+        # convert timestamps and digitally demodulate counts
         timestamps_s = self.core.mu_to_seconds(np.array(timestamp_mu_list))
         correlated_signal = np.mean(np.exp((2.j * np.pi * freq_mhz * 1e6) * timestamps_s))
+        # convert demodulated signal to polar coordinates (i.e. abs and angle)
+        correlated_ampl = np.abs(correlated_signal)
+        correlated_phase = np.angle(correlated_signal)
 
-        # get count rate in seconds
+        # extract count rate in seconds
         count_rate_hz = len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
 
         # update dataset
-        self.update_results(freq_mhz, voltage_v, np.abs(correlated_signal), np.angle(correlated_signal), count_rate_hz)
+        self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
 
     def analyze(self):
         # print runtime per loop
@@ -196,5 +200,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))
         print("\n")
 
-        # todo: fit data for voltage where we get the largest correlated amplitude
+        # todo: fit data for all voltage values
         # todo: extract uncertainties
+        # todo: if multiple voltages, return optimal voltage

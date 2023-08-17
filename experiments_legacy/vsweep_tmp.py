@@ -85,17 +85,17 @@ class vsweeptmp(EnvExperiment):
 
         # set up datasets
         self._dataset_counter                                       = 0
-        self.set_dataset("results",                                 np.zeros([1 * len(self.dc_micromotion_voltages_v_list),
-                                                                              4]))
+        self.set_dataset("results",                             np.zeros([1 * len(self.dc_micromotion_voltages_v_list),
+                                                                          4]))
         self.setattr_dataset("results")
 
         # record parameters
-        self.set_dataset('num_counts',                              self.num_counts)
-        self.set_dataset('modulation_attenuation_db',               self.mod_att_db)
-        self.set_dataset('dc_channel_num',                          self.dc_micromotion_channel_num)
-        self.set_dataset('dc_channel_name',                         self.dc_micromotion_channel_name)
-        self.set_dataset('cooling_freq_mhz',                        self.freq_cooling_mhz)
-        self.set_dataset('cooling_ampl_pct',                        self.ampl_cooling_pct)
+        self.set_dataset('num_counts',                          self.num_counts)
+        self.set_dataset('modulation_attenuation_db',           self.mod_att_db)
+        self.set_dataset('dc_channel_num',                      self.dc_micromotion_channel_num)
+        self.set_dataset('dc_channel_name',                     self.dc_micromotion_channel_name)
+        self.set_dataset('cooling_freq_mhz',                    self.freq_cooling_mhz)
+        self.set_dataset('cooling_ampl_pct',                    self.ampl_cooling_pct)
 
         # connect to labrad
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
