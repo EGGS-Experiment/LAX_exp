@@ -16,7 +16,7 @@ class ParametricExcite(LAXSubsequence):
 
     def build_subsequence(self):
         # number of input counts to listen for
-        self.setattr_argument("num_counts",     NumberValue(default=7000, ndecimals=0, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("num_counts",     NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000), group=self.name)
 
         # get relevant devices
         self.setattr_device('pmt')

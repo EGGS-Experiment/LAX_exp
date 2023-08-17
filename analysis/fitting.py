@@ -320,10 +320,15 @@ def fitLine(data):
         """
         todo: document arguments
         """
+        # todo: shouldn't this be different? why is it x[1]?
+        # todo: welp nope; yes it should be x[1]; least_squares passes in an arr matching b_params dimension
         return b_params[0] + (b_params[1] * x[1]) - y
 
     # guess starting parameters for the line fit
+    # todo: redo these guesses; what if dataset doesn't cross through x=0?
+    # todo: b_guess is particularly egregious
     b_guess =           np.min(data[:, 1])
+    # todo: m_guess should be (y_max - y_min) / (x_max - x_min)
     m_guess =           np.mean(data[:, 1] / data[:, 0])
 
     # do a linear least squares fit to the data

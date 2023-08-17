@@ -30,18 +30,31 @@ def complexFitMinimize(dataset):
     """
     # create norm function for least squares optimization
     def func_norm(b_params, x, y):
-        return b_params[0] + b_params[1] * x[1] - y
+        return b_params[0] + b_params[1] * x - y
 
-    # guess starting b_params
-    # todo: is this the best guess we can do? try to improve somehow
-    b_guess = [0.1, 0.1]
+    # create wrapper function for least_squares to handle complex numbers
+    def func_wrap(b_params, x, y):
+        # convert tuples to complex numbers
+        _b_params = ((b_params[0] + 1.j*b_params[1]),
+                     (b_params[2] + 1.j*b_params[3]))
+        _y =        y[0] + 1.j*y[1]
+
+        # calculate norm
+        res_norm = func_norm(_b_params, x[3], _y)
+        return np.array([res_norm.real, res_norm.imag])
+
+    # guess slope as (y_max - y_min) / (x_max - x_min)
+    m_guess = (dataset[0, 1] - dataset[-1, 1]) / (dataset[0, 0] - dataset[-1, 0])
+    # guess x-intercept as median of y - mx
+    b_guess = np.median(dataset[1, :] - m_guess * dataset[0, :])
+    params_guess = (b_guess.real, b_guess.imag, m_guess.real, m_guess.imag)
 
     # do a complex least squares fit
-    res = optimize.least_squares(func_norm, b_guess, args=(dataset[:, 0], dataset[:, 1]))
-    res_intercept, res_slope = res.x
+    res = optimize.least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]))
+    b_fit_re, b_fit_im, m_fit_re, m_fit_im = res.x
 
     # extract optimal voltage to minimize displacement
-    voltage_optimal = - (np.real(res_intercept) * np.real(res_slope) + np.imag(res_intercept) * np.imag(res_slope)) / np.abs(res_slope)**2.
+    voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
     return voltage_optimal
 
 def complexParametricFitMinimize(dataset):
