@@ -27,42 +27,40 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                         NumberValue(default=2, ndecimals=0, step=1, min=1, max=100))
+        self.setattr_argument("iterations",                         NumberValue(default=5, ndecimals=0, step=1, min=1, max=100))
         self.setattr_argument("adaptive",                           BooleanValue(default=False))
 
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=3, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
-        self.setattr_argument("att_mod_db",                         NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("att_mod_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1122, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1105, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
         self.setattr_argument("dc_channel_mod0",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_1')
         self.setattr_argument("dc_voltages_mod0_v_list",            Scannable(
-                                                                        default=[
-                                                                            CenterScan(50., 7., 1., randomize=True),
-                                                                            ExplicitScan([40.])
-                                                                        ],
-                                                                        global_min=0, global_max=400, global_step=1,
-                                                                        unit="V", scale=1, ndecimals=1
-                                                                    ), group='modulation_1')
+                                                                            default=[
+                                                                                CenterScan(45., 25., 1., randomize=True),
+                                                                                ExplicitScan([40.])
+                                                                            ],
+                                                                            global_min=0, global_max=200, global_step=1,
+                                                                            unit="V", scale=1, ndecimals=1
+                                                                        ), group='modulation_1')
         # self.setattr_argument("dc_voltages_mod0_v_range",           PYONValue([10, 80]), group='modulation_1')
         # self.setattr_argument("dc_voltages_mod0_v_step",        NumberValue(default=1055, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
         # self.setattr_argument("dc_voltages_mod0_num_points",        NumberValue(default=1055, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1313, ndecimals=3, step=10, min=1, max=10000), group='modulation_2')
+        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1316, ndecimals=3, step=10, min=1, max=10000), group='modulation_2')
         self.setattr_argument("dc_channel_mod1",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_2')
         self.setattr_argument("dc_voltages_mod1_v_list",            Scannable(
                                                                         default=[
-                                                                            CenterScan(40., 7., 1., randomize=True),
+                                                                            CenterScan(45., 25., 1., randomize=True),
                                                                             ExplicitScan([40.])
                                                                         ],
-                                                                        global_min=0, global_max=400, global_step=1,
+                                                                        global_min=0, global_max=200, global_step=1,
                                                                         unit="V", scale=1, ndecimals=1
                                                                     ), group='modulation_2')
-
-        # todo: min, max, num_points?
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
@@ -113,6 +111,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         max_size_tmp =                                              max(len(self.dc_voltages_mod0_v_list), len(self.dc_voltages_mod1_v_list))
         self.tmp_dataset_holder =                                   np.zeros((self.repetitions_per_voltage * max_size_tmp, 4), dtype=float)
         self.tmp_dataset_iter =                                     0
+        self._tmp_result_iter =                                     0
 
         # connect to labrad and get DC server
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
@@ -140,7 +139,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             self.core.break_realtime()
             # todo: put process here?
             # todo: get resultant voltage/save idk
-            # todo: print results
 
             # generate voltage vector array (mode 1) and optimize
             voltage_1_list_tmp = self._generate_voltage_vector_array(1)
@@ -148,14 +146,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             self._sweep_voltage_mode(self.freq_mod1_ftw, 1, voltage_1_list_tmp)
             # todo: put process here?
             # todo: get resultant voltage/save idk
-            # todo: print results
 
             # todo: guess/adapt voltage vector basis
             if self.adaptive:
                 pass
-
-            # todo: store results in separate summary list
-            # todo: print results
 
 
     # ANALYZE
@@ -211,8 +205,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # iterate over repetitions per voltage
         for rep_num in range(self.repetitions_per_voltage):
-            # todo: see if this break realtime is necessary
-            # self.core.break_realtime()
 
             # sweep voltage configurations in the voltage vector
             for voltage_vec_v in voltage_vec_v_arr:
@@ -309,11 +301,17 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.tmp_dataset_iter = 0
         self.tmp_dataset_holder *= 0
 
+        # tmp remove
+        # print(np.abs(results_tmp))
+        self.set_dataset('iter{:d}_mode{}'.format(self._tmp_result_iter//2, mode_num), results_tmp)
+        self._tmp_result_iter += 1
+        # tmp remove
+
         # extract minimum mode voltage
         opt_voltage_v = complexFitMinimize(results_tmp)
         opt_voltage_list_v_tmp = self.dc_voltage_optimal_v_list
 
-        # todo: ensure values are within acceptable range, otherwise return original values
+        # ensure values are within acceptable range, otherwise return original values
         if mode_num == 0:
             if (opt_voltage_v > np.max(self.dc_voltages_mod0_v_list)) | (opt_voltage_v < np.min(self.dc_voltages_mod0_v_list)):
                 print('ERROR: MODE 0 OUTSIDE MAX VOLTAGE ({:.2f})'.format(opt_voltage_v))
