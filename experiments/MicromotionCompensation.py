@@ -292,43 +292,19 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # todo: document - list of abs angle
         """
         # todo: groupBy and average for given mode
-        ds_tmp = np.array(dataset, dtype='float')
-
+        results_tmp = np.array(dataset, dtype='float')
+        results_tmp = groupBy(results_tmp, column_num=mode_num, reduce_func=np.mean)
+        results_tmp = np.concatenate((np.array([list(results_tmp.keys())]).transpose(), np.array(list(results_tmp.values()))), axis=-1)
 
         # format results into a 2D array with complex type for complex linear fitting
-        ds_tmp = np.array(dataset, dtype='complex128')
-        # todo: more elegant way of formatting?
-        if mode_num == 1:
-            ds_tmp = np.array([
-                ds_tmp[:, 0],
-                ds_tmp[:, 2] * np.exp(1.j * ds_tmp[:, 3])
-            ], dtype='complex').transpose()
-        elif mode_num== 2:
-            ds_tmp = np.array([
-                ds_tmp[:, 1],
-                ds_tmp[:, 2] * np.exp(1.j * ds_tmp[:, 3])
-            ], dtype='complex').transpose()
-
-        # todo: interpolate the other mode_num and get what the voltage should be
-        m0, b0 = (0., 0.)
-        points = ds_tmp[[0, -1]]
-        if mode_num == 1:
-            m0 = (points[1, 1] - points[1, 0]) / (points[0, 1] - points[0, 0])
-            b0 = points[0, 1] - m0 * points[0, 0]
-        elif mode_num == 2:
-            m0 = (points[0, 1] - points[0, 0]) / (points[0, 1] - points[0, 0])
-            b0 = points[0, 1] - m0 * points[0, 0]
-
-        # create interpolation function
-        def _interpolateData_tmp(x):
-            """
-            todo: document
-            """
-            return m0 * x + b0
+        results_tmp = np.array([
+            results_tmp[:, 0],
+            results_tmp[:, 2] * np.exp(1.j * results_tmp[:, 3])
+        ], dtype='complex128').transpose()
 
 
         # extract minimum mode voltage
-        opt_voltage_v = complexFitMinimize(ds_tmp)
+        opt_voltage_v = complexFitMinimize(results_tmp)
         opt_voltage_list_v_tmp = np.array([0., 0.], dtype=float)
 
         # todo: ensure values are within acceptable range, otherwise return original values
@@ -352,3 +328,79 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # todo: print result
         print('\t\tOptimal Voltages: {:.2f}, {:.2f}'.format(opt_voltage_list_v_tmp[0], opt_voltage_list_v_tmp[1]))
         return opt_voltage_list_v_tmp
+
+
+    # @rpc
+    # def _extract_optimum(self, mode_num: TInt32, dataset: TArray(TFloat, 2)) -> TArray(TFloat, 1):
+    #     """
+    #     # todo: document
+    #     # todo: do we need mode as arg?
+    #
+    #     Arguments:
+    #         mode_num            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
+    #         dataaset   (array(int64))  : the list of timestamps (in machine units) to demodulate.
+    #     Returns:
+    #         # todo: document - list of abs angle
+    #     """
+    #     # todo: groupBy and average for given mode
+    #     results_tmp = np.array(dataset, dtype='float')
+    #     results_tmp = groupBy(ds_tmp, column_num=mode_num, reduce_func=np.mean)
+    #     results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+    #
+    #     # format results into a 2D array with complex type for complex linear fitting
+    #     ds_tmp = np.array(dataset, dtype='complex128')
+    #     # todo: more elegant way of formatting?
+    #     if mode_num == 0:
+    #         results_tmp = np.array([
+    #             results_tmp[:, 0],
+    #             results_tmp[:, 2] * np.exp(1.j * results_tmp[:, 3])
+    #         ], dtype='complex').transpose()
+    #     elif mode_num== 1:
+    #         results_tmp = np.array([
+    #             results_tmp[:, 1],
+    #             results_tmp[:, 2] * np.exp(1.j * results_tmp[:, 3])
+    #         ], dtype='complex').transpose()
+    #
+    #     # todo: interpolate the other mode_num and get what the voltage should be
+    #     m0, b0 = (0., 0.)
+    #     points = ds_tmp[[0, -1]]
+    #     if mode_num == 0:
+    #         m0 = (points[1, 1] - points[1, 0]) / (points[0, 1] - points[0, 0])
+    #         b0 = points[0, 1] - m0 * points[0, 0]
+    #     elif mode_num == 1:
+    #         m0 = (points[0, 1] - points[0, 0]) / (points[0, 1] - points[0, 0])
+    #         b0 = points[0, 1] - m0 * points[0, 0]
+    #
+    #     # create interpolation function
+    #     def _interpolateData_tmp(x):
+    #         """
+    #         todo: document
+    #         """
+    #         return m0 * x + b0
+    #
+    #
+    #     # extract minimum mode voltage
+    #     opt_voltage_v = complexFitMinimize(ds_tmp)
+    #     opt_voltage_list_v_tmp = np.array([0., 0.], dtype=float)
+    #
+    #     # todo: ensure values are within acceptable range, otherwise return original values
+    #     if mode_num == 0:
+    #         if (opt_voltage_v > np.max(self.dc_voltages_mod0_v_list)) | (opt_voltage_v < np.min(self.dc_voltages_mod0_v_list)):
+    #             print('ERROR: MODE 0 OUTSIDE MAX VOLTAGE ({:.2f})'.format(opt_voltage_v))
+    #             opt_voltage_v = self.dc_voltage_optimal_v_list[mode_num]
+    #
+    #         opt_voltage_list_v_tmp[mode_num] = opt_voltage_v
+    #         # todo: get the voltage for the other mode
+    #         opt_voltage_list_v_tmp[1] = _interpolateData_tmp(opt_voltage_v)
+    #     elif mode_num == 1:
+    #         if (opt_voltage_v > np.max(self.dc_voltages_mod1_v_list)) | (opt_voltage_v < np.min(self.dc_voltages_mod1_v_list)):
+    #             print('ERROR: MODE 1 OUTSIDE MAX VOLTAGE ({:.2f})'.format(opt_voltage_v))
+    #             opt_voltage_v = self.dc_voltage_optimal_v_list[mode_num]
+    #
+    #         opt_voltage_list_v_tmp[mode_num] = opt_voltage_v
+    #         # todo: get the voltage for the other mode
+    #         opt_voltage_list_v_tmp[0] = _interpolateData_tmp(opt_voltage_v)
+    #
+    #     # todo: print result
+    #     print('\t\tOptimal Voltages: {:.2f}, {:.2f}'.format(opt_voltage_list_v_tmp[0], opt_voltage_list_v_tmp[1]))
+    #     return opt_voltage_list_v_tmp
