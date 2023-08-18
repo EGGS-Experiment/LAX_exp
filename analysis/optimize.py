@@ -52,6 +52,8 @@ def complexFitMinimize(dataset):
     # do a complex least squares fit
     res = optimize.least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]))
     b_fit_re, b_fit_im, m_fit_re, m_fit_im = res.x
+    print('\t\t\tb_param: {:.2f} + i * {:.2f}'.format(b_fit_re, b_fit_im))
+    print('\t\t\tm_param: {:.2f} + i * {:.2f}'.format(m_fit_re, m_fit_im))
 
     # extract optimal voltage to minimize displacement
     voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)

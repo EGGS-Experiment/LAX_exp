@@ -32,15 +32,15 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
-        self.setattr_argument("att_mod_db",                         NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("att_mod_db",                         NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1103, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1315, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
         self.setattr_argument("dc_channel_mod0",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_1')
         self.setattr_argument("dc_voltages_mod0_v_list",            Scannable(
                                                                             default=[
-                                                                                CenterScan(45., 40., 2.5, randomize=True),
+                                                                                CenterScan(45., 20., 2., randomize=True),
                                                                                 ExplicitScan([40.])
                                                                             ],
                                                                             global_min=0, global_max=200, global_step=1,
@@ -51,11 +51,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # self.setattr_argument("dc_voltages_mod0_num_points",        NumberValue(default=1055, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1314, ndecimals=3, step=10, min=1, max=10000), group='modulation_2')
+        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1100, ndecimals=3, step=10, min=1, max=10000), group='modulation_2')
         self.setattr_argument("dc_channel_mod1",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_2')
         self.setattr_argument("dc_voltages_mod1_v_list",            Scannable(
                                                                         default=[
-                                                                            CenterScan(45., 40., 2.5, randomize=True),
+                                                                            CenterScan(45., 20., 2., randomize=True),
                                                                             ExplicitScan([40.])
                                                                         ],
                                                                         global_min=0, global_max=200, global_step=1,
