@@ -12,6 +12,8 @@ import numpy as np
 from scipy import stats
 from scipy import optimize
 
+# todo: write an optimizer/gradient descent module
+
 
 '''
 Linear Optimization
@@ -91,5 +93,4 @@ def complexParametricFitMinimize(dataset):
 
     # convert x_min to V_min
     V_min = (x_min - b_p) / m_p
-
     return V_min
