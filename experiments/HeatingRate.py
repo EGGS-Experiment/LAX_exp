@@ -128,8 +128,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         # print out fitted parameters
         print("\tResults - Heating Rate:")
-        for heat_time_ms, phonon_num, phonon_err in heating_rate_data:
-            print("\t\t{:.0f} ms:\t{:.2f} +/- {:.2f}".format(heat_time_ms, phonon_num, phonon_err))
+        for heat_time_s, phonon_num, phonon_err in heating_rate_data:
+            print("\t\t{:.1f} ms:\t{:.2f} +/- {:.2f}".format(heat_time_s*1.e3, phonon_num, phonon_err))
         print("\t-------------")
         print("\t\tSlope:\t{:.3f} quanta/s".format(fit_params_heating_rate[0]))
         print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[1]))
