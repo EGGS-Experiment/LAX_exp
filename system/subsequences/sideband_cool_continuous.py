@@ -37,7 +37,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=0.2, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
+        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=10, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
@@ -131,7 +131,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.repump_qubit.set_profile(3)
         self.repump_cooling.off()
         self.qubit.off()
-        self.repump_qubit.off()
+        self.repump_qubit.on()
         delay_mu(50000)
 
         # read sampler and accumulate reads into a single storage variable
