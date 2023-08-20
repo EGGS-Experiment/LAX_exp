@@ -195,7 +195,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # update dataset
         self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
 
-    def analyze(self):
+    def analyze_experiment(self):
         # print runtime per loop
         print("\n")
         print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))

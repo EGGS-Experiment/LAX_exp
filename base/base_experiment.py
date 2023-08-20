@@ -261,6 +261,33 @@ class LAXExperiment(LAXEnvironment, ABC):
 
 
     '''
+    ANALYZE
+    '''
+
+    def analyze(self):
+        """
+        General experimental analysis.
+
+        Used to process/analyze experiment results.
+        We separate the analyze stage for experiments into "analyze_experiment."
+
+        This allows all other lower-class modules to straighforwardly define their own "analyze" methods
+        and have them called by the parent experiment, as well as for those modules to run their analysis
+        in isolation.
+        """
+        self.call_child_method('analyze')
+        self.call_child_method("analyze_experiment")
+
+    def analyze_experiment(self):
+        """
+        To be subclassed.
+
+        Used to process/analyze experiment results.
+        """
+        pass
+
+
+    '''
     Results
     '''
 

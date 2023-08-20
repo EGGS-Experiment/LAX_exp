@@ -138,4 +138,3 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
-

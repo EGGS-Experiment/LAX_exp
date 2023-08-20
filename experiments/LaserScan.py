@@ -102,7 +102,7 @@ class LaserScan(LAXExperiment, Experiment):
 
 
     # ANALYSIS
-    def analyze(self):
+    def analyze_experiment(self):
         """
         Fit data and guess potential spectral peaks.
         """

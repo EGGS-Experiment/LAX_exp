@@ -122,7 +122,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
 
     # ANALYSIS
-    def analyze(self):
+    def analyze_experiment(self):
         """
         Fit rabi flopping data with an exponentially damped sine curve
         """

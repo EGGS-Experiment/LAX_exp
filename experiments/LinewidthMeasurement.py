@@ -161,7 +161,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
 
     # ANALYSIS
-    def analyze(self):
+    def analyze_experiment(self):
         """
         Process resultant spectrum and attempt to fit.
         """
