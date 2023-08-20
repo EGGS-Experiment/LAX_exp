@@ -145,6 +145,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         """
         Fit resultant spectrum with a sinc profile.
         """
+        print('yzde')
         # create data structures for processing
         results_tmp =           np.array(self.results)
         probability_vals =      np.zeros(len(results_tmp))

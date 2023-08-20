@@ -276,7 +276,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         in isolation.
         """
         self.call_child_method('analyze')
-        self.call_child_method("analyze_experiment")
+
+        # add error handling for experiment analysis
+        try:
+            self.analyze_experiment()
+        except Exception as e:
+            print('\tWarning: encountered error during analyze_experiment.')
+            print('\t\t:{:}'.format(e))
 
     def analyze_experiment(self):
         """

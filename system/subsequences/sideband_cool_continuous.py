@@ -63,7 +63,6 @@ class SidebandCoolContinuous(LAXSubsequence):
 
 
         ### SIDEBAND COOLING ###
-
         # CONFIG
         self.qubit_func =                                               self.qubit.off if self.calibration_continuous is True else self.qubit.on
         self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz)
@@ -125,7 +124,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         Reads in the red/IR photodiode via the sampler.
         """
         # set sampler gain (1000x)
-        self.sampler0.set_gain_mu(2, 3)
+        self.sampler0.set_gain_mu(2, 2)
 
         # prepare red/IR beams for 854nm calibration
         self.repump_qubit.set_profile(3)
@@ -141,7 +140,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             delay_mu(4000)
 
         # convert storage variable to mV and store in dataset
-        self.set_dataset('calibration_power_quench_mv', 1000. * (self.power_quench_calibration_store_mu / self.power_quench_calibration_num_samples / (1 << 15)))
+        self.set_dataset('calibration_power_quench_mv', (self.power_quench_calibration_store_mu * 1000.) / self.power_quench_calibration_num_samples / (1 << 15))
         self.setattr_dataset('calibration_power_quench_mv')
         self.core.break_realtime()
 
