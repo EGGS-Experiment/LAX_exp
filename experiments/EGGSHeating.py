@@ -702,18 +702,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)

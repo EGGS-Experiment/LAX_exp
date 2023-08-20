@@ -145,6 +145,10 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('spectrum_peaks',  peak_vals)
 
         # print peaks to log for user convenience
-        print("\tPeaks - Laser Scan:")
-        for peak_freq, peak_prob in peak_vals:
-            print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
+        # ensure we don't have too many peaks before printing to log
+        if len(peak_vals) < 8:
+            print("\tPeaks - Laser Scan:")
+            for peak_freq, peak_prob in peak_vals:
+                print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
+        else:
+            print("\tWarning: too many peaks detected.")
