@@ -140,7 +140,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             delay_mu(4000)
 
         # convert storage variable to mV and store in dataset
-        self.set_dataset('calibration_power_quench_mv', (self.power_quench_calibration_store_mu * 1000.) / self.power_quench_calibration_num_samples / (1 << 15))
+        self.set_dataset('calibration_power_quench_mv', 100. * (self.power_quench_calibration_store_mu * 1. / self.power_quench_calibration_num_samples / (1 << 15)))
         self.setattr_dataset('calibration_power_quench_mv')
         self.core.break_realtime()
 
@@ -208,6 +208,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         Verify whether 854nm power during SBC quenching is within range.
         """
         # todo: make config/calib customizable
-        if abs(self.calibration_power_quench_mv - 30):
-            print('\t\tWarning: 854nm power for quenching during SBC is out of range.')
+        # if self.calibration_power_quench_mv > 20.:
+        if self.calibration_power_quench_mv > 0.:
+            print('\t\tWarning: 854nm power for quenching during SBC is too high.')
             print('\t\t\tPower: {:.2f} mV'.format(self.calibration_power_quench_mv))
