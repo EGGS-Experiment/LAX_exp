@@ -21,6 +21,10 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
+        # tmp remove
+        self.setattr_device('sampler0')
+        # tmp remove
+
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
         self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
@@ -90,11 +94,32 @@ class SidebandCoolContinuous(LAXSubsequence):
                                                                                                 * (self.time_sideband_cooling_us * us))
         self.time_spinpolarization_mu_list =                            self.time_spinpolarization_mu_list[1:]
 
+        # tmp remove
+        # 854nm quench power calibration
+        self.voltage_quench_mv_list =                                   np.array([0.]*8)
+        self.set_dataset('calibration_quench_ampl_volt_mv',             float(0))
+        # tmp remove
+
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
         # set quench waveform
         self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
+
+        # calibrate qubit repump power for quench
+        # set sampler gain
+        self.sampler0.set_gain_mu(2, 1000)
+        # prepare qubit beam for calibration
+        self.repump_qubit.set_profile(3)
+        self.repump_cooling.off()
+        self.qubit.off()
+        self.repump_qubit.on()
+        self.core.break_realtime()
+
+        # read sampler and store value
+        self.sampler0.sample(self.voltage_quench_mv_list)
+        self.set_dataset('calibration_quench_ampl_volt_mv', self.voltage_quench_mv_list[2]*1000.)
+
 
         # set sideband cooling profiles for 729nm qubit laser
             # profile 0: reserved for readout
@@ -102,6 +127,9 @@ class SidebandCoolContinuous(LAXSubsequence):
         for i in self.iter_sideband_cooling_modes_list:
             self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
             self.core.break_realtime()
+
+
+
 
     @kernel(flags={"fast-math"})
     def run(self):
