@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.sampler import adc_mu_to_volt
 
 import numpy as np
 from LAX_exp.extensions import *
@@ -36,7 +37,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=10, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
+        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=0.2, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
@@ -96,8 +97,9 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # tmp remove
         # 854nm quench power calibration
-        self.voltage_quench_mv_list =                                   np.array([0.]*8)
-        self.set_dataset('calibration_quench_ampl_volt_mv',             float(0))
+        self.power_quench_calibration_num_samples =                     1000
+        self.power_quench_calibration_store_mu =                        np.int32(0)
+        self.power_quench_calibration_mu_list =                         np.array([0]*8)
         # tmp remove
 
 
@@ -106,20 +108,8 @@ class SidebandCoolContinuous(LAXSubsequence):
         # set quench waveform
         self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
 
-        # calibrate qubit repump power for quench
-        # set sampler gain
-        self.sampler0.set_gain_mu(2, 1000)
-        # prepare qubit beam for calibration
-        self.repump_qubit.set_profile(3)
-        self.repump_cooling.off()
-        self.qubit.off()
-        self.repump_qubit.on()
-        self.core.break_realtime()
-
-        # read sampler and store value
-        self.sampler0.sample(self.voltage_quench_mv_list)
-        self.set_dataset('calibration_quench_ampl_volt_mv', self.voltage_quench_mv_list[2]*1000.)
-
+        # calibrate quench power via photodiode
+        self._calibrate_quench_power()
 
         # set sideband cooling profiles for 729nm qubit laser
             # profile 0: reserved for readout
@@ -128,7 +118,31 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
             self.core.break_realtime()
 
+    @kernel(flags={"fast-math"})
+    def _calibrate_quench_power(self):
+        """
+        Calibrate qubit repump (854nm) power for quenching SBC.
+        Reads in the red/IR photodiode via the sampler.
+        """
+        # calibrate qubit repump power for quench
+        # set sampler gain (1000x)
+        self.sampler0.set_gain_mu(2, 3)
+        # prepare red/IR beams for 854nm calibration
+        self.repump_qubit.set_profile(3)
+        self.repump_cooling.off()
+        self.qubit.off()
+        self.repump_qubit.off()
+        delay_mu(50000)
 
+        # read sampler and accumulate reads into a single storage variable
+        for sample_num in range(self.power_quench_calibration_num_samples):
+            self.sampler0.sample_mu(self.power_quench_calibration_mu_list)
+            self.power_quench_calibration_store_mu += self.power_quench_calibration_mu_list[2]
+            delay_mu(4000)
+
+        # convert storage variable to mV and store in dataset
+        self.set_dataset('calibration_power_quench_mv', 1000. * (self.power_quench_calibration_store_mu / self.power_quench_calibration_num_samples / (1 << 15)))
+        self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
