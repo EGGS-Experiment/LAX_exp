@@ -9,14 +9,14 @@ from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2, RescueIon
 from LAX_exp.analysis import *
 
 
-class TemperatureMeasurement2(LAXExperiment, Experiment):
+class LinewidthMeasurement2(LAXExperiment, Experiment):
     """
-    Experiment: Temperature Measurement 2
+    Experiment: Linewidth Measurement 2
 
     Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape.
     This version
     """
-    name = 'Temperature Measurement 2'
+    name = 'Linewidth Measurement 2'
 
 
     def build_experiment(self):

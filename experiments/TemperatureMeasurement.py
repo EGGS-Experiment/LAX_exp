@@ -10,13 +10,13 @@ from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 from LAX_exp.analysis import *
 
 
-class TemperatureMeasurement(LAXExperiment, Experiment):
+class LinewidthMeasurement(LAXExperiment, Experiment):
     """
-    Experiment: Temperature Measurement
+    Experiment: Linewidth Measurement
 
     Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape.
     """
-    name = 'Temperature Measurement'
+    name = 'Linewidth Measurement'
 
 
     def build_experiment(self):
