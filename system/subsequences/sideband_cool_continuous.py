@@ -124,9 +124,9 @@ class SidebandCoolContinuous(LAXSubsequence):
         Calibrate qubit repump (854nm) power for quenching SBC.
         Reads in the red/IR photodiode via the sampler.
         """
-        # calibrate qubit repump power for quench
         # set sampler gain (1000x)
         self.sampler0.set_gain_mu(2, 3)
+
         # prepare red/IR beams for 854nm calibration
         self.repump_qubit.set_profile(3)
         self.repump_cooling.off()
