@@ -94,12 +94,10 @@ class SidebandCoolContinuous(LAXSubsequence):
                                                                                                 * (self.time_sideband_cooling_us * us))
         self.time_spinpolarization_mu_list =                            self.time_spinpolarization_mu_list[1:]
 
-        # tmp remove
         # 854nm quench power calibration
         self.power_quench_calibration_num_samples =                     1000
         self.power_quench_calibration_store_mu =                        np.int32(0)
         self.power_quench_calibration_mu_list =                         np.array([0]*8)
-        # tmp remove
 
 
     @kernel(flags={"fast-math"})

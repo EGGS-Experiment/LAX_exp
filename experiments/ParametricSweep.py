@@ -54,6 +54,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('dds_modulation')
+        self.setattr_device('pmt')
 
         # get relevant subsequences
         self.parametric_subsequence =                               ParametricExcite(self)
@@ -80,9 +81,10 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
 
-        # create variables for recording runtime
-        self.start_time_mu = np.int64(0)
-        self.stop_time_mu = np.int64(0)
+        # set up variables for ensuring PMT counts are above some threshold
+        self.fluorescence_calibration_time_mu =                     30000000
+        self.fluorescence_calibration_threshold_counts =            600
+
 
     @property
     def results_shape(self):
@@ -128,6 +130,25 @@ class ParametricSweep(LAXExperiment, Experiment):
 
             # set up labrad devices via RPC
             self.prepareDevicesLabrad()
+        self.core.break_realtime()
+
+        # do check to verify that mirror is flipped to mirror
+        self._check_PMT_counting()
+
+    @kernel(flags={"fast-math"})
+    def _check_PMT_counting(self):
+        """
+        Check that everything is set up to ensure the ion is fluorescing correctly.
+        Runs a given number of PMT readout sequences and compares the average fluorescence
+        against some given number.
+        """
+        # count fluorescence
+        self.pmt.count(self.fluorescence_calibration_time_mu)
+
+        # ensure fluorescence exceeds threshold
+        counts_calibration = self.pmt.fetch_count()
+        if counts_calibration < self.fluorescence_calibration_threshold_counts:
+            raise Exception("Error: PMT not receiving sufficient counts.")
 
 
     @kernel(flags={"fast-math"})
@@ -144,9 +165,6 @@ class ParametricSweep(LAXExperiment, Experiment):
                 # set DC voltage
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
                 self.core.break_realtime()
-
-                # record loop start time
-                self.start_time_mu = self.core.get_rtio_counter_mu()
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
@@ -165,9 +183,6 @@ class ParametricSweep(LAXExperiment, Experiment):
                     with parallel:
                         self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
                         self.core.reset()
-
-                # record loop stop time
-                self.stop_time_mu = self.core.get_rtio_counter_mu()
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
@@ -198,9 +213,9 @@ class ParametricSweep(LAXExperiment, Experiment):
     def analyze_experiment(self):
         # print runtime per loop
         print("\n")
-        print("\t\trun time: {}".format(self.core.mu_to_seconds(self.stop_time_mu - self.start_time_mu)))
-        print("\n")
 
+        # todo: sort by voltage
+        # todo: separately fit amplitude and phase at each voltage value
         # todo: fit data for all voltage values
         # todo: extract uncertainties
         # todo: if multiple voltages, return optimal voltage
