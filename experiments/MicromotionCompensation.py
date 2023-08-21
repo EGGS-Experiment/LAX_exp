@@ -269,3 +269,69 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # also store values in a local dataset
         self.tmp_dataset_holder[self.tmp_dataset_iter] = np.array([voltage_mod0_v, voltage_mod1_v, correlated_ampl, correlated_phase])
         self.tmp_dataset_iter += 1
+
+    @rpc
+    def _extract_optimum(self, mode_num: TInt32) -> TArray(TFloat, 1):
+        """
+        # todo: document
+        # todo: do we need mode as arg?
+
+        Arguments:
+            mode_num            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
+        Returns:
+            # todo: document - list of abs angle
+        """
+        # todo: document
+        results_tmp = np.array(self.tmp_dataset_holder[: self.tmp_dataset_iter], dtype='float')
+
+        # todo: groupBy and average for given mode
+        _reduce_func = lambda data: np.array([np.mean(data[:, 1]), np.mean(data[:, 2])])
+        results_tmp = groupBy(results_tmp, column_num=mode_num, reduce_func=_reduce_func)
+        results_tmp = np.concatenate((np.array([list(results_tmp.keys())]).transpose(),
+                                      np.array(list(results_tmp.values()))),
+                                     axis=-1)
+
+        # format results into a 2D array with complex type for complex linear fitting
+        results_tmp = np.array([
+            results_tmp[:, 0],
+            results_tmp[:, 1] * np.exp(1.j * results_tmp[:, 2])
+        ], dtype='complex128').transpose()
+
+        # sanitize data holder objects
+        self.tmp_dataset_iter = 0
+        self.tmp_dataset_holder *= 0
+
+        # tmp remove
+        # print(np.abs(results_tmp))
+        self.set_dataset('iter{:d}_mode{}'.format(self._tmp_result_iter // 2, mode_num), results_tmp)
+        self._tmp_result_iter += 1
+        # tmp remove
+
+        # extract minimum mode voltage
+        opt_voltage_v = complexFitMinimize(results_tmp)
+        opt_voltage_list_v_tmp = self.dc_voltage_optimal_v_list
+
+        # ensure values are within acceptable range, otherwise return original values
+        if mode_num == 0:
+            if (opt_voltage_v > np.max(self.dc_voltages_mod0_v_list)) | (
+                    opt_voltage_v < np.min(self.dc_voltages_mod0_v_list)):
+                print('ERROR: MODE 0 OUTSIDE MAX VOLTAGE ({:.2f})'.format(opt_voltage_v))
+                opt_voltage_v = self.dc_voltage_optimal_v_list[mode_num]
+
+            opt_voltage_list_v_tmp[mode_num] = opt_voltage_v
+            # todo: get the voltage for the other mode
+            # opt_voltage_list_v_tmp[1] = _interpolateData_tmp(opt_voltage_v)
+        elif mode_num == 1:
+            if (opt_voltage_v > np.max(self.dc_voltages_mod1_v_list)) | (
+                    opt_voltage_v < np.min(self.dc_voltages_mod1_v_list)):
+                print('ERROR: MODE 1 OUTSIDE MAX VOLTAGE ({:.2f})'.format(opt_voltage_v))
+                opt_voltage_v = self.dc_voltage_optimal_v_list[mode_num]
+
+            opt_voltage_list_v_tmp[mode_num] = opt_voltage_v
+            # todo: get the voltage for the other mode
+            # opt_voltage_list_v_tmp[0] = _interpolateData_tmp(opt_voltage_v)
+
+        # set new optimal values and print result
+        self.dc_voltage_optimal_v_list = opt_voltage_list_v_tmp
+        print('\t\tOptimal Voltages: {:.2f}, {:.2f}'.format(opt_voltage_list_v_tmp[0], opt_voltage_list_v_tmp[1]))
+        return opt_voltage_list_v_tmp
