@@ -15,7 +15,7 @@ class ParametricExcite(LAXSubsequence):
 
     def build_subsequence(self):
         # number of input counts to listen for
-        self.setattr_argument("num_counts",     NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("num_counts",     NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000000), group=self.name)
 
         # get relevant devices
         self.setattr_device('pmt')
@@ -28,9 +28,6 @@ class ParametricExcite(LAXSubsequence):
         self.time_pmt_gating_mu =               self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu, units=us)
         self.time_rf_gating_mu =                self.get_parameter('time_rf_gating_ns', group='rf', override=False, conversion_function=seconds_to_mu, units=ns)
         self.time_rf_holdoff_mu =               self.get_parameter('time_rf_holdoff_us', group='rf', override=False, conversion_function=seconds_to_mu, units=us)
-
-        # set additional holdoff for modulation
-        self.time_mod_delay_mu =                self.core.seconds_to_mu(200 * us)
 
         # create holder array to store PMT counts
         self.timestamp_mu_list =                np.zeros(self.num_counts, dtype=np.int64)

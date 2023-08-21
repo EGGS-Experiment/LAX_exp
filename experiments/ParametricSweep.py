@@ -4,11 +4,21 @@ from EGGS_labrad.config.dc_config import dc_config
 
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.exceptions import CoreException
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import ParametricExcite
+
+
+class InsufficientCounts(Exception):
+    """
+    Raised when the PMT is not getting sufficient counts for some reason.
+    Prevents fixed PMT count-type experiments (e.g. ParametricSweep) from
+    blocking due to insufficient PMT counts.
+    """
+    pass
 
 
 class ParametricSweep(LAXExperiment, Experiment):
@@ -28,7 +38,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # modulation
         self.setattr_argument("mod_att_db",                         NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1089, 10, 0.25, randomize=True),
+                                                                        default=CenterScan(1089, 10, 0.5, randomize=True),
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -46,8 +56,8 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                     ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=40, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=110, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -82,8 +92,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dc =                                                   self.cxn.dc_server
 
         # set up variables for ensuring PMT counts are above some threshold
-        self.fluorescence_calibration_time_mu =                     30000000
-        self.fluorescence_calibration_threshold_counts =            600
+        self.fluorescence_calibration_time_mu =                     np.int64(30000000)  # 30ms
+        self.fluorescence_calibration_threshold_counts =            400
 
 
     @property
@@ -148,7 +158,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # ensure fluorescence exceeds threshold
         counts_calibration = self.pmt.fetch_count()
         if counts_calibration < self.fluorescence_calibration_threshold_counts:
-            raise Exception("Error: PMT not receiving sufficient counts.")
+            raise InsufficientCounts("Error: PMT not receiving sufficient counts.")
 
 
     @kernel(flags={"fast-math"})
@@ -211,9 +221,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
 
     def analyze_experiment(self):
-        # print runtime per loop
-        print("\n")
-
+        pass
         # todo: sort by voltage
         # todo: separately fit amplitude and phase at each voltage value
         # todo: fit data for all voltage values
