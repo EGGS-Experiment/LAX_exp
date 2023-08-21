@@ -223,9 +223,52 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     # ANALYSIS
     def analyze_experiment(self):
-        pass
-        # todo: sort by voltage
-        # todo: separately fit amplitude and phase at each voltage value
-        # todo: fit data for all voltage values
-        # todo: extract uncertainties
-        # todo: if multiple voltages, return optimal voltage
+        """
+        Fit resultant spectra with a sinc profile to extract n,
+        then fit a line to extract heating rate
+        """
+        # note: no need to convert units since we already do this in _process_results
+        # also, we leave out counts (5th column) from fitting
+        results_tmp =           np.array(self.results)[:, :4]
+        # group dataset first by shim voltage
+        results_tmp =           groupBy(results_tmp, column_num=1)
+
+        # group dataset by modulation frequency and average results,
+        # then convert resultant dict into 2D dataset
+        _reduce_func =          lambda ds: np.mean(ds, axis=0)
+        _dict_to_array =        lambda _dict: np.concatenate((np.array([list(_dict.keys())]).transpose(),
+                                                              np.array(list(_dict.values()))),
+                                                             axis=-1)
+        results_tmp =           {key_voltage: _dict_to_array(groupBy(val_dataset, column_num=0, reduce_func=_reduce_func))
+                                 for key_voltage, val_dataset in results_tmp.items()}
+
+        # fit amplitude for all voltages
+        results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, :2])
+                                 for key_voltage, val_dataset in results_tmp.items()}
+
+        # todo: use amplitude fit values to support phase fitting
+
+        # process results for fitting
+        amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
+                                                 for key_voltage, fit_params in results_amplitude_fit.items()])
+        amplitude_fit_err_saved =       np.array([[key_voltage, *fit_params[1]]
+                                                  for key_voltage, fit_params in results_amplitude_fit.items()])
+
+        # save results to hdf5 as a dataset
+        self.set_dataset('amplitude_fit_params_saved',  amplitude_fit_params_saved)
+        self.set_dataset('amplitude_fit_err_saved',     amplitude_fit_err_saved)
+
+        # print out fitted results
+        print("\tResults - Parametric Sweep:")
+
+        # if only one voltage, assume user is trying to find a mode frequency,
+        # so print out mode frequency, error, and linewidth
+        if len(results_tmp.keys()) == 1:
+            print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
+            print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
+
+        # otherwise, assume user is trying to minimize micromotion,
+        # so print out voltage optima statistics
+        else:
+            # todo
+            pass

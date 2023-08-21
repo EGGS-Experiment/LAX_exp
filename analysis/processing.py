@@ -4,7 +4,7 @@ LAX.analysis.processing
 Contains helpful/commonly used modules for processing datasets.
 """
 
-__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy', 'processDataset2D']
+__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy', 'processFluorescence2D']
 
 
 # necessary imports
@@ -153,7 +153,7 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
     return dataset_processed
 
 
-def processDataset2D(dataset):
+def processFluorescence2D(dataset):
     """
     todo: document
 
