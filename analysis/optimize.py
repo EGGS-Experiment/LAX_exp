@@ -62,6 +62,8 @@ def complexFitMinimize(dataset):
     print('\t\t\tb_param: {:.3f} + i * {:.3f}'.format(b_fit_re, b_fit_im))
     print('\t\t\tm_param: {:.3f} + i * {:.3f}\n'.format(m_fit_re, m_fit_im))
 
+    # todo: get error
+
     # extract optimal voltage to minimize displacement
     voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
     return voltage_optimal

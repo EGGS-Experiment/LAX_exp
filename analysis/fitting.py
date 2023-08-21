@@ -331,9 +331,9 @@ def fitLine(data):
     # guess slope as (y_max - y_min) / (x_max - x_min)
     m_guess = (data[0, 1] - data[-1, 1]) / (data[0, 0] - data[-1, 0])
     # guess x-intercept as median of y - mx
-    b_guess = np.median(data[1, :] - m_guess * data[0, :])
+    b_guess = np.median(data[:, 1] - m_guess * data[:, 0])
 
     # do a linear least squares fit to the data
-    res =               least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]))
+    res = least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]))
     res_intercept, res_slope = res.x
     return res_intercept, res_slope
