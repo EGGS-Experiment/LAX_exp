@@ -9,8 +9,8 @@ __all__ = ['complexFitMinimize', 'complexParametricFitMinimize']
 
 # necessary imports
 import numpy as np
-from scipy import stats
-from scipy import optimize
+from scipy.stats import linregress
+from scipy.optimize import least_squares
 
 # todo: write an optimizer/gradient descent module
 
@@ -47,15 +47,20 @@ def complexFitMinimize(dataset):
 
     # guess slope as (y_max - y_min) / (x_max - x_min)
     m_guess = (dataset[0, 1] - dataset[-1, 1]) / (dataset[0, 0] - dataset[-1, 0])
-    # guess x-intercept as median of y - mx
-    b_guess = np.median(dataset[1, :] - m_guess * dataset[0, :])
+    # guess x-intercept as mean of y - mx
+    b_guess = np.median(dataset[:, 1] - m_guess * dataset[:, 0])
     params_guess = (b_guess.real, b_guess.imag, m_guess.real, m_guess.imag)
 
+    # tmp remove
+    print('\t\t\tguess b_param: {:.3f} + i * {:.3f}'.format(b_guess.real, b_guess.imag))
+    print('\t\t\tguess m_param: {:.3f} + i * {:.3f}\n'.format(m_guess.real, m_guess.imag))
+    # tmp remove
+
     # do a complex least squares fit
-    res = optimize.least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]))
+    res = least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]))
     b_fit_re, b_fit_im, m_fit_re, m_fit_im = res.x
-    print('\t\t\tb_param: {:.2f} + i * {:.2f}'.format(b_fit_re, b_fit_im))
-    print('\t\t\tm_param: {:.2f} + i * {:.2f}'.format(m_fit_re, m_fit_im))
+    print('\t\t\tb_param: {:.3f} + i * {:.3f}'.format(b_fit_re, b_fit_im))
+    print('\t\t\tm_param: {:.3f} + i * {:.3f}\n'.format(m_fit_re, m_fit_im))
 
     # extract optimal voltage to minimize displacement
     voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
@@ -79,7 +84,7 @@ def complexParametricFitMinimize(dataset):
     dataset_y = np.array([np.real(dataset[:, 1]), np.imag(dataset[:, 1])]).transpose()
 
     # fit the DV in the complex plane and get the unit vector of the line
-    fit_complex = stats.linregress(dataset_y[:, 0], dataset_y[:, 1])
+    fit_complex = linregress(dataset_y[:, 0], dataset_y[:, 1])
     m_c, b_c = fit_complex.slope, fit_complex.intercept
 
     # get the projection of the DV onto the fitted line
@@ -87,7 +92,7 @@ def complexParametricFitMinimize(dataset):
     dataset_proj = np.dot(dataset_y, vec_complex)
 
     # fit the x dataset to the parameterized line
-    fit_parameterized = stats.linregress(dataset_x, dataset_proj)
+    fit_parameterized = linregress(dataset_x, dataset_proj)
     m_p, b_p = fit_parameterized.slope, fit_parameterized.intercept
 
     # extract x_min

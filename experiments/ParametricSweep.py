@@ -249,6 +249,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])
         #                          for key_voltage, val_dataset in results_tmp.items()}
 
+        # todo: extract optimal voltage at all modulation frequencies
+
 
         # process results for fitting
         amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
