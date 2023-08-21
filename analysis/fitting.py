@@ -75,6 +75,7 @@ def fitRabiFlopping(data):
 def fitDampedDrivenOscillatorAmplitude(data):
     """
     Fit amplitude response of the damped driven harmonic oscillator.
+
     Note: amplitude response lineshape of the damped driven harmonic oscillator
     is also called a Breit-Wigner profile.
 
@@ -84,32 +85,32 @@ def fitDampedDrivenOscillatorAmplitude(data):
     Returns:
         ***todo
     """
-    # regular old lorentzin
-    def fit_func(x, a, b, mu):
+    # Breit-Wigner profile
+    def fit_func(x, a, b, c):
         """
         todo: document arguments
         """
-        return a / ((x - mu)**2. + (b)**2.)
+        return a / ((x**2. - b**2.)**2. + (x*c)**2.)**0.5
 
     # separate data into x and y
     data =              np.array(data)
     data_x, data_y =    data.transpose()
 
     # extract starting parameter guesses
-    # get position of max as linecenter
-    mu0, a0 =           data[np.argmax(data_y)]
-    # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    # guess linewidth as 2 kHz
+    c_guess =           0.002
+    # get position and value of peak
+    b0, a0 =            data[np.argmax(data_y)]
+    # since peak doesn't occur at linecenter for breit-wigner,
+    # convert peak values to actual guess values
+    a_guess =           0.5 * a0 * c_guess
+    b_guess =           (2 * b0**2. - c_guess)**0.5
     # create array of initial guess parameters
-    param_guess =       np.array([a0, b0, mu0])
+    param_guess =       np.array([a_guess, b_guess, c_guess])
 
     # fit and convert covariance matrix to error (1 stdev)
     param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
     param_err =             np.sqrt(np.diag(param_cov))
-
-    # convert b_fit to \Gamma / 2 (i.e. linewidth)
-    param_fit[1] *= 2.
-    param_err[1] *= 2.
     return param_fit, param_err
 
 

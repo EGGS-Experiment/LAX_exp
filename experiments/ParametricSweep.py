@@ -220,6 +220,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         # update dataset
         self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
 
+
+    # ANALYSIS
     def analyze_experiment(self):
         pass
         # todo: sort by voltage
