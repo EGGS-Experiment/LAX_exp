@@ -4,7 +4,9 @@ LAX.analysis.fitting
 Contains modules used for fitting datasets.
 """
 
-__all__ = ['fitDampedOscillator', 'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt', 'fitLine']
+__all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
+           'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
+           'fitLine']
 
 
 # necessary imports

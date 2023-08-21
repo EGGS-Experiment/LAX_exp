@@ -245,8 +245,10 @@ class ParametricSweep(LAXExperiment, Experiment):
         # fit amplitude for all voltages
         results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, :2])
                                  for key_voltage, val_dataset in results_tmp.items()}
-
         # todo: use amplitude fit values to support phase fitting
+        # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])
+        #                          for key_voltage, val_dataset in results_tmp.items()}
+
 
         # process results for fitting
         amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
