@@ -386,8 +386,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Extract system parameters from LabRAD and format for saving with the experiment results.
         """
-        try:
+        # create holding dict for system parameters
+        sys_vals = {}
 
+        try:
             # import relevant modules
             import labrad
 
@@ -404,79 +406,12 @@ class LAXExperiment(LAXEnvironment, ABC):
             from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
             cxn_wm = labrad.connect(multiplexer_config.ip, name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
 
-            # connect to relevant servers
-            rf = cxn.rf_server
-            dc = cxn.dc_server
-            ls = cxn.lakeshore336_server
-            wm = cxn_wm.multiplexerserver
-
-            # get rf values
-            try:
-                rf.select_device()
-                rf_freq_hz = rf.frequency()
-                rf_ampl_dbm = rf.amplitude()
-            except Exception as e:
-                print("Warning: unable to retrieve and store trap RF values in dataset.")
-
-            # get temperature values
-            try:
-                temp_vals_k = ls.read_temperature()
-                temp_vals_k = array(list(temp_vals_k))
-            except Exception as e:
-                print("Warning: unable to retrieve and store temperature values in dataset.")
-
-            # import dc config and get relevant parameters
-            from EGGS_labrad.config.dc_config import dc_config
-            dc_channels = dc_config.channeldict
-
-            # extract values for DC channels in use
-            dc_vals = {}
-            for channel_name, channel_params in dc_channels.items():
-                try:
-                    # get channel number
-                    channelnum = channel_params['num']
-
-                    # store channel number
-                    key_channelnum = "dc_channel_num_{:s}".format(channel_name)
-                    dc_vals[key_channelnum] = channelnum
-
-                    # store channel voltage
-                    key_voltage = "dc_voltage_{:s}_v".format(channel_name)
-                    voltage_v = dc.voltage(channelnum)
-                    dc_vals[key_voltage] = voltage_v
-
-                except Exception as e:
-                    print("Warning: unable to retrieve and store trap DC values in dataset.")
-
-            # extract frequencies of wavemeter channels in use
-            # extract dc values of channels in use
-            wm_vals = {}
-            wm_channels = multiplexer_config.channels
-            for channel_name, channel_params in wm_channels.items():
-                try:
-                    # get channel number
-                    channelnum = channel_params[0]
-
-                    # store channel frequency
-                    key_frequency = "wm_frequency_{:s}_thz".format(channel_name)
-                    freq_thz = wm.get_frequency(channelnum)
-                    wm_vals[key_frequency] = freq_thz
-
-                except Exception as e:
-                    print("Warning: unable to retrieve and store {:s} values from wavemeter in dataset.".format(channel_name))
-
-            # store all system values in a combined dict
-            sys_vals = {
-                "rf_freq_hz":   rf_freq_hz,
-                "rf_ampl_dbm":  rf_ampl_dbm,
-                "temp_vals_k":  temp_vals_k
-            }
-            sys_vals.update(dc_vals)
-            sys_vals.update(wm_vals)
-
-            # return combined system values
-            return sys_vals
-
+            # get relevant system values
+            sys_vals.update(self._save_labrad_rf(cxn))
+            sys_vals.update(self._save_labrad_dc(cxn))
+            sys_vals.update(self._save_labrad_temp(cxn))
+            sys_vals.update(self._save_labrad_wm(cxn_wm))
+            sys_vals.update(self._save_labrad_bfield(cxn))
 
         except Exception as e:
             print("Warning: error retrieving and saving LabRAD values in dataset.")
@@ -486,5 +421,160 @@ class LAXExperiment(LAXEnvironment, ABC):
             cxn.disconnect()
             cxn_wm.disconnect()
 
-        # return empty dict to handle exception case
-        return {}
+        # return collated relevant system values
+        return sys_vals
+
+    def _save_labrad_rf(self, cxn):
+        """
+        Extract system RF parameters from LabRAD.
+        Arguments:
+            cxn     labrad_cxn  : a labrad connection object.
+        Returns:
+                    dict        : a dict of relevant system values.
+        """
+        # create holding dict
+        sys_vals_rf = {}
+        try:
+            # set up RF server cxn
+            rf = cxn.rf_server
+            rf.select_device()
+
+            # get RF values
+            rf_freq_hz = rf.frequency()
+            rf_ampl_dbm = rf.amplitude()
+
+            # store rf values in holding dict
+            sys_vals_rf = {
+                "rf_freq_hz": rf_freq_hz,
+                "rf_ampl_dbm": rf_ampl_dbm
+            }
+        except Exception as e:
+            print("Warning: unable to retrieve and store trap RF values in dataset.")
+
+        return sys_vals_rf
+
+    def _save_labrad_dc(self, cxn):
+        """
+        Extract system DC parameters from LabRAD.
+        Arguments:
+            cxn     labrad_cxn  : a labrad connection object.
+        Returns:
+                    dict        : a dict of relevant system values.
+        """
+        # create holding dict
+        sys_vals_dc = {}
+        try:
+            # import DC config and get relevant parameters
+            from EGGS_labrad.config.dc_config import dc_config
+            dc_channels = dc_config.channeldict
+
+            # extract values for DC channels in use
+            dc = cxn.dc_server
+            for channel_name, channel_params in dc_channels.items():
+                try:
+                    # get channel number
+                    channelnum = channel_params['num']
+
+                    # store channel number
+                    key_channelnum = "dc_channel_num_{:s}".format(channel_name)
+                    sys_vals_dc[key_channelnum] = channelnum
+
+                    # store channel voltage
+                    key_voltage = "dc_voltage_{:s}_v".format(channel_name)
+                    voltage_v = dc.voltage(channelnum)
+                    sys_vals_dc[key_voltage] = voltage_v
+                except Exception as e:
+                    pass
+
+        except Exception as e:
+            print("Warning: unable to retrieve and store trap DC values in dataset.")
+
+        return sys_vals_dc
+
+    def _save_labrad_temp(self, cxn):
+        """
+        Extract system temperature/cryo parameters from LabRAD.
+        Arguments:
+            cxn     labrad_cxn  : a labrad connection object.
+
+        Returns:
+                    dict        : a dict of relevant system values.
+        """
+        # create holding dict
+        sys_vals_temp = {}
+        try:
+            # get temperature values from lakeshore
+            ls = cxn.lakeshore336_server
+            temp_vals_k = ls.read_temperature()
+
+            # store temperature values in holding dict
+            sys_vals_temp = {"temp_vals_k":  array(list(temp_vals_k))}
+        except Exception as e:
+            print("Warning: unable to retrieve and store temperature values in dataset.")
+
+        return sys_vals_temp
+
+    def _save_labrad_wm(self, cxn):
+        """
+        Extract system wavemeter parameters from LabRAD.
+        Arguments:
+            cxn     labrad_cxn  : a labrad connection object.
+        Returns:
+                    dict        : a dict of relevant system values.
+        """
+        # create holding dict
+
+        # extract frequencies of wavemeter channels in use
+        sys_vals_wm = {}
+        try:
+            # import wavemeter config and get relevant parameters
+            from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
+            wm_channels = multiplexer_config.channels
+
+            # extract values for wavemeter channels in use
+            wm = cxn.multiplexerserver
+            for channel_name, channel_params in wm_channels.items():
+                try:
+                    # get channel number
+                    channelnum = channel_params[0]
+
+                    # store channel frequency
+                    key_frequency = "wm_frequency_{:s}_thz".format(channel_name)
+                    freq_thz = wm.get_frequency(channelnum)
+                    sys_vals_wm[key_frequency] = freq_thz
+                except Exception as e:
+                    pass
+
+        except Exception as e:
+            print("Warning: unable to retrieve and store laser wavemeter values in dataset.")
+
+        return sys_vals_wm
+
+    def _save_labrad_bfield(self, cxn):
+        """
+        Extract system B-field parameters from LabRAD.
+        Arguments:
+            cxn     labrad_cxn  : a labrad connection object.
+        Returns:
+                    dict        : a dict of relevant system values.
+        """
+        # create holding dict
+        sys_vals_bfield = {}
+        try:
+            # set up RF server cxn
+            ke = cxn.keithley_2231a_server
+            gpp = cxn.gpp3060_server
+
+            # get RF values
+            bfield_ke = ke.measure_current(1)
+            bfield_gpp = gpp.measure_current(2)
+
+            # store rf values in holding dict
+            sys_vals_bfield = {
+                "bfield_gpp3060_amps":  bfield_ke,
+                "bfield_keithley_amps": bfield_gpp
+            }
+        except Exception as e:
+            print("Warning: unable to retrieve and store B-field current values in dataset.")
+
+        return sys_vals_bfield
