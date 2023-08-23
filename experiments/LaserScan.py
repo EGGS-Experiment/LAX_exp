@@ -20,11 +20,11 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(102.74, 0.1, 0.0005, randomize=True),
+                                                                        default=CenterScan(103.32, 0.02, 0.0005, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=5
                                                                     ), group=self.name)

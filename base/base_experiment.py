@@ -561,11 +561,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         # create holding dict
         sys_vals_bfield = {}
         try:
-            # set up RF server cxn
+            # set up respective server cxns
             ke = cxn.keithley_2231a_server
             gpp = cxn.gpp3060_server
 
-            # get RF values
+            # get B-field power supply current values
             bfield_ke = ke.measure_current(1)
             bfield_gpp = gpp.measure_current(2)
 
