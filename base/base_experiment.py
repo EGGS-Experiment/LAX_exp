@@ -574,6 +574,14 @@ class LAXExperiment(LAXEnvironment, ABC):
                 # "bfield_keithley_amps":  bfield_ke,
                 "bfield_gpp3060_amps": bfield_gpp
             }
+
+            # tmp remove
+            # todo: either move into a different section, or rename "_save_..." methods to "_check_..."
+            # verify that main b-field current is valid
+            if abs(bfield_gpp - 0.7) > 0.2:
+                print("Warning: Main B-field current coils are not their typical value.")
+                print("\tCurrent Value (Main coils): {:.3f}A".format(bfield_gpp))
+            # tmp remove
         except Exception as e:
             print("Warning: unable to retrieve and store B-field current values in dataset.")
 
