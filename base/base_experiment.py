@@ -279,7 +279,13 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # add error handling for experiment analysis
         try:
-            self.analyze_experiment()
+            # get return from analyze_experiment method
+            res_processed = self.analyze_experiment()
+
+            # if we get a valid return, assume it is the processed result
+            # of the experiment, and try to save it in the hdf5 file
+            if res_processed is not None:
+                self.set_dataset('results_processed', res_processed)
         except Exception as e:
             print('\tWarning: encountered error during analyze_experiment.')
             print('\t\t:{:}'.format(e))

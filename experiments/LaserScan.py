@@ -106,6 +106,7 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
+        # todo: move to use processFluorescence2D
         # create data structures for processing
         results_tmp =           np.array(self.results)
         probability_vals =      np.zeros(len(results_tmp))
@@ -152,3 +153,4 @@ class LaserScan(LAXExperiment, Experiment):
                 print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
         else:
             print("\tWarning: too many peaks detected.")
+        return results_tmp

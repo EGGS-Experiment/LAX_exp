@@ -177,6 +177,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         # fit sinc profile
         fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, self.time_readout_pipulse_us)
         fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, self.time_readout_pipulse_us)
+
         # process fit parameters to give values of interest
         phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
@@ -192,10 +193,11 @@ class SidebandCooling(LAXExperiment, Experiment):
         # print out fitted parameters
         print("\tResults - Sideband Cooling:")
         print("\t\tn:\t{:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
+        return results_tmp
 
     def _extract_phonon(self, dataset, time_fit_us):
         """
-        idk
+        Process a 2D dataset with both rsb and bsb data to extract the phonon number.
         todo: document
         Arguments:
             ***todo

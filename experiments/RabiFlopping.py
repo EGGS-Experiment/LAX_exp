@@ -165,3 +165,4 @@ class RabiFlopping(LAXExperiment, Experiment):
         # print out fitted parameters
         print("\tResults - Rabi Flopping:")
         print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
+        return results_tmp

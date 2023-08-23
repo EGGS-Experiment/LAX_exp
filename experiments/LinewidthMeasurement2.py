@@ -198,3 +198,4 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         # print("\t\tVoigt Fit:")
         # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
         # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+        return res_final
