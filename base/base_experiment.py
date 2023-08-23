@@ -566,13 +566,13 @@ class LAXExperiment(LAXEnvironment, ABC):
             gpp = cxn.gpp3060_server
 
             # get B-field power supply current values
-            bfield_ke = ke.measure_current(1)
+            # bfield_ke = ke.measure_current(1)
             bfield_gpp = gpp.measure_current(2)
 
             # store rf values in holding dict
             sys_vals_bfield = {
-                "bfield_gpp3060_amps":  bfield_ke,
-                "bfield_keithley_amps": bfield_gpp
+                # "bfield_keithley_amps":  bfield_ke,
+                "bfield_gpp3060_amps": bfield_gpp
             }
         except Exception as e:
             print("Warning: unable to retrieve and store B-field current values in dataset.")
