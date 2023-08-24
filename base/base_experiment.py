@@ -58,9 +58,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device("core_dma")
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
-        self.setattr_device('ttl20')
-        self.setattr_device('ttl21')
-        self.setattr_device('ttl22')
+        self.setattr_device('urukul2_cpld')
+        self.setattr_device('ttl12')
+        self.setattr_device('ttl13')
+        self.setattr_device('ttl14')
         setattr(self,'_result_iter', 0)
 
     def build_experiment(self):
@@ -212,16 +213,22 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.urukul0_cpld.io_update.pulse_mu(8)
                 self.urukul0_cpld.cfg_switches(0b0000)
 
-            # reset main board to rescue parameters
+            # reset motional board to rescue parameters
             with sequential:
                 self.urukul1_cpld.set_profile(0)
                 self.urukul1_cpld.io_update.pulse_mu(8)
-                self.urukul1_cpld.cfg_switches(0b1110)
+                self.urukul1_cpld.cfg_switches(0b0000)
+
+            # reset main board to rescue parameters
+            with sequential:
+                self.urukul2_cpld.set_profile(0)
+                self.urukul2_cpld.io_update.pulse_mu(8)
+                self.urukul2_cpld.cfg_switches(0b1110)
 
             # enable all RF switches
-            self.ttl20.off()
-            self.ttl21.off()
-            self.ttl22.off()
+            self.ttl12.off()
+            self.ttl13.off()
+            self.ttl14.off()
 
         self.core.break_realtime()
 

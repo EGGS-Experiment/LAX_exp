@@ -12,7 +12,7 @@ class AD9910RAM(EnvExperiment):
 
     def build(self):  # this code runs on the host computer
         self.setattr_device("core")  # sets core device drivers as attributes
-        self.setattr_device("ttl15")  # sets ttl channel 6 device drivers as attributes
+        self.setattr_device("ttl8")  # sets ttl channel 6 device drivers as attributes
         self.dds = self.get_device("urukul0_ch1")  # sets urukul 0, channel 1 device drivers as attributes and renames object self.dds
 
 
@@ -95,13 +95,13 @@ class AD9910RAM(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
 
             with parallel:  # runs indented code in parallel
-                self.ttl15.pulse(1 * us)  # 1us TTL pulse for triggering oscilloscope
+                self.ttl8.pulse(1 * us)  # 1us TTL pulse for triggering oscilloscope
                 self.dds.cpld.set_profile(0)  # profile 0 tells CPLD to start ramping up
 
             delay(2 * us)  # 2us delay
 
             with parallel:  # runs indented code in parallel
-                self.ttl15.pulse(1 * us)  # 1us TTL pulse
+                self.ttl8.pulse(1 * us)  # 1us TTL pulse
                 self.dds.cpld.set_profile(1)  # profile 1 tells CPLD to start ramping back down
 
             delay(1 * ms)  # 1ms delay

@@ -13,9 +13,9 @@ class BeamManager(LAXDevice):
     run composite pulse sequences.
     """
     name = "qubit"
-    core_device = ('beam', 'urukul0_ch1')
+    core_device = ('beam', 'urukul2_ch1')
     devices ={
-        'rf_switch':    'ttl22'
+        'rf_switch':    'ttl12'
     }
 
     def prepare_device(self):

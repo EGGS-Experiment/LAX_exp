@@ -11,9 +11,9 @@ class Beam729(LAXDevice):
     Uses the DDS channel to drive the 729nm AOM in double-pass configuration.
     """
     name = "qubit"
-    core_device = ('beam', 'urukul0_ch1')
+    core_device = ('beam', 'urukul0_ch0')
     devices ={
-        'rf_switch':    'ttl22'
+        'rf_switch':    'ttl14'
     }
 
     def prepare_device(self):

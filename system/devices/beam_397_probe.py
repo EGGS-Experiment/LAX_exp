@@ -11,7 +11,7 @@ class Beam397Probe(LAXDevice):
     Uses the DDS channel to drive an AOM in double-pass configuration.
     """
     name = "probe"
-    core_device = ('beam', 'urukul1_ch0')
+    core_device = ('beam', 'urukul2_ch0')
 
     def prepare_device(self):
         self.freq_spinpol_ftw = self.get_parameter('freq_probe_spinpol_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

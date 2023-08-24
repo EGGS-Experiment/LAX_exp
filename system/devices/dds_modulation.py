@@ -12,9 +12,9 @@ class DDSModulation(LAXDevice):
     Uses the DDS channel to modulate the trap RF (used for parametric excitation).
     """
     name = "dds_modulation"
-    core_device = ('dds', 'urukul0_ch2')
+    core_device = ('dds', 'urukul1_ch1')
     devices ={
-        'mod_switch': 'ttl12'
+        'mod_switch': 'ttl11'
     }
 
     def prepare_device(self):

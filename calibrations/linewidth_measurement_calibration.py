@@ -54,7 +54,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
 
         # get devices
         self.adc =                                                          self.get_device("sampler0")
-        self.dds =                                                          self.get_device("urukul1_ch{:d}".format(self.dds_channel_num))
+        self.dds =                                                          self.get_device("urukul2_ch{:d}".format(self.dds_channel_num))
 
         # convert DDS values
         self.dds_freq_mhz_list =                                            list(self.dds_freq_mhz_list)

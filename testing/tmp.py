@@ -19,13 +19,6 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl8")
         self.setattr_device("ttl9")
 
-        self.setattr_device("ttl10")    # rf blank
-        self.setattr_device("ttl11")    # oscilloscope trigger
-        self.setattr_device("ttl12")    # rf switch
-
-        self.setattr_device("urukul1_ch1")
-        self.setattr_device("urukul1_ch2")
-        self.setattr_device("urukul1_cpld")
         self.setattr_device("ttl0_counter")
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)

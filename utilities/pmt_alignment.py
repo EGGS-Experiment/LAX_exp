@@ -31,7 +31,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         self.setattr_device('pmt')
 
         # todo: idk
-        self.setattr_device('urukul1_cpld')
+        self.setattr_device('urukul2_cpld')
 
     def prepare_experiment(self):
         # get relevant timings and calculate the number of repetitions
@@ -58,7 +58,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         # record custom sequence
         with self.core_dma.record('_PMT_ALIGNMENT'):
             # set readout beams and
-            self.urukul1_cpld.cfg_switches(0b1110)
+            self.urukul2_cpld.cfg_switches(0b1110)
             self.pmt.count(self.time_readout_mu)
             self.pump.off()
             # self.

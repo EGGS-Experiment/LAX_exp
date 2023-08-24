@@ -11,9 +11,9 @@ class Beam854(LAXDevice):
     Uses the DDS channel to drive an AOM.
     """
     name = "repump_qubit"
-    core_device = ('beam', 'urukul1_ch3')
+    core_device = ('beam', 'urukul2_ch3')
     devices = {
-        'rf_switch':    'ttl21'
+        'rf_switch':    'ttl13'
     }
 
     def prepare_device(self):

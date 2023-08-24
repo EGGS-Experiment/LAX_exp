@@ -11,9 +11,9 @@ class Beam397Pump(LAXDevice):
     Uses the DDS channel to drive an AOM in double-pass configuration.
     """
     name = "pump"
-    core_device = ('beam', 'urukul1_ch1')
+    core_device = ('beam', 'urukul2_ch1')
     devices ={
-        'rf_switch':    'ttl20'
+        'rf_switch':    'ttl12'
     }
 
     def prepare_device(self):

@@ -17,9 +17,8 @@ class pt1(EnvExperiment):
         self.setattr_device('core')
         self.setattr_device('core_dma')
         self.setattr_device('phaser0')
-        self.setattr_device('ttl13')
-        self.setattr_device('ttl16')
-        self.setattr_device('ttl17')
+        self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
 
         # hardcoded values
         self.t_sample_mu =                          np.int64(40)
@@ -156,7 +155,7 @@ class pt1(EnvExperiment):
             self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl17.on()
+                self.ttl8.on()
 
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
@@ -166,7 +165,7 @@ class pt1(EnvExperiment):
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl16.on()
+                self.ttl9.on()
 
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
@@ -176,13 +175,11 @@ class pt1(EnvExperiment):
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl13.on()
 
         # wait for heating time
         with parallel:
-            self.ttl13.off()
-            self.ttl16.off()
-            self.ttl17.off()
+            self.ttl8.off()
+            self.ttl9.off()
             delay_mu(self.time_pulse_mu)
 
     @kernel(flags={"fast-math"})

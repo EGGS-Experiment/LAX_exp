@@ -8,7 +8,7 @@ _DMA_HANDLE_URUKUL_TEST = "urukul_test_run"
 
 class UrukulWindowingTest(EnvExperiment):
     """
-    Urukulk Windowing Test
+    Urukul Windowing Test
 
     Test windowing on urukul0.
     """

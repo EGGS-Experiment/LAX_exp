@@ -26,7 +26,7 @@ class ProphylacticSweep(EnvExperiment):
 
     def prepare(self):
         # modulation control
-        self.mod_dds =                                              self.get_device("urukul0_ch2")
+        self.mod_dds =                                              self.get_device("urukul1_ch2")
         self.mod_dds_ampl_pct =                                     self.mod_dds.amplitude_to_asf(0.35)
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu_list =                                     np.array([
