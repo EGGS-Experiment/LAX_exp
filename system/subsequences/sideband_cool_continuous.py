@@ -95,7 +95,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.time_spinpolarization_mu_list =                            self.time_spinpolarization_mu_list[1:]
 
         # 854nm quench power calibration
-        self.power_quench_calibration_num_samples =                     1000
+        self.power_quench_calibration_num_samples =                     100
         self.power_quench_calibration_store_mu =                        np.int32(0)
         self.power_quench_calibration_mu_list =                         np.array([0]*8)
 
@@ -122,7 +122,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         Reads in the red/IR photodiode via the sampler.
         """
         # set sampler gain (1000x)
-        self.sampler0.set_gain_mu(2, 2)
+        self.sampler0.set_gain_mu(3, 2)
 
         # prepare red/IR beams for 854nm calibration
         self.repump_qubit.set_profile(3)
@@ -138,7 +138,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             delay_mu(4000)
 
         # convert storage variable to mV and store in dataset
-        self.set_dataset('calibration_power_quench_mv', 100. * (self.power_quench_calibration_store_mu * 1. / self.power_quench_calibration_num_samples / (1 << 15)))
+        self.set_dataset('calibration_power_quench_mv', 1000. * 100. * (self.power_quench_calibration_store_mu * 1. / self.power_quench_calibration_num_samples / (1 << 15)))
         self.setattr_dataset('calibration_power_quench_mv')
         self.core.break_realtime()
 
@@ -206,7 +206,9 @@ class SidebandCoolContinuous(LAXSubsequence):
         Verify whether 854nm power during SBC quenching is within range.
         """
         # todo: make config/calib customizable
-        # if self.calibration_power_quench_mv > 20.:
-        if self.calibration_power_quench_mv > 0.:
+        # print('\t{}'.format(self.power_quench_calibration_store_mu))
+        # print('\t{}'.format(1000. * float(self.power_quench_calibration_store_mu) * 100. / self.power_quench_calibration_num_samples / float(1 << 15)))
+        # if self.calibration_power_quench_mv > 0.:
+        if True:
             print('\t\tWarning: 854nm power for quenching during SBC is too high.')
             print('\t\t\tPower: {:.2f} mV'.format(self.calibration_power_quench_mv))
