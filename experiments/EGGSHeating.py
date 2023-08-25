@@ -32,7 +32,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
                                                                                     # ExplicitScan([82, 83, 86.7]),
-                                                                                    ExplicitScan([82]),
+                                                                                    ExplicitScan([280]),
                                                                                     CenterScan(85.1, 0.002, 0.001, randomize=True)
                                                                                 ],
                                                                                 global_min=30, global_max=400, global_step=1,
@@ -51,7 +51,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
         self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=3, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=30, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
@@ -703,18 +703,18 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=0., clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.8, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.8, phase=self.phase_ch1_osc1, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 2 (carrier)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
