@@ -135,7 +135,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         for sample_num in range(self.power_quench_calibration_num_samples):
             self.sampler0.sample_mu(self.power_quench_calibration_mu_list)
             self.power_quench_calibration_store_mu += self.power_quench_calibration_mu_list[2]
-            delay_mu(4000)
+            delay_mu(8000)
 
         # convert storage variable to mV and store in dataset
         self.set_dataset('calibration_power_quench_mv', 1000. * 100. * (self.power_quench_calibration_store_mu * 1. / self.power_quench_calibration_num_samples / (1 << 15)))
