@@ -28,6 +28,11 @@ class Cleanup(LAXSubsequence):
 
         # reset hardware to allow use
         with parallel:
+            # enable all RF switches
+            with parallel:
+                self.ttl12.off()
+                self.ttl13.off()
+                self.ttl14.off()
 
             # reset qubit board
             with sequential:
@@ -46,10 +51,5 @@ class Cleanup(LAXSubsequence):
                 self.urukul2_cpld.set_profile(0)
                 self.urukul2_cpld.io_update.pulse_mu(8)
                 self.urukul2_cpld.cfg_switches(0b1110)
-
-            # enable all RF switches
-            self.ttl12.off()
-            self.ttl13.off()
-            self.ttl14.off()
 
         self.core.break_realtime()
