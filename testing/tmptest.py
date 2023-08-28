@@ -61,7 +61,7 @@ class testidkurukul(EnvExperiment):
     def _prepare_parameters(self):
         # calculate base waveform values
         self.ampl_asf0 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100.)
-        self.ampl_asf1 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100.)
+        self.ampl_asf1 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100. * 1.5)
 
         self.freq_ftw0 =                    self.urukul0_ch0.frequency_to_ftw(self.frequency_mhz * MHz)
         self.freq_ftw1 =                    self.urukul0_ch0.frequency_to_ftw(self.frequency_mhz * MHz)
@@ -112,8 +112,8 @@ class testidkurukul(EnvExperiment):
             self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
             self.urukul1_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
-            self.urukul0_ch3.set_att(14 * dB)
-            self.urukul1_ch3.set_att(14 * dB)
+            self.urukul0_ch3.set_att(20 * dB)
+            self.urukul1_ch3.set_att(10 * dB)
 
         # prepare - DDS profiles
         at_mu(now_mu() + 10000)
@@ -171,15 +171,23 @@ class testidkurukul(EnvExperiment):
                 delay_mu(475)
                 self.ttl8.on()
 
-        # start cancellation waveform
-        at_mu(time_start_mu + self.time_delay_mu)
-        # at_mu((time_start_mu + self.time_delay_mu) & ~0x3)
-        with parallel:
-            self.urukul1_cpld.set_profile(1)
-
-            with sequential:
-                delay_mu(475)
+                # tmp remove
                 self.ttl9.on()
+                # tmp remove
+
+        at_mu(time_start_mu + self.time_delay_mu)
+        delay_mu(475 + 4)
+        self.ttl9.off()
+
+        # start cancellation waveform
+        # at_mu(time_start_mu + self.time_delay_mu)
+        # # at_mu((time_start_mu + self.time_delay_mu) & ~0x3)
+        # with parallel:
+        #     self.urukul1_cpld.set_profile(1)
+        #
+        #     with sequential:
+        #         delay_mu(475)
+        #         self.ttl9.on()
 
         # at_mu(time_start_mu + 512)
         # with parallel:
@@ -207,6 +215,9 @@ class testidkurukul(EnvExperiment):
         # with parallel:
         #     self.urukul0_cpld.set_profile(0)
         #     self.urukul1_cpld.set_profile(0)
+        with parallel:
+            self.urukul0_cpld.cfg_switches(0b0000)
+            self.urukul1_cpld.cfg_switches(0b0000)
         delay_mu(100)
         with parallel:
             self.urukul0_cpld.set_profile(0)
