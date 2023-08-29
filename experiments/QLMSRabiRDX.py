@@ -31,6 +31,14 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                     global_min=0, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
+        self.setattr_argument("phase_qlms_rabi_turns_list",                 Scannable(
+                                                                                    default=[
+                                                                                        ExplicitScan([0, 0.25, 0.5, 0.75, 1.0]),
+                                                                                        RangeScan(0, 1.0, 6, randomize=True)
+                                                                                    ],
+                                                                                    global_min=0.0, global_max=1.0, global_step=1,
+                                                                                    unit="turns", scale=1, ndecimals=3
+                                                                                ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([8]),
@@ -43,6 +51,9 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # subsequences
         self.tickle_subsequence =                                               TickleFastDDS(self)
 
+        # tmp remove
+        self.setattr_device('dds_modulation')
+
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
@@ -52,21 +63,30 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                     hz_to_ftw(freq_mhz * MHz)
                                                                                     for freq_mhz in self.freq_qlms_rabi_mhz_list
                                                                                 ])
-        self.time_qlms_rabi_mu_list =                                          np.array([
+        self.phase_qlms_rabi_pow_list =                                         np.array([
+                                                                                    self.dds_modulation.turns_to_pow(phase_turns)
+                                                                                    for phase_turns in self.phase_qlms_rabi_turns_list
+                                                                                ])
+        self.time_qlms_rabi_mu_list =                                           np.array([
                                                                                     self.core.seconds_to_mu(time_ns * ns)
                                                                                     for time_ns in self.time_qlms_rabi_ns_list
                                                                                 ])
 
         # create an array of values for the experiment to sweep
         # (i.e. DDS tickle frequency, tickle time, readout FTW)
-        self.config_qlms_rabi_list =                                            np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list, self.time_qlms_rabi_mu_list, self.freq_readout_ftw_list),
-                                                                                         -1).reshape(-1, 3)
+        self.config_qlms_rabi_list =                                            np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
+                                                                                                     self.phase_qlms_rabi_pow_list,
+                                                                                                     self.time_qlms_rabi_mu_list,
+                                                                                                     self.freq_readout_ftw_list,),
+                                                                                         -1).reshape(-1, 4)
         np.random.shuffle(self.config_qlms_rabi_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_qlms_rabi_ftw_list) * len(self.time_qlms_rabi_mu_list) * len(self.freq_readout_ftw_list),
-                4)
+        return (self.repetitions *
+                len(self.freq_qlms_rabi_ftw_list) * len(self.phase_qlms_rabi_pow_list) *
+                len(self.time_qlms_rabi_mu_list) * len(self.freq_readout_ftw_list),
+                5)
 
 
     # MAIN SEQUENCE
@@ -107,12 +127,13 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
                 # extract values from config list
                 freq_qlms_ftw =     np.int32(config_vals[0])
-                time_qlms_mu =      config_vals[1]
-                freq_readout_ftw =  np.int32(config_vals[2])
+                phase_qlms_pow =    np.int32(config_vals[1])
+                time_qlms_mu =      config_vals[2]
+                freq_readout_ftw =  np.int32(config_vals[3])
                 self.core.break_realtime()
 
                 # configure tickle and qubit readout
-                self.tickle_subsequence.configure(freq_qlms_ftw, time_qlms_mu)
+                self.tickle_subsequence.configure(freq_qlms_ftw, phase_qlms_pow, time_qlms_mu)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
 
                 # set readout frequency
@@ -132,7 +153,8 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
                 # update dataset
                 with parallel:
-                    self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), freq_qlms_ftw, time_qlms_mu)
+                    self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
+                                        freq_qlms_ftw, phase_qlms_pow, time_qlms_mu)
                     self.core.break_realtime()
 
             # rescue ion as needed

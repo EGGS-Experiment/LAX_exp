@@ -19,7 +19,7 @@ class TickleFastDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_db', NumberValue(default=30, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
+        self.setattr_argument('att_ticklefast_db', NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
@@ -80,16 +80,6 @@ class TickleFastDDS(LAXSubsequence):
 
         # enable output switches and set initial profile
         at_mu(time_start_mu)
-        # with parallel:
-        #     # set start DDS
-        #     with sequential:
-        #         self.dds_ch0.cfg_sw(True)
-        #         self.dds_ch0.cpld.set_profile(0)
-        #
-        #     # set stop DDS
-        #     with sequential:
-        #         self.dds_ch1.cfg_sw(True)
-        #         self.dds_ch1.cpld.set_profile(0)
         self._set_cpld_profile_switch_on()
 
         # start output
@@ -102,15 +92,16 @@ class TickleFastDDS(LAXSubsequence):
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
         self.ttl8.on()
-        delay_mu(self.time_delay_mu)
+        at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + 475)
         self.ttl9.on()
+        # tmp remove
 
         # cleanup
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + self.time_system_cleanup_delay_mu)
         self._set_cpld_profile_switch_off()
 
     @kernel(flags={"fast-math"})
-    def configure(self, freq_ftw: TInt32, time_delay_mu: TInt64):
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64):
         # store timings
         time_delay_tmp_mu =                 time_delay_mu & ~0x7
         self.time_delay_mu =                time_delay_mu
@@ -120,25 +111,23 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_delay_turns =        self.dds_ch0.ftw_to_frequency(freq_ftw) * (time_delay_tmp_mu * ns)
 
         # combine compensation values into ch1 phase: ch0 vs ch1 inherent phase shift/relation,
-        #   ch0 vs ch1 inherent time delay, and 0.5 (for cancellation)
+        # ch0 vs ch1 inherent time delay, and 0.5 (for cancellation)
         self.phase_ch1_final_pow =          self.dds_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
-                                                                          self.phase_ch1_latency_turns +
-                                                                          self.phase_ch1_delay_turns +
-                                                                          0.5)
+                                                                      self.phase_ch1_latency_turns +
+                                                                      self.phase_ch1_delay_turns +
+                                                                      0.5) + phase_pow
 
         # set waveforms for profiles
         at_mu(now_mu() + 50000)
         with parallel:
             with sequential:
-                self.dds_ch0.set_mu(freq_ftw, asf=0x01, pow_=0x0, profile=0)
-                self.dds_ch0.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=0x0, profile=1)
-                # self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-                self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 13))
+                self.dds_ch0.set_mu(freq_ftw, asf=0x01, pow_=phase_pow, profile=0)
+                self.dds_ch0.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=phase_pow, profile=1)
+                self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
             with sequential:
                 self.dds_ch1.set_mu(freq_ftw, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
                 self.dds_ch1.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=self.phase_ch1_final_pow, profile=1)
-                # self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-                self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 13))
+                self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.core.break_realtime()
 
     @kernel
