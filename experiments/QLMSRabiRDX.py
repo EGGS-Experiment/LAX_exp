@@ -24,8 +24,8 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_mhz_list",                    Scannable(
-                                                                                    default=CenterScan(1136, 10, 0.5, randomize=True),
-                                                                                    global_min=0, global_max=10000, global_step=1,
+                                                                                    default=CenterScan(82, 2, 0.5, randomize=True),
+                                                                                    global_min=0, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(

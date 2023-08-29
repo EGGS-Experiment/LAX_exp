@@ -24,6 +24,11 @@ class TickleFastDDS(LAXSubsequence):
         self.dds_ch0 = self.get_device('urukul0_ch3')
         self.dds_ch1 = self.get_device('urukul1_ch3')
 
+        # tmp remove
+        self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
+        # tmp remove
+
         # self.setattr_device('urukul0_cpld')
         # self.setattr_device('urukul1_cpld')
 
@@ -48,7 +53,7 @@ class TickleFastDDS(LAXSubsequence):
 
         # set parameter for DDS preparation latency before we can
         self.time_system_prepare_delay_mu = np.int64(1000)
-        self.time_system_cleanup_delay_mu = np.int64(40)
+        self.time_system_cleanup_delay_mu = np.int64(1000)
 
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
@@ -62,6 +67,10 @@ class TickleFastDDS(LAXSubsequence):
 
             self.dds_ch0.set_phase_mode(PHASE_MODE_ABSOLUTE)
             self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+
+            # tmp remove
+            self.ttl8.off()
+            self.ttl9.off()
 
 
     @kernel(flags={"fast-math"})
@@ -89,15 +98,28 @@ class TickleFastDDS(LAXSubsequence):
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
         self.dds_ch1.set_profile(1)
 
+        # tmp remove
+        at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
+        self.ttl8.on()
+        delay_mu(self.time_delay_mu)
+        self.ttl9.on()
+
+
         # cleanup
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + self.time_system_cleanup_delay_mu)
         with parallel:
-            # set start DDS
+
+            # tmp remove
+            self.ttl8.off()
+            self.ttl9.off()
+            # tmp remove
+
+            # clean up DDS
             with sequential:
                 self.dds_ch0.cfg_sw(False)
                 self.dds_ch0.cpld.set_profile(0)
 
-            # set stop DDS
+            # clean up DDS
             with sequential:
                 self.dds_ch1.cfg_sw(False)
                 self.dds_ch1.cpld.set_profile(0)
