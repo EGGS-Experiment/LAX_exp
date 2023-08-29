@@ -14,7 +14,7 @@ class PMTCounter(LAXDevice):
     """
     name = "pmt"
     core_device = ('pmt', 'ttl0_counter')
-    devices ={
+    devices = {
         'input':    'ttl0'
     }
 
