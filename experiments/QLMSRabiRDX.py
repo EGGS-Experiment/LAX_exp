@@ -41,8 +41,8 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([250]),
-                                                                                        RangeScan(16, 80, 5, randomize=True)
+                                                                                        RangeScan(8, 250, 38, randomize=True),
+                                                                                        ExplicitScan([250])
                                                                                     ],
                                                                                     global_min=8, global_max=10000, global_step=8,
                                                                                     unit="ns", scale=1, ndecimals=0
@@ -71,6 +71,16 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                     self.core.seconds_to_mu(time_ns * ns)
                                                                                     for time_ns in self.time_qlms_rabi_ns_list
                                                                                 ])
+
+        # tmp remove
+        # ROUND (not truncate) values to nearest multiple of 8 and remove duplicate entries
+        self.time_qlms_rabi_mu_list = np.array(list(self.time_qlms_rabi_ns_list)) + 7
+        self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list)) & ~0x7
+        self.time_qlms_rabi_mu_list = np.unique(self.time_qlms_rabi_mu_list)
+        print('\ttimes: {}'.format(self.time_qlms_rabi_mu_list))
+        print('\t\tlen: {}'.format(len(self.time_qlms_rabi_mu_list)))
+        # tmp remove
+
 
         # create an array of values for the experiment to sweep
         # (i.e. DDS tickle frequency, tickle time, readout FTW)
@@ -161,4 +171,4 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
             self.rescue_subsequence.run(trial_num)
 
     def analyze(self):
-        print('\t: {}'.format(self.time_qlms_rabi_mu_list))
+        pass
