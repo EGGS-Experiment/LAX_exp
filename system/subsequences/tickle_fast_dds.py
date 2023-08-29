@@ -52,13 +52,17 @@ class TickleFastDDS(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        # set dds attenuation here - ensures that dds channel will have correct attenuation
+        # set up DDSs for output
         with parallel:
             self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
             self.dds_ch1.set_att_mu(self.att_ticklefast_mu)
 
             self.dds_ch0.set_cfr2(matched_latency_enable=1)
             self.dds_ch1.set_cfr2(matched_latency_enable=1)
+
+            self.dds_ch0.set_phase_mode(PHASE_MODE_ABSOLUTE)
+            self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+
 
     @kernel(flags={"fast-math"})
     def run(self):
