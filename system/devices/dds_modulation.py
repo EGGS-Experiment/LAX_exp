@@ -56,6 +56,7 @@ class DDSModulation(LAXDevice):
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.dds.cpld.set_profile(profile_num)
+        # todo: not sure if necessary to io_update
         self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
@@ -65,5 +66,6 @@ class DDSModulation(LAXDevice):
         todo: document
         :return:
         """
+        # todo: write32, matched latency, and phase autoclear
         self.set_cfr1(phase_autoclear=1)
         self.dds.cpld.io_update.pulse_mu(8)

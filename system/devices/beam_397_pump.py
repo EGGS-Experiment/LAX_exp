@@ -71,6 +71,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(0)
+        # todo: not sure if necessary to io_update
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
@@ -81,6 +82,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(1)
+        # todo: not sure if necessary to io_update
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
@@ -91,11 +93,13 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(2)
+        # todo: not sure if necessary to io_update
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.beam.cpld.set_profile(profile_num)
+        # todo: not sure if necessary to io_update
         self.beam.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
