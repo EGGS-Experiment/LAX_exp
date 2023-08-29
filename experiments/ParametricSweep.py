@@ -143,7 +143,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # do check to verify that mirror is flipped to mirror
-        self._check_PMT_counting()
+        # tmp remove: fix
+        # self._check_PMT_counting()
+        # tmp remove: fix
 
     @kernel(flags={"fast-math"})
     def _check_PMT_counting(self):
