@@ -18,7 +18,7 @@ class TickleFastDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_db', NumberValue(default=14, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
+        self.setattr_argument('att_ticklefast_db', NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
@@ -28,9 +28,6 @@ class TickleFastDDS(LAXSubsequence):
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
         # tmp remove
-
-        # self.setattr_device('urukul0_cpld')
-        # self.setattr_device('urukul1_cpld')
 
     def prepare_subsequence(self):
         # get DDS configuration parameters from dataset manager
@@ -52,11 +49,11 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_final_pow =          np.int32(0)
 
         # set parameter for DDS preparation latency before we can
-        self.time_system_prepare_delay_mu = np.int64(1000)
+        self.time_system_prepare_delay_mu = np.int64(1000) & ~0x7
         self.time_system_cleanup_delay_mu = np.int64(1000)
 
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_subsequence(self):
         # set up DDSs for output
         with parallel:
             self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
@@ -75,7 +72,7 @@ class TickleFastDDS(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        time_start_mu = now_mu()
+        time_start_mu = now_mu() & ~0x7
 
         # enable output switches and set initial profile
         at_mu(time_start_mu)
@@ -92,11 +89,15 @@ class TickleFastDDS(LAXSubsequence):
 
         # start output
         at_mu(time_start_mu + self.time_system_prepare_delay_mu)
-        self.dds_ch0.cpld.set_profile(1)
+        with parallel:
+            # tmp remove
+            self.dds_ch0.cpld.set_profile(1)
+            self.dds_ch1.cpld.set_profile(1)
+            # tmp remove
 
-        # cancel output
-        at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
-        self.dds_ch1.cpld.set_profile(1)
+        # # cancel output
+        # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
+        # self.dds_ch1.cpld.set_profile(1)
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
