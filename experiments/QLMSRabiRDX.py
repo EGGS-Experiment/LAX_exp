@@ -54,7 +54,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # create an array of values for the experiment to sweep
         # (i.e. DDS tickle frequency, tickle time, readout FTW)
         self.config_qlms_rabi_list =                                            np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list, self.time_qlms_rabi_mu_list, self.freq_readout_ftw_list),
-                                                                                         -1).reshape(-1, 2)
+                                                                                         -1).reshape(-1, 3)
         np.random.shuffle(self.config_qlms_rabi_list)
 
     @property
@@ -100,9 +100,9 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
             for config_vals in self.config_qlms_rabi_list:
 
                 # extract values from config list
-                freq_qlms_ftw =     config_vals[0]
+                freq_qlms_ftw =     np.int32(config_vals[0])
                 time_qlms_mu =      config_vals[1]
-                freq_readout_ftw =  config_vals[2]
+                freq_readout_ftw =  np.int32(config_vals[2])
                 self.core.break_realtime()
 
                 # configure tickle and qubit readout

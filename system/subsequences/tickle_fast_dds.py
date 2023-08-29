@@ -18,7 +18,7 @@ class TickleFastDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('att_tickle_fast_db', NumberValue(default=14, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
+        self.setattr_argument('att_ticklefast_db', NumberValue(default=14, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
@@ -92,11 +92,11 @@ class TickleFastDDS(LAXSubsequence):
 
         # start output
         at_mu(time_start_mu + self.time_system_prepare_delay_mu)
-        self.dds_ch0.set_profile(1)
+        self.dds_ch0.cpld.set_profile(1)
 
         # cancel output
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
-        self.dds_ch1.set_profile(1)
+        self.dds_ch1.cpld.set_profile(1)
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
@@ -131,12 +131,12 @@ class TickleFastDDS(LAXSubsequence):
         self.time_delay_mu =                time_delay_mu
 
         # calculate phase values to compensate for ch0 & ch1 delays
-        self.phase_ch1_latency_turns =      self.urukul0_ch3.ftw_to_frequency(freq_ftw) * (self.time_ch1_latency_ns * ns)
-        self.phase_ch1_delay_turns =        self.urukul0_ch3.ftw_to_frequency(freq_ftw) * (time_delay_tmp_mu * ns)
+        self.phase_ch1_latency_turns =      self.dds_ch0.ftw_to_frequency(freq_ftw) * (self.time_latency_ch1_system_ns * ns)
+        self.phase_ch1_delay_turns =        self.dds_ch0.ftw_to_frequency(freq_ftw) * (time_delay_tmp_mu * ns)
 
         # combine compensation values into ch1 phase: ch0 vs ch1 inherent phase shift/relation,
         #   ch0 vs ch1 inherent time delay, and 0.5 (for cancellation)
-        self.phase_ch1_final_pow =          self.urukul0_ch3.turns_to_pow(self.phase_ch1_inherent_turns +
+        self.phase_ch1_final_pow =          self.dds_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
                                                                           self.phase_ch1_latency_turns +
                                                                           self.phase_ch1_delay_turns +
                                                                           0.5)
