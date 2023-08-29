@@ -25,7 +25,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_mhz_list",                    Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([82]),
+                                                                                        ExplicitScan([30]),
                                                                                         CenterScan(82, 2, 0.5, randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
@@ -33,7 +33,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("phase_qlms_rabi_turns_list",                 Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([0, 0.25, 0.5, 0.75, 1.0]),
+                                                                                        ExplicitScan([0]),
                                                                                         RangeScan(0, 1.0, 6, randomize=True)
                                                                                     ],
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
@@ -41,7 +41,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([8]),
+                                                                                        ExplicitScan([250]),
                                                                                         RangeScan(16, 80, 5, randomize=True)
                                                                                     ],
                                                                                     global_min=8, global_max=10000, global_step=8,
@@ -159,3 +159,6 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+    def analyze(self):
+        print('\t: {}'.format(self.time_qlms_rabi_mu_list))
