@@ -116,6 +116,9 @@ class TickleFastDDS(LAXSubsequence):
                                                                       self.phase_ch1_latency_turns +
                                                                       self.phase_ch1_delay_turns +
                                                                       0.5) + phase_pow
+        self.core.break_realtime()
+        print('\t', time_delay_mu)
+        self.core.break_realtime()
 
         # set waveforms for profiles
         at_mu(now_mu() + 50000)
