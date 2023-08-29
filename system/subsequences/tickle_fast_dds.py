@@ -153,8 +153,10 @@ class TickleFastDDS(LAXSubsequence):
                 self.dds_ch1.cpld.cfg_write(cfg1)
 
             # tmp remove
-            self.ttl8.off()
-            self.ttl9.off()
+            with sequential:
+                delay_mu(100)
+                self.ttl8.off()
+                self.ttl9.off()
             # tmp remove
 
     def analyze(self):
