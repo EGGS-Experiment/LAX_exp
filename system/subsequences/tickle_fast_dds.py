@@ -132,11 +132,13 @@ class TickleFastDDS(LAXSubsequence):
             with sequential:
                 self.dds_ch0.set_mu(freq_ftw, asf=0x01, pow_=0x0, profile=0)
                 self.dds_ch0.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=0x0, profile=1)
-                self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+                # self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            self.dds_ch0.write32(_AD9910_REG_CFR1, (1 << 13))
             with sequential:
                 self.dds_ch1.set_mu(freq_ftw, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
                 self.dds_ch1.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=self.phase_ch1_final_pow, profile=1)
-                self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+                # self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+                self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 13))
         self.core.break_realtime()
 
     @kernel
