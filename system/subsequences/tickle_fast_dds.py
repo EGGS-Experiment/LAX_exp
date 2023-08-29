@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.urukul import CFG_PROFILE, CFG_IO_UPDATE
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
 
@@ -49,8 +50,8 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_final_pow =          np.int32(0)
 
         # set parameter for DDS preparation latency before we can
-        self.time_system_prepare_delay_mu = np.int64(1000) & ~0x7
-        self.time_system_cleanup_delay_mu = np.int64(1000)
+        self.time_system_prepare_delay_mu = np.int64(450) & ~0x7
+        self.time_system_cleanup_delay_mu = np.int64(450)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -59,15 +60,18 @@ class TickleFastDDS(LAXSubsequence):
             self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
             self.dds_ch1.set_att_mu(self.att_ticklefast_mu)
 
-            self.dds_ch0.set_cfr2(matched_latency_enable=1)
-            self.dds_ch1.set_cfr2(matched_latency_enable=1)
-
             self.dds_ch0.set_phase_mode(PHASE_MODE_ABSOLUTE)
             self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
             # tmp remove
             self.ttl8.off()
             self.ttl9.off()
+            # tmp remove
+        self.core.break_realtime()
+
+        with parallel:
+            self.dds_ch0.set_cfr2(matched_latency_enable=1)
+            self.dds_ch1.set_cfr2(matched_latency_enable=1)
 
 
     @kernel(flags={"fast-math"})
@@ -76,28 +80,24 @@ class TickleFastDDS(LAXSubsequence):
 
         # enable output switches and set initial profile
         at_mu(time_start_mu)
-        with parallel:
-            # set start DDS
-            with sequential:
-                self.dds_ch0.cfg_sw(True)
-                self.dds_ch0.cpld.set_profile(0)
-
-            # set stop DDS
-            with sequential:
-                self.dds_ch1.cfg_sw(True)
-                self.dds_ch1.cpld.set_profile(0)
+        # with parallel:
+        #     # set start DDS
+        #     with sequential:
+        #         self.dds_ch0.cfg_sw(True)
+        #         self.dds_ch0.cpld.set_profile(0)
+        #
+        #     # set stop DDS
+        #     with sequential:
+        #         self.dds_ch1.cfg_sw(True)
+        #         self.dds_ch1.cpld.set_profile(0)
+        self._set_cpld_profile_switch_on()
 
         # start output
         at_mu(time_start_mu + self.time_system_prepare_delay_mu)
-        with parallel:
-            # tmp remove
-            self.dds_ch0.cpld.set_profile(1)
-            self.dds_ch1.cpld.set_profile(1)
-            # tmp remove
-
-        # # cancel output
-        # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
-        # self.dds_ch1.cpld.set_profile(1)
+        self.dds_ch0.cpld.set_profile(1)
+        # cancel output
+        at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
+        self.dds_ch1.cpld.set_profile(1)
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
@@ -105,25 +105,9 @@ class TickleFastDDS(LAXSubsequence):
         delay_mu(self.time_delay_mu)
         self.ttl9.on()
 
-
         # cleanup
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + self.time_system_cleanup_delay_mu)
-        with parallel:
-
-            # tmp remove
-            self.ttl8.off()
-            self.ttl9.off()
-            # tmp remove
-
-            # clean up DDS
-            with sequential:
-                self.dds_ch0.cfg_sw(False)
-                self.dds_ch0.cpld.set_profile(0)
-
-            # clean up DDS
-            with sequential:
-                self.dds_ch1.cfg_sw(False)
-                self.dds_ch1.cpld.set_profile(0)
+        self._set_cpld_profile_switch_off()
 
     @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, time_delay_mu: TInt64):
@@ -141,9 +125,9 @@ class TickleFastDDS(LAXSubsequence):
                                                                           self.phase_ch1_latency_turns +
                                                                           self.phase_ch1_delay_turns +
                                                                           0.5)
-        self.core.break_realtime()
 
         # set waveforms for profiles
+        at_mu(now_mu() + 50000)
         with parallel:
             with sequential:
                 self.dds_ch0.set_mu(freq_ftw, asf=0x01, pow_=0x0, profile=0)
@@ -154,3 +138,35 @@ class TickleFastDDS(LAXSubsequence):
                 self.dds_ch1.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=self.phase_ch1_final_pow, profile=1)
                 self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.core.break_realtime()
+
+    @kernel
+    def _set_cpld_profile_switch_on(self):
+        with parallel:
+            with sequential:
+                cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~(7 << CFG_PROFILE)) | ((1 << 3) | (0 << CFG_PROFILE))
+                self.dds_ch0.cpld.cfg_write(cfg0)
+
+            with sequential:
+                cfg1 = ((self.dds_ch1.cpld.cfg_reg) & ~(7 << CFG_PROFILE)) | ((1 << 3) | (0 << CFG_PROFILE))
+                self.dds_ch1.cpld.cfg_write(cfg1)
+
+    @kernel
+    def _set_cpld_profile_switch_off(self):
+        with parallel:
+            with sequential:
+                cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~((7 << CFG_PROFILE) | (1 << 3))) | (0 << CFG_PROFILE)
+                self.dds_ch0.cpld.cfg_write(cfg0)
+
+            with sequential:
+                cfg1 = ((self.dds_ch1.cpld.cfg_reg) & ~((7 << CFG_PROFILE) | (1 << 3))) | (0 << CFG_PROFILE)
+                self.dds_ch1.cpld.cfg_write(cfg1)
+
+            # tmp remove
+            self.ttl8.off()
+            self.ttl9.off()
+            # tmp remove
+
+    def analyze(self):
+        print('\n\tresults:')
+        print('\t\turukul0 profile 1 phase: {:.4f}'.format(self.dds_ch0.pow_to_turns(self.phase_ch1_final_pow)))
+        print('\n')

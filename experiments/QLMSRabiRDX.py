@@ -24,12 +24,18 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_mhz_list",                    Scannable(
-                                                                                    default=CenterScan(82, 2, 0.5, randomize=True),
+                                                                                    default=[
+                                                                                        ExplicitScan([82]),
+                                                                                        CenterScan(82, 2, 0.5, randomize=True)
+                                                                                    ],
                                                                                     global_min=0, global_max=400, global_step=1,
                                                                                     unit="MHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
-                                                                                    default=CenterScan(8, 80, 10, randomize=True),
+                                                                                    default=[
+                                                                                        ExplicitScan([8]),
+                                                                                        RangeScan(16, 80, 5, randomize=True)
+                                                                                    ],
                                                                                     global_min=8, global_max=10000, global_step=8,
                                                                                     unit="ns", scale=1, ndecimals=0
                                                                                 ), group=self.name)
