@@ -3,9 +3,10 @@ from artiq.experiment import *
 from artiq.coredevice.urukul import CFG_PROFILE, CFG_IO_UPDATE
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
-
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+
+# TODO: INTEGRATE TTL SWITCHES FOR RF
 
 
 class TickleFastDDS(LAXSubsequence):
@@ -19,7 +20,7 @@ class TickleFastDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_db', NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_fast_dds')
+        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
@@ -38,7 +39,7 @@ class TickleFastDDS(LAXSubsequence):
                                                                group='dds.delay', override=False)
 
         # prepare parameters for tickle pulse
-        self.att_ticklefast_mu =            att_to_mu(self.att_ticklefast_db * dB)
+        self.att_ticklefast_mu =            att_to_mu(self.att_ticklefast_dds_db * dB)
 
         # set empty holder variable for delay time
         self.time_delay_mu =                np.int64(0)

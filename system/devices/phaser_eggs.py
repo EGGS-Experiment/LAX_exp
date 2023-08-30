@@ -39,7 +39,7 @@ class PhaserEGGS(LAXDevice):
 
         # get frequency parameters
         self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
-        self.freq_center_ftw =              int32(hz_to_ftw(self.freq_center_hz))
+        self.freq_center_ftw =              self.frequency_to_ftw(self.freq_center_hz)
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)

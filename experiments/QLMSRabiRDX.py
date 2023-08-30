@@ -2,7 +2,7 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
-from LAX_exp.system.subsequences import TickleDDS, TickleFastDDS
+from LAX_exp.system.subsequences import TickleDDS, TickleFastDDS, TickleFastPhaser
 import LAX_exp.experiments.SidebandCooling as SidebandCooling
 
 
@@ -48,8 +48,10 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                     unit="ns", scale=1, ndecimals=0
                                                                                 ), group=self.name)
 
-        # subsequences
-        self.tickle_subsequence =                                               TickleFastDDS(self)
+        # set up tickle source selection
+        self.setattr_argument("tickle_source",                                  EnumerationValue(['DDS', 'Phaser'], default='DDS'), group='ticklefast')
+        self.tickle_subsequence_dds =                                               TickleFastDDS(self)
+        self.tickle_subsequence_phaser =                                            TickleFastPhaser(self)
 
         # tmp remove
         self.setattr_device('dds_modulation')
@@ -57,6 +59,10 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
+
+        # select desired tickle subsequence based on input arguments
+        if self.tickle_source == 'DDS':                                         self.tickle_subsequence = self.tickle_subsequence_dds
+        elif self.tickle_source == 'Phaser':                                    self.tickle_subsequence = self.tickle_subsequence_phaser
 
         # convert QLMS modulation to machine units
         self.freq_qlms_rabi_ftw_list =                                          np.array([
