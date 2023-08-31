@@ -25,7 +25,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_mhz_list",                    Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([150]),
+                                                                                        ExplicitScan([82]),
                                                                                         CenterScan(82, 2, 0.5, randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
@@ -33,7 +33,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("phase_qlms_rabi_turns_list",                 Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([0]),
+                                                                                        ExplicitScan([0.]),
                                                                                         RangeScan(0, 1.0, 6, randomize=True)
                                                                                     ],
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
@@ -41,7 +41,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([41]),
+                                                                                        ExplicitScan([8]),
                                                                                         RangeScan(8, 250, 38, randomize=True)
                                                                                     ],
                                                                                     global_min=40, global_max=10000000, global_step=40,
@@ -49,7 +49,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
 
         # set up tickle source selection
-        self.setattr_argument("tickle_source",                                  EnumerationValue(['DDS', 'Phaser'], default='Phaser'), group='ticklefast')
+        self.setattr_argument("tickle_source",                                  EnumerationValue(['DDS', 'Phaser'], default='DDS'), group='ticklefast')
         self.tickle_subsequence_dds =                                               TickleFastDDS(self)
         self.tickle_subsequence_phaser =                                            TickleFastPhaser(self)
 

@@ -51,8 +51,8 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_final_pow =          np.int32(0)
 
         # set parameter for DDS preparation latency before we can
-        self.time_system_prepare_delay_mu = np.int64(450) & ~0x7
-        self.time_system_cleanup_delay_mu = np.int64(450)
+        self.time_system_prepare_delay_mu = np.int64(420) & ~0x7
+        self.time_system_cleanup_delay_mu = np.int64(420)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -87,8 +87,8 @@ class TickleFastDDS(LAXSubsequence):
         at_mu(time_start_mu + self.time_system_prepare_delay_mu)
         self.dds_ch0.cpld.set_profile(1)
         # cancel output
-        at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
-        self.dds_ch1.cpld.set_profile(1)
+        # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
+        # self.dds_ch1.cpld.set_profile(1)
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
@@ -116,7 +116,7 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_final_pow =          self.dds_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
                                                                       self.phase_ch1_latency_turns +
                                                                       self.phase_ch1_delay_turns +
-                                                                      0.0) + phase_pow
+                                                                      0.5) + phase_pow
 
         # set waveforms for profiles
         at_mu(now_mu() + 50000)
