@@ -116,7 +116,7 @@ class TickleFastDDS(LAXSubsequence):
         self.phase_ch1_final_pow =          self.dds_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
                                                                       self.phase_ch1_latency_turns +
                                                                       self.phase_ch1_delay_turns +
-                                                                      0.5) + phase_pow
+                                                                      0.0) + phase_pow
 
         # set waveforms for profiles
         at_mu(now_mu() + 50000)
