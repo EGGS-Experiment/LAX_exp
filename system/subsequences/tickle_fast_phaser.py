@@ -39,7 +39,7 @@ class TickleFastPhaser(LAXSubsequence):
         self.time_delay_mu =                np.int64(0)
 
         # set empty variables for phase
-        self.phase_ch1_final_pow =          np.int32(0)
+        self.phase_final_pow =          np.int32(0)
 
         # tmp remove
         self.time_system_prepare_delay_mu = np.int64(1850)
@@ -55,11 +55,15 @@ class TickleFastPhaser(LAXSubsequence):
         self.phaser_eggs.channel[0].set_att_mu(self.att_ticklefast_mu * dB)
 
         # ensure DUC phase offset is cleared
-        at_mu(time_start_mu + self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[0].set_duc_phase(self.phase_ch1_turns)
+        at_mu(time_start_mu + self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[0].set_duc_phase(0x0)
+
+        # set oscillator 0 frequency to 0 Hz (since frequency hopping will be done by DUC)
+        at_mu(time_start_mu + 2 * self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[0].oscillator[0].set_frequency_mu(0x0)
 
         # strobe DUC update register
-        at_mu(time_start_mu + 2 * self.phaser_eggs.t_frame_mu)
+        at_mu(time_start_mu + self.phaser_eggs.t_frame_mu)
         self.phaser_eggs.duc_stb()
 
 
@@ -72,7 +76,7 @@ class TickleFastPhaser(LAXSubsequence):
 
         # start and stop phaser output
         at_mu(time_start_mu)
-        self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=self.ampl_ticklefast_asf, pow=self.phase_ch1_osc0, clr=0)
+        self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=self.ampl_ticklefast_asf, pow=self.phase_final_pow, clr=0)
         delay_mu(time_start_mu + self.time_delay_mu)
         self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=0x0, pow=0x0, clr=1)
 
@@ -94,8 +98,8 @@ class TickleFastPhaser(LAXSubsequence):
         self.phase_final_pow =              phase_pow
 
 
-        # set waveforms for phaser
         time_start_mu =                     self.phaser_eggs.get_next_frame_mu()
+        # set waveforms for phaser
         at_mu(time_start_mu)
         self.phaser_eggs.channel[0].set_duc_frequency_mu(freq_ftw - self.phaser_eggs.freq_center_ftw)
 

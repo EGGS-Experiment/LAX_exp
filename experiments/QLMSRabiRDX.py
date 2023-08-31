@@ -78,18 +78,23 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                     for time_ns in self.time_qlms_rabi_ns_list
                                                                                 ])
 
-        # tmp remove
-        # ROUND (not truncate) values to nearest multiple of 8 and remove duplicate entries
-        self.time_qlms_rabi_mu_list = np.array(list(self.time_qlms_rabi_ns_list)) + 7
-        self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list)) & ~0x7
+
+        # ROUND (not truncate) values to nearest switching time multiple
+        self.time_qlms_rabi_mu_list = np.array(list(self.time_qlms_rabi_ns_list))
+        if self.tickle_source == 'DDS':
+            self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list + 7)) & ~0x7
+        elif self.tickle_source == 'Phaser':
+            self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list / 40 + 0.5) * 40)
+
+        # remove duplicate elements to stop us from wasting time
         self.time_qlms_rabi_mu_list = np.unique(self.time_qlms_rabi_mu_list)
+
         print('\ttimes: {}'.format(self.time_qlms_rabi_mu_list))
         print('\t\tlen: {}'.format(len(self.time_qlms_rabi_mu_list)))
-        # tmp remove
 
 
         # create an array of values for the experiment to sweep
-        # (i.e. DDS tickle frequency, tickle time, readout FTW)
+        # (i.e. tickle frequency, tickle time, readout FTW)
         self.config_qlms_rabi_list =                                            np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
                                                                                                      self.phase_qlms_rabi_pow_list,
                                                                                                      self.time_qlms_rabi_mu_list,
