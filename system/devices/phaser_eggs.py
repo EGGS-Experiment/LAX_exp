@@ -30,6 +30,7 @@ class PhaserEGGS(LAXDevice):
         # todo: max phaser sample rate
 
         # conversion factors
+        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
         self.ftw_per_hz =                   (1 << 32) / 1e9
 
     def prepare_device(self):
@@ -169,6 +170,7 @@ class PhaserEGGS(LAXDevice):
         """
          todo: document
          """
+        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
         return int32(round(self.ftw_per_hz * frequency))
 
     @portable(flags={"fast-math"})
@@ -176,4 +178,5 @@ class PhaserEGGS(LAXDevice):
         """
          todo: document
          """
+        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
         return ftw / self.ftw_per_hz

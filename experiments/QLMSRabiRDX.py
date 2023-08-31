@@ -25,11 +25,11 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_mhz_list",                    Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([30]),
+                                                                                        ExplicitScan([150]),
                                                                                         CenterScan(82, 2, 0.5, randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
-                                                                                    unit="MHz", scale=1, ndecimals=3
+                                                                                    unit="MHz", scale=1, ndecimals=5
                                                                                 ), group=self.name)
         self.setattr_argument("phase_qlms_rabi_turns_list",                 Scannable(
                                                                                     default=[
@@ -41,10 +41,10 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_qlms_rabi_ns_list",                     Scannable(
                                                                                     default=[
-                                                                                        RangeScan(8, 250, 38, randomize=True),
-                                                                                        ExplicitScan([250])
+                                                                                        ExplicitScan([41]),
+                                                                                        RangeScan(8, 250, 38, randomize=True)
                                                                                     ],
-                                                                                    global_min=8, global_max=10000, global_step=8,
+                                                                                    global_min=40, global_max=10000000, global_step=40,
                                                                                     unit="ns", scale=1, ndecimals=0
                                                                                 ), group=self.name)
 
@@ -84,7 +84,10 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         if self.tickle_source == 'DDS':
             self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list + 7)) & ~0x7
         elif self.tickle_source == 'Phaser':
-            self.time_qlms_rabi_mu_list = np.int64(np.round(self.time_qlms_rabi_mu_list / 40 + 0.5) * 40)
+            self.time_qlms_rabi_mu_list = np.array([40 * max(1.0, time_mu)
+                                                    for time_mu in np.round(self.time_qlms_rabi_mu_list / 40)],
+                                                   dtype = np.int64)
+            # self.time_qlms_rabi_mu_list = np.int64(np.round(np.floor(self.time_qlms_rabi_mu_list / 40 + 0.501)) * 40)
 
         # remove duplicate elements to stop us from wasting time
         self.time_qlms_rabi_mu_list = np.unique(self.time_qlms_rabi_mu_list)
