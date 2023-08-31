@@ -32,14 +32,14 @@ class TickleFastPhaser(LAXSubsequence):
                                                                group='dds.ampl_pct', override=False)
 
         # prepare parameters for tickle pulse
-        self.ampl_ticklefast_asf =          self.phaser_eggs.amplitude_to_asf(self.ampl_ticklefast_pct)
+        self.ampl_ticklefast_asf =          self.phaser_eggs.amplitude_to_asf(self.ampl_ticklefast_pct / 100.)
         self.att_ticklefast_mu =            att_to_mu(self.att_ticklefast_phaser_db * dB)
 
         # set empty holder variable for delay time
         self.time_delay_mu =                np.int64(0)
 
         # set empty variables for phase
-        self.phase_final_pow =          np.int32(0)
+        self.phase_final_pow =              np.int32(0)
 
         # tmp remove
         self.time_system_prepare_delay_mu = np.int64(1850)
@@ -52,38 +52,51 @@ class TickleFastPhaser(LAXSubsequence):
 
         # set phaser attenuation
         at_mu(time_start_mu)
-        self.phaser_eggs.channel[0].set_att_mu(self.att_ticklefast_mu * dB)
+        self.phaser_eggs.channel[0].set_att_mu(self.att_ticklefast_mu)
 
         # ensure DUC phase offset is cleared
-        at_mu(time_start_mu + self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].set_duc_phase(0x0)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[0].set_duc_phase_mu(0x0)
 
         # set oscillator 0 frequency to 0 Hz (since frequency hopping will be done by DUC)
-        at_mu(time_start_mu + 2 * self.phaser_eggs.t_sample_mu)
+        delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[0].oscillator[0].set_frequency_mu(0x0)
 
         # strobe DUC update register
-        at_mu(time_start_mu + self.phaser_eggs.t_frame_mu)
+        delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.duc_stb()
+
+        # tmp remove
+        self.ttl8.off()
+        # tmp remove
 
 
     @kernel(flags={"fast-math"})
     def run(self):
         # get fiduciary start time
-        time_start_mu = self.phaser_eggs.get_next_frame_mu()
+        # time_start_mu = self.phaser_eggs.get_next_frame_mu()
 
         # todo: do we need to clear duc phase?
 
-        # start and stop phaser output
-        at_mu(time_start_mu)
-        self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=self.ampl_ticklefast_asf, pow=self.phase_final_pow, clr=0)
-        delay_mu(time_start_mu + self.time_delay_mu)
+        # start phaser output
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=self.ampl_ticklefast_asf, pow=self.phase_final_pow, clr=0)
+
+            # tmp remove
+            with sequential:
+                delay_mu(self.time_system_prepare_delay_mu)
+                self.ttl8.on()
+                delay_mu(40)
+                self.ttl8.off()
+            # tmp remove
+
+            # set time to next phaser sample period
+            delay_mu(self.phaser_eggs.t_sample_mu)
+
+        # stop phaser output
         self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase_mu(asf=0x0, pow=0x0, clr=1)
 
-        # tmp remove
-        at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
-        self.ttl8.on()
-        # tmp remove
 
     @kernel
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64):
@@ -96,15 +109,12 @@ class TickleFastPhaser(LAXSubsequence):
 
         # store phase offset word
         self.phase_final_pow =              phase_pow
+        self.core.break_realtime()
 
-
-        time_start_mu =                     self.phaser_eggs.get_next_frame_mu()
-        # set waveforms for phaser
-        at_mu(time_start_mu)
+        # set waveforms for phaser and strobe update register
+        at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_duc_frequency_mu(freq_ftw - self.phaser_eggs.freq_center_ftw)
-
-        # strobe updates for both channels
-        at_mu(time_start_mu + self.phaser_eggs.t_frame_mu)
+        delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.duc_stb()
 
     def analyze(self):

@@ -49,7 +49,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
 
         # set up tickle source selection
-        self.setattr_argument("tickle_source",                                  EnumerationValue(['DDS', 'Phaser'], default='DDS'), group='ticklefast')
+        self.setattr_argument("tickle_source",                                  EnumerationValue(['DDS', 'Phaser'], default='Phaser'), group='ticklefast')
         self.tickle_subsequence_dds =                                               TickleFastDDS(self)
         self.tickle_subsequence_phaser =                                            TickleFastPhaser(self)
 
@@ -88,7 +88,6 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
         # remove duplicate elements to stop us from wasting time
         self.time_qlms_rabi_mu_list = np.unique(self.time_qlms_rabi_mu_list)
-
         print('\ttimes: {}'.format(self.time_qlms_rabi_mu_list))
         print('\t\tlen: {}'.format(len(self.time_qlms_rabi_mu_list)))
 
@@ -156,8 +155,6 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
                 # configure tickle and qubit readout
                 self.tickle_subsequence.configure(freq_qlms_ftw, phase_qlms_pow, time_qlms_mu)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
-
-                # set readout frequency
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state

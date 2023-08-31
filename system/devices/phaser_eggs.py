@@ -32,7 +32,6 @@ class PhaserEGGS(LAXDevice):
         # conversion factors
         self.ftw_per_hz =                   (1 << 32) / 1e9
 
-
     def prepare_device(self):
         # alias both phaser output channels
         self.channel =                      self.phaser.channel
