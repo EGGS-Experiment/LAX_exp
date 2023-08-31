@@ -87,8 +87,10 @@ class TickleFastDDS(LAXSubsequence):
         at_mu(time_start_mu + self.time_system_prepare_delay_mu)
         self.dds_ch0.cpld.set_profile(1)
         # cancel output
-        at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
-        self.dds_ch1.cpld.set_profile(1)
+        # tmp remove undo
+        # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu)
+        # self.dds_ch1.cpld.set_profile(1)
+        # tmp remove undo
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
