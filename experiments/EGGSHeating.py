@@ -49,9 +49,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF - pulse configuration
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
-        self.setattr_argument("ampl_eggs_heating_pct",                      NumberValue(default=80, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=25, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.config')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.config')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
@@ -86,7 +87,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
     def prepare_experiment(self):
         # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude =                                    self.ampl_eggs_heating_pct + self.ampl_eggs_dynamical_decoupling_pct
+        total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
+                                                                             self.ampl_eggs_heating_bsb_pct +
+                                                                             self.ampl_eggs_dynamical_decoupling_pct)
         assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
         # run preparations for sideband cooling
@@ -123,8 +126,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) * len(self.freq_eggs_carrier_hz_list) * len(self.freq_eggs_secular_hz_list), 6), dtype=float)
         self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_readout_ftw_list, self.freq_eggs_carrier_hz_list, self.freq_eggs_secular_hz_list), -1).reshape(-1, 3)
-        self.config_eggs_heating_list[:, 3:] =                              np.array([0.4999 * self.ampl_eggs_heating_pct,
-                                                                                      0.4999 * self.ampl_eggs_heating_pct,
+        self.config_eggs_heating_list[:, 3:] =                              np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                                      self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
         ### EGGS HEATING - AMPLITUDE CALIBRATION ###
@@ -134,6 +137,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         ampl_calib_points =                                                 self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
+        # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWIGN USER INPUT SPECS
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
             for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
@@ -142,8 +146,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # get normalized transmission through system
                 transmitted_power_frac =                                    ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
                 # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
+
+                # TMP REMOVE
+                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
+                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
+                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
                 scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                                                                             ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+                                                                            ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
                 # update configs and convert amplitude to frac
                 self.config_eggs_heating_list[i, 3:] =                      np.array([scaled_power_pct[0],
                                                                                       scaled_power_pct[1],
@@ -197,8 +206,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         ### PULSE SHAPING - AMPLITUDE WINDOW ###
         # create holder object for pulse amplitudes
-        self.ampl_pulse_shape_frac_list =                                   np.tile(np.array([0.4999 * self.ampl_eggs_heating_pct,
-                                                                                              0.4999 * self.ampl_eggs_heating_pct,
+        self.ampl_pulse_shape_frac_list =                                   np.tile(np.array([0.4999 * self.ampl_eggs_heating_rsb_pct,
+                                                                                              0.4999 * self.ampl_eggs_heating_bsb_pct,
                                                                                               self.ampl_eggs_dynamical_decoupling_pct]) / 100., self.num_pulse_shape_samples).reshape(-1, 3)
 
         # calculate windowing values
