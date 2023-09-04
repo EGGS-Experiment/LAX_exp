@@ -47,18 +47,24 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating.frequencies')
 
-        # EGGS RF - pulse configuration
-        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.config')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.config')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.config')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.config')
+        # EGGS RF - waveform
+        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.waveform')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.waveform')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform')
+
+        # EGGS RF - waveform - pulse shaping
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - dynamical decoupling
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
         self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=20, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
 
-        # EGGS RF - dynamical decoupling PSK (Phase-shift Keying)
+        # EGGS RF - dynamical decoupling - PSK (Phase-shift Keying)
         self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling')
         self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling')
 
@@ -67,12 +73,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("ampl_dd_active_cancel_pct",                  NumberValue(default=35, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling')
         self.setattr_argument("att_dd_active_cancel_db",                    NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling')
         self.setattr_argument("phas_dd_active_cancel_turns",                NumberValue(default=0., ndecimals=3, step=0.1, min=-1, max=1), group='EGGS_Heating.decoupling')
-
-        # EGGS RF - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
