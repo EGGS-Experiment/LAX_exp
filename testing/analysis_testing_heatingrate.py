@@ -1,7 +1,7 @@
 """
-Analysis Testing
+Analysis Testing - HeatingRate
 
-Test fitting of datasets.
+Test fitting for Heating Rate
 """
 '''
 IMPORTS
@@ -22,8 +22,8 @@ from LAX_exp.experiments.SidebandCooling import SidebandCooling
 from LAX_exp.experiments.HeatingRate import HeatingRate
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Sideband Cooling/Datasets'
-datafile_key =              '31229'
+directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Heating Rate/Datasets'
+datafile_key =              '31232'
 
 
 '''
