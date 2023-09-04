@@ -77,20 +77,19 @@ try:
     time_fit_s = parameters['time_readout_pipulse_us']
     print(rsb_params)
     print(bsb_params)
-    print(abs(rsb_params[0]) / (abs(bsb_params[0]) - abs(rsb_params[0])))
-
-    # todo: get readout pipulse time
-    def fit_func(x, a, b, c):
-        """
-        todo: document arguments
-        """
-        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
-
 
     # separate RSB and BSB
     def split(arr, cond):
         return [arr[cond], arr[~cond]]
     results_rsb, results_bsb = split(exp_res, exp_res[:, 0] < np.mean(exp_res[:, 0]))
+
+
+    # sinc fit function
+    def fit_func(x, a, b, c):
+        """
+        todo: document arguments
+        """
+        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
 
     # plot RSB
     rsb_fit = fit_func(results_rsb[:, 0], *rsb_params)
@@ -98,7 +97,6 @@ try:
     plt.plot(*(results_rsb.transpose()))
     plt.plot(results_rsb[:, 0], rsb_fit)
     plt.show()
-    # plt.plot()
 
     # plot BSB
     bsb_fit = fit_func(results_bsb[:, 0], *bsb_params)
