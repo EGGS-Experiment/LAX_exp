@@ -26,7 +26,10 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_khz_list",                        Scannable(
-                                                                                    default=CenterScan(1088, 10, 0.5, randomize=True),
+                                                                                    default=[
+                                                                                        ExplicitScan([1088]),
+                                                                                        CenterScan(1088, 10, 0.5, randomize=True)
+                                                                                    ],
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
@@ -48,6 +51,9 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('dds_modulation')
+        # tmp remove
+        self.setattr_device('ttl8')
+        # tmp remove
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -56,11 +62,16 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         # run preparations for sideband cooling
         super().prepare_experiment()
 
+        # get voltage parameters
+        self.dc_micromotion_channel_num =                                       self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
+        self.dc_micromotion_voltages_v_list =                                   np.array(list(self.dc_micromotion_voltages_v_list))
+
         # convert QLMS modulation to machine units
         self.freq_qlms_rabi_ftw_list =                                          np.array([
                                                                                     self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_rabi_khz_list
                                                                                 ])
+
 
         # connect to labrad
         self.cxn =                                                              labrad.connect(environ['LABRADHOST'],
@@ -146,6 +157,10 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                 freq_readout_ftw =  np.int32(config_vals[1])
                 voltage_v =         config_vals[2]
                 self.core.break_realtime()
+                # tmp remove
+                self.ttl8.off()
+                delay_mu(10000)
+                # tmp remove
 
                 # set DC shimming voltage
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)

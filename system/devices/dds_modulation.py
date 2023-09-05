@@ -73,5 +73,3 @@ class DDSModulation(LAXDevice):
                          (1 << 16) |    # select_sine_output
                          (1 << 13))     # phase_autoclear
         self.dds.cpld.io_update.pulse_mu(8)
-        # delay_mu()
-        # todo: add timing delay for waveform to update

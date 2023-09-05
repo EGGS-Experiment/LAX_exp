@@ -14,11 +14,14 @@ class TickleDDS(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('time_tickle_us',         NumberValue(default=10, ndecimals=3, step=100, min=1, max=1000000), group='tickle_dds')
-        self.setattr_argument('att_tickle_db',          NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_dds')
+        self.setattr_argument('time_tickle_us',         NumberValue(default=100, ndecimals=3, step=100, min=1, max=1000000), group='tickle_dds')
+        self.setattr_argument('att_tickle_db',          NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='tickle_dds')
 
         # get relevant devices
         self.setattr_device('dds_modulation')
+        # tmp remove
+        self.setattr_device('ttl8')
+        # tmp remove
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
@@ -27,13 +30,14 @@ class TickleDDS(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        # set dds attenuation here - ensures that dds channel will have correct attenuation
+        # set dds attenuation and profile here - ensures that dds channel will have correct attenuation
         self.dds_modulation.set_att_mu(self.att_tickle_mu)
-        # change to standard profile and reset phase
         self.dds_modulation.set_profile(0)
-        self.dds_modulation.reset_phase()
 
-        # todo: ensure timings are OK
+        # reset DDS phase and wait for reset to latch
+        self.dds_modulation.reset_phase()
+        delay_mu(TIME_PHASEAUTOCLEAR_DELAY_MU)
+        self.ttl8.on()
 
         # tickle for given time
         self.dds_modulation.on()
