@@ -26,7 +26,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # QLMS configuration
         self.setattr_argument("freq_qlms_rabi_khz_list",                        Scannable(
-                                                                                    default=CenterScan(1136, 10, 0.5, randomize=True),
+                                                                                    default=CenterScan(1088, 10, 0.5, randomize=True),
                                                                                     global_min=0, global_max=10000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
@@ -36,7 +36,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         self.setattr_argument("dc_micromotion_channel",                         EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_micromotion_voltages_v_list",                 Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([40.]),
+                                                                                        ExplicitScan([35.5]),
                                                                                         CenterScan(40., 20., 1., randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
