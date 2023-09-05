@@ -59,6 +59,8 @@ class LaserScan(LAXExperiment, Experiment):
     def initialize_experiment(self):
         self.core.break_realtime()
 
+        # ensure DMA sequences use profile 0
+        self.qubit.set_profile(0)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
@@ -80,7 +82,7 @@ class LaserScan(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=0x1FFF)
+                self.qubit.set_mu(freq_ftw, asf=0x1FFF, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
