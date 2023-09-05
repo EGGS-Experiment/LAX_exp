@@ -29,10 +29,11 @@ class TickleDDS(LAXSubsequence):
     def run(self):
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         self.dds_modulation.set_att_mu(self.att_tickle_mu)
-        # change to standard profile
+        # change to standard profile and reset phase
         self.dds_modulation.set_profile(0)
-        # reset signal phase
         self.dds_modulation.reset_phase()
+
+        # todo: ensure timings are OK
 
         # tickle for given time
         self.dds_modulation.on()
