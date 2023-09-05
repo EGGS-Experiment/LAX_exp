@@ -101,9 +101,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
 
-        # convert column 0 (frequency) from frequency tuning word (FTW) to MHz,
+        # convert column 0 (frequency) from frequency tuning word (FTW) to MHz (in absolute units),
         # and convert column 2 (time) from machine units to seconds
-        results_tmp *=          np.array([1.e3 / 0xFFFFFFFF, 1., 1.e-9])
+        results_tmp *=          np.array([2.e3 / 0xFFFFFFFF, 1., 1.e-9])
 
 
         # calculate fluorescence detection threshold

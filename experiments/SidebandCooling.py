@@ -150,8 +150,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
 
-        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
-        results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
+        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
+        results_tmp[:, 0] *=    2.e3 / 0xFFFFFFFF
 
 
         # calculate fluorescence detection threshold

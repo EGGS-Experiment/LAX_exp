@@ -2,7 +2,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
+from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
 
 class DDSModulation(LAXDevice):
@@ -26,22 +26,26 @@ class DDSModulation(LAXDevice):
     def initialize_device(self):
         self.core.break_realtime()
 
-        # enable modulation signal to feed through
+        # close rf switches to kill any modulation signal leakage
         with parallel:
             self.mod_switch.on()
-            self.cfg_sw(False)
+            self.dds.sw.off()
 
         # set up DDS to reinitialize phase each time we set waveform values
-        self.set_mu(self.freq_modulation_ftw, asf=self.ampl_modulation_asf, profile=0)
-        self.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.dds.set_mu(self.freq_modulation_ftw, asf=self.ampl_modulation_asf, profile=0)
+        self.dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
         self.core.break_realtime()
+
+        # todo: set matched latency, cfr1, sine etc.
+        # enable matched latency
+        self.dds.set_cfr2(matched_latency_enable=1)
 
 
     @kernel(flags={"fast-math"})
     def on(self):
         with parallel:
             # enable RF switch onboard Urukul
-            self.cfg_sw(True)
+            self.dds.sw.on()
             # enable modulation RF switch to DDS
             self.mod_switch.on()
 
@@ -49,15 +53,13 @@ class DDSModulation(LAXDevice):
     def off(self):
         with parallel:
             # disable RF switch onboard Urukul
-            self.cfg_sw(False)
+            self.dds.sw.off()
             # disable modulation RF switch for DDS
             self.mod_switch.off()
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.dds.cpld.set_profile(profile_num)
-        # todo: not sure if necessary to io_update
-        self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
@@ -66,6 +68,10 @@ class DDSModulation(LAXDevice):
         todo: document
         :return:
         """
-        # todo: write32, matched latency, and phase autoclear
-        self.set_cfr1(phase_autoclear=1)
+        # ensure signal is output as a sine with 0 phase
+        self.dds.write32(_AD9910_REG_CFR1,
+                         (1 << 16) |    # select_sine_output
+                         (1 << 13))     # phase_autoclear
         self.dds.cpld.io_update.pulse_mu(8)
+        # delay_mu()
+        # todo: add timing delay for waveform to update

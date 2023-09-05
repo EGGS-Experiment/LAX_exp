@@ -45,7 +45,7 @@ class Beam397Pump(LAXDevice):
     def on(self):
         with parallel:
             # enable RF switch onboard Urukul
-            self.beam.cfg_sw(True)
+            self.beam.sw.on()
 
             # enable external RF switch
             with sequential:
@@ -57,7 +57,7 @@ class Beam397Pump(LAXDevice):
     def off(self):
         with parallel:
             # disable RF switch onboard Urukul
-            self.beam.cfg_sw(False)
+            self.beam.sw.off()
 
             # disable external RF switch
             with sequential:
@@ -71,9 +71,6 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(0)
-        # todo: not sure if necessary to io_update
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def readout(self):
@@ -82,9 +79,6 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(1)
-        # todo: not sure if necessary to io_update
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def rescue(self):
@@ -93,13 +87,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(2)
-        # todo: not sure if necessary to io_update
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.beam.cpld.set_profile(profile_num)
-        # todo: not sure if necessary to io_update
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)

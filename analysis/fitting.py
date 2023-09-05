@@ -180,16 +180,15 @@ def fitSinc(data, time_fit_s):
     data_x, data_y =    data.transpose()
 
     # extract starting parameter guesses
-    # get position of max as linecenter
-    b0, a0 =            data[np.argmax(data_y)]
-    # get offset as average of (median, mean) of data
-    c0 =                np.mean([np.median(data_y), np.mean(data_y)])
-    # create array of initial guess parameters
-    a_guess =           (2. / (np.pi * time_fit_s)) * np.arcsin(np.sqrt(a0 - c0))
-    param_guess =       np.array([a_guess, b0, c0])
+    b0 =                np.mean(data_x[np.argwhere(data_y == np.max(data_y))])
+    # get offset as average of (median, min) of data
+    c0 =                0.5 * (np.median(data_y) + np.min(data_y))
+    # guess amplitude using max y-value with offset subtracted
+    a0 =                np.max(data_y) - c0
+    a0 =                ((2. / (np.pi * time_fit_s)) * np.arcsin(np.sqrt(a0)))
 
     # fit and convert covariance matrix to error (1 stdev)
-    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, param_guess)
+    param_fit, param_cov =  curve_fit(fit_func, data_x, data_y, p0=[a0, b0, c0])
     param_err =             np.sqrt(np.diag(param_cov))
     return param_fit, param_err
 
