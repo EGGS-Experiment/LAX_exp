@@ -101,6 +101,11 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
 
+        # tmp remove
+        results_yzde =          groupBy(results_tmp, column_num=2)
+        self._tmp_data =        results_yzde.copy()
+        # tmp remove
+
         # convert column 0 (frequency) from frequency tuning word (FTW) to MHz (in absolute units),
         # and convert column 2 (time) from machine units to seconds
         results_tmp *=          np.array([2.e3 / 0xFFFFFFFF, 1., 1.e-9])
@@ -128,8 +133,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         # print out fitted parameters
         print("\tResults - Heating Rate:")
+        print("\t---------------------")
         for heat_time_s, phonon_num, phonon_err in heating_rate_data:
-            print("\t\t{:.1f} ms:\t{:.2f} +/- {:.2f}".format(heat_time_s*1.e3, phonon_num, phonon_err))
-        print("\t-------------")
-        print("\t\tSlope:\t{:.3f} quanta/s".format(fit_params_heating_rate[0]))
-        print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[1]))
+            print("\t\t{:.1f}\tms:\t{:.2f} +/- {:.2f}".format(heat_time_s*1.e3, phonon_num, phonon_err))
+        print("\t---------------------")
+        print("\t\tSlope:\t\t{:.3f} quanta/s".format(fit_params_heating_rate[1]))
+        print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[0]))

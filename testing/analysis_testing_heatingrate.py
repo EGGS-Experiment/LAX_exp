@@ -18,12 +18,12 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 
-from LAX_exp.experiments.SidebandCooling import SidebandCooling
 from LAX_exp.experiments.HeatingRate import HeatingRate
+from LAX_exp.experiments.SidebandCooling import SidebandCooling
 
 # datafile parameters
 directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Heating Rate/Datasets'
-datafile_key =              '31232'
+datafile_key =              '31644'
 
 
 '''
@@ -48,9 +48,21 @@ try:
         parameters = dict(file['arguments'].attrs).copy()
 
 
-    # create experiment object wrapper class to simulate the experiment object
-    class ExperimentWrapper(SidebandCooling):
+    # create experiment object wrapper classes to simulate the experiment object
+    class ExperimentWrapper(HeatingRate):
+        def __init__(self, results, parameter_dict, _results_storage={}):
+            # instantiate necessary attributes
+            self.children = []
 
+            # use results and parameters to instantiate attributes
+            self.results = results
+            for key, val in parameter_dict.items():
+                setattr(self, key, val)
+
+            # redefine set_dataset to squirrel away any data passed to set_dataset
+            self.set_dataset = lambda key, val: _results_storage.update({key: val})
+
+    class ExperimentWrapper2(SidebandCooling):
         def __init__(self, results, parameter_dict, _results_storage={}):
             # instantiate necessary attributes
             self.children = []
@@ -71,39 +83,53 @@ try:
     exp_res = exp_obj.analyze_experiment()
 
 
+
     # process results for user
-    rsb_params = storage_dict['fit_params_rsb']
-    bsb_params = storage_dict['fit_params_bsb']
-    time_fit_s = parameters['time_readout_pipulse_us']
-    print(rsb_params)
-    print(bsb_params)
+    def _process_sbc(results, parameters):
+        storage_dict = {}
+        exp_obj = ExperimentWrapper2(results, parameters, storage_dict)
+        # call the analyze method of the experiment object to process our results
+        exp_res = exp_obj.analyze_experiment()
 
-    # separate RSB and BSB
-    def split(arr, cond):
-        return [arr[cond], arr[~cond]]
-    results_rsb, results_bsb = split(exp_res, exp_res[:, 0] < np.mean(exp_res[:, 0]))
+        # process results for user
+        rsb_params = storage_dict['fit_params_rsb']
+        bsb_params = storage_dict['fit_params_bsb']
+        time_fit_s = parameters['time_readout_pipulse_us']
 
+        # separate RSB and BSB
+        split = lambda arr, cond: [arr[cond], arr[~cond]]
+        results_rsb, results_bsb = split(exp_res, exp_res[:, 0] < np.mean(exp_res[:, 0]))
 
-    # sinc fit function
-    def fit_func(x, a, b, c):
-        """
-        todo: document arguments
-        """
-        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
+        # sinc fit function
+        def fit_func(x, a, b, c):
+            """
+            todo: document arguments
+            """
+            return ((a ** 2. / (a ** 2. + (x - b) ** 2.)) * np.sin(
+                (np.pi * time_fit_s) * (a ** 2. + (x - b) ** 2.) ** 0.5) ** 2. + c)
 
-    # plot RSB
-    rsb_fit = fit_func(results_rsb[:, 0], *rsb_params)
-    plt.plot(*(results_rsb.transpose()), 'x')
-    plt.plot(*(results_rsb.transpose()))
-    plt.plot(results_rsb[:, 0], rsb_fit)
-    plt.show()
+        # plot RSB
+        rsb_fit = fit_func(results_rsb[:, 0], *rsb_params)
+        plt.plot(*(results_rsb.transpose()), 'x')
+        plt.plot(*(results_rsb.transpose()))
+        plt.plot(results_rsb[:, 0], rsb_fit)
+        plt.show()
 
-    # plot BSB
-    bsb_fit = fit_func(results_bsb[:, 0], *bsb_params)
-    plt.plot(*(results_bsb.transpose()), 'x')
-    plt.plot(*(results_bsb.transpose()))
-    plt.plot(results_bsb[:, 0], bsb_fit)
-    plt.show()
+        # plot BSB
+        bsb_fit = fit_func(results_bsb[:, 0], *bsb_params)
+        plt.plot(*(results_bsb.transpose()), 'x')
+        plt.plot(*(results_bsb.transpose()))
+        plt.plot(results_bsb[:, 0], bsb_fit)
+        plt.show()
+        return rsb_params, bsb_params
+
+    # batch process heating rate data
+    heating_rate_data = exp_obj._tmp_data
+    _sbc_processed_data = {time_ms * 1.e-9: _process_sbc(res_dataset, parameters)
+                           for time_ms, res_dataset in heating_rate_data.items()}
+    print('\n\n')
+    for key, val in _sbc_processed_data.items():
+        print('{} ms\n\t{}\n\t{}'.format(key, val[0], val[1]))
 
 
 except Exception as e:

@@ -170,15 +170,17 @@ class SidebandCooling(LAXExperiment, Experiment):
         # guess carrier as mean of highest and lowest frequencies
         guess_carrier_mhz =             (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
         # split data into RSB and BSB
-        def split(arr, cond):
-            return [arr[cond], arr[~cond]]
+        split =                         lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
         # fit sinc profile
         fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, self.time_readout_pipulse_us)
         fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, self.time_readout_pipulse_us)
 
         # process fit parameters to give values of interest
-        phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
+        sinc_max =                      lambda a, t: np.sin(np.pi * t * a)**2.
+        # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
+        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us)) /
+                                         (abs(sinc_max(fit_params_bsb[0], self.time_readout_pipulse_us)) - abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us))))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                                     )**0.5
@@ -212,8 +214,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         # guess carrier as mean of highest and lowest frequencies
         guess_carrier_mhz =     (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
         # split data into RSB and BSB
-        def split(arr, cond):
-            return [arr[cond], arr[~cond]]
+        split =                         lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         # fit sinc profile
@@ -221,7 +222,10 @@ class SidebandCooling(LAXExperiment, Experiment):
         fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, time_fit_us)
 
         # process fit parameters to give values of interest
-        phonon_n =                      fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+        sinc_max =                      lambda a, t: np.sin(np.pi*t*a)**2.
+        # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
+        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us)) /
+                                         (abs(sinc_max(fit_params_bsb[0], self.time_readout_pipulse_us)) - abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us))))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
                                                     )**0.5
