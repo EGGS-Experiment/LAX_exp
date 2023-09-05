@@ -88,7 +88,9 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                     ])
 
         # connect to labrad
-        self.cxn =                                                  labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+        self.cxn =                                                  labrad.connect(environ['LABRADHOST'],
+                                                                                   port=7682, tls_mode='off',
+                                                                                   username='', password='lab')
         self.dc =                                                   self.cxn.dc_server
 
         # set up variables for ensuring PMT counts are above some threshold
@@ -184,7 +186,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     with parallel:
                         # set modulation frequency
-                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf)
+                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
                         # add holdoff period for recooling the ion
                         delay_mu(self.time_cooling_holdoff_mu)
 
@@ -193,7 +195,9 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     # process results (stores them in our results dataset for us)
                     with parallel:
-                        self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
+                        self._process_results(freq_mu,
+                                              voltage_v,
+                                              pmt_timestamp_list)
                         self.core.reset()
 
     @rpc(flags={"async"})
