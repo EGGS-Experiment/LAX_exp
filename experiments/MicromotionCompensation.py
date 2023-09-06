@@ -151,6 +151,14 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             if self.adaptive:
                 pass
 
+            # rescue ion as needed
+            self.rescue_subsequence.run(_iter_num)
+
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
+
 
     # ANALYZE
     def analyze(self):

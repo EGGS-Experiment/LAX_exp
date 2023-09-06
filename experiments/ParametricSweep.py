@@ -200,6 +200,15 @@ class ParametricSweep(LAXExperiment, Experiment):
                                               pmt_timestamp_list)
                         self.core.reset()
 
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)
+
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
+
+
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
         """

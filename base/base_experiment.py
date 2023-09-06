@@ -53,15 +53,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         Gets/sets instance attributes, devices, and process build arguments.
         Called before build_experiment.
         """
-        # core devices, etc.
+        # core devices & management
         self.setattr_device("core")
         self.setattr_device("core_dma")
+        self.setattr_device("scheduler")
+
+        # science-related hardware devices
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
         self.setattr_device('urukul2_cpld')
         self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
+
+        # set looping iterator for the _update_results method
         setattr(self,'_result_iter', 0)
 
     def build_experiment(self):
@@ -185,7 +190,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.call_child_method('_load_dma')
 
         # run the main part of the experiment
-        self.run_main()
+        try:
+            self.run_main()
+        except TerminationRequested:
+            print('\tExperiment successfully terminated.')
+            pass
 
         # set devices back to their default state
         self._run_cleanup()
@@ -215,19 +224,16 @@ class LAXExperiment(LAXEnvironment, ABC):
             # reset qubit board
             with sequential:
                 self.urukul0_cpld.set_profile(0)
-                self.urukul0_cpld.io_update.pulse_mu(8)
                 self.urukul0_cpld.cfg_switches(0b0000)
 
             # reset motional board to rescue parameters
             with sequential:
                 self.urukul1_cpld.set_profile(0)
-                self.urukul1_cpld.io_update.pulse_mu(8)
                 self.urukul1_cpld.cfg_switches(0b0000)
 
             # reset main board to rescue parameters
             with sequential:
                 self.urukul2_cpld.set_profile(0)
-                self.urukul2_cpld.io_update.pulse_mu(8)
                 self.urukul2_cpld.cfg_switches(0b1110)
 
         self.core.break_realtime()
@@ -247,16 +253,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         todo: document
         """
         # repeat the experiment a given number of times
-        # todo: repetitions sort out
+        # todo: repetitions sort out - who sets the argument for the exp?
         for trial_num in range(self.repetitions):
-
             # run the trial
-            try:
-                self.run_loop()
+            self.run_loop()
 
-            # allow clean termination
-            except TerminationRequested:
-                break
+            # check if user requests experiment termination
+            self.check_termination()
 
     def run_loop(self):
         """
@@ -265,6 +268,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         todo: document
         """
         pass
+
+    @rpc
+    def check_termination(self):
+        """
+        Check whether termination of the experiment has been requested.
+        """
+        if self.scheduler.check_termination():
+            raise TerminationRequested
 
 
     '''

@@ -19,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -56,6 +56,10 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
         self.readout_subsequence =                                      Readout(self)
         self.rescue_subsequence =                                       RescueIon(self)
+
+        # tmp remove
+        self.setattr_device('scheduler')
+        # tmp remove
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
@@ -138,6 +142,11 @@ class SidebandCooling(LAXExperiment, Experiment):
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
+
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
 
 
     # ANALYSIS

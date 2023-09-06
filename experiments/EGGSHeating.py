@@ -433,6 +433,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
+
         # CLEANUP
         self.core.break_realtime()
         # reset all oscillator frequencies and amplitudes

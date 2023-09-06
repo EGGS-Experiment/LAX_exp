@@ -120,6 +120,11 @@ class RabiFlopping(LAXExperiment, Experiment):
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
+
 
     # ANALYSIS
     def analyze_experiment(self):

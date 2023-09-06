@@ -153,11 +153,10 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
-        # tmp remove
-        self.core.break_realtime()
-        self.pump.set_profile(0)
-        self.core.break_realtime()
-        # tmp remove
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
 
 
     # ANALYSIS
