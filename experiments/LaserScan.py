@@ -152,6 +152,11 @@ class LaserScan(LAXExperiment, Experiment):
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
 
+        # tmp remove
+        self.set_dataset('tmpres.ls', peak_vals, broadcast=True, persist=False, archive=False)
+        # tmp remove
+
+
         # print peaks to log for user convenience
         # ensure we don't have too many peaks before printing to log
         if len(peak_vals) < 8:

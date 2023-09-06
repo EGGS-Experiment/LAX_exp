@@ -19,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -27,8 +27,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
                                                                             default=[
-                                                                                ExplicitScan([102.668]),
-                                                                                CenterScan(102.668, 0.020, 0.0005, randomize=True)
+                                                                                CenterScan(102.668, 0.020, 0.0005, randomize=True),
+                                                                                ExplicitScan([102.668])
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
@@ -36,8 +36,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
                                                                             # default=CenterScan(104.064, 0.02, 0.0005),
                                                                             default=[
+                                                                                CenterScan(103.751, 0.020, 0.0005, randomize=True),
                                                                                 ExplicitScan([103.751]),
-                                                                                CenterScan(103.751, 0.020, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
@@ -193,6 +193,11 @@ class SidebandCooling(LAXExperiment, Experiment):
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                                     )**0.5
+
+        # tmp remove
+        res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
+        self.set_dataset('tmpres.sbc', res_dj, broadcast=True, persist=False, archive=False)
+        # tmp remove
 
         # save results to hdf5 as a dataset
         self.set_dataset('fit_params_rsb',  fit_params_rsb)

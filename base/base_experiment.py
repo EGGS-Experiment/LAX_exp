@@ -53,10 +53,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         Gets/sets instance attributes, devices, and process build arguments.
         Called before build_experiment.
         """
-        # core devices & management
+        # core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
+
+        # management
         self.setattr_device("scheduler")
+        self.setattr_device("ccb")
 
         # science-related hardware devices
         self.setattr_device('urukul0_cpld')
@@ -171,6 +174,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set up completion monitor
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
+        # tmp remove
+        self.set_dataset('progress', 0., broadcast=True, persist=False, archive=False)
+        self.ccb.issue("create_applet", "progress_bar", "${artiq_applet}progress_bar progress")
+        # tmp remove
+
         # start counting initialization time
         time_init_start = datetime.timestamp(datetime.now())
 
@@ -193,8 +201,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         try:
             self.run_main()
         except TerminationRequested:
+            self._run_cleanup()
             print('\tExperiment successfully terminated.')
-            pass
+            raise TerminationRequested
 
         # set devices back to their default state
         self._run_cleanup()
@@ -332,6 +341,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         self.mutate_dataset('results', self._result_iter, array(args))
         self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 1), broadcast=True, persist=True, archive=False)
+        # tmp remove
+        self.set_dataset('progress', round(100. * self._result_iter / len(self.results), 1), broadcast=True, persist=False, archive=False)
+        # tmp remove
         self._result_iter += 1
 
     @property

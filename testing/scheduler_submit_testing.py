@@ -16,29 +16,26 @@ class ScheduleTest(EnvExperiment):
 
 
     def prepare(self):
-        self.scan_range_v = list(self.scan_range_v)
+        # self.scan_range_v = list(self.scan_range_v)
+        self.scan_range_v = [1,2]
         self.expid_list = list()
 
         for scan_val_v in self.scan_range_v:
             expid = {
-                "file": "experiments_legacy\\parametric_sweep.py",
-                "class_name": "ParametricSweep",
+                "file": "LAX_exp\\experiments\\LaserScan.py",
+                "class_name": "LaserScan",
                 "arguments": {
-                    "num_counts": 10000,
-                    "ampl_mod_vpp": 0.05,
-                    "freq_mod_mhz_list": {
-                        "center": 1.206,
-                        "span": 0.04,
-                        "step": 0.0002,
+                    # "repetitions":      20,
+                    "freq_qubit_scan_mhz": {
+                        "center": 103.210,
+                        "span": 0.02,
+                        "step": 0.0005,
                         "randomize": True,
                         "seed": None,
                         "ty": "CenterScan"
-                    },
-                    "dc_micromotion_channel": "V Shim",
-                    "dc_micromotion_voltage_v": scan_val_v
+                    }
                 },
-                "log_level": 30,
-                "repo_rev": "1e672b2317d87dd0e70d49a8f1f1639d3fd217b8"
+                "log_level": 30
             }
             self.expid_list.append(expid)
 
