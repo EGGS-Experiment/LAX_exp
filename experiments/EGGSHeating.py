@@ -723,7 +723,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             # set oscillator 2 (carrier) with phase shift
             with parallel:
                 self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.), clr=0)
                 delay_mu(dd_config_vals[0])
 
 
