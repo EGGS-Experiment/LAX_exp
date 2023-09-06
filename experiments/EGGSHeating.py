@@ -454,8 +454,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # print("\tconfig:")
         # print("\t\t{}\n".format(self.config_eggs_heating_list))
 
-        # print("\tdd decoupling psk list:")
-        # print("\t\t{}\n".format(self.config_dynamical_decoupling_psk_list))
+        print("\tdd decoupling psk list:")
+        print("\t\t{}\n".format(self.config_dynamical_decoupling_psk_list))
 
         print("\tch1 global latency: {:.3f}\n".format(self.phase_ch1_turns))
 
