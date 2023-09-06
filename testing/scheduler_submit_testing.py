@@ -22,20 +22,20 @@ class ScheduleTest(EnvExperiment):
 
         for scan_val_v in self.scan_range_v:
             expid = {
-                "file": "LAX_exp\\experiments\\LaserScan.py",
-                "class_name": "LaserScan",
+                "file":             "LAX_exp\\experiments\\LaserScan.py",
+                "class_name":       "LaserScan",
+                "log_level":        30,
                 "arguments": {
-                    # "repetitions":      20,
+                    "repetitions":      20,
                     "freq_qubit_scan_mhz": {
-                        "center": 103.210,
-                        "span": 0.02,
-                        "step": 0.0005,
-                        "randomize": True,
-                        "seed": None,
-                        "ty": "CenterScan"
+                        "center":       103.210,
+                        "span":         0.02,
+                        "step":         0.0005,
+                        "randomize":    True,
+                        "seed":         None,
+                        "ty":           "CenterScan"
                     }
-                },
-                "log_level": 30
+                }
             }
             self.expid_list.append(expid)
 
