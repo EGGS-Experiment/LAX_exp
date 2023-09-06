@@ -256,7 +256,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         # create config holder for dynamical decoupling PSK; holds time_mu and phase in turns
         self.config_dynamical_decoupling_psk_list =                         np.zeros((self.num_dynamical_decoupling_phase_shifts + 1, 2), dtype=np.int64)
-        self.config_dynamical_decoupling_psk_list[0::2] =                   1
+        self.config_dynamical_decoupling_psk_list[1::2] =                   1
 
         # divide total eggs heating time into PSK segments
         self.time_psk_delay_mu =                                            np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
