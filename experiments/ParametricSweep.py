@@ -171,14 +171,16 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # run given number of repetitions
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
 
             # sweep voltage
             for voltage_v in self.dc_micromotion_voltages_v_list:
 
                 # set DC voltage
                 self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
-                self.core.break_realtime()
+
+                # synchronize hardware clock with timeline, then add delay for voltages to settle
+                self.core.wait_until_mu(now_mu())
+                delay_mu(350000000)
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:

@@ -180,7 +180,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                 self.voltage_set(self.dc_micromotion_channel_1_num, voltage_list_v[0])
                 self.voltage_set(self.dc_micromotion_channel_2_num, voltage_list_v[1])
 
-                # add delay for voltages to settle, then synchronize hardware clock with timeline
+                # synchronize hardware clock with timeline, then add delay for voltages to settle
                 self.core.wait_until_mu(now_mu())
                 delay_mu(350000000)
 
