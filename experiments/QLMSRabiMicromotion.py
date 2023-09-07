@@ -180,10 +180,10 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                 # set DC shimming voltage
                 self.voltage_set(self.dc_micromotion_channel_1_num, voltage_v_1)
                 self.core.break_realtime()
-                delay_mu(2500000)
+                delay_mu(250000)
                 self.voltage_set(self.dc_micromotion_channel_2_num, voltage_v_2)
                 self.core.break_realtime()
-                delay_mu(2500000)
+                delay_mu(250000)
                 # todo: do we need to add extra wait time for voltages to settle?
                 # at_mu(now_mu() + 5000000)
 
