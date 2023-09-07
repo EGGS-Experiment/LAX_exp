@@ -8,6 +8,7 @@ import LAX_exp.experiments.SidebandCooling as SidebandCooling
 # LABRAD IMPORTS
 import labrad
 from os import environ
+from time import sleep
 from EGGS_labrad.config.dc_config import dc_config
 
 
@@ -64,9 +65,6 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('dds_modulation')
-        # tmp remove
-        self.setattr_device('ttl8')
-        # tmp remove
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -115,6 +113,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         """
         # set desired voltage
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        sleep(0.005)
 
     @rpc(flags={"async"})
     def prepareDevicesLabrad(self):
@@ -172,19 +171,12 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                 voltage_v_1 =       config_vals[2]
                 voltage_v_2 =       config_vals[3]
                 self.core.break_realtime()
-                # tmp remove
-                self.ttl8.off()
-                delay_mu(10000)
-                # tmp remove
 
                 # set DC shimming voltage
                 # note: we add delays here to ensure that voltages have time to settle
                 self.voltage_set(self.dc_micromotion_channel_1_num, voltage_v_1)
-                self.core.break_realtime()
-                delay_mu(250000)
                 self.voltage_set(self.dc_micromotion_channel_2_num, voltage_v_2)
                 self.core.break_realtime()
-                delay_mu(250000)
                 # todo: do we need to add extra wait time for voltages to settle?
 
                 # set QLMS modulation and 729nm readout frequencies
