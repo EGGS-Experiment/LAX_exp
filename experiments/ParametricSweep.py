@@ -133,7 +133,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         with parallel:
             # set cooling beams
             with sequential:
-                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf)
+                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+                self.pump.set_profile(0)
                 self.pump.on()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
