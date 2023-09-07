@@ -1,14 +1,17 @@
 import labrad
 import numpy as np
 from os import environ
-from time import sleep
 
+from artiq.experiment import *
+
+from time import sleep
 from queue import Queue
 from collections import deque
 
-from artiq.experiment import *
+# import asyncio
 from sipyco.sync_struct import Subscriber
 from EGGS_labrad.servers.ARTIQ.artiq_subscriber import ARTIQ_subscriber
+from artiq.frontend.artiq_client import _run_subscriber
 
 
 class tmptitle(EnvExperiment):
@@ -63,42 +66,87 @@ class tmptitle(EnvExperiment):
     def run(self):
         try:
             from asyncio import get_event_loop, set_event_loop, Event
+            from sipyco.asyncio_tools import atexit_register_coroutine
+            #
+            # # set up subscriber objects for the scheduler and the dataset manager
+            # self.scheduler_subscriber = ARTIQ_subscriber('schedule', self._process_scheduler_update, self)
+            # self.scheduler_subscriber.connect('::1', 3250)
+            #
+            # self.ds_subscriber = ARTIQ_subscriber('datasets', self._process_ds_update, self)
+            # self.ds_subscriber.connect('::1', 3250)
+            #
+            # # set up event loop for ARTIQ_subscriber
+            # loop = get_event_loop()
+            # stop_event = Event()
+            #
+            # # set up thread to run subscriber event loop in background
+            # from threading import Thread
+            # def run_in_background(loop):
+            #     set_event_loop(loop)
+            #     loop.run_until_complete(stop_event.wait())
+            #     loop.close()
+            #
+            # t = Thread(target=run_in_background, args=(loop,))
+            # t.start()
+            _scheduler_struct = dict()
+            def _update_scheduler(x):
+                print('\t\t\t\t\t\t_update_scheduler_called')
+                _scheduler_struct.clear()
+                _scheduler_struct.update(x)
+                return _scheduler_struct
 
-            # set up subscriber objects for the scheduler and the dataset manager
-            self.scheduler_subscriber = ARTIQ_subscriber('schedule', self._process_scheduler_update, self)
-            self.scheduler_subscriber.connect('::1', 3250)
+            _dataset_struct = dict()
+            def _update_datasets(x):
+                print('\t\t\t\t\t\t_update_datasets called')
+                _dataset_struct.clear()
+                _dataset_struct.update(x)
+                return _dataset_struct
 
-            self.ds_subscriber = ARTIQ_subscriber('datasets', self._process_ds_update, self)
-            self.ds_subscriber.connect('::1', 3250)
 
-            # set up event loop for ARTIQ_subscriber
+            # set up event loop for subscribers
             loop = get_event_loop()
             stop_event = Event()
 
-            # set up thread to run subscriber event loop in background
-            from threading import Thread
-            def run_in_background(loop):
-                set_event_loop(loop)
-                loop.run_until_complete(stop_event.wait())
-                loop.close()
+            # create subscribers
+            # self.scheduler_subscriber = Subscriber('schedule', _update_scheduler, self._process_scheduler_update)
+            # self.dataset_subscriber = Subscriber('datasets', _update_datasets, self._process_datasets_update)
+            self.scheduler_subscriber = Subscriber('schedule', _update_scheduler, lambda mod: self._process_scheduler_update(_scheduler_struct))
+            self.dataset_subscriber = Subscriber('datasets', _update_datasets, lambda mod: self._process_dataset_update(_dataset_struct))
+            # connect subscribers
+            loop.run_until_complete(self.scheduler_subscriber.connect('::1', 3250))
+            loop.run_until_complete(self.dataset_subscriber.connect('::1', 3250))
+            # ensure subscribers close connection upon exit
+            atexit_register_coroutine(self.scheduler_subscriber.close)
+            atexit_register_coroutine(self.dataset_subscriber.close)
 
-            t = Thread(target=run_in_background, args=(loop,))
-            t.start()
+            # set up thread to run subscriber event loop in background
+            # from threading import Thread
+            # def run_in_background(loop):
+            #     # set thread event loop as given
+            #     set_event_loop(loop)
+            #     loop.run_until_complete(stop_event.wait())
+            #     loop.close()
+            #
+            # t = Thread(target=run_in_background, args=(loop,))
+            # t.start()
+
+            # ruh event loop indefinitely
+            loop.run_until_complete(stop_event.wait())
+            loop.close()
 
         except Exception as e:
-            print(e)
-            print("Unable to connect to ARTIQ Master.")
+            print('\n\t\t error: {}'.format(e))
             raise
 
 
         # idk loop
         i = 0
-        while i < 50:
-            sleep(1)
+        while i < 1000:
+            sleep(5)
             i+= 1
-
-        self.scheduler_subscriber._subscriber.unsubscribe()
-        self.ds_subscriber._subscriber.unsubscribe()
+            print('h_loop_{}'.format(i))
+            print('\t\tsched: {}'.format(list(_scheduler_struct.keys())))
+            print('\t\tkeys: {}'.format(list(_dataset_struct.keys())[-1]))
 
 
     '''
@@ -113,27 +161,34 @@ class tmptitle(EnvExperiment):
         # todo: update holding structure that contains RIDs
         # todo: check if
 
-
-        # print('\tSCHEDULER UPDATE: {}'.format(mod))
-
+        print('\tSCHEDULER UPDATE: {}'.format(mod))
         # check if any experiments are running
-        for rid, exp_params in self.struct_holder_schedule.backing_store.items():
-            run_status = exp_params['status']
+        # for rid, exp_params in self._scheduler_struct.backing_store.items():
+        #     run_status = exp_params['status']
+        #
+        #     # send experiment details to clients if experiment is running
+        #     if run_status == 'running':
+        #         print('\tNEW EXP RUNNING')
 
-            # send experiment details to clients if experiment is running
-            if run_status == 'running':
-                print('\tNEW EXP RUNNING')
-
-        # otherwise, no experiment running, so inform clients
-        # print('\tNO EXP RUNNING')
-
-    def _process_ds_update(self, mod):
+    def _process_datasets_update(self, mod):
         """
         Checks if any experiments are running and sends a Signal
         to clients accordingly.
         """
-        if mod['action'] is not 'init':
-            print('\tDS UPDATE: {}'.format(mod))
+        # print('\tDS UPDATE: {}'.format(mod))
+        try:
+            pass
+            if mod['action'] != 'init':
+                if (mod['key'] != 'progress'):
+                    pass
+                    if (mod['key'] != 'management.completion_pct'):
+                        if int(mod['value'][1] * 10) % 5:
+                            print('\tDS UPDATE: {}'.format(mod))
+                            print('\t\tkeys: {}'.format(list(self._dataset_struct.keys())[-1]))
+        except Exception as e:
+            print('\n\tds err: {}'.format(e))
+        # if mod['action'] is not 'init':
+        #     print('\tDS UPDATE: {}'.format(mod))
 
         # # check if any experiments are running
         # for rid, exp_params in self.struct_holder_datasets.backing_store.items():
@@ -144,7 +199,7 @@ class tmptitle(EnvExperiment):
         #         print('\n\tNEW DS')
 
         # otherwise, no experiment running, so inform clients
-            print('\tIDK DS')
+        # print('\tIDK DS')
 
 
     '''
