@@ -43,18 +43,18 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         self.setattr_argument("dc_micromotion_channel_1",                       EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='H Shim'), group=self.name)
         self.setattr_argument("dc_micromotion_voltages_1_v_list",               Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([35.5]),
+                                                                                        ExplicitScan([58.7]),
                                                                                         CenterScan(35.5, 10., 1., randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
                                                                                     unit="V", scale=1, ndecimals=1
                                                                                 ), group=self.name)
 
-        self.setattr_argument("dc_micromotion_channel_2",                       EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group=self.name)
+        self.setattr_argument("dc_micromotion_channel_2",                       EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='A-Ramp 1'), group=self.name)
         self.setattr_argument("dc_micromotion_voltages_2_v_list",               Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([35.5]),
-                                                                                        CenterScan(57., 10., 1., randomize=True)
+                                                                                        CenterScan(35., 10., 1., randomize=True),
+                                                                                        ExplicitScan([35.5])
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
                                                                                     unit="V", scale=1, ndecimals=1
@@ -91,17 +91,29 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         self.dc =                                                               self.cxn.dc_server
 
         # create an array of values for the experiment to sweep:
+        '''OLD - IGNORE'''
+        # # [readout AOM FTW, DDS tickle frequency, H shim voltage (volts), V shim voltage (volts)]
+        # self.config_qlms_rabi_micromotion_list =                                np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
+        #                                                                                              self.freq_readout_ftw_list,
+        #                                                                                              self.dc_micromotion_voltages_1_v_list,
+        #                                                                                              self.dc_micromotion_voltages_2_v_list),
+        #                                                                                  -1).reshape(-1, 4)
+        # np.random.shuffle(self.config_qlms_rabi_micromotion_list)
+
+        '''NEW - IMPLEMENTED & IN USE'''
         # [readout AOM FTW, DDS tickle frequency, H shim voltage (volts), V shim voltage (volts)]
-        self.config_qlms_rabi_micromotion_list =                                np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
-                                                                                                     self.freq_readout_ftw_list,
-                                                                                                     self.dc_micromotion_voltages_1_v_list,
+        self.config_voltage_list =                                              np.stack(np.meshgrid(self.dc_micromotion_voltages_1_v_list,
                                                                                                      self.dc_micromotion_voltages_2_v_list),
-                                                                                         -1).reshape(-1, 4)
+                                                                                         -1).reshape(-1, 2)
+        np.random.shuffle(self.config_voltage_list)
+        self.config_qlms_rabi_micromotion_list =                                np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
+                                                                                                     self.freq_readout_ftw_list),
+                                                                                         -1).reshape(-1, 2)
         np.random.shuffle(self.config_qlms_rabi_micromotion_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_qlms_rabi_micromotion_list),
+        return (self.repetitions * len(self.config_qlms_rabi_micromotion_list) * len(self.config_voltage_list),
                 5)
 
 
@@ -111,9 +123,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         """
         Set the channel to the desired voltage.
         """
-        # set desired voltage
-        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
-        sleep(0.005)
+        self.dc.voltage_fast(channel, voltage_v)
 
     @rpc(flags={"async"})
     def prepareDevicesLabrad(self):
@@ -160,51 +170,54 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
         self.core.break_realtime()
 
+
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
 
-            # sweep experiment configurations
-            for config_vals in self.config_qlms_rabi_micromotion_list:
+            for voltage_list_v in self.config_voltage_list:
 
-                # extract values from config list
-                freq_qlms_ftw =     np.int32(config_vals[0])
-                freq_readout_ftw =  np.int32(config_vals[1])
-                voltage_v_1 =       config_vals[2]
-                voltage_v_2 =       config_vals[3]
-                self.core.break_realtime()
+                # set DC shimming voltages
+                self.voltage_set(self.dc_micromotion_channel_1_num, voltage_list_v[0])
+                self.voltage_set(self.dc_micromotion_channel_2_num, voltage_list_v[1])
 
-                # set DC shimming voltage
-                # note: we add delays here to ensure that voltages have time to settle
-                self.voltage_set(self.dc_micromotion_channel_1_num, voltage_v_1)
-                self.voltage_set(self.dc_micromotion_channel_2_num, voltage_v_2)
-                self.core.break_realtime()
-                # todo: do we need to add extra wait time for voltages to settle?
+                # add delay for voltages to settle, then synchronize hardware clock with timeline
+                self.core.wait_until_mu(now_mu())
+                delay_mu(350000000)
 
-                # set QLMS modulation and 729nm readout frequencies
-                with parallel:
-                    self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
-                    self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                # sweep experiment configurations
+                for config_vals in self.config_qlms_rabi_micromotion_list:
+
+                    # extract values from config list
+                    freq_qlms_ftw =     np.int32(config_vals[0])
+                    freq_readout_ftw =  np.int32(config_vals[1])
                     self.core.break_realtime()
 
-                # initialize ion in S-1/2 state
-                self.initialize_subsequence.run_dma()
+                    # set QLMS modulation and 729nm readout frequencies
+                    with parallel:
+                        self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
+                        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                        self.core.break_realtime()
 
-                # sideband cool
-                self.sidebandcool_subsequence.run_dma()
+                    # initialize ion in S-1/2 state
+                    self.initialize_subsequence.run_dma()
 
-                # QLMS tickle
-                self.tickle_subsequence.run_dma()
+                    # sideband cool
+                    self.sidebandcool_subsequence.run_dma()
 
-                # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
+                    # QLMS tickle
+                    self.tickle_subsequence.run_dma()
 
-                # update dataset
-                with parallel:
-                    self.update_results(freq_readout_ftw,
-                                        self.readout_subsequence.fetch_count(),
-                                        freq_qlms_ftw,
-                                        voltage_v_1,
-                                        voltage_v_2)
-                    self.core.break_realtime()
+                    # custom SBC readout
+                    self.core_dma.playback_handle(_handle_sbc_readout)
+
+                    # update dataset
+                    with parallel:
+                        self.update_results(freq_readout_ftw,
+                                            self.readout_subsequence.fetch_count(),
+                                            freq_qlms_ftw,
+                                            voltage_list_v[0],
+                                            voltage_list_v[1])
+                        self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
