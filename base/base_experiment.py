@@ -174,11 +174,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set up completion monitor
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
-        # tmp remove
-        self.set_dataset('progress', 0., broadcast=True, persist=False, archive=False)
-        self.ccb.issue("create_applet", "progress_bar", "${artiq_applet}progress_bar progress")
-        # tmp remove
-
         # start counting initialization time
         time_init_start = datetime.timestamp(datetime.now())
 
@@ -340,10 +335,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         Contains an internal iterator to keep track of the current index.
         """
         self.mutate_dataset('results', self._result_iter, array(args))
-        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 1), broadcast=True, persist=True, archive=False)
-        # tmp remove
-        self.set_dataset('progress', round(100. * self._result_iter / len(self.results), 1), broadcast=True, persist=False, archive=False)
-        # tmp remove
+        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
     @property
