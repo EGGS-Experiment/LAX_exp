@@ -179,10 +179,11 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
 
                 # set DC shimming voltage
                 self.voltage_set(self.dc_micromotion_channel_1_num, voltage_v_1)
+                self.core.break_realtime()
                 self.voltage_set(self.dc_micromotion_channel_2_num, voltage_v_2)
+                self.core.break_realtime()
                 # todo: do we need to add extra wait time for voltages to settle?
-                at_mu(now_mu() + 5000000)
-                # self.core.break_realtime()
+                # at_mu(now_mu() + 5000000)
 
                 # set QLMS modulation and 729nm readout frequencies
                 with parallel:
