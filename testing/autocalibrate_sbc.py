@@ -110,8 +110,12 @@ class tmptitle(EnvExperiment):
             # create subscribers
             # self.scheduler_subscriber = Subscriber('schedule', _update_scheduler, self._process_scheduler_update)
             # self.dataset_subscriber = Subscriber('datasets', _update_datasets, self._process_datasets_update)
-            self.scheduler_subscriber = Subscriber('schedule', _update_scheduler, lambda mod: self._process_scheduler_update(_scheduler_struct))
-            self.dataset_subscriber = Subscriber('datasets', _update_datasets, lambda mod: self._process_dataset_update(_dataset_struct))
+            self.scheduler_subscriber = Subscriber('schedule',
+                                                   _update_scheduler,
+                                                   lambda mod: self._process_scheduler_update(_scheduler_struct))
+            self.dataset_subscriber = Subscriber('datasets',
+                                                 _update_datasets,
+                                                 lambda mod: self._process_dataset_update(_dataset_struct))
             # connect subscribers
             loop.run_until_complete(self.scheduler_subscriber.connect('::1', 3250))
             loop.run_until_complete(self.dataset_subscriber.connect('::1', 3250))
