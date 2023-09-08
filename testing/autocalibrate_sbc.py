@@ -2,15 +2,12 @@ import numpy as np
 from artiq.experiment import *
 
 from enum import Enum
-from time import sleep
-from queue import Queue
 from collections import deque
-from sipyco.sync_struct import Subscriber
 from asyncio import get_event_loop, set_event_loop, Event
-from sipyco.asyncio_tools import atexit_register_coroutine
 
-# todo: support for multiple layers of calibrations (e.g. laser scan, then quench, then sideband cooling)
-# todo: think about using pyonvalue instead of the strange rid abomination we have now
+from sipyco import pyon
+from sipyco.sync_struct import Subscriber
+from sipyco.asyncio_tools import atexit_register_coroutine
 
 
 class Status(Enum):
@@ -20,8 +17,21 @@ class Status(Enum):
     calibration_waiting =       3
     calibration_processing =    4
 
+def update_deep(dict_dj, keyspec, val):
+    """
+    Modify values within a nested dict using keys in dot form.
+    """
+    keylist = keyspec.split('.')
+    for key in keylist[:-1]:
+        dict_dj = dict_dj[key]
+    dict_dj[keylist[-1]] = val
+
 
 class Autocalibration(EnvExperiment):
+    """
+    idk document i guess
+    """
+
     def build(self):
         # get core devices
         self.ccb =              self.get_device("ccb")
@@ -33,7 +43,7 @@ class Autocalibration(EnvExperiment):
                                                                         ))
 
         # autocalibration parameters
-        self.num_exps =             3
+        self.num_exps =             1
 
         # base params - laser scan
         self.freq_carrier_mhz =     103.202
@@ -48,72 +58,83 @@ class Autocalibration(EnvExperiment):
 
     def prepare(self):
         # create necessary data structures
-        self.current_parameters =       dict()
         self._status =                  Status.experiment_waiting
-
         self._pending_experiments =     deque()
         self._running_experiments =     set()
 
-        self._calibration_stage =       0
         self._pending_calibrations =    deque()
         self._running_calibrations =    set()
-        self._calibration_results =     dict()
-
-        # todo: idk
         self._calibration_callback =    lambda x: x
+        self._calibration_results =     dict()
         # tmp remove
 
-        # tmp remove
-        # self._
+
+        # create list of parameters to continually update the experiments with
+        self.current_parameters =       {
+            'freq_qubit_scan_mhz.center':           103.201,
+            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
+        }
 
         # create calibration expid list
-        self.calibrations_list =        deque()
         # need: expid, parameter_name, sweep_function, callback
-
-        # self.calibration_list = [
-        #     {
-        #         'status': 'pending',
-        #         'callback':
-        #         'expid': {
-        #             "file": "LAX_exp\\experiments\\LaserScan.py",
-        #             "class_name": "LaserScan",
-        #             "log_level": 30,
-        #             "arguments": {
-        #                 "repetitions": 20,
-        #                 "freq_qubit_scan_mhz": {
-        #                     "center": 103.210,
-        #                     "span": 0.02,
-        #                     "step": 0.0005,
-        #                     "randomize": True,
-        #                     "seed": None,
-        #                     "ty": "CenterScan"
-        #                 }
-        #             }
-        #         }
-        #     },
-        #     {
-        #
-        #     }
-        #
-        # ]
+        self.calibration_list =         deque([
+            {
+                'parameter_name':   'freq_qubit_scan_mhz.center',
+                'sweep_function':   self.sweep_func_1,
+                'callback':         self.process_func_1,
+                'expid': {
+                    # "file": "experiments\\LaserScan.py",
+                    "file":         "testing\\_autocalib_ls_test.py",
+                    # "class_name": "LaserScan",
+                    "class_name":   "autocalib_ls_test",
+                    "log_level":    30,
+                    "arguments": {
+                        "repetitions":  20,
+                        "freq_qubit_scan_mhz": {
+                            "center":       103.201,
+                            "span":         0.02,
+                            "step":         0.0005,
+                            "randomize":    True,
+                            "seed":         None,
+                            "ty":           "CenterScan"
+                        }
+                    }
+                }
+            }
+        ])
 
         # create exp list
         self.pending_expid_list = [{
-                "file":             "LAX_exp\\experiments\\LaserScan.py",
-                "class_name":       "LaserScan",
-                "log_level":        30,
-                "arguments": {
-                    "repetitions":      20,
-                    "freq_qubit_scan_mhz": {
-                        "center":       103.210,
-                        "span":         0.02,
-                        "step":         0.0005,
-                        "randomize":    True,
-                        "seed":         None,
-                        "ty":           "CenterScan"
-                    }
-                }
-            } for scan_val_v in self.scan_range_v]
+            "log_level": 30,
+            # "file": "experiments\\SidebandCooling.py",
+            "file": "testing\\_autocalib_sbc_test.py",
+            # "class_name": "SidebandCooling",
+            "class_name": "autocalib_sbc_test",
+            "repo_rev": "81470513c47332f25a1ea29921f7171e518bbcac",
+            "arguments": {"repetitions": 80, "cooling_type": "Continuous",
+                       "freq_rsb_scan_mhz": {"center": 102.654, "randomize": true, "seed": null, "span": 0.02,
+                                             "step": 0.0005, "ty": "CenterScan"},
+                       "freq_bsb_scan_mhz": {"center": 103.739, "randomize": true, "seed": null, "span": 0.02,
+                                             "step": 0.0005, "ty": "CenterScan"},"time_readout_pipulse_us": 120.0,
+                       "ampl_readout_pipulse_pct": 50.0, "att_readout_db": 8.0, "calibration_pulsed": false,
+                       "sideband_cycles_pulsed": 120, "extra_sideband_cycles": 0, "cycles_per_spin_polarization": 15,
+                       "time_form_sideband_cooling": "Linear", "time_min_sideband_cooling_us_list": "[60]",
+                       "time_max_sideband_cooling_us_list": "[270]", "freq_sideband_cooling_mhz_list": "[102.436]",
+                       "att_sidebandcooling_pulsed_db": 8.0, "calibration_continuous": false,
+                       "sideband_cycles_continuous": 1, "time_sideband_cooling_us": 12000.0,
+                       "pct_per_spin_polarization": 20.0, "freq_sideband_cooling_mhz_pct_list": "{102.654: 100}",
+                       "att_sidebandcooling_continuous_db": 8.0, "ampl_quench_pct": 4.0, "rescue_enable": false,
+                       "repetitions_per_rescue": 100}
+        } for i in range(5)]
+
+    def sweep_func_1(self, parameter_current):
+        return np.linspace(parameter_current-2, parameter_current+2, 5)
+
+    def process_func_1(self, results_list):
+        # todo: convert results_list from pyon and extract first freq
+        # todo: choose a value randomly from the list
+        # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
+        pass
 
 
     def run(self):
@@ -154,6 +175,8 @@ class Autocalibration(EnvExperiment):
             atexit_register_coroutine(self.dataset_subscriber.close)
 
             # todo: submit initial experiments first
+            self._submit_experiments()
+            self._status = Status.experiment_submitting
 
             # run event loop indefinitely
             loop.run_until_complete(stop_event.wait())
@@ -219,8 +242,7 @@ class Autocalibration(EnvExperiment):
             except KeyError:
                 print("\t\t\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
             finally:
-                # ensure we always remove rid key from _running calibrations
-                # to prevent forever loops
+                # ensure we always remove rid key from _running_calibrations
                 self._running_calibrations.remove(rid_num)
 
         # continue to calibration processing stage if all calibrations have finished
@@ -241,12 +263,13 @@ class Autocalibration(EnvExperiment):
         # batch submit <num_exps> number of experiments at a time
         for i in range(self.num_exps):
 
-            # get expid from queue with current calibrated parameters
+            # get expid from queue and update with current parameters
             expid_dj = self.pending_experiments.popleft()
-            expid_dj.update(self.current_parameters)
+            [update_deep(expid_dj, key_param, val_param)
+             for key_param, val_param in self.current_parameters.items()]
 
             # submit experiment to scheduler
-            rid_dj = self._scheduler.submit(pipeline_name='main', expid=expid_dj)
+            rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_experiments.update(rid_dj)
 
         # change status to waiting
@@ -275,30 +298,29 @@ class Autocalibration(EnvExperiment):
         self._calibration_results.clear()
         calibration_stage = self._pending_calibrations.popleft()
 
-        # todo: document this section better, comments are off-ish
-        # update callback method to be called by _process_calibration_stage
-        # get current value of calibration parameter and
-        # generate a parameter scan around previously calibrated value
-        self._calibration_callback = calibration_stage['callback']
-        parameter_name = self.calibrated_parameters[calibration_stage['parameter_name']]
-        param_sweep_func = calibration_stage['scan_function']
+        # extract values to set up this calibration stage
+        parameter_name =                calibration_stage['parameter_name']
+        self._calibration_callback =    calibration_stage['callback']
+        param_sweep_func =              calibration_stage['sweep_function']
+        parameter_current_value =       self.current_parameters[parameter_name]
 
-        # create all expids for current calibration stage
-        expid_list = {
-            parameter_value: dict(calibration_stage['expid'],
-                                  **{parameter_name: parameter_value})
-            for parameter_value in param_sweep_func(parameter_name)
-        }
 
-        # submit calibrated expid to scheduler and update holding structures
-        for parameter_value, expid in expid_list:
-            rid_dj = self._scheduler.submit(pipeline_name='main', expid=expid_dj)
+        # submit experiments to scan parameter around previously calibrated value
+        for parameter_test_value in param_sweep_func(parameter_current_value):
+
+            # get expid and update it deeply with the calibration test value
+            expid_dj = calibration_stage['expid'].copy()
+            update_deep(expid_dj, parameter_name, parameter_test_value)
+
+            # submit calibrated expid to scheduler and update holding structures
+            rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_calibrations.update(rid_dj)
             self._calibration_results.update({
-                'rid':              rid_dj,
-                'parameter_value':  parameter_value,
-                'results':          None
+                'rid': rid_dj,
+                'parameter_value': parameter_value,
+                'results': None
             })
+
 
         # change status to waiting
         self._status = Status.calibration_waiting
@@ -324,6 +346,7 @@ class Autocalibration(EnvExperiment):
             self._submit_experiments()
         else:
             self._submit_calibration_stage()
+
 
     '''
     User-subclassable Functions
