@@ -7,7 +7,7 @@ from artiq.experiment import *
 
 class ScheduleTest(EnvExperiment):
     def build(self):
-        self._scheduler = self.get_device("scheduler")
+        self.scheduler = self.get_device("scheduler")
         self.setattr_argument("scan_range_v",                           Scannable(
                                                                             default=CenterScan(40, 80, 1, randomize=True),
                                                                             global_min=0, global_max=300, global_step=1,

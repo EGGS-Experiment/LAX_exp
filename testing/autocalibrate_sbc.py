@@ -56,6 +56,8 @@ class Autocalibration(EnvExperiment):
         # create necessary values
         self.sbc_freq_list_mhz = np.ones(3) * (self.freq_carrier_mhz - self.freq_secular_khz / 2000.)
 
+        # todo: create calibration expid list
+
         # create exp list
         self.scan_range_v = list(self.scan_range_v)
         self.expid_list = [{
@@ -204,8 +206,7 @@ class Autocalibration(EnvExperiment):
             # submit calibrated expid to scheduler and update
             rid_dj = self._scheduler.submit(pipeline_name='main', expid=expid_dj)
             self._calib_dataset_search[rid_dj] = {
-                # todo: ensure we have the correct key for the experiment
-                'key':          'idk',
+                'key':          expid_dj['key'],
                 'status':       'pending',
                 'results':      dict()
             }
@@ -217,9 +218,10 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        # todo: get previous calibrated values
-        # todo: scan a given range around previous value
-        #       maybe: use user-supplied function?
+        # generate a parameter scan around previously calibrated value
+        _calib_param_scan_list = self.generate_parameter_scan(self._calibrated_params)
+
+
         # todo: create list of calibration experiment expids to submit
         # todo: submit experiments and get rids, then store them in a class dict
 
@@ -236,4 +238,15 @@ class Autocalibration(EnvExperiment):
 
         # todo: check if we have more calibration sets to do, then load them into active calibration queue and submit again
         # todo: otherwise, change status
+        pass
+
+
+    '''
+    User-subclassable Functions
+    '''
+
+    def generate_parameter_scan(self, parameter_dict):
+        """
+        todo: document
+        """
         pass
