@@ -143,4 +143,4 @@ class HeatingRate(SidebandCooling.SidebandCooling):
             print("\t\t{:.1f}\tms:\t{:.2f} +/- {:.2f}".format(heat_time_s*1.e3, phonon_num, phonon_err))
         print("\t---------------------")
         print("\t\tSlope:\t\t{:.3f} quanta/s".format(fit_params_heating_rate[1]))
-        print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[0]))
+        print("\t\tIntercept:\t\t{:.3f} quanta".format(fit_params_heating_rate[0]))
