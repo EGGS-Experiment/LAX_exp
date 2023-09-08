@@ -41,6 +41,24 @@ class ScheduleTest(EnvExperiment):
 
 
     def run(self):
-        for expid_dj in self.expid_list:
-            # print(expid_dj["arguments"]["dc_micromotion_voltage_v"])
-            self._scheduler.submit(pipeline_name="main", expid=expid_dj)
+        # for expid_dj in self.expid_list:
+        #     # print(expid_dj["arguments"]["dc_micromotion_voltage_v"])
+        #     self.scheduler.submit(pipeline_name="main", expid=expid_dj)
+        expid = {
+            "file":         "LAX_exp\\experiments\\LaserScan.py",
+            "class_name":   "LaserScan",
+            "log_level":    30,
+            "key":          "tmpres.ls",
+            "arguments": {
+                "repetitions":  10,
+                "freq_qubit_scan_mhz": {
+                    "center":       103.201,
+                    "span":         0.015,
+                    "step":         0.0005,
+                    "randomize":    True,
+                    "seed":         None,
+                    "ty":           "CenterScan"
+                }
+            }
+        }
+        self.scheduler.submit(pipeline_name="main", expid=expid)
