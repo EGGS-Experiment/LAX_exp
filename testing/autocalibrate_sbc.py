@@ -32,7 +32,7 @@ class Autocalibration(EnvExperiment):
         self.num_exps =             3
 
         # base params - laser scan
-        self.freq_carrier_mhz =     103.209
+        self.freq_carrier_mhz =     103.202
         self.freq_secular_khz =     1088.0
         self.freq_ls_scan_khz =     25.0
 
@@ -50,7 +50,7 @@ class Autocalibration(EnvExperiment):
         # tmp remove
         # data structure to hold calibrated parameters
         self._calibrated_params =       dict()
-        self._calib_dataset_search = dict()
+        self._calib_dataset_search =    dict()
         # tmp remove
 
         # create necessary values
