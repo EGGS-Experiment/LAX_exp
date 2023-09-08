@@ -9,7 +9,7 @@ from artiq.coredevice.exceptions import CoreException
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import ParametricExcite
+from LAX_exp.system.subsequences import ParametricExcite, RescueIon
 
 
 class InsufficientCounts(Exception):
@@ -68,6 +68,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # get relevant subsequences
         self.parametric_subsequence =                               ParametricExcite(self)
+        self.rescue_subsequence =                                   RescueIon(self)
 
 
     def prepare_experiment(self):
@@ -132,7 +133,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         with parallel:
             # set cooling beams
             with sequential:
-                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf)
+                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+                self.pump.set_profile(0)
                 self.pump.on()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
