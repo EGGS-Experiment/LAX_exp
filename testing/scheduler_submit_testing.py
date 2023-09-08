@@ -34,7 +34,8 @@ class ScheduleTest(EnvExperiment):
                         "randomize":    True,
                         "seed":         None,
                         "ty":           "CenterScan"
-                    }
+                    },
+                    "tmp_arg":          100.01
                 }
             }
             self.expid_list.append(expid)
