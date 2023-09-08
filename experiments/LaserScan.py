@@ -153,8 +153,8 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('spectrum_peaks',  peak_vals)
 
         # tmp remove
-        self.set_dataset('tmpres.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
         self.set_dataset('tmpres.ls.result', peak_vals, broadcast=True, persist=False, archive=False)
+        self.set_dataset('tmpres.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
         # tmp remove
 
 
