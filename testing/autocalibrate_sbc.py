@@ -304,7 +304,6 @@ class Autocalibration(EnvExperiment):
         param_sweep_func =              calibration_stage['sweep_function']
         parameter_current_value =       self.current_parameters[parameter_name]
 
-
         # submit experiments to scan parameter around previously calibrated value
         for parameter_test_value in param_sweep_func(parameter_current_value):
 
