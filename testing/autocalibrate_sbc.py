@@ -3,11 +3,14 @@ from artiq.experiment import *
 
 from enum import Enum
 from collections import deque
-from asyncio import get_event_loop, set_event_loop, Event
+from asyncio import get_event_loop, Event
 
 from sipyco import pyon
 from sipyco.sync_struct import Subscriber
 from sipyco.asyncio_tools import atexit_register_coroutine
+
+# TODO: TEST MULTI-STAGE CALIBRATION
+
 
 
 class Status(Enum):
@@ -161,7 +164,7 @@ class Autocalibration(EnvExperiment):
 
             # set up event loop for subscribers
             loop = get_event_loop()
-            stop_event = Event()
+            self.stop_event = Event()
 
             # create subscribers
             self.scheduler_subscriber = Subscriber('schedule',
@@ -184,12 +187,14 @@ class Autocalibration(EnvExperiment):
             loop.call_later(2, self._submit_experiments)
 
             # run event loop indefinitely
-            loop.run_until_complete(stop_event.wait())
+            loop.run_until_complete(self.stop_event.wait())
             loop.close()
 
         except Exception as e:
             print('\t\t\tError during main run: {}'.format(e))
             raise
+        finally:
+            print('\t---------AUTOCALIBRATION DONE---------')
 
 
     '''
@@ -229,18 +234,8 @@ class Autocalibration(EnvExperiment):
         """
         # ignore any updates not about completed calibrations
         mod_key = mod.get('key', [])
-
-        # tmp remove
-        if ('management' in mod_key) or ('action' == 'init') or (self._status != Status.calibration_waiting):
-            return
-        print('\t\tDS UPDATE: {}'.format(mod))
-        # tmp remove
-
         if ('rid' not in mod_key) or (self._status != Status.calibration_waiting):
             return
-
-
-
 
         # check if modification concerns one of our calibration experiments
         rid_num = mod['value'][1] if mod['action'] == 'setitem' else None
@@ -250,10 +245,8 @@ class Autocalibration(EnvExperiment):
             # extract results from dataset_dict
             results_path = '.'.join(mod_key.split('.')[:-1] + ['results'])
             try:
-                calib_res = dataset_dict[results_path]
-                self._calibration_results[rid_num]['results'] = calib_res
+                self._calibration_results[rid_num]['results'] = dataset_dict[results_path]
             except KeyError as e:
-                print(e)
                 print("\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
             finally:
                 # ensure we always remove rid key from _running_calibrations
@@ -277,8 +270,13 @@ class Autocalibration(EnvExperiment):
         # batch submit <num_exps> number of experiments at a time
         for i in range(self.num_exps):
 
-            # get expid from queue and update with current parameters
-            expid_dj = self.pending_experiments.popleft()
+            # get expid from queue
+            try:
+                expid_dj = self.pending_experiments.popleft()
+            except IndexError:
+                self.stop_event.set()
+
+            # update expid with current parameters
             [update_deep(expid_dj['arguments'], key_param, val_param)
              for key_param, val_param in self.current_parameters.items()]
 
@@ -349,10 +347,10 @@ class Autocalibration(EnvExperiment):
         print('\tAutocalibration: CALIBRATION EXPERIMENTS COMPLETED ===> PROCESSING')
 
         # create a 2D array of [param_val, res] to pass to callback
+        # todo: add error handling if there's some problem with the results
         _calibration_results = [(result_dict['parameter_value'], result_dict['results'])
                                 for result_dict in self._calibration_results.values()]
         self._calibration_callback(_calibration_results)
-
 
         # clean up calibration stage
         self._running_calibrations.clear()
