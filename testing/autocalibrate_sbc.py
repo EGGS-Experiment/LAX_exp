@@ -81,7 +81,7 @@ class Autocalibration(EnvExperiment):
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
-                    "file": "experiments\\LaserScan.py",
+                    "file": "LAX_exp\\experiments\\LaserScan.py",
                     # "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
                     "class_name": "LaserScan",
                     # "class_name":   "autocalib_ls_test",
@@ -162,8 +162,8 @@ class Autocalibration(EnvExperiment):
 
 
             # set up event loop for subscribers
-            loop =          get_event_loop()
-            stop_event =    Event()
+            loop =              get_event_loop()
+            self.stop_event =   Event()
 
             # create subscribers
             self.scheduler_subscriber = Subscriber('schedule',
@@ -191,9 +191,8 @@ class Autocalibration(EnvExperiment):
             loop.close()
 
         except Exception as e:
-            pass
-            # print('\t\t\tError during main run: {}'.format(e))
-            # raise
+            print('\t\t\tError during Run: {}'.format(e))
+            raise
         finally:
             print('\t---------AUTOCALIBRATION DONE---------')
 
@@ -282,7 +281,7 @@ class Autocalibration(EnvExperiment):
              for key_param, val_param in self.current_parameters.items()]
 
             # submit experiment to scheduler
-            rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
+            rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
             self._running_experiments.update([rid_dj])
 
             print('\t\tAutocalibration: submitted experiment - RID: {:d}'.format(rid_dj))
@@ -329,13 +328,12 @@ class Autocalibration(EnvExperiment):
             update_deep(expid_dj['arguments'], parameter_name, parameter_test_value)
 
             # submit calibrated expid to scheduler and update holding structures
-            rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
+            rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
             self._running_calibrations.update([rid_dj])
-            self._calibration_results.update({
-                'rid':              rid_dj,
+            self._calibration_results[rid_dj] = {
                 'parameter_value':  parameter_test_value,
                 'results':          None
-            })
+            }
             print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting

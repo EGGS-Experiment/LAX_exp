@@ -21,7 +21,7 @@ class autocalib_sbc_test(EnvExperiment):
     def run(self):
         print('\t\t\tSBC - RUNNING')
         for i in range(10):
-            sleep(0.5)
+            sleep(0.2)
 
     def analyze(self):
         # print('\t\t\tSBC - Test')
