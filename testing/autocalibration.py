@@ -9,8 +9,6 @@ from sipyco import pyon
 from sipyco.sync_struct import Subscriber
 from sipyco.asyncio_tools import atexit_register_coroutine
 
-# TODO: TEST MULTI-STAGE CALIBRATION
-
 
 class Status(Enum):
     experiment_submitting =     0
@@ -47,8 +45,8 @@ class Autocalibration(EnvExperiment):
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
 
         # autocalibration parameters
-        self.experiments_per_calibration =  1
-        self.experiment_repetitions =       1
+        self.experiments_per_calibration =  2
+        self.experiment_repetitions =       3
 
         # base params - laser scan
         self.freq_carrier_mhz =     103.202
@@ -77,6 +75,7 @@ class Autocalibration(EnvExperiment):
         # create list of parameters to continually update the experiments with
         self.current_parameters =       {
             'freq_qubit_scan_mhz.center':           103.201,
+            'freq_rabiflop_mhz':                    95.128,
             'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
         }
         # todo: maybe split parameters into system parameters (i.e. those for the experiment) and those for the calibrations (i.e. those that the calibrations use
@@ -104,6 +103,49 @@ class Autocalibration(EnvExperiment):
                             "seed":         None,
                             "ty":           "CenterScan"
                         }
+                    }
+                }
+            },
+            {
+                'parameter_name':   'freq_rabiflop_mhz',
+                'sweep_function':   self.sweep_func_2,
+                'callback':         self.process_func_2,
+                'expid':{
+                    "log_level": 30,
+                    # "file": "experiments\\RabiFlopping.py",
+                    "file":         "LAX_exp\\testing\\_autocalib_rabiflop_test.py",
+                    # "class_name": "RabiFlopping",
+                    "class_name": "autocalib_rabiflop_test",
+                    "arguments": {
+                        "repetitions": 50,
+                        "cooling_type": "Doppler",
+                        "time_rabi_us_list": {
+                            "npoints": 100,
+                            "randomize": 2,
+                            "seed": None,
+                            "start": 1.0,
+                            "stop": 40.0,
+                            "ty": "RangeScan"
+                        },
+                        "freq_rabiflop_mhz": 103.2255,
+                        "att_readout_db": 8.0,
+                        "calibration_pulsed": False,
+                        "sideband_cycles_pulsed": 80,
+                        "extra_sideband_cycles": 0,
+                        "cycles_per_spin_polarization": 15,
+                        "time_form_sideband_cooling": "Linear",
+                        "time_min_sideband_cooling_us_list": "[30]",
+                        "time_max_sideband_cooling_us_list": "[150]",
+                        "freq_sideband_cooling_mhz_list": "[103.77]",
+                        "att_sidebandcooling_pulsed_db": 8.0,
+                        "calibration_continuous": False,
+                        "sideband_cycles_continuous": 20,
+                        "time_sideband_cooling_us": 36000.0,
+                        "pct_per_spin_polarization": 20.0,
+                        "freq_sideband_cooling_mhz_pct_list": "{102.85: 20, 102.422: 40, 102.338: 40}",
+                        "att_sidebandcooling_continuous_db": 8.0,
+                        "ampl_quench_pct": 5.0,
+                        "rescue_enable": False, "repetitions_per_rescue": 1
                     }
                 }
             }
@@ -143,11 +185,23 @@ class Autocalibration(EnvExperiment):
         } for i in range(self.experiment_repetitions)])
         np.random.shuffle(self.pending_experiments)
 
+
+    '''
+    Calibration Processing
+    '''
+
     def sweep_func_1(self, parameter_current):
         return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
 
     def process_func_1(self, results_list):
         print('\t\tresults: {}'.format(results_list))
+        # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
+
+    def sweep_func_2(self, parameter_current):
+        return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
+
+    def process_func_2(self, results_list):
+        print('\t\tresults 2: {}'.format(results_list))
         # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
 
 
@@ -265,7 +319,7 @@ class Autocalibration(EnvExperiment):
 
         # continue to calibration processing stage if all calibrations have finished
         if len(self._running_calibrations) == 0:
-            print("\tAutocalibration: CALIBRATIONS FINISHED ===> PROCESSING")
+            # print("\tAutocalibration: CALIBRATIONS FINISHED ===> PROCESSING")
             self._status = Status.calibration_processing
             self._process_calibration_stage()
 
@@ -279,7 +333,7 @@ class Autocalibration(EnvExperiment):
         todo: document
         """
         # batch submit <num_exps> number of experiments at a time
-        for i in range(self.num_exps):
+        for i in range(self.experiments_per_calibration):
 
             # get expid from queue
             try:
@@ -310,7 +364,7 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        print('\tAutocalibration: CALIBRATIONS INITIALIZING')
+        # print('\tAutocalibration: CALIBRATIONS INITIALIZING')
         self._pending_calibrations = self.calibrations_list.copy()
         self._submit_calibration_stage()
 
@@ -318,7 +372,7 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        print('\tAutocalibration: CALIBRATIONS SUBMITTING')
+        # print('\tAutocalibration: CALIBRATIONS SUBMITTING')
         
         # todo: add error handling to check that pending_calibrations is non-empty
         # clear loop iterators and get new calibration stage
@@ -355,8 +409,6 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        print('\tAutocalibration: CALIBRATION EXPERIMENTS COMPLETED ===> PROCESSING')
-
         # create a 2D array of [param_val, res] to pass to callback
         # todo: add error handling if there's some problem with the results
         _calibration_results = [(result_dict['parameter_value'], result_dict['results'])
@@ -375,7 +427,7 @@ class Autocalibration(EnvExperiment):
             print('\tAutocalibration: CALIBRATIONS FINISHED ===> SUBMITTING EXPERIMENTS')
             self._submit_experiments()
         else:
-            print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
+            # print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
             self._submit_calibration_stage()
 
 
