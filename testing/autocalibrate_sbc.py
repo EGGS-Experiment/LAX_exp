@@ -12,7 +12,6 @@ from sipyco.asyncio_tools import atexit_register_coroutine
 # TODO: TEST MULTI-STAGE CALIBRATION
 
 
-
 class Status(Enum):
     experiment_submitting =     0
     experiment_waiting =        1
@@ -56,7 +55,6 @@ class Autocalibration(EnvExperiment):
         # base params - sbc
         self.sbc_freq_span_khz =    4.
         self.sbc_freq_points =      5.
-
 
     def prepare(self):
         # create necessary data structures
@@ -133,10 +131,10 @@ class Autocalibration(EnvExperiment):
                               "ty": "CenterScan"
                           }
                           }
-        } for i in range(5)])
+        } for i in range(3)])
 
     def sweep_func_1(self, parameter_current):
-        return np.linspace(parameter_current-2, parameter_current+2, 2)
+        return np.linspace(parameter_current-2, parameter_current+2, 1)
 
     def process_func_1(self, results_list):
         # todo: convert results_list from pyon and extract first freq
@@ -179,8 +177,9 @@ class Autocalibration(EnvExperiment):
             loop.run_until_complete(self.dataset_subscriber.connect('::1', 3250))
 
             # ensure subscribers close connection upon exit
-            atexit_register_coroutine(self.scheduler_subscriber.close)
-            atexit_register_coroutine(self.dataset_subscriber.close)
+            # todo: is this necessary?
+            # atexit_register_coroutine(self.scheduler_subscriber.close)
+            # atexit_register_coroutine(self.dataset_subscriber.close)
 
             # submit initial experiments first
             self._status = Status.experiment_submitting
@@ -191,8 +190,9 @@ class Autocalibration(EnvExperiment):
             loop.close()
 
         except Exception as e:
-            print('\t\t\tError during main run: {}'.format(e))
-            raise
+            pass
+            # print('\t\t\tError during main run: {}'.format(e))
+            # raise
         finally:
             print('\t---------AUTOCALIBRATION DONE---------')
 
