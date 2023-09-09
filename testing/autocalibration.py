@@ -154,6 +154,7 @@ class Autocalibration(EnvExperiment):
     '''
     MAIN SEQUENCE
     '''
+
     def run(self):
         try:
             # set up target_builder function for scheduler client
@@ -205,7 +206,6 @@ class Autocalibration(EnvExperiment):
             # loop.stop()
             # loop.close()
             print('\t-----------------------------AUTOCALIBRATION DONE-----------------------------')
-
 
 
     '''
@@ -380,7 +380,7 @@ class Autocalibration(EnvExperiment):
 
 
     '''
-    User-subclassable Functions
+    User-Subclassable Functions
     '''
 
     def generate_parameter_scan(self, parameter_dict):
