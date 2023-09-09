@@ -12,12 +12,8 @@ class autocalib_sbc_test(EnvExperiment):
     """
 
     def build(self):
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
         self.setattr_device("scheduler")
         self.setattr_device("ccb")
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
 
     def prepare(self):
         pass
