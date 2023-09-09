@@ -81,16 +81,16 @@ class Autocalibration(EnvExperiment):
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
-                    # "file": "experiments\\LaserScan.py",
-                    "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
-                    # "class_name": "LaserScan",
-                    "class_name":   "autocalib_ls_test",
+                    "file": "experiments\\LaserScan.py",
+                    # "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
+                    "class_name": "LaserScan",
+                    # "class_name":   "autocalib_ls_test",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":  20,
+                        "repetitions":  15,
                         "freq_qubit_scan_mhz": {
                             "center":       103.201,
-                            "span":         0.02,
+                            "span":         0.015,
                             "step":         0.0005,
                             "randomize":    True,
                             "seed":         None,
@@ -137,6 +137,7 @@ class Autocalibration(EnvExperiment):
         return np.linspace(parameter_current-2, parameter_current+2, 1)
 
     def process_func_1(self, results_list):
+        print('\t\tresults: {}'.format(results_list))
         # todo: convert results_list from pyon and extract first freq
         # todo: choose a value randomly from the list
         # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
@@ -161,8 +162,8 @@ class Autocalibration(EnvExperiment):
 
 
             # set up event loop for subscribers
-            loop = get_event_loop()
-            self.stop_event = Event()
+            loop =          get_event_loop()
+            stop_event =    Event()
 
             # create subscribers
             self.scheduler_subscriber = Subscriber('schedule',
@@ -320,7 +321,6 @@ class Autocalibration(EnvExperiment):
         param_sweep_func =              calibration_stage['sweep_function']
         parameter_current_value =       self.current_parameters[parameter_name]
 
-
         # submit experiments to scan parameter around previously calibrated value
         for parameter_test_value in param_sweep_func(parameter_current_value):
 
@@ -331,10 +331,11 @@ class Autocalibration(EnvExperiment):
             # submit calibrated expid to scheduler and update holding structures
             rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_calibrations.update([rid_dj])
-            self._calibration_results[rid_dj] = {
-                'parameter_value': parameter_test_value,
-                'results': None
-            }
+            self._calibration_results.update({
+                'rid':              rid_dj,
+                'parameter_value':  parameter_test_value,
+                'results':          None
+            })
             print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
