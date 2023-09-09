@@ -44,8 +44,11 @@ class Autocalibration(EnvExperiment):
                                                                             unit="V", scale=1, ndecimals=3
                                                                         ))
 
+        # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
+
         # autocalibration parameters
-        self.num_exps =             1
+        self.experiments_per_calibration =  1
+        self.experiment_repetitions =       1
 
         # base params - laser scan
         self.freq_carrier_mhz =     103.202
@@ -66,14 +69,19 @@ class Autocalibration(EnvExperiment):
         self._calibration_callback =    lambda x: x
         self._calibration_results =     dict()
 
+        # create list of calibrations and experiments
+        self._prepare_expids()
 
+
+    def _prepare_expids(self):
         # create list of parameters to continually update the experiments with
         self.current_parameters =       {
             'freq_qubit_scan_mhz.center':           103.201,
             'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
         }
+        # todo: maybe split parameters into system parameters (i.e. those for the experiment) and those for the calibrations (i.e. those that the calibrations use
 
-        # create calibration expid list
+        # create list of calibrations to submit
         # need: expid, parameter_name, sweep_function, callback
         self.calibrations_list =        deque([
             {
@@ -81,10 +89,10 @@ class Autocalibration(EnvExperiment):
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
-                    "file": "LAX_exp\\experiments\\LaserScan.py",
-                    # "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
-                    "class_name": "LaserScan",
-                    # "class_name":   "autocalib_ls_test",
+                    # "file": "LAX_exp\\experiments\\LaserScan.py",
+                    "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
+                    # "class_name": "LaserScan",
+                    "class_name":   "autocalib_ls_test",
                     "log_level":    30,
                     "arguments": {
                         "repetitions":  15,
@@ -101,7 +109,8 @@ class Autocalibration(EnvExperiment):
             }
         ])
 
-        # create exp list
+        # create list of experiments to submit
+        # note: each element in the deque should be a simple expid dict
         self.pending_experiments = deque([{
             "log_level": 30,
             # "file": "experiments\\SidebandCooling.py",
@@ -131,19 +140,20 @@ class Autocalibration(EnvExperiment):
                               "ty": "CenterScan"
                           }
                           }
-        } for i in range(3)])
+        } for i in range(self.experiment_repetitions)])
+        np.random.shuffle(self.pending_experiments)
 
     def sweep_func_1(self, parameter_current):
-        return np.linspace(parameter_current-2, parameter_current+2, 1)
+        return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
 
     def process_func_1(self, results_list):
         print('\t\tresults: {}'.format(results_list))
-        # todo: convert results_list from pyon and extract first freq
-        # todo: choose a value randomly from the list
         # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
-        pass
 
 
+    '''
+    MAIN SEQUENCE
+    '''
     def run(self):
         try:
             # set up target_builder function for scheduler client
@@ -169,7 +179,6 @@ class Autocalibration(EnvExperiment):
             self.scheduler_subscriber = Subscriber('schedule',
                                                    _update_scheduler,
                                                    lambda mod: self._process_scheduler_update(_scheduler_struct, mod))
-            # todo: ensure mod has nothing to do with datasets
             self.dataset_subscriber = Subscriber('datasets',
                                                  _update_datasets,
                                                  lambda mod: self._process_datasets_update(_dataset_struct, mod))
@@ -178,9 +187,8 @@ class Autocalibration(EnvExperiment):
             loop.run_until_complete(self.dataset_subscriber.connect('::1', 3250))
 
             # ensure subscribers close connection upon exit
-            # todo: is this necessary?
-            # atexit_register_coroutine(self.scheduler_subscriber.close)
-            # atexit_register_coroutine(self.dataset_subscriber.close)
+            atexit_register_coroutine(self.scheduler_subscriber.close)
+            atexit_register_coroutine(self.dataset_subscriber.close)
 
             # submit initial experiments first
             self._status = Status.experiment_submitting
@@ -188,13 +196,16 @@ class Autocalibration(EnvExperiment):
 
             # run event loop indefinitely
             loop.run_until_complete(self.stop_event.wait())
-            loop.close()
+            # loop.stop()
+            # loop.close()
 
         except Exception as e:
             print('\t\t\tError during Run: {}'.format(e))
-            raise
         finally:
-            print('\t---------AUTOCALIBRATION DONE---------')
+            # loop.stop()
+            # loop.close()
+            print('\t-----------------------------AUTOCALIBRATION DONE-----------------------------')
+
 
 
     '''
@@ -216,7 +227,7 @@ class Autocalibration(EnvExperiment):
 
             # remove the experiment from our checklist if it has finished running
             if (exp_rid in self._running_experiments) and (exp_notification['status'] == 'deleting'):
-                print('\t\tAutocalibration: removing experiment - RID: {:d}'.format(exp_rid))
+                print('\t\tExperiment finished - RID: {:d}'.format(exp_rid))
                 self._running_experiments.remove(exp_rid)
 
         # begin recalibration process if all submitted experiments have finished
@@ -240,12 +251,12 @@ class Autocalibration(EnvExperiment):
         # check if modification concerns one of our calibration experiments
         rid_num = mod['value'][1] if mod['action'] == 'setitem' else None
         if rid_num in self._running_calibrations:
-            print('\t\tAutocalibration: calibration finished - RID: {:d}'.format(rid_num))
+            print('\t\tCalibration finished - RID: {:d}'.format(rid_num))
 
             # extract results from dataset_dict
             results_path = '.'.join(mod_key.split('.')[:-1] + ['results'])
             try:
-                self._calibration_results[rid_num]['results'] = dataset_dict[results_path]
+                self._calibration_results[rid_num]['results'] = dataset_dict[results_path][1]
             except KeyError as e:
                 print("\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
             finally:
@@ -275,6 +286,7 @@ class Autocalibration(EnvExperiment):
                 expid_dj = self.pending_experiments.popleft()
             except IndexError:
                 self.stop_event.set()
+                return
 
             # update expid with current parameters
             [update_deep(expid_dj['arguments'], key_param, val_param)
@@ -284,7 +296,7 @@ class Autocalibration(EnvExperiment):
             rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
             self._running_experiments.update([rid_dj])
 
-            print('\t\tAutocalibration: submitted experiment - RID: {:d}'.format(rid_dj))
+            print('\t\tSubmitted experiment - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
         self._status = Status.experiment_waiting
@@ -334,7 +346,7 @@ class Autocalibration(EnvExperiment):
                 'parameter_value':  parameter_test_value,
                 'results':          None
             }
-            print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
+            print('\t\tSubmitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
         self._status = Status.calibration_waiting
