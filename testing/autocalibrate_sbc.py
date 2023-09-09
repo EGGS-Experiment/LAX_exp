@@ -133,7 +133,7 @@ class Autocalibration(EnvExperiment):
         } for i in range(5)])
 
     def sweep_func_1(self, parameter_current):
-        return np.linspace(parameter_current-2, parameter_current+2, 5)
+        return np.linspace(parameter_current-2, parameter_current+2, 2)
 
     def process_func_1(self, results_list):
         # todo: convert results_list from pyon and extract first freq
@@ -229,18 +229,22 @@ class Autocalibration(EnvExperiment):
         """
         # ignore any updates not about completed calibrations
         mod_key = mod.get('key', [])
-        if ('rid' not in mod_key) or (self._status != Status.calibration_waiting):
-            return
 
         # tmp remove
+        if ('management' in mod_key) or ('action' == 'init') or (self._status != Status.calibration_waiting):
+            return
         print('\t\tDS UPDATE: {}'.format(mod))
         # tmp remove
 
-        rid_num = mod['value'][1] if mod['action'] == 'setitem' else None
+        if ('rid' not in mod_key) or (self._status != Status.calibration_waiting):
+            return
+
+
+
 
         # check if modification concerns one of our calibration experiments
+        rid_num = mod['value'][1] if mod['action'] == 'setitem' else None
         if rid_num in self._running_calibrations:
-
             print('\t\tAutocalibration: calibration finished - RID: {:d}'.format(rid_num))
 
             # extract results from dataset_dict
@@ -248,7 +252,8 @@ class Autocalibration(EnvExperiment):
             try:
                 calib_res = dataset_dict[results_path]
                 self._calibration_results[rid_num]['results'] = calib_res
-            except KeyError:
+            except KeyError as e:
+                print(e)
                 print("\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
             finally:
                 # ensure we always remove rid key from _running_calibrations
@@ -328,12 +333,10 @@ class Autocalibration(EnvExperiment):
             # submit calibrated expid to scheduler and update holding structures
             rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_calibrations.update([rid_dj])
-            self._calibration_results.update({
-                'rid': rid_dj,
+            self._calibration_results[rid_dj] = {
                 'parameter_value': parameter_test_value,
                 'results': None
-            })
-
+            }
             print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
@@ -343,12 +346,13 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
+        print('\tAutocalibration: CALIBRATION EXPERIMENTS COMPLETED ===> PROCESSING')
+
         # create a 2D array of [param_val, res] to pass to callback
         _calibration_results = [(result_dict['parameter_value'], result_dict['results'])
-                                for result_dict in self._calibration_results]
+                                for result_dict in self._calibration_results.values()]
         self._calibration_callback(_calibration_results)
-        print('\tAutocalibration: CALIBRATION EXPERIMENTS COMPLETED ===> PROCESSING')
-        print('\t\t{}'.format(pyon.encode(_calibration_results)))
+
 
         # clean up calibration stage
         self._running_calibrations.clear()

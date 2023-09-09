@@ -19,7 +19,7 @@ class autocalib_ls_test(EnvExperiment):
         pass
 
     def run(self):
-        print('\t\t\tLASERSCAN - RUNNING')
+        print('\t\t\tLASERSCAN2 - RUNNING')
         for i in range(10):
             sleep(0.5)
 
