@@ -328,9 +328,9 @@ class Autocalibration(EnvExperiment):
             rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_calibrations.update([rid_dj])
             self._calibration_results.update({
-                'rid': rid_dj,
-                'parameter_value': parameter_test_value,
-                'results': None
+                'rid':              rid_dj,
+                'parameter_value':  parameter_test_value,
+                'results':          None
             })
 
             print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
