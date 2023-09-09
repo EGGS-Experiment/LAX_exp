@@ -64,7 +64,6 @@ class Autocalibration(EnvExperiment):
         self._running_calibrations =    set()
         self._calibration_callback =    lambda x: x
         self._calibration_results =     dict()
-        # tmp remove
 
 
         # create list of parameters to continually update the experiments with
@@ -75,14 +74,14 @@ class Autocalibration(EnvExperiment):
 
         # create calibration expid list
         # need: expid, parameter_name, sweep_function, callback
-        self.calibration_list =         deque([
+        self.calibrations_list =        deque([
             {
                 'parameter_name':   'freq_qubit_scan_mhz.center',
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
                     # "file": "experiments\\LaserScan.py",
-                    "file":         "testing\\_autocalib_ls_test.py",
+                    "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
                     # "class_name": "LaserScan",
                     "class_name":   "autocalib_ls_test",
                     "log_level":    30,
@@ -105,10 +104,9 @@ class Autocalibration(EnvExperiment):
         self.pending_experiments = deque([{
             "log_level": 30,
             # "file": "experiments\\SidebandCooling.py",
-            "file": "testing\\_autocalib_sbc_test.py",
+            "file": "LAX_exp\\testing\\_autocalib_sbc_test.py",
             # "class_name": "SidebandCooling",
             "class_name": "autocalib_sbc_test",
-            "repo_rev": "81470513c47332f25a1ea29921f7171e518bbcac",
             "arguments": {"repetitions": 80, "cooling_type": "Continuous",
                        "freq_rsb_scan_mhz": {"center": 102.654, "randomize": True, "seed": None, "span": 0.02,
                                              "step": 0.0005, "ty": "CenterScan"},
@@ -182,8 +180,8 @@ class Autocalibration(EnvExperiment):
             atexit_register_coroutine(self.dataset_subscriber.close)
 
             # submit initial experiments first
-            loop.call_later(5, self._submit_experiments)
-            # self._status = Status.experiment_submitting
+            self._status = Status.experiment_submitting
+            loop.call_later(2, self._submit_experiments)
 
             # run event loop indefinitely
             loop.run_until_complete(stop_event.wait())
@@ -213,13 +211,13 @@ class Autocalibration(EnvExperiment):
 
             # remove the experiment from our checklist if it has finished running
             if (exp_rid in self._running_experiments) and (exp_notification['status'] == 'deleting'):
-                print('\t\t\tAutocalibration:\tremoving experiment - RID: {:d}'.format(exp_rid))
+                print('\t\tAutocalibration: removing experiment - RID: {:d}'.format(exp_rid))
                 self._running_experiments.remove(exp_rid)
 
         # begin recalibration process if all submitted experiments have finished
         # and we have not already begun recalibrating
         if (len(self._running_experiments) == 0) and (self._status == Status.experiment_waiting):
-            print('\tAutocalibration:\tEXPERIMENTS FINISHED ===> CALIBRATING')
+            print('\tAutocalibration: EXPERIMENTS FINISHED ===> CALIBRATING')
             self._status = Status.calibration_initializing
             self._initialize_calibrations()
 
@@ -229,37 +227,38 @@ class Autocalibration(EnvExperiment):
         Checks if any experiments are running and sends a Signal
         to clients accordingly.
         """
-        mod_path = mod.get('path', [])
-
         # ignore any updates not about completed calibrations
-        if ('rid' not in mod_path) or (self._status != Status.calibration_waiting):
+        mod_key = mod.get('key', [])
+        if ('rid' not in mod_key) or (self._status != Status.calibration_waiting):
             return
 
-        rid_num = None
-        if mod['actions'] == 'setitem':
-            rid_num = mod['value'][1]
+        # tmp remove
+        print('\t\tDS UPDATE: {}'.format(mod))
+        # tmp remove
+
+        rid_num = mod['value'][1] if mod['action'] == 'setitem' else None
 
         # check if modification concerns one of our calibration experiments
         if rid_num in self._running_calibrations:
 
-            print('\t\t\tAutocalibration:\tcalibration finished - RID: {:d}'.format(rid_num))
+            print('\t\tAutocalibration: calibration finished - RID: {:d}'.format(rid_num))
 
             # extract results from dataset_dict
-            results_path = '.'.join(mod_path[:-1] + ['results'])
+            results_path = '.'.join(mod_key.split('.')[:-1] + ['results'])
             try:
                 calib_res = dataset_dict[results_path]
                 self._calibration_results[rid_num]['results'] = calib_res
             except KeyError:
-                print("\t\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
+                print("\t\tError during autocalib: unable to get results for RID: {:d}".format(rid_num))
             finally:
                 # ensure we always remove rid key from _running_calibrations
                 self._running_calibrations.remove(rid_num)
 
         # continue to calibration processing stage if all calibrations have finished
         if len(self._running_calibrations) == 0:
-            print("\tAutocalibration:\tCALIBRATIONS FINISHED ===> PROCESSING")
+            print("\tAutocalibration: CALIBRATIONS FINISHED ===> PROCESSING")
             self._status = Status.calibration_processing
-            self._process_calibrations()
+            self._process_calibration_stage()
 
 
     '''
@@ -282,7 +281,7 @@ class Autocalibration(EnvExperiment):
             rid_dj = self.scheduler.submit(pipeline_name='test', expid=expid_dj)
             self._running_experiments.update([rid_dj])
 
-            print('\t\t\tAutocalibration:\tsubmitted experiment - RID: {:d}'.format(rid_dj))
+            print('\t\tAutocalibration: submitted experiment - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
         self._status = Status.experiment_waiting
@@ -296,7 +295,7 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        print('\tAutocalibration:\tINITIALIZING CALIBRATIONS')
+        print('\tAutocalibration: CALIBRATIONS INITIALIZING')
         self._pending_calibrations = self.calibrations_list.copy()
         self._submit_calibration_stage()
 
@@ -304,7 +303,8 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        print('\tAutocalibration:\tSUBMITTING CALIBRATIONS')
+        print('\tAutocalibration: CALIBRATIONS SUBMITTING')
+        
         # todo: add error handling to check that pending_calibrations is non-empty
         # clear loop iterators and get new calibration stage
         self._running_calibrations.clear()
@@ -330,11 +330,11 @@ class Autocalibration(EnvExperiment):
             self._running_calibrations.update([rid_dj])
             self._calibration_results.update({
                 'rid': rid_dj,
-                'parameter_value': parameter_value,
+                'parameter_value': parameter_test_value,
                 'results': None
             })
 
-            print('\t\t\tAutocalibration:\tsubmitting calibration - RID: {:d}'.format(rid_dj))
+            print('\t\tAutocalibration: submitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
         self._status = Status.calibration_waiting
@@ -347,8 +347,8 @@ class Autocalibration(EnvExperiment):
         _calibration_results = [(result_dict['parameter_value'], result_dict['results'])
                                 for result_dict in self._calibration_results]
         self._calibration_callback(_calibration_results)
-        print('\tAutocalibration:\tCALIBRATION STAGE FINISHED ===> PROCESSING')
-        print('\t\t\t{}'.format(pyon.encode(_calibration_results)))
+        print('\tAutocalibration: CALIBRATION EXPERIMENTS COMPLETED ===> PROCESSING')
+        print('\t\t{}'.format(pyon.encode(_calibration_results)))
 
         # clean up calibration stage
         self._running_calibrations.clear()
@@ -359,10 +359,10 @@ class Autocalibration(EnvExperiment):
         # otherwise, change status
         if len(self._pending_calibrations) == 0:
             self._status = Status.experiment_submitting
-            print('\tAutocalibration:\tCALIBRATIONS FINISHED ===> SUBMITTING EXPERIMENTS')
+            print('\tAutocalibration: CALIBRATIONS FINISHED ===> SUBMITTING EXPERIMENTS')
             self._submit_experiments()
         else:
-            print('\tAutocalibration:\tCALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
+            print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
             self._submit_calibration_stage()
 
 
