@@ -53,15 +53,15 @@ class PhaserEGGS(LAXDevice):
         # clear channel DUC phase accumulators
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_duc_cfg(clr_once=1)
-        delay_mu(self.t_sample_mu)
+        delay_mu(self.t_frame_mu)
         self.phaser.channel[1].set_duc_cfg(clr_once=1)
+        delay_mu(self.t_frame_mu)
 
         # strobe update register for both DUCs
-        delay_mu(self.t_sample_mu)
         self.phaser.duc_stb()
+        delay_mu(self.t_frame_mu)
 
         # sync DAC for both channels
-        delay_mu(self.t_sample_mu)
         self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
 

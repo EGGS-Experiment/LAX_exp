@@ -559,6 +559,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # set DUC phase delay to compensate for inter-channel latency
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[1].set_duc_phase(self.phase_ch1_turns)
+        # todo: do I need to add another get_next_frame_mu?
         self.phaser_eggs.duc_stb()
 
 
