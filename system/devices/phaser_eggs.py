@@ -24,7 +24,7 @@ class PhaserEGGS(LAXDevice):
         # set phaser sample/frame timings
         self.t_sample_mu =                  int64(40)
         self.t_frame_mu =                   int64(320)
-        self.t_output_delay_mu =            int64(1933)
+        self.t_output_delay_mu =            int64(1953)
 
 
         # todo: max phaser sample rate
