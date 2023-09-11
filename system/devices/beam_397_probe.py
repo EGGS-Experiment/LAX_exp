@@ -33,7 +33,9 @@ class Beam397Probe(LAXDevice):
     @kernel(flags={"fast-math"})
     def on(self):
         self.beam.sw.on()
+        delay_mu(8)
 
     @kernel(flags={"fast-math"})
     def off(self):
         self.beam.sw.off()
+        delay_mu(8)
