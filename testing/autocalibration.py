@@ -40,12 +40,8 @@ class Autocalibration(EnvExperiment):
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
         self.experiments_per_calibration =  2
-        self.experiment_repetitions =       5
+        self.experiment_repetitions =       4
 
-        # create list of parameters to continually update the experiments with
-        self.experiment_parameters =       {
-            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
-        }
 
     def prepare(self):
         # create necessary data structures
@@ -57,11 +53,14 @@ class Autocalibration(EnvExperiment):
         self._calibration_callback =    lambda x: x
         self._calibration_results =     dict()
 
+        # prepare parameters and related values
+        self._prepare_parameters()
+
         # create list of calibrations and experiments
         self._prepare_expids()
 
 
-    def _prepare_expids(self):
+    def _prepare_parameters(self):
         # tmp remove
         # set intermediate values for experiment
         self._freq_carrier_aom_mhz =    103.189
@@ -75,6 +74,12 @@ class Autocalibration(EnvExperiment):
             'freq_qubit_scan_mhz.center':   self._freq_carrier_aom_mhz
         }
 
+        # create list of parameters to continually update the experiments with
+        self.experiment_parameters =       {
+            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
+        }
+
+    def _prepare_expids(self):
         # create list of calibrations to submit
         # need: expid, parameter_name, sweep_function, callback
         self.calibrations_list =        deque([
@@ -179,11 +184,18 @@ class Autocalibration(EnvExperiment):
                 parameter_current - self._freq_eggs_abs_mhz/2.]
 
     def process_func_1(self, results_list):
-        yz0 =
-        print(results_list)
-        # res1 = np.array(results_list[:, 2])
-        # print(res1)
-        # todo: update self.experiment_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
+        # guess new frequencies as mean of returned peak frequencies
+        new_peak_values = np.array([np.mean(results[1][:, 0]) for results in results_list])
+        print('new peak values: {}'.format(new_peak_values))
+
+        # update values for calibration-only purposes
+        self._freq_carrier_aom_mhz = new_peak_values[0]
+        self._freq_axial_abs_mhz, self._freq_rf_abs_mhz, self._freq_eggs_abs_mhz = 2. * (new_peak_values[1:] - new_peak_values[0])
+
+        # update calibration and experimental parameters
+        self.calibration_parameters['freq_qubit_scan_mhz.center'] = new_peak_values[0]
+        self.experiment_parameters['freq_sideband_cooling_mhz_pct_list'] = pyon.encode({new_peak_values[3] - 0.00125: 100})
+
 
     def sweep_func_2(self, parameter_current):
         return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
