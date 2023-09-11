@@ -25,7 +25,7 @@ class PhaserTesting(EnvExperiment):
 
         # system values
         self.time_output_delay_mu =                 np.int64(1953)
-        self.phase_inherent_ch1_turns =             -0.050
+        self.phase_inherent_ch1_turns =             -0.2551
         # self.time_latency_ch1_system_ns =           2.16
         self.time_latency_ch1_system_ns =           0.0
 
@@ -171,8 +171,8 @@ class PhaserTesting(EnvExperiment):
         at_mu(self.phaser0.get_next_frame_mu())
         time_start_mu = now_mu()
         with parallel:
-            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc0, clr=0)
-            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc0, clr=0)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -181,8 +181,8 @@ class PhaserTesting(EnvExperiment):
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc1, clr=0)
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=0)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -191,8 +191,8 @@ class PhaserTesting(EnvExperiment):
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch0_osc2, clr=0)
-            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=self.phase_ch1_osc2, clr=0)
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.9, phase=0., clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
