@@ -82,7 +82,7 @@ class LaserScan(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=0x1FFF, profile=0)
+                self.qubit.set_mu(freq_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
