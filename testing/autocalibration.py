@@ -95,6 +95,7 @@ class Autocalibration(EnvExperiment):
                     "log_level":    30,
                     "arguments": {
                         "repetitions":  15,
+                        "att_qubit_db": 29.5,
                         "freq_qubit_scan_mhz": {
                             "center":       103.201,
                             "span":         0.010,
@@ -161,9 +162,9 @@ class Autocalibration(EnvExperiment):
                           "att_readout_db": 8.0,
                           "calibration_continuous": False,
                           "sideband_cycles_continuous": 1,
-                          "time_sideband_cooling_us": 12000.0,
+                          "time_sideband_cooling_us": 8000.0,
                           "pct_per_spin_polarization": 20.0,
-                          "freq_sideband_cooling_mhz_pct_list": "{102.645: 100}",
+                          "freq_sideband_cooling_mhz_pct_list": "{102.647: 100}",
                           "att_sidebandcooling_continuous_db": 8.0,
                           "ampl_quench_pct": 4.0,
                           "rescue_enable": False,
@@ -190,7 +191,7 @@ class Autocalibration(EnvExperiment):
 
         # update values for calibration-only purposes
         self._freq_carrier_aom_mhz = new_peak_values[0]
-        self._freq_axial_abs_mhz, self._freq_rf_abs_mhz, self._freq_eggs_abs_mhz = 2. * (new_peak_values[1:] - new_peak_values[0])
+        self._freq_axial_abs_mhz, self._freq_rf_abs_mhz, self._freq_eggs_abs_mhz = 2. * (new_peak_values[0] - new_peak_values[1:])
 
         # update calibration and experimental parameters
         self.calibration_parameters['freq_qubit_scan_mhz.center'] = new_peak_values[0]
@@ -429,3 +430,49 @@ class Autocalibration(EnvExperiment):
         else:
             # print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
             self._submit_calibration_stage()
+
+    '''
+    EXPID Storage
+    '''
+
+    def __expid_storage(self):
+        self._eggsheating_expids = deque([{
+            "log_level": 30,
+            "file": "LAX_exp\\experiments\\EGGSHeating.py",
+            "class_name": "EGGSHeating",
+            "arguments": {
+                "repetitions": 50,
+                "cooling_type": "Continuous",
+                "freq_rsb_scan_mhz": {"center": 102.6572, "randomize": True, "seed": None,
+                                      "span": 0.01, "step": 0.0005, "ty": "CenterScan"},
+                "freq_bsb_scan_mhz": {"center": 103.7389, "randomize": True, "seed": None,
+                                      "span": 0.01, "step": 0.0005, "ty": "CenterScan"},
+                "time_readout_pipulse_us": 110.0,
+                "ampl_readout_pipulse_pct": 50.0,
+                "att_readout_db": 8.0,
+                "calibration_continuous": False,
+                "sideband_cycles_continuous": 1,
+                "time_sideband_cooling_us": 12000.0,
+                "pct_per_spin_polarization": 20.0,
+                "freq_sideband_cooling_mhz_pct_list": "{102.6572: 100}",
+                "att_sidebandcooling_continuous_db": 8.0,
+                "ampl_quench_pct": 4.0,
+                "randomize_config": True,
+                "freq_eggs_heating_carrier_mhz_list": {"sequence": [82.0], "ty": "ExplicitScan"},
+                "freq_eggs_heating_secular_khz_list": {"center": 1087.7, "randomize": True, "seed": None,
+                                                       "span": 5.0, "step": 0.25, "ty": "CenterScan"},
+                "enable_amplitude_calibration": False,
+                "ampl_eggs_heating_rsb_pct": 40.0,
+                "ampl_eggs_heating_bsb_pct": 40.0,
+                "att_eggs_heating_db": 5.0,
+                "time_eggs_heating_ms": 1.0,
+                "phase_eggs_heating_rsb_turns": 0.33,
+                "phase_eggs_heating_bsb_turns": 0.25,
+                "enable_pulse_shaping": False,
+                "enable_dynamical_decoupling": True,
+                "ampl_eggs_dynamical_decoupling_pct": 0.35,
+                "enable_dd_phase_shift_keying": False,
+                "num_dynamical_decoupling_phase_shifts": 3,
+                "enable_dd_active_cancel": False
+            }
+        } for idk in range(5)])
