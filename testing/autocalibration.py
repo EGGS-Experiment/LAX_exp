@@ -39,17 +39,8 @@ class Autocalibration(EnvExperiment):
 
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
-        self.experiments_per_calibration =  1
+        self.experiments_per_calibration =  2
         self.experiment_repetitions =       5
-
-        # base params - laser scan
-        self.freq_carrier_mhz =     103.202
-        self.freq_secular_khz =     1088.0
-        self.freq_ls_scan_khz =     25.0
-
-        # base params - sbc
-        self.sbc_freq_span_khz =    4.
-        self.sbc_freq_points =      5.
 
         # create list of parameters to continually update the experiments with
         self.experiment_parameters =       {
@@ -92,10 +83,10 @@ class Autocalibration(EnvExperiment):
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
-                    # "file": "LAX_exp\\experiments\\LaserScan.py",
-                    "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
-                    # "class_name": "LaserScan",
-                    "class_name":   "autocalib_ls_test",
+                    "file": "LAX_exp\\experiments\\LaserScan.py",
+                    # "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
+                    "class_name": "LaserScan",
+                    # "class_name":   "autocalib_ls_test",
                     "log_level":    30,
                     "arguments": {
                         "repetitions":  15,
@@ -150,10 +141,10 @@ class Autocalibration(EnvExperiment):
         # note: each element in the deque should be a simple expid dict
         self.pending_experiments = deque([{
             "log_level": 30,
-            "file": "experiments\\SidebandCooling.py",
+            "file": "LAX_exp\\experiments\\SidebandCooling.py",
             # "file": "LAX_exp\\testing\\_autocalib_sbc_test.py",
             "class_name": "SidebandCooling",
-            "class_name": "autocalib_sbc_test",
+            # "class_name": "autocalib_sbc_test",
             "arguments": {"repetitions": 20,
                           "cooling_type": "Continuous",
                           "freq_rsb_scan_mhz": {"center": 102.645, "randomize": True, "seed": None, "span": 0.02,
@@ -172,14 +163,6 @@ class Autocalibration(EnvExperiment):
                           "ampl_quench_pct": 4.0,
                           "rescue_enable": False,
                           "repetitions_per_rescue": 100,
-                          "freq_qubit_scan_mhz": {
-                              "center": 103.201,
-                              "span": 0.02,
-                              "step": 0.0005,
-                              "randomize": True,
-                              "seed": None,
-                              "ty": "CenterScan"
-                          }
                           }
         } for i in range(self.experiment_repetitions)])
         np.random.shuffle(self.pending_experiments)
@@ -196,8 +179,10 @@ class Autocalibration(EnvExperiment):
                 parameter_current - self._freq_eggs_abs_mhz/2.]
 
     def process_func_1(self, results_list):
-        res1 = np.array(results_list[:, 2])
-        print(res1)
+        yz0 =
+        print(results_list)
+        # res1 = np.array(results_list[:, 2])
+        # print(res1)
         # todo: update self.experiment_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
 
     def sweep_func_2(self, parameter_current):

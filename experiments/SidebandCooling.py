@@ -196,7 +196,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # tmp remove
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
-        self.set_dataset('tmpres.sbc.result', res_dj, broadcast=True, persist=False, archive=False)
+        self.set_dataset('tmpres.sbc.results', res_dj, broadcast=True, persist=False, archive=False)
         self.set_dataset('tmpres.sbc.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
         # tmp remove
 
