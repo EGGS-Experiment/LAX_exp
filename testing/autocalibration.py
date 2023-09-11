@@ -36,17 +36,11 @@ class Autocalibration(EnvExperiment):
         # get core devices
         self.ccb =              self.get_device("ccb")
         self.scheduler =        self.get_device("scheduler")
-        self.setattr_argument("submit_length",                           Scannable(
-                                                                            default=CenterScan(40, 80, 1, randomize=True),
-                                                                            global_min=0, global_max=300, global_step=1,
-                                                                            unit="V", scale=1, ndecimals=3
-                                                                        ))
 
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
-
         # autocalibration parameters
-        self.experiments_per_calibration =  2
-        self.experiment_repetitions =       3
+        self.experiments_per_calibration =  1
+        self.experiment_repetitions =       5
 
         # base params - laser scan
         self.freq_carrier_mhz =     103.202
@@ -56,6 +50,11 @@ class Autocalibration(EnvExperiment):
         # base params - sbc
         self.sbc_freq_span_khz =    4.
         self.sbc_freq_points =      5.
+
+        # create list of parameters to continually update the experiments with
+        self.experiment_parameters =       {
+            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
+        }
 
     def prepare(self):
         # create necessary data structures
@@ -72,13 +71,18 @@ class Autocalibration(EnvExperiment):
 
 
     def _prepare_expids(self):
-        # create list of parameters to continually update the experiments with
-        self.current_parameters =       {
-            'freq_qubit_scan_mhz.center':           103.201,
-            'freq_rabiflop_mhz':                    95.128,
-            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.654: 100})
+        # tmp remove
+        # set intermediate values for experiment
+        self._freq_carrier_aom_mhz =    103.189
+        self._freq_axial_abs_mhz =      0.681
+        self._freq_rf_abs_mhz =         0.786
+        self._freq_eggs_abs_mhz =       1.087
+        # tmp remove
+
+        # create list of parameters for calibration (to prevent overriding of experiment parameters)
+        self.calibration_parameters =       {
+            'freq_qubit_scan_mhz.center':   self._freq_carrier_aom_mhz
         }
-        # todo: maybe split parameters into system parameters (i.e. those for the experiment) and those for the calibrations (i.e. those that the calibrations use
 
         # create list of calibrations to submit
         # need: expid, parameter_name, sweep_function, callback
@@ -97,7 +101,7 @@ class Autocalibration(EnvExperiment):
                         "repetitions":  15,
                         "freq_qubit_scan_mhz": {
                             "center":       103.201,
-                            "span":         0.015,
+                            "span":         0.010,
                             "step":         0.0005,
                             "randomize":    True,
                             "seed":         None,
@@ -105,74 +109,69 @@ class Autocalibration(EnvExperiment):
                         }
                     }
                 }
-            },
-            {
-                'parameter_name':   'freq_rabiflop_mhz',
-                'sweep_function':   self.sweep_func_2,
-                'callback':         self.process_func_2,
-                'expid':{
-                    "log_level": 30,
-                    # "file": "experiments\\RabiFlopping.py",
-                    "file":         "LAX_exp\\testing\\_autocalib_rabiflop_test.py",
-                    # "class_name": "RabiFlopping",
-                    "class_name": "autocalib_rabiflop_test",
-                    "arguments": {
-                        "repetitions": 50,
-                        "cooling_type": "Doppler",
-                        "time_rabi_us_list": {
-                            "npoints": 100,
-                            "randomize": 2,
-                            "seed": None,
-                            "start": 1.0,
-                            "stop": 40.0,
-                            "ty": "RangeScan"
-                        },
-                        "freq_rabiflop_mhz": 103.2255,
-                        "att_readout_db": 8.0,
-                        "calibration_pulsed": False,
-                        "sideband_cycles_pulsed": 80,
-                        "extra_sideband_cycles": 0,
-                        "cycles_per_spin_polarization": 15,
-                        "time_form_sideband_cooling": "Linear",
-                        "time_min_sideband_cooling_us_list": "[30]",
-                        "time_max_sideband_cooling_us_list": "[150]",
-                        "freq_sideband_cooling_mhz_list": "[103.77]",
-                        "att_sidebandcooling_pulsed_db": 8.0,
-                        "calibration_continuous": False,
-                        "sideband_cycles_continuous": 20,
-                        "time_sideband_cooling_us": 36000.0,
-                        "pct_per_spin_polarization": 20.0,
-                        "freq_sideband_cooling_mhz_pct_list": "{102.85: 20, 102.422: 40, 102.338: 40}",
-                        "att_sidebandcooling_continuous_db": 8.0,
-                        "ampl_quench_pct": 5.0,
-                        "rescue_enable": False, "repetitions_per_rescue": 1
-                    }
-                }
             }
+            # {
+            #     'parameter_name':   'freq_rabiflop_mhz',
+            #     'sweep_function':   self.sweep_func_2,
+            #     'callback':         self.process_func_2,
+            #     'expid':{
+            #         "log_level": 30,
+            #         # "file": "experiments\\RabiFlopping.py",
+            #         "file":         "LAX_exp\\testing\\_autocalib_rabiflop_test.py",
+            #         # "class_name": "RabiFlopping",
+            #         "class_name": "autocalib_rabiflop_test",
+            #         "arguments": {
+            #             "repetitions": 50,
+            #             "cooling_type": "Doppler",
+            #             "time_rabi_us_list": {
+            #                 "npoints": 100,
+            #                 "randomize": 2,
+            #                 "seed": None,
+            #                 "start": 1.0,
+            #                 "stop": 40.0,
+            #                 "ty": "RangeScan"
+            #             },
+            #             "freq_rabiflop_mhz": 103.2255,
+            #             "att_readout_db": 8.0,
+            #             "calibration_continuous": False,
+            #             "sideband_cycles_continuous": 20,
+            #             "time_sideband_cooling_us": 36000.0,
+            #             "pct_per_spin_polarization": 20.0,
+            #             "freq_sideband_cooling_mhz_pct_list": "{102.85: 20, 102.422: 40, 102.338: 40}",
+            #             "att_sidebandcooling_continuous_db": 8.0,
+            #             "ampl_quench_pct": 5.0,
+            #             "rescue_enable": False, "repetitions_per_rescue": 1
+            #         }
+            #     }
+            # }
         ])
 
         # create list of experiments to submit
         # note: each element in the deque should be a simple expid dict
         self.pending_experiments = deque([{
             "log_level": 30,
-            # "file": "experiments\\SidebandCooling.py",
-            "file": "LAX_exp\\testing\\_autocalib_sbc_test.py",
-            # "class_name": "SidebandCooling",
+            "file": "experiments\\SidebandCooling.py",
+            # "file": "LAX_exp\\testing\\_autocalib_sbc_test.py",
+            "class_name": "SidebandCooling",
             "class_name": "autocalib_sbc_test",
-            "arguments": {"repetitions": 80, "cooling_type": "Continuous",
-                       "freq_rsb_scan_mhz": {"center": 102.654, "randomize": True, "seed": None, "span": 0.02,
-                                             "step": 0.0005, "ty": "CenterScan"},
-                       "freq_bsb_scan_mhz": {"center": 103.739, "randomize": True, "seed": None, "span": 0.02,
-                                             "step": 0.0005, "ty": "CenterScan"},"time_readout_pipulse_us": 120.0,
-                       "ampl_readout_pipulse_pct": 50.0, "att_readout_db": 8.0, "calibration_pulsed": False,
-                       "sideband_cycles_pulsed": 120, "extra_sideband_cycles": 0, "cycles_per_spin_polarization": 15,
-                       "time_form_sideband_cooling": "Linear", "time_min_sideband_cooling_us_list": "[60]",
-                       "time_max_sideband_cooling_us_list": "[270]", "freq_sideband_cooling_mhz_list": "[102.436]",
-                       "att_sidebandcooling_pulsed_db": 8.0, "calibration_continuous": False,
-                       "sideband_cycles_continuous": 1, "time_sideband_cooling_us": 12000.0,
-                       "pct_per_spin_polarization": 20.0, "freq_sideband_cooling_mhz_pct_list": "{102.654: 100}",
-                       "att_sidebandcooling_continuous_db": 8.0, "ampl_quench_pct": 4.0, "rescue_enable": False,
-                       "repetitions_per_rescue": 100,
+            "arguments": {"repetitions": 20,
+                          "cooling_type": "Continuous",
+                          "freq_rsb_scan_mhz": {"center": 102.645, "randomize": True, "seed": None, "span": 0.02,
+                                                "step": 0.0005, "ty": "CenterScan"},
+                          "freq_bsb_scan_mhz": {"center": 103.730, "randomize": True, "seed": None, "span": 0.02,
+                                                "step": 0.0005, "ty": "CenterScan"},
+                          "time_readout_pipulse_us": 120.0,
+                          "ampl_readout_pipulse_pct": 50.0,
+                          "att_readout_db": 8.0,
+                          "calibration_continuous": False,
+                          "sideband_cycles_continuous": 1,
+                          "time_sideband_cooling_us": 12000.0,
+                          "pct_per_spin_polarization": 20.0,
+                          "freq_sideband_cooling_mhz_pct_list": "{102.645: 100}",
+                          "att_sidebandcooling_continuous_db": 8.0,
+                          "ampl_quench_pct": 4.0,
+                          "rescue_enable": False,
+                          "repetitions_per_rescue": 100,
                           "freq_qubit_scan_mhz": {
                               "center": 103.201,
                               "span": 0.02,
@@ -191,18 +190,22 @@ class Autocalibration(EnvExperiment):
     '''
 
     def sweep_func_1(self, parameter_current):
-        return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
+        return [parameter_current,
+                parameter_current - self._freq_axial_abs_mhz/2.,
+                parameter_current - self._freq_rf_abs_mhz/2.,
+                parameter_current - self._freq_eggs_abs_mhz/2.]
 
     def process_func_1(self, results_list):
-        print('\t\tresults: {}'.format(results_list))
-        # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
+        res1 = np.array(results_list[:, 2])
+        print(res1)
+        # todo: update self.experiment_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
 
     def sweep_func_2(self, parameter_current):
         return np.linspace(parameter_current-0.02, parameter_current+0.02, 3)
 
     def process_func_2(self, results_list):
         print('\t\tresults 2: {}'.format(results_list))
-        # todo: update self.current_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
+        # todo: update self.experiment_parameters with freq_sideband_cooling_mhz_pct_list in pyon form
 
 
     '''
@@ -344,7 +347,7 @@ class Autocalibration(EnvExperiment):
 
             # update expid with current parameters
             [update_deep(expid_dj['arguments'], key_param, val_param)
-             for key_param, val_param in self.current_parameters.items()]
+             for key_param, val_param in self.experiment_parameters.items()]
 
             # submit experiment to scheduler
             rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
@@ -384,7 +387,7 @@ class Autocalibration(EnvExperiment):
         parameter_name =                calibration_stage['parameter_name']
         self._calibration_callback =    calibration_stage['callback']
         param_sweep_func =              calibration_stage['sweep_function']
-        parameter_current_value =       self.current_parameters[parameter_name]
+        parameter_current_value =       self.calibration_parameters[parameter_name]
 
         # submit experiments to scan parameter around previously calibrated value
         for parameter_test_value in param_sweep_func(parameter_current_value):
@@ -429,14 +432,3 @@ class Autocalibration(EnvExperiment):
         else:
             # print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
             self._submit_calibration_stage()
-
-
-    '''
-    User-Subclassable Functions
-    '''
-
-    def generate_parameter_scan(self, parameter_dict):
-        """
-        todo: document
-        """
-        pass

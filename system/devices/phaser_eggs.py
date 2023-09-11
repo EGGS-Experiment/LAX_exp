@@ -90,6 +90,7 @@ class PhaserEGGS(LAXDevice):
     '''
     Oscillator Methods
     '''
+
     @kernel(flags={"fast-math"})
     def disable_oscillators(self):
         """
