@@ -11,11 +11,12 @@ from LAX_exp.system.subsequences.no_operation import NoOperation
 __all__.extend(['RescueIon', 'Cleanup', 'NoOperation'])
 
 # motional
+from LAX_exp.system.subsequences.squeeze import Squeeze
 from LAX_exp.system.subsequences.tickle_dds import TickleDDS
 from LAX_exp.system.subsequences.tickle_fast_dds import TickleFastDDS
 from LAX_exp.system.subsequences.tickle_fast_phaser import TickleFastPhaser
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
-__all__.extend(['TickleDDS', 'TickleFastDDS', 'TickleFastPhaser', 'ParametricExcite'])
+__all__.extend(['Squeeze', 'TickleDDS', 'TickleFastDDS', 'TickleFastPhaser', 'ParametricExcite'])
 
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool

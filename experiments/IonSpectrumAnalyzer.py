@@ -3,6 +3,7 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
+from LAX_exp.system.subsequences import Squeeze
 import LAX_exp.experiments.EGGSHeating as EGGSHeating
 
 from math import gcd
@@ -37,6 +38,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='IonSpectrumAnalyzer')
+
+        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
+        self.squeeze_subsequence =                                          Squeeze(self)
 
     def prepare_experiment(self):
         # ensure phaser amplitudes sum to less than 100%
@@ -151,6 +155,59 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
+    def initialize_experiment(self):
+        # todo: set up attenuation for cancellation dds
+        self.core.break_realtime()
+        self.urukul1_ch2.set_att_mu(self.att_dd_active_cancel_mu)
+        # tmp remove
+
+        # note: bulk of this code is copy and pasted from SidebandCooling
+        # since we can't call "super().initialize_experiment" in a kernel function
+
+        ### BEGIN COPY AND PASTE FROM SIDEBANDCOOLING ###
+        self.core.break_realtime()
+
+        # record general subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
+
+        # record custom readout sequence
+        # note: this is necessary since DMA sequences will preserve urukul attenuation register
+        with self.core_dma.record('_SBC_READOUT'):
+            # set readout waveform for qubit
+            self.qubit.set_profile(0)
+            self.qubit.set_att_mu(self.att_readout_mu)
+
+            # transfer population to D-5/2 state
+            self.rabiflop_subsequence.run()
+
+            # read out fluorescence
+            self.readout_subsequence.run()
+        ### END COPY AND PASTE FROM SIDEBANDCOOLING ###
+
+        ### PHASER INITIALIZATION ###
+        self.phaser_setup()
+        self.core.break_realtime()
+
+        ### SQUEEZING INITIALIZATION ###
+        # record configurable squeezing DMA sequence
+        if self.enable_squeezing:
+            with self.core_dma.record('_SQUEEZE'):
+                self.squeeze_subsequence.squeeze()
+            with self.core_dma.record('_ANTISQUEEZE'):
+                self.squeeze_subsequence.antisqueeze()
+        else:
+            with self.core_dma.record('_SQUEEZE'):
+                pass
+            with self.core_dma.record('_ANTISQUEEZE'):
+                pass
+
+        # tmp remove
+        self.ttl8.off()
+        self.ttl9.off()
+        # tmp remove
+
+    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
@@ -158,6 +215,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         _handle_sbc_readout =               self.core_dma.get_handle('_SBC_READOUT')
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
+        _handle_squeeze =                   self.core_dma.get_handle('_SQUEEZE')
+        _handle_antisqueeze =               self.core_dma.get_handle('_ANTISQUEEZE')
         self.core.break_realtime()
 
 
@@ -175,7 +234,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 ampl_bsb_frac =             config_vals[4]
                 ampl_dd_frac =              config_vals[5]
                 offset_freq_hz =            config_vals[6]
-
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
@@ -189,9 +247,12 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
-
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
+                # squeeze ion
+                self.core_dma.playback_handle(_handle_squeeze)
+
+
 
 
                 ### RUN EGGS HEATING ###
@@ -221,6 +282,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 ### STOP EGGS HEATING ###
 
 
+                # antisqueeze
+                self.core_dma.playback_handle(_handle_antisqueeze)
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
 
