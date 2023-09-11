@@ -40,7 +40,7 @@ class Autocalibration(EnvExperiment):
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
         self.experiments_per_calibration =  1
-        self.experiment_repetitions =       2
+        self.experiment_repetitions =       20
 
 
     def prepare(self):
@@ -75,10 +75,10 @@ class Autocalibration(EnvExperiment):
 
         # create list of parameters to continually update the experiments with
         self.experiment_parameters =       {
-            'freq_sideband_cooling_mhz_pct_list':   pyon.encode({102.6425: 100.}),
-            'freq_rsb_scan_mhz.center':             102.6475,
-            'freq_bsb_scan_mhz.center':             103.7295,
-            'freq_eggs_heating_secular_khz_list.center':   1088.5
+            'freq_sideband_cooling_mhz_pct_list':           pyon.encode({102.6425: 100.}),
+            'freq_rsb_scan_mhz.center':                     102.6475,
+            'freq_bsb_scan_mhz.center':                     103.7295,
+            'freq_eggs_heating_secular_khz_list.center':    1088.5
         }
 
     def _prepare_expids(self):
@@ -118,7 +118,7 @@ class Autocalibration(EnvExperiment):
             "file": "LAX_exp\\experiments\\EGGSHeating.py",
             "class_name": "EGGSHeating",
             "arguments": {
-                "repetitions": 10,
+                "repetitions": 50,
                 "cooling_type": "Continuous",
                 "freq_rsb_scan_mhz": {"center": 102.648, "randomize": True, "seed": None,
                                       "span": 0.01, "step": 0.0005, "ty": "CenterScan"},
