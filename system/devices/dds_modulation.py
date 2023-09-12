@@ -20,24 +20,14 @@ class DDSModulation(LAXDevice):
     def prepare_device(self):
         self.ampl_modulation_asf =              self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct',
                                                                    override=False, conversion_function=pct_to_asf)
-        self.setattr_device('urukul1_cpld')
-
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):
-        self.core.break_realtime()
         # close rf switches to kill any modulation signal leakage
-        with parallel:
-            self.mod_switch.on()
-            self.dds.sw.off()
+        self.mod_switch.off()
+        self.dds.sw.off()
 
-        # set up DDS to reinitialize phase each time we set waveform values
-        self.dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
-
-        # enable matched latency
-        self.dds.write32(_AD9910_REG_CFR1,
-                         (1 << 16) |    # select_sine_output
-                         (1 << 13))     # phase_autoclear
+        # ensure output has matched latency
         self.dds.set_cfr2(matched_latency_enable=1)
 
 
@@ -63,6 +53,19 @@ class DDSModulation(LAXDevice):
         delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
+    def set_phase_absolute(self):
+        """
+        todo: document
+        """
+        # set up DDS to reinitialize phase each time we set waveform values
+        self.dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
+
+        # enable matched latency and phase autoclearing
+        self.dds.write32(_AD9910_REG_CFR1,
+                         (1 << 16) |    # select_sine_output
+                         (1 << 13))     # phase_autoclear
+
+    @kernel(flags={"fast-math"})
     def reset_phase(self):
         """
         todo: document
@@ -73,6 +76,7 @@ class DDSModulation(LAXDevice):
                          (1 << 16) |    # select_sine_output
                          (1 << 13))     # phase_autoclear
         self.dds.cpld.io_update.pulse_mu(8)
+        delay_mu(TIME_PHASEAUTOCLEAR_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def io_update(self):

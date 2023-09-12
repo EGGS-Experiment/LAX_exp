@@ -29,14 +29,19 @@ class TickleDDS(LAXSubsequence):
         self.att_tickle_mu =                            att_to_mu(self.att_tickle_db * dB)
 
     @kernel(flags={"fast-math"})
-    def run(self):
-        # set dds attenuation and profile here - ensures that dds channel will have correct attenuation
+    def initialize_subsequence(self):
+        self.core.break_realtime()
+
+        # configure DDS here
+        # this ensures that dds channel will have correct attenuation in any DMA sequences recorded later
         self.dds_modulation.set_att_mu(self.att_tickle_mu)
         self.dds_modulation.set_profile(0)
+        self.dds_modulation.set_phase_absolute()
 
-        # reset DDS phase and wait for reset to latch
+    @kernel(flags={"fast-math"})
+    def run(self):
+        # reset DDS phase
         self.dds_modulation.reset_phase()
-        delay_mu(TIME_PHASEAUTOCLEAR_DELAY_MU)
         self.ttl8.on()
 
         # tickle for given time

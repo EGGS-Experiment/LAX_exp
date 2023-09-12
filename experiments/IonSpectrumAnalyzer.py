@@ -246,12 +246,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core.break_realtime()
 
 
+                ### STATE PREPARATION ###
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
                 # squeeze ion
                 self.core_dma.playback_handle(_handle_squeeze)
+                ### STATE PREPARATION - END ###
 
 
                 ### RUN EGGS HEATING ###
@@ -278,13 +280,16 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 with parallel:
                     self.phaser_stop()
                     self.phaser_activecancel_stop()
-                ### STOP EGGS HEATING ###
+                ### EGGS HEATING - END ###
 
 
+                ### READOUT ###
                 # antisqueeze
-                # self.core_dma.playback_handle(_handle_antisqueeze)
+                self.core_dma.playback_handle(_handle_antisqueeze)
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
+                ### READOUT - END ###
+
 
                 # update dataset
                 with parallel:

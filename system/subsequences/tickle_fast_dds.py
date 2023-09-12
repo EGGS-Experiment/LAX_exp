@@ -7,6 +7,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 
 # TODO: INTEGRATE TTL SWITCHES FOR RF
+# TODO: ENSURE WE'RE USING SET_CFR1 TO DO PHASE AUTOCLEAR
 
 
 class TickleFastDDS(LAXSubsequence):

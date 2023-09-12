@@ -139,8 +139,9 @@ class ParametricSweep(LAXExperiment, Experiment):
                 self.repump_cooling.on()
                 self.repump_qubit.on()
 
-            # set modulation attenuation
+            # set up DDS for modulation
             self.dds_modulation.set_att_mu(self.att_modulation_mu)
+            self.dds_modulation.set_phase_absolute()
 
             # set up labrad devices via RPC
             self.prepareDevicesLabrad()

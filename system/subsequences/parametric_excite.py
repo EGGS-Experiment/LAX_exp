@@ -39,8 +39,8 @@ class ParametricExcite(LAXSubsequence):
         self.trigger_rf.trigger(self.time_rf_gating_mu, self.time_rf_holdoff_mu)
 
         # reset modulation DDS phase and turn modulation on
-        self.dds_modulation.on()
         self.dds_modulation.reset_phase()
+        self.dds_modulation.on()
 
         # get timestamped photon counts
         self.pmt.timestamp_counts(self.timestamp_mu_list, self.time_pmt_gating_mu)

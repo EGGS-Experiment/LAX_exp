@@ -10,10 +10,10 @@ from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
                                    rtio_input_data)
 
 
-class UrukulFastSwitchTest(EnvExperiment):
+class UrukulTrackingTest(EnvExperiment):
     """
-    Urukul Fast Switching Test
-    Testing fast switching via destructive interference.
+    Urukul Tracking Test
+    Testing phase tracking.
     """
 
     def build(self):
