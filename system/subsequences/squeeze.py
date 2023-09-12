@@ -50,18 +50,16 @@ class Squeeze(LAXSubsequence):
                                    pow_=self.phase_squeeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
         self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
                                    pow_=self.phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
-        # ensure output starts as sine
-        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
         self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
     def squeeze(self):
-        # reset DDS phase and wait for reset to latch
+        # set output waveform
         at_mu(now_mu() & ~0x7)
         self.dds_modulation.set_profile(0)
-        at_mu(now_mu() & ~0x7)
-        self.dds_modulation.io_update()
+        # reset DDS phase
+        self.dds_modulation.reset_phase()
 
         # squeeze for given time
         self.ttl8.on()
@@ -69,6 +67,10 @@ class Squeeze(LAXSubsequence):
         delay_mu(self.time_squeeze_mu)
         self.dds_modulation.off()
         self.ttl8.off()
+
+        # unset phase_autoclear flag to ensure phase is tracked,
+        # and ensure set_sine_output flag remains set
+        self.dds_modulation.write32(_AD9910_REG_CFR1, 1 << 16)
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self):

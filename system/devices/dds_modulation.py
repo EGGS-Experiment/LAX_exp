@@ -72,9 +72,12 @@ class DDSModulation(LAXDevice):
         :return:
         """
         # ensure signal is output as a sine with 0 phase
+        at_mu(now_mu & ~0x7)
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
                          (1 << 13))     # phase_autoclear
+        # pulse io_update to clear phase
+        at_mu(now_mu & ~0x7)
         self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_PHASEAUTOCLEAR_DELAY_MU)
 
