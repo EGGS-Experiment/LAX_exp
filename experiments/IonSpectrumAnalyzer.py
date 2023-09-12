@@ -32,14 +32,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # Ion Spectrum Analyzer
         self.setattr_argument("freq_ionSpecAnal_sideband_offset_khz_list",  Scannable(
                                                                                 default=[
-                                                                                    CenterScan(0, 5, 0.5, randomize=True),
-                                                                                    ExplicitScan([0])
+                                                                                    ExplicitScan([0]),
+                                                                                    CenterScan(0, 5, 0.5, randomize=True)
                                                                                 ],
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='IonSpectrumAnalyzer')
 
-        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("enable_squeezing",                       BooleanValue(default=True), group='squeeze')
         self.squeeze_subsequence =                                          Squeeze(self)
 
     def prepare_experiment(self):
@@ -201,6 +201,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 pass
             with self.core_dma.record('_ANTISQUEEZE'):
                 pass
+        self.core.break_realtime()
 
         # tmp remove
         self.ttl8.off()
@@ -253,14 +254,12 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core_dma.playback_handle(_handle_squeeze)
 
 
-
-
                 ### RUN EGGS HEATING ###
                 # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
                 with parallel:
-                    self.ttl8.on()
+                    # self.ttl8.on()
                     self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
@@ -283,7 +282,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
 
                 # antisqueeze
-                self.core_dma.playback_handle(_handle_antisqueeze)
+                # self.core_dma.playback_handle(_handle_antisqueeze)
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
 

@@ -20,12 +20,12 @@ class DDSModulation(LAXDevice):
     def prepare_device(self):
         self.ampl_modulation_asf =              self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct',
                                                                    override=False, conversion_function=pct_to_asf)
+        self.setattr_device('urukul1_cpld')
 
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):
         self.core.break_realtime()
-
         # close rf switches to kill any modulation signal leakage
         with parallel:
             self.mod_switch.on()
@@ -72,4 +72,12 @@ class DDSModulation(LAXDevice):
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
                          (1 << 13))     # phase_autoclear
+        self.dds.cpld.io_update.pulse_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def io_update(self):
+        """
+        todo: document
+        :return:
+        """
         self.dds.cpld.io_update.pulse_mu(8)
