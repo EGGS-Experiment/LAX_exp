@@ -131,6 +131,7 @@ class SqueezeConfigurable(LAXSubsequence):
         # self.urukul1_ch2.sw.off()
         # # tmp remove
 
+    @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32):
         # calculate antisqueeze phase value
         phase_antisqueeze_pow = self.dds_modulation.turns_to_pow(self.dds_modulation.pow_to_turns(phase_pow)

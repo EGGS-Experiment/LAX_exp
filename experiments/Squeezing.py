@@ -21,13 +21,13 @@ class Squeezing(SidebandCooling.SidebandCooling):
         super().build_experiment()
 
         # squeezing configuration
-        self.setattr_argument("freq_squeeze_mhz_list",                      Scannable(
+        self.setattr_argument("freq_squeeze_khz_list",                      Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([82]),
-                                                                                        CenterScan(82, 2, 0.5, randomize=True)
+                                                                                        ExplicitScan([2176]),
+                                                                                        CenterScan(2176, 2, 0.5, randomize=True)
                                                                                     ],
                                                                                     global_min=0, global_max=400, global_step=1,
-                                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                                    unit="kHz", scale=1, ndecimals=5
                                                                                 ), group=self.name)
         self.setattr_argument("phase_squeeze_turns_list",                   Scannable(
                                                                                     default=[
@@ -39,7 +39,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_squeeze_us_list",                       Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([8]),
+                                                                                        ExplicitScan([100]),
                                                                                         RangeScan(8, 250, 38, randomize=True)
                                                                                     ],
                                                                                     global_min=0.04, global_max=10000000, global_step=10,
@@ -50,6 +50,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
         self.setattr_device('dds_modulation')
         # tmp remove
+        self.setattr_device('urukul1_ch2')
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
         # tmp remove
@@ -58,10 +59,10 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # run preparations for sideband cooling
         super().prepare_experiment()
 
-        # convert QLMS modulation to machine units
-        self.freq_squeeze_test_ftw_list =                                       np.array([
-                                                                                    hz_to_ftw(freq_mhz * MHz)
-                                                                                    for freq_mhz in self.freq_squeeze_test_mhz_list
+        # convert squeezing to machine units
+        self.freq_squeeze_ftw_list =                                            np.array([
+                                                                                    hz_to_ftw(freq_khz * kHz)
+                                                                                    for freq_khz in self.freq_squeeze_khz_list
                                                                                 ])
         self.phase_squeeze_pow_list =                                           np.array([
                                                                                     self.dds_modulation.turns_to_pow(phase_turns)
@@ -74,7 +75,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
         # create an array of values for the experiment to sweep
         # (i.e. squeeze frequency, squeeze phase, squeeze time, readout FTW)
-        self.config_squeeze_list =                                              np.stack(np.meshgrid(self.freq_squeeze_test_ftw_list,
+        self.config_squeeze_list =                                              np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
                                                                                                      self.phase_squeeze_pow_list,
                                                                                                      self.time_squeeze_mu_list,
                                                                                                      self.freq_readout_ftw_list,),
@@ -84,7 +85,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
     @property
     def results_shape(self):
         return (self.repetitions *
-                len(self.freq_squeeze_test_ftw_list) * len(self.phase_squeeze_pow_list) *
+                len(self.freq_squeeze_ftw_list) * len(self.phase_squeeze_pow_list) *
                 len(self.time_squeeze_mu_list) * len(self.freq_readout_ftw_list),
                 5)
 
@@ -123,12 +124,12 @@ class Squeezing(SidebandCooling.SidebandCooling):
         for trial_num in range(self.repetitions):
 
             # sweep experiment config: squeezing frequency and readout frequency
-            for config_vals in self.config_qlms_rabi_list:
+            for config_vals in self.config_squeeze_list:
 
                 # extract values from config list
                 freq_squeeze_ftw =  np.int32(config_vals[0])
                 phase_squeeze_pow = np.int32(config_vals[1])
-                time_squeeze_pow =  config_vals[2]
+                time_squeeze_mu =   config_vals[2]
                 freq_readout_ftw =  np.int32(config_vals[3])
                 self.core.break_realtime()
 
@@ -143,8 +144,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 self.sidebandcool_subsequence.run_dma()
 
                 # squeeze!
-                self.squeeze_subsequence.run()
-                delay_mu(time_squeeze_pow)
+                self.squeeze_subsequence.squeeze()
+                delay_mu(time_squeeze_mu)
                 # tmp remove
                 self.ttl8.off()
                 # tmp remove
@@ -161,7 +162,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 # update dataset
                 with parallel:
                     self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
-                                        freq_squeeze_ftw, phase_squeeze_pow, time_squeeze_pow)
+                                        freq_squeeze_ftw, phase_squeeze_pow, time_squeeze_mu)
                     self.core.break_realtime()
 
             # rescue ion as needed
