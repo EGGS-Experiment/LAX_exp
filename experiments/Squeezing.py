@@ -24,9 +24,9 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.setattr_argument("freq_squeeze_khz_list",                      Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([2176]),
-                                                                                        CenterScan(2176, 2, 0.5, randomize=True)
+                                                                                        CenterScan(2176, 10, 0.25, randomize=True)
                                                                                     ],
-                                                                                    global_min=0, global_max=400, global_step=1,
+                                                                                    global_min=0, global_max=100000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=5
                                                                                 ), group=self.name)
         self.setattr_argument("phase_squeeze_turns_list",                   Scannable(
