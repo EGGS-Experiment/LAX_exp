@@ -1,3 +1,4 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, _AD9910_REG_CFR1
 
@@ -5,22 +6,18 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 
 
-class Squeeze(LAXSubsequence):
+class SqueezeConfigurable(LAXSubsequence):
     """
-    Subsequence: Squeeze
+    Subsequence: Squeeze (Configurable)
 
     Squeeze and unsqueeze the ion by applying a quadrupole tone at 2x the secular frequency.
+    Allows configuration of the squeezing to sweep over the values.
     """
-    name = 'squeeze'
+    name = 'squeeze_configurable'
 
 
     def build_subsequence(self):
-        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, ndecimals=3, step=10, min=1, max=400000), group='squeeze')
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='squeeze')
-
-        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group='squeeze')
-        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='squeeze')
-        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='squeeze')
+        self.setattr_argument('att_squeeze_db',             NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='squeeze_configurable')
 
         # get relevant devices
         self.setattr_device('dds_modulation')
@@ -32,45 +29,21 @@ class Squeeze(LAXSubsequence):
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
-        self.freq_squeeze_ftw =                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
         self.att_squeeze_mu =                               att_to_mu(self.att_squeeze_db * dB)
 
-        self.time_squeeze_mu =                              self.core.seconds_to_mu(self.time_squeeze_us * us)
-        self.phase_squeeze_pow =                            self.dds_modulation.turns_to_pow(self.phase_squeeze_turns + 0.)
-        self.phase_antisqueeze_pow =                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns + 0.5)
+        # create empty holder variables to support later configuration
+        self.freq_squeeze_ftw =                             np.int32(0)
+        self.phase_squeeze_pow =                            np.int32(0)
+        self.phase_antisqueeze_pow =                        np.int32(0)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
-        self.core.break_realtime()
-
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_modulation.set_att_mu(self.att_squeeze_mu)
 
         # tmp remove
         self.urukul1_ch2.set_att_mu(self.att_squeeze_mu)
-        # tmp remove
-
-        # set up DDS to track phase when we change profiles
-        # squeezing waveform
-        self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
-                                   pow_=self.phase_squeeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
-        # antisqueezing waveform
-        self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
-                                   pow_=self.phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
-        # blank waveform
-        self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=0x0, profile=2,
-                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.core.break_realtime()
-
-        # tmp remove
-        self.urukul1_ch2.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
-                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
-                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(self.freq_squeeze_ftw, asf=0x0, profile=2,
-                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
         # tmp remove
 
 
@@ -108,13 +81,13 @@ class Squeeze(LAXSubsequence):
         self.ttl8.on()
         # tmp remove
 
-        # squeeze for given time
-        delay_mu(self.time_squeeze_mu)
-        self.dds_modulation.off()
-        # tmp remove
-        self.ttl8.off()
-        self.urukul1_ch2.sw.off()
-        # tmp remove
+        # # squeeze for given time
+        # delay_mu(self.time_squeeze_mu)
+        # self.dds_modulation.off()
+        # # tmp remove
+        # self.ttl8.off()
+        # self.urukul1_ch2.sw.off()
+        # # tmp remove
 
 
     @kernel(flags={"fast-math"})
@@ -150,12 +123,41 @@ class Squeeze(LAXSubsequence):
         self.ttl9.on()
         # tmp remove
 
-        # antisqueeze for given time
-        delay_mu(self.time_squeeze_mu)
-        self.dds_modulation.off()
+        # # antisqueeze for given time
+        # delay_mu(self.time_squeeze_mu)
+        # self.dds_modulation.off()
+        # # tmp remove
+        # self.ttl9.off()
+        # self.urukul1_ch2.sw.off()
+        # # tmp remove
+
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32):
+        # calculate antisqueeze phase value
+        phase_antisqueeze_pow = self.dds_modulation.turns_to_pow(self.dds_modulation.pow_to_turns(phase_pow)
+                                                                 + 0.5)
+
+        # set waveforms for profiles
+        at_mu(now_mu() + 25000)
+        # set up DDS to track phase when we change profiles
+        # squeezing waveform
+        self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
+                                   pow_=phase_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+        # antisqueezing waveform
+        self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
+                                   pow_=phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+        # blank waveform
+        self.dds_modulation.set_mu(freq_ftw, asf=0x0, profile=2,
+                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.core.break_realtime()
+
         # tmp remove
-        self.ttl9.off()
-        self.urukul1_ch2.sw.off()
+        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
+                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
+                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=2,
+                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
         # tmp remove
 
     @kernel(flags={"fast-math"})
