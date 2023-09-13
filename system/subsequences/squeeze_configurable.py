@@ -38,7 +38,7 @@ class SqueezeConfigurable(LAXSubsequence):
         self.phase_antisqueeze_pow =                        np.int32(0)
 
         # configure antisqueezing on/off
-        if self.enable_antisqueeze:
+        if self.enable_antisqueezing:
             self.antisqueeze_func =                         self.dds_modulation.on
         else:
             self.antisqueeze_func =                         self.dds_modulation.off
