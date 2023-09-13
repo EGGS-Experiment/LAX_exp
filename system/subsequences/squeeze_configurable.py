@@ -18,6 +18,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_argument('att_squeeze_db',             NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='squeeze_configurable')
+        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=True), group='squeeze_configurable')
 
         # get relevant devices
         self.setattr_device('dds_modulation')
@@ -35,6 +36,12 @@ class SqueezeConfigurable(LAXSubsequence):
         self.freq_squeeze_ftw =                             np.int32(0)
         self.phase_squeeze_pow =                            np.int32(0)
         self.phase_antisqueeze_pow =                        np.int32(0)
+
+        # configure antisqueezing on/off
+        if self.enable_antisqueeze:
+            self.antisqueeze_func =                         self.dds_modulation.on
+        else:
+            self.antisqueeze_func =                         self.dds_modulation.off
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -112,7 +119,8 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu +
               (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
-        self.dds_modulation.on()
+        # self.dds_modulation.on()
+        self.antisqueeze_func()
         # tmp remove
         self.urukul1_ch2.sw.on()
         # tmp remove

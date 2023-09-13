@@ -45,7 +45,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     global_min=0.04, global_max=10000000, global_step=10,
                                                                                     unit="us", scale=1, ndecimals=3
                                                                                 ), group=self.name)
-        self.setattr_argument("enable_antisqueezing",                   BooleanValue(default=True), group=self.name)
+        # self.setattr_argument("enable_antisqueezing",                   BooleanValue(default=True), group=self.name)
 
 
         # set up squeezing
@@ -156,15 +156,14 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
                 # todo: configurable delay?
 
-                # todo: antisqueeze!
-                if self.enable_antisqueezing:
-                    self.squeeze_subsequence.antisqueeze()
-                    delay_mu(time_squeeze_mu)
-                    # tmp remove
-                    self.ttl9.off()
-                    # tmp remove
-                    self.dds_modulation.off()
-                    self.urukul1_ch2.sw.off()
+                # antisqueeze!
+                self.squeeze_subsequence.antisqueeze()
+                delay_mu(time_squeeze_mu)
+                # tmp remove
+                self.ttl9.off()
+                # tmp remove
+                self.dds_modulation.off()
+                self.urukul1_ch2.sw.off()
 
 
                 # custom SBC readout
