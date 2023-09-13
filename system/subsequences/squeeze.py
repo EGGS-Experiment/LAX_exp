@@ -15,10 +15,10 @@ class Squeeze(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=10000, ndecimals=3, step=10, min=1, max=400000), group='squeeze')
+        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=2176, ndecimals=3, step=10, min=1, max=400000), group='squeeze')
         self.setattr_argument('att_squeeze_db',             NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='squeeze')
 
-        self.setattr_argument('time_squeeze_us',            NumberValue(default=20., ndecimals=3, step=100, min=1, max=1000000), group='squeeze')
+        self.setattr_argument('time_squeeze_us',            NumberValue(default=5., ndecimals=3, step=100, min=1, max=1000000), group='squeeze')
         self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='squeeze')
         self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='squeeze')
 
@@ -35,7 +35,7 @@ class Squeeze(LAXSubsequence):
 
         self.time_squeeze_mu =                              self.core.seconds_to_mu(self.time_squeeze_us * us)
         self.phase_squeeze_pow =                            self.dds_modulation.turns_to_pow(self.phase_squeeze_turns + 0.)
-        self.phase_antisqueeze_pow =                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns + 0.5)
+        self.phase_antisqueeze_pow =                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns + 0.)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
