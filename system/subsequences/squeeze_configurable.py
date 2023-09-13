@@ -61,7 +61,9 @@ class SqueezeConfigurable(LAXSubsequence):
 
         # ensure phase_autoclear is enabled ahead of time
         # tmp remove
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, ((1 << 16) | (1 << 13)))
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1,
+                                 ((1 << 16) |
+                                  (1 << 13)))
         # tmp remove
         self.dds_modulation.write32(_AD9910_REG_CFR1,
                                     (1 << 16) | # select_sine_output
@@ -102,9 +104,9 @@ class SqueezeConfigurable(LAXSubsequence):
         # unset phase_autoclear flag to ensure phase remains tracked,
         # and ensure set_sine_output flag remains set
         # tmp remove
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         # tmp remove
-        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
+        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
 
         # set blank profile to ensure switching is exact
         self.dds_modulation.set_profile(2)
@@ -146,7 +148,7 @@ class SqueezeConfigurable(LAXSubsequence):
                                                                  + 0.5)
 
         # set waveforms for profiles
-        at_mu(now_mu() + 25000)
+        at_mu(now_mu() + 5000)
         # set up DDS to track phase when we change profiles
         # squeezing waveform
         self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
