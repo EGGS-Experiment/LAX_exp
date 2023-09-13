@@ -5,6 +5,7 @@ from EGGS_labrad.config.dc_config import dc_config
 import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.exceptions import CoreException
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -140,8 +141,9 @@ class ParametricSweep(LAXExperiment, Experiment):
                 self.repump_qubit.on()
 
             # set up DDS for modulation
-            self.dds_modulation.set_att_mu(self.att_modulation_mu)
-            self.dds_modulation.set_phase_absolute()
+            with sequential:
+                self.dds_modulation.set_att_mu(self.att_modulation_mu)
+                self.dds_modulation.set_phase_absolute()
 
             # set up labrad devices via RPC
             self.prepareDevicesLabrad()
@@ -191,7 +193,8 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     with parallel:
                         # set modulation frequency
-                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
+                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf,
+                                                   profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
                         # add holdoff period for recooling the ion
                         delay_mu(self.time_cooling_holdoff_mu)
 
