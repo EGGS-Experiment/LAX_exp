@@ -39,6 +39,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='IonSpectrumAnalyzer')
 
+        # todo: enable squeezing toggling
         self.setattr_argument("enable_squeezing",                       BooleanValue(default=True), group='squeeze')
         self.squeeze_subsequence =                                          Squeeze(self)
 
@@ -156,11 +157,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        # todo: set up attenuation for cancellation dds
-        self.core.break_realtime()
-        self.urukul1_ch2.set_att_mu(self.att_dd_active_cancel_mu)
-        # tmp remove
-
         # note: bulk of this code is copy and pasted from SidebandCooling
         # since we can't call "super().initialize_experiment" in a kernel function
 
@@ -189,20 +185,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.phaser_setup()
         self.core.break_realtime()
 
-        ### SQUEEZING INITIALIZATION ###
-        # record configurable squeezing DMA sequence
-        if self.enable_squeezing:
-            with self.core_dma.record('_SQUEEZE'):
-                self.squeeze_subsequence.squeeze()
-            with self.core_dma.record('_ANTISQUEEZE'):
-                self.squeeze_subsequence.antisqueeze()
-        else:
-            with self.core_dma.record('_SQUEEZE'):
-                pass
-            with self.core_dma.record('_ANTISQUEEZE'):
-                pass
-        self.core.break_realtime()
-
         # tmp remove
         self.ttl8.off()
         self.ttl9.off()
@@ -216,8 +198,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         _handle_sbc_readout =               self.core_dma.get_handle('_SBC_READOUT')
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
-        _handle_squeeze =                   self.core_dma.get_handle('_SQUEEZE')
-        _handle_antisqueeze =               self.core_dma.get_handle('_ANTISQUEEZE')
+        # _handle_squeeze =                   self.core_dma.get_handle('_SQUEEZE')
+        # _handle_antisqueeze =               self.core_dma.get_handle('_ANTISQUEEZE')
         self.core.break_realtime()
 
 
@@ -252,7 +234,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
                 # squeeze ion
-                self.core_dma.playback_handle(_handle_squeeze)
+                # self.core_dma.playback_handle(_handle_squeeze)
+                self.squeeze_subsequence.squeeze()
                 ### STATE PREPARATION - END ###
 
 
@@ -270,20 +253,18 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                     #     delay_mu(1860)
                     #     self.ttl9.on()
                     # # tmp remove
-                    self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                with parallel:
-                    self.phaser_stop()
-                    self.phaser_activecancel_stop()
+                self.phaser_stop()
                 ### EGGS HEATING - END ###
 
 
                 ### READOUT ###
                 # antisqueeze
-                self.core_dma.playback_handle(_handle_antisqueeze)
+                # self.core_dma.playback_handle(_handle_antisqueeze)
+                self.squeeze_subsequence.antisqueeze()
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
                 ### READOUT - END ###
@@ -462,21 +443,3 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # update dynamical decoupling config list with new PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   np.int64(time_psk_tmp_delay_mu)
-
-
-    # HELPER FUNCTIONS - ACTIVE CANCELLATION
-    @kernel(flags={"fast-math"})
-    def phaser_activecancel_configure(self, sideband_freq_hz: TFloat):
-        """
-        todo: document
-        """
-        # todo: calculate phase delays for the active cancellation DDS channel
-        # todo: relative urukul-phaser output delay, system delay, phase argument
-        # self.phase_activecancel_turns = self.phaser_eggs.phase_inherent_ch1_turns +\
-        #                                 (sideband_freq_hz * (self.phaser_eggs.time_latency_ch1_system_ns) * ns)
-        self.phase_activecancel_turns = 0.
-
-        # set up cancellation waveform and profile
-        freq_activecancel_ftw = self.urukul1_ch2.frequency_to_ftw(sideband_freq_hz)
-        phase_activecancel_pow = self.urukul1_ch2.turns_to_pow(self.phase_activecancel_turns)
-        self.urukul1_ch2.set_mu(freq_activecancel_ftw, pow_=phase_activecancel_pow, asf=self.ampl_dd_active_cancel_asf, phase_mode=PHASE_MODE_ABSOLUTE, profile=1)
