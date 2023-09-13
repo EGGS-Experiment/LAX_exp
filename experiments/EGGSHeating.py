@@ -394,18 +394,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
-                with parallel:
-                    # self.ttl8.on()
-                    self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
+                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
                 with parallel:
-                    # set TTL for synchronization trigger on a scope
-                    with sequential:
-                        # delay_mu(self.phaser_eggs.t_output_delay_mu)
-                        delay_mu(1860)
-                        self.ttl9.on()
-                    # tmp remove
+                    # # set TTL for synchronization trigger on a scope
+                    # with sequential:
+                    #     # delay_mu(self.phaser_eggs.t_output_delay_mu)
+                    #     delay_mu(1860)
+                    #     self.ttl9.on()
+                    # # tmp remove
                     self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
@@ -774,9 +772,3 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.urukul1_ch2.cfg_sw(False)
         # self.urukul1_ch2.set(350 * MHz, amplitude=0.01)
         # self.urukul1_ch2.set_att_mu(0xFF)
-
-        # tmp remove
-        with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
-        # tmp remove

@@ -26,6 +26,7 @@ class Squeeze(LAXSubsequence):
         self.setattr_device('dds_modulation')
         # tmp remove
         self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_subsequence(self):
@@ -35,7 +36,7 @@ class Squeeze(LAXSubsequence):
 
         self.time_squeeze_mu =                              self.core.seconds_to_mu(self.time_squeeze_us * us)
         self.phase_squeeze_pow =                            self.dds_modulation.turns_to_pow(self.phase_squeeze_turns + 0.)
-        self.phase_antisqueeze_pow =                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns + 0.)
+        self.phase_antisqueeze_pow =                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns + 0.5)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -55,47 +56,63 @@ class Squeeze(LAXSubsequence):
         # blank waveform
         self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=0x0, profile=2,
                                    pow_=self.phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
-        # ensure phase_autoclear is enabled ahead of time
-        self.dds_modulation.write32(_AD9910_REG_CFR1,
-                                    (1 << 16) | # select_sine_output
-                                    (1 << 13))  # phase_autoclear
         self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
     def squeeze(self):
+        # set blank output waveform
+        self.dds_modulation.set_profile(2)
+        # ensure phase_autoclear is enabled ahead of time
+        self.dds_modulation.write32(_AD9910_REG_CFR1,
+                                    (1 << 16) | # select_sine_output
+                                    (1 << 13))  # phase_autoclear
+
         # align to coarse RTIO clock
         time_start_mu = now_mu() & ~0x7
 
         # begin output waveform
+        # note: no need to reset phase since phase_autoclear flag should be set
+        # in initialize_subsequence, causing phase accumulator reset upon profile change
         at_mu(time_start_mu)
         self.dds_modulation.set_profile(0)
-        # reset DDS phase
-        self.dds_modulation.reset_phase()
+
+        # open RF switches early since they have a ~100 ns rise time
+        at_mu(time_start_mu +
+              (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
+              - TIME_URUKUL_RFSWITCH_DELAY_MU)
+        self.dds_modulation.on()
+
+        # tmp remove
+        # send debug trigger when waveform begins
+        at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
+        self.ttl8.on()
+        # tmp remove
 
         # squeeze for given time
-        self.ttl8.on()
-        self.dds_modulation.on()
         delay_mu(self.time_squeeze_mu)
-        self.dds_modulation.off()
         self.ttl8.off()
+        self.dds_modulation.off()
 
-        # unset phase_autoclear flag to ensure phase is tracked,
-        # and ensure set_sine_output flag remains set
-        self.dds_modulation.write32(_AD9910_REG_CFR1, 1 << 16)
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self):
-        # shift phase to that desired by
+        # unset phase_autoclear flag to ensure phase remains tracked,
+        # and ensure set_sine_output flag remains set
+        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
+
+        # align to coarse RTIO clock to prepare output waveform for antisqueezing
         at_mu(now_mu() & ~0x7)
         self.dds_modulation.set_profile(1)
 
-        # antisqueeze for given time
-        self.ttl8.on()
+        # enable antisqueezing output for given time
+        self.ttl9.on()
         self.dds_modulation.on()
         delay_mu(self.time_squeeze_mu)
+
+        # stop antisqueezing output
+        self.ttl9.off()
         self.dds_modulation.off()
-        self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def run(self):

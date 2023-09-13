@@ -72,7 +72,6 @@ class DDSModulation(LAXDevice):
         :return:
         """
         # ensure signal is output as a sine with 0 phase
-        at_mu(now_mu() & ~0x7)
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
                          (1 << 13))     # phase_autoclear
@@ -84,7 +83,8 @@ class DDSModulation(LAXDevice):
     @kernel(flags={"fast-math"})
     def io_update(self):
         """
-        todo: document
-        :return:
+        Pulse the CPLDs IO_UPDATE pin.
+        Can be used to clear the phase accumulator if the phase_autoclear
+            flag is set in CFR1.
         """
         self.dds.cpld.io_update.pulse_mu(8)

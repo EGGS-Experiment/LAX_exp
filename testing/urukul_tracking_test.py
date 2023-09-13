@@ -97,7 +97,7 @@ class UrukulTrackingTest(EnvExperiment):
         self.res00 = self.urukul1_ch1.set_mu(self.freq_ftw0, asf=self.ampl_asf0, profile=0,
                                              pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.res01 = self.urukul1_ch1.set_mu(self.freq_ftw0, asf=self.ampl_asf0, profile=1,
-                                             pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+                                             pow_=self.phase_pi_pow, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch1.set_mu(self.freq_ftw0, asf=0x0, profile=2,
                                 pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
@@ -141,7 +141,7 @@ class UrukulTrackingTest(EnvExperiment):
         at_mu(time_start_mu)
         self.urukul1_cpld.set_profile(0)
 
-        # open RF switches early since they have a ~100 ns rise time
+        # open RF switches early since they have ~100 ns rise time
         at_mu(time_start_mu + ((416 + 63) - 140))
         self.urukul1_ch1.sw.on()
         self.urukul1_ch2.sw.on()
