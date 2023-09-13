@@ -68,6 +68,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
+        # todo: set relevant urukul<x>_ch<x> switches all to 0 to prevent problems
+        # since output is logical OR of the TTL state as well as the urukul configuration register state
 
         # set looping iterator for the _update_results method
         setattr(self,'_result_iter', 0)
@@ -192,10 +194,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         # todo: move _load_dma onto initialize for speed
         self.call_child_method('_load_dma')
 
-        # run the main part of the experiment
         try:
+            # run the main part of the experiment
             self.run_main()
         except TerminationRequested:
+            # run cleanup, bypassing any analysis methods
             self._run_cleanup()
             print('\tExperiment successfully terminated.')
             raise TerminationRequested
@@ -215,9 +218,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         Set all devices back to their original state.
         """
-        self.core.reset()
+        self.core.break_realtime()
 
-        # reset hardware to allow use
+        # reset hardware to allow use by users
         with parallel:
             # enable all RF switches
             with parallel:
@@ -240,7 +243,10 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.urukul2_cpld.set_profile(0)
                 self.urukul2_cpld.cfg_switches(0b1110)
 
+        # ensure all events in the FIFOs are completed before
+        # we exit the kernel
         self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
 
     def initialize_experiment(self):
         """
