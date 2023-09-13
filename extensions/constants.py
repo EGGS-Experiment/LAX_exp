@@ -4,13 +4,22 @@ LAX.extensions.constants
 Important numerical motifs for hardware, software, and experiment.
 """
 
-__all__ = ['TIME_PROFILESWITCH_DELAY_MU', 'TIME_PHASEAUTOCLEAR_DELAY_MU', 'TIME_RFSWITCH_DELAY_MU']
+__all__ = ['TIME_AD9910_PROFILE_SWITCH_DELAY_MU', 'TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU',
+           'TIME_URUKUL_BUS_WRITE_DELAY_MU', 'TIME_URUKUL_RFSWITCH_DELAY_MU',
+           'TIME_ZASWA2_SWITCH_DELAY_MU',
+           'TIME_PHASER_OSCILLATOR_PIPELINE_LATENCY_MU']
 
 
-# urukul AD9910 timings
-# todo: change profileswitch timings to reflect actual delay between end of cfg_write and actual update; should be ~79ns just like for phase autoclear
-TIME_PROFILESWITCH_DELAY_MU =   420
-TIME_PHASEAUTOCLEAR_DELAY_MU =  78
-TIME_RFSWITCH_DELAY_MU =        31
+# AD9910 timings
+TIME_AD9910_PROFILE_SWITCH_DELAY_MU =       63
+TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU =      79
 
-# todo: add ARTIQ phaser timings as well
+# Urukul timings
+TIME_URUKUL_BUS_WRITE_DELAY_MU =    416
+TIME_URUKUL_RFSWITCH_DELAY_MU =     140
+
+# Phaser timings
+TIME_PHASER_OSCILLATOR_PIPELINE_LATENCY_MU =    1953
+
+# external device timings
+TIME_ZASWA2_SWITCH_DELAY_MU =       31

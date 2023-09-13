@@ -50,7 +50,7 @@ class Beam397Pump(LAXDevice):
             # enable external RF switch
             with sequential:
                 self.rf_switch.off()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
 
     @kernel(flags={"fast-math"})
@@ -62,7 +62,7 @@ class Beam397Pump(LAXDevice):
             # disable external RF switch
             with sequential:
                 self.rf_switch.on()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def cooling(self):

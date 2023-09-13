@@ -49,7 +49,7 @@ class DDSDipole(LAXDevice):
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.dds.cpld.set_profile(profile_num)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def reset_phase(self):

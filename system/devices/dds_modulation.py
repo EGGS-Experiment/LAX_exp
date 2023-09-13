@@ -50,7 +50,7 @@ class DDSModulation(LAXDevice):
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.dds.cpld.set_profile(profile_num)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_phase_absolute(self):
@@ -79,7 +79,7 @@ class DDSModulation(LAXDevice):
         # pulse io_update to clear phase
         at_mu(now_mu() & ~0x7)
         self.dds.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PHASEAUTOCLEAR_DELAY_MU)
+        delay_mu(TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def io_update(self):

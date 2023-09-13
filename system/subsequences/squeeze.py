@@ -46,17 +46,29 @@ class Squeeze(LAXSubsequence):
         self.dds_modulation.set_att_mu(self.att_squeeze_mu)
 
         # set up DDS to track phase when we change profiles
+        # squeezing waveform
         self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
                                    pow_=self.phase_squeeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+        # antisqueezing waveform
         self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
                                    pow_=self.phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+        # blank waveform
+        self.dds_modulation.set_mu(self.freq_squeeze_ftw, asf=0x0, profile=2,
+                                   pow_=self.phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+        # ensure phase_autoclear is enabled ahead of time
+        self.dds_modulation.write32(_AD9910_REG_CFR1,
+                                    (1 << 16) | # select_sine_output
+                                    (1 << 13))  # phase_autoclear
         self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
     def squeeze(self):
-        # set output waveform
-        at_mu(now_mu() & ~0x7)
+        # align to coarse RTIO clock
+        time_start_mu = now_mu() & ~0x7
+
+        # begin output waveform
+        at_mu(time_start_mu)
         self.dds_modulation.set_profile(0)
         # reset DDS phase
         self.dds_modulation.reset_phase()

@@ -39,7 +39,7 @@ class Beam854(LAXDevice):
             # enable external RF switch
             with sequential:
                 self.rf_switch.off()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def off(self):
@@ -50,9 +50,9 @@ class Beam854(LAXDevice):
             # disable external RF switch
             with sequential:
                 self.rf_switch.on()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.beam.cpld.set_profile(profile_num)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
