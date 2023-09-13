@@ -104,9 +104,9 @@ class SqueezeConfigurable(LAXSubsequence):
         # unset phase_autoclear flag to ensure phase remains tracked,
         # and ensure set_sine_output flag remains set
         # tmp remove
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
         # tmp remove
-        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
 
         # set blank profile to ensure switching is exact
         self.dds_modulation.set_profile(2)
