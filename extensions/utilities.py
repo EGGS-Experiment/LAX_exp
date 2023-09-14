@@ -2,8 +2,9 @@
 LAX.extensions.utilities
 
 Contains useful functions.
-# todo: create config function
+# todo: create config creator function
 # todo: create interpolator for calibration datasets
+# todo: create period rounding multiple function
 """
 
 __all__ = []

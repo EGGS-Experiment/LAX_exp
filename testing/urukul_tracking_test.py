@@ -161,9 +161,7 @@ class UrukulTrackingTest(EnvExperiment):
         # self.urukul1_ch2.sw.off()
 
 
-        '''
-        ARBITRARY PULSE SEQUENCE
-        '''
+        '''ARBITRARY PULSE SEQUENCE'''
         # self.t00 = now_mu()
         with parallel:
             delay_mu(10000)

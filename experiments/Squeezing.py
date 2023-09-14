@@ -136,7 +136,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # configure squeezing and qubit readout
-                self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_squeeze_pow)
+                time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_squeeze_pow,
+                                                                     time_squeeze_mu)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                 self.core.break_realtime()
 
@@ -144,35 +145,21 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 self.initialize_subsequence.run_dma()
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
-
                 # squeeze!
                 self.squeeze_subsequence.squeeze()
-                delay_mu(time_squeeze_mu)
-                # tmp remove
-                self.ttl8.off()
-                # tmp remove
-                self.dds_modulation.off()
-                self.urukul1_ch2.sw.off()
 
                 # todo: configurable delay?
 
                 # antisqueeze!
                 self.squeeze_subsequence.antisqueeze()
-                delay_mu(time_squeeze_mu)
-                # tmp remove
-                self.ttl9.off()
-                # tmp remove
-                self.dds_modulation.off()
-                self.urukul1_ch2.sw.off()
-
-
                 # custom SBC readout
                 self.core_dma.playback_handle(_handle_sbc_readout)
 
                 # update dataset
                 with parallel:
                     self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
-                                        freq_squeeze_ftw, phase_squeeze_pow, time_squeeze_mu)
+                                        freq_squeeze_ftw, phase_squeeze_pow,
+                                        time_squeeze_mu)
                     self.core.break_realtime()
 
             # rescue ion as needed

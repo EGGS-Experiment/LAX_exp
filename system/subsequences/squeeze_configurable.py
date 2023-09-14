@@ -36,6 +36,7 @@ class SqueezeConfigurable(LAXSubsequence):
         self.freq_squeeze_ftw =                             np.int32(0)
         self.phase_squeeze_pow =                            np.int32(0)
         self.phase_antisqueeze_pow =                        np.int32(0)
+        self.time_squeeze_mu =                              np.int64(0)
 
         # configure antisqueezing on/off
         if self.enable_antisqueezing:
@@ -48,10 +49,7 @@ class SqueezeConfigurable(LAXSubsequence):
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_modulation.set_att_mu(self.att_squeeze_mu)
-
-        # tmp remove
         self.urukul1_ch2.set_att_mu(self.att_squeeze_mu)
-        # tmp remove
 
 
     @kernel(flags={"fast-math"})
@@ -60,11 +58,9 @@ class SqueezeConfigurable(LAXSubsequence):
         self.dds_modulation.set_profile(2)
 
         # ensure phase_autoclear is enabled ahead of time
-        # tmp remove
         self.urukul1_ch2.write32(_AD9910_REG_CFR1,
                                  ((1 << 16) |
                                   (1 << 13)))
-        # tmp remove
         self.dds_modulation.write32(_AD9910_REG_CFR1,
                                     (1 << 16) | # select_sine_output
                                     (1 << 13))  # phase_autoclear
@@ -80,36 +76,27 @@ class SqueezeConfigurable(LAXSubsequence):
               (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
         self.dds_modulation.on()
-        # tmp remove
         self.urukul1_ch2.sw.on()
-        # tmp remove
 
-        # tmp remove
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
         self.ttl8.on()
-        # tmp remove
-
-        # # squeeze for given time
-        # delay_mu(self.time_squeeze_mu)
-        # self.dds_modulation.off()
-        # # tmp remove
-        # self.ttl8.off()
-        # self.urukul1_ch2.sw.off()
-        # # tmp remove
+        # squeeze for given time
+        delay_mu(self.time_squeeze_mu)
+        self.dds_modulation.off()
+        self.ttl8.off()
+        self.urukul1_ch2.sw.off()
 
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self):
-        # unset phase_autoclear flag to ensure phase remains tracked,
-        # and ensure set_sine_output flag remains set
-        # tmp remove
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
-        # tmp remove
-        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
-
         # set blank profile to ensure switching is exact
         self.dds_modulation.set_profile(2)
+
+        # unset phase_autoclear flag to ensure phase remains tracked,
+        # and ensure set_sine_output flag remains set
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
 
         # align to coarse RTIO clock
         time_start_mu = now_mu() & ~0x7
@@ -121,34 +108,38 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu +
               (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
-        # self.dds_modulation.on()
         self.antisqueeze_func()
-        # tmp remove
         self.urukul1_ch2.sw.on()
-        # tmp remove
 
-        # tmp remove
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
         self.ttl9.on()
-        # tmp remove
 
-        # # antisqueeze for given time
-        # delay_mu(self.time_squeeze_mu)
-        # self.dds_modulation.off()
-        # # tmp remove
-        # self.ttl9.off()
-        # self.urukul1_ch2.sw.off()
-        # # tmp remove
+        # antisqueeze for given time
+        delay_mu(self.time_squeeze_mu)
+        self.ttl9.off()
+        self.dds_modulation.off()
+        self.urukul1_ch2.sw.off()
 
     @kernel(flags={"fast-math"})
-    def configure(self, freq_ftw: TInt32, phase_pow: TInt32):
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64) -> TInt64:
+        # calculate squeezing frequency half-period
+        time_half_period_ns =                               1 / (2 * ns * self.dds_modulation.ftw_to_frequency(freq_ftw))
+
+        # ensure squeezing period is close to a multiple of the frequency half-period
+        self.time_squeeze_mu =                              time_mu
+        if self.time_squeeze_mu % time_half_period_ns:
+            # round squeezing time up to the nearest multiple of the frequency half-period
+            t_half_period_multiples =                       round(self.time_squeeze_mu / time_half_period_ns + 0.5)
+            self.time_squeeze_mu =                          np.int64(round(self.time_squeeze_mu * t_half_period_multiples))
+
         # calculate antisqueeze phase value
-        phase_antisqueeze_pow = self.dds_modulation.turns_to_pow(self.dds_modulation.pow_to_turns(phase_pow)
-                                                                 + 0.5)
+        phase_antisqueeze_pow =                             self.dds_modulation.turns_to_pow(0.5 - self.dds_modulation.pow_to_turns(phase_pow))
+        # todo: calculate how much off the period we are, then account for this phase value in the antisqueezing
+        # todo: use
 
         # set waveforms for profiles
-        at_mu(now_mu() + 5000)
+        at_mu(now_mu() + 20000)
         # set up DDS to track phase when we change profiles
         # squeezing waveform
         self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
@@ -159,9 +150,8 @@ class SqueezeConfigurable(LAXSubsequence):
         # blank waveform
         self.dds_modulation.set_mu(freq_ftw, asf=0x0, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.core.break_realtime()
 
-        # tmp remove
+        at_mu(now_mu() + 20000)
         self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
@@ -169,7 +159,9 @@ class SqueezeConfigurable(LAXSubsequence):
         self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
-        # tmp remove
+
+        # return time value
+        return self.time_squeeze_mu
 
     @kernel(flags={"fast-math"})
     def run(self):
