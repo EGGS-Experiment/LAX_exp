@@ -42,9 +42,10 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                         ExplicitScan([3]),
                                                                                         RangeScan(8, 250, 38, randomize=True)
                                                                                     ],
-                                                                                    global_min=0.04, global_max=10000000, global_step=10,
+                                                                                    global_min=2, global_max=10000000, global_step=10,
                                                                                     unit="us", scale=1, ndecimals=3
                                                                                 ), group=self.name)
+        self.setattr_argument("time_delay_us",                      NumberValue(default=10, ndecimals=3, step=100, min=1, max=100000), group=self.name)
         # self.setattr_argument("enable_antisqueezing",                   BooleanValue(default=True), group=self.name)
 
 
@@ -74,6 +75,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     self.core.seconds_to_mu(time_us * us)
                                                                                     for time_us in self.time_squeeze_us_list
                                                                                 ])
+        self.time_delay_mu =                                                    self.core.seconds_to_mu(self.time_delay_us * us)
 
         # create an array of values for the experiment to sweep
         # (i.e. squeeze frequency, squeeze phase, squeeze time, readout FTW)
@@ -148,7 +150,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 # squeeze!
                 self.squeeze_subsequence.squeeze()
 
-                # todo: configurable delay?
+                # configurable delay to simulate a pulse sequence
+                delay_mu(self.time_delay_mu)
 
                 # antisqueeze!
                 self.squeeze_subsequence.antisqueeze()
