@@ -29,7 +29,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     global_min=0, global_max=100000, global_step=1,
                                                                                     unit="kHz", scale=1, ndecimals=5
                                                                                 ), group=self.name)
-        self.setattr_argument("phase_squeeze_turns_list",                   Scannable(
+        self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([0.]),
                                                                                         RangeScan(0, 1.0, 6, randomize=True)
@@ -73,9 +73,9 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     hz_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_squeeze_khz_list
                                                                                 ])
-        self.phase_squeeze_pow_list =                                           np.array([
+        self.phase_antisqueeze_pow_list =                                       np.array([
                                                                                     self.dds_modulation.turns_to_pow(phase_turns)
-                                                                                    for phase_turns in self.phase_squeeze_turns_list
+                                                                                    for phase_turns in self.phase_antisqueeze_turns_list
                                                                                 ])
         self.time_squeeze_mu_list =                                             np.array([
                                                                                     self.core.seconds_to_mu(time_us * us)
@@ -90,7 +90,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # create an array of values for the experiment to sweep
         # (i.e. squeeze frequency, squeeze phase, squeeze time, delay time, readout FTW)
         self.config_squeeze_list =                                              np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
-                                                                                                     self.phase_squeeze_pow_list,
+                                                                                                     self.phase_antisqueeze_pow_list,
                                                                                                      self.time_squeeze_mu_list,
                                                                                                      self.freq_readout_ftw_list,
                                                                                                      self.time_delay_mu_list),
@@ -100,7 +100,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
     @property
     def results_shape(self):
         return (self.repetitions *
-                len(self.freq_squeeze_ftw_list) * len(self.phase_squeeze_pow_list)
+                len(self.freq_squeeze_ftw_list) * len(self.phase_antisqueeze_pow_list)
                 * len(self.time_squeeze_mu_list) * len(self.time_delay_mu_list)
                 * len(self.freq_readout_ftw_list),
                 6)
@@ -143,15 +143,15 @@ class Squeezing(SidebandCooling.SidebandCooling):
             for config_vals in self.config_squeeze_list:
 
                 # extract values from config list
-                freq_squeeze_ftw =  np.int32(config_vals[0])
-                phase_squeeze_pow = np.int32(config_vals[1])
-                time_squeeze_mu =   config_vals[2]
-                freq_readout_ftw =  np.int32(config_vals[3])
-                time_delay_mu =     config_vals[4]
+                freq_squeeze_ftw =      np.int32(config_vals[0])
+                phase_antisqueeze_pow = np.int32(config_vals[1])
+                time_squeeze_mu =       config_vals[2]
+                freq_readout_ftw =      np.int32(config_vals[3])
+                time_delay_mu =         config_vals[4]
                 self.core.break_realtime()
 
                 # configure squeezing and qubit readout
-                time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_squeeze_pow,
+                time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_antisqueeze_pow,
                                                                      time_squeeze_mu)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
                 self.core.break_realtime()
@@ -174,7 +174,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 # update dataset
                 with parallel:
                     self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
-                                        freq_squeeze_ftw, phase_squeeze_pow,
+                                        freq_squeeze_ftw, phase_antisqueeze_pow,
                                         time_squeeze_mu, time_delay_mu)
                     self.core.break_realtime()
 
