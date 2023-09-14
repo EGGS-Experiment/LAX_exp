@@ -20,6 +20,8 @@ class DDSModulation(LAXDevice):
     def prepare_device(self):
         self.ampl_modulation_asf =              self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct',
                                                                    override=False, conversion_function=pct_to_asf)
+        # break out AD9910 attributes/devices
+        self.sw = self.dds.sw
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

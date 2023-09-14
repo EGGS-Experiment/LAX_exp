@@ -39,7 +39,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                 ), group=self.name)
         self.setattr_argument("time_squeeze_us_list",                       Scannable(
                                                                                     default=[
-                                                                                        ExplicitScan([100]),
+                                                                                        ExplicitScan([3]),
                                                                                         RangeScan(8, 250, 38, randomize=True)
                                                                                     ],
                                                                                     global_min=0.04, global_max=10000000, global_step=10,
