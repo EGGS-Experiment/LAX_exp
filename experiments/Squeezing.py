@@ -45,7 +45,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     global_min=2, global_max=10000000, global_step=10,
                                                                                     unit="us", scale=1, ndecimals=3
                                                                                 ), group=self.name)
-        self.setattr_argument("time_delay_us",                              Scannable(
+        self.setattr_argument("time_delay_us_list",                         Scannable(
                                                                                             default=[
                                                                                                 ExplicitScan([3]),
                                                                                                 RangeScan(3, 100, 97, randomize=True)
