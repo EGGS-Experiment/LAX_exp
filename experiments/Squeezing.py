@@ -175,7 +175,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 with parallel:
                     self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
                                         freq_squeeze_ftw, phase_squeeze_pow,
-                                        time_squeeze_mu)
+                                        time_squeeze_mu, time_delay_mu)
                     self.core.break_realtime()
 
             # rescue ion as needed
