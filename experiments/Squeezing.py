@@ -45,8 +45,14 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     global_min=2, global_max=10000000, global_step=10,
                                                                                     unit="us", scale=1, ndecimals=3
                                                                                 ), group=self.name)
-        self.setattr_argument("time_delay_us",                      NumberValue(default=10, ndecimals=3, step=100, min=1, max=100000), group=self.name)
-        # self.setattr_argument("enable_antisqueezing",                   BooleanValue(default=True), group=self.name)
+        self.setattr_argument("time_delay_us",                              Scannable(
+                                                                                            default=[
+                                                                                                ExplicitScan([3]),
+                                                                                                RangeScan(3, 100, 97, randomize=True)
+                                                                                            ],
+                                                                                            global_min=2.5, global_max=10000000, global_step=5,
+                                                                                            unit="us", scale=1, ndecimals=3
+                                                                                ), group=self.name)
 
 
         # set up squeezing
@@ -75,14 +81,19 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     self.core.seconds_to_mu(time_us * us)
                                                                                     for time_us in self.time_squeeze_us_list
                                                                                 ])
-        self.time_delay_mu =                                                    self.core.seconds_to_mu(self.time_delay_us * us)
+        # note: 2.381 is inherent system overhead; will be smaller if we stop doing stuff with urukul1_ch2
+        self.time_delay_mu_list =                                               np.array([
+                                                                                    self.core.seconds_to_mu((time_us - 2.381) * us)
+                                                                                    for time_us in self.time_delay_us_list
+                                                                                ])
 
         # create an array of values for the experiment to sweep
-        # (i.e. squeeze frequency, squeeze phase, squeeze time, readout FTW)
+        # (i.e. squeeze frequency, squeeze phase, squeeze time, delay time, readout FTW)
         self.config_squeeze_list =                                              np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
                                                                                                      self.phase_squeeze_pow_list,
                                                                                                      self.time_squeeze_mu_list,
-                                                                                                     self.freq_readout_ftw_list,),
+                                                                                                     self.freq_readout_ftw_list,
+                                                                                                     self.time_delay_mu_list),
                                                                                          -1).reshape(-1, 4)
         np.random.shuffle(self.config_squeeze_list)
 
@@ -135,6 +146,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 phase_squeeze_pow = np.int32(config_vals[1])
                 time_squeeze_mu =   config_vals[2]
                 freq_readout_ftw =  np.int32(config_vals[3])
+                time_delay_mu =     config_vals[4]
                 self.core.break_realtime()
 
                 # configure squeezing and qubit readout
@@ -151,7 +163,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 self.squeeze_subsequence.squeeze()
 
                 # configurable delay to simulate a pulse sequence
-                delay_mu(self.time_delay_mu)
+                delay_mu(time_delay_mu)
 
                 # antisqueeze!
                 self.squeeze_subsequence.antisqueeze()
