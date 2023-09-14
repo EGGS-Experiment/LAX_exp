@@ -94,15 +94,16 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                                      self.time_squeeze_mu_list,
                                                                                                      self.freq_readout_ftw_list,
                                                                                                      self.time_delay_mu_list),
-                                                                                         -1).reshape(-1, 4)
+                                                                                         -1).reshape(-1, 5)
         np.random.shuffle(self.config_squeeze_list)
 
     @property
     def results_shape(self):
         return (self.repetitions *
-                len(self.freq_squeeze_ftw_list) * len(self.phase_squeeze_pow_list) *
-                len(self.time_squeeze_mu_list) * len(self.freq_readout_ftw_list),
-                5)
+                len(self.freq_squeeze_ftw_list) * len(self.phase_squeeze_pow_list)
+                * len(self.time_squeeze_mu_list) * len(self.time_delay_mu_list)
+                * len(self.freq_readout_ftw_list),
+                6)
 
 
     # MAIN SEQUENCE
