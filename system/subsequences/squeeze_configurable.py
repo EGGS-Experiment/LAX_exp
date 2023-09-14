@@ -155,9 +155,9 @@ class SqueezeConfigurable(LAXSubsequence):
                                                              - self.dds_modulation.pow_to_turns(phase_pow))
         # phase_antisqueeze_pow =                             self.dds_modulation.turns_to_pow(0.5 - self.dds_modulation.turns_to_pow(phase_antisqueeze_turns))
         phase_antisqueeze_pow =                             self.dds_modulation.turns_to_pow(phase_antisqueeze_turns)
-        print(time_half_period_ns)
-        print(self.time_squeeze_mu)
-        print(phase_antisqueeze_turns)
+        # print(time_half_period_ns)
+        # print(self.time_squeeze_mu)
+        # print(phase_antisqueeze_turns)
         self.core.break_realtime()
 
         # set waveforms for profiles
