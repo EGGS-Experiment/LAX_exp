@@ -165,7 +165,7 @@ class SqueezeConfigurable(LAXSubsequence):
         # set up DDS to track phase when we change profiles
         # squeezing waveform
         self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
-                                   pow_=phase_pow, phase_mode=PHASE_MODE_CONTINUOUS)
+                                   pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         # antisqueezing waveform
         self.dds_modulation.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
                                    pow_=phase_antisqueeze_pow, phase_mode=PHASE_MODE_CONTINUOUS)
