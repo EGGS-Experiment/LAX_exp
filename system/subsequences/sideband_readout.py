@@ -52,7 +52,7 @@ class SidebandReadout(LAXSubsequence):
     def run(self):
         # set readout waveform for qubit
         self.qubit.set_profile(0)
-        self.qubit.set_att_mu(self.att_readout_mu)
+        self.qubit.set_att_mu(self.att_sideband_readout_mu)
 
         # population transfer pulse
         self.qubit.on()
