@@ -57,6 +57,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
         self.sidebandreadout_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
 
 
     @kernel(flags={"fast-math"})
@@ -76,8 +77,9 @@ class SidebandCooling2(LAXExperiment, Experiment):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
-                # custom SBC readout
+                # SBC readout
                 self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:
