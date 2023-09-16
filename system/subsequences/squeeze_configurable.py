@@ -17,8 +17,9 @@ class SqueezeConfigurable(LAXSubsequence):
 
 
     def build_subsequence(self):
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=13., ndecimals=1, step=0.5, min=0, max=31.5), group='squeeze_configurable')
-        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=True), group='squeeze_configurable')
+        self.setattr_argument("enable_squeezing",           BooleanValue(default=True), group=self.name)
+        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=True), group=self.name)
+        self.setattr_argument('att_squeeze_db',             NumberValue(default=13., ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_modulation')
@@ -38,10 +39,12 @@ class SqueezeConfigurable(LAXSubsequence):
         self.phase_antisqueeze_pow =                        np.int32(0)
         self.time_squeeze_mu =                              np.int64(0)
 
-        # configure antisqueezing on/off
-        if self.enable_antisqueezing:
-            self.antisqueeze_func =                         self.dds_modulation.on
-        else:
+        # configure squeezing & antisqueezing on/off
+        self.squeeze_func =                                 self.dds_modulation.on
+        self.antisqueeze_func =                             self.dds_modulation.on
+        if not self.enable_squeezing:
+            self.squeeze_func =                             self.dds_modulation.off
+        if  not self.enable_antisqueezing:
             self.antisqueeze_func =                         self.dds_modulation.off
 
     @kernel(flags={"fast-math"})
@@ -75,7 +78,7 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
-        self.dds_modulation.on()
+        self.squeeze_func()
         self.urukul1_ch2.sw.on()
 
         # send debug trigger when waveform begins
