@@ -32,7 +32,6 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.sidebandcool_pulsed_subsequence =                          SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence =                      SidebandCoolContinuous(self)
         self.sidebandreadout_subsequence =                              SidebandReadout(self)
-        self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
         self.readout_subsequence =                                      Readout(self)
         self.rescue_subsequence =                                       RescueIon(self)
 
