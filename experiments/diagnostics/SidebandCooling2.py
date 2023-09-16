@@ -1,11 +1,11 @@
 import numpy as np
-from random import shuffle
 from artiq.experiment import *
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout, RescueIon
+from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
+                                         SidebandCoolContinuous,SidebandCoolPulsed, SidebandReadout)
 
 
 class SidebandCooling2(LAXExperiment, Experiment):
@@ -24,28 +24,6 @@ class SidebandCooling2(LAXExperiment, Experiment):
         # sideband cooling type
         self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
 
-        # sideband cooling readout
-        self.setattr_argument("freq_rsb_scan_mhz",                      Scannable(
-                                                                            default=[
-                                                                                CenterScan(102.6285, 0.020, 0.0005, randomize=True),
-                                                                                ExplicitScan([102.628])
-                                                                            ],
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ), group='sideband_readout')
-        self.setattr_argument("freq_bsb_scan_mhz",                      Scannable(
-                                                                            # default=CenterScan(104.064, 0.02, 0.0005),
-                                                                            default=[
-                                                                                CenterScan(103.7145, 0.020, 0.0005, randomize=True),
-                                                                                ExplicitScan([103.714])
-                                                                            ],
-                                                                            global_min=30, global_max=200, global_step=1,
-                                                                            unit="MHz", scale=1, ndecimals=5
-                                                                        ), group='sideband_readout')
-        self.setattr_argument("time_readout_pipulse_us",                NumberValue(default=100, ndecimals=5, step=1, min=1, max=10000), group='sideband_readout')
-        self.setattr_argument("ampl_readout_pipulse_pct",               NumberValue(default=50, ndecimals=5, step=1, min=1, max=100), group='sideband_readout')
-        self.setattr_argument("att_readout_db",                         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_readout')
-
         # get relevant devices
         self.setattr_device('qubit')
 
@@ -53,6 +31,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
         self.initialize_subsequence =                                   InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =                          SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence =                      SidebandCoolContinuous(self)
+        self.sidebandreadout_subsequence =                              SidebandReadout(self)
         self.rabiflop_subsequence =                                     RabiFlop(self, time_rabiflop_us=self.time_readout_pipulse_us)
         self.readout_subsequence =                                      Readout(self)
         self.rescue_subsequence =                                       RescueIon(self)
@@ -64,22 +43,9 @@ class SidebandCooling2(LAXExperiment, Experiment):
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence =                             self.sidebandcool_pulsed_subsequence
 
-        # convert readout frequencies to machine units
-        self.freq_readout_ftw_list =                                    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                                        for freq_mhz in (list(self.freq_rsb_scan_mhz) + list(self.freq_bsb_scan_mhz))])
-        # combine & shuffle readout frequencies
-        shuffle(self.freq_readout_ftw_list)
-
-        # convert readout parameters
-        self.time_readout_pipulse_mu =                                  self.core.seconds_to_mu(self.time_readout_pipulse_us * us)
-        self.ampl_readout_pipulse_asf =                                 self.qubit.amplitude_to_asf(self.ampl_readout_pipulse_pct / 100)
-
-        # convert attenuation to machine units
-        self.att_readout_mu =                                           att_to_mu(self.att_readout_db * dB)
-
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list),
                 2)
 
 
@@ -91,35 +57,18 @@ class SidebandCooling2(LAXExperiment, Experiment):
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
+        self.sidebandreadout_subsequence.record_dma()
 
-        # record custom readout sequence
-        # note: this is necessary since DMA sequences will preserve urukul attenuation register
-        with self.core_dma.record('_SBC_READOUT'):
-            # set readout waveform for qubit
-            self.qubit.set_profile(0)
-            self.qubit.set_att_mu(self.att_readout_mu)
-
-            # transfer population to D-5/2 state
-            self.rabiflop_subsequence.run()
-
-            # read out fluorescence
-            self.readout_subsequence.run()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
-        # get custom readout handle
-        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
-
-            # sweep frequency
-            for freq_ftw in self.freq_readout_ftw_list:
+            for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
@@ -129,7 +78,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
+                self.sidebandreadout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:
@@ -154,6 +103,7 @@ class SidebandCooling2(LAXExperiment, Experiment):
         results_tmp =           np.array(self.results)
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
+        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
 
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
         results_tmp[:, 0] *=    2.e3 / 0xFFFFFFFF
@@ -178,14 +128,14 @@ class SidebandCooling2(LAXExperiment, Experiment):
         split =                         lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, self.time_readout_pipulse_us)
-        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, self.time_readout_pipulse_us)
+        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, time_readout_us)
+        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, time_readout_us)
 
         # process fit parameters to give values of interest
         sinc_max =                      lambda a, t: np.sin(np.pi * t * a)**2.
         # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us)) /
-                                         (abs(sinc_max(fit_params_bsb[0], self.time_readout_pipulse_us)) - abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us))))
+        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
+                                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                                     )**0.5
@@ -220,6 +170,8 @@ class SidebandCooling2(LAXExperiment, Experiment):
         # process dataset into x, y, with y being averaged probability
         results_tmp =           groupBy(dataset, column_num=0, reduce_func=np.mean)
         results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
+
 
         # separate spectrum into RSB & BSB and fit using sinc profile
         # guess carrier as mean of highest and lowest frequencies
@@ -235,8 +187,8 @@ class SidebandCooling2(LAXExperiment, Experiment):
         # process fit parameters to give values of interest
         sinc_max =                      lambda a, t: np.sin(np.pi*t*a)**2.
         # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us)) /
-                                         (abs(sinc_max(fit_params_bsb[0], self.time_readout_pipulse_us)) - abs(sinc_max(fit_params_rsb[0], self.time_readout_pipulse_us))))
+        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
+                                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
         phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
                                                     )**0.5
