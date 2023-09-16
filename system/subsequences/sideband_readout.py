@@ -3,7 +3,6 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-# todo: make rabi flopping time an argument instead of parameter and require it to be specified each time
 
 
 class SidebandReadout(LAXSubsequence):

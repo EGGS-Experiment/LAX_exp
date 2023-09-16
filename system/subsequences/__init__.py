@@ -40,8 +40,7 @@ __all__.extend(['RabiFlop', 'Ramsey'])
 # readout
 from LAX_exp.system.subsequences.readout import Readout
 from LAX_exp.system.subsequences.sideband_readout import SidebandReadout
-# from LAX_exp.system.subsequences.rabiflop_readout import RabiflopReadout
+from LAX_exp.system.subsequences.rabiflop_readout import RabiflopReadout
 from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
 from LAX_exp.system.subsequences.absorption_probe2 import AbsorptionProbe2
-# __all__.extend(['Readout', 'SidebandReadout', 'RabiflopReadout', 'AbsorptionProbe', 'AbsorptionProbe2'])
-__all__.extend(['Readout', 'SidebandReadout', 'AbsorptionProbe', 'AbsorptionProbe2'])
+__all__.extend(['Readout', 'SidebandReadout', 'RabiflopReadout', 'AbsorptionProbe', 'AbsorptionProbe2'])
