@@ -1,12 +1,10 @@
 import numpy as np
 from artiq.experiment import *
 
+from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
-
-# tmp testing
-from LAX_exp.analysis import *
 
 
 class LaserScan(LAXExperiment, Experiment):
