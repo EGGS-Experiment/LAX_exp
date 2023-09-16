@@ -55,9 +55,12 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                             ), group=self.name)
         # todo: integrate with rabi flopping readout and sideband readout
         self.setattr_argument("time_readout_us_list",                       Scannable(
-                                                                                default=RangeScan(0, 50, 51, randomize=True),
+                                                                                default=[
+                                                                                    ExplicitScan([110]),
+                                                                                    RangeScan(3, 20, 100, randomize=True)
+                                                                                ],
                                                                                 global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
+                                                                                unit="us", scale=1, ndecimals=3
                                                                             ), group=self.name)
 
 
@@ -104,7 +107,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 len(self.freq_squeeze_ftw_list) * len(self.phase_antisqueeze_pow_list)
                 * len(self.time_squeeze_mu_list) * len(self.time_delay_mu_list)
                 * len(self.freq_readout_ftw_list) * len(self.time_readout_mu_list),
-                8)
+                7)
 
 
     # MAIN SEQUENCE
