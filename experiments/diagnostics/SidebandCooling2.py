@@ -8,13 +8,13 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, SidebandCoolPulsed, RabiFlop, Readout, RescueIon
 
 
-class SidebandCooling(LAXExperiment, Experiment):
+class SidebandCooling2(LAXExperiment, Experiment):
     """
-    Experiment: Sideband Cooling
+    Experiment: Sideband Cooling 2
 
     Measures temperature after a given number of RSB pulses.
     """
-    name = 'Sideband Cooling'
+    name = 'Sideband Cooling 2'
 
 
     def build_experiment(self):
