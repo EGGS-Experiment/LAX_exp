@@ -151,7 +151,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 # set readout waveform for qubit
                 self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_readout_mu)
+                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
                 # transfer population to D-5/2 state
                 self.qubit.on()
                 delay_mu(time_readout_mu)
