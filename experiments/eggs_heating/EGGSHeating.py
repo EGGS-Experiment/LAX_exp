@@ -3,7 +3,7 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
-import LAX_exp.experiments.SidebandCooling as SidebandCooling
+import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 from math import gcd
 
@@ -96,6 +96,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
 
         ### EGGS HEATING - TIMING ###
@@ -129,11 +130,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # create config data structure with amplitude values
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
-        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) *
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
                                                                                       len(self.freq_eggs_secular_hz_list),
                                                                                       6), dtype=float)
-        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_readout_ftw_list,
+        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
                                                                                                  self.freq_eggs_secular_hz_list),
                                                                                      -1).reshape(-1, 3)
@@ -312,31 +313,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # todo: set up attenuation for cancellation dds
         self.core.break_realtime()
         self.urukul1_ch2.set_att_mu(self.att_dd_active_cancel_mu)
-        # tmp remove
-
-        # note: bulk of this code is copy and pasted from SidebandCooling
-        # since we can't call "super().initialize_experiment" in a kernel function
-
-        ### BEGIN COPY AND PASTE FROM SIDEBANDCOOLING ###
         self.core.break_realtime()
+        # tmp remove
 
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-
-        # record custom readout sequence
-        # note: this is necessary since DMA sequences will preserve urukul attenuation register
-        with self.core_dma.record('_SBC_READOUT'):
-            # set readout waveform for qubit
-            self.qubit.set_profile(0)
-            self.qubit.set_att_mu(self.att_readout_mu)
-
-            # transfer population to D-5/2 state
-            self.rabiflop_subsequence.run()
-
-            # read out fluorescence
-            self.readout_subsequence.run()
-        ### END COPY AND PASTE FROM SIDEBANDCOOLING ###
+        self.sidebandreadout_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
 
         ### PHASER INITIALIZATION ###
         self.phaser_setup()
@@ -353,7 +337,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.core.reset()
 
         # get custom sequence handles
-        _handle_sbc_readout =               self.core_dma.get_handle('_SBC_READOUT')
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
@@ -365,6 +348,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             # sweep eggs rf configurations
             for config_vals in self.config_eggs_heating_list:
 
+                '''CONFIGURE'''
                 # extract values from config list
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
@@ -383,14 +367,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
 
+                '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
-
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
 
-                ### RUN EGGS HEATING ###
+                '''EGGS HEATING'''
                 # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
@@ -412,11 +396,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 with parallel:
                     self.phaser_stop()
                     self.phaser_activecancel_stop()
-                ### STOP EGGS HEATING ###
 
 
-                # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
+                '''READOUT'''
+                self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:
@@ -436,7 +420,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.check_termination()
                 self.core.break_realtime()
 
-        # CLEANUP
+        '''CLEANUP'''
         self.core.break_realtime()
         # reset all oscillator frequencies and amplitudes
         self.phaser_eggs.reset_oscillators()

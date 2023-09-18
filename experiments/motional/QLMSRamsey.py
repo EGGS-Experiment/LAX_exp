@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import TickleDDS
-import LAX_exp.experiments.SidebandCooling as SidebandCooling
+import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 
 class QLMSRamsey(SidebandCooling.SidebandCooling):
@@ -18,6 +18,9 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
 
     def build_experiment(self):
+        # run regular sideband cooling build
+        super().build_experiment()
+
         # QLMS configuration
         self.setattr_argument("time_qlms_ramsey_delay_ms_list",                Scannable(
                                                                                     default=[
@@ -33,75 +36,43 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
                                                                                     unit="kHz", scale=1, ndecimals=3
                                                                                 ), group=self.name)
 
-        # subsequences
+        # subsequences & devices
         self.tickle_subsequence =                                               TickleDDS(self)
-
-        # get relevant devices
         self.setattr_device('dds_modulation')
-
-        # run regular sideband cooling build
-        super().build_experiment()
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # convert QLMS parameters to machine units
         self.time_qlms_ramsey_delay_mu_list =                                   np.array([self.core.seconds_to_mu(time_ms * ms)
                                                                                           for time_ms in self.time_qlms_ramsey_delay_ms_list],
                                                                                          dtype=np.int64)
-        self.freq_qlms_ramsey_ftw_list =                                        np.array([
-                                                                                    self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
-                                                                                    for freq_khz in self.freq_qlms_ramsey_khz_list
-                                                                                ])
+        self.freq_qlms_ramsey_ftw_list =                                        np.array([self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
+                                                                                          for freq_khz in self.freq_qlms_ramsey_khz_list])
 
         # create an array of values for the experiment to sweep
         # (i.e. DDS tickle frequency & readout FTW)
-        self.config_qlms_ramsey_list =                                          np.stack(np.meshgrid(self.time_qlms_ramsey_delay_mu_list, self.freq_qlms_ramsey_ftw_list, self.freq_readout_ftw_list), -1).reshape(-1, 3)
+        self.config_qlms_ramsey_list =                                          np.stack(np.meshgrid(self.time_qlms_ramsey_delay_mu_list,
+                                                                                                     self.freq_qlms_ramsey_ftw_list,
+                                                                                                     self.freq_sideband_readout_ftw_list),
+                                                                                         -1).reshape(-1, 3)
         self.config_qlms_ramsey_list =                                          np.array(self.config_qlms_ramsey_list, dtype=np.int64)
         np.random.shuffle(self.config_qlms_ramsey_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.time_qlms_ramsey_delay_mu_list) * len(self.freq_qlms_ramsey_ftw_list) * len(self.freq_readout_ftw_list),
+        return (self.repetitions * len(self.config_qlms_ramsey_list),
                 3)
 
-
-    # MAIN SEQUENCE
-    @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
-        self.core.break_realtime()
-
-        # record subsequences onto DMA
-        self.initialize_subsequence.record_dma()
-        self.sidebandcool_subsequence.record_dma()
-        self.tickle_subsequence.record_dma()
-
-        # record custom readout sequence
-        # note: this is necessary since DMA sequences will preserve urukul attenuation register
-        with self.core_dma.record('_SBC_READOUT'):
-            # set readout waveform for qubit
-            self.qubit.set_profile(0)
-            self.qubit.set_att_mu(self.att_readout_mu)
-
-            # transfer population to D-5/2 state
-            self.rabiflop_subsequence.run()
-
-            # read out fluorescence
-            self.readout_subsequence.run()
 
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
-        # get custom readout handle
-        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
-
-            # sweep experiment config: ramsey time, tickle frequency, and readout frequency
             for config_vals in self.config_qlms_ramsey_list:
 
                 # extract values from config list
@@ -119,17 +90,17 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
-
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
                 # QLMS ramsey
-                self.tickle_subsequence.run_dma()
+                self.tickle_subsequence.run()
                 delay_mu(time_qlms_mu)
-                self.tickle_subsequence.run_dma()
+                self.tickle_subsequence.run()
 
-                # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
+                # sideband readout
+                self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:

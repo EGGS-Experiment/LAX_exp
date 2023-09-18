@@ -4,7 +4,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import ParametricExcite
-import LAX_exp.experiments.ParametricSweep as ParametricSweep
+import LAX_exp.experiments.parametric.ParametricSweep as ParametricSweep
 
 import labrad
 from os import environ
@@ -15,9 +15,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
     Experiment: Micromotion Compensation
 
-    # todo: redocument
     Modulate the trap RF close to a secular frequency while sweeping shim voltgaes
-    to measure micromotion.
+    to characterize micromotion, then attempt to algorithmically compensate for it.
     """
     name = 'Micromotion Compensation'
 

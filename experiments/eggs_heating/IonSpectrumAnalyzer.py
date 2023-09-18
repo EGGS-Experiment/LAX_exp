@@ -4,7 +4,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import Squeeze
-import LAX_exp.experiments.EGGSHeating as EGGSHeating
+import LAX_exp.experiments.eggs_heating.EGGSHeating as EGGSHeating
 
 from math import gcd
 
@@ -52,6 +52,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
 
         ### EGGS HEATING - TIMING ###
@@ -86,12 +87,12 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # create config data structure with amplitude values
         # note: 6 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac, sideband_offset_freq_hz]
-        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_readout_ftw_list) *
+        self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
                                                                                       len(self.freq_eggs_secular_hz_list) *
                                                                                       len(self.freq_ionSpecAnal_sideband_offset_hz_list),
                                                                                       7), dtype=float)
-        self.config_eggs_heating_list[:, [0, 1, 2, -1]] =                   np.stack(np.meshgrid(self.freq_readout_ftw_list,
+        self.config_eggs_heating_list[:, [0, 1, 2, -1]] =                   np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
                                                                                                  self.freq_eggs_secular_hz_list,
                                                                                                  self.freq_ionSpecAnal_sideband_offset_hz_list),
@@ -156,46 +157,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
-        # note: bulk of this code is copy and pasted from SidebandCooling
-        # since we can't call "super().initialize_experiment" in a kernel function
-
-        ### BEGIN COPY AND PASTE FROM SIDEBANDCOOLING ###
-        self.core.break_realtime()
-
-        # record general subsequences onto DMA
-        self.initialize_subsequence.record_dma()
-        self.sidebandcool_subsequence.record_dma()
-
-        # record custom readout sequence
-        # note: this is necessary since DMA sequences will preserve urukul attenuation register
-        with self.core_dma.record('_SBC_READOUT'):
-            # set readout waveform for qubit
-            self.qubit.set_profile(0)
-            self.qubit.set_att_mu(self.att_readout_mu)
-
-            # transfer population to D-5/2 state
-            self.rabiflop_subsequence.run()
-
-            # read out fluorescence
-            self.readout_subsequence.run()
-        ### END COPY AND PASTE FROM SIDEBANDCOOLING ###
-
-        ### PHASER INITIALIZATION ###
-        self.phaser_setup()
-        self.core.break_realtime()
-
-        # tmp remove
-        self.ttl8.off()
-        self.ttl9.off()
-        # tmp remove
-
-    @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
         # get custom sequence handles
-        _handle_sbc_readout =               self.core_dma.get_handle('_SBC_READOUT')
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         # _handle_squeeze =                   self.core_dma.get_handle('_SQUEEZE')
@@ -209,6 +174,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             # sweep eggs rf configurations
             for config_vals in self.config_eggs_heating_list:
 
+                '''CONFIGURE'''
                 # extract values from config list
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
@@ -228,7 +194,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core.break_realtime()
 
 
-                ### STATE PREPARATION ###
+                '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
                 # sideband cool
@@ -236,16 +202,15 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # squeeze ion
                 # self.core_dma.playback_handle(_handle_squeeze)
                 self.squeeze_subsequence.squeeze()
-                ### STATE PREPARATION - END ###
 
 
-                ### RUN EGGS HEATING ###
-                # EGGS - START/SETUP
+                '''ION SPECTRUM ANALYZER'''
+                # PHASER - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
-                # EGGS - RUN
+                # PHASER - RUN
                 with parallel:
                     # # set TTL for synchronization trigger on a scope
                     # with sequential:
@@ -255,20 +220,16 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                     # # tmp remove
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
-                # EGGS - STOP
+                # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
-                ### EGGS HEATING - END ###
 
 
-                ### READOUT ###
-                # antisqueeze
+                '''READOUT'''
                 # self.core_dma.playback_handle(_handle_antisqueeze)
                 self.squeeze_subsequence.antisqueeze()
-                # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
-                ### READOUT - END ###
-
+                self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:

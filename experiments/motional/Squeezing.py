@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import SqueezeConfigurable
-import LAX_exp.experiments.SidebandCooling as SidebandCooling
+import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 
 class Squeezing(SidebandCooling.SidebandCooling):
@@ -76,6 +76,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # convert squeezing to machine units
         self.freq_squeeze_ftw_list =                                            np.array([hz_to_ftw(freq_khz * kHz)
@@ -95,7 +96,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.config_squeeze_list =                                              np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
                                                                                                      self.phase_antisqueeze_pow_list,
                                                                                                      self.time_squeeze_mu_list,
-                                                                                                     self.freq_readout_ftw_list,
+                                                                                                     self.freq_sideband_readout_ftw_list,
                                                                                                      self.time_delay_mu_list,
                                                                                                      self.time_readout_mu_list),
                                                                                          -1).reshape(-1, 6)
@@ -103,10 +104,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
     @property
     def results_shape(self):
-        return (self.repetitions *
-                len(self.freq_squeeze_ftw_list) * len(self.phase_antisqueeze_pow_list)
-                * len(self.time_squeeze_mu_list) * len(self.time_delay_mu_list)
-                * len(self.freq_readout_ftw_list) * len(self.time_readout_mu_list),
+        return (self.repetitions * len(self.config_squeeze_list),
                 7)
 
 

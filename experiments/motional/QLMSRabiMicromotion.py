@@ -3,12 +3,11 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import TickleDDS
-import LAX_exp.experiments.SidebandCooling as SidebandCooling
+import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 # LABRAD IMPORTS
 import labrad
 from os import environ
-from time import sleep
 from EGGS_labrad.config.dc_config import dc_config
 
 
@@ -69,6 +68,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # get voltage parameters
         self.dc_micromotion_channel_1_num =                                     self.dc_micromotion_channeldict[self.dc_micromotion_channel_1]['num']
@@ -94,7 +94,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         '''OLD - IGNORE'''
         # # [readout AOM FTW, DDS tickle frequency, H shim voltage (volts), V shim voltage (volts)]
         # self.config_qlms_rabi_micromotion_list =                                np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
-        #                                                                                              self.freq_readout_ftw_list,
+        #                                                                                              self.freq_sideband_readout_ftw_list,
         #                                                                                              self.dc_micromotion_voltages_1_v_list,
         #                                                                                              self.dc_micromotion_voltages_2_v_list),
         #                                                                                  -1).reshape(-1, 4)
@@ -107,7 +107,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                                                                                          -1).reshape(-1, 2)
         np.random.shuffle(self.config_voltage_list)
         self.config_qlms_rabi_micromotion_list =                                np.stack(np.meshgrid(self.freq_qlms_rabi_ftw_list,
-                                                                                                     self.freq_readout_ftw_list),
+                                                                                                     self.freq_sideband_readout_ftw_list),
                                                                                          -1).reshape(-1, 2)
         np.random.shuffle(self.config_qlms_rabi_micromotion_list)
 
@@ -147,33 +147,15 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
         self.tickle_subsequence.record_dma()
-
-        # record custom readout sequence
-        # note: this is necessary since DMA sequences will preserve urukul attenuation register
-        with self.core_dma.record('_SBC_READOUT'):
-            # set readout waveform for qubit
-            self.qubit.set_profile(0)
-            self.qubit.set_att_mu(self.att_readout_mu)
-
-            # transfer population to D-5/2 state
-            self.rabiflop_subsequence.run()
-
-            # read out fluorescence
-            self.readout_subsequence.run()
+        self.sidebandreadout_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
 
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
-        # get custom readout handle
-        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
-        self.core.break_realtime()
-
-
-        # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             for voltage_list_v in self.config_voltage_list:
 
                 # set DC shimming voltages
@@ -207,8 +189,9 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                     # QLMS tickle
                     self.tickle_subsequence.run_dma()
 
-                    # custom SBC readout
-                    self.core_dma.playback_handle(_handle_sbc_readout)
+                    # sideband readout
+                    self.sidebandreadout_subsequence.run_dma()
+                    self.readout_subsequence.run_dma()
 
                     # update dataset
                     with parallel:

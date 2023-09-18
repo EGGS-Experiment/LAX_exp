@@ -2,7 +2,7 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
-import LAX_exp.experiments.SidebandCooling as SidebandCooling
+import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 # tmp testing
 from LAX_exp.analysis import *
@@ -28,6 +28,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     def prepare_experiment(self):
         # run preparations for sideband cooling
         super().prepare_experiment()
+        self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # convert heating rate timings to machine units
         self.time_heating_rate_mu_list =                                        np.array([self.core.seconds_to_mu(time_ms * ms)
@@ -36,7 +37,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_heating_rate_list =                                         np.stack(np.meshgrid(self.time_heating_rate_mu_list, self.freq_readout_ftw_list), -1).reshape(-1, 2)
+        self.config_heating_rate_list =                                         np.stack(np.meshgrid(self.time_heating_rate_mu_list,
+                                                                                                     self.freq_sideband_readout_ftw_list),
+                                                                                         -1).reshape(-1, 2)
         self.config_heating_rate_list =                                         np.array(self.config_heating_rate_list, dtype=np.int64)
         np.random.shuffle(self.config_heating_rate_list)
 
@@ -51,13 +54,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     def run_main(self):
         self.core.reset()
 
-        # get custom readout handle
-        _handle_sbc_readout = self.core_dma.get_handle('_SBC_READOUT')
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
-
-            # sweep experiment config: heating time and readout frequency
             for config_vals in self.config_heating_rate_list:
 
                 # extract values from config list
@@ -78,8 +75,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 # wait time to measure heating rate
                 delay_mu(time_heating_delay_mu)
 
-                # custom SBC readout
-                self.core_dma.playback_handle(_handle_sbc_readout)
+                # sideband readout
+                self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
                 # update dataset
                 with parallel:
@@ -105,6 +103,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         results_tmp =           np.array(self.results)
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
+        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
+
 
         # tmp remove
         results_yzde =          groupBy(results_tmp, column_num=2)
@@ -127,7 +127,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
 
         # batch process sideband cooling data for each heating time
-        heating_rate_data =             np.array([[heat_time, *(self._extract_phonon(dataset, self.time_readout_pipulse_us))]
+        heating_rate_data =             np.array([[heat_time, *(self._extract_phonon(dataset, time_readout_us))]
                                                   for heat_time, dataset in results_tmp.items()])
         # fit line to results
         fit_params_heating_rate =       np.array(fitLine(heating_rate_data[:, :2]))
