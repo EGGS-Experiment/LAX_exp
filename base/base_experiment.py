@@ -100,9 +100,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         # store arguments in dataset manager
         self._save_arguments()
 
-        # todo: call device prepare method first
-        # tmp remove
+        # note: we call prepare_device and prepare_subsequence here
+        # to ensure that any attributes instantiated here will be accessible by prepare_experiment
         self.call_child_method("prepare_device")
+        self.call_child_method("prepare_subsequence")
 
         # call user-defined prepare function
         self.prepare_experiment()
