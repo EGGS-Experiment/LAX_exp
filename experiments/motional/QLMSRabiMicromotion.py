@@ -177,7 +177,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
                     # set QLMS modulation and 729nm readout frequencies
                     with parallel:
                         self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
-                        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                        self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                         self.core.break_realtime()
 
                     # initialize ion in S-1/2 state

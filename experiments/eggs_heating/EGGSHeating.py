@@ -363,7 +363,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
                 self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
 

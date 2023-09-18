@@ -122,7 +122,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
 
                 # configure tickle and qubit readout
                 self.tickle_subsequence.configure(freq_qlms_ftw, phase_qlms_pow, time_qlms_mu)
-                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state

@@ -81,11 +81,9 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
                 freq_readout_ftw =  np.int32(config_vals[2])
                 self.core.break_realtime()
 
-                # set QLMS modulation frequency
+                # prepare devices waveforms
                 self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
-
-                # set readout frequency
-                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_readout_pipulse_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
