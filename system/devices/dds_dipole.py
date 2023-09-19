@@ -12,7 +12,7 @@ class DDSDipole(LAXDevice):
     Uses the DDS channel to apply a dipole field on the EGGS-side.
     """
     name = "dds_dipole"
-    core_device = ('dds', 'urukul1_ch2')
+    core_device = ('dds', 'urukul1_ch3')
 
     def prepare_device(self):
         self.freq_modulation_ftw =              hz_to_ftw(1 * MHz)

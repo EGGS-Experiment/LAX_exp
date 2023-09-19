@@ -31,6 +31,11 @@ device_db_ext = {
 
 
     # DDS
+    "dds_dipole": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.dds_dipole",
+        "class": "DDSDipole"
+    },
     "dds_modulation": {
         "type": "local",
         "module": "LAX_exp.system.devices.dds_modulation",
