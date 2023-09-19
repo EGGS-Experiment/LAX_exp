@@ -20,7 +20,7 @@ class Displace(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_argument("enable_displacement",        BooleanValue(default=True), group=self.name)
-        self.setattr_argument('att_displace_db',            NumberValue(default=13., ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('att_displace_db',            NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_dipole')
@@ -36,6 +36,8 @@ class Displace(LAXSubsequence):
 
         # configure displacement on/off
         self.displace_func =                                self.dds_dipole.on
+        if not self.enable_displacement:
+            self.displace_func =                            self.dds_dipole.off
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -47,6 +49,8 @@ class Displace(LAXSubsequence):
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64):
         # store parameters as instance attribute
         self.time_displace_mu = time_mu
+        print(self.time_displace_mu)
+        self.core.break_realtime()
 
         # set waveforms for profiles
         # displacement waveform
@@ -77,7 +81,8 @@ class Displace(LAXSubsequence):
         self.displace_func()
 
         # displace for given time
-        # note: turn off switch early to account for switch rise time
-        delay_mu(self.time_displace_mu
-                 - TIME_URUKUL_RFSWITCH_DELAY_MU)
+        # # note: turn off switch early to account for switch rise time
+        # delay_mu(self.time_displace_mu
+        #          - TIME_URUKUL_RFSWITCH_DELAY_MU)
+        delay_mu(self.time_displace_mu)
         self.dds_dipole.off()

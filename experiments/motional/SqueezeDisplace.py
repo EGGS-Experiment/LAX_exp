@@ -28,7 +28,7 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         # displacement configuration
         self.setattr_argument("freq_displace_khz",                          NumberValue(default=1090, ndecimals=3, step=10, min=1, max=400000), group='displace')
         self.setattr_argument("phase_displace_turns",                       NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='displace')
-        self.setattr_argument("time_displace_us",                           NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group='displace')
+        self.setattr_argument("time_displace_us",                           NumberValue(default=5., ndecimals=3, step=100, min=1, max=1000000), group='displace')
         # todo: integrate with rabi flopping readout and sideband readout
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
