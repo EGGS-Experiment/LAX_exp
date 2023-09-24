@@ -33,10 +33,13 @@ class PhaserInitialize(EnvExperiment):
         *************DAC*******************
         '''
         # set DAC NCO frequency to center output at 85 MHz exactly
+        # todo note: trf frequency is 302.083918
+        # todo note: 217.083918 is the right frequency
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_nco_frequency((-217.083495) * MHz)
         delay_mu(self.time_phaser_sample_mu)
         self.phaser0.channel[1].set_nco_frequency((-217.083495) * MHz)
+
 
         # clear DAC NCO phase
         at_mu(self.phaser0.get_next_frame_mu())
