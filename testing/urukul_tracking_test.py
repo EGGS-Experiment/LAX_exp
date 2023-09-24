@@ -12,7 +12,7 @@ class UrukulTrackingTest(EnvExperiment):
     """
 
     def build(self):
-        self.frequency_mhz =                100
+        self.frequency_mhz =                100.
         self.amplitude_pct =                50.
         self.att_db =                       10.
 

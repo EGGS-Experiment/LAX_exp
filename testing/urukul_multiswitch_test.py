@@ -5,21 +5,22 @@ from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, PHASE_MODE_CONTINUOUS, _AD9910_REG_CFR1
 
 
-class UrukulTrackingTest(EnvExperiment):
+class UrukulMultiswitchTest(EnvExperiment):
     """
-    Urukul Tracking Test
-    Testing phase tracking.
+    Urukul Multiswitch Test
+    Testing multi-switching.
     """
 
     def build(self):
-        self.frequency_mhz =                100.
+        self.frequency_mhz =                62.5
         self.amplitude_pct =                50.
         self.att_db =                       10.
 
         self.phase_turns0 =                 0.
         self.phase_turns1 =                 0.
 
-        self.time_delay_ns =                1000
+
+        self.time_delay_ns =                192
 
     def prepare(self):
         # core devices
@@ -106,7 +107,7 @@ class UrukulTrackingTest(EnvExperiment):
                                              pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.res11 = self.urukul1_ch2.set_mu(self.freq_ftw1, asf=self.ampl_asf0, profile=1,
                                              pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(self.freq_ftw1, asf=0x0, profile=2,
+        self.urukul1_ch2.set_mu(self.freq_ftw1, asf=self.ampl_asf0, profile=2,
                                 pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
         # set up registers
@@ -142,50 +143,41 @@ class UrukulTrackingTest(EnvExperiment):
         self.urukul1_cpld.set_profile(0)
 
         # open RF switches early since they have ~100 ns rise time
-        at_mu(time_start_mu + ((416 + 63) - 140))
+        at_mu(time_start_mu + ((416 + 63) - 250))
         self.urukul1_ch1.sw.on()
         self.urukul1_ch2.sw.on()
 
-        # send trigger when waveform begins
+        # send sync ttl for start
         at_mu(time_start_mu + (416 + 63))
         self.ttl8.on()
-        self.t00 = now_mu()
-
-
-        '''SQUEEZE STOP'''
-        delay_mu(self.time_delay_mu)
-        self.t01 = now_mu()
-
-        self.ttl8.off()
-        self.urukul1_ch1.sw.off()
-        # self.urukul1_ch2.sw.off()
-
-
-        '''ARBITRARY PULSE SEQUENCE'''
-        # self.t00 = now_mu()
-        with parallel:
-            delay_mu(10000)
-            with sequential:
-                self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16))
-                self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
-                self.urukul1_cpld.set_profile(1)
-        # self.t01 = now_mu()
-
-
-        '''ANTISQUEEZE'''
-        time_antisqueeze_mu = now_mu()
-
-        # open RF switch in advance
-        at_mu(time_antisqueeze_mu - 140)
-        self.urukul1_ch1.sw.on()
-
-        at_mu(time_antisqueeze_mu)
         self.ttl9.on()
-        delay_mu(1000)
-        self.ttl9.off()
+
+        # idk 0
+        time_stop = (time_start_mu + (416 + 63) + self.time_delay_mu) & ~0x7
+        at_mu(time_stop)
+        self.ttl8.off()
+        self.urukul1_cpld.set_profile(2)
+
+
+
+
+        # # send trigger to signal start
+        # at_mu(time_start_mu + (416 + 63) + 22)
+        # self.ttl8.on()
+        #
+        # # close switches
+        # at_mu(time_start_mu + (416 + 63) + self.time_delay_mu)
+        # self.ttl9.off()
+        # self.urukul1_ch1.sw.off()
+        # self.urukul1_ch2.sw.off()
+        #
+        # # send trigger to signal stop
+        # at_mu(time_start_mu + (416 + 63) + self.time_delay_mu + 22)
+        # self.ttl8.off()
 
 
         '''CLEANUP'''
+        delay_mu(100)
         with parallel:
             self.ttl8.off()
             self.ttl9.off()
@@ -200,8 +192,8 @@ class UrukulTrackingTest(EnvExperiment):
         print('\n')
         print('\t\turukul1_ch1 profile 1 phase: {:.4f}'.format(self.urukul1_ch1.pow_to_turns(self.res01)))
         print('\t\turukul1_ch2 profile 1 phase: {:.4f}'.format(self.urukul1_ch1.pow_to_turns(self.res11)))
-        print('\n')
-        print('\t\tt00: {:d}'.format(self.t00))
-        print('\t\tt01: {:d}'.format(self.t01))
-        print('\t\tdelay: {:d}'.format(self.t01 - self.t00))
+        # print('\n')
+        # print('\t\tt00: {:d}'.format(self.t00))
+        # print('\t\tt01: {:d}'.format(self.t01))
+        # print('\t\tdelay: {:d}'.format(self.t01 - self.t00))
 

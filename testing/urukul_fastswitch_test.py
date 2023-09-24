@@ -17,14 +17,14 @@ class UrukulFastSwitchTest(EnvExperiment):
     """
 
     def build(self):
-        self.frequency_mhz =                82.
+        self.frequency_mhz =                62.5
         self.amplitude_pct =                50.
 
         self.phase_turns0 =                 0.
         # self.phase_turns1 =                 -0.325
-        self.phase_turns1 =                 0.5
+        self.phase_turns1 =                 0.
 
-        self.time_delay_ns =                8
+        self.time_delay_ns =                471
 
     def prepare(self):
         # core devices
@@ -62,7 +62,7 @@ class UrukulFastSwitchTest(EnvExperiment):
     def _prepare_parameters(self):
         # calculate base waveform values
         self.ampl_asf0 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100.)
-        self.ampl_asf1 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100. * 1.5)
+        self.ampl_asf1 =                    self.urukul0_ch0.amplitude_to_asf(self.amplitude_pct / 100.)
 
         self.freq_ftw0 =                    self.urukul0_ch0.frequency_to_ftw(self.frequency_mhz * MHz)
         self.freq_ftw1 =                    self.urukul0_ch0.frequency_to_ftw(self.frequency_mhz * MHz)
@@ -85,7 +85,7 @@ class UrukulFastSwitchTest(EnvExperiment):
         # combine compensation values into ch1 phase: ch0 vs ch1 inherent phase shift/relation, ch0 vs ch1 inherent time delay, and ch1 offset
         self.phase_ch1_final_pow =          self.urukul0_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
                                                                           self.phase_ch1_latency_turns +
-                                                                          self.phase_ch1_delay_turns +
+                                                                          # self.phase_ch1_delay_turns +
                                                                           self.phase_turns1)
 
 
@@ -113,7 +113,7 @@ class UrukulFastSwitchTest(EnvExperiment):
             self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
             self.urukul1_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
-            self.urukul0_ch3.set_att(20 * dB)
+            self.urukul0_ch3.set_att(10 * dB)
             self.urukul1_ch3.set_att(10 * dB)
 
         # prepare - DDS profiles
@@ -124,6 +124,9 @@ class UrukulFastSwitchTest(EnvExperiment):
         with parallel:
             self.res01 = self.urukul0_ch3.set_mu(self.freq_ftw0, asf=self.ampl_asf0, pow_=self.phase_ch0_offset_pow, profile=1)
             self.res11 = self.urukul1_ch3.set_mu(self.freq_ftw1, asf=self.ampl_asf1, pow_=self.phase_ch1_final_pow, profile=1)
+        with parallel:
+            self.res01 = self.urukul0_ch3.set_mu(self.freq_ftw0, asf=0x0, pow_=self.phase_ch0_offset_pow, profile=2)
+            self.res11 = self.urukul1_ch3.set_mu(self.freq_ftw1, asf=0x0, pow_=self.phase_ch1_final_pow, profile=2)
 
         # set up registers
         at_mu(now_mu() + 10000)
@@ -166,19 +169,22 @@ class UrukulFastSwitchTest(EnvExperiment):
         at_mu(time_start_mu)
         with parallel:
             self.urukul0_cpld.set_profile(1)
-            # self.urukul1_cpld.set_profile(1)
+            self.urukul1_cpld.set_profile(1)
 
-            with sequential:
-                delay_mu(475)
-                self.ttl8.on()
+        at_mu(time_start_mu + (416 + 63))
+        self.ttl8.on()
 
-                # tmp remove
-                self.ttl9.on()
-                # tmp remove
+        at_mu((time_start_mu + (416 + 63)
+              + self.time_delay_mu - 416))
+        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16))
+        at_mu(now_mu() & ~0x7)
+        self.urukul0_cpld.set_profile(2)
 
-        at_mu(time_start_mu + self.time_delay_mu)
-        delay_mu(475 + 4)
+        at_mu((time_start_mu + (416 + 63)
+              + self.time_delay_mu))
         self.ttl9.off()
+
+
 
         # start cancellation waveform
         # at_mu(time_start_mu + self.time_delay_mu)
