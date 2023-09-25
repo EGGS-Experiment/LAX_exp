@@ -29,7 +29,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                 global_min=0, global_max=100000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=5
                                                                             ), group=self.name)
-        self.setattr_argument("`phase_antisqueeze_turns_list`",               Scannable(
+        self.setattr_argument("phase_antisqueeze_turns_list`",               Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),
                                                                                     RangeScan(0, 1.0, 6, randomize=True)
