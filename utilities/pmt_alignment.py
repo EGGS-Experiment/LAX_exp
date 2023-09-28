@@ -39,7 +39,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         # todo: also assert whether the time_slack_mu is valid
 
         # get relevant timings and calculate the number of repetitions
-        self.repetitions =                      round(self.time_total_s / self.update_interval_ms)
+        self.repetitions =                      round(self.time_total_s / (self.update_interval_ms * ms))
         self.time_sample_mu =                   self.core.seconds_to_mu(self.time_sample_us * us)
         # assume 50% duty cycle
         self.time_slack_mu =                    self.core.seconds_to_mu((self.update_interval_ms * ms) / self.samples_per_point
@@ -57,9 +57,6 @@ class PMTAlignment(LAXExperiment, Experiment):
         # prepare datasets for storing counts
         self.set_dataset('_tmp_counts',     np.zeros((self.repetitions, 4)), broadcast=True, persist=False, archive=False)
         self.setattr_dataset('_tmp_counts')
-        print(self.time_slack_mu)
-        print(self.time_sample_mu)
-        print((self.update_interval_ms * ms) / self.samples_per_point - 2 * self.time_sample_us * us)
 
 
     @property
