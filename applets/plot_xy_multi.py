@@ -148,9 +148,16 @@ class MultiXYPlot(PlotWidget):
                 color = pyqtgraph.intColor(i)
                 self.plotItem.plot(x=fit_x[idx], y=fit_values[idx], pen=color)
 
+        # tmp remove
+        _names = ['Signal', 'Background', 'Differential']
+        # tmp remove
+
         for y_values, i in zip(y.transpose(), graph_index):
             # Assemble name of the plot
-            name = self._name_format.format(index=i)
+            # tmp remove
+            # name = self._name_format.format(index=i)
+            name = _names[i]
+            # tmp remove
             # Pick a color and plot graph
             color = pyqtgraph.intColor(i)
             pen = pyqtgraph.mkPen(color, width=1)

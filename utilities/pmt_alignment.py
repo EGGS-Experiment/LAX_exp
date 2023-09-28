@@ -19,11 +19,11 @@ class PMTAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',           NumberValue(default=1000, ndecimals=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('update_interval_ms',     NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='timing')
 
         self.setattr_argument('time_sample_us',         NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=50, ndecimals=0, step=10, min=1, max=500), group='timing')
+        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=1, max=500), group='timing')
 
         # relevant devices
         self.setattr_device('pump')
