@@ -9,7 +9,7 @@ import pyqtgraph
 
 import artiq.applets.simple
 
-from widget import PlotWidget
+from LAX_exp.applets.widget import PlotWidget
 
 
 class MultiXYPlot(PlotWidget):
