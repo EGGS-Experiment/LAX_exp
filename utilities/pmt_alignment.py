@@ -19,7 +19,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',           NumberValue(default=1000, ndecimals=0, step=100, min=100, max=100000), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=1000, ndecimals=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('update_interval_ms',     NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='timing')
 
         self.setattr_argument('time_sample_us',         NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
@@ -90,10 +90,13 @@ class PMTAlignment(LAXExperiment, Experiment):
             self.repump_cooling.off()
 
             # add holdoff time to allow ions/beams/idk to settle
-            delay_mu(10000)
+            delay_mu(2500)
 
             # record PMT background only
             self.pmt.count(self.time_sample_mu)
+
+            # turn repump beams back on to cool ions
+            self.repump_cooling.on()
         
         
     @kernel(flags={"fast-math"})
