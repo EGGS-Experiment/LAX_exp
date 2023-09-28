@@ -55,8 +55,10 @@ class PMTAlignment(LAXExperiment, Experiment):
         self._iter_loop =                       np.arange(self.samples_per_point)
 
         # prepare datasets for storing counts
-        self.set_dataset('_tmp_counts',     np.zeros((self.repetitions, 4)), broadcast=True, persist=False, archive=False)
-        self.setattr_dataset('_tmp_counts')
+        self.set_dataset('_tmp_counts_x',     np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
+        self.set_dataset('_tmp_counts_y',     np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
+        self.setattr_dataset('_tmp_counts_x')
+        self.setattr_dataset('_tmp_counts_y')
 
 
     @property
@@ -132,10 +134,10 @@ class PMTAlignment(LAXExperiment, Experiment):
     # tmp remove
     @rpc(flags={"async"})
     def update_results(self, iter_num, counts_signal, counts_background):
-        self.mutate_dataset('_tmp_counts', self._result_iter, np.array([iter_num * (self.update_interval_ms * ms),
-                                                                        counts_signal / self.samples_per_point,
-                                                                        counts_background / self.samples_per_point,
-                                                                        (counts_signal - counts_background) / self.samples_per_point]))
+        self.mutate_dataset('_tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
+        self.mutate_dataset('_tmp_counts_y', self._result_iter, np.array([counts_signal / self.samples_per_point,
+                                                                          counts_background / self.samples_per_point,
+                                                                          (counts_signal - counts_background) / self.samples_per_point]))
         self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
