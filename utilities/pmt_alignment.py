@@ -20,7 +20,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         """
         # timing
         self.setattr_argument('time_total_s',           NumberValue(default=1000, ndecimals=0, step=100, min=100, max=100000), group='timing')
-        self.setattr_argument('update_interval_ms',     NumberValue(default=200, ndecimals=0, step=100, min=50, max=100000), group='timing')
+        self.setattr_argument('update_interval_ms',     NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='timing')
 
         self.setattr_argument('time_sample_us',         NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
         self.setattr_argument('samples_per_point',      NumberValue(default=50, ndecimals=0, step=10, min=1, max=500), group='timing')
@@ -34,7 +34,7 @@ class PMTAlignment(LAXExperiment, Experiment):
         # ensure sample rates and readout times are reasonable
         # this is also necessary to ensure we have enough slack
         time_per_point_s =                          (2. * self.time_sample_us * us) * self.samples_per_point
-        max_sampling_time_s =                       0.4 * (self.update_interval_ms * ms)
+        max_sampling_time_s =                       0.75 * (self.update_interval_ms * ms)
         assert time_per_point_s < max_sampling_time_s, "Error: unreasonable sample values idk - try again welp"
         # todo: also assert whether the time_slack_mu is valid
 
@@ -43,12 +43,11 @@ class PMTAlignment(LAXExperiment, Experiment):
         self.time_sample_mu =                   self.core.seconds_to_mu(self.time_sample_us * us)
         # assume 50% duty cycle
         self.time_slack_mu =                    self.core.seconds_to_mu((self.update_interval_ms * ms) / self.samples_per_point
-                                                                        - 2. * self.time_sample_us)
+                                                                        - (2. * self.time_sample_us * us))
 
         # create holder variable that can store averaged counts
         self._counts_signal =                   np.int32(0)
         self._counts_background =               np.int32(0)
-        self._counts_differential =             np.int32(0)
 
         # tmp remove
         # declare the loop iterators ahead of time to reduce overhead
@@ -56,8 +55,11 @@ class PMTAlignment(LAXExperiment, Experiment):
         self._iter_loop =                       np.arange(self.samples_per_point)
 
         # prepare datasets for storing counts
-        self.set_dataset('_tmp_counts',         np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
+        self.set_dataset('_tmp_counts',     np.zeros((self.repetitions, 4)), broadcast=True, persist=False, archive=False)
         self.setattr_dataset('_tmp_counts')
+        print(self.time_slack_mu)
+        print(self.time_sample_mu)
+        print((self.update_interval_ms * ms) / self.samples_per_point - 2 * self.time_sample_us * us)
 
 
     @property
@@ -83,7 +85,7 @@ class PMTAlignment(LAXExperiment, Experiment):
             self.pump.on()
 
             # record PMT signal + background
-            self.pmt.count(self.time_readout_mu)
+            self.pmt.count(self.time_sample_mu)
 
             # set beams to record signal + background
             self.repump_cooling.off()
@@ -92,7 +94,7 @@ class PMTAlignment(LAXExperiment, Experiment):
             delay_mu(10000)
 
             # record PMT background only
-            self.pmt.count(self.time_readout_mu)
+            self.pmt.count(self.time_sample_mu)
         
         
     @kernel(flags={"fast-math"})
@@ -110,35 +112,33 @@ class PMTAlignment(LAXExperiment, Experiment):
             # clear holder variables
             self._counts_signal =       0
             self._counts_background =   0
+            self.core.break_realtime()
 
             # average readings over N samples
-            for i in self._iter_loop:
+            for j in self._iter_loop:
 
                 # run PMT alignment sequence
                 self.core_dma.playback_handle(_handle_alignment)
 
                 # fetch running totals of PMT counts
-                self._counts_signal +=      self.pmt_counter.fetch_count()
-                self._counts_background +=  self.pmt_counter.fetch_count()
+                self._counts_signal +=      self.pmt.fetch_count()
+                self._counts_background +=  self.pmt.fetch_count()
 
                 # wait until next sample
                 delay_mu(self.time_slack_mu)
 
-
-            # average counts and subtract background
-            self._counts_signal /= self.samples_per_point
-            self._counts_background /= self.samples_per_point
+            # update dataset
             with parallel:
-                self.update_dataset(i, self._counts_signal, self._counts_background, self._counts_signal - self._counts_background)
+                self.update_results(i, self._counts_signal, self._counts_background)
                 self.core.break_realtime()
 
     # tmp remove
     @rpc(flags={"async"})
-    def update_results(self, iter_num, counts_signal, counts_background, counts_subtracted):
+    def update_results(self, iter_num, counts_signal, counts_background):
         self.mutate_dataset('_tmp_counts', self._result_iter, np.array([iter_num * (self.update_interval_ms * ms),
-                                                                        counts_signal,
-                                                                        counts_background,
-                                                                        counts_subtracted]))
+                                                                        counts_signal / self.samples_per_point,
+                                                                        counts_background / self.samples_per_point,
+                                                                        (counts_signal - counts_background) / self.samples_per_point]))
         self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
