@@ -13,14 +13,14 @@ from math import gcd
 # todo: ensure attenuations/power/freq are correctly set
 
 
-class EGGSHeating(SidebandCooling.SidebandCooling):
+class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
     """
-    Experiment: EGGS Heating
+    Experiment: EGGS Heating Rabiflop
 
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
     """
-    name = 'EGGS Heating'
+    name = 'EGGS Heating Rabiflop'
 
 
     def build_experiment(self):
@@ -78,6 +78,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("att_dd_active_cancel_db",                    NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling.activecancel')
         self.setattr_argument("phas_dd_active_cancel_turns",                NumberValue(default=0., ndecimals=3, step=0.1, min=-1, max=1), group='EGGS_Heating.decoupling.activecancel')
 
+        # tmp remove
+        self.setattr_argument("time_readout_us_list",                       Scannable(
+                                                                                default=RangeScan(0, 50, 51, randomize=True),
+                                                                                global_min=1, global_max=100000, global_step=1,
+                                                                                unit="us", scale=1, ndecimals=5
+                                                                            ), group=self.name)
+        # tmp remove
+
         # get relevant devices
         self.setattr_device('phaser_eggs')
         self.setattr_device('urukul1_ch2')
@@ -97,6 +105,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # run preparations for sideband cooling
         super().prepare_experiment()
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+
+        # tmp remove
+        self.time_readout_mu_list =                                         self.core.seconds_to_mu(self.time_readout_us_list * us)
+        # tmp remove
 
 
         ### EGGS HEATING - TIMING ###
@@ -133,12 +145,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
                                                                                       len(self.freq_eggs_secular_hz_list),
-                                                                                      6), dtype=float)
-        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
+                                                                                      7), dtype=float)
+        self.config_eggs_heating_list[:, :4] =                              np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
-                                                                                                 self.freq_eggs_secular_hz_list),
-                                                                                     -1).reshape(-1, 3)
-        self.config_eggs_heating_list[:, 3:] =                              np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                                                 self.freq_eggs_secular_hz_list,
+                                                                                                 self.time_readout_mu_list),
+                                                                                     -1).reshape(-1, 4)
+        self.config_eggs_heating_list[:, 4:] =                              np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
@@ -152,7 +165,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz =                                (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
                 # get normalized transmission through system
@@ -166,14 +179,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
                                                                             ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
                 # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, 3:] =                      np.array([scaled_power_pct[0],
+                self.config_eggs_heating_list[i, 4:] =                      np.array([scaled_power_pct[0],
                                                                                       scaled_power_pct[1],
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
 
         ### EGGS HEATING - EGGS RF CONFIGURATION ###
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
-        if not self.enable_dynamical_decoupling:                            self.config_eggs_heating_list[:, 5] = 0.
+        if not self.enable_dynamical_decoupling:                            self.config_eggs_heating_list[:, 6] = 0.
 
         # if randomize_config is enabled, completely randomize the sweep order
         # i.e. random readout and EGGS heating parameters each iteration, instead of sweeping 1D by 1D
@@ -304,7 +317,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                4)
+                5)
 
 
     # MAIN SEQUENCE
@@ -353,9 +366,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
                 sideband_freq_hz =          config_vals[2]
-                ampl_rsb_frac =             config_vals[3]
-                ampl_bsb_frac =             config_vals[4]
-                ampl_dd_frac =              config_vals[5]
+                time_readout_mu =           config_vals[3]
+                ampl_rsb_frac =             config_vals[4]
+                ampl_bsb_frac =             config_vals[5]
+                ampl_dd_frac =              config_vals[6]
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
@@ -399,7 +413,16 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
                 '''READOUT'''
-                self.sidebandreadout_subsequence.run_dma()
+                # set readout waveform for qubit
+                self.qubit.set_profile(0)
+                self.qubit.set_att_mu(self.att_sideband_readout_mu)
+
+                # population transfer pulse
+                self.qubit.on()
+                delay_mu(time_readout_mu)
+                self.qubit.off()
+
+                # read out fluorescence
                 self.readout_subsequence.run_dma()
 
                 # update dataset
@@ -408,7 +431,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                         freq_readout_ftw,
                         self.readout_subsequence.fetch_count(),
                         carrier_freq_hz,
-                        sideband_freq_hz
+                        sideband_freq_hz,
+                        time_readout_mu
                     )
                     self.core.break_realtime()
 
