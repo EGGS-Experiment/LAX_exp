@@ -107,7 +107,8 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # tmp remove
-        self.time_readout_mu_list =                                         self.core.seconds_to_mu(self.time_readout_us_list * us)
+        self.time_readout_mu_list =                                         np.array([self.core.seconds_to_mu(time_us * us)
+                                                                                      for time_us in self.time_readout_us_list])
         # tmp remove
 
 
