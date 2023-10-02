@@ -145,7 +145,8 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
         # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
-                                                                                      len(self.freq_eggs_secular_hz_list),
+                                                                                      len(self.freq_eggs_secular_hz_list) *
+                                                                                      len(self.time_readout_mu_list),
                                                                                       7), dtype=float)
         self.config_eggs_heating_list[:, :4] =                              np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
@@ -367,7 +368,7 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
                 sideband_freq_hz =          config_vals[2]
-                time_readout_mu =           config_vals[3]
+                time_readout_mu =           np.int64(config_vals[3])
                 ampl_rsb_frac =             config_vals[4]
                 ampl_bsb_frac =             config_vals[5]
                 ampl_dd_frac =              config_vals[6]
@@ -416,7 +417,7 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 # set readout waveform for qubit
                 self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_sideband_readout_mu)
+                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
 
                 # population transfer pulse
                 self.qubit.on()
