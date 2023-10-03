@@ -77,6 +77,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # run preparations for sideband cooling
         super().prepare_experiment()
         self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+        self.att_sideband_readout_mu =                                          self.sidebandreadout_subsequence.att_sideband_readout_mu
 
         # convert squeezing to machine units
         self.freq_squeeze_ftw_list =                                            np.array([hz_to_ftw(freq_khz * kHz)
@@ -114,6 +115,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.core.reset()
 
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
+
             for config_vals in self.config_squeeze_list:
 
                 '''CONFIGURE'''
@@ -151,7 +154,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 # set readout waveform for qubit
                 self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
+                self.qubit.set_att_mu(self.att_sideband_readout_mu)
                 # transfer population to D-5/2 state
                 self.qubit.on()
                 delay_mu(time_readout_mu)
