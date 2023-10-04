@@ -23,8 +23,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # squeezing configuration
         self.setattr_argument("freq_squeeze_khz_list",                      Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([2181.8]),
-                                                                                    CenterScan(2181.28, 10, 0.25, randomize=True)
+                                                                                    ExplicitScan([1542.2]),
+                                                                                    CenterScan(1542.2, 10, 0.25, randomize=True)
                                                                                 ],
                                                                                 global_min=0, global_max=100000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=5
@@ -39,7 +39,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                             ), group=self.name)
         self.setattr_argument("time_squeeze_us_list",                       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([20]),
+                                                                                    ExplicitScan([50]),
                                                                                     RangeScan(8, 250, 100, randomize=True)
                                                                                 ],
                                                                                 global_min=2, global_max=10000000, global_step=10,
@@ -48,7 +48,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.setattr_argument("time_delay_us_list",                         Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([5]),
-                                                                                    RangeScan(3, 20, 100, randomize=True)
+                                                                                    RangeScan(5, 7, 51, randomize=True)
                                                                                 ],
                                                                                 global_min=2.5, global_max=10000000, global_step=5,
                                                                                 unit="us", scale=1, ndecimals=3
@@ -56,7 +56,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # todo: integrate with rabi flopping readout and sideband readout
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([110]),
+                                                                                    ExplicitScan([95]),
                                                                                     RangeScan(3, 20, 100, randomize=True)
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
