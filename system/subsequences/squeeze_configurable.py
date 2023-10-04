@@ -94,7 +94,7 @@ class SqueezeConfigurable(LAXSubsequence):
         delay_mu(self.time_squeeze_mu
                  - TIME_ZASWA2_SWITCH_DELAY_MU)
         self.dds_modulation.off()
-        self.urukul1_ch2.sw.off()
+        self.urukul1_ch2.sw.on()
 
         # send debug trigger after switch has fully closed
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
@@ -152,7 +152,7 @@ class SqueezeConfigurable(LAXSubsequence):
         # note: turn off switch early to account for switch rise time
         delay_mu(self.time_squeeze_mu - TIME_ZASWA2_SWITCH_DELAY_MU)
         self.dds_modulation.off()
-        self.urukul1_ch2.sw.on()
+        self.urukul1_ch2.sw.off()
 
         # send debug trigger after switch has fully closed
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
