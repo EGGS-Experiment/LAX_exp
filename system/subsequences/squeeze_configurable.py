@@ -100,34 +100,19 @@ class SqueezeConfigurable(LAXSubsequence):
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
         self.ttl8.off()
 
-        # tmp remove
         # unset phase_autoclear to keep output coherent
         self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
         self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
-        # tmp remove
 
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self):
-        # tmp remove
         # unset phase_autoclear to keep output coherent
         self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))
         self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
-        # tmp remove
 
         # set blank profile to ensure switching is exact
         self.dds_modulation.set_profile(2)
-
-        # tmp remove
-        # # unset phase_autoclear flag to ensure phase remains tracked,
-        # # and ensure set_sine_output flag remains set
-        # self.urukul1_ch2.write32(_AD9910_REG_CFR1,
-        #                          (1 << 16) |
-        #                          (1 << 13))
-        # self.dds_modulation.write32(_AD9910_REG_CFR1,
-        #                             (1 << 16) |
-        #                             (1 << 13))
-        # tmp remove
 
         # align to coarse RTIO clock
         time_start_mu = now_mu() & ~0x7

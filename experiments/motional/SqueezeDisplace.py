@@ -85,6 +85,7 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         time_squeeze_mu = self.squeeze_subsequence.configure(self.freq_squeeze_ftw, self.phase_antisqueeze_pow, self.time_squeeze_mu)
         self.displace_subsequence.configure(self.freq_displace_ftw, self.phase_displace_pow, self.time_displace_mu)
 
+        # main loop
         for trial_num in range(self.repetitions):
             for config_vals in self.config_squeezedisplace_list:
 
