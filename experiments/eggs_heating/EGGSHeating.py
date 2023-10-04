@@ -399,6 +399,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
                 '''READOUT'''
+                # tmp remove
+                delay_mu(500000)
+                # tmp remove
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
