@@ -171,15 +171,15 @@ class SqueezeConfigurable(LAXSubsequence):
             self.time_squeeze_mu =                          np.int64(round(time_half_period_ns * num_half_period_multiples))
 
         # calculate antisqueeze phase value
-        phase_antisqueeze_turns =                           (0.5
-                                                             - ((self.time_squeeze_mu / (2. * time_half_period_ns)) % 1)
-                                                             - self.dds_modulation.pow_to_turns(phase_pow))
-        # phase_antisqueeze_pow =                             self.dds_modulation.turns_to_pow(0.5 - self.dds_modulation.turns_to_pow(phase_antisqueeze_turns))
+        # phase_antisqueeze_turns =                           (0.5
+        #                                                      - ((self.time_squeeze_mu / (2. * time_half_period_ns)) % 1)
+        #                                                      - self.dds_modulation.pow_to_turns(phase_pow))
+        phase_antisqueeze_turns =                           0.5 + self.dds_modulation.pow_to_turns(phase_pow)
         phase_antisqueeze_pow =                             self.dds_modulation.turns_to_pow(phase_antisqueeze_turns)
-        print(time_half_period_ns)
-        print(self.time_squeeze_mu)
-        print(phase_antisqueeze_turns)
-        self.core.break_realtime()
+        # print(time_half_period_ns)
+        # print(self.time_squeeze_mu)
+        # print(phase_antisqueeze_turns)
+        # self.core.break_realtime()
 
         # set waveforms for profiles
         at_mu(now_mu() + 10000)
