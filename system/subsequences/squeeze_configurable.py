@@ -199,7 +199,7 @@ class SqueezeConfigurable(LAXSubsequence):
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=2,
+        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
 
