@@ -38,7 +38,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
-        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=True), group=self.name)
+        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group=self.name)
         self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
@@ -118,7 +118,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                                  self.time_readout_mu_list,
                                                                                                  self.freq_ionSpecAnal_sideband_offset_hz_list),
                                                                                      -1).reshape(-1, 5)
-        self.config_eggs_heating_list[:, [3, 4, 5]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
+        self.config_eggs_heating_list[:, [4, 5, 6]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
