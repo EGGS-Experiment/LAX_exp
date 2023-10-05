@@ -18,16 +18,16 @@ class SidebandReadout(LAXSubsequence):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",              Scannable(
                                                                             default=[
-                                                                                CenterScan(102.644, 0.020, 0.0005, randomize=True),
-                                                                                ExplicitScan([102.644])
+                                                                                ExplicitScan([102.644]),
+                                                                                CenterScan(102.644, 0.020, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5
                                                                         ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",              Scannable(
                                                                             default=[
-                                                                                CenterScan(103.409, 0.020, 0.0005, randomize=True),
-                                                                                ExplicitScan([103.409])
+                                                                                ExplicitScan([103.409]),
+                                                                                CenterScan(103.409, 0.020, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
                                                                             unit="MHz", scale=1, ndecimals=5

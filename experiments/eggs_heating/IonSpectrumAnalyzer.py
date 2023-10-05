@@ -38,8 +38,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
-        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group=self.name)
-        self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=True), group=self.name)
+        self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([95.]),
@@ -193,7 +193,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.time_ISA_antisqueeze_mu =                                  np.int64(t_sample_multiples * self.phaser_eggs.t_sample_mu)
 
         # prepare internal antisqueezing
-        if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_antisqueezing
+        if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_ISA_antisqueezing
         else:                                                               self.phaser_run = self.phaser_run_nopsk
 
 
@@ -290,7 +290,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                         self.readout_subsequence.fetch_count(),
                         carrier_freq_hz,
                         sideband_freq_hz,
-                        offset_freq_hz
+                        offset_freq_hz,
+                        time_readout_mu
                     )
                     self.core.break_realtime()
 
@@ -453,11 +454,13 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # adjust oscillator 1 (BSB) phase for antisqueezing
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing, clr=0)
+            self.ttl9.on()
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
+        self.ttl9.off()
 
 
 
