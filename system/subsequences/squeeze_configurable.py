@@ -52,7 +52,8 @@ class SqueezeConfigurable(LAXSubsequence):
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_modulation.set_att_mu(self.att_squeeze_mu)
-        self.urukul1_ch2.set_att_mu(self.att_squeeze_mu)
+        # self.urukul1_ch2.set_att_mu(self.att_squeeze_mu)
+        self.urukul1_ch2.set_att_mu(0x00)
 
 
     @kernel(flags={"fast-math"})
@@ -79,7 +80,8 @@ class SqueezeConfigurable(LAXSubsequence):
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
         self.squeeze_func()
-        self.urukul1_ch2.sw.on()
+        # self.urukul1_ch2.sw.on()
+        self.urukul1_ch2.sw.off()
 
         # send debug trigger when waveform begins
         # note: 20 is a fudge factor to compensate for stuff (probably things like pipeline delays?)
@@ -94,6 +96,7 @@ class SqueezeConfigurable(LAXSubsequence):
         delay_mu(self.time_squeeze_mu
                  - TIME_ZASWA2_SWITCH_DELAY_MU)
         self.dds_modulation.off()
+        # self.urukul1_ch2.sw.on()
         self.urukul1_ch2.sw.on()
 
         # send debug trigger after switch has fully closed
@@ -125,7 +128,8 @@ class SqueezeConfigurable(LAXSubsequence):
               (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
         self.antisqueeze_func()
-        self.urukul1_ch2.sw.on()
+        # self.urukul1_ch2.sw.on()
+        self.urukul1_ch2.sw.off()
 
         # send debug trigger when waveform begins
         at_mu(time_start_mu
@@ -179,12 +183,18 @@ class SqueezeConfigurable(LAXSubsequence):
         self.dds_modulation.set_mu(freq_ftw, asf=0x0, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
-        at_mu(now_mu() + 10000)
-        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
+        # at_mu(now_mu() + 10000)
+        # self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0,
+        #                            pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
+        #                            pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=2,
+        #                            pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=0,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=1,
+        self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=1,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(freq_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=2,
+        self.urukul1_ch2.set_mu(freq_ftw, asf=0x0, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
 
