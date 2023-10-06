@@ -39,17 +39,27 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
         self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group=self.name)
-        self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
-                                                                                default=RangeScan(0, 50, 51, randomize=True),
+                                                                                default=[
+                                                                                    ExplicitScan([95.]),
+                                                                                    RangeScan(0, 1000, 200, randomize=True)
+                                                                                ],
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group=self.name)
 
 
         # configure squeezing
-        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=2180, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
-        self.setattr_argument("phase_antisqueeze_turns",                    NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='squeeze_configurable')
+        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
+        self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
+                                                                                    default=[
+                                                                                        ExplicitScan([0.]),
+                                                                                        RangeScan(0, 1.0, 6, randomize=True)
+                                                                                    ],
+                                                                                    global_min=0.0, global_max=1.0, global_step=1,
+                                                                                    unit="turns", scale=1, ndecimals=3
+                                                                                ), group=self.name)
         self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
@@ -70,6 +80,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.time_readout_mu_list =                                         np.array([self.core.seconds_to_mu(time_us * us)
                                                                                       for time_us in self.time_readout_us_list])
         # tmp remove
+        self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
+                                                                                      for phase_turns in self.phase_antisqueeze_turns_list])
+        # tmp remove
+
 
 
         ### EGGS HEATING - TIMING ###
@@ -108,15 +122,17 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                       len(self.freq_eggs_carrier_hz_list) *
                                                                                       len(self.freq_eggs_secular_hz_list) *
                                                                                       len(self.time_readout_mu_list) *
-                                                                                      len(self.freq_ionSpecAnal_sideband_offset_hz_list),
-                                                                                      8), dtype=float)
-        self.config_eggs_heating_list[:, [0, 1, 2, 3, -1]] =                np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
+                                                                                      len(self.freq_ionSpecAnal_sideband_offset_hz_list) *
+                                                                                      len(self.phase_antisqueeze_pow_list),
+                                                                                      9), dtype=float)
+        self.config_eggs_heating_list[:, [0, 1, 2, 3, -2, -1]] =                np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
                                                                                                  self.freq_eggs_secular_hz_list,
                                                                                                  self.time_readout_mu_list,
-                                                                                                 self.freq_ionSpecAnal_sideband_offset_hz_list),
-                                                                                     -1).reshape(-1, 5)
-        self.config_eggs_heating_list[:, [3, 4, 5]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                                                 self.freq_ionSpecAnal_sideband_offset_hz_list,
+                                                                                                     self.phase_antisqueeze_pow_list),
+                                                                                     -1).reshape(-1, 6)
+        self.config_eggs_heating_list[:, [4, 5, 6]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
@@ -130,7 +146,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, offset_freq_hz) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, offset_freq_hz, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz =                                (np.array([-secular_freq_hz, secular_freq_hz])
                                                                              + carrier_freq_hz + offset_freq_hz) / MHz
@@ -179,7 +195,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         """
         # prepare parametric squeezing
         self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
-        self.phase_antisqueeze_pow =                                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns)
+        # self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
+        #                                                                               for phase_turns in self.phase_antisqueeze_turns_list])
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
         # calculate ISA antisqueezing time as half of the eggs heating time
@@ -191,14 +208,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.time_ISA_antisqueeze_mu =                                  np.int64(t_sample_multiples * self.phaser_eggs.t_sample_mu)
 
         # prepare internal antisqueezing
-        if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_antisqueezing
+        if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_ISA_antisqueezing
         else:                                                               self.phaser_run = self.phaser_run_nopsk
 
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                6)
+                7)
 
 
     # MAIN SEQUENCE
@@ -209,10 +226,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # get custom sequence handles
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
-        self.core.break_realtime()
-
-        # configure squeezing
-        self.squeeze_subsequence.configure(self.freq_squeeze_ftw, self.phase_antisqueeze_pow, self.time_squeeze_mu)
         self.core.break_realtime()
 
 
@@ -232,6 +245,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 ampl_bsb_frac =             config_vals[5]
                 ampl_dd_frac =              config_vals[6]
                 offset_freq_hz =            config_vals[7]
+                phase_antisqueeze_pow =     np.int32(config_vals[8])
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout
@@ -240,6 +254,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.core.break_realtime()
+
+                # configure squeezing/antisqueezing
+                self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
                 self.core.break_realtime()
 
 
@@ -288,7 +306,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                         self.readout_subsequence.fetch_count(),
                         carrier_freq_hz,
                         sideband_freq_hz,
-                        offset_freq_hz
+                        offset_freq_hz,
+                        time_readout_mu,
+                        phase_antisqueeze_pow
                     )
                     self.core.break_realtime()
 
@@ -451,11 +471,13 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # adjust oscillator 1 (BSB) phase for antisqueezing
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing, clr=0)
+            self.ttl9.on()
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
+        self.ttl9.off()
 
 
 
