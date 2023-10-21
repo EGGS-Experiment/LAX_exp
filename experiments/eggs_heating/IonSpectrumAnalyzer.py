@@ -59,7 +59,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                     ],
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                                     unit="turns", scale=1, ndecimals=3
-                                                                                ), group=self.name)
+                                                                                ), group='squeeze_configurable')
         self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
@@ -474,6 +474,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.ttl9.on()
             self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
             self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # turn off oscillator 2 (carrier) during antisqueezing
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
