@@ -25,12 +25,12 @@ class QubitAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s',           NumberValue(default=100, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=1, max=500), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=500, ndecimals=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('samples_per_point',      NumberValue(default=100, ndecimals=0, step=10, min=1, max=500), group='timing')
 
         # qubit
-        self.setattr_argument('time_qubit_us',          NumberValue(default=7.5, ndecimals=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=103.3455, ndecimals=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, ndecimals=3, step=10, min=0.1, max=100000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.9616, ndecimals=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='qubit')
         self.setattr_argument('counts_threshold',       NumberValue(default=60, ndecimals=0, step=10, min=1, max=1000), group='qubit')
 
@@ -46,11 +46,11 @@ class QubitAlignment(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # calculate time taken for a single point
-        self.time_per_point_us =                (self.initialize_subsequence.time_probe_us
-                                                 + self.initialize_subsequence.time_dopple_cooling_us
-                                                 + self.initialize_subsequence.time_spinpol_us
-                                                 + self.time_qubit_us
-                                                 + self.readout_subsequence.time_readout_us)
+        self.time_per_point_us =                ((self.initialize_subsequence.time_repump_qubit_mu
+                                                 + self.initialize_subsequence.time_doppler_cooling_mu
+                                                 + self.initialize_subsequence.time_spinpol_mu
+                                                 + self.readout_subsequence.time_readout_mu) / 1000
+                                                 + self.time_qubit_us)
 
         # get relevant timings and calculate the number of repetitions
         self.repetitions =                      round(self.time_total_s / (self.samples_per_point * self.time_per_point_us * us))
@@ -58,7 +58,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         # declare loop iterators and holder variables ahead of time to reduce overhead
         self._iter_repetitions =                np.arange(self.repetitions)
         self._iter_loop =                       np.arange(self.samples_per_point)
-        self._state_array =                     np.zeros(self.samples_per_point)
+        self._state_array =                     np.zeros(self.samples_per_point, dtype=np.int32)
 
         # prepare datasets for storing counts
         self.set_dataset('_tmp_counts_x',       np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
@@ -109,6 +109,7 @@ class QubitAlignment(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for i in self._iter_repetitions:
+            self.core.break_realtime()
 
             # average readings over N samples
             for j in self._iter_loop:
@@ -118,7 +119,7 @@ class QubitAlignment(LAXExperiment, Experiment):
 
                 # get PMT counts
                 self._state_array[j] = self.pmt.fetch_count()
-                delay_mu(1000)
+                delay_mu(100000)
 
             # update dataset
             with parallel:
