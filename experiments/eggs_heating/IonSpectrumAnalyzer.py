@@ -38,8 +38,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
-        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group=self.name)
-        self.setattr_argument("phase_ISA_antisqueezing_turns",              NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([95.]),
@@ -49,8 +47,18 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group=self.name)
 
+        # ISA - antisqueezing
+        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_rsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_bsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
 
-        # configure squeezing
+        self.setattr_argument("enable_ISA_antisqueezing_dipole",            BooleanValue(default=False), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_dipole_pct",          NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+
+        # extrinsic squeezing
         self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
@@ -193,12 +201,18 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         """
         todo: document
         """
+        '''
+        EXTRINSIC SQUEEZING
+        '''
         # prepare parametric squeezing
         self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
         # self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
         #                                                                               for phase_turns in self.phase_antisqueeze_turns_list])
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
+        '''
+        INTRINSIC SQUEEZING
+        '''
         # calculate ISA antisqueezing time as half of the eggs heating time
         self.time_ISA_antisqueeze_mu =                                      np.int64(round(self.time_eggs_heating_mu / 2))
         # ensure halfway time (for ISA antisqueezing) is a multiple of the phaser sample period
@@ -211,6 +225,12 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_ISA_antisqueezing
         else:                                                               self.phaser_run = self.phaser_run_nopsk
 
+        #
+
+        # convert intrinsic ISA squeezing values to pct
+        self.ampl_ISA_antisqueezing_rsb_frac =                              self.ampl_ISA_antisqueezing_rsb_pct / 100.
+        self.ampl_ISA_antisqueezing_bsb_frac =                              self.ampl_ISA_antisqueezing_bsb_pct / 100.
+        self.ampl_ISA_antisqueezing_dipole_frac =                           self.ampl_ISA_antisqueezing_dipole_pct / 100. * float(self.enable_ISA_antisqueezing_dipole)
 
     @property
     def results_shape(self):
@@ -451,6 +471,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
             ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
         """
+        '''
+        ISA - INTRINSIC SQUEEZING
+        '''
         # set oscillator 0 (RSB)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch0_osc0, clr=0)
@@ -466,19 +489,27 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
 
-        # heat for first half
+        # heat for first half (before antisqueezing)
         delay_mu(self.time_ISA_antisqueeze_mu)
 
-        # adjust oscillator 1 (BSB) phase for antisqueezing
+        '''
+        ISA - INTRINSIC ANTISQUEEZING
+        '''
+        # adjust oscillator 0 (BSB) phase for antisqueezing
         with parallel:
             self.ttl9.on()
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_turns, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # adjust oscillator 1 (BSB) phase for antisqueezing
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # turn off oscillator 2 (carrier) during antisqueezing
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_dipole_frac, phase=self.phase_ch0_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_dipole_frac, phase=self.phase_ch1_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
