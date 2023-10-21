@@ -359,9 +359,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         that uses the capabilities of HDF5.
         """
         # set variables
-        rid = exp_params["rid"]
-        start_time = time.localtime(exp_params["start_time"])
-        expid = exp_params["expid"]
+        rid =           exp_params["rid"]
+        start_time =    time.localtime(exp_params["start_time"])
+        expid =         exp_params["expid"]
+
         # todo: try to get default save dir list
         # try:
         #     th0 = self.get_dataset('management.dataset_save_locations')
@@ -369,7 +370,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         # except Exception as e:
         #     print(e)
         #     print('whoops')
-        save_dir_list = ['Z:\\Motion\\Data']
+        save_dir_list = [
+            'Z:\\Motion\\Data'
+        ]
 
         # save to all relevant directories
         for save_dir in save_dir_list:
@@ -378,6 +381,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 # format file name and save directory
                 filedir = os.path.join(
                     save_dir,
+                    time.strftime("%Y-%m", start_time),
                     time.strftime("%Y-%m-%d", start_time)
                 )
                 filename = "{:09}-{}.h5".format(rid, self.name)
