@@ -4,7 +4,7 @@ from artiq.experiment import *
 
 class PhaserInitialize(EnvExperiment):
     """
-    Phaser Initialize
+    Utility: Phaser Initialize
 
     Initialize the phaser.
     """
