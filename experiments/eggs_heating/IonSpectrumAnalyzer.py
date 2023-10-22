@@ -49,14 +49,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # ISA - antisqueezing
         self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
         self.setattr_argument("ampl_ISA_antisqueezing_rsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
         self.setattr_argument("ampl_ISA_antisqueezing_bsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
-        self.setattr_argument("enable_ISA_antisqueezing_dipole",            BooleanValue(default=True), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("enable_ISA_antisqueezing_dipole",            BooleanValue(default=False), group='ISA.antisqueezing')
         self.setattr_argument("ampl_ISA_antisqueezing_dipole_pct",          NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         # extrinsic squeezing
         self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
