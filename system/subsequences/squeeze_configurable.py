@@ -89,7 +89,7 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               + 20)
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # squeeze for given time
         # note: turn off switch early to account for switch rise time
@@ -101,7 +101,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
         # send debug trigger after switch has fully closed
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
-        self.ttl8.off()
+        # self.ttl8.off()
 
         # unset phase_autoclear to keep output coherent
         self.dds_modulation.write32(_AD9910_REG_CFR1, (1 << 16))

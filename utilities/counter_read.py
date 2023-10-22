@@ -6,7 +6,7 @@ _DMA_HANDLE = 'PMT_exp'
 
 class counter_read(EnvExperiment):
     """
-    Counter Read
+    Utility: Counter Read
 
     Read TTL counts over time.
     """
