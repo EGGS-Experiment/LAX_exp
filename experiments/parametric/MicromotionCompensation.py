@@ -221,14 +221,13 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                 voltage_mod1_v = voltage_vec_v[1]
                 self.core.break_realtime()
 
-                # set mode voltages
+                # set mode voltages, then
                 self.voltage_set(self.dc_channel_mod0_num, voltage_mod0_v)
                 self.voltage_set(self.dc_channel_mod1_num, voltage_mod1_v)
-                self.core.break_realtime()
 
-                # add holdoff period for recooling the ion
-                delay_mu(self.time_cooling_holdoff_mu)
-                # todo: see if processing can be made parallel with holdoff time (end)
+                # synchronize hardware clock with timeline, then add delay for voltages to settle
+                self.core.wait_until_mu(now_mu())
+                delay_mu(350000000)
 
                 # run parametric excitation and get timestamps
                 pmt_timestamp_list = self.parametric_subsequence.run()
