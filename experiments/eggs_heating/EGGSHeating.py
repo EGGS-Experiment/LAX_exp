@@ -470,10 +470,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # get starting phase values for pulse shaping ### todo: document better
         carrier_freq_hz =   self.config_eggs_heating_list[0, 1]
         sideband_freq_hz =  self.config_eggs_heating_list[0, 2]
+        phase_rsb_turns =   self.config_eggs_heating_list[0, 6]
         self.core.break_realtime()
 
         # configure EGGS tones and set readout frequency; also necessary to ensure phase delays are correctly set
-        self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
+        self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()

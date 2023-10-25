@@ -363,10 +363,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         carrier_freq_hz =   self.config_eggs_heating_list[0, 1]
         sideband_freq_hz =  self.config_eggs_heating_list[0, 2]
         offset_freq_hz =    self.config_eggs_heating_list[0, 3]
+        phase_rsb_turns =   self.config_eggs_heating_list[0, 9]
         self.core.break_realtime()
 
         # configure EGGS tones and set readout frequency; also necessary to ensure phase delays are correctly set
-        self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
+        self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
@@ -514,7 +515,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
         self.ttl8.off()
-
 
 
     # HELPER FUNCTIONS - PSK
