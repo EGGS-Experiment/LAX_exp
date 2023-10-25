@@ -599,21 +599,25 @@ class LAXExperiment(LAXEnvironment, ABC):
             gpp = cxn.gpp3060_server
 
             # get B-field power supply current values
-            # bfield_ke = ke.measure_current(1)
-            bfield_gpp = gpp.measure_current(2)
+            # bfield_ke_volts = ke.measure_voltage(1)
+            # bfield_ke_amps = ke.measure_current(1)
+            bfield_gpp_volts = gpp.measure_voltage(2)
+            bfield_gpp_amps = gpp.measure_current(2)
 
             # store rf values in holding dict
             sys_vals_bfield = {
-                # "bfield_keithley_amps":  bfield_ke,
-                "bfield_gpp3060_amps": bfield_gpp
+                # "bfield_keithley_volts":  bfield_ke_volts,
+                # "bfield_keithley_amps":  bfield_ke_amps,
+                "bfield_gpp3060_volts": bfield_gpp_volts,
+                "bfield_gpp3060_amps":  bfield_gpp_amps
             }
 
             # tmp remove
             # todo: either move into a different section, or rename "_save_..." methods to "_check_..."
             # verify that main b-field current is valid
-            if abs(bfield_gpp - 0.7) > 0.2:
+            if abs(bfield_gpp_amps - 0.7) > 0.2:
                 print("Warning: Main B-field current coils are not their typical value.")
-                print("\tCurrent Value (Main coils): {:.3f}A".format(bfield_gpp))
+                print("\tCurrent Value (Main coils): {:.3f}A".format(bfield_gpp_amps))
             # tmp remove
         except Exception as e:
             print("Warning: unable to retrieve and store B-field current values in dataset.")
