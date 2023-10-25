@@ -55,7 +55,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.01, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        # self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
+                                                                                default=[
+                                                                                    ExplicitScan([0.]),
+                                                                                    RangeScan(0, 1.0, 9, randomize=True)
+                                                                                ],
+                                                                                global_min=0.0, global_max=1.0, global_step=1,
+                                                                                unit="turns", scale=1, ndecimals=3
+                                                                            ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - pulse shaping
@@ -124,21 +132,23 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
         ### EGGS HEATING - CONFIG ###
-        # convert build arguments to Hz
+        # convert build arguments to appropriate values and format as numpy arrays
         self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
+        self.phase_eggs_heating_rsb_turns_list =                            np.array(list(self.phase_eggs_heating_rsb_turns_list))
 
         # create config data structure with amplitude values
-        # note: 5 values are [carrier_freq_hz, sideband_freq_hz, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
-                                                                                      len(self.freq_eggs_secular_hz_list),
-                                                                                      6), dtype=float)
-        self.config_eggs_heating_list[:, :3] =                              np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
+                                                                                      len(self.freq_eggs_secular_hz_list) *
+                                                                                      len(self.phase_eggs_heating_rsb_turns_list),
+                                                                                      7), dtype=float)
+        self.config_eggs_heating_list[:, [0, 1, 2, -1]] =                   np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
-                                                                                                 self.freq_eggs_secular_hz_list),
-                                                                                     -1).reshape(-1, 3)
-        self.config_eggs_heating_list[:, 3:] =                              np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                                                 self.freq_eggs_secular_hz_list,
+                                                                                                 self.phase_eggs_heating_rsb_turns_list),
+                                                                                     -1).reshape(-1, 4)
+        self.config_eggs_heating_list[:, [3, 4, 5]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
@@ -152,7 +162,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz =                                (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
                 # get normalized transmission through system
@@ -166,7 +176,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
                                                                             ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
                 # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, 3:] =                      np.array([scaled_power_pct[0],
+                self.config_eggs_heating_list[i, [3, 4, 5]] =                      np.array([scaled_power_pct[0],
                                                                                       scaled_power_pct[1],
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
@@ -304,7 +314,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                4)
+                5)
 
 
     # MAIN SEQUENCE
@@ -356,12 +366,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 ampl_rsb_frac =             config_vals[3]
                 ampl_bsb_frac =             config_vals[4]
                 ampl_dd_frac =              config_vals[5]
+                phase_rsb_turns =           config_vals[6]
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
                 self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
                 self.core.break_realtime()
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz)
+                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
@@ -382,12 +393,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 # EGGS - RUN
                 with parallel:
-                    # # set TTL for synchronization trigger on a scope
-                    # with sequential:
-                    #     # delay_mu(self.phaser_eggs.t_output_delay_mu)
-                    #     delay_mu(1860)
-                    #     self.ttl9.on()
-                    # # tmp remove
                     self.phaser_activecancel_run()
                     self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
@@ -408,7 +413,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                         freq_readout_ftw,
                         self.readout_subsequence.fetch_count(),
                         carrier_freq_hz,
-                        sideband_freq_hz
+                        sideband_freq_hz,
+                        phase_rsb_turns
                     )
                     self.core.break_realtime()
 
@@ -501,7 +507,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
+    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, phase_rsb_turns: TFloat):
         """
         Configure the tones on phaser for EGGS.
         Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
@@ -509,6 +515,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         Arguments:
             carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
+            phase_rsb_turns         (float)     : the phase for the rsb tone (in turns)
         """
         # calculate phase delays between CH0 and CH1
         self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
@@ -516,12 +523,12 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # oscillator 0 (RSB)
-        self.phase_ch0_osc0 =           self.phase_eggs_heating_rsb_turns
-        self.phase_ch1_osc0 =           self.phase_eggs_heating_rsb_turns
+        self.phase_ch0_osc0 =           phase_rsb_turns
+        self.phase_ch1_osc0 =           phase_rsb_turns
 
         # oscillator 1 (BSB)
-        self.phase_ch0_osc1 =           sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns + self.phase_eggs_heating_bsb_turns
-        self.phase_ch1_osc1 =           sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns + self.phase_eggs_heating_bsb_turns
+        self.phase_ch0_osc1 =           (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
+        self.phase_ch1_osc1 =           (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
 
         # oscillator 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
         self.phase_ch0_osc2 =           0.

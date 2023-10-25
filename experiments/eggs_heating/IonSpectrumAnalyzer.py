@@ -87,11 +87,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
         self.time_readout_mu_list =                                         np.array([self.core.seconds_to_mu(time_us * us)
                                                                                       for time_us in self.time_readout_us_list])
-        # tmp remove
-        self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
-                                                                                      for phase_turns in self.phase_antisqueeze_turns_list])
-        # tmp remove
-
 
 
         ### EGGS HEATING - TIMING ###
@@ -123,23 +118,27 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.freq_ionSpecAnal_sideband_offset_hz_list =                     np.array(list(self.freq_ionSpecAnal_sideband_offset_khz_list)) * kHz
+        self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
+                                                                                      for phase_turns in self.phase_antisqueeze_turns_list])
+        self.phase_eggs_heating_rsb_turns_list =                            np.array(list(self.phase_eggs_heating_rsb_turns_list))
 
         # create config data structure with amplitude values
-        # note: 8 values are [carrier_freq_hz, sideband_freq_hz, time_readout_mu, rsb_ampl_frac, bsb_ampl_frac, carrier_ampl_frac, sideband_offset_freq_hz]
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                                       len(self.freq_eggs_carrier_hz_list) *
                                                                                       len(self.freq_eggs_secular_hz_list) *
                                                                                       len(self.time_readout_mu_list) *
                                                                                       len(self.freq_ionSpecAnal_sideband_offset_hz_list) *
-                                                                                      len(self.phase_antisqueeze_pow_list),
-                                                                                      9), dtype=float)
-        self.config_eggs_heating_list[:, [0, 1, 2, 3, -2, -1]] =                np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
+                                                                                      len(self.phase_antisqueeze_pow_list) *
+                                                                                      len(self.phase_eggs_heating_rsb_turns_list),
+                                                                                      10), dtype=float)
+        self.config_eggs_heating_list[:, [0, 1, 2, 3, -3, -2, -1]] =        np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                                                                  self.freq_eggs_carrier_hz_list,
                                                                                                  self.freq_eggs_secular_hz_list,
                                                                                                  self.time_readout_mu_list,
                                                                                                  self.freq_ionSpecAnal_sideband_offset_hz_list,
-                                                                                                     self.phase_antisqueeze_pow_list),
-                                                                                     -1).reshape(-1, 6)
+                                                                                                 self.phase_antisqueeze_pow_list,
+                                                                                                 self.phase_eggs_heating_rsb_turns_list),
+                                                                                     -1).reshape(-1, 7)
         self.config_eggs_heating_list[:, [4, 5, 6]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.
@@ -154,7 +153,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, offset_freq_hz, _) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, offset_freq_hz, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz =                                (np.array([-secular_freq_hz, secular_freq_hz])
                                                                              + carrier_freq_hz + offset_freq_hz) / MHz
@@ -206,8 +205,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         '''
         # prepare parametric squeezing
         self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
-        # self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
-        #                                                                               for phase_turns in self.phase_antisqueeze_turns_list])
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
         '''
@@ -235,7 +232,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                7)
+                8)
 
 
     # MAIN SEQUENCE
@@ -266,12 +263,13 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 ampl_dd_frac =              config_vals[6]
                 offset_freq_hz =            config_vals[7]
                 phase_antisqueeze_pow =     np.int32(config_vals[8])
+                phase_rsb_turns =           config_vals[9]
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout
                 self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
                 self.core.break_realtime()
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
+                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
@@ -328,7 +326,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                         sideband_freq_hz,
                         offset_freq_hz,
                         time_readout_mu,
-                        phase_antisqueeze_pow
+                        phase_antisqueeze_pow,
+                        phase_rsb_turns
                     )
                     self.core.break_realtime()
 
@@ -401,7 +400,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, offset_freq_hz: TFloat):
+    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, offset_freq_hz: TFloat, phase_rsb_turns: TFloat):
         """
         Configure the tones on phaser for EGGS.
         Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
@@ -409,6 +408,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         Arguments:
             carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
+            phase_rsb_turns         (float)     : the phase for the rsb tone (in turns)
         """
         # calculate phase delays between CH0 and CH1
         self.phase_ch1_turns = (self.phaser_eggs.phase_inherent_ch1_turns +
@@ -416,8 +416,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # oscillator 0 (RSB)
-        self.phase_ch0_osc0 = self.phase_eggs_heating_rsb_turns
-        self.phase_ch1_osc0 = self.phase_eggs_heating_rsb_turns
+        self.phase_ch0_osc0 = phase_rsb_turns
+        self.phase_ch1_osc0 = phase_rsb_turns
 
         # oscillator 1 (BSB)
         self.phase_ch0_osc1 = (sideband_freq_hz + offset_freq_hz) * self.phaser_eggs.t_sample_mu * ns + self.phase_eggs_heating_bsb_turns
