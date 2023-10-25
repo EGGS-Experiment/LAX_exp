@@ -124,6 +124,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         # set up amo8
         self.dc.polling(False)
         self.dc.alarm(False)
+        self.dc.serial_write('remote.w 1\r\n')
+        self.dc.serial_read('\n')
 
 
     # MAIN SEQUENCE
@@ -185,7 +187,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                 # synchronize hardware clock with timeline, then add delay for voltages to settle
                 self.core.wait_until_mu(now_mu())
-                delay_mu(350000000)
+                delay_mu(180000000)
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:

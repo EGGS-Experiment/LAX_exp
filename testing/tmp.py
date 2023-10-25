@@ -36,12 +36,63 @@ class testarg34(EnvExperiment):
         # self.set_dataset('calibration.temperature.asf_calibration_curve_mhz_pct', np.array([th0, th1]).transpose(), broadcast=True, persist=True)
         # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
+    def prepare(self):
+        self.cxn=labrad.connect()
+        self.dc=self.cxn.dc_server
+        self.voltage_set(24, 0.)
+        self.dc.toggle(24,1)
+
+    @rpc
+    def voltage_set(self, channel: TInt32, voltage_v: TFloat) -> TNone:
+        """
+        Set the channel to the desired voltage.
+        """
+        # set desired voltage
+        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        # print('\tvoltage set: {}'.format(voltage_set_v))
+
     @kernel
     def run(self):
         self.core.reset()
-        self.urukul2_ch2.cfg_sw(False)
-        self.urukul2_ch2.sw.off()
-        self.core.break_realtime()
+        self.ttl8.off()
+        self.ttl9.off()
+        # self.core.break_realtime()
+        # delay_mu(10000000)
+        # self.core.break_realtime()
+
+        self.ttl8.on()
+        self.core.wait_until_mu(now_mu())
+        delay_mu(500000)
+        self.voltage_set(24, 1.0)
+        # self.ttl9.on()
+        # self.core.wait_until_mu()
+
+
+
+        # self.core.wait_until_mu(now_mu())
+        # with parallel:
+        # self.ttl8.on()
+        # self.voltage_set(24, 1.0)
+        # delay_mu(1000000)
+        # self.core.wait_until_mu(now_mu())
+        # delay_mu(10000000)
+        # self.ttl8.on()
+        # self.core.break_realtime()
+
+        # delay_mu(10000000)
+        # self.ttl9.on()
+
+        delay_mu(500000000)
+        self.ttl8.off()
+        self.ttl9.off()
+
+
+
+
+
+        # self.urukul2_ch2.cfg_sw(False)
+        # self.urukul2_ch2.sw.off()
+        # self.core.break_realtime()
     # def prepare(self):
     #     _CONFIG = "th0_terminated"
     #
