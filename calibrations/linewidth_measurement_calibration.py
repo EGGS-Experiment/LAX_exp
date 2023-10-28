@@ -63,7 +63,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         self.dds_ampl_max_asf =                                             self.dds.amplitude_to_asf(self.dds_ampl_max_pct / 100)
 
         # holdoff for photodiode to respond to DDS (should be roughly 10x the photodiode rise time)
-        self.dds_response_holdoff_mu =                                      self.core.seconds_to_mu(250 * us)
+        self.dds_response_holdoff_mu =                                      self.core.seconds_to_mu(1000 * us)
 
         # convert ADC values
         self.adc_gain_num =                                                 int(self.adc_gain_num)
@@ -99,12 +99,8 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         # scan DDS frequencies
         for freq_ftw in self.dds_freq_ftw_list:
 
-            # tmp remove
-            self.core.break_realtime()
-            # print('\t\t\tNEW RUN: ', freq_ftw * 1e3 / 0xFFFFFFFF)
-            self.core.break_realtime()
-            # delay_mu(250000)
-            # tmp remove
+            # add holdoff delay
+            at_mu(now_mu() + 250000)
 
             # do a recursion search
             ampl_calib_asf = self._recursion_search(freq_ftw, self.dds_ampl_min_asf, self.dds_ampl_max_asf)
