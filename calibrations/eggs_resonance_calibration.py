@@ -26,10 +26,10 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # eggs heating
         self.setattr_argument("freq_eggs_heating_mhz_list",                     Scannable(
-                                                                                    default=RangeScan(75, 90, 151, randomize=False),
-                                                                                    global_min=30, global_max=400, global_step=1,
-                                                                                    unit="MHz", scale=1, ndecimals=5
-                                                                                ))
+                                                                                        default=RangeScan(10, 300, 2901, randomize=False),
+                                                                                        global_min=30, global_max=400, global_step=1,
+                                                                                        unit="MHz", scale=1, ndecimals=5
+                                                                                    ))
         # spectrum analyzer
         self.setattr_argument("spectrum_analyzer_bandwidth_khz",                NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("spectrum_analyzer_attenuation_internal_db",      NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
@@ -148,7 +148,7 @@ class EGGSResonanceCalibration(EnvExperiment):
             self.core.break_realtime()
 
         # disable rf output
-        self.awg_eggs.en_trf_out(rf=0, lo=0)
+        # self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
 
@@ -158,19 +158,19 @@ class EGGSResonanceCalibration(EnvExperiment):
         Prepare phaser for the calibration.
         """
         # initialize phaser
-        self.awg_board.init(debug=True)
+        # self.awg_board.init(debug=True)
         self.core.break_realtime()
 
         # set nco to center eggs rf around the center frequency (should be 85 MHz) exactly
         at_mu(self.awg_board.get_next_frame_mu())
         self.awg_eggs.set_nco_frequency(-217.083495 * MHz)
-        self.awg_eggs.set_nco_phase(0.)
-        self.awg_board.dac_sync()
+        # self.awg_eggs.set_nco_phase(0.)
+        # self.awg_board.dac_sync()
         self.core.break_realtime()
 
         # trf setup, and disable rf output while we set things up
-        self.awg_eggs.set_att(3 * dB)
-        self.awg_eggs.en_trf_out(rf=0, lo=0)
+        self.awg_eggs.set_att(20. * dB)
+        # self.awg_eggs.en_trf_out(rf=0, lo=0)
         self.core.break_realtime()
 
         # duc
@@ -183,7 +183,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         at_mu(self.awg_board.get_next_frame_mu())
         self.awg_eggs.oscillator[0].set_frequency(0)
         delay_mu(self.time_phaser_sample_mu)
-        self.awg_eggs.oscillator[0].set_amplitude_phase(0.49, clr=0)
+        self.awg_eggs.oscillator[0].set_amplitude_phase(0.1, clr=0)
         delay_mu(self.time_phaser_sample_mu)
         self.awg_eggs.oscillator[1].set_amplitude_phase(0., clr=1)
         delay_mu(self.time_phaser_sample_mu)
@@ -195,7 +195,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.core.break_realtime()
 
         # re-enable rf output
-        self.awg_eggs.en_trf_out(rf=1, lo=0)
+        # self.awg_eggs.en_trf_out(rf=1, lo=0)
         self.core.break_realtime()
 
 
@@ -246,7 +246,7 @@ class EGGSResonanceCalibration(EnvExperiment):
 
         # store calibration timestamp
         calib_timestamp = datetime.timestamp(datetime.now())
-        self.set_dataset('calibration.eggs.transmission.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
+        # self.set_dataset('calibration.eggs.transmission.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
         # copy calibration results to temporary array for convenience
         power_dataset_tmp = np.array(self.eggs_resonance_calibration)
@@ -256,7 +256,7 @@ class EGGSResonanceCalibration(EnvExperiment):
         norm_ampl_dataset[:, 0] = power_dataset_tmp[:, 0]
         norm_ampl_dataset[:, 1] = 10 ** (power_dataset_tmp[:, 1] / 20)
         norm_ampl_dataset[:, 1] /= np.max(power_dataset_tmp[:, 1])
-        self.set_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
+        # self.set_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz', norm_ampl_dataset, persist=True, broadcast=True)
 
         # add data to data vault for visualization
         self.dv.add(np.array([power_dataset_tmp[:, 0], power_dataset_tmp[:, 1], norm_ampl_dataset[:, 1]]).transpose(), context=self.cr)
