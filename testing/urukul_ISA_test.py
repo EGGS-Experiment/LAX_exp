@@ -155,13 +155,6 @@ class UrukulISATest(EnvExperiment):
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch3.set_cfr2(matched_latency_enable=1)
 
-        # turn switches off and set a 0 amplitude waveform
-        at_mu(now_mu() + 10000)
-        with parallel:
-            self.urukul1_cpld.set_profile(2)
-            self.urukul1_ch1.sw.off()
-            self.urukul1_ch2.sw.off()
-
 
     @kernel(flags={"fast-math"})
     def run(self):
