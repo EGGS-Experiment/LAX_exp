@@ -18,7 +18,8 @@ class UrukulISATest(EnvExperiment):
 
         self.ampl_rsb_pct =                 50.
         self.ampl_bsb_pct =                 50.
-        self.ampl_carrier_pct =             10.
+        self.ampl_carrier_pct =             50.
+
         self.att_db =                       10.
 
         self.phase_rsb_turns =              0.
@@ -28,7 +29,7 @@ class UrukulISATest(EnvExperiment):
         self.phase_ch1_inherent_turns =     0.
         self.time_ch1_delay_ns =            100.
 
-        self.time_pulse_us =                1000000.
+        self.time_pulse_us =                100000000.
 
     def prepare(self):
         # core devices
@@ -68,21 +69,19 @@ class UrukulISATest(EnvExperiment):
         self.freq_bsb_ftw =                 self.dds.frequency_to_ftw(self.freq_carrier_mhz * MHz + self.freq_sideband_khz * kHz + self.freq_offset_khz * kHz)
         self.freq_carrier_ftw =             self.dds.frequency_to_ftw(self.freq_carrier_mhz * MHz)
 
-        self.phase_rsb_pow_ch0 =            self.dds.phase_to_pow(self.phase_rsb_turns)
-        self.phase_bsb_pow_ch0 =            self.dds.phase_to_pow(self.phase_bsb_turns)
-        self.phase_carrier_pow_ch0 =        self.dds.phase_to_pow(0.)
+        self.phase_rsb_pow_ch0 =            self.dds.turns_to_pow(self.phase_rsb_turns)
+        self.phase_bsb_pow_ch0 =            self.dds.turns_to_pow(self.phase_bsb_turns)
+        self.phase_carrier_pow_ch0 =        self.dds.turns_to_pow(0.)
 
-        self.phase_rsb_pow_ch1 =            self.dds.phase_to_pow(self.phase_rsb_turns + self.phase_ch1_inherent_turns)
-        self.phase_bsb_pow_ch1 =            self.dds.phase_to_pow(self.phase_bsb_turns + self.phase_ch1_inherent_turns)
-        self.phase_carrier_pow_ch1 =        self.dds.phase_to_pow(self.phase_ch1_inherent_turns)
-
-        self.phase_ch0_offset_pow =         self.urukul1_ch1.turns_to_pow(self.phase_turns0)
-        self.phase_ch1_offset_pow =         self.urukul1_ch1.turns_to_pow(self.phase_turns1)
+        self.phase_rsb_pow_ch1 =            self.dds.turns_to_pow(self.phase_rsb_turns + self.phase_ch1_inherent_turns)
+        self.phase_bsb_pow_ch1 =            self.dds.turns_to_pow(self.phase_bsb_turns + self.phase_ch1_inherent_turns)
+        self.phase_carrier_pow_ch1 =        self.dds.turns_to_pow(self.phase_ch1_inherent_turns)
 
         self.time_pulse_mu =                self.core.seconds_to_mu(self.time_pulse_us * us)
 
         # preallocate register storage for urukul
         self._reg_urukul0_current =         np.int32(0)
+        self._reg_urukul1_current =         np.int32(0)
 
     @kernel(flags={"fast-math"})
     def _run_prepare(self):
@@ -114,7 +113,7 @@ class UrukulISATest(EnvExperiment):
         self._reg_urukul1_current &= ~(0xFF << 0)
         self._reg_urukul1_current |= ((self.att_mu << 8) | (self.att_mu << 16) | (self.att_mu << 24))
 
-        att_mu(now_mu() + 25000)
+        at_mu(now_mu() + 25000)
         self.urukul0_ch1.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch2.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch3.set_phase_mode(PHASE_MODE_CONTINUOUS)
@@ -199,7 +198,7 @@ class UrukulISATest(EnvExperiment):
         # send trigger when waveform begins
         at_mu(time_start_mu + (416 + 63))
         self.ttl8.on()
-        delay_mu(self.time_delay_mu)
+        delay_mu(self.time_pulse_mu)
 
 
         '''PULSE STOP'''
