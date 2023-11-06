@@ -62,10 +62,8 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                                                                                     unit="turns", scale=1, ndecimals=3
                                                                                 ), group='squeeze_configurable')
         self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
-        self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # tmp remove
-        self.setattr_device('dds_modulation')
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch1")
         self.setattr_device("urukul0_ch2")
@@ -91,12 +89,14 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self.dds_cpld =                     self.urukul0_cpld
         self.dds =                          self.urukul0_ch1
 
-        # preallocate register storage for urukul attenuation register
-        self._reg_urukul0_current =         np.int32(0)
-        self._reg_urukul1_current =         np.int32(0)
-
         # attenuation
-        self.att_eggs_heating_mu =                      self.dds_cpld.att_to_mu(self.att_eggs_heating_mu * dB)
+        self.att_eggs_heating_mu =          self.dds_cpld.att_to_mu(self.att_eggs_heating_db * dB)
+        # preallocate register storage for urukul attenuation register
+        self._reg_att_urukul0 =             np.int32(0)
+        self._reg_att_urukul1 =             np.int32(0)
+
+        # empty, 0 amplitude waveforms
+        self._freq_empty_ftw =              self.dds.frequency_to_ftw(300 * MHz)
 
     @property
     def results_shape(self):
@@ -129,17 +129,21 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
             self.urukul1_ch2.sw.off()
             self.urukul1_ch3.sw.off()
 
-        at_mu(now_mu() + 10000)
-        self._reg_urukul0_current = self.urukul0_cpld.get_att_mu()
-        self._reg_urukul0_current &= ~(0xFF << 0)
-        self._reg_urukul0_current |= ((self.att_mu << 8) | (self.att_mu << 16) | (self.att_mu << 24))
+        at_mu(now_mu() + 25000)
+        self._reg_att_urukul0 = self.urukul0_cpld.get_att_mu()
+        self._reg_att_urukul0 &= (0xFF << 0)
+        self._reg_att_urukul0 |= ((self.att_eggs_heating_mu << 8) |
+                                  (self.att_eggs_heating_mu << 16) |
+                                  (self.att_eggs_heating_mu << 24))
 
-        at_mu(now_mu() + 10000)
-        self._reg_urukul1_current = self.urukul1_cpld.get_att_mu()
-        self._reg_urukul1_current &= ~(0xFF << 0)
-        self._reg_urukul1_current |= ((self.att_mu << 8) | (self.att_mu << 16) | (self.att_mu << 24))
+        at_mu(now_mu() + 25000)
+        self._reg_att_urukul1 = self.urukul1_cpld.get_att_mu()
+        self._reg_att_urukul1 &= (0xFF << 0)
+        self._reg_att_urukul1 |= ((self.att_eggs_heating_mu << 8) |
+                                  (self.att_eggs_heating_mu << 16) |
+                                  (self.att_eggs_heating_mu << 24))
 
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 20000)
         self.urukul0_ch1.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch2.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch3.set_phase_mode(PHASE_MODE_CONTINUOUS)
@@ -151,15 +155,15 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
 
         '''PREPARE - DDS WAVEFORMS'''
         # set 0 amplitude waveforms to prevent leakage during DDS RF5's use of profile 0
-        at_mu(now_mu() + 10000)
-        self.urukul0_ch1.set_mu(self.freq_rsb_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul0_ch2.set_mu(self.freq_bsb_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul0_ch3.set_mu(self.freq_carrier_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        at_mu(now_mu() + 20000)
+        self.urukul0_ch1.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul0_ch2.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul0_ch3.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
-        at_mu(now_mu() + 10000)
-        self.urukul1_ch1.set_mu(self.freq_rsb_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(self.freq_bsb_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch3.set_mu(self.freq_carrier_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        at_mu(now_mu() + 20000)
+        self.urukul1_ch1.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch3.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
 
         '''PREPARE - DDS REGISTERS'''
@@ -216,26 +220,17 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
                 self.core.break_realtime()
 
-                # configure squeezing/antisqueezing
-                self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
-                self.core.break_realtime()
-
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
-                # squeeze ion
-                self.squeeze_subsequence.squeeze()
-
 
                 '''ION SPECTRUM ANALYZER'''
                 self.dds_run()
 
                 '''READOUT'''
-                self.squeeze_subsequence.antisqueeze()
-
                 # set readout waveform for qubit
                 self.qubit.set_profile(0)
                 self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
@@ -300,19 +295,19 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         # calculate phase delays for each channel to account for inherent update latencies and system latencies
         # channel 0 (RSB)
         self.phase_ch0_osc0 = phase_rsb_turns
-        self.phase_ch1_osc0 = ((sideband_freq_hz - sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
+        self.phase_ch1_osc0 = ((carrier_freq_hz - sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
                                + self.phaser_eggs.phase_inherent_ch1_turns
                                + phase_rsb_turns)
 
         # channel 1 (BSB)
         self.phase_ch0_osc1 = self.phase_eggs_heating_bsb_turns
-        self.phase_ch1_osc1 = ((sideband_freq_hz + sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
+        self.phase_ch1_osc1 = ((carrier_freq_hz + sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
                                + self.phaser_eggs.phase_inherent_ch1_turns
                                + self.phase_eggs_heating_bsb_turns)
 
         # channel 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
         self.phase_ch0_osc2 = 0.
-        self.phase_ch1_osc2 = ((sideband_freq_hz + sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
+        self.phase_ch1_osc2 = (carrier_freq_hz * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
                                + self.phaser_eggs.phase_inherent_ch1_turns
                                + 0.5)
         self.core.break_realtime()
@@ -320,21 +315,21 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         # set desired waveforms
         at_mu(now_mu() + 10000)
         with parallel:
-            self.urukul0_ch1.set_mu(carrier_freq_hz - sideband_freq_hz + offset_freq_hz, asf=ampl_rsb_frac, pow_=self.phase_ch0_osc0,
+            self.urukul0_ch1.set(carrier_freq_hz - sideband_freq_hz + offset_freq_hz, amplitude=ampl_rsb_frac, phase=self.phase_ch0_osc0,
                                     profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
-            self.urukul1_ch1.set_mu(carrier_freq_hz - sideband_freq_hz + offset_freq_hz, asf=ampl_rsb_frac, pow_=self.phase_ch1_osc0,
-                                    profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
-
-        with parallel:
-            self.urukul0_ch2.set_mu(carrier_freq_hz + sideband_freq_hz + offset_freq_hz, asf=ampl_bsb_frac, pow_=self.phase_ch0_osc1,
-                                    profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
-            self.urukul1_ch2.set_mu(carrier_freq_hz + sideband_freq_hz + offset_freq_hz, asf=ampl_bsb_frac, pow_=self.phase_ch1_osc1,
+            self.urukul1_ch1.set(carrier_freq_hz - sideband_freq_hz + offset_freq_hz, amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0,
                                     profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
 
         with parallel:
-            self.urukul0_ch3.set_mu(carrier_freq_hz, asf=ampl_carrier_frac, pow_=self.phase_ch0_osc2,
+            self.urukul0_ch2.set(carrier_freq_hz + sideband_freq_hz + offset_freq_hz, amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1,
                                     profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
-            self.urukul1_ch3.set_mu(carrier_freq_hz, asf=ampl_carrier_frac, pow_=self.phase_ch1_osc2,
+            self.urukul1_ch2.set(carrier_freq_hz + sideband_freq_hz + offset_freq_hz, amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1,
+                                    profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
+
+        with parallel:
+            self.urukul0_ch3.set(carrier_freq_hz, amplitude=ampl_carrier_frac, phase=self.phase_ch0_osc2,
+                                    profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
+            self.urukul1_ch3.set(carrier_freq_hz, amplitude=ampl_carrier_frac, phase=self.phase_ch1_osc2,
                                     profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
 
 
@@ -343,6 +338,10 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         """
         Run the ISA via Urukuls.
         """
+        # ensure attenuations are set correctly
+        self.urukul0_cpld.set_all_att_mu(self._reg_att_urukul0)
+        self.urukul1_cpld.set_all_att_mu(self._reg_att_urukul1)
+
         # note: we coarse align to previous SYNC_CLK period
         time_start_mu = now_mu() & ~7
 
@@ -367,7 +366,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         # send trigger when waveform begins
         at_mu(time_start_mu + (416 + 63))
         self.ttl8.on()
-        delay_mu(self.time_pulse_mu)
+        delay_mu(self.time_eggs_heating_mu)
 
 
         '''PULSE STOP'''
