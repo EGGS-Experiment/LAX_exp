@@ -17,7 +17,7 @@ class UrukulFastSwitchTest(EnvExperiment):
     """
 
     def build(self):
-        self.frequency_mhz =                62.5
+        self.frequency_mhz =                82.1
         self.amplitude_pct =                50.
 
         self.phase_turns0 =                 0.
@@ -74,7 +74,7 @@ class UrukulFastSwitchTest(EnvExperiment):
         # calculate phase values to compensate for ch0 & ch1 delays
         self.phase_ch1_inherent_turns =     0.
 
-        self.time_ch1_latency_ns =          1.66
+        self.time_ch1_latency_ns =          -0.410
         self.phase_ch1_latency_turns =      (self.frequency_mhz * MHz) * (self.time_ch1_latency_ns * ns)
 
         print(bin(np.int32(round(self.time_delay_ns))))
@@ -110,44 +110,79 @@ class UrukulFastSwitchTest(EnvExperiment):
             self.ttl9.off()
 
             # prepare - DDSs
-            self.urukul0_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
-            self.urukul1_ch3.set_phase_mode(PHASE_MODE_ABSOLUTE)
+            self.urukul0_ch2.set_phase_mode(PHASE_MODE_ABSOLUTE)
+            self.urukul1_ch2.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
-            self.urukul0_ch3.set_att(10 * dB)
-            self.urukul1_ch3.set_att(10 * dB)
+            # tmp remove
+            self.urukul0_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+            self.urukul1_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+            # tmp remove
+
+        at_mu(now_mu() + 10000)
+        self.urukul0_ch2.set_att(10 * dB)
+        self.urukul1_ch2.set_att(10 * dB)
+
+        # tmp remove
+        self.urukul0_ch1.set_att(10 * dB)
+        self.urukul1_ch1.set_att(10 * dB)
+        # tmp remove
+
 
         # prepare - DDS profiles
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 25000)
         with parallel:
-            self.res00 = self.urukul0_ch3.set_mu(self.freq_ftw0, asf=0x01, pow_=0x0, profile=0)
-            self.res10 = self.urukul1_ch3.set_mu(self.freq_ftw1, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
+            self.res00 = self.urukul0_ch2.set_mu(self.freq_ftw0, asf=0x01, pow_=0x0, profile=0)
+            self.res10 = self.urukul1_ch2.set_mu(self.freq_ftw1, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
         with parallel:
-            self.res01 = self.urukul0_ch3.set_mu(self.freq_ftw0, asf=self.ampl_asf0, pow_=self.phase_ch0_offset_pow, profile=1)
-            self.res11 = self.urukul1_ch3.set_mu(self.freq_ftw1, asf=self.ampl_asf1, pow_=self.phase_ch1_final_pow, profile=1)
+            self.res01 = self.urukul0_ch2.set_mu(self.freq_ftw0, asf=self.ampl_asf0, pow_=self.phase_ch0_offset_pow, profile=1)
+            self.res11 = self.urukul1_ch2.set_mu(self.freq_ftw1, asf=self.ampl_asf1, pow_=self.phase_ch1_final_pow, profile=1)
         with parallel:
-            self.res01 = self.urukul0_ch3.set_mu(self.freq_ftw0, asf=0x0, pow_=self.phase_ch0_offset_pow, profile=2)
-            self.res11 = self.urukul1_ch3.set_mu(self.freq_ftw1, asf=0x0, pow_=self.phase_ch1_final_pow, profile=2)
+            self.res01 = self.urukul0_ch2.set_mu(self.freq_ftw0, asf=0x0, pow_=self.phase_ch0_offset_pow, profile=2)
+            self.res11 = self.urukul1_ch2.set_mu(self.freq_ftw1, asf=0x0, pow_=self.phase_ch1_final_pow, profile=2)
+
+        # tmp remove
+        at_mu(now_mu() + 25000)
+        with parallel:
+            self.urukul0_ch1.set_mu(self.freq_ftw0, asf=0x01, pow_=0x0, profile=0)
+            self.urukul1_ch1.set_mu(self.freq_ftw1, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
+        with parallel:
+            self.urukul0_ch1.set_mu(self.freq_ftw0, asf=self.ampl_asf0, pow_=self.phase_ch0_offset_pow, profile=1)
+            self.urukul1_ch1.set_mu(self.freq_ftw1, asf=self.ampl_asf1, pow_=self.phase_ch1_final_pow, profile=1)
+        with parallel:
+            self.urukul0_ch1.set_mu(self.freq_ftw0, asf=0x0, pow_=self.phase_ch0_offset_pow, profile=2)
+            self.urukul1_ch1.set_mu(self.freq_ftw1, asf=0x0, pow_=self.phase_ch1_final_pow, profile=2)
+        # tmp remove
 
         # set up registers
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 50000)
         # self.set_cfr1_rdx(phase_autoclear=1, select_sine_output=1)
         with parallel:
-            # self.urukul0_ch3.set_cfr1(phase_autoclear=1)
-            # self.urukul1_ch3.set_cfr1(phase_autoclear=1)
-            self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-            self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            # self.urukul0_ch2.set_cfr1(phase_autoclear=1)
+            # self.urukul1_ch2.set_cfr1(phase_autoclear=1)
+            self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         with parallel:
-            self.urukul0_ch3.set_cfr2(matched_latency_enable=1)
-            self.urukul1_ch3.set_cfr2(matched_latency_enable=1)
+            self.urukul0_ch2.set_cfr2(matched_latency_enable=1)
+            self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
+
+        # tmp remove
+        at_mu(now_mu() + 50000)
+        with parallel:
+            self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        with parallel:
+            self.urukul0_ch1.set_cfr2(matched_latency_enable=1)
+            self.urukul1_ch1.set_cfr2(matched_latency_enable=1)
+        # tmp remove
 
         # set up for running
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 50000)
         with parallel:
             self.urukul0_cpld.set_profile(0)
             self.urukul1_cpld.set_profile(0)
         with parallel:
-            self.urukul0_cpld.cfg_switches(0b1000)
-            self.urukul1_cpld.cfg_switches(0b1000)
+            self.urukul0_cpld.cfg_switches(0b0110)
+            self.urukul1_cpld.cfg_switches(0b0110)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -174,15 +209,15 @@ class UrukulFastSwitchTest(EnvExperiment):
         at_mu(time_start_mu + (416 + 63))
         self.ttl8.on()
 
-        at_mu((time_start_mu + (416 + 63)
-              + self.time_delay_mu - 416))
-        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16))
-        at_mu(now_mu() & ~0x7)
-        self.urukul0_cpld.set_profile(2)
-
-        at_mu((time_start_mu + (416 + 63)
-              + self.time_delay_mu))
-        self.ttl9.off()
+        # at_mu((time_start_mu + (416 + 63)
+        #       + self.time_delay_mu - 416))
+        # self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
+        # at_mu(now_mu() & ~0x7)
+        # self.urukul0_cpld.set_profile(2)
+        #
+        # at_mu((time_start_mu + (416 + 63)
+        #       + self.time_delay_mu))
+        # self.ttl9.off()
 
 
 
@@ -199,7 +234,7 @@ class UrukulFastSwitchTest(EnvExperiment):
         # at_mu(time_start_mu + 512)
         # with parallel:
         #     with sequential:
-        #         self.urukul0_ch3.set_cfr1(phase_autoclear=1)
+        #         self.urukul0_ch2.set_cfr1(phase_autoclear=1)
         #         self.urukul0_cpld.io_update.pulse_mu(8)
         #
         #     with sequential:
@@ -269,7 +304,7 @@ class UrukulFastSwitchTest(EnvExperiment):
         :param select_auto_osk: Select manual or automatic OSK mode.
         """
         with parallel:
-            self.urukul0_ch3.write32(_AD9910_REG_CFR1,
+            self.urukul0_ch2.write32(_AD9910_REG_CFR1,
                          (ram_enable << 31) |
                          (ram_destination << 29) |
                          (manual_osk_external << 23) |
@@ -283,7 +318,7 @@ class UrukulFastSwitchTest(EnvExperiment):
                          (select_auto_osk << 8) |
                          (power_down << 4) |
                          2)  # SDIO input only, MSB first
-            self.urukul1_ch3.write32(_AD9910_REG_CFR1,
+            self.urukul1_ch2.write32(_AD9910_REG_CFR1,
                          (ram_enable << 31) |
                          (ram_destination << 29) |
                          (manual_osk_external << 23) |
@@ -307,6 +342,6 @@ class UrukulFastSwitchTest(EnvExperiment):
         print('\t\turukul1 profile 1 phase: {:.4f}'.format(self.urukul0_ch0.pow_to_turns(self.res11)))
         print('\n')
 
-        print('\n\tio_update_delay:\t{}'.format(self.urukul0_ch3.sync_data.io_update_delay))
-        print('\n\tsys_clk:\t{}'.format(self.urukul0_ch3.sysclk))
-        print('\n\tsync_clk:\t{}'.format(self.urukul0_ch3.sysclk_per_mu * 4))
+        print('\n\tio_update_delay:\t{}'.format(self.urukul0_ch2.sync_data.io_update_delay))
+        print('\n\tsys_clk:\t{}'.format(self.urukul0_ch2.sysclk))
+        print('\n\tsync_clk:\t{}'.format(self.urukul0_ch2.sysclk_per_mu * 4))

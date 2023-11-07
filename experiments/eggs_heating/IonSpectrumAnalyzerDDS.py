@@ -86,17 +86,26 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         todo: document
         """
         # alias urukuls for ease of use
-        self.dds_cpld =                     self.urukul0_cpld
-        self.dds =                          self.urukul0_ch1
+        self.dds_cpld =                         self.urukul0_cpld
+        self.dds =                              self.urukul0_ch1
 
         # attenuation
-        self.att_eggs_heating_mu =          self.dds_cpld.att_to_mu(self.att_eggs_heating_db * dB)
+        self.att_eggs_heating_mu =              self.dds_cpld.att_to_mu(self.att_eggs_heating_db * dB)
         # preallocate register storage for urukul attenuation register
-        self._reg_att_urukul0 =             np.int32(0)
-        self._reg_att_urukul1 =             np.int32(0)
+        self._reg_att_urukul0 =                 np.int32(0)
+        self._reg_att_urukul1 =                 np.int32(0)
 
-        # empty, 0 amplitude waveforms
-        self._freq_empty_ftw =              self.dds.frequency_to_ftw(300 * MHz)
+        # prepare an empty, 0 amplitude waveform
+        self._freq_empty_ftw =                  self.dds.frequency_to_ftw(300 * MHz)
+
+        # get latency values from dashboard
+        # global urukul1 latency/phase compensation values
+        self.phase_urukul1_adjust_turns =       self.get_dataset('dds.delay.phase_urukul1_adjust_turns')
+        self.time_urukul1_system_latency_ns =   self.get_dataset('dds.delay.time_urukul1_system_latency_ns')
+        # individual urukul1 channel latency compensation values
+        self.time_urukul1_ch1_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch1_latency_ns') + self.time_urukul1_system_latency_ns
+        self.time_urukul1_ch2_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch2_latency_ns') + self.time_urukul1_system_latency_ns
+        self.time_urukul1_ch3_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch3_latency_ns') + self.time_urukul1_system_latency_ns
 
     @property
     def results_shape(self):
@@ -292,23 +301,28 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
             phase_rsb_turns         (float)     : the phase for the rsb tone (in turns)
         """
+        # precalculate frequency values for each channel
+        freq_ch1_rsb_hz =       carrier_freq_hz - sideband_freq_hz + offset_freq_hz
+        freq_ch2_bsb_hz =       carrier_freq_hz + sideband_freq_hz + offset_freq_hz
+        freq_ch3_carrier_hz =   carrier_freq_hz
+
         # calculate phase delays for each channel to account for inherent update latencies and system latencies
         # channel 0 (RSB)
         self.phase_ch0_osc0 = phase_rsb_turns
-        self.phase_ch1_osc0 = ((carrier_freq_hz - sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
-                               + self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_ch1_osc0 = (freq_ch1_rsb_hz * (self.time_urukul1_ch1_latency_ns * ns)
+                               + self.phase_urukul1_adjust_turns
                                + phase_rsb_turns)
 
         # channel 1 (BSB)
         self.phase_ch0_osc1 = self.phase_eggs_heating_bsb_turns
-        self.phase_ch1_osc1 = ((carrier_freq_hz + sideband_freq_hz + offset_freq_hz) * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
-                               + self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_ch1_osc1 = (freq_ch2_bsb_hz * (self.time_urukul1_ch2_latency_ns * ns)
+                               + self.phase_urukul1_adjust_turns
                                + self.phase_eggs_heating_bsb_turns)
 
         # channel 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
         self.phase_ch0_osc2 = 0.
-        self.phase_ch1_osc2 = (carrier_freq_hz * (self.phaser_eggs.time_latency_ch1_system_ns * ns)
-                               + self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_ch1_osc2 = (freq_ch3_carrier_hz * (self.time_urukul1_ch2_latency_ns * ns)
+                               + self.phase_urukul1_adjust_turns
                                + 0.5)
         self.core.break_realtime()
 
