@@ -13,7 +13,7 @@ class UrukulISATest(EnvExperiment):
 
     def build(self):
         # frequency
-        self.freq_carrier_mhz =                 381.2
+        self.freq_carrier_mhz =                 82.
         self.freq_sideband_khz =                0.
         self.freq_offset_khz =                  0.
 

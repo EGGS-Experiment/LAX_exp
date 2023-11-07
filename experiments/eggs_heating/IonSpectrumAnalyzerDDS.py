@@ -103,9 +103,12 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self.phase_urukul1_adjust_turns =       self.get_dataset('dds.delay.phase_urukul1_adjust_turns')
         self.time_urukul1_system_latency_ns =   self.get_dataset('dds.delay.time_urukul1_system_latency_ns')
         # individual urukul1 channel latency compensation values
-        self.time_urukul1_ch1_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch1_latency_ns') + self.time_urukul1_system_latency_ns
-        self.time_urukul1_ch2_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch2_latency_ns') + self.time_urukul1_system_latency_ns
-        self.time_urukul1_ch3_latency_ns =      self.get_dataset('dds.delay.time_urukul0_urukul1_ch3_latency_ns') + self.time_urukul1_system_latency_ns
+        self.time_urukul0_ch2_latency_ns =      self.get_dataset('dds.delay.time_urukul0_ch2_latency_ns')
+        self.time_urukul0_ch3_latency_ns =      self.get_dataset('dds.delay.time_urukul0_ch3_latency_ns')
+
+        self.time_urukul1_ch1_latency_ns =      self.get_dataset('dds.delay.time_urukul1_ch1_latency_ns') + self.time_urukul1_system_latency_ns
+        self.time_urukul1_ch2_latency_ns =      self.get_dataset('dds.delay.time_urukul1_ch2_latency_ns') + self.time_urukul1_system_latency_ns
+        self.time_urukul1_ch3_latency_ns =      self.get_dataset('dds.delay.time_urukul1_ch3_latency_ns') + self.time_urukul1_system_latency_ns
 
     @property
     def results_shape(self):
@@ -195,7 +198,6 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self.urukul1_ch1.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch3.set_cfr2(matched_latency_enable=1)
-
 
 
     # MAIN SEQUENCE
@@ -302,28 +304,28 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
             phase_rsb_turns         (float)     : the phase for the rsb tone (in turns)
         """
         # precalculate frequency values for each channel
-        freq_ch1_rsb_hz =       carrier_freq_hz - sideband_freq_hz + offset_freq_hz
-        freq_ch2_bsb_hz =       carrier_freq_hz + sideband_freq_hz + offset_freq_hz
-        freq_ch3_carrier_hz =   carrier_freq_hz
+        freq_rsb_hz =           carrier_freq_hz - sideband_freq_hz + offset_freq_hz
+        freq_bsb_hz =           carrier_freq_hz + sideband_freq_hz + offset_freq_hz
 
         # calculate phase delays for each channel to account for inherent update latencies and system latencies
         # channel 0 (RSB)
-        self.phase_ch0_osc0 = phase_rsb_turns
-        self.phase_ch1_osc0 = (freq_ch1_rsb_hz * (self.time_urukul1_ch1_latency_ns * ns)
-                               + self.phase_urukul1_adjust_turns
-                               + phase_rsb_turns)
+        self.phase_ch0_osc0 =   phase_rsb_turns
+        self.phase_ch1_osc0 =   (freq_rsb_hz * (self.time_urukul1_ch1_latency_ns * ns)
+                                 + self.phase_urukul1_adjust_turns
+                                 + phase_rsb_turns)
 
         # channel 1 (BSB)
-        self.phase_ch0_osc1 = self.phase_eggs_heating_bsb_turns
-        self.phase_ch1_osc1 = (freq_ch2_bsb_hz * (self.time_urukul1_ch2_latency_ns * ns)
-                               + self.phase_urukul1_adjust_turns
-                               + self.phase_eggs_heating_bsb_turns)
+        self.phase_ch0_osc1 =   (freq_bsb_hz * (self.time_urukul0_ch2_latency_ns * ns)
+                                 + self.phase_eggs_heating_bsb_turns)
+        self.phase_ch1_osc1 =   (freq_bsb_hz * (self.time_urukul1_ch2_latency_ns * ns)
+                                 + self.phase_urukul1_adjust_turns
+                                 + self.phase_eggs_heating_bsb_turns)
 
         # channel 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
-        self.phase_ch0_osc2 = 0.
-        self.phase_ch1_osc2 = (freq_ch3_carrier_hz * (self.time_urukul1_ch2_latency_ns * ns)
-                               + self.phase_urukul1_adjust_turns
-                               + 0.5)
+        self.phase_ch0_osc2 =   carrier_freq_hz * (self.time_urukul0_ch3_latency_ns * ns)
+        self.phase_ch1_osc2 =   (carrier_freq_hz * (self.time_urukul1_ch3_latency_ns * ns)
+                                 + self.phase_urukul1_adjust_turns
+                                 + 0.)
         self.core.break_realtime()
 
         # set desired waveforms
@@ -347,6 +349,18 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                                     profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
 
 
+        '''PREPARE - DDS REGISTERS'''
+        at_mu(now_mu() + 10000)
+        self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+
+        at_mu(now_mu() + 10000)
+        self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+
+
     @kernel(flags={"fast-math"})
     def dds_run(self):
         """
@@ -367,7 +381,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
             self.urukul1_cpld.set_profile(3)
 
         # open RF switches early since they have ~100 ns rise time
-        at_mu(time_start_mu + ((416 + 63) - 140))
+        at_mu(time_start_mu + ((416 + 63) - 210))
         with parallel:
             self.urukul0_ch1.sw.on()
             self.urukul0_ch2.sw.on()

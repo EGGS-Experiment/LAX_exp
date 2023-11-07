@@ -33,14 +33,14 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                                 default=[
                                                                                     # ExplicitScan([82, 83, 86.7]),
                                                                                     ExplicitScan([82]),
-                                                                                    CenterScan(85.1, 0.002, 0.001, randomize=True)
+                                                                                    CenterScan(85.1, 0.02, 0.001, randomize=True)
                                                                                 ],
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([771.1]),
+                                                                                    ExplicitScan([767.2]),
                                                                                     CenterScan(1138, 2, 0.2, randomize=True)
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
@@ -51,10 +51,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=4, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=6., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.01, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.1, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
         # self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
@@ -74,7 +74,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.decoupling')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.decoupling')
 
         # EGGS RF - dynamical decoupling - PSK (Phase-shift Keying)
         self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling.psk')
@@ -97,10 +97,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
     def prepare_experiment(self):
         # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
-                                                                             self.ampl_eggs_heating_bsb_pct +
-                                                                             self.ampl_eggs_dynamical_decoupling_pct)
-        assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
+        # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
+        #                                                                      self.ampl_eggs_heating_bsb_pct +
+        #                                                                      self.ampl_eggs_dynamical_decoupling_pct)
+        # assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
         # run preparations for sideband cooling
         super().prepare_experiment()

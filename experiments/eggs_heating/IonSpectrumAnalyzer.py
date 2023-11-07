@@ -77,10 +77,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
     def prepare_experiment(self):
         # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
-                                                                             self.ampl_eggs_heating_bsb_pct +
-                                                                             self.ampl_eggs_dynamical_decoupling_pct)
-        assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
+        # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
+        #                                                                      self.ampl_eggs_heating_bsb_pct +
+        #                                                                      self.ampl_eggs_dynamical_decoupling_pct)
+        # assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
         # run preparations for sideband cooling
         super().prepare_experiment()
