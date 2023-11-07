@@ -96,7 +96,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self._reg_att_urukul1 =                 np.int32(0)
 
         # prepare an empty, 0 amplitude waveform
-        self._freq_empty_ftw =                  self.dds.frequency_to_ftw(300 * MHz)
+        self._freq_empty_ftw =                  self.dds.frequency_to_ftw(182.19 * MHz)
 
         # get latency values from dashboard
         # global urukul1 latency/phase compensation values
@@ -141,21 +141,21 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
             self.urukul1_ch2.sw.off()
             self.urukul1_ch3.sw.off()
 
-        at_mu(now_mu() + 25000)
+        at_mu(now_mu() + 50000)
         self._reg_att_urukul0 = self.urukul0_cpld.get_att_mu()
         self._reg_att_urukul0 &= (0xFF << 0)
         self._reg_att_urukul0 |= ((self.att_eggs_heating_mu << 8) |
                                   (self.att_eggs_heating_mu << 16) |
                                   (self.att_eggs_heating_mu << 24))
 
-        at_mu(now_mu() + 25000)
+        at_mu(now_mu() + 50000)
         self._reg_att_urukul1 = self.urukul1_cpld.get_att_mu()
         self._reg_att_urukul1 &= (0xFF << 0)
         self._reg_att_urukul1 |= ((self.att_eggs_heating_mu << 8) |
                                   (self.att_eggs_heating_mu << 16) |
                                   (self.att_eggs_heating_mu << 24))
 
-        at_mu(now_mu() + 20000)
+        at_mu(now_mu() + 50000)
         self.urukul0_ch1.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch2.set_phase_mode(PHASE_MODE_CONTINUOUS)
         self.urukul0_ch3.set_phase_mode(PHASE_MODE_CONTINUOUS)
@@ -167,34 +167,34 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
 
         '''PREPARE - DDS WAVEFORMS'''
         # set 0 amplitude waveforms to prevent leakage during DDS RF5's use of profile 0
-        at_mu(now_mu() + 20000)
-        self.urukul0_ch1.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul0_ch2.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul0_ch3.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        at_mu(now_mu() + 100000)
+        self.urukul0_ch1.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul0_ch2.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul0_ch3.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
 
-        at_mu(now_mu() + 20000)
-        self.urukul1_ch1.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch2.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.urukul1_ch3.set_mu(self._freq_empty_ftw, asf=0x0, profile=0, pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
+        at_mu(now_mu() + 100000)
+        self.urukul1_ch1.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch2.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0,phase_mode=PHASE_MODE_CONTINUOUS)
+        self.urukul1_ch3.set_mu(self._freq_empty_ftw, asf=0x01, pow_=0x01, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
 
 
         '''PREPARE - DDS REGISTERS'''
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 100000)
         self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
 
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 100000)
         self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
 
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 100000)
         self.urukul0_ch1.set_cfr2(matched_latency_enable=1)
         self.urukul0_ch2.set_cfr2(matched_latency_enable=1)
         self.urukul0_ch3.set_cfr2(matched_latency_enable=1)
 
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 100000)
         self.urukul1_ch1.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch3.set_cfr2(matched_latency_enable=1)
@@ -350,12 +350,12 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
 
 
         '''PREPARE - DDS REGISTERS'''
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 25000)
         self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
 
-        at_mu(now_mu() + 10000)
+        at_mu(now_mu() + 25000)
         self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
         self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
