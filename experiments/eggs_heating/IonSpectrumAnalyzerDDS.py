@@ -325,7 +325,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self.phase_ch0_osc2 =   carrier_freq_hz * (self.time_urukul0_ch3_latency_ns * ns)
         self.phase_ch1_osc2 =   (carrier_freq_hz * (self.time_urukul1_ch3_latency_ns * ns)
                                  + self.phase_urukul1_adjust_turns
-                                 + 0.)
+                                 + 0.5)
         self.core.break_realtime()
 
         # set desired waveforms
