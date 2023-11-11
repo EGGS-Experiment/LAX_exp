@@ -14,9 +14,9 @@ from math import gcd
 # todo: ensure attenuations/power/freq are correctly set
 
 
-class IonSpectrumAnalyzerCarrierAdjust(EGGSHeating.EGGSHeating):
+class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
     """
-    Experiment: Ion Spectrum Analyzer Carrier Adjust
+    Experiment: Ion Spectrum Analyzer Latency Adjust
 
     ***todo: redocument***
     Cool the ions to the ground state of motion via sideband cooling,

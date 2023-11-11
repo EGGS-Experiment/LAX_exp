@@ -5,9 +5,9 @@ from artiq.experiment import *
 class PhaserTesting(EnvExperiment):
 
     def build(self):
-        self.freq_carrier_hz_list =                 np.array([82]) * MHz
+        self.freq_carrier_hz_list =                 np.array([82.1]) * MHz
         self.freq_sideband_hz_list =                np.array([771.1]) * kHz
-        self.time_pulse_ms =                        0.1
+        self.time_pulse_ms =                        1.0
 
 
     def prepare(self):
@@ -25,7 +25,7 @@ class PhaserTesting(EnvExperiment):
 
         # system values
         self.time_output_delay_mu =                 np.int64(1953)
-        self.phase_inherent_ch1_turns =             -0.24677
+        self.phase_inherent_ch1_turns =             -0.237
         # self.phase_inherent_ch1_turns =             0.
         # self.time_latency_ch1_system_ns =           2.16
         self.time_latency_ch1_system_ns =           0.0
@@ -88,7 +88,7 @@ class PhaserTesting(EnvExperiment):
             # set oscillator waveforms
             self.phaser_run()
 
-        # self.tmp()
+        self.tmp()
 
 
     @kernel(flags={"fast-math"})
@@ -127,7 +127,7 @@ class PhaserTesting(EnvExperiment):
 
         # oscillator 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
         self.phase_ch0_osc2 =           0.
-        self.phase_ch1_osc2 =           0.5
+        self.phase_ch1_osc2 =           0.
         self.core.break_realtime()
 
 
@@ -172,8 +172,8 @@ class PhaserTesting(EnvExperiment):
         at_mu(self.phaser0.get_next_frame_mu())
         time_start_mu = now_mu()
         with parallel:
-            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc0, clr=0)
-            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc0, clr=0)
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch0_osc0, clr=0)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch1_osc0, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -182,8 +182,8 @@ class PhaserTesting(EnvExperiment):
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch0_osc1, clr=0)
-            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.4, phase=self.phase_ch1_osc1, clr=0)
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch1_osc1, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
@@ -192,8 +192,8 @@ class PhaserTesting(EnvExperiment):
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
         with parallel:
-            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=0., clr=0)
-            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.2, phase=0., clr=0)
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0.9, phase=self.phase_ch1_osc2, clr=0)
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
