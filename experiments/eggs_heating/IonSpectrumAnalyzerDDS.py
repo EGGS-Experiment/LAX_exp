@@ -33,7 +33,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                                                                             ), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([95.]),
+                                                                                    ExplicitScan([65.]),
                                                                                     RangeScan(0, 1000, 200, randomize=True)
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
