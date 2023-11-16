@@ -65,6 +65,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('urukul0_cpld')
         self.setattr_device('urukul1_cpld')
         self.setattr_device('urukul2_cpld')
+
+        self.setattr_device('urukul0_ch0')
+        self.setattr_device('urukul1_ch1')
+        self.setattr_device('urukul2_ch2')
+        self.setattr_device('urukul2_ch3')
+
+
         self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
