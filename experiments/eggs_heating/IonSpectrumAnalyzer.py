@@ -332,7 +332,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                     self.core.break_realtime()
 
                 # resuscitate ion
-                self.rescue_ion.resuscitate()
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
