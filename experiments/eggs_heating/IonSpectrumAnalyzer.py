@@ -38,14 +38,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
-        self.setattr_argument("time_readout_us_list",                       Scannable(
-                                                                                default=[
-                                                                                    ExplicitScan([95.]),
-                                                                                    RangeScan(0, 1000, 200, randomize=True)
-                                                                                ],
-                                                                                global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
-                                                                            ), group=self.name)
 
         # ISA - antisqueezing
         self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group='ISA.antisqueezing')

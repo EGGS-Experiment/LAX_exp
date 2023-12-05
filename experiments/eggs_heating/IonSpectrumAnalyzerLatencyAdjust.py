@@ -38,14 +38,6 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
                                                                                 global_min=-8000, global_max=8000, global_step=10,
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group=self.name)
-        self.setattr_argument("time_readout_us_list",                       Scannable(
-                                                                                default=[
-                                                                                    ExplicitScan([95.]),
-                                                                                    RangeScan(0, 1000, 200, randomize=True)
-                                                                                ],
-                                                                                global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
-                                                                            ), group=self.name)
         self.setattr_argument("phase_ISA_rsb_turns",                        NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
 

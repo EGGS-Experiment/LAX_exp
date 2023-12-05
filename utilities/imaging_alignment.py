@@ -19,11 +19,13 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',           NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('update_interval_ms',     NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='timing')
+        self.setattr_argument('time_total_s',                       NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_sample_us',                     NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
+        self.setattr_argument('samples_per_point',                  NumberValue(default=20, ndecimals=0, step=10, min=1, max=500), group='timing')
 
-        self.setattr_argument('time_sample_us',         NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=1, max=500), group='timing')
+        # background subtraction
+        self.setattr_argument("enable_background_subtraction",      BooleanValue(default=False), group='background')
+        self.setattr_argument("signal_background_ratio",            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100gsgp), group='background')
 
         # relevant devices
         self.setattr_device('pump')
@@ -31,13 +33,6 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_device('pmt')
 
     def prepare_experiment(self):
-        # ensure sample rates and readout times are reasonable
-        # this is also necessary to ensure we have enough slack
-        time_per_point_s =                          (2. * self.time_sample_us * us) * self.samples_per_point
-        max_sampling_time_s =                       0.75 * (self.update_interval_ms * ms)
-        assert time_per_point_s < max_sampling_time_s, "Error: unreasonable sample values idk - try again welp"
-        # todo: also assert whether the time_slack_mu is valid
-
         # get relevant timings and calculate the number of repetitions
         self.repetitions =                      round(self.time_total_s / (self.update_interval_ms * ms))
         self.time_sample_mu =                   self.core.seconds_to_mu(self.time_sample_us * us)
@@ -74,8 +69,31 @@ class ImagingAlignment(LAXExperiment, Experiment):
         # todo: more rigorous setting/checking of beam waveforms etc.
         self.pump.readout()
 
-        # record alignment sequence
-        with self.core_dma.record('_PMT_ALIGNMENT'):
+        # record alignment sequence - signal
+        with self.core_dma.record('_PMT_ALIGNMENT_SIGNAL'):
+            # todo: should we set ensure readout beams are set here?
+
+            # set beams to record signal + background
+            self.repump_cooling.on()
+            self.pump.on()
+
+            # record PMT signal + background
+            self.pmt.count(self.time_sample_mu)
+
+            # set beams to record signal + background
+            self.repump_cooling.off()
+
+            # add holdoff time to allow ions/beams/idk to settle
+            delay_mu(2500)
+
+            # record PMT background only
+            self.pmt.count(self.time_sample_mu)
+
+            # turn repump beams back on to cool ions
+            self.repump_cooling.on()
+
+        # record alignment sequence - background
+        with self.core_dma.record('_PMT_ALIGNMENT_SIGNAL'):
             # todo: should we set ensure readout beams are set here?
 
             # set beams to record signal + background
