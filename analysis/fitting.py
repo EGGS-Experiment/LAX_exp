@@ -126,7 +126,7 @@ def fitDampedDrivenOscillatorPhase(data):
     Returns:
         ***todo
     """
-    # regular old lorentzin
+    # regular old lorentzian
     def fit_func(x, a, b, mu):
         """
         todo: document arguments
@@ -141,7 +141,7 @@ def fitDampedDrivenOscillatorPhase(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -218,7 +218,7 @@ def fitGaussian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
     b0 =                np.log(2) / (gamma0 - mu0)**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
@@ -254,7 +254,7 @@ def fitLorentzian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -293,7 +293,7 @@ def fitVoigt(data):
     # get position of max as line center
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmax(np.abs(data_y - 0.5 * a0))]
+    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
     b0 =                np.log(2) / (gamma0 - mu0)**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])

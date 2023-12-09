@@ -197,8 +197,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         fit_gaussian_params, fit_gaussian_err =         fitGaussian(res_final[:, :2])
         fit_lorentzian_params, fit_lorentzian_err =     fitLorentzian(res_final[:, :2])
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
-        fit_gaussian_fwmh_mhz =                         2 * (2. * fit_gaussian_params[1]) ** -0.5
-        fit_gaussian_fwmh_mhz_err =                     fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])
+        fit_gaussian_fwmh_mhz =                         np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
+        fit_gaussian_fwmh_mhz_err =                     np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
 
         # save fitted results to hdf5 as a dataset
         self.set_dataset('fit_gaussian_params',         fit_gaussian_params)
