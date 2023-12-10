@@ -29,26 +29,25 @@ class LaserPowerCalibration(EnvExperiment):
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",                          Scannable(
                                                                                  default=[
-                                                                                     RangeScan(95, 125, 121, randomize=True),
-                                                                                     ExplicitScan([110])
+                                                                                     ExplicitScan([110]),
+                                                                                     RangeScan(95, 125, 121, randomize=True)
                                                                                  ],
-                                                                                default=,
                                                                                 global_min=70, global_max=140, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ), group='DDS')
-        self.setattr_argument("dds_channel_num",                            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3), group='DDS')
-        self.setattr_argument("dds_ampl_min_pct",                           NumberValue(default=5, ndecimals=2, step=1, min=1, max=40), group='DDS')
+        self.setattr_argument("dds_channel_num",                            NumberValue(default=3, ndecimals=0, step=1, min=0, max=3), group='DDS')
+        self.setattr_argument("dds_ampl_min_pct",                           NumberValue(default=1, ndecimals=2, step=1, min=0.1, max=40), group='DDS')
         self.setattr_argument("dds_ampl_max_pct",                           NumberValue(default=50, ndecimals=2, step=1, min=5, max=50), group='DDS')
         self.setattr_argument("dds_attenuation_db",                         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup
-        self.setattr_argument("adc_channel_num",                            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='ADC')
+        self.setattr_argument("adc_channel_num",                            NumberValue(default=3, ndecimals=0, step=1, min=0, max=7), group='ADC')
         self.setattr_argument("adc_gain_num",                               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
-        self.setattr_argument("adc_sample_num",                             NumberValue(default=100, ndecimals=0, step=1, min=1, max=5000), group='ADC')
+        self.setattr_argument("adc_sample_num",                             NumberValue(default=200, ndecimals=0, step=1, min=100, max=5000), group='ADC')
 
         # tmp remove idk
         self.setattr_argument("save_to_dataset_manager",                    BooleanValue(default=True), group='dataset')
-        self.setattr_argument("dataset_name",                               StringValue(default='calibrations.linewidth.'), group='dataset')
+        self.setattr_argument("dataset_name",                               StringValue(default='tmpidk'), group='dataset')
 
 
     def prepare(self):
@@ -212,16 +211,18 @@ class LaserPowerCalibration(EnvExperiment):
 
         # print run time
         time_stop = datetime.timestamp(datetime.now())
-        print('\n\t\t\tDONE')
-        print('\t\t\t\tTOTAL RUN TIME: {:.2f}\n'.format(time_stop-self.time_start))
+        print('\n\tDONE')
+        print('\t\tTOTAL RUN TIME: {:.2f}\n'.format(time_stop-self.time_start))
 
         # add calibration values to dataset manager
         if self.save_to_dataset_manager:
             # create key to save results
-            dataset_manager_key = '.'.join(['calibrations', 'laser_power', self.dataset_name])
+            dataset_manager_key = '.'.join(['calibration', 'laser_power', self.dataset_name])
 
             # get calibration timestamp
             calib_timestamp = datetime.timestamp(datetime.now())
+
+            print(dataset_manager_key + '.timestamp')
 
             # save calibration to dataset manager
             self.set_dataset(dataset_manager_key + '.timestamp', calib_timestamp, broadcast=True, persist=True)
@@ -229,7 +230,7 @@ class LaserPowerCalibration(EnvExperiment):
 
         # print results if single frequency
         if len(calib_freq_mhz) == 1:
-            print('\t\t\t\tResults: {:.2f} MHz\t{:.2f} %\n'.format(*calib_final[0]))
+            print('\t\tResults:\n\t\t\t{:.2f} MHz\t{:.2f} %\n'.format(*calib_final[0]))
 
 
         ### LABRAD UPLOAD ###

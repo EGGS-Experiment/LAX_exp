@@ -5,7 +5,7 @@ from artiq.experiment import *
 class PhaserTesting(EnvExperiment):
 
     def build(self):
-        self.freq_carrier_hz_list =                 np.array([82.1]) * MHz
+        self.freq_carrier_hz_list =                 np.array([43.1]) * MHz
         self.freq_sideband_hz_list =                np.array([771.1]) * kHz
         self.time_pulse_ms =                        1.0
 
@@ -21,11 +21,11 @@ class PhaserTesting(EnvExperiment):
         # hardware values
         self.t_sample_mu =                          np.int64(40)
         self.t_frame_mu =                           np.int64(320)
-        self.freq_center_hz =                       85. * MHz
+        self.freq_center_hz =                       85 * MHz
 
         # system values
         self.time_output_delay_mu =                 np.int64(1953)
-        self.phase_inherent_ch1_turns =             -0.237
+        self.phase_inherent_ch1_turns =             -0.38
         # self.phase_inherent_ch1_turns =             0.
         # self.time_latency_ch1_system_ns =           2.16
         self.time_latency_ch1_system_ns =           0.0
