@@ -11,8 +11,8 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
     """
     Experiment: Linewidth Measurement 2
 
-    Measure the ion temperature by doing a weak probe linescan and fitting the resulting lineshape.
-    This version
+    Measures the 397nm linewidth by doing a weak probe linescan and fitting the resulting lineshape.
+    This version turns off the 866nm cooling repump to reduce heating/line-broadening.
     """
     name = 'Linewidth Measurement 2'
 
@@ -55,7 +55,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         ampl_calib_points =                                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
         ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
-        # verify scan range is servicable by calibration values
+        # verify scan range is serviceable by calibration values
         min_freq_mhz =                                                  np.min(self.freq_probe_scan_mhz)
         max_freq_mhz =                                                  np.max(self.freq_probe_scan_mhz)
         assert (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])), "Error: lower bound of frequency scan range below valid calibration range."
