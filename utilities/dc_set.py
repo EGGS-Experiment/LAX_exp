@@ -16,8 +16,8 @@ class DCSet(EnvExperiment):
     def build(self):
         # voltage values
         self.dc_channel_dict =                      dc_config.channeldict
-        self.setattr_argument("dc_channel_name",    EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_voltage_v",       NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=400))
+        self.setattr_argument("dc_channel_name",    EnumerationValue(list(self.dc_channel_dict.keys()), default='V Shim'))
+        self.setattr_argument("dc_voltage_v",       NumberValue(default=10.0, ndecimals=3, step=1, min=0, max=400))
 
 
     def prepare(self):
@@ -31,4 +31,4 @@ class DCSet(EnvExperiment):
 
     def run(self):
         # set DC voltage
-        self.voltage_set(self.dc_channel_num, self.dc_voltage_v)
+        self.dc.voltage(self.dc_channel_num, self.dc_voltage_v)
