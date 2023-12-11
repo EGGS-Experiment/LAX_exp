@@ -27,7 +27,7 @@ class LaserPowerMeasure(EnvExperiment):
         # photodiode
         self.setattr_argument("laser_wavelength_nm",            NumberValue(default=397, ndecimals=0, step=10, min=200, max=3200), group='photodiode')
         self.setattr_argument("photodiode_termination_ohms",    NumberValue(default=100000, ndecimals=1, step=1, min=10, max=1e7), group='photodiode')
-        self.setattr_argument("photodiode_model",               StringValue(default='DET36A2'))
+        self.setattr_argument("photodiode_model",               StringValue(default='DET36A2'), group='photodiode')
 
     def prepare(self):
         # general
