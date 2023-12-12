@@ -18,8 +18,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 
-from LAX_exp.experiments.SidebandCooling import SidebandCooling
-from LAX_exp.experiments.HeatingRate import HeatingRate
+from LAX_exp.experiments.diagnostics.SidebandCooling import SidebandCooling
 
 # datafile parameters
 directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Sideband Cooling/Datasets'

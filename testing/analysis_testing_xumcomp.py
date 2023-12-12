@@ -18,12 +18,11 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 
-from LAX_exp.experiments.diagnostics.HeatingRate import HeatingRate
-from LAX_exp.experiments.diagnostics.SidebandCooling import SidebandCooling
+from LAX_exp.experiments.diagnostics import HeatingRate
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Heating Rate/Datasets'
-datafile_key =              '31644'
+directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Parametric/Datasets'
+datafile_key =              '43721'
 
 
 '''
@@ -94,8 +93,7 @@ try:
         # process results for user
         rsb_params = storage_dict['fit_params_rsb']
         bsb_params = storage_dict['fit_params_bsb']
-        time_fit_us = parameters['time_readout_pipulse_us']
-        time_fit_us = 70
+        time_fit_s = parameters['time_readout_pipulse_us']
 
         # separate RSB and BSB
         split = lambda arr, cond: [arr[cond], arr[~cond]]
@@ -107,7 +105,7 @@ try:
             todo: document arguments
             """
             return ((a ** 2. / (a ** 2. + (x - b) ** 2.)) * np.sin(
-                (np.pi * time_fit_us) * (a ** 2. + (x - b) ** 2.) ** 0.5) ** 2. + c)
+                (np.pi * time_fit_s) * (a ** 2. + (x - b) ** 2.) ** 0.5) ** 2. + c)
 
         # plot RSB
         rsb_fit = fit_func(results_rsb[:, 0], *rsb_params)
