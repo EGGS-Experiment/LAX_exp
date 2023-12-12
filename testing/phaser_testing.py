@@ -5,7 +5,7 @@ from artiq.experiment import *
 class PhaserTesting(EnvExperiment):
 
     def build(self):
-        self.freq_carrier_hz_list =                 np.array([43.1]) * MHz
+        self.freq_carrier_hz_list =                 np.array([85.0]) * MHz
         self.freq_sideband_hz_list =                np.array([771.1]) * kHz
         self.time_pulse_ms =                        1.0
 
