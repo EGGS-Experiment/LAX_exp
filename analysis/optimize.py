@@ -4,13 +4,13 @@ LAX.analysis.optimize
 Contains modules used for optimization.
 """
 
-__all__ = ['complexFitMinimize', 'complexParametricFitMinimize']
+__all__ = ['complexLinearFitMinimize', 'complexFitMinimize', 'complexParametricFitMinimize']
 
 
 # necessary imports
 import numpy as np
 from scipy.stats import linregress
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, lsq_linear
 
 # todo: write an optimizer/gradient descent module
 
@@ -18,6 +18,36 @@ from scipy.optimize import least_squares
 '''
 Linear Optimization
 '''
+def complexLinearFitMinimize(dataset):
+    """
+    Extract the optimal voltage to minimize complex displacement
+    from the RF origin.
+
+    Arguments:
+        dataset (list(list(float, complex)): the dataset comprised of the real
+            independent variable, and the complex dependent variable.
+
+    Returns:
+        (float) : the value of the independent variable that minimizes the complex amplitude.
+    """
+    # create y-vector
+    vectorY = dataset[:, 1]
+    # create design matrix
+    matrixA = np.array([np.ones(len(vectorY)), dataset[:, 0]]).transpose()
+
+    # do a complex LINEAR least squares fit
+    res = lsq_linear(matrixA, vectorY)
+    b_fit_re, b_fit_im = (res.x[0].real, res.x[0].imag)
+    m_fit_re, m_fit_im = (res.x[1].real, res.x[1].imag)
+    print('\t\t\tb_param: {:.3f} + i * {:.3f}'.format(b_fit_re, b_fit_im))
+    print('\t\t\tm_param: {:.3f} + i * {:.3f}\n'.format(m_fit_re, m_fit_im))
+
+    # todo: get error (result.fun; vector of residuals at the soln)
+    # extract optimal voltage to minimize displacement
+    voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
+    return voltage_optimal
+
+
 def complexFitMinimize(dataset):
     """
     Extract the optimal voltage to minimize complex displacement
@@ -51,13 +81,12 @@ def complexFitMinimize(dataset):
     b_guess = np.median(dataset[:, 1] - m_guess * dataset[:, 0])
     params_guess = (b_guess.real, b_guess.imag, m_guess.real, m_guess.imag)
 
-    # tmp remove
-    print('\t\t\tguess b_param: {:.3f} + i * {:.3f}'.format(b_guess.real, b_guess.imag))
-    print('\t\t\tguess m_param: {:.3f} + i * {:.3f}\n'.format(m_guess.real, m_guess.imag))
-    # tmp remove
+    # debug printouts
+    print('\t\tguess b_param: {:.3f} + i * {:.3f}'.format(b_guess.real, b_guess.imag))
+    print('\t\tguess m_param: {:.3f} + i * {:.3f}'.format(m_guess.real, m_guess.imag))
 
     # do a complex least squares fit
-    res = least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]))
+    res = least_squares(func_wrap, params_guess, args=(dataset[:, 0], dataset[:, 1]), jac='3-point', method='lm')
     b_fit_re, b_fit_im, m_fit_re, m_fit_im = res.x
     print('\t\t\tb_param: {:.3f} + i * {:.3f}'.format(b_fit_re, b_fit_im))
     print('\t\t\tm_param: {:.3f} + i * {:.3f}\n'.format(m_fit_re, m_fit_im))
@@ -67,6 +96,7 @@ def complexFitMinimize(dataset):
     # extract optimal voltage to minimize displacement
     voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
     return voltage_optimal
+
 
 def complexParametricFitMinimize(dataset):
     """

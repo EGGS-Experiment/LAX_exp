@@ -252,6 +252,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         Fit resultant spectra with a sinc profile to extract n,
         then fit a line to extract heating rate
         """
+        # todo: group first by freq and voltage, and mean
+        # todo: then fit for each freq (account for disjunction if both eggs and rf somehow)
+        # todo: then fit for each freq
         # note: no need to convert units since we already do this in _process_results
         # also, we leave out counts (5th column) from fitting
         results_tmp =           np.array(self.results)[:, :4]
@@ -268,13 +271,38 @@ class ParametricSweep(LAXExperiment, Experiment):
                                  for key_voltage, val_dataset in results_tmp.items()}
 
         # fit amplitude for all voltages
-        results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, :2])
+        results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
                                  for key_voltage, val_dataset in results_tmp.items()}
         # todo: use amplitude fit values to support phase fitting
         # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])
         #                          for key_voltage, val_dataset in results_tmp.items()}
 
         # todo: extract optimal voltage at all modulation frequencies
+        if len(results_tmp) > 1:
+            pass
+            # th0 = np.array([tmp[1] for tmp in groupBy2(np.array(self.results), column_num=1)])[::-1]
+            # th1 = np.array([x[np.argsort(x[:, 0])] for x in th0])
+            # def fitmintmp(col_num):
+            #     _restmp = th1[:, col_num, [1, 2, 3]]
+            #     _restmp = np.array([
+            #         _restmp[:, 0],
+            #         _restmp[:, 1] * np.exp(1.j * _restmp[:, 2])
+            #     ], dtype='complex128').transpose()
+            #     return complexLinearFitMinimize(_restmp)
+            # # sweep over all frequencies
+            # yz0 = {
+            #     th1[0, ind, 0] * 1000.:
+            #         fitmintmp(ind) for ind in range(len(th1))
+            # }
+            # # print out voltage optima statistics
+            # yz1 = list(yz0.values())
+            # print(yz1)
+            # # todo: sort by frequencies first
+            # print("\nMean (V):\t\t{:.3f}\nMedian (V):\t\t{:.3f}\nStd (V):\t\t{:.3f}".format(
+            #     np.mean(yz1),
+            #     np.median(yz1),
+            #     np.std(yz1))
+            # )
 
 
         # process results for fitting
@@ -289,15 +317,13 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # print out fitted results
         print("\tResults - Parametric Sweep:")
-
+        # todo: make it always print out the mean of results (or not? maybe?)
         # if only one voltage, assume user is trying to find a mode frequency,
         # so print out mode frequency, error, and linewidth
         if len(results_tmp.keys()) == 1:
             print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
             print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
 
-        # otherwise, assume user is trying to minimize micromotion,
-        # so print out voltage optima statistics
         else:
             # todo
             pass

@@ -135,7 +135,6 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
     Returns:
         ***todo
     """
-    # todo: add argument which is a function that can act on grouped result
     # ensure dataset is a numpy array for ease of use
     dataset = np.array(dataset)
 
