@@ -303,12 +303,11 @@ class ParametricSweep(LAXExperiment, Experiment):
                 __results_tmp[0, col_num, 0] * 1000.: extractVoltageOptimum(col_num)
                 for col_num in range(len(__results_tmp[0, :, 0]))
             }
-            print(voltage_optima)
-            print(list(voltage_optima.items()))
+
             # save and print results
             self.set_dataset('voltage_optima_khz_v', np.array(list(voltage_optima.items())))
             for key, val in voltage_optima.items():
-                print('\tFreq. (kHz):\t{:.2f}\tOpt. Voltage (V):\t{:.2f}'.format(key, val))
+                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f}'.format(key, val))
 
         # todo: check that frequencies are continuous
         if len(results_tmp) == 1:
