@@ -304,14 +304,13 @@ class ParametricSweep(LAXExperiment, Experiment):
                 # return complexLinearFitMinimize(_restmp)
             # sweep over all frequencies
             yz0 = {
-                th1[0, ind, 0] * 1000.:
-                    fitmintmp(ind) for ind in range(len(th1))
+                th1[0, ind, 0] * 1000.: fitmintmp(ind) for ind in range(len(th1))
             }
             # print out voltage optima statistics
             # yz1 = list(yz0.values())
             # print(yz1)
             # todo: sort by frequencies first
-            for key, val in yz0:
+            for key, val in yz0.values():
                 print('\tFreq:\t{:.2f}\tOpt. Voltage:\t{:.2f}'.format(key, val))
             # print("\nMean (V):\t\t{:.3f}\nMedian (V):\t\t{:.3f}\nStd (V):\t\t{:.3f}".format(
             #     np.mean(yz1),
