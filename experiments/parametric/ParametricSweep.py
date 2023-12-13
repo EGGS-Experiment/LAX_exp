@@ -296,7 +296,12 @@ class ParametricSweep(LAXExperiment, Experiment):
                     _restmp[:, 0],
                     _restmp[:, 1] * np.exp(1.j * _restmp[:, 2])
                 ], dtype='complex128').transpose()
-                return complexLinearFitMinimize(_restmp)
+                # tmp remove
+                kkde = complexLinearFitMinimize(_restmp)
+                print(kkde)
+                return kkde
+                # tmp remove
+                # return complexLinearFitMinimize(_restmp)
             # sweep over all frequencies
             yz0 = {
                 th1[0, ind, 0] * 1000.:
@@ -315,7 +320,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             # )
 
         # todo: check that frequencies are continuous
-        if True:
+        if len(results_tmp) == 1:
             # fit amplitude for all voltages
             results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
                                      for key_voltage, val_dataset in results_tmp.items()}
