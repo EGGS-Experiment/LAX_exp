@@ -314,7 +314,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # tmp remove
 
         # extract minimum mode voltage
-        opt_voltage_v = complexFitMinimize(results_tmp)
+        opt_voltage_v = complexLinearFitMinimize(results_tmp)
         opt_voltage_list_v_tmp = self.dc_voltage_optimal_v_list
 
         # ensure values are within acceptable range, otherwise return original values

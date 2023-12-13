@@ -4,7 +4,9 @@ LAX.analysis.processing
 Contains helpful/commonly used modules for processing datasets.
 """
 
-__all__ = ['findThresholdScikit', 'findThresholdPeaks', 'groupBy', 'processFluorescence2D']
+__all__ = ['findThresholdScikit', 'findThresholdPeaks',
+           'groupBy', 'groupBy2',
+           'processFluorescence2D']
 
 
 # necessary imports
@@ -143,9 +145,49 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
 
     # group same values into dict
     dataset_processed = {
+        # todo: array-ize the np.delete step
         key: reduce_func(np.array([np.delete(val, column_num, 0) for val in group]))
         for key, group in groupby(dataset, lambda arr: arr[column_num])
     }
+
+    return dataset_processed
+
+
+def groupBy2(dataset, column_nums=0, reduce_func=lambda x:x):
+    """
+    Groups a 2-D array by a given column.
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # ensure dataset is a numpy array for ease of use
+    dataset = np.array(dataset)
+
+    # ensure column_num is a list
+    if type(column_nums) not in (list, np.ndarray):
+        column_num = [column_nums]
+
+    def _group(_dataset, _col_num):
+        # sort array by given column number (necessary for itertools.groupby)
+        _dataset = _dataset[np.argsort(_dataset[:, _col_num])]
+
+        # group same values into list
+        return [
+            [reduce_func(np.array([val for val in subgroup]))]
+            for key, subgroup in groupby(_dataset, lambda arr: arr[_col_num])
+        ]
+
+    for index in column_nums:
+    # sort array by given column number (necessary for itertools.groupby)
+    dataset = dataset[np.argsort(dataset[:, column_num])]
+
+    # group same values into dict
+    dataset_processed = [
+        [key, reduce_func(np.array([val for val in group]))]
+        for key, group in groupby(dataset, lambda arr: arr[column_num])
+    ]
 
     return dataset_processed
 

@@ -270,60 +270,73 @@ class ParametricSweep(LAXExperiment, Experiment):
         results_tmp =           {key_voltage: _dict_to_array(groupBy(val_dataset, column_num=0, reduce_func=_reduce_func))
                                  for key_voltage, val_dataset in results_tmp.items()}
 
-        # fit amplitude for all voltages
-        results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
-                                 for key_voltage, val_dataset in results_tmp.items()}
-        # todo: use amplitude fit values to support phase fitting
-        # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])
-        #                          for key_voltage, val_dataset in results_tmp.items()}
 
-        # todo: extract optimal voltage at all modulation frequencies
+        # extract optimal voltage for each modulation frequency
         if len(results_tmp) > 1:
-            pass
-            # th0 = np.array([tmp[1] for tmp in groupBy2(np.array(self.results), column_num=1)])[::-1]
-            # th1 = np.array([x[np.argsort(x[:, 0])] for x in th0])
-            # def fitmintmp(col_num):
-            #     _restmp = th1[:, col_num, [1, 2, 3]]
-            #     _restmp = np.array([
-            #         _restmp[:, 0],
-            #         _restmp[:, 1] * np.exp(1.j * _restmp[:, 2])
-            #     ], dtype='complex128').transpose()
-            #     return complexLinearFitMinimize(_restmp)
-            # # sweep over all frequencies
-            # yz0 = {
-            #     th1[0, ind, 0] * 1000.:
-            #         fitmintmp(ind) for ind in range(len(th1))
-            # }
-            # # print out voltage optima statistics
-            # yz1 = list(yz0.values())
-            # print(yz1)
-            # # todo: sort by frequencies first
-            # print("\nMean (V):\t\t{:.3f}\nMedian (V):\t\t{:.3f}\nStd (V):\t\t{:.3f}".format(
-            #     np.mean(yz1),
-            #     np.median(yz1),
-            #     np.std(yz1))
-            # )
+            from itertools import groupby
+            def groupByTMP(dataset, column_num=0, reduce_func=lambda x: x):
+                # ensure dataset is a numpy array for ease of use
+                dataset = np.array(dataset)
 
+                # sort array by given column number (necessary for itertools.groupby)
+                dataset = dataset[np.argsort(dataset[:, column_num])]
 
-        # process results for fitting
-        amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
-                                                 for key_voltage, fit_params in results_amplitude_fit.items()])
-        amplitude_fit_err_saved =       np.array([[key_voltage, *fit_params[1]]
-                                                  for key_voltage, fit_params in results_amplitude_fit.items()])
+                # group same values into dict
+                dataset_processed = [
+                    [key, reduce_func(np.array([val for val in group]))]
+                    for key, group in groupby(dataset, lambda arr: arr[column_num])
+                ]
 
-        # save results to hdf5 as a dataset
-        self.set_dataset('amplitude_fit_params_saved',  amplitude_fit_params_saved)
-        self.set_dataset('amplitude_fit_err_saved',     amplitude_fit_err_saved)
+                return dataset_processed
+            th0 = np.array([tmp[1] for tmp in groupByTMP(np.array(self.results), column_num=1)])[::-1]
+            th1 = np.array([x[np.argsort(x[:, 0])] for x in th0])
+            def fitmintmp(col_num):
+                _restmp = th1[:, col_num, [1, 2, 3]]
+                _restmp = np.array([
+                    _restmp[:, 0],
+                    _restmp[:, 1] * np.exp(1.j * _restmp[:, 2])
+                ], dtype='complex128').transpose()
+                return complexLinearFitMinimize(_restmp)
+            # sweep over all frequencies
+            yz0 = {
+                th1[0, ind, 0] * 1000.:
+                    fitmintmp(ind) for ind in range(len(th1))
+            }
+            # print out voltage optima statistics
+            yz1 = list(yz0.values())
+            print(yz1)
+            # todo: sort by frequencies first
+            print("\nMean (V):\t\t{:.3f}\nMedian (V):\t\t{:.3f}\nStd (V):\t\t{:.3f}".format(
+                np.mean(yz1),
+                np.median(yz1),
+                np.std(yz1))
+            )
 
-        # print out fitted results
-        print("\tResults - Parametric Sweep:")
-        # todo: make it always print out the mean of results (or not? maybe?)
-        # if only one voltage, assume user is trying to find a mode frequency,
-        # so print out mode frequency, error, and linewidth
-        if len(results_tmp.keys()) == 1:
-            print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
-            print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
+        # todo: check that frequencies are continuous
+        if True:
+            # fit amplitude for all voltages
+            results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
+                                     for key_voltage, val_dataset in results_tmp.items()}
+            # todo: use amplitude fit values to support phase fitting
+            # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])
+            #                          for key_voltage, val_dataset in results_tmp.items()}
 
-        else:
-            # todo
-            pass
+            # process fit results
+            amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
+                                                     for key_voltage, fit_params in results_amplitude_fit.items()])
+            amplitude_fit_err_saved =       np.array([[key_voltage, *fit_params[1]]
+                                                      for key_voltage, fit_params in results_amplitude_fit.items()])
+
+            # save results to hdf5 as a dataset
+            self.set_dataset('amplitude_fit_params_saved',  amplitude_fit_params_saved)
+            self.set_dataset('amplitude_fit_err_saved',     amplitude_fit_err_saved)
+
+            # print out fit results
+            print("\tResults - Parametric Sweep:")
+            # todo: make it always print out the mean of results (or not? maybe?)
+            if len(results_tmp.keys()) == 1:
+                print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
+                print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
+            else:
+                # todo
+                pass
