@@ -274,49 +274,39 @@ class ParametricSweep(LAXExperiment, Experiment):
         # extract optimal voltage for each modulation frequency
         if len(results_tmp) > 1:
             from itertools import groupby
-            def groupByTMP(dataset, column_num=0, reduce_func=lambda x: x):
-                # ensure dataset is a numpy array for ease of use
-                dataset = np.array(dataset)
-
+            def groupByList(dataset, column_num=0, reduce_func=lambda x: x):
                 # sort array by given column number (necessary for itertools.groupby)
+                dataset = np.array(dataset)
                 dataset = dataset[np.argsort(dataset[:, column_num])]
 
                 # group same values into dict
-                dataset_processed = [
+                return [
                     [key, reduce_func(np.array([val for val in group]))]
                     for key, group in groupby(dataset, lambda arr: arr[column_num])
                 ]
 
-                return dataset_processed
-            th0 = np.array([tmp[1] for tmp in groupByTMP(np.array(self.results), column_num=1)])[::-1]
-            th1 = np.array([x[np.argsort(x[:, 0])] for x in th0])
-            def fitmintmp(col_num):
-                _restmp = th1[:, col_num, [1, 2, 3]]
-                _restmp = np.array([
-                    _restmp[:, 0],
-                    _restmp[:, 1] * np.exp(1.j * _restmp[:, 2])
+            # group results by frequency, then sort by voltage
+            __results_tmp = np.array([sublist[1] for sublist in groupByList(np.array(self.results), column_num=1)])[::-1]
+            __results_tmp = np.array([sublist[np.argsort(sublist[:, 0])] for sublist in __results_tmp])
+
+            def extractVoltageOptimum(col_num):
+                # create array of [voltage, a*exp(i \theta)]
+                _data = __results_tmp[:, col_num, [1, 2, 3]]
+                _data = np.array([
+                    _data[:, 0],
+                    _data[:, 1] * np.exp(1.j * _data[:, 2])
                 ], dtype='complex128').transpose()
-                # tmp remove
-                kkde = complexLinearFitMinimize(_restmp)
-                print(kkde)
-                return kkde
-                # tmp remove
-                # return complexLinearFitMinimize(_restmp)
-            # sweep over all frequencies
-            yz0 = {
-                th1[0, ind, 0] * 1000.: fitmintmp(ind) for ind in range(len(th1))
+                return complexLinearFitMinimize(_data)
+
+            # process voltage optima for all frequencies
+            voltage_optima = {
+                __results_tmp[0, col_num, 0] * 1000.: extractVoltageOptimum(col_num)
+                for col_num in range(len(__results_tmp))
             }
-            # print out voltage optima statistics
-            # yz1 = list(yz0.values())
-            # print(yz1)
-            # todo: sort by frequencies first
-            for key, val in yz0.values():
-                print('\tFreq:\t{:.2f}\tOpt. Voltage:\t{:.2f}'.format(key, val))
-            # print("\nMean (V):\t\t{:.3f}\nMedian (V):\t\t{:.3f}\nStd (V):\t\t{:.3f}".format(
-            #     np.mean(yz1),
-            #     np.median(yz1),
-            #     np.std(yz1))
-            # )
+            # save and print results
+            self.set_dataset('voltage_optima_khz_v', np.array(list(voltage_optima.items())))
+            for key, val in voltage_optima.items():
+                print('\tFreq. (kHz):\t{:.2f}\tOpt. Voltage (V):\t{:.2f}'.format(key, val))
 
         # todo: check that frequencies are continuous
         if len(results_tmp) == 1:
