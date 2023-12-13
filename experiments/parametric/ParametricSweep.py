@@ -301,7 +301,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             # process voltage optima for all frequencies
             voltage_optima = {
                 __results_tmp[0, col_num, 0] * 1000.: extractVoltageOptimum(col_num)
-                for col_num in range(len(__results_tmp))
+                for col_num in range(len(__results_tmp[0, :, 0]))
             }
             print(voltage_optima)
             print(list(voltage_optima.items()))
