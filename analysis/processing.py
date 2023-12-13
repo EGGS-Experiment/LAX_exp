@@ -179,7 +179,7 @@ def groupBy2(dataset, column_nums=0, reduce_func=lambda x:x):
             for key, subgroup in groupby(_dataset, lambda arr: arr[_col_num])
         ]
 
-    for index in column_nums:
+    # for index in column_nums:
     # sort array by given column number (necessary for itertools.groupby)
     dataset = dataset[np.argsort(dataset[:, column_num])]
 
