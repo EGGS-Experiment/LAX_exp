@@ -306,6 +306,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         if self.scheduler.check_termination():
             raise TerminationRequested
 
+    @kernel(flags={"fast-math"})
+    def noop(self):
+        """
+        A hardware no-op function to allow for customizable pulse sequence configuration.
+        """
+        delay_mu(0)
+
 
     '''
     ANALYZE
