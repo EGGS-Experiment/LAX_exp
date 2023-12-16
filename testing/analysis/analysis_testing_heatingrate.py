@@ -134,4 +134,4 @@ try:
 
 
 except Exception as e:
-    print("Error during testing: {}".format(e))
+    print("Error during testing: {}".format(repr(e)))

@@ -159,7 +159,7 @@ class LAXDeviceManager:
                 return dev_obj
             except Exception as e:
                 print('Unable to create LAX Device: {}'.format(name))
-                print('\tError: {}'.format(e))
+                print('\tError: {}'.format(repr(e)))
 
         # get device normally
         else:

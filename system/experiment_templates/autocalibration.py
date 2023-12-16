@@ -231,7 +231,7 @@ class Autocalibration(EnvExperiment):
             # loop.close()
 
         except Exception as e:
-            print('\t\t\tError during Run: {}'.format(e))
+            print('\t\t\tError during Run: {}'.format(repr(e)))
         finally:
             # loop.stop()
             # loop.close()

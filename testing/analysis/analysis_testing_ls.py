@@ -1,7 +1,7 @@
 """
-Analysis Testing - Linewidth Measurement
+Analysis Testing - Laser Scan
 
-Test fitting for Linewidth Measurement.
+Test fitting for LaserScan.
 """
 '''
 IMPORTS
@@ -18,11 +18,11 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 
-from LAX_exp.experiments.diagnostics.LinewidthMeasurement import LinewidthMeasurement
+from LAX_exp.experiments.diagnostics.LaserScan import LaserScan
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Linewidth Measurement/Datasets'
-datafile_key =              '40125'
+directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Laser Scan/Datasets'
+datafile_key =              '37774'
 
 
 '''
@@ -48,7 +48,7 @@ try:
 
 
     # create experiment object wrapper class to simulate the experiment object
-    class ExperimentWrapper(LinewidthMeasurement):
+    class ExperimentWrapper(LaserScan):
 
         def __init__(self, results, parameter_dict, _results_storage={}):
             # instantiate necessary attributes
@@ -69,34 +69,21 @@ try:
     # call the analyze method of the experiment object to process our results
     exp_res = exp_obj.analyze_experiment()
 
-    # # process results for user
-    # rsb_params = storage_dict['fit_params_rsb']
-    # bsb_params = storage_dict['fit_params_bsb']
-    # time_fit_s = parameters['time_readout_pipulse_us']
-    # print(rsb_params)
-    # print(bsb_params)
-
-    # separate RSB and BSB
-    def split(arr, cond):
-        return [arr[cond], arr[~cond]]
-    results_rsb, results_bsb = split(exp_res, exp_res[:, 0] < np.mean(exp_res[:, 0]))
-
-    # sinc fit function
-    def fit_func(x, a, b, c):
-        """
-        todo: document arguments
-        """
-        return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
-
-    # plot BSB
-    # bsb_fit = fit_func(results_bsb[:, 0], *bsb_params)
-    # plt.plot(*(results_bsb.transpose()), 'x')
-    # plt.plot(*(results_bsb.transpose()))
-    res_tmp = exp_res[:, :2].transpose()
-    plt.plot(*res_tmp)
-    plt.plot(*(exp_res[:, [0, 2]].transpose()))
+    plt.plot(*exp_res.transpose())
     plt.show()
+
+    # print(fit_sinc_params)
+    # def fit_func(x, a, b, c):
+    #     return ((a ** 2. / (a ** 2. + (x - b) ** 2.)) * np.sin(
+    #         (np.pi * self.time_qubit_us) * (a ** 2. + (x - b) ** 2.) ** 0.5) ** 2. + c)
+    #
+    # th1 = fit_func(points_tmp[:, 0], *fit_sinc_params)
+    # import matplotlib.pyplot as plt
+    # # plt.plot(*results_tmp.transpose())
+    # plt.plot(*points_tmp.transpose(), alpha=0.5)
+    # plt.plot(points_tmp[:, 0], th1, 'x')
+    # plt.show()
 
 
 except Exception as e:
-    print("Error during testing: {}".format(e))
+    print("Error during testing: {}".format(repr(e)))

@@ -147,18 +147,36 @@ class LaserScan(LAXExperiment, Experiment):
         peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
         peak_vals =             results_tmp[peaks]
 
+        # fit sinc profile to results (only in the case of one peak)
+        if len(peaks) == 1:
+            # get index step size in frequency (mhz)
+            step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
+            freq_sinc_mhz = 1. / self.time_qubit_us
+
+            # get points +/- 6x the 1/f time for sinc fitting
+            num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
+            index_peak_center = peaks[0]
+            index_min = max(0, index_peak_center - num_points_sinc)
+            index_max = min(index_peak_center + num_points_sinc, len(results_tmp))
+            points_tmp = results_tmp[index_min: index_max]
+
+            # fit sinc profile and replace spectrum peak with fitted value
+            # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
+            fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
+            # peak_vals[0, 0] = fit_sinc_params[1]
+            print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
+
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
 
-        # tmp remove
+        # save results to dataset manager for dynamic experiments
         self.set_dataset('tmpres.ls.results', peak_vals, broadcast=True, persist=False, archive=False)
         self.set_dataset('tmpres.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-        # tmp remove
 
 
         # print peaks to log for user convenience
         # ensure we don't have too many peaks before printing to log
-        if len(peak_vals) < 8:
+        if len(peak_vals) < 5:
             print("\tPeaks - Laser Scan:")
             for peak_freq, peak_prob in peak_vals:
                 print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))

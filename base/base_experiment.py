@@ -335,7 +335,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.set_dataset('results_processed', res_processed)
         except Exception as e:
             print('\tWarning: encountered error during analyze_experiment.')
-            print('\t\t:{:}'.format(e))
+            print('\t\t:{:}'.format(repr(e)))
 
     def analyze_experiment(self):
         """
@@ -431,7 +431,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # catch any errors
             except Exception as e:
-                print("Warning: unable to create and save file in LAX format: {}".format(e))
+                print("Warning: unable to create and save file in LAX format: {}".format(repr(e)))
 
     def _save_labrad(self):
         """
