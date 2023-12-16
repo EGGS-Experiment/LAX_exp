@@ -131,6 +131,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
                 # configure squeezing and qubit readout
                 time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_antisqueeze_pow, time_squeeze_mu)
+                # note: this break_realtime() is necessary to prevent RTIO underflows
+                self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
