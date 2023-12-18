@@ -163,8 +163,8 @@ class LaserScan(LAXExperiment, Experiment):
             # fit sinc profile and replace spectrum peak with fitted value
             # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
             fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
-            # peak_vals[0, 0] = fit_sinc_params[1]
-            print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
+            peak_vals[0, 0] = fit_sinc_params[1]
+            # print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
 
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
