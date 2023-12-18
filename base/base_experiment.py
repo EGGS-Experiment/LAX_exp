@@ -71,15 +71,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_ch3')
 
-
         self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
-        # todo: set relevant urukul<x>_ch<x> switches all to 0 to prevent problems
-        # since output is logical OR of the TTL state as well as the urukul configuration register state
+
+        self.setattr_device('phaser0')
 
         # set looping iterator for the _update_results method
-        setattr(self,'_result_iter', 0)
+        setattr(self, '_result_iter', 0)
 
     def build_experiment(self):
         """
@@ -254,6 +253,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.ttl14.off()
 
             # set urukul ttl switches to allow front-end access
+            # since output is logical OR of the TTL state as well as the urukul configuration register state
             delay_mu(10)
             with parallel:
                 self.urukul0_ch0.sw.off()  # 729nm
@@ -261,6 +261,28 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.urukul2_ch2.sw.off()  # 866nm
                 self.urukul2_ch3.sw.off()  # 854nm
 
+        # reset phaser attenuators
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att(31.5 * dB)
+        delay_mu(40)
+        self.phaser0.channel[1].set_att(31.5 * dB)
+
+        # reset phaser oscillators
+        for i in range(5):
+            # synchronize to frame
+            at_mu(self.phaser0.get_next_frame_mu())
+
+            # clear oscillator frequencies
+            with parallel:
+                self.phaser0.channel[0].oscillator[i].set_frequency(0.)
+                self.phaser0.channel[1].oscillator[i].set_frequency(0.)
+                delay_mu(40)
+
+            # clear oscillator amplitudes
+            with parallel:
+                self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                delay_mu(40)
 
         # ensure all events in the FIFOs are completed before
         # we exit the kernel
