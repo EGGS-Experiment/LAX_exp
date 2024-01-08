@@ -25,7 +25,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         # Ion Spectrum Analyzer
         self.setattr_argument("freq_ionSpecAnal_sideband_offset_khz_list",  Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([0]),
+                                                                                    ExplicitScan([0.]),
                                                                                     CenterScan(0, 5, 0.5, randomize=True)
                                                                                 ],
                                                                                 global_min=-8000, global_max=8000, global_step=10,
@@ -33,7 +33,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                                                                             ), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([65.]),
+                                                                                    ExplicitScan([70.]),
                                                                                     RangeScan(0, 1000, 200, randomize=True)
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
@@ -63,6 +63,11 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
                                                                                 ), group='squeeze_configurable')
         self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
 
+
+        # ISA DDS - carrier attenuation
+        self.setattr_argument("att_ISA_DDS_carrier_db",                     NumberValue(default=20., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.decoupling')
+
+
         # tmp remove
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch1")
@@ -91,6 +96,7 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
 
         # attenuation
         self.att_eggs_heating_mu =              self.dds_cpld.att_to_mu(self.att_eggs_heating_db * dB)
+        self.att_ISA_DDS_carrier_mu =           self.dds_cpld.att_to_mu(self.att_ISA_DDS_carrier_db * dB)
         # preallocate register storage for urukul attenuation register
         self._reg_att_urukul0 =                 np.int32(0)
         self._reg_att_urukul1 =                 np.int32(0)
@@ -146,14 +152,14 @@ class IonSpectrumAnalyzerDDS(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
         self._reg_att_urukul0 &= (0xFF << 0)
         self._reg_att_urukul0 |= ((self.att_eggs_heating_mu << 8) |
                                   (self.att_eggs_heating_mu << 16) |
-                                  (self.att_eggs_heating_mu << 24))
+                                  (self.att_ISA_DDS_carrier_mu << 24))
 
         at_mu(now_mu() + 50000)
         self._reg_att_urukul1 = self.urukul1_cpld.get_att_mu()
         self._reg_att_urukul1 &= (0xFF << 0)
         self._reg_att_urukul1 |= ((self.att_eggs_heating_mu << 8) |
                                   (self.att_eggs_heating_mu << 16) |
-                                  (self.att_eggs_heating_mu << 24))
+                                  (self.att_ISA_DDS_carrier_mu << 24))
 
         at_mu(now_mu() + 50000)
         self.urukul0_ch1.set_phase_mode(PHASE_MODE_CONTINUOUS)
