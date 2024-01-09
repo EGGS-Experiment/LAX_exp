@@ -93,6 +93,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # tmp remove
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
+        self.setattr_device('ttl10')
         # tmp remove
 
     def prepare_experiment(self):
@@ -389,6 +390,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # EGGS - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
+                # tmp remove - integrator hold
+                self.ttl10.on()
+                # tmp remove - integrator hold
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
@@ -401,6 +405,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 with parallel:
                     self.phaser_stop()
                     self.phaser_activecancel_stop()
+                # tmp remove - integrator hold
+                self.ttl10.off()
+                # tmp remove - integrator hold
 
 
                 '''READOUT'''
@@ -592,6 +599,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             delay_mu(self.phaser_eggs.t_sample_mu)
+        # todo: set attenuators?
 
     @kernel(flags={"fast-math"})
     def phaser_pulseshape_point(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):

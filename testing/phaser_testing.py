@@ -5,7 +5,7 @@ from artiq.experiment import *
 class PhaserTesting(EnvExperiment):
 
     def build(self):
-        self.freq_carrier_hz_list =                 np.array([85.0]) * MHz
+        self.freq_carrier_hz_list =                 np.array([213.7]) * MHz
         self.freq_sideband_hz_list =                np.array([771.1]) * kHz
         self.time_pulse_ms =                        1.0
 
@@ -21,14 +21,12 @@ class PhaserTesting(EnvExperiment):
         # hardware values
         self.t_sample_mu =                          np.int64(40)
         self.t_frame_mu =                           np.int64(320)
-        self.freq_center_hz =                       85 * MHz
+        self.freq_center_hz =                       85.0 * MHz
 
         # system values
         self.time_output_delay_mu =                 np.int64(1953)
-        self.phase_inherent_ch1_turns =             -0.38
-        # self.phase_inherent_ch1_turns =             0.
-        # self.time_latency_ch1_system_ns =           2.16
-        self.time_latency_ch1_system_ns =           0.0
+        self.phase_inherent_ch1_turns =             -0.425
+        self.time_latency_ch1_system_ns =           2.33
 
         # preallocate DAC34H84 0x1F register config to speed up
         # writes when clearing the phase
@@ -65,9 +63,9 @@ class PhaserTesting(EnvExperiment):
 
         # initialize
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(2.5 * dB)
+        self.phaser0.channel[0].set_att(8 * dB)
         delay_mu(self.t_sample_mu)
-        self.phaser0.channel[1].set_att(2.5 * dB)
+        self.phaser0.channel[1].set_att(8 * dB)
 
         # todo: store in a method
         # store current status of DAC34H84's 0x1F (synchronization) register
@@ -88,7 +86,7 @@ class PhaserTesting(EnvExperiment):
             # set oscillator waveforms
             self.phaser_run()
 
-        self.tmp()
+        # self.tmp()
 
 
     @kernel(flags={"fast-math"})

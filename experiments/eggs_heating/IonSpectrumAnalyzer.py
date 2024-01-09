@@ -73,6 +73,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # tmp remove
         self.setattr_device('dds_modulation')
+        self.setattr_device('ttl10')
 
 
     def prepare_experiment(self):
@@ -292,6 +293,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # PHASER - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
+                # tmp remove - integrator hold
+                self.ttl10.on()
+                # tmp remove - integrator hold
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # PHASER - RUN
@@ -300,6 +304,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
+                # tmp remove - integrator hold
+                self.ttl10.off()
+                # tmp remove - integrator hold
 
 
                 '''READOUT'''
