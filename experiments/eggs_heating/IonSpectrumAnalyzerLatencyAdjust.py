@@ -1,6 +1,5 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import SqueezeConfigurable
@@ -22,7 +21,7 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
     """
-    name = 'Ion Spectrum Analyzer'
+    name = 'Ion Spectrum Analyzer Latency Adjust'
 
 
     def build_experiment(self):

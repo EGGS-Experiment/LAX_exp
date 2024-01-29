@@ -1,6 +1,5 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import SqueezeConfigurable
@@ -294,7 +293,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
                 # tmp remove - integrator hold
-                self.ttl10.on()
+                # self.ttl10.on()
                 # tmp remove - integrator hold
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
@@ -305,7 +304,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
                 # tmp remove - integrator hold
-                self.ttl10.off()
+                # self.ttl10.off()
                 # tmp remove - integrator hold
 
 

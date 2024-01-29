@@ -42,7 +42,7 @@ class DDSModulation(LAXDevice):
             # enable modulation RF switch to DDS
             self.mod_switch.on()
             # enable integrator hold for the trap RF servo
-            self.servo_hold.on()
+            # self.servo_hold.on()
 
     @kernel(flags={"fast-math"})
     def off(self):
@@ -52,7 +52,7 @@ class DDSModulation(LAXDevice):
             # disable modulation RF switch for DDS
             self.mod_switch.off()
             # resume trap RF servo
-            self.servo_hold.off()
+            # self.servo_hold.off()
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
