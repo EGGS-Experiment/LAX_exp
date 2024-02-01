@@ -39,13 +39,13 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
                                                                             ), group=self.name)
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([95.]),
+                                                                                    ExplicitScan([150.]),
                                                                                     RangeScan(0, 1000, 200, randomize=True)
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group=self.name)
-        self.setattr_argument("phase_ISA_rsb_turns",                        NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_ISA_rsb_turns",                        NumberValue(default=0.216, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
 
         # ISA - antisqueezing
@@ -60,7 +60,7 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
         self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         # extrinsic squeezing
-        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
+        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=100001, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([0.]),
@@ -69,7 +69,7 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                                     unit="turns", scale=1, ndecimals=3
                                                                                 ), group='squeeze_configurable')
-        self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
+        self.setattr_argument("time_squeeze_us",                            NumberValue(default=30., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # tmp remove
@@ -331,6 +331,9 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
                         phase_rsb_turns
                     )
                     self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
