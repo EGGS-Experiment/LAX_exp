@@ -15,6 +15,10 @@ class Beam854(LAXDevice):
     devices = {
         'rf_switch':    'ttl13'
     }
+    kernel_invariants = {
+        "freq_repump_qubit_ftw",
+        "ampl_repump_qubit_asf"
+    }
 
     def prepare_device(self):
         self.freq_repump_qubit_ftw = self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

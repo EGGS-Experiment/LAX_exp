@@ -13,6 +13,21 @@ class SidebandCoolContinuous(LAXSubsequence):
     Cool the ion to the ground state using a continuous RSB pulse on the S-1/2 to D-5/2 transition.
     """
     name = 'sideband_cool_continuous'
+    # todo: should qubit_func be a kernel_invariant?
+    kernel_invariants = {
+        "ampl_qubit_asf",
+        "time_repump_qubit_mu",
+        "time_spinpol_mu",
+        "freq_repump_qubit_ftw",
+        "freq_sideband_cooling_ftw_list",
+        "iter_sideband_cooling_modes_list",
+        "ampl_quench_asf",
+        "att_sidebandcooling_mu",
+        "time_sideband_cooling_mu",
+        "delay_sideband_cooling_cycle_mu_list",
+        "time_spinpolarization_mu_list",
+        "power_quench_calibration_num_samples"
+    }
 
     def build_subsequence(self):
         # get devices
@@ -84,10 +99,10 @@ class SidebandCoolContinuous(LAXSubsequence):
         cycle_profile_timings_us =                                      np.cumsum(cycle_profile_times_pct / 100 * cycle_time_us)[:-1]
 
         # create final timing list
-        self.delay_sideband_cooling_cycle_us_list =                     np.array([time_cycle_start_us + cycle_profile_timings_us
+        delay_sideband_cooling_cycle_us_list =                          np.array([time_cycle_start_us + cycle_profile_timings_us
                                                                                  for time_cycle_start_us in cycle_timings_us_list])
         self.delay_sideband_cooling_cycle_mu_list =                     np.array([self.core.seconds_to_mu(time_us_list * us)
-                                                                                  for time_us_list in self.delay_sideband_cooling_cycle_us_list])
+                                                                                  for time_us_list in delay_sideband_cooling_cycle_us_list])
 
         # spin polarization timings
         self.time_spinpolarization_mu_list =                            self.core.seconds_to_mu(np.arange(0, 1, self.pct_per_spin_polarization / 100)
@@ -98,7 +113,6 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.power_quench_calibration_num_samples =                     100
         self.power_quench_calibration_store_mu =                        np.int32(0)
         self.power_quench_calibration_mu_list =                         np.array([0]*8)
-
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -114,6 +128,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         for i in self.iter_sideband_cooling_modes_list:
             self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
             self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def _calibrate_quench_power(self):

@@ -13,6 +13,9 @@ class RabiFlop(LAXSubsequence):
     and vice versa using the polarized 729nm beam.
     """
     name = 'rabi_flop'
+    kernel_invariants = {
+        "time_rabiflop_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('qubit')

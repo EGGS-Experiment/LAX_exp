@@ -16,7 +16,10 @@ class Displace(LAXSubsequence):
     motional subsequences (e.g. squeezing) and so ensures the hardware is always correctly set.
     """
     name = 'displace'
-
+    kernel_invariants = {
+        "att_displace_mu",
+        "displace_func"
+    }
 
     def build_subsequence(self):
         self.setattr_argument("enable_displacement",        BooleanValue(default=True), group=self.name)

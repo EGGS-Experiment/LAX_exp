@@ -11,7 +11,10 @@ class TickleDDS(LAXSubsequence):
     Heat the ion by applying an RF signal from a DDS at the secular frequency.
     """
     name = 'tickle_dds'
-
+    kernel_invariants = {
+        "time_tickle_mu",
+        "att_tickle_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_argument('time_tickle_us',         NumberValue(default=100, ndecimals=3, step=100, min=1, max=1000000), group=self.name)

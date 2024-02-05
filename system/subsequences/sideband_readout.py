@@ -13,6 +13,12 @@ class SidebandReadout(LAXSubsequence):
     and vice versa using the polarized 729nm beam.
     """
     name = 'sideband_readout'
+    kernel_invariants = {
+        "ampl_sideband_readout_asf",
+        "att_sideband_readout_mu",
+        "time_sideband_readout_mu",
+        "freq_sideband_readout_ftw_list"
+    }
 
     def build_subsequence(self):
         # sideband cooling readout

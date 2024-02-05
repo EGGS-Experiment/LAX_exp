@@ -11,6 +11,9 @@ class Readout(LAXSubsequence):
     Read out the ion state by shining the pump beam and reading fluorescence via PMT counts.
     """
     name = 'readout'
+    kernel_invariants = {
+        "time_readout_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('pump')

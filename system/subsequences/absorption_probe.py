@@ -15,6 +15,10 @@ class AbsorptionProbe(LAXSubsequence):
     Cool the ion before switching to a short, low-power pulse to measure absorption on a transition.
     """
     name = 'absorption_probe'
+    kernel_invariants = {
+        "time_doppler_cooling_mu",
+        "time_probe_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('pump')

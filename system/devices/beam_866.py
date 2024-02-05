@@ -12,6 +12,10 @@ class Beam866(LAXDevice):
     """
     name = "repump_cooling"
     core_device = ('beam', 'urukul2_ch2')
+    kernel_invariants = {
+        "freq_repump_cooling_ftw",
+        "ampl_repump_cooling_asf"
+    }
 
     def prepare_device(self):
         self.freq_repump_cooling_ftw = self.get_parameter('freq_repump_cooling_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

@@ -13,6 +13,10 @@ class DDSDipole(LAXDevice):
     """
     name = "dds_dipole"
     core_device = ('dds', 'urukul1_ch3')
+    kernel_invariants = {
+        "freq_modulation_ftw",
+        "ampl_modulation_asf"
+    }
 
     def prepare_device(self):
         self.freq_modulation_ftw =              hz_to_ftw(1 * MHz)

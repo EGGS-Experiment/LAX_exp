@@ -14,9 +14,10 @@ class BeamManager(LAXDevice):
     """
     name = "qubit"
     core_device = ('beam', 'urukul2_ch1')
-    devices ={
+    devices = {
         'rf_switch':    'ttl12'
     }
+    kernel_invariants = {}
 
     def prepare_device(self):
         self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

@@ -13,6 +13,10 @@ class TriggerLine(LAXDevice):
     """
     name = "trigger_line"
     core_device = ('trigger', 'ttl5')
+    kernel_invariants = {
+        "time_timeout_mu",
+        "time_holdoff_mu"
+    }
 
     def prepare_device(self):
         # get triggering parameters

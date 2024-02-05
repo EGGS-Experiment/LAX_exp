@@ -8,9 +8,12 @@ class SpinPolarization(LAXSubsequence):
     """
     Subsequence: Spin Polarization
 
-    Place the ion in the S-1/2 mj=-1/2 state using the polarized 397 probe beam.
+    Place the ion in the S-1/2 m_j=-1/2 state using the polarized 397 probe beam.
     """
     name = 'spin_polarization'
+    kernel_invariants = {
+        "time_spinpol_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('probe')

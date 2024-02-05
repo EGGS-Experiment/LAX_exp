@@ -144,5 +144,5 @@ class LAXEnvironment(HasEnvironment, ABC):
         # todo: document
         """
         setattr(self, key, self.get_parameter(key, group, override, conversion_function, units))
-        # todo: make it check for existing kernel invariant object first
-        self.kernel_invariants.add(key)
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants | {key}

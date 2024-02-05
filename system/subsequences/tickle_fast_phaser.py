@@ -13,7 +13,13 @@ class TickleFastPhaser(LAXSubsequence):
     Interferes two channels destructively to achieve fast switching times.
     """
     name = 'tickle_fast_phaser'
-
+    kernel_invariants = {
+        "ampl_ticklefast_pct",
+        "ampl_ticklefast_asf",
+        "att_ticklefast_mu",
+        "ftw_per_hz",
+        "time_system_prepare_delay_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_argument('att_ticklefast_phaser_db', NumberValue(default=0, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
@@ -35,10 +41,8 @@ class TickleFastPhaser(LAXSubsequence):
         self.ampl_ticklefast_asf =          self.phaser_eggs.amplitude_to_asf(self.ampl_ticklefast_pct / 100.)
         self.att_ticklefast_mu =            att_to_mu(self.att_ticklefast_phaser_db * dB)
 
-        # set empty holder variable for delay time
+        # set empty holder variables for configurable waveform
         self.time_delay_mu =                np.int64(0)
-
-        # set empty variables for phase
         self.phase_final_pow =              np.int32(0)
 
         # tmp remove

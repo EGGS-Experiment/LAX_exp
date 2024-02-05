@@ -18,7 +18,13 @@ class TickleFastDDS(LAXSubsequence):
     Interferes two channels destructively to achieve fast switching times.
     """
     name = 'tickle_fast_dds'
-
+    kernel_invariants = {
+        "ampl_ticklefast_asf",
+        "time_latency_ch1_system_ns",
+        "att_ticklefast_mu",
+        "time_system_prepare_delay_mu",
+        "time_system_cleanup_delay_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')

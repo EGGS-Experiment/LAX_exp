@@ -17,7 +17,10 @@ class PMTCounter(LAXDevice):
     devices = {
         'input':    'ttl0'
     }
-
+    kernel_invariants = {
+        "gating_edge",
+        "counting_method"
+    }
 
     def prepare_device(self):
         self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
@@ -25,7 +28,6 @@ class PMTCounter(LAXDevice):
 
         # get default gating edge for counting
         self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
-        self.kernel_invariants.add('counting_method')
 
         # create counter variable for list timestamping
         self.counter = np.int64(0)

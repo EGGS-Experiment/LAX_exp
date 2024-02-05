@@ -18,15 +18,23 @@ class PhaserEGGS(LAXDevice):
     name = "phaser_eggs"
     core_device = ('phaser', 'phaser0')
     devices = {}
-
+    kernel_invariants = {
+        "t_sample_mu",
+        "t_frame_mu",
+        "t_output_delay_mu",
+        "ftw_per_hz",
+        "channel",
+        "freq_center_hz",
+        "freq_center_ftw",
+        "phase_inherent_ch1_turns",
+        "time_latency_ch1_system_ns"
+    }
 
     def build_device(self):
         # set phaser sample/frame timings
         self.t_sample_mu =                  int64(40)
         self.t_frame_mu =                   int64(320)
         self.t_output_delay_mu =            int64(1953)
-
-
         # todo: max phaser sample rate
 
         # conversion factors

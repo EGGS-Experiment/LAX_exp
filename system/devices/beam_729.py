@@ -12,8 +12,12 @@ class Beam729(LAXDevice):
     """
     name = "qubit"
     core_device = ('beam', 'urukul0_ch0')
-    devices ={
+    devices = {
         'rf_switch':    'ttl14'
+    }
+    kernel_invariants = {
+        "freq_qubit_ftw",
+        "ampl_qubit_asf"
     }
 
     def prepare_device(self):

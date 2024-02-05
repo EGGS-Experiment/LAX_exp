@@ -12,6 +12,10 @@ class Beam397Probe(LAXDevice):
     """
     name = "probe"
     core_device = ('beam', 'urukul2_ch0')
+    kernel_invariants = {
+        "freq_spinpol_ftw",
+        "ampl_spinpol_asf"
+    }
 
     def prepare_device(self):
         self.freq_spinpol_ftw = self.get_parameter('freq_probe_spinpol_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)

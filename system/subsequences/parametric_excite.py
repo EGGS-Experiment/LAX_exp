@@ -12,6 +12,11 @@ class ParametricExcite(LAXSubsequence):
     Apply parametric excitation to the ion and read out the timestamps.
     """
     name = 'parametric_excite'
+    kernel_invariants = {
+        "time_pmt_gating_mu",
+        "time_rf_gating_mu",
+        "time_rf_holdoff_mu"
+    }
 
     def build_subsequence(self):
         # number of input counts to listen for
@@ -22,7 +27,6 @@ class ParametricExcite(LAXSubsequence):
         self.setattr_device('trigger_rf')
         self.setattr_device('dds_modulation')
 
-
     def prepare_subsequence(self):
         # get input triggering parameters
         self.time_pmt_gating_mu =               self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu, units=us)
@@ -31,7 +35,6 @@ class ParametricExcite(LAXSubsequence):
 
         # create holder array to store PMT counts
         self.timestamp_mu_list =                np.zeros(self.num_counts, dtype=np.int64)
-
 
     @kernel(flags={"fast-math"})
     def run(self) -> TArray(TInt64, 1):

@@ -15,6 +15,14 @@ class Beam397Pump(LAXDevice):
     devices ={
         'rf_switch':    'ttl12'
     }
+    kernel_invariants = {
+        "freq_cooling_ftw",
+        "freq_readout_ftw",
+        "freq_rescue_ftw",
+        "ampl_cooling_asf",
+        "ampl_readout_asf",
+        "ampl_rescue_asf"
+    }
 
     def prepare_device(self):
         # get frequency parameters

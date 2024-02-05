@@ -11,6 +11,11 @@ class RescueIon(LAXSubsequence):
     Rescue the ion by running the 397nm cooling beam at rescue parameters.
     """
     name = 'rescue_ion'
+    kernel_invariants = {
+        "time_rescue_mu",
+        "time_resuscitate_mu",
+        "resuscitate"
+    }
 
     def build_subsequence(self):
         # get devices

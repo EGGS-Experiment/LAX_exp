@@ -12,7 +12,13 @@ class Squeeze(LAXSubsequence):
     Squeeze and unsqueeze the ion by applying a quadrupole tone at 2x the secular frequency.
     """
     name = 'squeeze'
-
+    kernel_invariants = {
+        "freq_squeeze_ftw",
+        "att_squeeze_mu",
+        "time_squeeze_mu",
+        "phase_squeeze_pow",
+        "phase_antisqueeze_pow"
+    }
 
     def build_subsequence(self):
         self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, ndecimals=3, step=10, min=1, max=400000), group=self.name)

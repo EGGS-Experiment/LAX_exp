@@ -10,10 +10,15 @@ class RabiflopReadout(LAXSubsequence):
     """
     Subsequence: Rabi Flop Readout
 
-    # todo: redocument
-    Read out the motional state of the ion by rabi-flopping on a motional sideband.
+    Read out by rabi flopping at a given transition.
     """
     name = 'rabiflop_readout'
+    kernel_invariants = {
+        "time_readout_mu_list",
+        "freq_rabiflop_readout_ftw",
+        "att_rabiflop_readout_mu",
+        "ampl_qubit_asf"
+    }
 
     def build_subsequence(self):
         # timing

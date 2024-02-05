@@ -14,7 +14,10 @@ class SqueezeConfigurable(LAXSubsequence):
     Allows configuration of the squeezing to sweep over the values.
     """
     name = 'squeeze_configurable'
-
+    # todo: should squeeze_func and antisqueeze_func be kernel_invariants?
+    kernel_invariants = {
+        "att_squeeze_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_argument("enable_squeezing",           BooleanValue(default=False), group=self.name)

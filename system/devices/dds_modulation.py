@@ -13,14 +13,17 @@ class DDSModulation(LAXDevice):
     """
     name = "dds_modulation"
     core_device = ('dds', 'urukul1_ch1')
-    devices ={
+    devices = {
         'mod_switch': 'ttl11',
         'servo_hold': 'ttl10'
     }
+    kernel_invariants = {
+        "ampl_modulation_asf",
+        "sw"
+    }
 
     def prepare_device(self):
-        self.ampl_modulation_asf =              self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct',
-                                                                   override=False, conversion_function=pct_to_asf)
+        self.ampl_modulation_asf = self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
         # break out AD9910 attributes/devices
         self.sw = self.dds.sw
 

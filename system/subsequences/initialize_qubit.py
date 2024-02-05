@@ -11,6 +11,11 @@ class InitializeQubit(LAXSubsequence):
     Initialize the ion in the S-1/2 mj=-1/2 state and cool to the doppler limit.
     """
     name = 'initialize_qubit'
+    kernel_invariants = {
+        "time_spinpol_mu",
+        "time_repump_qubit_mu",
+        "time_doppler_cooling_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('probe')
