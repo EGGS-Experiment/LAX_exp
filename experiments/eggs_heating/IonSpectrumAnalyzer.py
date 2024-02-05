@@ -309,6 +309,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
 
                 '''READOUT'''
+                # antisqueeze ion
                 self.squeeze_subsequence.antisqueeze()
 
                 # set readout waveform for qubit

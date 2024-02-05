@@ -32,7 +32,9 @@ class Readout(LAXSubsequence):
         self.pump.off()
 
     @kernel(flags={"fast-math"})
-    def fetch_count(self):
-        # convenience function so that users don't have to separately instantiate the PMT
-        # device object to read counts
+    def fetch_count(self) -> TInt32:
+        """
+        Convenience function so that users don't have to separately instantiate the PMT
+        device object to read counts.
+        """
         return self.pmt.fetch_count()

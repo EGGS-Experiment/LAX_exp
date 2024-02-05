@@ -176,7 +176,7 @@ class LaserPowerCalibration(EnvExperiment):
         """
         # set up DDS
         self.dds.set_att(self.dds_attenuation_db * dB)
-        self.dds.cfg_sw(True)
+        self.dds.sw.on()
 
         # set up ADC
         self.adc.set_gain_mu(self.adc_channel_num, self.adc_gain_mu)

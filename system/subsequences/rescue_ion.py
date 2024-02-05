@@ -67,3 +67,15 @@ class RescueIon(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def _no_op(self):
         delay_mu(10)
+
+    # @kernel(flags={"fast-math"})
+    def detect_death(self, counts):
+        """
+        todo: document
+        """
+        # todo: threshold counts
+        # todo: add value to deque
+        # todo: check death
+        # todo: cancel if death
+        pass
+

@@ -763,7 +763,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         todo: document
         """
-        # self.urukul1_ch2.cfg_sw(False)
         pass
 
     @kernel(flags={"fast-math"})
