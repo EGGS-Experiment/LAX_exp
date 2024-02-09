@@ -12,7 +12,7 @@ class TriggerRF(LAXDevice):
     """
     name = "trigger_rf"
     core_device = ('ttl_input', 'ttl7')
-    kernel_invariants = {}
+    kernel_invariants = set()
 
     def prepare_device(self):
         pass
