@@ -24,7 +24,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
                                                                         default=CenterScan(103.226, 0.02, 0.0005, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=5
+                                                                        unit="MHz", scale=1, ndecimals=6
                                                                     ), group=self.name)
         self.setattr_argument("time_qubit_us",                      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("ampl_qubit_pct",                     NumberValue(default=50, ndecimals=3, step=10, min=1, max=50), group=self.name)
@@ -170,8 +170,8 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('spectrum_peaks',  peak_vals)
 
         # save results to dataset manager for dynamic experiments
-        self.set_dataset('temp.ls.results', peak_vals, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
 
         # print peaks to log for user convenience
