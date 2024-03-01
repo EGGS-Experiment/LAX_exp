@@ -19,46 +19,40 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',           NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('update_interval_ms',     NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='timing')
+        self.setattr_argument('time_total_s',               NumberValue(default=200, ndecimals=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_sample_ms',             NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
 
-        self.setattr_argument('time_sample_us',         NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=1, max=500), group='timing')
+        # sampling
+        self.setattr_argument('signal_samples_per_point',   NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('bgr_samples_per_point',      NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
     def prepare_experiment(self):
-        # ensure sample rates and readout times are reasonable
-        # this is also necessary to ensure we have enough slack
-        time_per_point_s =                          (2. * self.time_sample_us * us) * self.samples_per_point
-        max_sampling_time_s =                       0.75 * (self.update_interval_ms * ms)
-        assert time_per_point_s < max_sampling_time_s, "Error: unreasonable sample values idk - try again welp"
-        # todo: also assert whether the time_slack_mu is valid
+        # convert relevant timings to machine units
+        self.time_slack_mu =        self.core.seconds_to_mu(24 * us)
+        self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_ms * ms)
+        self.time_per_point_mu =    (self.time_sample_ms + self.time_slack_mu) * (self.signal_samples_per_point + self.bgr_samples_per_point)
 
-        # get relevant timings and calculate the number of repetitions
-        self.repetitions =                      round(self.time_total_s / (self.update_interval_ms * ms))
-        self.time_sample_mu =                   self.core.seconds_to_mu(self.time_sample_us * us)
-        # assume 50% duty cycle
-        self.time_slack_mu =                    self.core.seconds_to_mu((self.update_interval_ms * ms) / self.samples_per_point
-                                                                        - (2. * self.time_sample_us * us))
+        # calculate the number of repetitions
+        self.repetitions =          round(self.time_total_s / self.core.mu_to_seconds(self.time_per_point_mu))
 
         # create holder variable that can store averaged counts
-        self._counts_signal =                   np.int32(0)
-        self._counts_background =               np.int32(0)
+        self._counts_signal =       np.int32(0)
+        self._counts_background =   np.int32(0)
 
         # declare the loop iterators ahead of time to reduce overhead
-        self._iter_repetitions =                np.arange(self.repetitions)
-        self._iter_loop =                       np.arange(self.samples_per_point)
+        self._iter_repetitions =    np.arange(self.repetitions)
+        self._iter_signal =         np.arange(self.signal_samples_per_point)
+        self._iter_background =     np.arange(self.background_samples_per_point)
 
         # prepare datasets for storing counts
-        self.set_dataset('_tmp_counts_x',     np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
-        self.set_dataset('_tmp_counts_y',     np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
-        self.setattr_dataset('_tmp_counts_x')
-        self.setattr_dataset('_tmp_counts_y')
-
+        self.set_dataset('temp.imag_align._tmp_counts_x',  np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align._tmp_counts_y',  np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
 
     @property
     def results_shape(self):
@@ -70,40 +64,39 @@ class ImagingAlignment(LAXExperiment, Experiment):
     def initialize_experiment(self):
         self.core.break_realtime()
 
-        # ensure beams are set to readout
-        # todo: more rigorous setting/checking of beam waveforms etc.
+        # configure beams
         self.pump.readout()
+        self.pump.on()
+        self.repump_qubit.on()
 
-        # record alignment sequence
-        with self.core_dma.record('_PMT_ALIGNMENT'):
-            # todo: should we set ensure readout beams are set here?
-
-            # set beams to record signal + background
+        # record alignment sequence - signal
+        with self.core_dma.record('_PMT_ALIGNMENT_SIGNAL'):
+            # activate doppler repump beam
             self.repump_cooling.on()
-            self.pump.on()
 
-            # record PMT signal + background
-            self.pmt.count(self.time_sample_mu)
+            # get signal counts
+            for i in self._iter_signal:
+                self.pmt.count(self.time_sample_mu)
+                self.pump.off()
 
-            # set beams to record signal + background
+
+        # record alignment sequence - background
+        with self.core_dma.record('_PMT_ALIGNMENT_BACKGROUND'):
+            # disable doppler repump beam
             self.repump_cooling.off()
 
-            # add holdoff time to allow ions/beams/idk to settle
-            delay_mu(2500)
-
-            # record PMT background only
-            self.pmt.count(self.time_sample_mu)
-
-            # turn repump beams back on to cool ions
-            self.repump_cooling.on()
-        
+            # get background counts
+            for i in self._iter_background:
+                self.pmt.count(self.time_sample_mu)
+                self.pump.off()
         
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.break_realtime()
 
         # retrieve DMA handles for PMT alignment
-        _handle_alignment = self.core_dma.get_handle('_PMT_ALIGNMENT')
+        _handle_alignment_signal = self.core_dma.get_handle('_PMT_ALIGNMENT_SIGNAL')
+        _handle_alignment_background = self.core_dma.get_handle('_PMT_ALIGNMENT_BACKGROUND')
         self.core.break_realtime()
 
 
@@ -115,18 +108,20 @@ class ImagingAlignment(LAXExperiment, Experiment):
             self._counts_background =   0
             self.core.break_realtime()
 
-            # average readings over N samples
-            for j in self._iter_loop:
+            # store signal counts
+            self.core_dma.playback_handle(_handle_alignment_signal)
+            # retrieve signal counts
+            for i in self._iter_signal:
+                self._counts_signal += self.pmt.fetch_count()
 
-                # run PMT alignment sequence
-                self.core_dma.playback_handle(_handle_alignment)
+            # store background counts
+            self.core_dma.playback_handle(_handle_alignment_background)
+            # retrieve background counts
+            for i in self._iter_background:
+                self._counts_background += self.pmt.fetch_count()
 
-                # fetch running totals of PMT counts
-                self._counts_signal +=      self.pmt.fetch_count()
-                self._counts_background +=  self.pmt.fetch_count()
-
-                # wait until next sample
-                delay_mu(self.time_slack_mu)
+            # # add slack
+            # delay_mu(self.time_slack_mu)
 
             # update dataset
             with parallel:
@@ -136,12 +131,21 @@ class ImagingAlignment(LAXExperiment, Experiment):
 
     # overload the update_results function to allow real-time dataset updating
     @rpc(flags={"async"})
-    def update_results(self, iter_num, counts_signal, counts_background):
-        self.mutate_dataset('_tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
-        self.mutate_dataset('_tmp_counts_y', self._result_iter, np.array([counts_signal / self.samples_per_point,
-                                                                          counts_background / self.samples_per_point,
-                                                                          (counts_signal - counts_background) / self.samples_per_point]))
-        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
+    def update_results(self, iter_num: TInt32, counts_signal: TInt64, counts_background: TInt64) -> TNone:
+        # convert total counts into averaged counts
+        _counts_avg_signal =        counts_signal / self.signal_samples_per_point
+        _counts_avg_background =    counts_counts_backgroundsignal / self.background_samples_per_point
+
+        # update datasets
+        self.mutate_dataset('temp.imag_align._tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
+        self.mutate_dataset('temp.imag_align._tmp_counts_y', self._result_iter, np.array([_counts_avg_signal,
+                                                                                          _counts_avg_background,
+                                                                                          _counts_avg_signal - _counts_avg_background]))
+
+        # update completion monitor
+        self.set_dataset('management.completion_pct',
+                         round(100. * self._result_iter / len(self.results), 3),
+                         broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
 

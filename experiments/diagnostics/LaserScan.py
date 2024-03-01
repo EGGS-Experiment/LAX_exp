@@ -170,8 +170,8 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('spectrum_peaks',  peak_vals)
 
         # save results to dataset manager for dynamic experiments
-        self.set_dataset('tmpres.ls.results', peak_vals, broadcast=True, persist=False, archive=False)
-        self.set_dataset('tmpres.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.ls.results', peak_vals, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.ls.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
 
         # print peaks to log for user convenience
