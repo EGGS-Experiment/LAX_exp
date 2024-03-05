@@ -24,7 +24,7 @@ class TriggerLine(LAXDevice):
         self.time_holdoff_mu = self.get_parameter('time_holdoff_us', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
-    def trigger(self, time_gating_mu: TInt64 = self.time_timeout_mu, time_holdoff_mu: TInt64 = self.time_holdoff_mu) -> TInt64:
+    def trigger(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
         """
         Trigger off a rising edge of the AC line.
         Times out if no edges are detected.
