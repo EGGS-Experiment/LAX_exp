@@ -97,19 +97,24 @@ class LaserPowerMeasure(EnvExperiment):
         # extract mean voltage and stdev
         voltage_mean_v = np.mean(self.results, axis=0)
         voltage_std_v = np.std(self.results, axis=0)
-        print(voltage_std_v)
 
         # convert voltage to power (in mW)
         power_mean_uw = voltage_mean_v / (self.photodiode_termination_ohms * self.photodiode_responsivity_value) * 1e6
         power_std_uw = voltage_std_v / (self.photodiode_termination_ohms * self.photodiode_responsivity_value) * 1e6
 
         # store results in dataset
+        self.set_dataset('voltage_mean_v', voltage_mean_v)
         self.set_dataset('power_mean_uw', power_mean_uw)
         self.set_dataset('power_std_uw', power_std_uw)
 
-        # print out statistics of results
+        # print out results
         print('\tResults:')
         for i in self.channel_iter:
-            print('\t\tCH{:d}:\t{:.3f} +/- {:.3f} uW'.format(self.channel_list[i],
-                                                             np.mean(power_mean_uw[i]),
-                                                             np.mean(power_std_uw[i])))
+            # check for photodiode saturation
+            if voltage_mean_v[i] >= (10. ** (-1 * self.gain_list_mu[i])):
+                print('\t\tCH{:d}:\tSATURATED'.format(self.channel_list[i]))
+            # otherwise, print beam power
+            else:
+                print('\t\tCH{:d}:\t{:.3f} +/- {:.3f} uW'.format(self.channel_list[i],
+                                                                 np.mean(power_mean_uw[i]),
+                                                                 np.mean(power_std_uw[i])))
