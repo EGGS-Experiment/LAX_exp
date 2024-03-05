@@ -19,14 +19,12 @@ class PhaserSet(EnvExperiment):
         # self.setattr_argument("clear_dac_phase_accumulator", BooleanValue(default=False), group='global')
         self.setattr_argument("synchronize_oscillator_updates", BooleanValue(default=True), group='global')
 
-
         # channel-specific arguments
         self.setattr_argument("att_ch0_db", NumberValue(default=8., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
         self.setattr_argument("att_ch1_db", NumberValue(default=8., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
         self.setattr_argument("time_latency_ch1_system_ns", NumberValue(default=0.17, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
         self.setattr_argument("apply_ch1_latency_on_oscillators", BooleanValue(default=False), group='channels')
         self.setattr_argument("phase_inherent_ch1_turns", NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
-
 
         # oscillators - channel 0
         # note: oscillator waveforms are in the format [freq_khz, ampl_pct, phas_turns]
@@ -37,12 +35,20 @@ class PhaserSet(EnvExperiment):
         self.setattr_argument("waveform_ch0_osc4", PYONValue(default=[0., 0., 0.]), group='oscillators_ch0')
 
         # oscillators - channel 1
+        # note: oscillator waveforms are in the format [freq_khz, ampl_pct, phas_turns]
         self.setattr_argument("waveform_ch1_osc0", PYONValue(default=[767.5, 40., 0.475]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc1", PYONValue(default=[-767.5, 40., 0.25]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc2", PYONValue(default=[0., 10., 0.5]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc3", PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc4", PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
 
+        # build constants
+        self._build_constants()
+
+    def _build_constants(self):
+        """
+        Instantiate fixed/constant objects/variables.
+        """
         # get relevant devices
         self.setattr_device('core')
         self.setattr_device('core_dma')
@@ -50,8 +56,54 @@ class PhaserSet(EnvExperiment):
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
 
+        # hardware values
+        self.t_sample_mu =          np.int64(40)
+        self.t_frame_mu =           np.int64(320)
+        self.time_output_delay_mu = np.int64(1953)
+
+        # preallocate DAC34H84 0x1F register config to speed up
+        # writes when clearing the phase
+        self.dac_register_1f =      np.int32(0)
+
+        # preallocate phase holders
+        self.phase_ch1_turns =      np.float(0)
+
+        self.phase_ch0_osc0 =       np.float(0)
+        self.phase_ch0_osc1 =       np.float(0)
+        self.phase_ch0_osc2 =       np.float(0)
+        self.phase_ch0_osc3 =       np.float(0)
+        self.phase_ch0_osc4 =       np.float(0)
+
+        self.phase_ch1_osc0 =       np.float(0)
+        self.phase_ch1_osc1 =       np.float(0)
+        self.phase_ch1_osc2 =       np.float(0)
+        self.phase_ch1_osc3 =       np.float(0)
+        self.phase_ch1_osc4 =       np.float(0)
+
 
     def prepare(self):
+        # check oscillator arguments and prepare their values
+        self._prepare_oscillators()
+
+        ### EXPERIMENT ###
+        self._iter_repetitions =    np.arange(self.repetitions)
+
+        ### TIMING ###
+        # todo: double check this is OK and reproduces normal behavior
+        self.time_pulse_mu =                        self.core.seconds_to_mu(self.time_pulse_ms * ms)
+        if self.time_pulse_mu % self.t_frame_mu:
+            t_frame_multiples =                     round(self.time_pulse_mu / self.t_frame_mu + 0.5)
+            self.time_pulse_mu =                    np.int64(self.t_frame_mu * t_frame_multiples)
+
+        ### FREQUENCIES ###
+        self.freq_carrier_hz =                      self.freq_carrier_mhz * MHz
+        self.freq_center_hz =       self.get_dataset('eggs.freq_center_mhz') * MHz
+
+    def _prepare_oscillators(self):
+        """
+        Extract oscillator parameters from argument PYONValues and
+        check their validity.
+        """
         # collate oscillator waveform values
         self.waveform_ch0_osc_list =    np.array([self.waveform_ch0_osc0,
                                                   self.waveform_ch0_osc1,
@@ -93,54 +145,18 @@ class PhaserSet(EnvExperiment):
         assert 0. < np.sum(self.ampl_ch1_osc_frac_list) < 1., "Error: CH1 - amplitude sum is > 100%"
 
 
-        # hardware values
-        self.t_sample_mu =          np.int64(40)
-        self.t_frame_mu =           np.int64(320)
-        self.freq_center_hz =       85.0 * MHz
-
-        # system values
-        self.time_output_delay_mu = np.int64(1953)
-
-        # preallocate DAC34H84 0x1F register config to speed up
-        # writes when clearing the phase
-        self.dac_register_1f =      np.int32(0)
-
-        # preallocate phase holders
-        self.phase_ch1_turns =      np.float(0)
-
-        self.phase_ch0_osc0 =       np.float(0)
-        self.phase_ch0_osc1 =       np.float(0)
-        self.phase_ch0_osc2 =       np.float(0)
-        self.phase_ch0_osc3 =       np.float(0)
-        self.phase_ch0_osc4 =       np.float(0)
-
-        self.phase_ch1_osc0 =       np.float(0)
-        self.phase_ch1_osc1 =       np.float(0)
-        self.phase_ch1_osc2 =       np.float(0)
-        self.phase_ch1_osc3 =       np.float(0)
-        self.phase_ch1_osc4 =       np.float(0)
-
-        ### EXPERIMENT ###
-        self._iter_repetitions =    np.arange(self.repetitions)
-
-        ### TIMING ###
-        # todo: double check this is OK and reproduces normal behavior
-        self.time_pulse_mu =                        self.core.seconds_to_mu(self.time_pulse_ms * ms)
-        if self.time_pulse_mu % self.t_frame_mu:
-            t_frame_multiples =                     round(self.time_pulse_mu / self.t_frame_mu + 0.5)
-            self.time_pulse_mu =                    np.int64(self.t_frame_mu * t_frame_multiples)
-
-        ### FREQUENCIES ###
-        self.freq_carrier_hz =                      self.freq_carrier_mhz * MHz
-
-
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def prepare_devices(self):
+    def _run_prepare(self):
         """
         Prepare phaser for output.
         """
-        # set attenuations
+        # wait for FIFO to clear before reset
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        self.core.reset()
+
+        # set phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(self.att_ch0_db * dB)
         delay_mu(self.t_sample_mu)
@@ -151,18 +167,10 @@ class PhaserSet(EnvExperiment):
         self.dac_register_1f = self.phaser0.dac_read(0x1F)
         self.core.break_realtime()
 
-
     @kernel(flags={"fast-math"})
     def run(self):
-        """
-        TODO: DOCUMENT
-        """
-        # prepare system
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-        self.core.reset()
-        self.prepare_devices()
-
+        # PREPARE (HARDWARE)
+        self._run_prepare()
 
         # MAIN LOOP
         for i in self._iter_repetitions:
@@ -170,19 +178,16 @@ class PhaserSet(EnvExperiment):
 
             # configure oscillator frequencies
             self.phaser_configure(config_vals[0], config_vals[1])
-            self.core.break_realtime()
             # clear old hardware config and resync
             self.phaser_reset()
             # set oscillator waveforms
             self.phaser_run()
-
 
         # CLEAN UP
         self.core.break_realtime()
         if self.cleanup:
             # clear outputs
             self.phaser_reset()
-            self.core.break_realtime()
 
             # reset attenuators
             at_mu(self.phaser0.get_next_frame_mu())
@@ -272,6 +277,9 @@ class PhaserSet(EnvExperiment):
             self.phaser0.channel[0].oscillator[4].set_frequency(self.phas_ch0_osc_turns_list[4])
             self.phaser0.channel[1].oscillator[4].set_frequency(self.phas_ch1_osc_turns_list[4])
 
+        # add slack
+        self.core.break_realtime()
+
     @kernel(flags={"fast-math"})
     def phaser_run(self):
         # get synchronized start time
@@ -323,49 +331,46 @@ class PhaserSet(EnvExperiment):
             self.ttl9.off()
             delay_mu(self.time_pulse_mu)
 
-        # todo: stop oscillators
-        # # set oscillator 0
-        # at_mu(time_start_mu)
-        # with parallel:
-        #     self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch0_osc0, clr=0)
-        #     self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch1_osc0, clr=0)
-        #
-        #     # set debug TTL
-        #     with sequential:
-        #         delay_mu(self.time_output_delay_mu)
-        #         self.ttl8.on()
-        #
-        # # set oscillator 1
-        # at_mu(time_start_mu + self.t_sample_mu)
-        # with parallel:
-        #     self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch0_osc1, clr=0)
-        #     self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0.0, phase=self.phase_ch1_osc1, clr=0)
-        #
-        #     # set debug TTL
-        #     with sequential:
-        #         delay_mu(self.time_output_delay_mu)
-        #         self.ttl9.on()
-        #
-        # # set oscillator 2
-        # at_mu(time_start_mu + 2 * self.t_sample_mu)
-        # with parallel:
-        #     self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=0)
-        #     self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=0)
-        #
-        # # set oscillator 3
-        # at_mu(time_start_mu + 3 * self.t_sample_mu)
-        # with parallel:
-        #     self.phaser0.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc3, clr=0)
-        #     self.phaser0.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc3, clr=0)
-        #
-        # # set oscillator 4
-        # at_mu(time_start_mu + 4 * self.t_sample_mu)
-        # with parallel:
-        #     self.phaser0.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc4, clr=0)
-        #     self.phaser0.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc4, clr=0)
+    @kernel(flags={"fast-math"})
+    def phaser_stop(self):
+        """
+        Stop the oscillators on phaser.
+        """
+        # set oscillator 0
+        at_mu(time_start_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc0, clr=1)
+            self.phaser0.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc0, clr=1)
+
+        # set oscillator 1
+        at_mu(time_start_mu + self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc1, clr=1)
+            self.phaser0.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc1, clr=1)
+
+        # set oscillator 2
+        at_mu(time_start_mu + 2 * self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc2, clr=1)
+            self.phaser0.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc2, clr=1)
+
+        # set oscillator 3
+        at_mu(time_start_mu + 3 * self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc3, clr=1)
+            self.phaser0.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc3, clr=1)
+
+        # set oscillator 4
+        at_mu(time_start_mu + 4 * self.t_sample_mu)
+        with parallel:
+            self.phaser0.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc4, clr=1)
+            self.phaser0.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc4, clr=1)
 
     @kernel(flags={"fast-math"})
     def phaser_reset(self):
+        """
+        Clear and reset the signal sources of the phaser.
+        """
         # clear oscillators
         at_mu(self.phaser0.get_next_frame_mu())
         with parallel:
@@ -403,6 +408,7 @@ class PhaserSet(EnvExperiment):
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.duc_stb()
 
+        self.core.break_realtime()
 
     def analyze(self):
         print("\tconfig:")
