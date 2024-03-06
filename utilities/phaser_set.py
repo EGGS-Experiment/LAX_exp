@@ -141,8 +141,8 @@ class PhaserSet(EnvExperiment):
         self.phas_ch1_osc_turns_list =  self.waveform_ch1_osc_list[:, 2]
 
         # check total amplitude is valid
-        assert 0. < np.sum(self.ampl_ch0_osc_frac_list) < 1., "Error: CH0 - amplitude sum is > 100%"
-        assert 0. < np.sum(self.ampl_ch1_osc_frac_list) < 1., "Error: CH1 - amplitude sum is > 100%"
+        assert 0. <= np.sum(self.ampl_ch0_osc_frac_list) < 1., "Error: CH0 - amplitude sum is > 100%"
+        assert 0. <= np.sum(self.ampl_ch1_osc_frac_list) < 1., "Error: CH1 - amplitude sum is > 100%"
 
 
     # MAIN SEQUENCE

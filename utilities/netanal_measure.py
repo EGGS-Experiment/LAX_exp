@@ -7,6 +7,8 @@ from time import sleep
 
 class NetanalMeasure(EnvExperiment):
     """
+    Utility : Netanal Measure
+
     Store a trace from the network analyzer.
     """
 
