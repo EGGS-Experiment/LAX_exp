@@ -13,7 +13,7 @@ class PhaserSet(EnvExperiment):
     def build(self):
         # global arguments
         self.setattr_argument("repetitions", NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cleanup", BooleanValue(default=True), group='global')
+        self.setattr_argument("cleanup", BooleanValue(default=False), group='global')
         self.setattr_argument("freq_carrier_mhz", NumberValue(default=82, ndecimals=5, step=1, min=1, max=10000), group='global')
         self.setattr_argument("time_pulse_ms", NumberValue(default=0.25, ndecimals=5, step=1, min=0.000001, max=10000), group='global')
         # self.setattr_argument("clear_dac_phase_accumulator", BooleanValue(default=False), group='global')
@@ -125,11 +125,11 @@ class PhaserSet(EnvExperiment):
             assert abs(self.waveform_ch0_osc_list[i, 0]) < 1e4, "Error: CH0 Osc.{:d} - invalid frequency".format(i)
             assert abs(self.waveform_ch1_osc_list[i, 0]) < 1e4, "Error: CH1 Osc.{:d} - invalid frequency".format(i)
 
-            assert 0. < self.waveform_ch0_osc_list[i, 1] < 100., "Error: CH0 Osc.{:d} - invalid amplitude".format(i)
-            assert 0. < self.waveform_ch1_osc_list[i, 1] < 100., "Error: CH1 Osc.{:d} - invalid amplitude".format(i)
+            assert 0. <= self.waveform_ch0_osc_list[i, 1] <= 100., "Error: CH0 Osc.{:d} - invalid amplitude".format(i)
+            assert 0. <= self.waveform_ch1_osc_list[i, 1] <= 100., "Error: CH1 Osc.{:d} - invalid amplitude".format(i)
 
-            assert -1. < self.waveform_ch0_osc_list[i, 2] < 1., "Error: CH0 Osc.{:d} - invalid phase".format(i)
-            assert -1. < self.waveform_ch1_osc_list[i, 2] < 1., "Error: CH1 Osc.{:d} - invalid phase".format(i)
+            assert -1. <= self.waveform_ch0_osc_list[i, 2] <= 1., "Error: CH0 Osc.{:d} - invalid phase".format(i)
+            assert -1. <= self.waveform_ch1_osc_list[i, 2] <= 1., "Error: CH1 Osc.{:d} - invalid phase".format(i)
 
         # extract oscillator waveform values
         self.freq_ch0_osc_hz_list =     self.waveform_ch0_osc_list[:, 0] * kHz
@@ -177,7 +177,7 @@ class PhaserSet(EnvExperiment):
             self.core.break_realtime()
 
             # configure oscillator frequencies
-            self.phaser_configure(config_vals[0], config_vals[1])
+            self.phaser_configure()
             # clear old hardware config and resync
             self.phaser_reset()
             # set oscillator waveforms
@@ -412,8 +412,6 @@ class PhaserSet(EnvExperiment):
 
     def analyze(self):
         print("\tconfig:")
-        print("\t\t{}".format(self.config_frequencies_list / MHz))
-
         print("\tch1 global latency: {:.3f}\n".format(self.phase_ch1_turns))
 
         print("\tosc0:")
