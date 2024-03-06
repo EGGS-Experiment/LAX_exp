@@ -20,7 +20,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         """
         # timing
         self.setattr_argument('time_total_s',               NumberValue(default=200, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('time_sample_ms',             NumberValue(default=3, ndecimals=0, step=500, min=100, max=100000), group='timing')
+        self.setattr_argument('time_sample_us',             NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
         self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
@@ -35,10 +35,10 @@ class ImagingAlignment(LAXExperiment, Experiment):
     def prepare_experiment(self):
         # convert relevant timings to machine units
         self.time_slack_us =        2
-        self.time_per_point_s =     (self.time_slack_us * us + self.time_sample_ms * ms)* (self.signal_samples_per_point + self.background_samples_per_point)
+        self.time_per_point_s =     (self.time_slack_us * us + self.time_sample_us * us)* (self.signal_samples_per_point + self.background_samples_per_point)
 
         self.time_slack_mu =        self.core.seconds_to_mu(self.time_slack_us * us)
-        self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_ms * ms)
+        self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_us * us)
         self.time_per_point_mu =    self.core.seconds_to_mu(self.time_per_point_s)
 
         # calculate the number of repetitions
