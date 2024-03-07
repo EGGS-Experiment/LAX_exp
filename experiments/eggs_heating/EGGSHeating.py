@@ -97,7 +97,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # tmp remove
 
     def prepare_experiment(self):
-        print('yzde123')
+        # print('yzde123')
         # ensure phaser amplitudes sum to less than 100%
         # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
         #                                                                      self.ampl_eggs_heating_bsb_pct +
