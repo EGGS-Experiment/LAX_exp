@@ -20,11 +20,11 @@ class ImagingAlignment(LAXExperiment, Experiment):
         """
         # timing
         self.setattr_argument('time_total_s',               NumberValue(default=200, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('time_sample_ms',             NumberValue(default=3000, ndecimals=0, step=500, min=100, max=100000), group='timing')
+        self.setattr_argument('time_sample_us',             NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
-        self.setattr_argument('signal_samples_per_point',   NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
-        self.setattr_argument('bgr_samples_per_point',      NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
+        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('background_samples_per_point',   NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
         self.setattr_device('pump')
@@ -34,9 +34,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # convert relevant timings to machine units
-        self.time_slack_mu =        self.core.seconds_to_mu(24 * us)
-        self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_ms * ms)
-        self.time_per_point_mu =    (self.time_sample_ms + self.time_slack_mu) * (self.signal_samples_per_point + self.bgr_samples_per_point)
+        self.time_slack_us =        2
+        self.time_per_point_s =     (self.time_slack_us * us + self.time_sample_us * us)* (self.signal_samples_per_point + self.background_samples_per_point)
+
+        self.time_slack_mu =        self.core.seconds_to_mu(self.time_slack_us * us)
+        self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_us * us)
+        self.time_per_point_mu =    self.core.seconds_to_mu(self.time_per_point_s)
 
         # calculate the number of repetitions
         self.repetitions =          round(self.time_total_s / self.core.mu_to_seconds(self.time_per_point_mu))
@@ -77,7 +80,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # get signal counts
             for i in self._iter_signal:
                 self.pmt.count(self.time_sample_mu)
-                self.pump.off()
+                delay_mu(self.time_slack_mu)
 
 
         # record alignment sequence - background
@@ -88,8 +91,8 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # get background counts
             for i in self._iter_background:
                 self.pmt.count(self.time_sample_mu)
-                self.pump.off()
-        
+                delay_mu(self.time_slack_mu)
+
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.break_realtime()
@@ -111,14 +114,16 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # store signal counts
             self.core_dma.playback_handle(_handle_alignment_signal)
             # retrieve signal counts
-            for i in self._iter_signal:
+            for j in self._iter_signal:
                 self._counts_signal += self.pmt.fetch_count()
+            self.core.break_realtime()
 
             # store background counts
             self.core_dma.playback_handle(_handle_alignment_background)
             # retrieve background counts
-            for i in self._iter_background:
+            for j in self._iter_background:
                 self._counts_background += self.pmt.fetch_count()
+            self.core.break_realtime()
 
             # # add slack
             # delay_mu(self.time_slack_mu)
@@ -137,7 +142,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         _counts_avg_background =    counts_background / self.background_samples_per_point
 
         # update datasets
-        self.mutate_dataset('temp.imag_align._tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
+        self.mutate_dataset('temp.imag_align._tmp_counts_x', self._result_iter, iter_num * self.time_per_point_s)
         self.mutate_dataset('temp.imag_align._tmp_counts_y', self._result_iter, np.array([_counts_avg_signal,
                                                                                           _counts_avg_background,
                                                                                           _counts_avg_signal - _counts_avg_background]))
@@ -155,5 +160,6 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Analyze the results from the experiment.
         """
         pass
+        print(self.get_dataset('temp.imag_align._tmp_counts_x'))
         # print results
         # print('\tCounts: {:.3f} +/- {:.3f}'.format(mean(self.pmt_dataset), std(self.pmt_dataset)))
