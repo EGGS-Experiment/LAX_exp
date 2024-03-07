@@ -97,6 +97,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # tmp remove
 
     def prepare_experiment(self):
+        print('yzde123')
         # ensure phaser amplitudes sum to less than 100%
         # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
         #                                                                      self.ampl_eggs_heating_bsb_pct +
@@ -724,8 +725,10 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         for dd_config_vals in self.config_dynamical_decoupling_psk_list[1:]:
             # set oscillator 2 (carrier) with phase shift
             with parallel:
-                self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
-                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                # self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                # self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
+                self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + (dd_config_vals[1] * 0.5), clr=0)
+                self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + (dd_config_vals[1] * 0.5), clr=0)
                 delay_mu(dd_config_vals[0])
 
 
