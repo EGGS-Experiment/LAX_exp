@@ -134,7 +134,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
     def update_results(self, iter_num: TInt32, counts_signal: TInt64, counts_background: TInt64) -> TNone:
         # convert total counts into averaged counts
         _counts_avg_signal =        counts_signal / self.signal_samples_per_point
-        _counts_avg_background =    counts_counts_backgroundsignal / self.background_samples_per_point
+        _counts_avg_background =    counts_background / self.background_samples_per_point
 
         # update datasets
         self.mutate_dataset('temp.imag_align._tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
