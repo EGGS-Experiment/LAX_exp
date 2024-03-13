@@ -42,12 +42,13 @@ class StartupKernel(EnvExperiment):
     ]
     
     # The amount of time reserved for an initialization to finish.
-    DELAY_INIT_MU = np.int64(5000000) # 5 ms
+    DELAY_INIT_MU = np.int64(1000000) # 1 ms
 
 
     """
     INITIALIZATION FUNCTIONS
     """
+
     @kernel
     def cpld(self):
         for d in self.cpld_devices:
@@ -105,6 +106,20 @@ class StartupKernel(EnvExperiment):
         for d in self.phaser_devices:
             delay_mu(self.DELAY_INIT_MU)
             d.init()
+            delay_mu(self.DELAY_INIT_MU)
+
+            # set DAC NCO frequency to center output at 85 MHz exactly
+            # note: TRF372017 freq is 302.083918 MHz => DAC NCO should be 217.083918 MHz
+            at_mu(d.get_next_frame_mu())
+            d.channel[0].set_nco_frequency((-217.083495) * MHz)
+            at_mu(d.get_next_frame_mu())
+            d.channel[1].set_nco_frequency((-217.083495) * MHz)
+
+            # enable RF output from TRF
+            at_mu(d.get_next_frame_mu())
+            d.channel[0].en_trf_out(rf=1, lo=0)
+            at_mu(d.get_next_frame_mu())
+            d.channel[1].en_trf_out(rf=1, lo=0)
 
     @kernel
     def sampler(self):
@@ -126,6 +141,7 @@ class StartupKernel(EnvExperiment):
 
 
     """
+    MAIN SEQUENCE
     NO USER CHANGES REQUIRED BELOW THIS COMMENT
     """
     
@@ -236,7 +252,6 @@ class StartupKernel(EnvExperiment):
         """
         Kernel function that runs all the required initialization functions.
         """
-
         # RTIO reset
         self.core.reset()
 

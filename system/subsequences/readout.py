@@ -11,6 +11,9 @@ class Readout(LAXSubsequence):
     Read out the ion state by shining the pump beam and reading fluorescence via PMT counts.
     """
     name = 'readout'
+    kernel_invariants = {
+        "time_readout_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('pump')
@@ -32,7 +35,9 @@ class Readout(LAXSubsequence):
         self.pump.off()
 
     @kernel(flags={"fast-math"})
-    def fetch_count(self):
-        # convenience function so that users don't have to separately instantiate the PMT
-        # device object to read counts
+    def fetch_count(self) -> TInt32:
+        """
+        Convenience function so that users don't have to separately instantiate the PMT
+        device object to read counts.
+        """
         return self.pmt.fetch_count()

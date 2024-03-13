@@ -6,16 +6,16 @@ from LAX_exp.base import LAXDevice
 
 class TriggerRF(LAXDevice):
     """
-    Device: RF Trigger
+    Device: Trigger RF
 
     Wrapper for the ttl_input object that reads in the RF synchronization signal.
     """
     name = "trigger_rf"
     core_device = ('ttl_input', 'ttl7')
+    kernel_invariants = set()
 
     def prepare_device(self):
         pass
-        # self.rf_gating_edge =               self.get_parameter('rf_gating_edge', group='rf', override=False)
 
     @kernel(flags={"fast-math"})
     def trigger(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
@@ -34,14 +34,13 @@ class TriggerRF(LAXDevice):
 
         # ensure input timestamp is valid
         if time_trigger_mu >= 0:
-
             # activate modulation and enable photon counting
             at_mu(time_trigger_mu + time_holdoff_mu)
             return now_mu()
 
         # reset RTIO if we don't get receive trigger signal for some reason
         else:
-            # add holdoff delay before resetting system
+            # add slack before resetting system
             self.core.break_realtime()
             self.ttl_input._set_sensitivity(0)
             self.core.reset()

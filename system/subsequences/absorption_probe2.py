@@ -15,6 +15,12 @@ class AbsorptionProbe2(LAXSubsequence):
     Cool the ion before switching to a short, low-power pulse to measure absorption on a transition.
     """
     name = 'absorption_probe2'
+    kernel_invariants = {
+        "time_doppler_cooling_mu",
+        "time_probe_mu",
+        "time_reset_mu",
+        "_loop_iter",
+    }
 
     def build_subsequence(self):
         # subsequence arguments
@@ -66,6 +72,9 @@ class AbsorptionProbe2(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def get_counts(self) -> TInt32:
+        """
+        todo: document
+        """
         # reset counts store
         self.counts_store = np.int32(0)
         self.core.break_realtime()

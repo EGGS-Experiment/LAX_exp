@@ -11,6 +11,9 @@ class DopplerCool(LAXSubsequence):
     Cool the ion to the doppler limit using the pump beam.
     """
     name = 'doppler_cool'
+    kernel_invariants = {
+        "time_doppler_cooling_mu"
+    }
 
     def build_subsequence(self):
         self.setattr_device('pump')
@@ -19,10 +22,8 @@ class DopplerCool(LAXSubsequence):
 
     def prepare_subsequence(self):
         # get doppler cooling time
-        self.time_doppler_cooling_mu =                                      self.get_parameter('time_doppler_cooling_us',
-                                                                                               group='timing',
-                                                                                               override=False,
-                                                                                               conversion_function=seconds_to_mu, units=us)
+        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing',
+                                                          override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
     def run(self):

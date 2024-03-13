@@ -10,13 +10,16 @@ class ADC(LAXDevice):
     """
     name = "adc"
     core_device = ('adc', 'sampler0')
+    kernel_invariants = {
+        "gating_edge",
+        "counting_method"
+    }
 
     def prepare_device(self):
         self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
 
         # get default gating edge for counting
         self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
-        self.kernel_invariants.add('counting_method')
 
     @kernel(flags={"fast-math"})
     def count(self, time_mu):

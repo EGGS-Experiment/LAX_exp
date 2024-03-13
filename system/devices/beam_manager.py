@@ -13,10 +13,11 @@ class BeamManager(LAXDevice):
     run composite pulse sequences.
     """
     name = "qubit"
-    core_device = ('beam', 'urukul0_ch1')
-    devices ={
-        'rf_switch':    'ttl22'
+    core_device = ('beam', 'urukul2_ch1')
+    devices = {
+        'rf_switch':    'ttl12'
     }
+    kernel_invariants = {}
 
     def prepare_device(self):
         self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
@@ -31,7 +32,7 @@ class BeamManager(LAXDevice):
             # enable external RF switch
             with sequential:
                 self.rf_switch.off()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def off(self):
@@ -42,10 +43,10 @@ class BeamManager(LAXDevice):
             # disable external RF switch
             with sequential:
                 self.rf_switch.on()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.beam.cpld.set_profile(profile_num)
         self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
+        delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)

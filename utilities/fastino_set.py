@@ -1,12 +1,12 @@
 from artiq.experiment import *
-from numpy import int32, int64
-import numpy as np
 
 
 class FastinoSet(EnvExperiment):
     """
-    Fastino Set
+    Utility: Fastino Set
+
     Set a value on the Fastino.
+    Useful for directly accessing the Fastino or when chaining a series of experiments.
     """
 
     def build(self):

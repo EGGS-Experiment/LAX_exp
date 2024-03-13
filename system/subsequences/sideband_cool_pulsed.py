@@ -12,6 +12,15 @@ class SidebandCoolPulsed(LAXSubsequence):
     Cool the ion to the ground state using RSB pulses on the S-1/2 to D-5/2 transition.
     """
     name = 'sideband_cool_pulsed'
+    kernel_invariants = {
+        "ampl_qubit_asf",
+        "time_repump_qubit_mu",
+        "time_spinpol_mu",
+        "time_sideband_cooling_list_mu",
+        "freq_sideband_cooling_ftw_list",
+        "att_sidebandcooling_mu",
+        "iter_sideband_cooling_modes_list"
+    }
 
     def build_subsequence(self):
         # get devices
@@ -95,7 +104,7 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # account for errors in timing
         else:
-            raise Exception('Unknown Error')
+            raise Exception('Error in SBC - Pulsed: Unknown')
 
 
         # extra sideband cooling cycles

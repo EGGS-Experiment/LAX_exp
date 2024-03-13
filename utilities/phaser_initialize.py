@@ -2,10 +2,9 @@ from numpy import int64
 from artiq.experiment import *
 
 
-
 class PhaserInitialize(EnvExperiment):
     """
-    Phaser Initialize
+    Utility: Phaser Initialize
 
     Initialize the phaser.
     """
@@ -34,10 +33,12 @@ class PhaserInitialize(EnvExperiment):
         *************DAC*******************
         '''
         # set DAC NCO frequency to center output at 85 MHz exactly
+        # note: TRF372017 freq is 302.083918 MHz => DAC NCO should be 217.083918 MHz
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_nco_frequency((-217.083495) * MHz)
         delay_mu(self.time_phaser_sample_mu)
         self.phaser0.channel[1].set_nco_frequency((-217.083495) * MHz)
+
 
         # clear DAC NCO phase
         at_mu(self.phaser0.get_next_frame_mu())

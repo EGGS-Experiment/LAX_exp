@@ -11,9 +11,17 @@ class Beam397Pump(LAXDevice):
     Uses the DDS channel to drive an AOM in double-pass configuration.
     """
     name = "pump"
-    core_device = ('beam', 'urukul1_ch1')
+    core_device = ('beam', 'urukul2_ch1')
     devices ={
-        'rf_switch':    'ttl20'
+        'rf_switch':    'ttl12'
+    }
+    kernel_invariants = {
+        "freq_cooling_ftw",
+        "freq_readout_ftw",
+        "freq_rescue_ftw",
+        "ampl_cooling_asf",
+        "ampl_readout_asf",
+        "ampl_rescue_asf"
     }
 
     def prepare_device(self):
@@ -45,24 +53,24 @@ class Beam397Pump(LAXDevice):
     def on(self):
         with parallel:
             # enable RF switch onboard Urukul
-            self.beam.cfg_sw(True)
+            self.beam.sw.on()
 
             # enable external RF switch
             with sequential:
                 self.rf_switch.off()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
 
     @kernel(flags={"fast-math"})
     def off(self):
         with parallel:
             # disable RF switch onboard Urukul
-            self.beam.cfg_sw(False)
+            self.beam.sw.off()
 
             # disable external RF switch
             with sequential:
                 self.rf_switch.on()
-                delay_mu(TIME_RFSWITCH_DELAY_MU)
+                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def cooling(self):
@@ -71,8 +79,6 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(0)
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def readout(self):
@@ -81,8 +87,6 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(1)
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def rescue(self):
@@ -91,11 +95,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(2)
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num):
         self.beam.cpld.set_profile(profile_num)
-        self.beam.cpld.io_update.pulse_mu(8)
-        delay_mu(TIME_PROFILESWITCH_DELAY_MU)

@@ -1,10 +1,9 @@
-from numpy import array
+import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
-                                   rtio_input_data)
+# todo: aggressive optimization
 
 
 class PMTCounter(LAXDevice):
@@ -15,12 +14,13 @@ class PMTCounter(LAXDevice):
     """
     name = "pmt"
     core_device = ('pmt', 'ttl0_counter')
-    devices ={
+    devices = {
         'input':    'ttl0'
     }
-
-    PMT_KEY = "pmt_counts"
-
+    kernel_invariants = {
+        "gating_edge",
+        "counting_method"
+    }
 
     def prepare_device(self):
         self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
@@ -28,8 +28,9 @@ class PMTCounter(LAXDevice):
 
         # get default gating edge for counting
         self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
-        self.set_dataset(self.PMT_KEY, [])
-        self.kernel_invariants.add('counting_method')
+
+        # create counter variable for list timestamping
+        self.counter = np.int64(0)
 
     @kernel(flags={"fast-math"})
     def count(self, time_mu: TInt64):
@@ -41,94 +42,36 @@ class PMTCounter(LAXDevice):
         self.counting_method(time_mu)
 
     @kernel(flags={"fast-math"})
-    def timestamp_counts(self, num_counts: TInt32, time_gating_mu: TInt64) -> TArray(TInt64, 1):
+    def timestamp_counts(self, timestamp_mu_list: TArray(TInt64, 1), time_gating_mu: TInt64):
         """
         Timestamp the incoming counts.
         Does not time out until we read finish reading the given number of counts.
+        The passed-in array timestamp_mu_list will be directly modified.
+
         Arguments:
-            num_counts      (int)   : the number of counts to read.
-            time_gating_mu  (int64) : the maximum waiting time (in machine units) for each count.
-        Returns:
-                            list(int64): the list of count timestamps (in machine units).
+            timestamp_mu_list   array(int64): an array of timestamps to be filled.
+            time_gating_mu      (int64)     : the maximum waiting time (in machine units) for each count.
         """
-        # set counting variables
-        counter = 0
-        timestamp_mu_list = [0] * num_counts
-        self.core.break_realtime()
-
         # start counting photons
+        time_start_mu = now_mu()
         self.input._set_sensitivity(1)
-        while counter < num_counts:
 
+        while self.counter < len(timestamp_mu_list):
             # get count timestamp
             time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
 
             # move timestamped photon into buffer if valid
             if time_photon_mu >= 0:
-                timestamp_mu_list[counter] = time_photon_mu
-                counter += 1
+                timestamp_mu_list[self.counter] = time_photon_mu
+                self.counter += 1
 
-        # stop counting
+        # add slack and stop counting
         self.core.break_realtime()
         self.input._set_sensitivity(0)
 
-        # return timestamps
-        return array(timestamp_mu_list)
+        # remove timestamping start time
+        timestamp_mu_list -= time_start_mu
 
-    # @kernel(flags={"fast-math"})
-    # def get_timestamp(self) -> TInt64:
-    #     """
-    #     # tmp rename
-    #     Timestamp the incoming counts.
-    #     Does not time out until we read finish reading the given number of counts.
-    #     Arguments:
-    #         num_counts      (int)   : the number of counts to read.
-    #         time_gating_mu  (int64) : the maximum waiting time (in machine units) for each count.
-    #     Returns:
-    #                         list(int64): the list of count timestamps (in machine units).
-    #     """
-    #     # set counting variables
-    #     counter = 0
-    #     timestamp_mu_list = [0] * num_counts
-    #     # self.core.break_realtime()
-    #
-    #     # start counting photons
-    #     self.input._set_sensitivity(1)
-    #     while counter < num_counts:
-    #
-    #         # get count timestamp
-    #         time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
-    #
-    #         # move timestamped photon into buffer if valid
-    #         if time_photon_mu >= 0:
-    #             timestamp_mu_list[counter] = time_photon_mu
-    #             counter += 1
-    #
-    #     # stop counting
-    #     self.core.break_realtime()
-    #     self.input._set_sensitivity(0)
-    #
-    #     # return timestamps
-    #     return array(timestamp_mu_list)
-
-    @kernel(flags={"fast-math"})
-    def timestamp_counts_fixed_time(self, time_interval_mu: TInt32) -> TArray(TInt64, 1):
-
-        # start counting photons
-        self.input.gate_rising_mu(time_interval_mu)
-
-        # get count timestamp
-        time_photon_mu = self.input.timestamp_mu(now_mu() + time_interval_mu)
-
-        # move timestamped photon into buffer if valid
-        if time_photon_mu >= 0:
-            while time_photon_mu >= 0:
-                self.append_to_dataset(self.PMT_KEY, time_photon_mu)
-                time_photon_mu = self.input.timestamp_mu(now_mu() + time_interval_mu)
-
-        # stop counting
-        self.core.break_realtime()
-        self.input._set_sensitivity(0)
-        timestamp_mu_list = self.get_dataset(self.PMT_KEY)
-        # return timestamps
-        return timestamp_mu_list
+        # reset loop counter
+        # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical
+        self.counter = 0

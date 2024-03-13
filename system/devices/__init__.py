@@ -16,8 +16,9 @@ __all__.extend([
 ])
 
 # DDS
+from LAX_exp.system.devices.dds_dipole import DDSDipole
 from LAX_exp.system.devices.dds_modulation import DDSModulation
-__all__.extend(['DDSModulation'])
+__all__.extend(['DDSDipole', 'DDSModulation'])
 
 # AWG
 from LAX_exp.system.devices.phaser_eggs import PhaserEGGS
