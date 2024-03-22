@@ -59,9 +59,9 @@ class LaserScanMulti(LAXExperiment, Experiment):
         elif self.scan_type == "Scan+Both":
             self.all_scans_ftw = np.concatenate(                    (self.freq_qubit_scan_ftw, self.freq_rsb1_scan_ftw, self.freq_rsb2_scan_ftw))
         elif self.scan_type == "Sideband1":
-            self.all_scans_ftw = np.concatenate(                    ( self.freq_rsb1_scan_ftw))
+            self.all_scans_ftw =                                    self.freq_rsb1_scan_ftw
         elif self.scan_type == "Sideband2":
-            self.all_scans_ftw = np.concatenate(                    (self.freq_rsb2_scan_ftw))
+            self.all_scans_ftw =                                    self.freq_rsb2_scan_ftw
         elif self.scan_type == "Both Sidebands":
             self.all_scans_ftw = np.concatenate(                    ( self.freq_rsb1_scan_ftw, self.freq_rsb2_scan_ftw))
 
