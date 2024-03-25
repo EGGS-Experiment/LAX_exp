@@ -244,7 +244,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.urukul2_cpld.set_profile(0)
                 self.urukul2_cpld.cfg_switches(0b1110)
 
-        delay_mu(10)
+        delay_mu(100)
         with sequential:
             # enable all external RF switches
             with parallel:
@@ -283,6 +283,9 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
+
+            # add slack
+            self.core.break_realtime()
 
         # ensure all events in the FIFOs are completed before
         # we exit the kernel
