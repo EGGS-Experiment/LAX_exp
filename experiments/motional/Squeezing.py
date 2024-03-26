@@ -74,6 +74,9 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # tmp remove
 
     def prepare_experiment(self):
+        # ensure delay time is above minimum value
+        assert min(list(self.time_delay_us_list)) > 1, "Error: Delay time must be greater than 1 us."
+
         # run preparations for sideband cooling
         super().prepare_experiment()
         self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
