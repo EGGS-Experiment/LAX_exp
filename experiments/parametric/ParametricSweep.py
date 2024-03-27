@@ -64,7 +64,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
         self.setattr_device('pmt')
 
         # get relevant subsequences
@@ -85,7 +85,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # modulation control and synchronization
         self.att_modulation_mu =                                    att_to_mu(self.mod_att_db * dB)
         self.freq_modulation_list_mu =                              np.array([
-                                                                        self.dds_modulation.frequency_to_ftw(freq_mhz * kHz)
+                                                                        self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
                                                                         for freq_mhz in self.mod_freq_khz_list
                                                                     ])
 
@@ -144,8 +144,8 @@ class ParametricSweep(LAXExperiment, Experiment):
 
             # set up DDS for modulation
             with sequential:
-                self.dds_modulation.set_att_mu(self.att_modulation_mu)
-                self.dds_modulation.set_phase_absolute()
+                self.dds_parametric.set_att_mu(self.att_modulation_mu)
+                self.dds_parametric.set_phase_absolute()
 
             # set up labrad devices via RPC
             self.prepareDevicesLabrad()
@@ -195,7 +195,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
                     with parallel:
                         # set modulation frequency
-                        self.dds_modulation.set_mu(freq_mu, asf=self.dds_modulation.ampl_modulation_asf,
+                        self.dds_parametric.set_mu(freq_mu, asf=self.dds_parametric.ampl_modulation_asf,
                                                    profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
                         # add holdoff period for recooling the ion
                         delay_mu(self.time_cooling_holdoff_mu)
@@ -230,7 +230,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             timestamp_mu_list   (list(int64))   : the list of timestamps (in machine units) to demodulate.
         """
         # convert frequency to mhz
-        freq_mhz = self.dds_modulation.ftw_to_frequency(freq_mu) / MHz
+        freq_mhz = self.dds_parametric.ftw_to_frequency(freq_mu) / MHz
 
         # convert timestamps and digitally demodulate counts
         timestamps_s = self.core.mu_to_seconds(np.array(timestamp_mu_list))

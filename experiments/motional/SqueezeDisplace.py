@@ -43,7 +43,7 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         # set up squeezing
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
         self.displace_subsequence =                                         Displace(self)
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -51,13 +51,13 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # convert squeezing to machine units
-        self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
-        self.phase_antisqueeze_pow =                                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns)
+        self.freq_squeeze_ftw =                                             self.dds_parametric.frequency_to_ftw(self.freq_squeeze_khz * kHz)
+        self.phase_antisqueeze_pow =                                        self.dds_parametric.turns_to_pow(self.phase_antisqueeze_turns)
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
         # convert displacement to machine units
-        self.freq_displace_ftw =                                            self.dds_modulation.frequency_to_ftw(self.freq_displace_khz * kHz)
-        self.phase_displace_pow =                                           self.dds_modulation.turns_to_pow(self.phase_displace_turns)
+        self.freq_displace_ftw =                                            self.dds_parametric.frequency_to_ftw(self.freq_displace_khz * kHz)
+        self.phase_displace_pow =                                           self.dds_parametric.turns_to_pow(self.phase_displace_turns)
         self.time_displace_mu =                                             self.core.seconds_to_mu(self.time_displace_us * us)
 
         # readout timing

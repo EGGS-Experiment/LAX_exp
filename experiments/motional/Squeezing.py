@@ -66,7 +66,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
         # set up squeezing
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
         # tmp remove
         self.setattr_device('urukul1_ch2')
         self.setattr_device('ttl8')
@@ -85,7 +85,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # convert squeezing to machine units
         self.freq_squeeze_ftw_list =                                            np.array([hz_to_ftw(freq_khz * kHz)
                                                                                           for freq_khz in self.freq_squeeze_khz_list])
-        self.phase_antisqueeze_pow_list =                                       np.array([self.dds_modulation.turns_to_pow(phase_turns)
+        self.phase_antisqueeze_pow_list =                                       np.array([self.dds_parametric.turns_to_pow(phase_turns)
                                                                                           for phase_turns in self.phase_antisqueeze_turns_list])
         self.time_squeeze_mu_list =                                             np.array([self.core.seconds_to_mu(time_us * us)
                                                                                           for time_us in self.time_squeeze_us_list])

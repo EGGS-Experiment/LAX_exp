@@ -5,13 +5,13 @@ from LAX_exp.base import LAXDevice
 from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
 
-class DDSModulation(LAXDevice):
+class DDSParametric(LAXDevice):
     """
-    Device: Modulation DDS
+    Device: Parametric DDS
 
     Uses the DDS channel to modulate the trap RF (used for parametric excitation).
     """
-    name = "dds_modulation"
+    name = "dds_parametric"
     core_device = ('dds', 'urukul1_ch1')
     devices = {
         'mod_switch': 'ttl11',
@@ -23,7 +23,7 @@ class DDSModulation(LAXDevice):
     }
 
     def prepare_device(self):
-        self.ampl_modulation_asf = self.get_parameter('ampl_modulation_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
+        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
         # break out AD9910 attributes/devices
         self.sw = self.dds.sw
 

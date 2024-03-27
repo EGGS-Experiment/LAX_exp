@@ -38,7 +38,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
 
         # subsequences & devices
         self.tickle_subsequence =                                               TickleDDS(self)
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -49,7 +49,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
         self.time_qlms_ramsey_delay_mu_list =                                   np.array([self.core.seconds_to_mu(time_ms * ms)
                                                                                           for time_ms in self.time_qlms_ramsey_delay_ms_list],
                                                                                          dtype=np.int64)
-        self.freq_qlms_ramsey_ftw_list =                                        np.array([self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
+        self.freq_qlms_ramsey_ftw_list =                                        np.array([self.dds_parametric.frequency_to_ftw(freq_khz * kHz)
                                                                                           for freq_khz in self.freq_qlms_ramsey_khz_list])
 
         # create an array of values for the experiment to sweep
@@ -82,7 +82,7 @@ class QLMSRamsey(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # prepare devices waveforms
-                self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
+                self.dds_parametric.set_mu(freq_qlms_ftw, asf=self.dds_parametric.ampl_modulation_asf, profile=0)
                 self.qubit.set_mu(freq_readout_ftw, self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 

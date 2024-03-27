@@ -69,7 +69,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
         # get relevant subsequences
         self.parametric_subsequence =                               ParametricExcite(self)
@@ -88,12 +88,12 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.att_modulation_mu =                                    att_to_mu(self.att_mod_db * dB)
 
         # convert modulation (mode #1) parameters to machine units
-        self.freq_mod0_ftw =                                        self.dds_modulation.frequency_to_ftw(self.freq_mod0_khz * kHz)
+        self.freq_mod0_ftw =                                        self.dds_parametric.frequency_to_ftw(self.freq_mod0_khz * kHz)
         self.dc_channel_mod0_num =                                  self.dc_config_channeldict[self.dc_channel_mod0]['num']
         self.dc_voltages_mod0_v_list =                              np.array(list(self.dc_voltages_mod0_v_list))
 
         # convert modulation (mode #2) parameters to machine units
-        self.freq_mod1_ftw =                                        self.dds_modulation.frequency_to_ftw(self.freq_mod1_khz * kHz)
+        self.freq_mod1_ftw =                                        self.dds_parametric.frequency_to_ftw(self.freq_mod1_khz * kHz)
         self.dc_channel_mod1_num =                                  self.dc_config_channeldict[self.dc_channel_mod1]['num']
         self.dc_voltages_mod1_v_list =                              np.array(list(self.dc_voltages_mod1_v_list))
 
@@ -207,7 +207,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # todo: document - list of abs angle
         """
         # set modulation frequency for the given mode
-        self.dds_modulation.set_mu(mode_freq_ftw, asf=self.dds_modulation.ampl_modulation_asf)
+        self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf)
         self.core.break_realtime()
 
         # iterate over repetitions per voltage
@@ -257,7 +257,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # todo: document - list of abs angle
         """
         # convert frequency from ftw to mhz
-        freq_mhz = self.dds_modulation.ftw_to_frequency(freq_mu) / MHz
+        freq_mhz = self.dds_parametric.ftw_to_frequency(freq_mu) / MHz
 
         # convert timestamps and digitally demodulate counts
         timestamps_s = self.core.mu_to_seconds(np.array(timestamp_mu_list))

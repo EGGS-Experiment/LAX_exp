@@ -63,7 +63,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
         self.tickle_subsequence =                                               TickleDDS(self)
 
         # get relevant devices
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -79,7 +79,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
 
         # convert QLMS modulation to machine units
         self.freq_qlms_rabi_ftw_list =                                          np.array([
-                                                                                    self.dds_modulation.frequency_to_ftw(freq_khz * kHz)
+                                                                                    self.dds_parametric.frequency_to_ftw(freq_khz * kHz)
                                                                                     for freq_khz in self.freq_qlms_rabi_khz_list
                                                                                 ])
 
@@ -176,7 +176,7 @@ class QLMSRabiMicromotion(SidebandCooling.SidebandCooling):
 
                     # set QLMS modulation and 729nm readout frequencies
                     with parallel:
-                        self.dds_modulation.set_mu(freq_qlms_ftw, asf=self.dds_modulation.ampl_modulation_asf, profile=0)
+                        self.dds_parametric.set_mu(freq_qlms_ftw, asf=self.dds_parametric.ampl_modulation_asf, profile=0)
                         self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                         self.core.break_realtime()
 

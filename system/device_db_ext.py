@@ -36,10 +36,10 @@ device_db_ext = {
         "module": "LAX_exp.system.devices.dds_dipole",
         "class": "DDSDipole"
     },
-    "dds_modulation": {
+    "dds_parametric": {
         "type": "local",
-        "module": "LAX_exp.system.devices.dds_modulation",
-        "class": "DDSModulation"
+        "module": "LAX_exp.system.devices.dds_parametric",
+        "class": "DDSParametric"
     },
     "phaser_eggs": {
         "type": "local",
