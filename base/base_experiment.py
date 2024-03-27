@@ -68,6 +68,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         self.setattr_device('urukul0_ch0')
         self.setattr_device('urukul1_ch1')
+        self.setattr_device('urukul1_ch3')
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_ch3')
 
@@ -226,6 +227,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         Set all devices back to their original state.
         """
         self.core.break_realtime()
+        # todo: set attenuations for parametric and modulation DDSs
 
         # reset hardware to allow use by users
         with parallel:
@@ -258,6 +260,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             with parallel:
                 self.urukul0_ch0.sw.off()  # 729nm
                 self.urukul1_ch1.sw.off()  # parametric
+                self.urukul1_ch3.sw.off()  # dipole
                 self.urukul2_ch2.sw.off()  # 866nm
                 self.urukul2_ch3.sw.off()  # 854nm
 
