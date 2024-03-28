@@ -33,7 +33,7 @@ class ProphylacticSweep(EnvExperiment):
                                                                         self.mod_dds.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in self.mod_freq_mhz_list
                                                                     ])
-        self.mod_time_mu =                                          self.core.seconds_to_mu(self.mod_time_s)
+        self.mod_time_mu =                                          self.core.seconds_to_mu(self.mod_time_total_s / len(self.mod_freq_mu_list))
 
         # cooling holdoff time
         self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
@@ -42,11 +42,11 @@ class ProphylacticSweep(EnvExperiment):
     @kernel(flags={"fast-math"})
     def run(self):
         # reset core device
+        self.core.wait_until_mu(now_mu())
         self.core.reset()
 
         # prepare devices for experiment
         self.prepareDevices()
-        self.core.break_realtime()
 
 
         # MAIN LOOP
@@ -85,3 +85,4 @@ class ProphylacticSweep(EnvExperiment):
         self.mod_dds.sw.off()
         self.mod_dds.cfg_sw(True)
         self.mod_dds.set_att_mu(self.mod_dds_att_mu)
+        self.core.break_realtime()
