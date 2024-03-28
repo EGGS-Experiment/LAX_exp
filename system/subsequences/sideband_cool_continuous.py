@@ -43,12 +43,12 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
-        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=10000, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
+        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=5000, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=20, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({102.4965: 100}), group='sideband_cooling.continuous')
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({102.4965: 30, 25.1: 70}), group='sideband_cooling.continuous')
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
@@ -113,6 +113,17 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.power_quench_calibration_num_samples =                     100
         self.power_quench_calibration_store_mu =                        np.int32(0)
         self.power_quench_calibration_mu_list =                         np.array([0]*8)
+
+        # # tmp remove
+        # # interleave sideband cooling of different modes every cycle
+        # for time_delay_us_list in delay_sideband_cooling_cycle_us_list:
+        #     # for i in self.iter_sideband_cooling_modes_list:
+        #     for i in range(len(time_delay_us_list)):
+        #         # switch profile at set time
+        #         print('sbc time: {:f}\t\tprofile: {:f}'.format(0 + time_delay_us_list[i], self.iter_sideband_cooling_modes_list[i]))
+        #         # self.qubit.set_profile(self.iter_sideband_cooling_modes_list[i])
+        # print('\n')
+        # # tmp remove
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -195,6 +206,7 @@ class SidebandCoolContinuous(LAXSubsequence):
                     # switch profile at set time
                     at_mu(time_start_mu + time_delay_mu_list[i])
                     self.qubit.set_profile(self.iter_sideband_cooling_modes_list[i])
+                    self.qubit.io_update()
 
             # spin polarization
             for time_spinpol_mu in self.time_spinpolarization_mu_list:
