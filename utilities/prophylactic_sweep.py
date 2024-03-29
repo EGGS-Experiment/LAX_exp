@@ -31,7 +31,7 @@ class ProphylacticSweep(EnvExperiment):
         self.mod_dds_att_mu =                                       self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
         self.mod_freq_mu_list =                                     np.array([
                                                                         self.mod_dds.frequency_to_ftw(freq_khz * kHz)
-                                                                        for freq_mhz in self.mod_freq_khz_list
+                                                                        for freq_khz in self.mod_freq_khz_list
                                                                     ])
         self.mod_time_mu =                                          self.core.seconds_to_mu(self.mod_time_total_s / len(self.mod_freq_mu_list))
 
