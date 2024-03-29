@@ -47,7 +47,7 @@ class Beam729(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num):
+    def set_profile(self, profile_num: TInt32):
         self.beam.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 

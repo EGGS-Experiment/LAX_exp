@@ -68,7 +68,6 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
         self.setattr_device('dds_parametric')
         # tmp remove
-        self.setattr_device('urukul1_ch2')
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
         # tmp remove
@@ -90,6 +89,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.time_squeeze_mu_list =                                             np.array([self.core.seconds_to_mu(time_us * us)
                                                                                           for time_us in self.time_squeeze_us_list])
         # note: 2.381 is inherent system overhead; will be smaller if we stop doing stuff with urukul1_ch2
+        # todo: change the inherent system overhead
         self.time_delay_mu_list =                                               np.array([self.core.seconds_to_mu((time_us - 2.381) * us)
                                                                                           for time_us in self.time_delay_us_list])
         self.time_readout_mu_list =                                             np.array([self.core.seconds_to_mu(time_us * us)

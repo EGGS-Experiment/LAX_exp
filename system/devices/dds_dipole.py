@@ -48,7 +48,7 @@ class DDSDipole(LAXDevice):
         delay_mu(1)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num):
+    def set_profile(self, profile_num: TInt32):
         self.dds.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
