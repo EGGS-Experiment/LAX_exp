@@ -188,9 +188,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
-        # configure active cancellation for dynamical decoupling
-        self._prepare_activecancel()
-
         # configure squeezing
         # note: this needs to happen last in the prepare_experiment stage to prevent its configs from being overwritten
         self._prepare_squeezing()

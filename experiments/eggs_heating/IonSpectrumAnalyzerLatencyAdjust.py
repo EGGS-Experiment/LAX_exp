@@ -8,8 +8,6 @@ import LAX_exp.experiments.eggs_heating.EGGSHeating as EGGSHeating
 from math import gcd
 
 # todo: generally migrate everything over to machine units
-# todo: program phase/profile onto urukul
-# todo: synchronize timing for carrier/urukul
 # todo: ensure attenuations/power/freq are correctly set
 
 
@@ -188,9 +186,6 @@ class IonSpectrumAnalyzerLatencyAdjust(EGGSHeating.EGGSHeating):
 
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
-
-        # configure active cancellation for dynamical decoupling
-        self._prepare_activecancel()
 
         # configure squeezing
         # note: this needs to happen last in the prepare_experiment stage to prevent its configs from being overwritten
