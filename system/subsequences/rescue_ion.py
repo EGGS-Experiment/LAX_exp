@@ -20,6 +20,7 @@ class RescueIon(LAXSubsequence):
     def build_subsequence(self):
         # get devices
         self.setattr_device('pump')
+        self.setattr_device('probe')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
 
@@ -27,20 +28,28 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("rescue_enable",                          BooleanValue(default=False), group=self.name)
         self.setattr_argument("repetitions_per_rescue",                 NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("resuscitate_ion",                        BooleanValue(default=False), group=self.name)
-        # self.setattr_argument("iterations_per_resuscitate",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='rescue_ion')
-        # self.setattr_argument("additional_cooling_time_s",              NumberValue(default=1, ndecimals=5, step=0.1, min=0, max=10000), group='rescue_ion')
+        self.setattr_argument("add_397nm_spinpol",                      BooleanValue(default=False), group=self.name)
 
     def prepare_subsequence(self):
-        self.time_rescue_mu =               self.get_parameter('time_rescue_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
-        self.time_resuscitate_mu =          self.get_parameter('time_resuscitate_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        # sequence timing
+        self.time_rescue_mu =               self.get_parameter('time_rescue_us', group='timing',
+                                                               override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_resuscitate_mu =          self.get_parameter('time_resuscitate_us', group='timing',
+                                                               override=True, conversion_function=seconds_to_mu, units=us)
 
         # configure variable behavior for self.resuscitate
         self.resuscitate = self._no_op
         if self.resuscitate_ion is True:
             self.resuscitate = self._resuscitate
 
+        # configure variable behavior for probe beam
+        self.probe_func = self.probe.off
+        if self.add_397nm_spinpol is True:
+            self.probe_func = self.probe.on
+
+
     @kernel(flags={"fast-math"})
-    def run(self, i):
+    def run(self, i: TInt32):
         # check whether rescuing is enabled
         if self.rescue_enable == True:
 
@@ -52,10 +61,12 @@ class RescueIon(LAXSubsequence):
                 self.repump_cooling.on()
                 self.repump_qubit.on()
 
-                # doppler cooling
+                # rescue cooling
                 self.pump.on()
+                self.probe_func()
                 delay_mu(self.time_rescue_mu)
                 self.pump.off()
+                self.probe.off()
 
     @kernel(flags={"fast-math"})
     def _resuscitate(self):
@@ -64,14 +75,16 @@ class RescueIon(LAXSubsequence):
         self.repump_cooling.on()
         self.repump_qubit.on()
 
-        # doppler cooling
+        # resuscitate cooling
         self.pump.on()
+        self.probe_func()
         delay_mu(self.time_resuscitate_mu)
         self.pump.off()
+        self.probe.off()
 
     @kernel(flags={"fast-math"})
     def _no_op(self):
-        delay_mu(10)
+        delay_mu(8)
 
     # @kernel(flags={"fast-math"})
     def detect_death(self, counts):
