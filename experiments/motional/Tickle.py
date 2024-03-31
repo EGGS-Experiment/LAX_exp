@@ -17,14 +17,14 @@ class Tickle(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
 
         # tickle configuration
         self.setattr_argument("tickle_source",                  EnumerationValue(['Parametric', 'Dipole'], default='Dipole'), group=self.name)
         self.setattr_argument("freq_tickle_khz_list",           Scannable(
                                                                         default=[
+                                                                            CenterScan(1281, 10, 0.5, randomize=True),
                                                                             ExplicitScan([1500]),
-                                                                            CenterScan(1500, 10, 1.0, randomize=True)
                                                                         ],
                                                                         global_min=10, global_max=400000, global_step=100,
                                                                         unit="MHz", scale=1, ndecimals=3
@@ -32,7 +32,7 @@ class Tickle(LAXExperiment, Experiment):
         self.setattr_argument("ampl_tickle_pct_list",           Scannable(
                                                                         default=[
                                                                             ExplicitScan([35.]),
-                                                                            RangeScan(0, 100, 10, randomize=True)
+                                                                            RangeScan(0, 100, 10, randomize=True),
                                                                         ],
                                                                         global_min=0.1, global_max=100.0, global_step=10,
                                                                         unit="pct", scale=1, ndecimals=2
@@ -40,12 +40,12 @@ class Tickle(LAXExperiment, Experiment):
         self.setattr_argument("time_tickle_us_list",            Scannable(
                                                                         default=[
                                                                             ExplicitScan([1000.]),
-                                                                            RangeScan(1000, 2000, 11, randomize=True)
+                                                                            RangeScan(1000, 2000, 11, randomize=True),
                                                                         ],
                                                                         global_min=100, global_max=1000000, global_step=100,
                                                                         unit="us", scale=1, ndecimals=0
                                                                     ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=31.5, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("att_tickle_db",                  NumberValue(default=25, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')
