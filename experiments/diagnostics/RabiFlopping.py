@@ -115,6 +115,9 @@ class RabiFlopping(LAXExperiment, Experiment):
                     self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 

@@ -174,6 +174,9 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                         time_squeeze_mu, time_delay_mu, time_readout_mu)
                     self.core.break_realtime()
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
