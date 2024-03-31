@@ -123,9 +123,9 @@ class PhaserEGGS(LAXDevice):
                 delay_mu(self.t_sample_mu)
 
         # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser_eggs.get_next_frame_mu())
+        at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att(31.5 * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
+        delay_mu(self.phaser.t_sample_mu)
         self.phaser.channel[1].set_att(31.5 * dB)
 
 
