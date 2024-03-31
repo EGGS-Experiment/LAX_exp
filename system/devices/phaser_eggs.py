@@ -98,31 +98,14 @@ class PhaserEGGS(LAXDevice):
     '''
     Oscillator Methods
     '''
-
-    @kernel(flags={"fast-math"})
-    def disable_oscillators(self):
-        """
-        Set amplitude to 0 and keep phase accumulator cleared for all oscillators.
-        # todo: document
-        # note: this is different from reset_oscillators since it doesn't reset frequency, and persistently clears the phase accumulator
-        """
-        # synchronize to frame
-        at_mu(self.phaser.get_next_frame_mu())
-
-        # clear oscillator amplitudes
-        for i in range(5):
-
-            # do it for both channels
-            with parallel:
-                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                delay_mu(self.t_sample_mu)
-
     @kernel(flags={"fast-math"})
     def reset_oscillators(self):
         """
-        Reset frequency and amplitude for all oscillators on both channels of the phaser.
+        Reset frequency, amplitude, and phase accumulators for all oscillators on both channels of the phaser.
+        Maximum attenuation is set to minimize leakage of downstream phaser components.
+        This function synchronizes to the frame internally.
         """
+        # clear oscillators
         for i in range(5):
             # synchronize to frame
             at_mu(self.phaser.get_next_frame_mu())
@@ -135,13 +118,19 @@ class PhaserEGGS(LAXDevice):
 
             # clear oscillator amplitudes
             with parallel:
-                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
                 delay_mu(self.t_sample_mu)
+
+        # set max attenuations for phaser outputs to reduce effect of internal noise
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser.channel[0].set_att(31.5 * dB)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser.channel[1].set_att(31.5 * dB)
 
 
     '''
-    Helper Methods
+    HELPER METHODS
     '''
     @portable(flags={"fast-math"})
     def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:

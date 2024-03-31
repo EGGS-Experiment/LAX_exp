@@ -333,15 +333,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # CLEANUP
         self.core.break_realtime()
-        # reset all oscillator frequencies and amplitudes
         self.phaser_eggs.reset_oscillators()
-        self.core.break_realtime()
-        # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-        self.core.break_realtime()
 
 
     # HELPER FUNCTIONS - PHASER
