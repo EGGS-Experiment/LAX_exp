@@ -191,7 +191,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self._prepare_psk()
 
         # tmp remove - add dynamical plotting of counts
-        self.set_dataset('temp.counts.trace', np.zeros(self.results_shape[0], dtype=np.int32),
+        self._tmp_factor = 8
+        self._tmp_len = (self.results_shape[0] // self._tmp_factor) + 1
+        self.set_dataset('temp.counts.trace', np.zeros(self._tmp_len, dtype=np.int32),
                          broadcast=True, persist=False, archive=False)
         # self.setattr_dataset('temp.counts.trace')
         # tmp remove - add dynamical plotting of counts
@@ -208,7 +210,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         """
         self.mutate_dataset('results', self._result_iter, np.array(args))
         # tmp remove - add dynamical plotting of counts
-        self.mutate_dataset('temp.counts.trace', self._result_iter, args[1])
+        if (self._result_iter % self._tmp_factor) == 0:
+            self.mutate_dataset('temp.counts.trace', self._result_iter, args[1])
         # tmp remove - add dynamical plotting of counts
         self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
