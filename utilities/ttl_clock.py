@@ -27,14 +27,14 @@ class TTLClock(EnvExperiment):
 
     def prepare(self):
         """
-        Set up the dataset and prepare things such that the kernel functions have minimal overhead.
+        Set up the dataset and prepare values to minimize kernel overhead.
         """
         # devices
         self.ttl_clock =                self.get_device("ttl{:d}".format(self.ttl_channel))
 
         # timing
         self.time_trigger_delay_mu =    self.core.seconds_to_mu(50.88 * us)
-        self.time_delay_mu =            self.core.seconds_to_mu(0.5 * (1 / (1000 * self.frequency_clock_khz)))
+        self.time_delay_mu =            self.core.seconds_to_mu(0.5 / (self.frequency_clock_khz * kHz))
         self.num_repetitions =          int(self.frequency_clock_khz * self.time_total_ms)
         # self.time_off_mu = self.core.seconds_to_mu(self.time_reset_us * us)
 
@@ -44,12 +44,13 @@ class TTLClock(EnvExperiment):
         """
         Run the experimental sequence.
         """
-        self.core.break_realtime()
+        # reset hardware
+        self.core.wait_until_mu(now_mu())
+        self.core.reset()
         self.ttl_clock.off()
 
         # MAIN LOOP
         for i in range(self.num_repetitions):
-
             # TTL ON
             with parallel:
                 self.ttl_clock.on()
