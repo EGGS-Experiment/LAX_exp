@@ -34,6 +34,8 @@ class ProphylacticSweep(EnvExperiment):
                                                                         for freq_khz in self.mod_freq_khz_list
                                                                     ])
         self.mod_time_mu =                                          self.core.seconds_to_mu(self.mod_time_total_s / len(self.mod_freq_mu_list))
+        # print(self.mod_time_mu)
+        # print(self.mod_dds.ftw_to_frequency(self.mod_freq_mu))
 
         # cooling holdoff time
         self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)

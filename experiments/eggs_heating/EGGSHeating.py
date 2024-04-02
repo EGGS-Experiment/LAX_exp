@@ -90,7 +90,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # tmp remove
 
     def prepare_experiment(self):
-        # print('yzde123')
         # ensure phaser amplitudes sum to less than 100%
         # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
         #                                                                      self.ampl_eggs_heating_bsb_pct +
@@ -190,6 +189,30 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
+
+        # tmp remove - add dynamical plotting of counts
+        self.set_dataset('temp.counts.trace', np.zeros(self.results_shape, dtype=np.int32),
+                         broadcast=True, persist=False, archive=False)
+        # self.setattr_dataset('temp.counts.trace')
+        # tmp remove - add dynamical plotting of counts
+
+    # tmp remove - add dynamical plotting of counts
+    @rpc(flags={"async"})
+    def update_results(self, *args):
+        """
+        Records data from the main sequence in the experiment dataset.
+
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
+        """
+        self.mutate_dataset('results', self._result_iter, array(args))
+        # tmp remove - add dynamical plotting of counts
+        self.mutate_dataset('temp.counts.trace', self._result_iter, args[1])
+        # tmp remove - add dynamical plotting of counts
+        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
+        self._result_iter += 1
+    # tmp remove - add dynamical plotting of counts
 
     def _prepare_pulseshape(self):
         """
