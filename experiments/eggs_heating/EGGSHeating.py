@@ -206,7 +206,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         For efficiency, data is added by mutating indices of a preallocated dataset.
         Contains an internal iterator to keep track of the current index.
         """
-        self.mutate_dataset('results', self._result_iter, array(args))
+        self.mutate_dataset('results', self._result_iter, np.array(args))
         # tmp remove - add dynamical plotting of counts
         self.mutate_dataset('temp.counts.trace', self._result_iter, args[1])
         # tmp remove - add dynamical plotting of counts

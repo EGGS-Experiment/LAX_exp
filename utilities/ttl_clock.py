@@ -15,7 +15,6 @@ class TTLClock(EnvExperiment):
         """
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.time_trigger_delay_mu =                            self.core.seconds_to_mu(50.88 * us)
 
         # timing
         self.setattr_argument('frequency_clock_khz',            NumberValue(default=1, ndecimals=3, step=1, min=0.001, max=1000))
@@ -31,12 +30,12 @@ class TTLClock(EnvExperiment):
         Set up the dataset and prepare things such that the kernel functions have minimal overhead.
         """
         # devices
-        self.ttl_clock = self.get_device("ttl{:d}".format(self.ttl_channel))
+        self.ttl_clock =                self.get_device("ttl{:d}".format(self.ttl_channel))
 
         # timing
-        self.time_delay_mu = self.core.seconds_to_mu(0.5 * (1 / (1000 * self.frequency_clock_khz)))
-        self.num_repetitions = int(self.frequency_clock_khz * self.time_total_ms)
-
+        self.time_trigger_delay_mu =    self.core.seconds_to_mu(50.88 * us)
+        self.time_delay_mu =            self.core.seconds_to_mu(0.5 * (1 / (1000 * self.frequency_clock_khz)))
+        self.num_repetitions =          int(self.frequency_clock_khz * self.time_total_ms)
         # self.time_off_mu = self.core.seconds_to_mu(self.time_reset_us * us)
 
 
