@@ -45,9 +45,9 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                     ), group='modulation')
 
         # shimming voltages
-        self.dc_micromotion_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'), group='voltage')
-        self.setattr_argument("dc_micromotion_voltages_v_list",     Scannable(
+        self.dc_channeldict =                           dc_config.channeldict
+        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'), group='voltage')
+        self.setattr_argument("dc_voltages_v_list",     Scannable(
                                                                         default=[
                                                                             ExplicitScan([38.5]),
                                                                             CenterScan(40., 20., 1., randomize=True)
@@ -74,35 +74,36 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # get voltage parameters
-        self.dc_micromotion_channel_num =                           self.dc_micromotion_channeldict[self.dc_micromotion_channel]['num']
-        self.dc_micromotion_voltages_v_list =                       np.array(list(self.dc_micromotion_voltages_v_list))
+        self.dc_channel_num =                               self.dc_channeldict[self.dc_channel]['num']
+        self.dc_voltages_v_list =                           np.array(list(self.dc_voltages_v_list))
+        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(180 * ms)
 
         # convert cooling parameters to machine units
-        self.ampl_cooling_asf =                                     self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
-        self.freq_cooling_ftw =                                     self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
-        self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
+        self.ampl_cooling_asf =                             self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
+        self.freq_cooling_ftw =                             self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
+        self.time_cooling_holdoff_mu =                      self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
-        self.att_modulation_mu =                                    att_to_mu(self.mod_att_db * dB)
-        self.freq_modulation_list_mu =                              np.array([
-                                                                        self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
-                                                                        for freq_mhz in self.mod_freq_khz_list
-                                                                    ])
+        self.att_modulation_mu =                            att_to_mu(self.mod_att_db * dB)
+        self.freq_modulation_list_mu =                      np.array([
+                                                                self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
+                                                                for freq_mhz in self.mod_freq_khz_list
+                                                            ])
 
         # connect to labrad
-        self.cxn =                                                  labrad.connect(environ['LABRADHOST'],
-                                                                                   port=7682, tls_mode='off',
-                                                                                   username='', password='lab')
-        self.dc =                                                   self.cxn.dc_server
+        self.cxn =                                          labrad.connect(environ['LABRADHOST'],
+                                                                           port=7682, tls_mode='off',
+                                                                           username='', password='lab')
+        self.dc =                                           self.cxn.dc_server
 
         # set up variables for ensuring PMT counts are above some threshold
-        self.fluorescence_calibration_time_mu =                     np.int64(30000000)  # 30ms
-        self.fluorescence_calibration_threshold_counts =            400
+        self.fluorescence_calibration_time_mu =             np.int64(30000000)  # 30ms
+        self.fluorescence_calibration_threshold_counts =    400
 
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.dc_micromotion_voltages_v_list) * len(self.mod_freq_khz_list),
+        return (self.repetitions * len(self.dc_voltages_v_list) * len(self.mod_freq_khz_list),
                 5)
 
 
@@ -180,25 +181,23 @@ class ParametricSweep(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
 
             # sweep voltage
-            for voltage_v in self.dc_micromotion_voltages_v_list:
+            for voltage_v in self.dc_voltages_v_list:
 
                 # set DC voltage
-                self.voltage_set(self.dc_micromotion_channel_num, voltage_v)
+                self.voltage_set(self.dc_channel_num, voltage_v)
 
                 # synchronize hardware clock with timeline, then add delay for voltages to settle
+                # note: delay has added advantage of recooling the ion
                 self.core.wait_until_mu(now_mu())
-                delay_mu(180000000)
+                delay_mu(self.time_dc_synchronize_delay_mu)
 
                 # sweep modulation frequencies
                 for freq_mu in self.freq_modulation_list_mu:
                     self.core.break_realtime()
 
-                    with parallel:
-                        # set modulation frequency
-                        self.dds_parametric.set_mu(freq_mu, asf=self.dds_parametric.ampl_modulation_asf,
-                                                   profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
-                        # add holdoff period for recooling the ion
-                        delay_mu(self.time_cooling_holdoff_mu)
+                    # set modulation frequency
+                    self.dds_parametric.set_mu(freq_mu, asf=self.dds_parametric.ampl_modulation_asf,
+                                               profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
 
                     # run parametric excitation
                     pmt_timestamp_list = self.parametric_subsequence.run()
@@ -307,7 +306,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             # save and print results
             self.set_dataset('voltage_optima_khz_v', np.array(list(voltage_optima.items())))
             for key, val in voltage_optima.items():
-                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f}'.format(key, val))
+                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(key, *val))
 
         # todo: check that frequencies are continuous
         if len(results_tmp) == 1:

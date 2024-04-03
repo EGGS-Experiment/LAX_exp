@@ -28,7 +28,7 @@ def complexLinearFitMinimize(dataset):
             independent variable, and the complex dependent variable.
 
     Returns:
-        (float) : the value of the independent variable that minimizes the complex amplitude.
+        tuple(float, float): the value and error of the independent variable that minimizes the complex amplitude.
     """
     # create y-vector
     vectorY = dataset[:, 1]
@@ -39,13 +39,11 @@ def complexLinearFitMinimize(dataset):
     res = lsq_linear(matrixA, vectorY)
     b_fit_re, b_fit_im = (res.x[0].real, res.x[0].imag)
     m_fit_re, m_fit_im = (res.x[1].real, res.x[1].imag)
-    # print('\t\t\tb_param: {:.3f} + i * {:.3f}'.format(b_fit_re, b_fit_im))
-    # print('\t\t\tm_param: {:.3f} + i * {:.3f}\n'.format(m_fit_re, m_fit_im))
 
-    # todo: get error (result.fun; vector of residuals at the soln)
     # extract optimal voltage to minimize displacement
     voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re**2. + m_fit_im**2.)
-    return voltage_optimal
+    voltage_err = np.sum(np.abs(res.fun)) / np.sqrt(len(res.fun))
+    return voltage_optimal, voltage_err
 
 
 def complexFitMinimize(dataset):
