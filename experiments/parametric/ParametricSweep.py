@@ -37,9 +37,12 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=11, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=23, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default=CenterScan(1090.8, 10, 0.25, randomize=True),
+                                                                        default= [
+                                                                            ExplicitScan([1261.2]),
+                                                                            CenterScan(1090.8, 10, 0.25, randomize=True),
+                                                                        ],
                                                                         global_min=1, global_max=200000, global_step=1,
                                                                         unit="kHz", scale=1, ndecimals=4
                                                                     ), group='modulation')
@@ -49,16 +52,16 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_voltages_v_list",     Scannable(
                                                                         default=[
+                                                                            CenterScan(68.2, 5., 0.2, randomize=True),
                                                                             ExplicitScan([38.5]),
-                                                                            CenterScan(40., 20., 1., randomize=True)
                                                                         ],
                                                                         global_min=0, global_max=400, global_step=1,
                                                                         unit="V", scale=1, ndecimals=1
                                                                     ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=50, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=100, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=25, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -298,15 +301,16 @@ class ParametricSweep(LAXExperiment, Experiment):
                 return complexLinearFitMinimize(_data)
 
             # process voltage optima for all frequencies
-            voltage_optima = {
-                __results_tmp[0, col_num, 0] * 1000.: extractVoltageOptimum(col_num)
+            voltage_optima = [
+                [__results_tmp[0, col_num, 0] * 1000.,  *extractVoltageOptimum(col_num)]
                 for col_num in range(len(__results_tmp[0, :, 0]))
-            }
+            ]
+            # np.array(list(voltage_optima.items()))
 
             # save and print results
-            self.set_dataset('voltage_optima_khz_v', np.array(list(voltage_optima.items())))
-            for key, val in voltage_optima.items():
-                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(key, *val))
+            self.set_dataset('voltage_optima_khz_v', voltage_optima)
+            for res_arr in voltage_optima:
+                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(res_arr[0], res_arr[1], res_arr[2]))
 
         # todo: check that frequencies are continuous
         if len(results_tmp) == 1:
