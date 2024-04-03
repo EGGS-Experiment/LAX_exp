@@ -167,11 +167,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._dynamic_reduction_factor = self.get_dataset('management.dynamic_plot_reduction_factor',
                                                           default=10,archive=False)
         self.kernel_invariants.add("_dynamic_reduction_factor")
-        # downsample counts for dynamic plotting
-        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
-        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32),
-                         broadcast=True, persist=False, archive=False)
-
         # preprocess values for completion monitoring
         self._completion_iter_to_pct = 100. / len(self.results)
 
@@ -193,8 +188,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         Main sequence of the experiment.
         Repeat a given sequence a number of times.
         """
-        # set up completion monitor
+        # set up dynamic datasets
+        # note: this has to happen during run, otherwise we will overwrite other
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
+        # downsample counts for dynamic plotting
+        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
+        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32),
+                         broadcast=True, persist=False, archive=False)
 
         # start counting initialization time
         time_global_start = datetime.timestamp(datetime.now())
