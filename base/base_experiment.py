@@ -8,7 +8,7 @@ import logging
 
 from sipyco import pyon
 from datetime import datetime
-from numpy import array, zeros
+from numpy import array, zeros, int32
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
@@ -78,8 +78,9 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         self.setattr_device('phaser0')
 
-        # set looping iterator for the _update_results method
+        # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
+        setattr(self, '_counts_iter', 0)
 
     def build_experiment(self):
         """
@@ -154,14 +155,25 @@ class LAXExperiment(LAXEnvironment, ABC):
         initialize_func = kernel_from_string(["self"], _initialize_code)
         setattr(self, '_initialize_experiment', initialize_func)
 
-
         # todo: somehow call prepare method for everything not devices
         # call prepare methods of all child objects
         self.call_child_method('prepare')
 
-        # create dataset for results
+        # create data structures for results
         self.set_dataset('results', zeros(self.results_shape))
         self.setattr_dataset('results')
+
+        # create data structures for dynamic updates
+        self._dynamic_reduction_factor = self.get_dataset('management.dynamic_plot_reduction_factor',
+                                                          default=10,archive=False)
+        self.kernel_invariants.add("_dynamic_reduction_factor")
+        # downsample counts for dynamic plotting
+        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
+        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32),
+                         broadcast=True, persist=False, archive=False)
+
+        # preprocess values for completion monitoring
+        self._completion_iter_to_pct = 100. / len(self.results)
 
     def prepare_experiment(self):
         """
@@ -185,14 +197,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
 
         # start counting initialization time
-        time_init_start = datetime.timestamp(datetime.now())
+        time_global_start = datetime.timestamp(datetime.now())
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
         self._initialize_experiment(self)
 
         # record initialization time
         time_init_stop = datetime.timestamp(datetime.now())
-        print('\tInitialize Time: {:.2f}'.format(time_init_stop - time_init_start))
+        print('\tInitialize Time: {:.2f}'.format(time_init_stop - time_global_start))
 
         # call user-defined initialize function
         # todo: see if we can move this into _initialize_experiment for speed
@@ -209,10 +221,14 @@ class LAXExperiment(LAXEnvironment, ABC):
             # run cleanup, bypassing any analysis methods
             self._run_cleanup()
             print('\tExperiment successfully terminated.')
-            raise TerminationRequested
+            # raise TerminationRequested
 
         # set devices back to their default state
         self._run_cleanup()
+
+        # record total runtime
+        time_run_stop = datetime.timestamp(datetime.now())
+        print('\tTotal Run Time: {:.2f}'.format(time_run_stop - time_global_start))
 
     @kernel(flags={"fast-math"})
     def _initialize_experiment(self):
@@ -394,8 +410,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         For efficiency, data is added by mutating indices of a preallocated dataset.
         Contains an internal iterator to keep track of the current index.
         """
+        # store results in main dataset
         self.mutate_dataset('results', self._result_iter, array(args))
-        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
+
+        # do intermediate processing
+        if (self._result_iter % self._dynamic_reduction_factor) == 0:
+            # plot counts in real-time to monitor ion death
+            self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
+            self._counts_iter += 1
+
+            # monitor completion status
+            self.set_dataset('management.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+                             broadcast=True, persist=True, archive=False)
+
+        # increment result iterator
         self._result_iter += 1
 
     @property
