@@ -204,7 +204,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # record initialization time
         time_init_stop = datetime.timestamp(datetime.now())
-        print('\tInitialize Time: {:.2f}'.format(time_init_stop - time_global_start))
+        print('\tInitialize Time:\t{:.2f}'.format(time_init_stop - time_global_start))
 
         # call user-defined initialize function
         # todo: see if we can move this into _initialize_experiment for speed
@@ -228,7 +228,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # record total runtime
         time_run_stop = datetime.timestamp(datetime.now())
-        print('\tTotal Run Time: {:.2f}'.format(time_run_stop - time_global_start))
+        print('\tRun Time:\t\t{:.2f}'.format(time_run_stop - time_global_start))
 
     @kernel(flags={"fast-math"})
     def _initialize_experiment(self):
