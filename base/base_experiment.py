@@ -218,16 +218,16 @@ class LAXExperiment(LAXEnvironment, ABC):
             # run the main part of the experiment
             self.run_main()
         except TerminationRequested:
-            # run cleanup, bypassing any analysis methods
-            self._run_cleanup()
             print('\tExperiment successfully terminated.')
-            # raise TerminationRequested
+        except Exception as e:
+            print('\tError during experiment: {}'.format(repr(e)))
 
         # set devices back to their default state
         self._run_cleanup()
 
         # record total runtime
         time_run_stop = datetime.timestamp(datetime.now())
+        # todo: store runtime as dataset
         print('\tRun Time:\t\t{:.2f}'.format(time_run_stop - time_global_start))
 
     @kernel(flags={"fast-math"})
@@ -259,7 +259,8 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # reset main board to rescue parameters
             with sequential:
-                self.urukul2_cpld.set_profile(0)
+                # set to readout values
+                self.urukul2_cpld.set_profile(1)
                 self.urukul2_cpld.cfg_switches(0b1110)
 
         delay_mu(100)

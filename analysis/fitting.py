@@ -12,7 +12,7 @@ __all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDamp
 # necessary imports
 import numpy as np
 from scipy.special import wofz
-from scipy.optimize import curve_fit, least_squares
+from scipy.optimize import curve_fit, least_squares, lsq_linear
 
 
 '''
@@ -309,7 +309,7 @@ Fitting: Other
 '''
 def fitLine(data, bounds=(-np.inf, np.inf)):
     """
-    Fit linear trend to data.
+    Fit linear trend to data using nonlinear least-squares.
 
     Arguments:
         ***todo
@@ -335,4 +335,27 @@ def fitLine(data, bounds=(-np.inf, np.inf)):
     # do a linear least squares fit to the data
     res = least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]), bounds=bounds)
     res_intercept, res_slope = res.x
+    # todo: make it follow param_fit, param_err return style
     return res_intercept, res_slope
+
+def fitLineLinear(data, bounds=(-np.inf, np.inf)):
+    """
+    Fit linear trend to data using linear least-squares.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # create design matrix
+    matrixA = np.array([np.ones(len(data_y)), data_x]).transpose()
+
+    # do a linear least squares fit
+    res = lsq_linear(matrixA, data_y)
+    param_fit = res.x
+    return param_fit
