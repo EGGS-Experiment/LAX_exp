@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, Readout, DopplerRecooling, RescueIon
 
 
 class Tickle(LAXExperiment, Experiment):
@@ -18,6 +18,9 @@ class Tickle(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                    NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+
+        # readout configuration
+        self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Dipole'), group=self.name)
 
         # tickle configuration
         self.setattr_argument("tickle_source",                  EnumerationValue(['Parametric', 'Dipole'], default='Dipole'), group=self.name)
@@ -52,11 +55,16 @@ class Tickle(LAXExperiment, Experiment):
         self.setattr_device('dds_dipole')
 
         # subsequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.readout_subsequence =                                  Readout(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        self.initialize_subsequence =               InitializeQubit(self)
+        self.readout_counts_subsequence =           Readout(self)
+        self.readout_timestamped_subsequence =      DopplerRecooling(self)
+        self.rescue_subsequence =                   RescueIon(self)
 
     def prepare_experiment(self):
+        # select desired readout method
+        if self.readout_type == 'Counts':           self.readout_subsequence = self.readout_counts_subsequence
+        elif self.readout_type == 'Timestamped':    self.readout_subsequence = self.readout_timestamped_subsequence
+
         # select desired tickle subsequence based on input arguments
         if self.tickle_source == 'Parametric':      self.dds_tickle = self.dds_parametric
         elif self.tickle_source == 'Dipole':        self.dds_tickle = self.dds_dipole
@@ -92,7 +100,6 @@ class Tickle(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -120,8 +127,8 @@ class Tickle(LAXExperiment, Experiment):
                 delay_mu(time_tickle_mu)
                 self.dds_tickle.off()
 
-                # sideband readout
-                self.readout_subsequence.run_dma()
+                # fluorescence readout
+                self.readout_subsequence.run()
 
                 # update dataset
                 with parallel:
