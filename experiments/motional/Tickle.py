@@ -17,16 +17,16 @@ class Tickle(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
 
         # readout configuration
-        self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Dipole'), group=self.name)
+        self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)
 
         # tickle configuration
         self.setattr_argument("tickle_source",                  EnumerationValue(['Parametric', 'Dipole'], default='Dipole'), group=self.name)
         self.setattr_argument("freq_tickle_khz_list",           Scannable(
                                                                         default=[
-                                                                            CenterScan(1281, 10, 0.5, randomize=True),
+                                                                            CenterScan(1252.6, 20, 0.1, randomize=True),
                                                                             ExplicitScan([1500]),
                                                                         ],
                                                                         global_min=10, global_max=400000, global_step=100,
@@ -42,13 +42,13 @@ class Tickle(LAXExperiment, Experiment):
                                                                     ), group=self.name)
         self.setattr_argument("time_tickle_us_list",            Scannable(
                                                                         default=[
-                                                                            ExplicitScan([500.]),
+                                                                            ExplicitScan([1000.]),
                                                                             RangeScan(1000, 2000, 11, randomize=True),
                                                                         ],
                                                                         global_min=100, global_max=1000000, global_step=100,
                                                                         unit="us", scale=1, ndecimals=0
                                                                     ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("att_tickle_db",                  NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')
@@ -82,6 +82,13 @@ class Tickle(LAXExperiment, Experiment):
                                                                          self.time_tickle_mu_list),
                                                              -1).reshape(-1, 3)
         np.random.shuffle(self.config_tickle_list)
+
+        # tmp remove
+        if self.readout_type == 'Timestamped':
+            self.readout_subsequence = self.readout_timestamped_subsequence
+            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list), self.readout_subsequence.num_counts), dtype=np.int64))
+            self.setattr_dataset('timestamped_counts')
+        # tmp remove
 
     @property
     def results_shape(self):
@@ -150,6 +157,38 @@ class Tickle(LAXExperiment, Experiment):
             with parallel:
                 self.check_termination()
                 self.core.break_realtime()
+
+    @rpc(flags={"async"})
+    def update_results(self, *args):
+        # tmp remove
+        res_tmp = np.array([])
+        counts_tmp = 0
+
+        if self.readout_type == "Timestamped":
+            counts_tmp = args[1][-1]
+            self.mutate_dataset('timestamped_counts', self._counts_iter, args[1])
+            res_tmp = np.array([args[0], counts_tmp, args[2], args[3]])
+        else:
+            res_tmp = np.array([args])
+            counts_tmp = args[1]
+        # tmp remove
+
+
+        # store results in main dataset
+        self.mutate_dataset('results', self._result_iter, res_tmp)
+
+        # do intermediate processing
+        if (self._result_iter % self._dynamic_reduction_factor) == 0:
+            # plot counts in real-time to monitor ion death
+            self.mutate_dataset('temp.counts.trace', self._counts_iter, counts_tmp)
+            self._counts_iter += 1
+
+            # monitor completion status
+            self.set_dataset('management.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+                             broadcast=True, persist=True, archive=False)
+
+        # increment result iterator
+        self._result_iter += 1
 
     def analyze(self):
         pass

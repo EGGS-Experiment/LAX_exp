@@ -30,7 +30,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                         NumberValue(default=2, ndecimals=0, step=1, min=1, max=100))
+        self.setattr_argument("iterations",                         NumberValue(default=3, ndecimals=0, step=1, min=1, max=100))
 
         # modulation - general
         self.setattr_argument("repetitions_per_voltage",            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
@@ -39,16 +39,16 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("adaptive",                           BooleanValue(default=False), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1315, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
-        self.setattr_argument("att_mod0_db",                        NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
+        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1252.6, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
+        self.setattr_argument("att_mod0_db",                        NumberValue(default=21, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
         self.setattr_argument("dc_channel_mod0",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_0')
-        self.setattr_argument("dc_scan_range_volts_mod0",           PYONValue([60, 70]), group='modulation_0')
+        self.setattr_argument("dc_scan_range_volts_mod0",           PYONValue([55, 75]), group='modulation_0')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1100, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1513.8, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
         self.setattr_argument("att_mod1_db",                        NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
         self.setattr_argument("dc_channel_mod1",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_1')
-        self.setattr_argument("dc_scan_range_volts_mod1",           PYONValue([60, 70]), group='modulation_1')
+        self.setattr_argument("dc_scan_range_volts_mod1",           PYONValue([45, 60]), group='modulation_1')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
