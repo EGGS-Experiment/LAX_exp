@@ -72,7 +72,7 @@ class Tickle(LAXExperiment, Experiment):
         # convert tickle parameters to machine units
         self.att_tickle_mu =                        att_to_mu(self.att_tickle_db * dB)
         self.freq_tickle_ftw_list =                 np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_tickle_khz_list])
-        self.ampl_tickle_asf_list =                 np.array([pct_to_asf(ampl_pct / 100.) for ampl_pct in self.ampl_tickle_pct_list])
+        self.ampl_tickle_asf_list =                 np.array([pct_to_asf(ampl_pct) for ampl_pct in self.ampl_tickle_pct_list])
         self.time_tickle_mu_list =                  np.array([self.core.seconds_to_mu(time_us * us) for time_us in self.time_tickle_us_list])
 
         # create an array of values for the experiment to sweep
