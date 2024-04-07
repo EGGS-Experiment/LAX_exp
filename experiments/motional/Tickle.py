@@ -158,6 +158,8 @@ class Tickle(LAXExperiment, Experiment):
                 self.check_termination()
                 self.core.break_realtime()
 
+        # todo: cleanup
+
     @rpc(flags={"async"})
     def update_results(self, *args):
         # tmp remove

@@ -37,10 +37,10 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=23, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",                         NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default= [
-                                                                            ExplicitScan([1261.2]),
+                                                                            ExplicitScan([1252.4]),
                                                                             CenterScan(1090.8, 10, 0.25, randomize=True),
                                                                         ],
                                                                         global_min=1, global_max=200000, global_step=1,
@@ -49,10 +49,10 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # shimming voltages
         self.dc_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'), group='voltage')
+        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='H Shim'), group='voltage')
         self.setattr_argument("dc_voltages_v_list",     Scannable(
                                                                         default=[
-                                                                            CenterScan(68.2, 5., 0.2, randomize=True),
+                                                                            CenterScan(52.8, 4., 0.1, randomize=True),
                                                                             ExplicitScan([38.5]),
                                                                         ],
                                                                         global_min=0, global_max=400, global_step=1,
@@ -79,7 +79,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # get voltage parameters
         self.dc_channel_num =                               self.dc_channeldict[self.dc_channel]['num']
         self.dc_voltages_v_list =                           np.array(list(self.dc_voltages_v_list))
-        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(180 * ms)
+        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(488 * ms)
 
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =                             self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
