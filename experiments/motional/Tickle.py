@@ -166,7 +166,7 @@ class Tickle(LAXExperiment, Experiment):
 
         if self.readout_type == "Timestamped":
             counts_tmp = args[1][-1]
-            self.mutate_dataset('timestamped_counts', self._counts_iter, args[1])
+            self.mutate_dataset('timestamped_counts', self._result_iter, args[1])
             res_tmp = np.array([args[0], counts_tmp, args[2], args[3]])
         else:
             res_tmp = np.array([args])
