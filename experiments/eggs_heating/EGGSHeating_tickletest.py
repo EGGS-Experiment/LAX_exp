@@ -83,6 +83,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_dd_activecancel",                     BooleanValue(default=False), group='EGGS_Heating.decoupling.activecancel')
         self.setattr_argument("ampl_activecancel_pct",                      NumberValue(default=35, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling.activecancel')
         self.setattr_argument("att_activecancel_db",                        NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling.activecancel')
+        self.setattr_argument("freq_activecancel_starkshift_khz",           NumberValue(default=2, ndecimals=3, step=1, min=-1000, max=1000), group='EGGS_Heating.decoupling.activecancel')
         self.setattr_argument("phase_activecancel_turns_list",              Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),
@@ -314,6 +315,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
         # prepare parameters for tickle pulse
         self.att_activecancel_mu =          att_to_mu(self.att_activecancel_db * dB)
         self.ampl_activecancel_asf =        pct_to_asf(self.ampl_activecancel_pct)
+        # todo: activecancel ss convert
 
         # configure activecancel on/off
         if self.enable_dd_activecancel:     self.activecancel_run = self.activecancel_run_actual
@@ -760,7 +762,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
     @kernel(flags={"fast-math"})
     def activecancel_configure(self, freq_hz: TFloat, phase_turns: TFloat):
         # calculate activecancel phase value
-        freq_ftw =  self.dds_dipole.frequency_to_ftw(freq_hz)
+        freq_ftw =  self.dds_dipole.frequency_to_ftw(freq_hz - self.freq_activecancel_starkshift_khz * kHz)
         phase_pow = self.dds_dipole.turns_to_pow(phase_turns)
 
         # set waveforms for profiles
