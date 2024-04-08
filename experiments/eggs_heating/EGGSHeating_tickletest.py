@@ -762,7 +762,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
     @kernel(flags={"fast-math"})
     def activecancel_configure(self, freq_hz: TFloat, phase_turns: TFloat):
         # calculate activecancel phase value
-        freq_ftw =  self.dds_dipole.frequency_to_ftw(freq_hz - self.freq_activecancel_starkshift_khz * kHz)
+        freq_ftw =  self.dds_dipole.frequency_to_ftw(freq_hz + self.freq_activecancel_starkshift_khz * kHz)
         phase_pow = self.dds_dipole.turns_to_pow(phase_turns)
 
         # set waveforms for profiles
