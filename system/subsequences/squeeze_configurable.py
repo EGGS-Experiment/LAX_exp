@@ -41,10 +41,8 @@ class SqueezeConfigurable(LAXSubsequence):
         # configure squeezing & antisqueezing on/off
         self.squeeze_func =                                 self.dds_parametric.on
         self.antisqueeze_func =                             self.dds_parametric.on
-        if not self.enable_squeezing:
-            self.squeeze_func =                             self.dds_parametric.off
-        if  not self.enable_antisqueezing:
-            self.antisqueeze_func =                         self.dds_parametric.off
+        if not self.enable_squeezing:                       self.squeeze_func = self.dds_parametric.off
+        if not self.enable_antisqueezing:                   self.antisqueeze_func = self.dds_parametric.off
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
@@ -69,7 +67,7 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu)
         self.dds_parametric.set_profile(0)
 
-        # open RF switches early since they have a ~100 ns rise time
+        # open urukul RF switches early since they have a ~100 ns rise time
         at_mu(time_start_mu
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               - TIME_URUKUL_RFSWITCH_DELAY_MU)
