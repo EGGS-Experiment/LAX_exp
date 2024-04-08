@@ -774,3 +774,27 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
         self.dds_dipole.set_mu(freq_ftw, asf=0x0, profile=1,
                                pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
 
+
+    # ANALYSIS
+    def analyze(self):
+        pass
+        # print("\tconfig:")
+        # print("\t\t{}\n".format(self.config_eggs_heating_list))
+
+        # print("\tdd decoupling psk list:")
+        # print("\t\t{}\n".format(self.config_dynamical_decoupling_psk_list))
+        #
+        # print("\tch1 global latency: {:.3f}\n".format(self.phase_ch1_turns))
+        #
+        # print("\tosc0:")
+        # print("\t\tphase ch0 osc0: {:.3f}\n".format(self.phase_ch0_osc0))
+        # print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
+        #
+        # print("\tosc1:")
+        # print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))
+        # print("\t\tphase ch1 osc1: {:.3f}\n".format(self.phase_ch1_osc1))
+        #
+        # print("\tosc2:")
+        # print("\t\tphase ch0 osc2: {:.3f}".format(self.phase_ch0_osc2))
+        # print("\t\tphase ch1 osc2: {:.3f}\n".format(self.phase_ch1_osc2))
+
