@@ -160,7 +160,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
                                                                                                  self.freq_eggs_secular_hz_list,
                                                                                                  self.phase_eggs_heating_rsb_turns_list,
                                                                                                  self.phase_activecancel_turns_list),
-                                                                                     -1).reshape(-1, 4)
+                                                                                     -1).reshape(-1, 5)
         self.config_eggs_heating_list[:, [3, 4, 5]] =                       np.array([self.ampl_eggs_heating_rsb_pct,
                                                                                       self.ampl_eggs_heating_bsb_pct,
                                                                                       self.ampl_eggs_dynamical_decoupling_pct]) / 100.

@@ -99,7 +99,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         '''
         COOLING
         '''
-        self.time_dc_synchronize_delay_mu =     self.core.seconds_to_mu(180 * ms)
+        self.time_dc_synchronize_delay_mu =     self.core.seconds_to_mu(488 * ms)
 
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =                 self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
