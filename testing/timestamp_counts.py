@@ -21,11 +21,6 @@ class TimestampCounts(EnvExperiment):
         'dc_micromotion_voltage_v'
     }
 
-    global_parameters = [
-        "pmt_input_channel",
-        "pmt_gating_edge"
-    ]
-
 
     def build(self):
         self.setattr_device("core")
@@ -55,8 +50,8 @@ class TimestampCounts(EnvExperiment):
 
     def prepare(self):
         # PMT devices
-        self.pmt_counter =                                          self.get_device("ttl{:d}".format(self.pmt_input_channel))
-        self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format(self.pmt_gating_edge))
+        self.pmt_counter =                                          self.get_device("ttl{:d}".format(0))
+        self.pmt_gating_edge =                                      getattr(self.pmt_counter, 'gate_{:s}_mu'.format('rising'))
         self.time_pmt_gating_mu =                                   self.core.seconds_to_mu(100 * us)
 
         # get voltage parameters

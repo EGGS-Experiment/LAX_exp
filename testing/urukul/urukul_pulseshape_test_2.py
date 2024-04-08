@@ -6,8 +6,8 @@ import numpy as np
 
 # This code demonstrates use of the urukul RAM. It produces a 125MHz pulse that ramps up in amplitude, holds a fixed amplitude and then ramps back down
 
-class AD9910RAM(EnvExperiment):
-    '''Urukul RAM Amplitude Ramp'''
+class AD9910RAM2(EnvExperiment):
+    '''Urukul RAM Amplitude Ramp 2'''
 
     def build(self):  # this code runs on the host computer
         self.setattr_device("core")  # sets core device drivers as attributes
