@@ -312,7 +312,7 @@ class EGGSHeatingTickle(SidebandCooling.SidebandCooling):
         Prepare active cancellation and precompute values.
         """
         # prepare parameters for tickle pulse
-        self.att_activecancel_mu =          att_to_mu(self.att_activecancel * dB)
+        self.att_activecancel_mu =          att_to_mu(self.att_activecancel_db * dB)
         self.ampl_activecancel_asf =        pct_to_asf(self.ampl_activecancel_pct)
 
         # configure activecancel on/off
