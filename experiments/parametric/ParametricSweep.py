@@ -4,7 +4,6 @@ from EGGS_labrad.config.dc_config import dc_config
 
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.exceptions import CoreException
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *

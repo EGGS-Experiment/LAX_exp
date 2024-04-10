@@ -6,7 +6,7 @@ Contains modules used for fitting datasets.
 
 __all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
            'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
-           'fitLine']
+           'fitLine', 'fitLineLinear']
 
 
 # necessary imports

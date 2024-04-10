@@ -1,8 +1,6 @@
 import numpy as np
-from time import sleep
 
 from artiq.experiment import *
-from artiq.coredevice.exceptions import CoreException
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
@@ -19,8 +17,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
     Experiment: Micromotion Compensation
 
-    Modulate the trap RF close to a secular frequency while sweeping shim voltgaes
-    to characterize micromotion, then attempt to algorithmically compensate for it.
+    Characterize the micromotion along a mode by applying a parametric excitation on the
+    trap RF while scanning shim voltages, then attempt to algorithmically compensate for it.
     """
     name = 'Micromotion Compensation'
 
@@ -30,29 +28,29 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                         NumberValue(default=3, ndecimals=0, step=1, min=1, max=100))
+        self.setattr_argument("iterations",                         NumberValue(default=5, ndecimals=0, step=1, min=1, max=100))
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
-        self.setattr_argument("num_steps",                          NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='modulation_general')
-        # self.setattr_argument("max_att_mod_db",                     NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
-        self.setattr_argument("adaptive",                           BooleanValue(default=False), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=1, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("num_steps",                  NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='modulation_general')
+        # self.setattr_argument("max_att_mod_db",                   NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
+        self.setattr_argument("adaptive",                   BooleanValue(default=True), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",                      NumberValue(default=1252.6, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
-        self.setattr_argument("att_mod0_db",                        NumberValue(default=21, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
-        self.setattr_argument("dc_channel_mod0",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_0')
-        self.setattr_argument("dc_scan_range_volts_mod0",           PYONValue([55, 75]), group='modulation_0')
+        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1401.02, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
+        self.setattr_argument("att_mod0_db",                NumberValue(default=13, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
+        self.setattr_argument("dc_channel_mod0",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_0')
+        self.setattr_argument("dc_scan_range_volts_mod0",   PYONValue([55, 70]), group='modulation_0')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",                      NumberValue(default=1513.8, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
-        self.setattr_argument("att_mod1_db",                        NumberValue(default=18, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
-        self.setattr_argument("dc_channel_mod1",                    EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_1')
-        self.setattr_argument("dc_scan_range_volts_mod1",           PYONValue([45, 60]), group='modulation_1')
+        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1637.8, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=8, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
+        self.setattr_argument("dc_channel_mod1",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_1')
+        self.setattr_argument("dc_scan_range_volts_mod1",   PYONValue([45, 60]), group='modulation_1')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -61,8 +59,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_device('dds_parametric')
 
         # get relevant subsequences
-        self.parametric_subsequence =                               ParametricExcite(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        self.parametric_subsequence =                           ParametricExcite(self)
+        self.rescue_subsequence =                               RescueIon(self)
 
     def prepare_experiment(self):
         """
@@ -72,7 +70,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         VOLTAGES
         '''
         # sanitize voltage input
-        for voltage_arr in [self.dc_scan_range_volts_mod1, self.dc_scan_range_volts_mod2]:
+        for voltage_arr in [self.dc_scan_range_volts_mod0, self.dc_scan_range_volts_mod1]:
             # check voltage scan ranges have correct format
             if (type(voltage_arr) is not list) or (len(voltage_arr) != 2):
                 raise Exception("InputError: voltage scan ranges have incorrect type.")
@@ -85,16 +83,15 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.freq_mod0_ftw =                    self.dds_parametric.frequency_to_ftw(self.freq_mod0_khz * kHz)
         self.att_mod0_mu =                      att_to_mu(self.att_mod0_db * dB)
         self.dc_channel_mod0_num =              self.dc_config_channeldict[self.dc_channel_mod0]['num']
-        self.dc_scan_range_volts_mod0 =         np.sort(np.array(self.dc_scan_range_volts_mod0))
 
         # convert modulation (mode #1) parameters to machine units
         self.freq_mod1_ftw =                    self.dds_parametric.frequency_to_ftw(self.freq_mod1_khz * kHz)
         self.att_mod1_mu =                      att_to_mu(self.att_mod1_db * dB)
         self.dc_channel_mod1_num =              self.dc_config_channeldict[self.dc_channel_mod1]['num']
-        self.dc_scan_range_volts_mod1 =         np.sort(np.array(self.dc_scan_range_volts_mod1))
 
-        # tmp remove - necessary for scan range generation
-        self.dc_scan_range_volts_list =         np.array([self.dc_scan_range_volts_mod0, self.dc_scan_range_volts_mod1])
+        # store scan range bounds
+        self.dc_scan_range_volts_list =         np.array([np.sort(self.dc_scan_range_volts_mod0),
+                                                          np.sort(self.dc_scan_range_volts_mod1)])
 
         '''
         COOLING
@@ -119,6 +116,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # note: use median of voltage scan range for starting voltages
         self.dc_voltage_optima_running =        np.array([np.mean(self.dc_scan_range_volts_mod0),
                                                           np.mean(self.dc_scan_range_volts_mod1)])
+        
+        # create data strutures to hold intermediate results
+        self._res_holder_tmp = np.zeros((100, 3), dtype=float)
+        self._res_holder_iter = 0
 
         '''
         LABRAD
@@ -132,7 +133,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     @property
     def results_shape(self):
         return (self.iterations * self.repetitions_per_voltage * self.num_steps * 2,
-                6)
+                5)
 
 
     # MAIN SEQUENCE
@@ -157,31 +158,35 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             self.core.break_realtime()
 
 
-    # @kernel(flags={"fast-math"})
     def run_main(self):
-        """
-        todo: document
-        """
         # run given number of iterations
         for _iter_num in range(self.iterations):
-            # print iteration message
-            print("\tBEGIN: ITERATION #{:d}".format(_iter_num))
 
-            # todo: calculate and set optima
-            self.dc_voltage_optima_running = self._calculate_optima(_iter_num)
+            '''
+            PREPARE OPTIMIZATION LOOP
+            '''
+            # support graceful termination
+            self.check_termination()
+
+            # print iteration message
+            print("\n\tBEGIN: ITERATION #{:d}".format(_iter_num))
+
+            # calculate voltage and set optima
+            self.dc_voltage_optima_running = self._predict_optima(_iter_num)
             self.voltage_set(self.dc_channel_mod0_num, self.dc_voltage_optima_running[0])
             self.voltage_set(self.dc_channel_mod1_num, self.dc_voltage_optima_running[1])
 
             '''
             OPTIMIZE MODE 0
             '''
-            # generate voltage vector array (mode 0) and optimize
-            voltage_scan_mod0_v_arr = self._generate_voltage_scan_array(0, _iter_num)
-            counts_demodulated_mod0 = self._sweep_voltage_mode(self.freq_mod0_ftw,
-                                                               self.att_mod0_mu,
-                                                               self.dc_channel_mod0_num,
-                                                               voltage_scan_mod0_v_arr)
-            opt_voltage_mod0, opt_err_mod0 = self._extract_optimum(counts_demodulated_mod0)
+            # generate voltage vector array (mode 0) and prepare
+            voltage_scan_mod0_v_arr = self._prepare_voltage_scan(0, _iter_num)
+            # scan voltage on given mode
+            self._scan_voltage_mode(self.freq_mod0_ftw,
+                                     self.att_mod0_mu,
+                                     self.dc_channel_mod0_num,
+                                     voltage_scan_mod0_v_arr)
+            opt_voltage_mod0, opt_err_mod0 = self._extract_optimum(self._res_holder_tmp)
 
             # store result
             print("\t\tMode 0 Opt: {:.2f} +/- {:.3f}".format(opt_voltage_mod0, opt_err_mod0))
@@ -190,7 +195,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                                                                             opt_err_mod0]))
 
             # ensure optimum voltage is in range
-            if (opt_voltage_mod0 < self.dc_scan_range_volts_mod0[0]) or (opt_voltage_mod0 > self.dc_channel_mod0_num[1]):
+            if (opt_voltage_mod0 < self.dc_scan_range_volts_list[0, 0]) or (opt_voltage_mod0 > self.dc_scan_range_volts_list[0, 1]):
                 print("Error: Mode 0 voltage out of range.")
                 return
             # ensure optimum voltage has been extracted reasonably
@@ -208,13 +213,14 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             '''
             OPTIMIZE MODE 1
             '''
-            # generate voltage vector array (mode 1) and optimize
-            voltage_scan_mod1_v_arr = self._generate_voltage_scan_array(1, _iter_num)
-            counts_demodulated_mod1 = self._sweep_voltage_mode(self.freq_mod1_ftw,
-                                                               self.att_mod1_mu,
-                                                               self.dc_channel_mod1_num,
-                                                               voltage_scan_mod1_v_arr)
-            opt_voltage_mod1, opt_err_mod1 = self._extract_optimum(counts_demodulated_mod1)
+            # generate voltage vector array (mode 0) and prepare
+            voltage_scan_mod1_v_arr = self._prepare_voltage_scan(1, _iter_num)
+            # scan voltage on given mode
+            self._scan_voltage_mode(self.freq_mod1_ftw,
+                                     self.att_mod1_mu,
+                                     self.dc_channel_mod1_num,
+                                     voltage_scan_mod1_v_arr)
+            opt_voltage_mod1, opt_err_mod1 = self._extract_optimum(self._res_holder_tmp)
 
             # store result
             print("\t\tMode 1 Opt: {:.2f} +/- {:.3f}".format(opt_voltage_mod1, opt_err_mod1))
@@ -223,45 +229,43 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                                                                             opt_err_mod1]))
 
             # ensure optimum voltage is in range
-            if (opt_voltage_mod1 < self.dc_scan_range_volts_mod1[0]) or (opt_voltage_mod1 > self.dc_channel_mod1_num[1]):
-                print("Error: Mode 1 voltage out of range.")
+            if (opt_voltage_mod1 < self.dc_scan_range_volts_mod1[0]) or (opt_voltage_mod1 > self.dc_scan_range_volts_mod1[1]):
+                print("\tError: Mode 1 voltage out of range.")
                 return
             # ensure optimum voltage has been extracted reasonably
             elif (abs(opt_err_mod1) > 2.0):
-                print("Error: unable to extract Mode 1 optimum with reasonable certainty.")
+                print("\tError: unable to extract Mode 1 optimum with reasonable certainty.")
                 return
-
-            # todo: adjust attenuation based on correlated amplitude
 
             # set optimum voltage
             self.voltage_set(self.dc_channel_mod1_num, opt_voltage_mod1)
             self.dc_voltage_optima_running[1] = opt_voltage_mod1
 
-            # support graceful termination
-            self.check_termination()
 
-
-    '''HELPER FUNCTIONS'''
+    '''
+    HELPER FUNCTIONS
+    '''
     @rpc
-    def _calculate_optima(self, iter_num: TInt32) -> TArray(TFloat, 1):
+    def _predict_optima(self, iter_num: TInt32) -> TArray(TFloat, 1):
         """
         # todo: document
         Arguments:
-            mode_num    (int32)         : the modulation mode number tmp remove idk
+            mode_num    (int32)         : the modulation mode.
         Returns:
-            # todo: document
+                        TArray(Tfloat)  : the voltage vector of the predicted optimum.
         """
         opt0_volts, opt1_volts = (0., 0.)
 
         if iter_num >= 2:
             # fit a line to the optimum for each mode
-            fit_mode0 = fitLineLinear(self.dc_voltage_optima0[:iter_num, :2])
-            fit_mode1 = fitLineLinear(self.dc_voltage_optima1[:iter_num, :2])
+            fit_mode0 = fitLineLinear(self.dc_voltage_optima_0[:iter_num, :2])
+            fit_mode1 = fitLineLinear(self.dc_voltage_optima_1[:iter_num, :2])
 
             # calculate optima as intersection of the fit lines
             opt0_volts = (fit_mode0[1] * fit_mode1[0] + fit_mode0[0]) / (1. - fit_mode0[1] * fit_mode1[1])
             opt1_volts = (fit_mode1[1] * fit_mode0[0] + fit_mode1[0]) / (1. - fit_mode0[1] * fit_mode1[1])
         else:
+            # guess the optimum as the mean of the scan range
             opt0_volts = np.mean(self.dc_scan_range_volts_list[0])
             opt1_volts = np.mean(self.dc_scan_range_volts_list[1])
 
@@ -270,60 +274,60 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         opt0_volts = min(self.dc_scan_range_volts_list[0, 1], opt0_volts)
         opt1_volts = max(self.dc_scan_range_volts_list[1, 0], opt1_volts)
         opt1_volts = min(self.dc_scan_range_volts_list[1, 1], opt1_volts)
-
         return np.array([opt0_volts, opt1_volts])
 
     @rpc
-    def _generate_voltage_scan_array(self, mode_num: TInt32, iter_num: TInt32) -> TArray(TFloat, 1):
+    def _prepare_voltage_scan(self, mode_num: TInt32, iter_num: TInt32) -> TArray(TFloat, 1):
         """
         # todo: document
         Arguments:
-            mode_num    (int32)         : the modulation mode number tmp remove idk
+            mode_num    (int32)         : the modulation mode.
+            iter_num    (int32)         : the optimization iteration.
         Returns:
             # todo: document - list of abs angle
         """
-        voltage_min_v, voltage_max_v, voltage_step_v = (0., 0., 0.)
-
-        # use error to set the step size
+        voltage_min_v, voltage_max_v = (0., 0.)
         if iter_num >= 2:
-            # use error to inform step size
-            if mode_num == 0:
-                voltage_step_v = self.dc_voltage_optima0[iter_num, 2] * 2.5
-            elif mode_num == 1:
-                voltage_step_v = self.dc_voltage_optima1[iter_num, 2] * 2.5
+            # use error to set the scan range
+            voltage_step_v = 0.
+            if mode_num == 0:   voltage_step_v = self.dc_voltage_optima_0[iter_num, 2] * 10
+            else:               voltage_step_v = self.dc_voltage_optima_1[iter_num, 2] * 10
 
+            # set voltage scan bounds based on num_steps
             voltage_min_v = self.dc_voltage_optima_running[mode_num] - voltage_step_v * self.num_steps / 2.
             voltage_max_v = self.dc_voltage_optima_running[mode_num] + voltage_step_v * self.num_steps / 2.
+        else:
+            # set the voltage scan bounds based on voltage range
+            voltage_min_v, voltage_max_v = self.dc_scan_range_volts_list[mode_num]
+
+        # todo: adjust attenuation based on correlated amplitude
 
         # ensure voltages are within bounds
         voltage_min_v = max(self.dc_scan_range_volts_list[mode_num, 0], voltage_min_v)
         voltage_max_v = min(self.dc_scan_range_volts_list[mode_num, 1], voltage_max_v)
-        voltage_step_v = max(0.1, voltage_step_v)
+        print('\n\t\tVoltage range: [{:.2f}, {:.2f}]'.format(voltage_min_v, voltage_max_v))
 
-        # create voltage array
-        voltage_sweep_arr = np.arange(voltage_min_v, voltage_max_v, voltage_step_v)
-        np.random.shuffle(voltage_sweep_arr)
-        return voltage_sweep_arr
+        # create voltage scan array
+        voltage_scan_arr = np.linspace(voltage_min_v, voltage_max_v, self.num_steps)
+        np.random.shuffle(voltage_scan_arr)
+
+        # reset intermediate result holders and related data structures
+        self._res_holder_iter = 0
+        self._res_holder_tmp = np.zeros((len(voltage_scan_arr) * self.repetitions_per_voltage, 3), dtype=float)
+
+        return voltage_scan_arr
 
     @kernel(flags={"fast-math"})
-    def _sweep_voltage_mode(self, mode_freq_ftw: TInt32, mode_att_mu: TInt32, mode_dc_channel_num: TInt32,
-                            voltage_scan_v_arr: TArray(TFloat, 1)) -> TArray(TFloat, 1):
+    def _scan_voltage_mode(self, mode_freq_ftw: TInt32, mode_att_mu: TInt32, mode_dc_channel_num: TInt32,
+                           voltage_scan_v_arr: TArray(TFloat, 1)):
         """
-        todo: document
-
+        Characterize micromotion along a mode.
         Arguments:
             mode_freq_ftw       (int32)             : the modulation frequency (as a 32-bit frequency tuning word).
             mode_att_my         (int32)             : the attenuation to use (in machine units).
-            mode_dc_channel_num (int32)             : the voltage channel number to use for sweeping.
+            mode_dc_channel_num (int32)             : the voltage channel number to be scanned.
             voltage_scan_v_arr  (TArray(TFloat, 1)) : the list of voltages to scan.
-        Returns:
-            # todo: document - list of abs angle
         """
-        # create result holder
-        _res_iter = 0
-        _res_holder = np.zeros((len(voltage_scan_v_arr) * self.repetitions_per_voltage, 2), dtype=float)
-        self.core.break_realtime()
-
         # prepare modulation DDS
         self.dds_parametric.set_att_mu(mode_att_mu)
         self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf,
@@ -333,7 +337,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # iterate over repetitions per voltage
         for rep_num in range(self.repetitions_per_voltage):
 
-            # sweep voltage configurations in the voltage vector
+            # scan voltage configurations in the voltage vector
             for voltage_v in voltage_scan_v_arr:
 
                 # set DC voltage
@@ -346,7 +350,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                 pmt_timestamp_list = self.parametric_subsequence.run()
 
                 # demodulate counts and store
-                _res_holder[_res_iter] = self._demodulate_counts(mode_freq_ftw, voltage_v, pmt_timestamp_list)
+                self.core.break_realtime()
+                self._demodulate_counts(mode_freq_ftw, voltage_v, pmt_timestamp_list)
                 self.core.reset()
 
             # rescue ion as needed
@@ -357,43 +362,38 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                 self.check_termination()
                 self.core.break_realtime()
 
-        return _res_holder
-
-    @rpc
-    def _demodulate_counts(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)) -> TArray(TFloat, 1):
+    @rpc(flags={"async"})
+    def _demodulate_counts(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
         """
-        Convert modulation frequency and timestamps from machine units and demodulate.
+        Demodulate the PMT timestamps with respect to the parametric modulation frequency.
         Arguments:
-            freq_ftw            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
-            voltage_v           (float)         : the current shim voltage (in volts).
-            timestamp_mu_list   (list(int64))   : the list of timestamps (in machine units) to demodulate.
-        Returns:
-            # todo: document
+            freq_ftw            (int32)             : the modulation frequency (as a 32-bit frequency tuning word).
+            voltage_v           (float)             : the current shim voltage (in volts).
+            timestamp_mu_list   (TArray(TInt64, 1)) : the list of timestamps (in machine units) to demodulate.
         """
-        # convert frequency to mhz
+        # convert arguments to more convenient units
         freq_mhz = self.dds_parametric.ftw_to_frequency(freq_mu) / MHz
-
-        # convert timestamps and digitally demodulate counts
         timestamps_s = self.core.mu_to_seconds(np.array(timestamp_mu_list))
+        
+        # digitally demodulate counts and convert correlated signal to polar coordinates
         correlated_signal = np.mean(np.exp((2.j * np.pi * freq_mhz * 1e6) * timestamps_s))
-        # convert demodulated signal to polar coordinates (i.e. abs and angle)
-        correlated_ampl = np.abs(correlated_signal)
-        correlated_phase = np.angle(correlated_signal)
-
+        correlated_ampl =   np.abs(correlated_signal)
+        correlated_phase =  np.angle(correlated_signal)
         # extract count rate in seconds
-        count_rate_hz = len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
+        count_rate_hz =     len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
 
         # store results in global parent dataset
         self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
-        # return results
-        return np.array([correlated_ampl, correlated_phase])
+        # store results relevant to optimization in an intermediate dataset
+        self._res_holder_tmp[self._res_holder_iter] = np.array([voltage_v, correlated_ampl, correlated_phase])
+        self._res_holder_iter += 1
 
-    @rpc
-    def _extract_optimum(self, res_arr: TArray(TFloat, 3)) -> TArray(TFloat, 1):
+    @rpc(flags={"async"})
+    def _extract_optimum(self, res_arr: TArray(TFloat, 2)) -> TArray(TFloat, 1):
         """
         # todo: document
         Arguments:
-            res_arr (int32): the modulation frequency (as a 32-bit frequency tuning word).
+            res_arr (int32): todo: document
         Returns:
             (float, float): the extracted voltage optimum and its error.
         """

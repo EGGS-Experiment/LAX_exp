@@ -5,6 +5,7 @@ import time
 import h5py
 import socket
 import logging
+import traceback
 
 from sipyco import pyon
 from datetime import datetime
@@ -221,6 +222,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             print('\tExperiment successfully terminated.')
         except Exception as e:
             print('\tError during experiment: {}'.format(repr(e)))
+            print(traceback.format_exc())
 
         # set devices back to their default state
         self._run_cleanup()
