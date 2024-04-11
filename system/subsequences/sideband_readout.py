@@ -51,7 +51,8 @@ class SidebandReadout(LAXSubsequence):
         # combine & shuffle readout frequencies
         self.freq_sideband_readout_ftw_list =                           np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                                         for freq_mhz in (list(self.freq_rsb_readout_mhz_list) + list(self.freq_bsb_readout_mhz_list))])
-        np.random.shuffle(self.freq_sideband_readout_ftw_list)
+        # tmp remove - leave frequencies in order
+        # np.random.shuffle(self.freq_sideband_readout_ftw_list)
 
     @kernel(flags={"fast-math"})
     def run(self):

@@ -104,7 +104,7 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # account for errors in timing
         else:
-            raise Exception('Error in SBC - Pulsed: Unknown')
+            raise Exception('Unknown error in SBC - Pulsed')
 
 
         # extra sideband cooling cycles
