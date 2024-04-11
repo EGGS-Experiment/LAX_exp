@@ -43,11 +43,6 @@ class TimestampCounts(EnvExperiment):
         self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=1000000))
 
 
-        # get global parameters
-        for param_name in self.global_parameters:
-            self.setattr_dataset(param_name, archive=True)
-
-
     def prepare(self):
         # PMT devices
         self.pmt_counter =                                          self.get_device("ttl{:d}".format(0))
