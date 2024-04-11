@@ -141,7 +141,7 @@ dmypy.json
 .idea/**
 
 # artiq stuff
-**/*.pyon
+#**/*.pyon
 
 # stuff we produce
 #**/*.txt
