@@ -6,6 +6,7 @@ import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 from math import gcd
 # todo: configuration
+from copy import deepcopy
 
 
 class EGGSHeating(SidebandCooling.SidebandCooling):
@@ -24,8 +25,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=False), group='EGGS_Heating.configuration')
-        self.setattr_argument("sidebands_adjacent",                         BooleanValue(default=False), group='EGGS_Heating.configuration')
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
 
 
         # EGGS RF
@@ -132,6 +132,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.phase_eggs_heating_rsb_turns_list =                            np.array(list(self.phase_eggs_heating_rsb_turns_list))
+
+        # implement frequency sub-repetitions by "multiplying" the eggs frequency
+        self.freq_eggs_carrier_hz_list =                                    np.repeat(self.freq_eggs_carrier_hz_list, self.sub_repetitions)
 
         # create config data structure with amplitude values
         self.config_eggs_heating_list =                                     np.zeros((len(self.freq_sideband_readout_ftw_list) *
@@ -292,7 +295,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
     @property
     def results_shape(self):
-        return (self.repetitions * self.sub_repetitions * len(self.config_eggs_heating_list),
+        return (self.repetitions * len(self.config_eggs_heating_list),
                 5)
 
 
@@ -350,54 +353,50 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
-
-                # run multiple repetitions at the same configuration
-                for subrep_num in range(self.sub_repetitions):
-
-                    '''STATE PREPARATION'''
-                    # initialize ion in S-1/2 state
-                    self.initialize_subsequence.run_dma()
-                    # sideband cool
-                    self.sidebandcool_subsequence.run_dma()
+                '''STATE PREPARATION'''
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
 
 
-                    '''EGGS HEATING'''
-                    # EGGS - START/SETUP
-                    # todo: hide it all away in a method
-                    self.phaser_eggs.reset_duc_phase()
-                    # tmp remove - integrator hold
-                    # self.ttl10.on()
-                    # tmp remove - integrator hold
-                    self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
+                '''EGGS HEATING'''
+                # EGGS - START/SETUP
+                # todo: hide it all away in a method
+                self.phaser_eggs.reset_duc_phase()
+                # tmp remove - integrator hold
+                # self.ttl10.on()
+                # tmp remove - integrator hold
+                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
-                    # EGGS - RUN
-                    self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
+                # EGGS - RUN
+                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
-                    # EGGS - STOP
-                    self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                    self.phaser_stop()
-                    # tmp remove - integrator hold
-                    # self.ttl10.off()
-                    # tmp remove - integrator hold
+                # EGGS - STOP
+                self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
+                self.phaser_stop()
+                # tmp remove - integrator hold
+                # self.ttl10.off()
+                # tmp remove - integrator hold
 
 
-                    '''READOUT'''
-                    self.sidebandreadout_subsequence.run_dma()
-                    self.readout_subsequence.run_dma()
+                '''READOUT'''
+                self.sidebandreadout_subsequence.run_dma()
+                self.readout_subsequence.run_dma()
 
-                    # update dataset
-                    with parallel:
-                        self.update_results(
-                            freq_readout_ftw,
-                            self.readout_subsequence.fetch_count(),
-                            carrier_freq_hz,
-                            sideband_freq_hz,
-                            phase_rsb_turns
-                        )
-                        self.core.break_realtime()
+                # update dataset
+                with parallel:
+                    self.update_results(
+                        freq_readout_ftw,
+                        self.readout_subsequence.fetch_count(),
+                        carrier_freq_hz,
+                        sideband_freq_hz,
+                        phase_rsb_turns
+                    )
+                    self.core.break_realtime()
 
-                    # resuscitate ion
-                    self.rescue_subsequence.resuscitate()
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
