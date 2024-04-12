@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import groupby
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
@@ -31,22 +32,22 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("iterations",                         NumberValue(default=5, ndecimals=0, step=1, min=1, max=100))
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=1, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
-        self.setattr_argument("num_steps",                  NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("num_steps",                  NumberValue(default=10, ndecimals=0, step=1, min=5, max=100), group='modulation_general')
         # self.setattr_argument("max_att_mod_db",                   NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1401.02, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
-        self.setattr_argument("att_mod0_db",                NumberValue(default=13, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
+        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1394.3, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
+        self.setattr_argument("att_mod0_db",                NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
         self.setattr_argument("dc_channel_mod0",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_0')
-        self.setattr_argument("dc_scan_range_volts_mod0",   PYONValue([55, 70]), group='modulation_0')
+        self.setattr_argument("dc_scan_range_volts_mod0",   PYONValue([55, 75]), group='modulation_0')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1637.8, ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
-        self.setattr_argument("att_mod1_db",                NumberValue(default=8, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
+        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1634., ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=19, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
         self.setattr_argument("dc_channel_mod1",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_1')
-        self.setattr_argument("dc_scan_range_volts_mod1",   PYONValue([45, 60]), group='modulation_1')
+        self.setattr_argument("dc_scan_range_volts_mod1",   PYONValue([30, 55]), group='modulation_1')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
@@ -269,6 +270,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             opt0_volts = np.mean(self.dc_scan_range_volts_list[0])
             opt1_volts = np.mean(self.dc_scan_range_volts_list[1])
 
+        print('\tOptima: [{:.2f} V, {:.2f} V]'.format(opt0_volts, opt1_volts))
+
+
         # ensure voltages are within bounds
         opt0_volts = max(self.dc_scan_range_volts_list[0, 0], opt0_volts)
         opt0_volts = min(self.dc_scan_range_volts_list[0, 1], opt0_volts)
@@ -287,7 +291,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # todo: document - list of abs angle
         """
         voltage_min_v, voltage_max_v = (0., 0.)
-        if iter_num >= 2:
+        if iter_num >= 100:
             # use error to set the scan range
             voltage_step_v = 0.
             if mode_num == 0:   voltage_step_v = self.dc_voltage_optima_0[iter_num, 2] * 10
@@ -328,8 +332,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             mode_dc_channel_num (int32)             : the voltage channel number to be scanned.
             voltage_scan_v_arr  (TArray(TFloat, 1)) : the list of voltages to scan.
         """
+        self.core.break_realtime()
+
         # prepare modulation DDS
-        at_mu(now_mu() + 1000000)
         self.dds_parametric.set_att_mu(mode_att_mu)
         self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf,
                                    profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
@@ -398,11 +403,18 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         Returns:
             (float, float): the extracted voltage optimum and its error.
         """
-        # todo: average results for same values (groupby mean)
+        # group array by voltage and average demodulated signal
+        res_arr_tmp = res_arr[np.argsort(res_arr[:, 0])]
+        res_arr_averaged = []
+        for key, group in groupby(res_arr_tmp, lambda row: row[0]):
+            grouped_result = np.array(list(group))
+            res_arr_averaged.append(np.mean(grouped_result, axis=0))
+
         # format results into a 2D array with complex type for complex linear fitting
+        res_arr_averaged = np.array(res_arr_averaged)
         results_tmp = np.array([
-            res_arr[:, 0],
-            res_arr[:, 1] * np.exp(1.j * res_arr[:, 2])
+            res_arr_averaged[:, 0],
+            res_arr_averaged[:, 1] * np.exp(1.j * res_arr_averaged[:, 2])
         ], dtype='complex128').transpose()
         # sort results by voltage
         results_tmp = results_tmp[np.argsort(results_tmp[:, 0], axis=0)]
