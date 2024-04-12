@@ -329,6 +329,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             voltage_scan_v_arr  (TArray(TFloat, 1)) : the list of voltages to scan.
         """
         # prepare modulation DDS
+        at_mu(now_mu() + 1000000)
         self.dds_parametric.set_att_mu(mode_att_mu)
         self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf,
                                    profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
