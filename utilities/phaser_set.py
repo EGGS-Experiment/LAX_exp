@@ -326,10 +326,7 @@ class PhaserSet(EnvExperiment):
             self.phaser0.channel[1].oscillator[4].set_amplitude_phase(amplitude=self.ampl_ch1_osc_frac_list[4], phase=self.phase_ch1_osc4, clr=0)
 
         # wait for heating time
-        with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
-            delay_mu(self.time_pulse_mu)
+        delay_mu(self.time_pulse_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_stop(self):
@@ -365,6 +362,11 @@ class PhaserSet(EnvExperiment):
         with parallel:
             self.phaser0.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch0_osc4, clr=1)
             self.phaser0.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=self.phase_ch1_osc4, clr=1)
+
+        # send debug triggers
+        with parallel:
+            self.ttl8.off()
+            self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def phaser_reset(self):
