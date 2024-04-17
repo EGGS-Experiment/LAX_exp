@@ -401,8 +401,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 # tmp remove - death detection
                 # self.core.break_realtime()
-                # self.rescue_subsequence.detect_death(counts)
-                # self.core.break_realtime()
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

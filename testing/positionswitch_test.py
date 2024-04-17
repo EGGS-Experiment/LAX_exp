@@ -27,7 +27,7 @@ class PositionSwitch(EnvExperiment):
         self.dds =          self.get_device("urukul1_ch3")
         self.dds_att =      self.dds.cpld.att_to_mu(0. * dB)
         self.dds_ampl =     self.dds.amplitude_to_asf(0.98)
-        self.dds_freq =     self.dds.frequency_to_ftw(1377 * kHz)
+        self.dds_freq =     self.dds.frequency_to_ftw(1373.5 * kHz)
         self.dds_profile =  4
 
         self.dds_time =     self.core.seconds_to_mu(10 * ms)

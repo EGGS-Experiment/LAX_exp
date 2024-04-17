@@ -32,7 +32,7 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("repetitions_per_rescue",     NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("resuscitate_ion",            BooleanValue(default=False), group=self.name)
         self.setattr_argument("add_397nm_spinpol",          BooleanValue(default=False), group=self.name)
-        self.setattr_argument("death_detection",            BooleanValue(default=False), group=self.name)
+        self.setattr_argument("death_detection",            BooleanValue(default=True), group=self.name)
 
 
     def prepare_subsequence(self):
