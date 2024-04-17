@@ -24,7 +24,7 @@ class SidebandReadout(LAXSubsequence):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",              Scannable(
                                                                             default=[
-                                                                                ExplicitScan([102.5025]),
+                                                                                ExplicitScan([101.5702]),
                                                                                 CenterScan(102.5025, 0.010, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
@@ -32,7 +32,7 @@ class SidebandReadout(LAXSubsequence):
                                                                         ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",              Scannable(
                                                                             default=[
-                                                                                ExplicitScan([103.2610]),
+                                                                                ExplicitScan([102.9413]),
                                                                                 CenterScan(103.2610, 0.010, 0.0005, randomize=True)
                                                                             ],
                                                                             global_min=30, global_max=200, global_step=1,
@@ -40,7 +40,7 @@ class SidebandReadout(LAXSubsequence):
                                                                         ), group=self.name)
         self.setattr_argument("ampl_sideband_readout_pct",              NumberValue(default=50, ndecimals=3, step=10, min=1, max=50.), group=self.name)
         self.setattr_argument("att_sideband_readout_db",                NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("time_sideband_readout_us",               NumberValue(default=70, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("time_sideband_readout_us",               NumberValue(default=320., ndecimals=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_device('qubit')
 
     def prepare_subsequence(self):

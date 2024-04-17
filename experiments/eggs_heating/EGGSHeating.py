@@ -25,13 +25,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=False), group='EGGS_Heating.configuration')
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=5, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=3, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
 
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    CenterScan(85.1, 0.02, 0.004, randomize=True),
+                                                                                    CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                     ExplicitScan([82, 135, 89.1, 71.3]),
                                                                                     ExplicitScan([82]),
                                                                                 ],
@@ -40,7 +40,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([1393.5]),
+                                                                                    ExplicitScan([1393.9]),
                                                                                     CenterScan(768.8, 3, 0.2, randomize=True),
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
@@ -50,9 +50,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF - waveform - amplitude
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=42., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=42., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=3, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
@@ -73,11 +73,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - dynamical decoupling - configuration
-        self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=1., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.decoupling')
+        self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=False), group='EGGS_Heating.decoupling')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.decoupling')
 
         # EGGS RF - dynamical decoupling - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=True), group='EGGS_Heating.decoupling.psk')
+        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling.psk')
         self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling.psk')
 
         # get relevant devices
@@ -400,9 +400,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.rescue_subsequence.resuscitate()
 
                 # tmp remove - death detection
-                self.core.break_realtime()
-                self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
+                # self.core.break_realtime()
+                # self.rescue_subsequence.detect_death(counts)
+                # self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
