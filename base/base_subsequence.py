@@ -116,7 +116,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
 
     @kernel(flags={"fast-math"})
     def _load_dma(self):
-        if self._dma_record_flag == True:
+        if self._dma_record_flag is True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
     @kernel(flags={"fast-math"})
