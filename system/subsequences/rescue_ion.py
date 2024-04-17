@@ -1,7 +1,10 @@
+import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+
+from collections import deque
 
 
 class RescueIon(LAXSubsequence):
@@ -30,6 +33,7 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("resuscitate_ion",                        BooleanValue(default=False), group=self.name)
         self.setattr_argument("add_397nm_spinpol",                      BooleanValue(default=False), group=self.name)
 
+
     def prepare_subsequence(self):
         # sequence timing
         self.time_rescue_mu =               self.get_parameter('time_rescue_us', group='timing',
@@ -47,14 +51,26 @@ class RescueIon(LAXSubsequence):
         if self.add_397nm_spinpol is True:
             self.probe_func = self.probe.on
 
+        # ion death/condition detection
+        self._death_counter =       40
+
+        self._death_counts_0 =      50
+        self._death_threshold_0 =   35
+
+        self._death_counts_1 =      182
+        self._death_threshold_1 =   20
+
+        self._death_deque = deque(maxlen=self._death_counter)
+        self.set_dataset('management.ion_status', 'CLEAR', broadcast=True)
+
 
     @kernel(flags={"fast-math"})
     def run(self, i: TInt32):
         # check whether rescuing is enabled
-        if self.rescue_enable == True:
+        if self.rescue_enable is True:
 
             # check whether it's time to rescue the ion
-            if (i > 0) and (i % self.repetitions_per_rescue == 0):
+            if (i > 0) and ((i % self.repetitions_per_rescue) == 0):
 
                 # set rescue waveform and ensure 866 is on
                 self.pump.rescue()
@@ -87,13 +103,39 @@ class RescueIon(LAXSubsequence):
         delay_mu(8)
 
     # @kernel(flags={"fast-math"})
-    def detect_death(self, counts):
+    @rpc
+    def detect_death(self, counts: TInt32):
         """
         todo: document
         """
-        # todo: threshold counts
-        # todo: add value to deque
-        # todo: check death
-        # todo: cancel if death
-        pass
+        # classify ion status via counts
+        if counts < self._death_counts_0:
+            self._death_deque.append(0)
+        elif counts < self._death_counts_1:
+            self._death_deque.append(1)
+        else:
+            self._death_deque.append(2)
 
+        # tmp remove
+        zero_counts = self._death_deque.count(0)
+        th0 = np.array(self._death_deque)
+        th0 = th0[th0 > self._death_threshold_0]
+
+
+        # todo - idk
+        if zero_counts > self._death_threshold_0:
+            self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
+            self._death_deque.clear()
+            print('\n\t\t\tSTATUS: DEATH\n')
+        elif zero_counts < (self._death_counter - self._death_threshold_0):
+            self.set_dataset('management.ion_status', 'ERR: REACT', broadcast=True)
+            self._death_deque.clear()
+            print('\n\t\t\tSTATUS: REACTION\n')
+        elif self._death_deque.count(1) > self._death_threshold_1:
+            self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
+            # self._death_deque.clear()
+            print('\n\t\t\tSTATUS: POS SWITCH\n')
+        elif np.sum(th0) > self._death_threshold_1:
+            self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
+            # self._death_deque.clear()
+            print('\n\t\t\tSTATUS: POS SWITCH\n')

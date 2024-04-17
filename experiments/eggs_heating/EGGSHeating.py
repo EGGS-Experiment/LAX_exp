@@ -383,12 +383,13 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
+                counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
                 with parallel:
                     self.update_results(
                         freq_readout_ftw,
-                        self.readout_subsequence.fetch_count(),
+                        counts,
                         carrier_freq_hz,
                         sideband_freq_hz,
                         phase_rsb_turns
@@ -397,6 +398,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
+
+                # tmp remove - death detection
+                self.core.break_realtime()
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

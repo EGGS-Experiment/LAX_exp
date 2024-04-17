@@ -38,18 +38,18 @@ class PositionSwitch(EnvExperiment):
 
         self.pmt =              self.ttl0_counter
         self.pmt_time =         self.core.seconds_to_mu(50000 * us)
-        self.pmt_retrievals =   5
+        self.pmt_retrievals =   10
         self.pmt_shuffle_threshold = 3100
         self._pmt_count_store = 0
 
         self.time_recooling_mu =        self.core.seconds_to_mu(1000 * ms)
         self.time_flipper_trigger_mu =  self.core.seconds_to_mu(50 * ms)
-        self.time_flipper_wait_mu =     self.core.seconds_to_mu(4 * s)
+        self.time_flipper_wait_mu =     self.core.seconds_to_mu(2 * s)
 
     @kernel(flags={"fast-math"})
     def run(self):
         self.run_prepare()
-
+        # todo: only run for x reps
 
         # check counts
         res0 = self.pmt_read(self.pmt_retrievals)
@@ -59,7 +59,8 @@ class PositionSwitch(EnvExperiment):
         self.core.break_realtime()
 
         # main loop
-        while res0 < self.pmt_shuffle_threshold:
+        _loop_counter = 0
+        while (res0 < self.pmt_shuffle_threshold) and (_loop_counter < 10):
 
             # shuffle
             self.shuffle()
@@ -74,9 +75,17 @@ class PositionSwitch(EnvExperiment):
             print(res0)
             self.core.break_realtime()
             self.core.break_realtime()
-            print('\n\tDESIRED POSITION!\n')
+
+            # increment loop counter
+            _loop_counter += 1
 
         # clean up
+        self.core.break_realtime()
+        if _loop_counter < 10:
+            print('\n\tDESIRED POSITION!')
+        else:
+            print('\n\tSECULAR FREQUENCY CHANGE.')
+        self.core.break_realtime()
         self.cleanup()
 
     @kernel(flags={"fast-math"})
