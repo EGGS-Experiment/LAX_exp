@@ -32,7 +32,8 @@ class Readout(LAXSubsequence):
         self.pump.on()
         self.repump_cooling.on()
         self.pmt.count(self.time_readout_mu)
-        self.pump.off()
+        # tmp remove - leave 397nm readout on for max cooling
+        # self.pump.off()
 
     @kernel(flags={"fast-math"})
     def fetch_count(self) -> TInt32:

@@ -32,7 +32,7 @@
     "eggs.freq_center_mhz": npscalar("<f8", b"AAAAAABAVUA="),
     "eggs.phas_ch1_inherent_turns": npscalar("<f8", b"ukkMAiuHtj8="),
     "eggs.time_latency_ch1_system_ns": npscalar("<f8", b"w/UoXI/CxT8="),
-    "management.completion_pct": 99.259,
+    "management.completion_pct": 99.024,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
