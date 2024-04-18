@@ -25,7 +25,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=False), group='EGGS_Heating.configuration')
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=3, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
 
 
         # EGGS RF
@@ -40,7 +40,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([1393.9]),
+                                                                                    ExplicitScan([1372.34]),
                                                                                     CenterScan(768.8, 3, 0.2, randomize=True),
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
@@ -50,8 +50,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # EGGS RF - waveform - amplitude
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=42., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=42., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=30., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=60., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=3, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - timing & phase
@@ -346,8 +346,8 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
-                self.core.break_realtime()
+                # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
+                # self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
@@ -610,15 +610,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
             sideband_freq_hz        (float)     : the holdoff time (in machine units)
         """
         # calculate scaled detuning timings
-        time_period_scaled =                                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
-        time_sample_scaled =                                                round(40e-9 * self.time_psk_scaling_factor)
+        time_period_scaled =                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
+        time_sample_scaled =                                round(40e-9 * self.time_psk_scaling_factor)
 
         # calculate lowest common multiple of the scaled detuning period and the scaled sample period
-        time_lcm_mu =                                                       round((time_period_scaled * time_sample_scaled) /
-                                                                                  gcd(time_period_scaled, time_sample_scaled) *
-                                                                                  (1e9 / self.time_psk_scaling_factor))
+        time_lcm_mu =                                       round((time_period_scaled * time_sample_scaled) /
+                                                                  gcd(time_period_scaled, time_sample_scaled) *
+                                                                  (1e9 / self.time_psk_scaling_factor))
         # divide total eggs heating time into PSK segments
-        time_psk_tmp_delay_mu =                                             round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1))
+        time_psk_tmp_delay_mu =                             round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1))
 
         # print(time_period_scaled)
         # print(time_sample_scaled)
@@ -629,11 +629,11 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         # ensure PSK interval time is very close to a multiple of the carrier detuning period
         if time_psk_tmp_delay_mu % time_lcm_mu:
             # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
-            t_period_multiples =                                            round(time_psk_tmp_delay_mu / time_lcm_mu)
-            time_psk_tmp_delay_mu =                                         t_period_multiples * time_lcm_mu
+            t_period_multiples =                            round(time_psk_tmp_delay_mu / time_lcm_mu)
+            time_psk_tmp_delay_mu =                         t_period_multiples * time_lcm_mu
 
         # update dynamical decoupling config list with new PSK time
-        self.config_dynamical_decoupling_psk_list[:, 0] =                   np.int64(time_psk_tmp_delay_mu)
+        self.config_dynamical_decoupling_psk_list[:, 0] =   np.int64(time_psk_tmp_delay_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
