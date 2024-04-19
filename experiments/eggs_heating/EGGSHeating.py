@@ -346,7 +346,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
+                # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
                 # self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
