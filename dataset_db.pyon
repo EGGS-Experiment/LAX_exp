@@ -5,7 +5,7 @@
     "beams.ampl_pct.ampl_pump_readout_pct": npscalar("<f8", b"AAAAAAAASUA="),
     "beams.ampl_pct.ampl_pump_rescue_pct": npscalar("<f8", b"AAAAAAAASUA="),
     "beams.ampl_pct.ampl_qubit_pct": npscalar("<f8", b"AAAAAAAASUA="),
-    "beams.ampl_pct.ampl_repump_cooling_pct": npscalar("<f8", b"AAAAAAAAN0A="),
+    "beams.ampl_pct.ampl_repump_cooling_pct": npscalar("<f8", b"AAAAAAAANUA="),
     "beams.ampl_pct.ampl_repump_qubit_pct": npscalar("<f8", b"AAAAAAAAN0A="),
     "beams.freq_mhz.freq_probe_rescue_mhz": npscalar("<f8", b"AAAAAABAVUA="),
     "beams.freq_mhz.freq_probe_spinpol_mhz": npscalar("<f8", b"AAAAAABAXEA="),
@@ -32,7 +32,7 @@
     "eggs.freq_center_mhz": npscalar("<f8", b"AAAAAABAVUA="),
     "eggs.phas_ch1_inherent_turns": npscalar("<f8", b"ukkMAiuHtj8="),
     "eggs.time_latency_ch1_system_ns": npscalar("<f8", b"w/UoXI/CxT8="),
-    "management.completion_pct": 0.0,
+    "management.completion_pct": 99.024,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
@@ -44,6 +44,6 @@
     "timing.time_readout_us": npscalar("<i4", b"uAsAAA=="),
     "timing.time_repump_qubit_us": npscalar("<i4", b"HgAAAA=="),
     "timing.time_rescue_us": npscalar("<f8", b"AAAAAICz9UA="),
-    "timing.time_resuscitate_us": npscalar("<f8", b"AAAAAACAnUA="),
+    "timing.time_resuscitate_us": npscalar("<f8", b"AAAAAAAAt0A="),
     "timing.time_spinpol_us": npscalar("<i4", b"FAAAAA==")
 }
