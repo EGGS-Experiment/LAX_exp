@@ -34,7 +34,6 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("add_397nm_spinpol",          BooleanValue(default=False), group=self.name)
         self.setattr_argument("death_detection",            BooleanValue(default=True), group=self.name)
 
-
     def prepare_subsequence(self):
         # sequence timing
         self.time_rescue_mu =               self.get_parameter('time_rescue_us', group='timing',
@@ -52,19 +51,7 @@ class RescueIon(LAXSubsequence):
         if self.add_397nm_spinpol is True:
             self.probe_func = self.probe.on
 
-        # ion death/syndrome detection - rdx
-        # self._deathcount_length =       40
-        #
-        # self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
-        # self._deathcount_iter =         0
-        # self._deathcount_sum_zero =     0
-        # self._death_threshold_bright =  50
-        #
-        # self._deathcount_arr2 =         np.zeros(self._deathcount_length, dtype=np.int32)
-        # self._deathcount_iter2 =        0
-        # self._deathcount_sum_counts =   0
-        # self._death_threshold_switch =  178
-
+        # ion death/syndrome detection
         self._deathcount_length =       50
         self._deathcount_tolerance =    2
         self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
@@ -72,6 +59,8 @@ class RescueIon(LAXSubsequence):
 
         self._death_threshold_bright =  50
         self._deathcount_sum_counts =   0
+
+        # todo: position switching
 
     @kernel(flags={"fast-math"})
     def run(self, i: TInt32):
@@ -119,10 +108,6 @@ class RescueIon(LAXSubsequence):
     def _no_op(self):
         delay_mu(8)
 
-    # @rpc
-    # def detect_death(self, counts: TInt32):
-    #     pass
-
     @kernel(flags={"fast-math"})
     def detect_death(self, counts: TInt32):
         """
@@ -147,13 +132,27 @@ class RescueIon(LAXSubsequence):
 
             # process syndromes - ion death (no bright counts)
             if self._deathcount_sum_counts < self._deathcount_tolerance:
+
+                # set syndrome message
                 self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
-                # todo: reset
+
+                # reset death counter variables
+                self._deathcount_sum_counts =   0
+                self._deathcount_iter =         0
+                for i in range(self._deathcount_length):
+                    self._deathcount_arr[i] =   0
 
             # process syndromes - bad transition (no dark counts)
             elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
+
+                # set syndrome message
                 self.set_dataset('management.ion_status', 'ERR: TRANSITION', broadcast=True)
-                # todo: reset
+
+                # reset death counter variables
+                self._deathcount_sum_counts =   0
+                self._deathcount_iter =         0
+                for i in range(self._deathcount_length):
+                    self._deathcount_arr[i] =   0
 
             # process syndromes - position switch (counts below threshold)
             # elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
