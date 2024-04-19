@@ -52,16 +52,25 @@ class RescueIon(LAXSubsequence):
         if self.add_397nm_spinpol is True:
             self.probe_func = self.probe.on
 
-        # ion death/condition detection
-        self._death_counter =       40
+        # ion death/syndrome detection - rdx
+        # self._deathcount_length =       40
+        #
+        # self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
+        # self._deathcount_iter =         0
+        # self._deathcount_sum_zero =     0
+        # self._death_threshold_bright =  50
+        #
+        # self._deathcount_arr2 =         np.zeros(self._deathcount_length, dtype=np.int32)
+        # self._deathcount_iter2 =        0
+        # self._deathcount_sum_counts =   0
+        # self._death_threshold_switch =  178
 
-        self._death_counts_0 =      80
-        self._death_threshold_0 =   35
+        self._deathcount_length =       50
+        self._deathcount_tolerance =    3
+        self._death_threshold_bright =  50
+        self._deathcount_sum_counts =   0
+        self._deathcount_arr =          list(0)
 
-        self._death_counts_1 =      185
-        self._death_threshold_1 =   20
-
-        self._death_deque = deque(maxlen=self._death_counter)
         self.set_dataset('management.ion_status', 'CLEAR', broadcast=True)
 
 
@@ -103,46 +112,79 @@ class RescueIon(LAXSubsequence):
     def _no_op(self):
         delay_mu(8)
 
-    # @kernel(flags={"fast-math"})
-    @rpc
-    def detect_death(self, counts: TInt32):
+    @kernel(flags={"fast-math"})
+    def detect_death_kernel(self, counts: TInt32):
         """
         todo: document
         """
-        if self.death_detection is True:
-            # classify ion status via counts
-            if counts < self._death_counts_0:
-                self._death_deque.append(0)
-            elif counts < self._death_counts_1:
-                self._death_deque.append(1)
-            else:
-                self._death_deque.append(2)
+        # threshold incoming counts and update filter
+        if counts > self._death_threshold_bright:
+            self._deathcount_arr.append(1)
+            self._deathcount_sum_counts += 1
+        else:
+            self._deathcount_arr.append(0)
+        self.core.break_realtime()
 
-            # ion syndrome detection
-            if len(self._death_deque) == self._death_counter:
-                zero_counts = self._death_deque.count(0)
-                th0 = np.array(self._death_deque)
-                th0 = th0[th0 > self._death_threshold_0]
+        # remove from filter
+        if len(self._deathcount_arr) > self._deathcount_length:
+            self._deathcount_sum_counts -= self._deathcount_arr.pop(0)
+            self.core.break_realtime()
+
+            # process syndrome
+            if self._deathcount_sum_counts < self._deathcount_tolerance:
+                self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
+            elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
+                self.set_dataset('management.ion_status', 'ERR: DEPLETION', broadcast=True)
+            self.core.break_realtime()
 
 
-                # todo - idk
-                if zero_counts > self._death_threshold_0:
-                    self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
-                    print('\n\t\t\tSTATUS: DEATH\t {}\n'.format(zero_counts))
-                    self._death_deque.clear()
-
-                elif zero_counts < (self._death_counter - self._death_threshold_0):
-                    self.set_dataset('management.ion_status', 'ERR: REACT', broadcast=True)
-                    print('\n\t\t\tSTATUS: REACTION\t {}\n'.format(zero_counts))
-                    self._death_deque.clear()
-
-                # elif self._death_deque.count(1) > self._death_threshold_1:
-                #     self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
-                #     # self._death_deque.clear()
-                #     print('\n\t\t\tSTATUS: POS SWITCH\n')
-
-                elif np.sum(th0) > (self._death_threshold_1 * len(th0)):
-                    self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
-                    print('\n\t\t\tSTATUS: POS SWITCH\t {}\n'.format(np.mean(th0)))
-                    self._death_deque.clear()
+        # # store incoming data
+        # self._deathcount_arr[self._deathcount_iter] = counts
+        #
+        # # update filter (dark)
+        # if counts > self._death_threshold_bright:
+        #     self._deathcount_sum_counts += 1
+        #
+        # # remove from filter (dark)
+        # counts_old = self._deathcount_arr[self._deathcount_iter - 1]
+        # if counts_old > self._death_threshold_bright:
+        #     self._deathcount_sum_counts -= 1
+        #
+        # self._deathcount_iter = (self._deathcount_iter + 1) % self._deathcount_length
+        #
+        # if counts > self._death_threshold_bright:
+        #     self._deathcount_arr2[self._deathcount_iter2] = counts
+        #     self._deathcount_iter = (self._deathcount_iter + 1) % self._deathcount_length
+        #
+        # # todo: process dsp filters
+        #
+        #
+        # # todo: process syndrome
+        #
+        # # ion syndrome detection
+        # if len(self._death_deque) == self._death_counter:
+        #     zero_counts = self._death_deque.count(0)
+        #     th0 = np.array(self._death_deque)
+        #     th0 = th0[th0 > self._death_threshold_0]
+        #
+        #     # todo - idk
+        #     if zero_counts > self._death_threshold_0:
+        #         self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
+        #         print('\n\t\t\tSTATUS: DEATH\t {}\n'.format(zero_counts))
+        #         self._death_deque.clear()
+        #
+        #     elif zero_counts < (self._death_counter - self._death_threshold_0):
+        #         self.set_dataset('management.ion_status', 'ERR: REACT', broadcast=True)
+        #         print('\n\t\t\tSTATUS: REACTION\t {}\n'.format(zero_counts))
+        #         self._death_deque.clear()
+        #
+        #     # elif self._death_deque.count(1) > self._death_threshold_1:
+        #     #     self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
+        #     #     # self._death_deque.clear()
+        #     #     print('\n\t\t\tSTATUS: POS SWITCH\n')
+        #
+        #     elif np.sum(th0) > (self._death_threshold_1 * len(th0)):
+        #         self.set_dataset('management.ion_status', 'ERR: POS SWITCH', broadcast=True)
+        #         print('\n\t\t\tSTATUS: POS SWITCH\t {}\n'.format(np.mean(th0)))
+        #         self._death_deque.clear()
 

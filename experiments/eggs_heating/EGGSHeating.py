@@ -346,8 +346,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz)
-                # self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
@@ -362,6 +360,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
                 '''EGGS HEATING'''
                 # EGGS - START/SETUP
+                # todo: set attenuators
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
                 # tmp remove - integrator hold
@@ -378,6 +377,7 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # tmp remove - integrator hold
                 # self.ttl10.off()
                 # tmp remove - integrator hold
+                # todo: reset attenuators
 
 
                 '''READOUT'''
@@ -399,10 +399,9 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
-                # tmp remove - death detection
-                # self.core.break_realtime()
-                # self.rescue_subsequence.detect_death(counts)
-                # self.core.break_realtime()
+                # death detection
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -600,41 +599,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
     # HELPER FUNCTIONS - PSK
-    # @kernel(flags={"fast-math"})
-    def phaser_psk_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat):
-        """
-        todo: document
-
-        Arguments:
-            carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
-            sideband_freq_hz        (float)     : the holdoff time (in machine units)
-        """
-        # calculate scaled detuning timings
-        time_period_scaled =                                round(self.time_psk_scaling_factor / (carrier_freq_hz - sideband_freq_hz))
-        time_sample_scaled =                                round(40e-9 * self.time_psk_scaling_factor)
-
-        # calculate lowest common multiple of the scaled detuning period and the scaled sample period
-        time_lcm_mu =                                       round((time_period_scaled * time_sample_scaled) /
-                                                                  gcd(time_period_scaled, time_sample_scaled) *
-                                                                  (1e9 / self.time_psk_scaling_factor))
-        # divide total eggs heating time into PSK segments
-        time_psk_tmp_delay_mu =                             round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1))
-
-        # print(time_period_scaled)
-        # print(time_sample_scaled)
-        # print('\n')
-        # print(time_lcm_mu)
-        # print(time_psk_tmp_delay_mu)
-
-        # ensure PSK interval time is very close to a multiple of the carrier detuning period
-        if time_psk_tmp_delay_mu % time_lcm_mu:
-            # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
-            t_period_multiples =                            round(time_psk_tmp_delay_mu / time_lcm_mu)
-            time_psk_tmp_delay_mu =                         t_period_multiples * time_lcm_mu
-
-        # update dynamical decoupling config list with new PSK time
-        self.config_dynamical_decoupling_psk_list[:, 0] =   np.int64(time_psk_tmp_delay_mu)
-
     @kernel(flags={"fast-math"})
     def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
         """
