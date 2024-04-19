@@ -57,8 +57,8 @@ class QubitAlignment(LAXExperiment, Experiment):
         self._state_array =                     np.zeros(self.samples_per_point, dtype=np.int32)
 
         # prepare datasets for storing counts
-        self.set_dataset('temp.qubit_align._tmp_counts_x',  np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.qubit_align._tmp_counts_y',  np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_x',   np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_y',   np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
 
         # convert qubit parameters
         self.freq_qubit_ftw =                   hz_to_ftw(self.freq_qubit_mhz * MHz)
@@ -128,8 +128,8 @@ class QubitAlignment(LAXExperiment, Experiment):
         dstate_probability = np.sum((state_array < self.counts_threshold) * 1.) / self.samples_per_point
 
         # update datasets
-        self.mutate_dataset('temp.qubit_align._tmp_counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
-        self.mutate_dataset('temp.qubit_align._tmp_counts_y', self._result_iter, dstate_probability)
+        self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
+        self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, dstate_probability)
 
         # update completion monitor
         self.set_dataset('management.completion_pct',

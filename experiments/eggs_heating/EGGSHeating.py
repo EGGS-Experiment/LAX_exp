@@ -25,15 +25,15 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
         # scan configuration
         self.setattr_argument("randomize_config",                           BooleanValue(default=False), group='EGGS_Heating.configuration')
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=30, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=45, ndecimals=0, step=1, min=1, max=100), group='EGGS_Heating.configuration')
 
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
+                                                                                    ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                                                                                    ExplicitScan([83.2028]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
-                                                                                    ExplicitScan([82, 135, 89.1, 71.3]),
-                                                                                    ExplicitScan([82]),
                                                                                 ],
                                                                                 global_min=30, global_max=400, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6

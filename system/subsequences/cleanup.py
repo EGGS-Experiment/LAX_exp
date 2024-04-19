@@ -26,36 +26,38 @@ class Cleanup(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self):
         # reset core device, RTIOs, and FIFOs
-        self.core.reset()
+        self.core.break_realtime()
 
-        # reset hardware to allow use
-        # DDS hardware
-        with parallel:
-            # enable all RF switches
-            with parallel:
-                self.ttl12.off()
-                self.ttl13.off()
-                self.ttl14.off()
+        # reset general hardware to allow use
+        '''
+        DDS HARDWARE
+        '''
+        # enable all RF switches
+        self.ttl12.off()
+        self.ttl13.off()
+        self.ttl14.off()
 
-            # reset qubit board
-            with sequential:
-                self.urukul0_cpld.set_profile(0)
-                self.urukul0_cpld.io_update.pulse_mu(8)
-                self.urukul0_cpld.cfg_switches(0b0000)
+        # reset qubit board
+        self.urukul0_cpld.set_profile(0)
+        self.urukul0_cpld.io_update.pulse_mu(8)
+        self.urukul0_cpld.cfg_switches(0b0000)
 
-            # reset motional board to rescue parameters
-            with sequential:
-                self.urukul1_cpld.set_profile(0)
-                self.urukul1_cpld.io_update.pulse_mu(8)
-                self.urukul1_cpld.cfg_switches(0b0000)
+        # reset motional board to rescue parameters
+        self.urukul1_cpld.set_profile(0)
+        self.urukul1_cpld.io_update.pulse_mu(8)
+        self.urukul1_cpld.cfg_switches(0b0000)
+        # set maximum attenuation for motional board to prevent leakage
+        self.urukul1_cpld.set_all_att_mu(0)
 
-            # reset main board to rescue parameters
-            with sequential:
-                self.urukul2_cpld.set_profile(0)
-                self.urukul2_cpld.io_update.pulse_mu(8)
-                self.urukul2_cpld.cfg_switches(0b1110)
+        # reset main board to rescue parameters
+        self.urukul2_cpld.set_profile(0)
+        self.urukul2_cpld.io_update.pulse_mu(8)
+        self.urukul2_cpld.cfg_switches(0b1110)
 
-        # phaser hardware
+
+        '''
+        PHASER HARDWARE
+        '''
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)
@@ -79,4 +81,8 @@ class Cleanup(LAXSubsequence):
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
 
+
+        # add slack, then synchronize timeline to ensure events submit before resetting
         self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.reset()
