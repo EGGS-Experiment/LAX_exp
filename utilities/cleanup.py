@@ -22,5 +22,6 @@ class Cleanup(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
+        self.core.reset()
         self.core.break_realtime()
         self.cleanup_subsequence.run()

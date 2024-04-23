@@ -124,6 +124,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 self.update_results(freq_ftw, 0, 0, 0)
                 self.core.break_realtime()
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 

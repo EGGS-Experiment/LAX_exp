@@ -72,12 +72,6 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
         self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling.psk')
         self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling.psk')
 
-        # EGGS RF - dynamical decoupling - active cancellation
-        self.setattr_argument("enable_dd_active_cancel",                    BooleanValue(default=False), group='EGGS_Heating.decoupling.activecancel')
-        self.setattr_argument("ampl_dd_active_cancel_pct",                  NumberValue(default=35, ndecimals=2, step=10, min=0.01, max=99), group='EGGS_Heating.decoupling.activecancel')
-        self.setattr_argument("att_dd_active_cancel_db",                    NumberValue(default=10, ndecimals=1, step=0.5, min=3, max=31.5), group='EGGS_Heating.decoupling.activecancel')
-        self.setattr_argument("phas_dd_active_cancel_turns",                NumberValue(default=0., ndecimals=3, step=0.1, min=-1, max=1), group='EGGS_Heating.decoupling.activecancel')
-
         # tmp remove
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=RangeScan(0, 50, 51, randomize=True),
@@ -88,8 +82,6 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
-        self.setattr_device('urukul1_ch2')
-
         # tmp remove
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
@@ -201,9 +193,6 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
-        # configure active cancellation for dynamical decoupling
-        self._prepare_activecancel()
-
     def _prepare_pulseshape(self):
         """
         todo: document
@@ -299,23 +288,6 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
         if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
         else:                                                               self.phaser_run = self.phaser_run_nopsk
 
-    def _prepare_activecancel(self):
-        """
-        todo: document
-        """
-        # convert build variables to machine units (where possible)
-        self.ampl_dd_active_cancel_asf = self.urukul1_ch2.amplitude_to_asf(self.ampl_dd_active_cancel_pct / 100.)
-        self.att_dd_active_cancel_mu = self.urukul1_ch2.cpld.att_to_mu(self.att_dd_active_cancel_db * dB)
-
-        # preallocate variables for phase
-        self.phase_activecancel_turns = np.float(0)
-
-        # set appropriate run method for dynamical decoupling active cancellation
-        if self.enable_dd_active_cancel:
-            self.phaser_activecancel_run = self.phaser_activecancel_run_actual
-        else:
-            self.phaser_activecancel_run = self.phaser_activecancel_run_pass
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
@@ -325,12 +297,6 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        # todo: set up attenuation for cancellation dds
-        self.core.break_realtime()
-        self.urukul1_ch2.set_att_mu(self.att_dd_active_cancel_mu)
-        self.core.break_realtime()
-        # tmp remove
-
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -397,21 +363,11 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
-                with parallel:
-                    # # set TTL for synchronization trigger on a scope
-                    # with sequential:
-                    #     # delay_mu(self.phaser_eggs.t_output_delay_mu)
-                    #     delay_mu(1860)
-                    #     self.ttl9.on()
-                    # # tmp remove
-                    self.phaser_activecancel_run()
-                    self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
+                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                with parallel:
-                    self.phaser_stop()
-                    self.phaser_activecancel_stop()
+                self.phaser_stop()
 
 
                 '''READOUT'''
@@ -438,6 +394,9 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
                     )
                     self.core.break_realtime()
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
@@ -448,13 +407,7 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        # reset all oscillator frequencies and amplitudes
         self.phaser_eggs.reset_oscillators()
-        # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
 
     # ANALYSIS
@@ -734,51 +687,3 @@ class EGGSHeatingRabiflop(SidebandCooling.SidebandCooling):
                 self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + (dd_config_vals[1] * 0.5), clr=0)
                 self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + (dd_config_vals[1] * 0.5), clr=0)
                 delay_mu(dd_config_vals[0])
-
-
-    # HELPER FUNCTIONS - ACTIVE CANCELLATION
-    @kernel(flags={"fast-math"})
-    def phaser_activecancel_configure(self, sideband_freq_hz: TFloat):
-        """
-        todo: document
-        """
-        # todo: calculate phase delays for the active cancellation DDS channel
-        # todo: relative urukul-phaser output delay, system delay, phase argument
-        # self.phase_activecancel_turns = self.phaser_eggs.phase_inherent_ch1_turns +\
-        #                                 (sideband_freq_hz * (self.phaser_eggs.time_latency_ch1_system_ns) * ns)
-        self.phase_activecancel_turns = 0.
-
-        # set up cancellation waveform and profile
-        freq_activecancel_ftw = self.urukul1_ch2.frequency_to_ftw(sideband_freq_hz)
-        phase_activecancel_pow = self.urukul1_ch2.turns_to_pow(self.phase_activecancel_turns)
-        self.urukul1_ch2.set_mu(freq_activecancel_ftw, pow_=phase_activecancel_pow, asf=self.ampl_dd_active_cancel_asf, phase_mode=PHASE_MODE_ABSOLUTE, profile=1)
-
-    @kernel(flags={"fast-math"})
-    def phaser_activecancel_run_actual(self):
-        """
-        todo: document
-        """
-        # reset signal phase
-        delay_mu(350)
-        self.urukul1_ch2.cpld.set_profile(1)
-        self.urukul1_ch2.set_cfr1(phase_autoclear=1)
-        self.urukul1_ch2.cpld.io_update.pulse_mu(8)
-        self.urukul1_ch2.cfg_sw(True)
-
-    @kernel(flags={"fast-math"})
-    def phaser_activecancel_run_pass(self):
-        """
-        todo: document
-        """
-        # self.urukul1_ch2.cfg_sw(False)
-        pass
-
-    @kernel(flags={"fast-math"})
-    def phaser_activecancel_stop(self):
-        """
-        todo: document
-        """
-        # tmp do better/implement better
-        self.urukul1_ch2.cfg_sw(False)
-        # self.urukul1_ch2.set(350 * MHz, amplitude=0.01)
-        # self.urukul1_ch2.set_att_mu(0xFF)

@@ -71,7 +71,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # tmp remove
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
         self.setattr_device('ttl10')
 
 
@@ -118,7 +118,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.freq_eggs_carrier_hz_list =                                    np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                                    np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.freq_ionSpecAnal_sideband_offset_hz_list =                     np.array(list(self.freq_ionSpecAnal_sideband_offset_khz_list)) * kHz
-        self.phase_antisqueeze_pow_list =                                   np.array([self.dds_modulation.turns_to_pow(phase_turns)
+        self.phase_antisqueeze_pow_list =                                   np.array([self.dds_parametric.turns_to_pow(phase_turns)
                                                                                       for phase_turns in self.phase_antisqueeze_turns_list])
         self.phase_eggs_heating_rsb_turns_list =                            np.array(list(self.phase_eggs_heating_rsb_turns_list))
 
@@ -188,9 +188,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
-        # configure active cancellation for dynamical decoupling
-        self._prepare_activecancel()
-
         # configure squeezing
         # note: this needs to happen last in the prepare_experiment stage to prevent its configs from being overwritten
         self._prepare_squeezing()
@@ -204,7 +201,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         EXTRINSIC SQUEEZING
         '''
         # prepare parametric squeezing
-        self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
+        self.freq_squeeze_ftw =                                             self.dds_parametric.frequency_to_ftw(self.freq_squeeze_khz * kHz)
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
         '''
@@ -351,15 +348,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # CLEANUP
         self.core.break_realtime()
-        # reset all oscillator frequencies and amplitudes
         self.phaser_eggs.reset_oscillators()
-        self.core.break_realtime()
-        # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-        self.core.break_realtime()
 
 
     # HELPER FUNCTIONS - PHASER

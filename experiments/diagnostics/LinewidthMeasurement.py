@@ -151,6 +151,9 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                     self.update_results(freq_ftw, 1, counts_actual, read_actual)
                     self.update_results(freq_ftw, 0, counts_control, read_control)
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 

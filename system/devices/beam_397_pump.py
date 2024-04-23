@@ -60,7 +60,6 @@ class Beam397Pump(LAXDevice):
                 self.rf_switch.off()
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
-
     @kernel(flags={"fast-math"})
     def off(self):
         with parallel:
@@ -79,6 +78,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(0)
+        self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def readout(self):
@@ -87,6 +87,7 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(1)
+        self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def rescue(self):
@@ -95,7 +96,9 @@ class Beam397Pump(LAXDevice):
         todo: document
         """
         self.beam.cpld.set_profile(2)
+        self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num):
+    def set_profile(self, profile_num: TInt32):
         self.beam.cpld.set_profile(profile_num)
+        self.beam.cpld.io_update.pulse_mu(8)

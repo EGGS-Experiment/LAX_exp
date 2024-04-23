@@ -20,7 +20,7 @@ class LaserScanMulti(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("scan_type",
-                              EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2","Scan+Both"], default="Scan"))
+                              EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2","Scan+Both","Sideband1","Sideband2","Both Sidebands"], default="Scan"))
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
                                                                         default=CenterScan(102.410, 0.02, 0.0001, randomize=True),
@@ -58,7 +58,12 @@ class LaserScanMulti(LAXExperiment, Experiment):
             self.all_scans_ftw = np.concatenate(                    (self.freq_qubit_scan_ftw, self.freq_rsb2_scan_ftw))
         elif self.scan_type == "Scan+Both":
             self.all_scans_ftw = np.concatenate(                    (self.freq_qubit_scan_ftw, self.freq_rsb1_scan_ftw, self.freq_rsb2_scan_ftw))
-
+        elif self.scan_type == "Sideband1":
+            self.all_scans_ftw =                                    self.freq_rsb1_scan_ftw
+        elif self.scan_type == "Sideband2":
+            self.all_scans_ftw =                                    self.freq_rsb2_scan_ftw
+        elif self.scan_type == "Both Sidebands":
+            self.all_scans_ftw = np.concatenate(                    ( self.freq_rsb1_scan_ftw, self.freq_rsb2_scan_ftw))
 
         self.ampl_qubit_asf =                                       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
@@ -116,6 +121,9 @@ class LaserScanMulti(LAXExperiment, Experiment):
                 with parallel:
                     self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
                     self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

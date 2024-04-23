@@ -54,7 +54,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         self.tickle_subsequence_phaser =                                            TickleFastPhaser(self)
 
         # get necessary devices
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -68,7 +68,7 @@ class QLMSRabiRDX(SidebandCooling.SidebandCooling):
         # convert QLMS modulation to machine units
         self.freq_qlms_rabi_ftw_list =                                          np.array([hz_to_ftw(freq_mhz * MHz)
                                                                                           for freq_mhz in self.freq_qlms_rabi_mhz_list])
-        self.phase_qlms_rabi_pow_list =                                         np.array([self.dds_modulation.turns_to_pow(phase_turns)
+        self.phase_qlms_rabi_pow_list =                                         np.array([self.dds_parametric.turns_to_pow(phase_turns)
                                                                                           for phase_turns in self.phase_qlms_rabi_turns_list])
         self.time_qlms_rabi_mu_list =                                           np.array([self.core.seconds_to_mu(time_ns * ns)
                                                                                           for time_ns in self.time_qlms_rabi_ns_list])
