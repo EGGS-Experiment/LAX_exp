@@ -161,27 +161,6 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
         ampl_calib_points =                                                 self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                                  Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
-        # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
-        # calculate calibrated eggs sidebands amplitudes
-        if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _) in enumerate(self.config_eggs_heating_list):
-                # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz =                                (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
-                # get normalized transmission through system
-                transmitted_power_frac =                                    ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
-                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-
-                # TMP REMOVE
-                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
-                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                                                                            ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, [3, 4, 5]] =                      np.array([scaled_power_pct[0],
-                                                                                      scaled_power_pct[1],
-                                                                                      self.ampl_eggs_dynamical_decoupling_pct]) / 100.
-
 
         ### EGGS HEATING - EGGS RF CONFIGURATION ###
         # if dynamical decoupling is disabled, set carrier amplitude to 0.
@@ -446,27 +425,33 @@ class EGGSHeating(SidebandCooling.SidebandCooling):
 
 
     # ANALYSIS
-    def analyze(self):
-        pass
-        # print("\tconfig:")
-        # print("\t\t{}\n".format(self.config_eggs_heating_list))
+    def analyze_experiment(self):
 
-        # print("\tdd decoupling psk list:")
-        # print("\t\t{}\n".format(self.config_dynamical_decoupling_psk_list))
-        #
-        # print("\tch1 global latency: {:.3f}\n".format(self.phase_ch1_turns))
-        #
-        # print("\tosc0:")
-        # print("\t\tphase ch0 osc0: {:.3f}\n".format(self.phase_ch0_osc0))
-        # print("\t\tphase ch1 osc0: {:.3f}\n".format(self.phase_ch1_osc0))
-        #
-        # print("\tosc1:")
-        # print("\t\tphase ch0 osc1: {:.3f}".format(self.phase_ch0_osc1))
-        # print("\t\tphase ch1 osc1: {:.3f}\n".format(self.phase_ch1_osc1))
-        #
-        # print("\tosc2:")
-        # print("\t\tphase ch0 osc2: {:.3f}".format(self.phase_ch0_osc2))
-        # print("\t\tphase ch1 osc2: {:.3f}\n".format(self.phase_ch1_osc2))
+        # get relevant data
+        _MU_to_MHz = 2 * 2.32830644e-7
+        results_tmp = np.array([self.results])
+        readout_freqs = np.array([results_tmp[:.0]]) * _MU_to_MHz
+        counts = np.array([results_tmp[:, 1]])
+        carrier_freqs_hz = np.array([results_tmp[:,2]]) * _MU_to_MHz
+        sideband_freqs_hz = np.array([results_tmp[:,3]])* _MU_to_MHz
+        probs = np.zeros(len(counts))
+
+        print(np.shape(result_tmp))
+
+
+        threshold_list = findThresholdScikit(counts)
+
+        for threshold in threshold_list:
+            probs[np.where(counts>threshold)] +=1
+
+        normalized_probs = 1.-probs/len(threshold_list)
+
+
+
+
+
+
+
 
 
     # HELPER FUNCTIONS - PHASER
