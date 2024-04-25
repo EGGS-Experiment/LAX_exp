@@ -8,6 +8,17 @@ from artiq.applets.simple import SimpleApplet
 
 from playsound import playsound
 
+# _PLAYSOUND_ENABLE = False
+# try:
+#     # todo: try to make resource imports programmatic
+#     #from inspect import getfile, getmodule
+#     from playsound import playsound
+#     from twisted.internet.threads import deferToThread
+#     _UNLOCKED_SOUND_PATH = os.path.join(os.environ['EGGS_LABRAD_ROOT'], 'EGGS_labrad\\clients\\wavemeter_client\\channel_unlocked_short.mp3')
+#     _PLAYSOUND_ENABLE = True
+# except Exception as e:
+#     print('Error: playsound package not installed.')
+
 
 class TextWidget(QtWidgets.QLabel):
     def __init__(self, args):
@@ -16,20 +27,17 @@ class TextWidget(QtWidgets.QLabel):
 
         # configure display
         self.setStyleSheet('background-color: green; color: white')
-        self.setFont(QFont('MS Shell Dlg 2', pointSize=13))
-        self.setAlignment(Qt.AlignBottom | Qt.AlignRight)
+        self.setFont(QFont('MS Shell Dlg 2', pointSize=19))
+        self.setAlignment(Qt.AlignCenter | Qt.AlignHCenter)
 
 
     def data_changed(self, data, mods):
         try:
-            # tmp remove
-            print(data[self.dataset_name])
-
             # get status text
             text = data[self.dataset_name][1]
 
             # configure error display
-            if 'ERROR' in text.split(':')[0].upper():
+            if 'ERR' in text.split(':')[0].upper():
                 self.setStyleSheet('background-color: red; color: white')
                 # todo: play sound
 
