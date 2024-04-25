@@ -52,15 +52,15 @@ class RescueIon(LAXSubsequence):
             self.probe_func = self.probe.on
 
         # ion death/syndrome detection
-        self._deathcount_length =       50
+        self._deathcount_length =       100
         self._deathcount_tolerance =    2
         self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
         self._deathcount_iter =         0
 
-        self._death_threshold_bright =  50
+        self._death_threshold_bright =  75
         self._deathcount_sum_counts =   0
-
         # todo: position switching
+
 
     @kernel(flags={"fast-math"})
     def run(self, i: TInt32):
