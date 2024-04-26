@@ -134,7 +134,7 @@ class RescueIon(LAXSubsequence):
             if self._deathcount_sum_counts < self._deathcount_tolerance:
 
                 # set syndrome message
-                self.set_dataset('management.ion_status', 'ERR: DEATH', broadcast=True)
+                self.set_dataset('management.ion_status', 'ERROR: DEATH', broadcast=True)
 
                 # reset death counter variables
                 self._deathcount_sum_counts =   0
@@ -146,7 +146,7 @@ class RescueIon(LAXSubsequence):
             elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
 
                 # set syndrome message
-                self.set_dataset('management.ion_status', 'ERR: TRANSITION', broadcast=True)
+                self.set_dataset('management.ion_status', 'ERROR: TRANSITION', broadcast=True)
 
                 # reset death counter variables
                 self._deathcount_sum_counts =   0
