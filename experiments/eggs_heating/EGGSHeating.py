@@ -317,6 +317,11 @@ class EGGSHeating(LAXExperiment, Experiment):
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
 
+        # TMP REMOVE
+        # used to check_termination more frequently
+        _loop_iter = 0
+        # TMP REMOVE
+
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -395,6 +400,14 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # death detection
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()
+
+                # TMP REMOVE
+                # check termination more frequently in case reps are low
+                if (_loop_iter % 50) == 0:
+                    self.check_termination()
+                    self.core.break_realtime()
+                _loop_iter += 1
+                # TMP REMOVE
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
