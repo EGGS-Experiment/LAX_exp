@@ -53,7 +53,7 @@ class RescueIon(LAXSubsequence):
 
         # ion death/syndrome detection
         self._deathcount_length =       100
-        self._deathcount_tolerance =    2
+        self._deathcount_tolerance =    5
         self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
         self._deathcount_iter =         0
 
