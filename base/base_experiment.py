@@ -451,6 +451,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         expid =         exp_params["expid"]
 
         # todo: try to get default save dir list
+        # problem: we don't have access to dataset managers in this stage
         # try:
         #     th0 = self.get_dataset('management.dataset_save_locations')
         #     print(th0)
@@ -458,7 +459,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         #     print(e)
         #     print('whoops')
         save_dir_list = [
-            'Z:\\Motion\\Data'
+            'Z:\\Motion\\Data',
+            'D:\\Results'
         ]
 
         # save to all relevant directories
