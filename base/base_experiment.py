@@ -9,7 +9,7 @@ import traceback
 
 from sipyco import pyon
 from datetime import datetime
-from numpy import array, zeros, int32
+from numpy import array, zeros, int32, nan
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
@@ -194,7 +194,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
         # downsample counts for dynamic plotting
         _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
-        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * np.nan,
+        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * nan,
                          broadcast=True, persist=False, archive=False)
 
         # start counting initialization time
