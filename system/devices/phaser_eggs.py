@@ -103,7 +103,7 @@ class PhaserEGGS(LAXDevice):
         """
         Reset frequency, amplitude, and phase accumulators for all oscillators on both channels of the phaser.
         Maximum attenuation is set to minimize leakage of downstream phaser components.
-        This function synchronizes to the frame internally.
+        This function synchronizes to the frame for each oscillator reset.
         """
         # clear oscillators
         for i in range(5):

@@ -32,6 +32,16 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.readout_subsequence =                                          Readout(self)
         self.rescue_subsequence =                                           RescueIon(self)
 
+        # readout time - todo: integrate with sideband readout somehow
+        self.setattr_argument("time_readout_us_list",                       Scannable(
+                                                                                default=[
+                                                                                    ExplicitScan([315]),
+                                                                                    RangeScan(0, 1500, 300, randomize=True),
+                                                                                ],
+                                                                                global_min=1, global_max=100000, global_step=1,
+                                                                                unit="us", scale=1, ndecimals=5
+                                                                            ), group=self.name)
+
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
@@ -96,15 +106,20 @@ class EGGSHeating(LAXExperiment, Experiment):
         # tmp remove
 
     def prepare_experiment(self):
+        """
+        Prepare experimental values.
+        """
         # ensure phaser amplitudes sum to less than 100%
         # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
         #                                                                      self.ampl_eggs_heating_bsb_pct +
         #                                                                      self.ampl_eggs_dynamical_decoupling_pct)
         # assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
-        # get readout frequencies
+        '''SUBSEQUENCE PARAMETERS'''
+        # get readout values
         self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-
+        self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
+                                                                          for time_us in self.time_readout_us_list])
 
         '''EGGS HEATING - TIMING'''
         self.time_eggs_heating_mu =                             self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
@@ -136,15 +151,17 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                           len(self.freq_eggs_carrier_hz_list) *
                                                                           len(self.freq_eggs_secular_hz_list) *
-                                                                          len(self.phase_eggs_heating_rsb_turns_list),
-                                                                          7), dtype=float)
+                                                                          len(self.phase_eggs_heating_rsb_turns_list) *
+                                                                          len(self.time_readout_mu_list),
+                                                                          8), dtype=float)
         # note: sideband readout frequencies are at the end of the
         # meshgrid to support adjacent_sidebands configuration option
-        self.config_eggs_heating_list[:, [1, 2, -1, 0]] =       np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
+        self.config_eggs_heating_list[:, [1, 2, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
                                                                                      self.freq_eggs_secular_hz_list,
                                                                                      self.phase_eggs_heating_rsb_turns_list,
+                                                                                     self.time_readout_mu_list,
                                                                                      self.freq_sideband_readout_ftw_list),
-                                                                         -1).reshape(-1, 4)
+                                                                         -1).reshape(-1, 5)
         self.config_eggs_heating_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
                                                                           self.ampl_eggs_heating_bsb_pct,
                                                                           self.ampl_eggs_dynamical_decoupling_pct]) / 100.
@@ -164,7 +181,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         # todo: move to a phaser internal function
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _) in enumerate(self.config_eggs_heating_list):
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
                 rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
                 # get normalized transmission through system
@@ -279,7 +296,7 @@ class EGGSHeating(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                5)
+                6)
 
 
     # MAIN SEQUENCE
@@ -288,7 +305,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.sidebandreadout_subsequence.record_dma()
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
@@ -302,10 +318,9 @@ class EGGSHeating(LAXExperiment, Experiment):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
-        # tmp remove
+        # reset debug triggers
         self.ttl8.off()
         self.ttl9.off()
-        # tmp remove
 
 
     @kernel(flags={"fast-math"})
@@ -317,10 +332,8 @@ class EGGSHeating(LAXExperiment, Experiment):
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
 
-        # TMP REMOVE
         # used to check_termination more frequently
         _loop_iter = 0
-        # TMP REMOVE
 
 
         # MAIN LOOP
@@ -338,6 +351,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 ampl_bsb_frac =             config_vals[4]
                 ampl_dd_frac =              config_vals[5]
                 phase_rsb_turns =           config_vals[6]
+                time_readout_mu =           np.int64(config_vals[6])
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
@@ -361,9 +375,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
                 # reset DUC phase to start DUC deterministically
                 self.phaser_eggs.reset_duc_phase()
-                # tmp remove - integrator hold
-                # self.ttl10.on()
-                # tmp remove - integrator hold
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
@@ -372,14 +383,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
-                # tmp remove - integrator hold
-                # self.ttl10.off()
-                # tmp remove - integrator hold
-                # todo: reset attenuators
-
 
                 '''READOUT'''
-                self.sidebandreadout_subsequence.run_dma()
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
 
@@ -390,7 +396,8 @@ class EGGSHeating(LAXExperiment, Experiment):
                         counts,
                         carrier_freq_hz,
                         sideband_freq_hz,
-                        phase_rsb_turns
+                        phase_rsb_turns,
+                        time_readout_mu
                     )
                     self.core.break_realtime()
 
@@ -401,13 +408,11 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()
 
-                # TMP REMOVE
                 # check termination more frequently in case reps are low
                 if (_loop_iter % 50) == 0:
                     self.check_termination()
                     self.core.break_realtime()
                 _loop_iter += 1
-                # TMP REMOVE
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -663,6 +668,7 @@ class EGGSHeating(LAXExperiment, Experiment):
     '''
     def analyze(self):
         pass
+        # print output config for debugging
         # print("\tconfig:")
         # print("\t\t{}\n".format(self.config_eggs_heating_list))
         # print("\tdd decoupling psk list:")

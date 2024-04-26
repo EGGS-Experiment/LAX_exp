@@ -11,6 +11,7 @@ from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
 class SidebandCooling(LAXExperiment, Experiment):
     """
     Experiment: Sideband Cooling
+
     Measures temperature after a given number of RSB pulses.
     """
     name = 'Sideband Cooling'
@@ -36,8 +37,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
-        if self.cooling_type == "Continuous":   self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "Pulsed":     self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
+        if self.cooling_type == "Continuous":       self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "Pulsed":         self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
     @property
     def results_shape(self):
