@@ -24,23 +24,23 @@ class SidebandReadout(LAXSubsequence):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        ExplicitScan([101.5699]),
-                                                                        CenterScan(102.5025, 0.010, 0.0005, randomize=True),
+                                                                        ExplicitScan([102.9284]),
+                                                                        CenterScan(101.5193, 0.008, 0.0002, randomize=True),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        ExplicitScan([102.9392]),
-                                                                        CenterScan(103.2610, 0.010, 0.0005, randomize=True),
+                                                                        ExplicitScan([102.9284]),
+                                                                        CenterScan(102.9283, 0.008, 0.0005, randomize=True),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ), group=self.name)
         self.setattr_argument("ampl_sideband_readout_pct",      NumberValue(default=50, ndecimals=3, step=10, min=1, max=50.), group=self.name)
         self.setattr_argument("att_sideband_readout_db",        NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("time_sideband_readout_us",       NumberValue(default=320., ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("time_sideband_readout_us",       NumberValue(default=330., ndecimals=5, step=1, min=1, max=10000), group=self.name)
 
         # get relevant devices
         self.setattr_device('qubit')
