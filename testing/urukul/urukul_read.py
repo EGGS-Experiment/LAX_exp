@@ -20,8 +20,8 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl9")
 
         self.setattr_device("ttl0_counter")
-        self.setattr_device('urukul2_ch2')
-        self.setattr_device('urukul2_cpld')
+        self.setattr_device('urukul1_ch2')
+        self.setattr_device('urukul1_cpld')
 
         # urukul devices
         self.setattr_device("urukul0_cpld")
@@ -42,8 +42,8 @@ class testarg34(EnvExperiment):
         self.setattr_device("urukul2_ch2")
         self.setattr_device("urukul2_ch3")
 
-        self.dds = self.urukul1_ch1
-        self.dds_cpld = self.urukul0_cpld
+        self.dds = self.urukul1_ch3
+        self.dds_cpld = self.urukul1_cpld
 
     def prepare(self):
         self.freq = np.int32(0)
@@ -58,6 +58,7 @@ class testarg34(EnvExperiment):
         self._profile4_word = np.int64(0)
 
         self.th0 = (0., 0., 0.)
+        self.th1 = (0., 0., 0.)
 
 
     @kernel
@@ -65,7 +66,15 @@ class testarg34(EnvExperiment):
         self.core.reset()
         self.core.break_realtime()
 
+        # tmp remove
+        # self.dds.set_mu(0xF, asf=0x1FF, profile=3)
+        # self.core.break_realtime()
+        # self.dds_cpld.io_update.pulse_mu(8)
+        self.dds_cpld.set_profile(1)
+        # tmp remove
 
+        # self.dds_cpld.set_profile(7)
+        # self.dds_cpld.io_update.pulse_mu(8)
         self._profile0_word = np.int64(self.dds.read64(0x0E))
         self.core.break_realtime()
 
@@ -81,7 +90,11 @@ class testarg34(EnvExperiment):
         self._profile4_word = np.int64(self.dds.read64(0x12))
         self.core.break_realtime()
 
-        self.th0 = self.dds.get(profile=0)
+        self.th0 = self.dds.get(profile=3)
+        self.core.break_realtime()
+
+        self.th1 = self.dds.get(profile=7)
+        self.core.break_realtime()
 
 
     def analyze(self):
@@ -102,6 +115,7 @@ class testarg34(EnvExperiment):
         asf_3 = np.int32((self._profile3_word >> 48) & 0x3FFF)
 
         print(self.th0)
+        print(self.th1)
 
 
 
@@ -124,6 +138,4 @@ class testarg34(EnvExperiment):
         print("\t\tfreq: {:.4f} MHz".format(self.dds.ftw_to_frequency(ftw_3) / MHz))
         print("\t\tampl: {:.4f} %".format(self.dds.asf_to_amplitude(asf_3) * 100.))
         print("\t\tphas: {:.4f} turns\n".format(self.dds.pow_to_turns(pow_3)))
-
-        # at_mu(now_mu() + 125000)
 

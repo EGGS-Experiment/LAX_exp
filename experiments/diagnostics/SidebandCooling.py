@@ -5,7 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous,SidebandCoolPulsed, SidebandReadout)
+                                         SidebandCoolContinuous, SidebandCoolPulsed, SidebandReadout)
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -19,28 +19,26 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # sideband cooling type
-        self.setattr_argument("cooling_type",                           EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
+        self.setattr_argument("cooling_type",       EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
 
         # get relevant devices
         self.setattr_device('qubit')
 
         # get subsequences
-        self.initialize_subsequence =                                   InitializeQubit(self)
-        self.sidebandcool_pulsed_subsequence =                          SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence =                      SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =                              SidebandReadout(self)
-        self.readout_subsequence =                                      Readout(self)
-        self.rescue_subsequence =                                       RescueIon(self)
+        self.initialize_subsequence =               InitializeQubit(self)
+        self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
+        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
+        self.sidebandreadout_subsequence =          SidebandReadout(self)
+        self.readout_subsequence =                  Readout(self)
+        self.rescue_subsequence =                   RescueIon(self)
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
-        if self.cooling_type == "Continuous":
-            self.sidebandcool_subsequence =                             self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "Pulsed":
-            self.sidebandcool_subsequence =                             self.sidebandcool_pulsed_subsequence
+        if self.cooling_type == "Continuous":       self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "Pulsed":         self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
     @property
     def results_shape(self):
@@ -65,6 +63,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.core.reset()
 
         for trial_num in range(self.repetitions):
+
+            # scan over sideband readout frequencies
             for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
 
                 # set frequency
@@ -197,3 +197,4 @@ class SidebandCooling(LAXExperiment, Experiment):
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
                                                     )**0.5
         return np.array([abs(phonon_n), abs(phonon_err)])
+
