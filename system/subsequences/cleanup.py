@@ -22,6 +22,9 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
 
+        # specific device cases
+        self.setattr_device('urukul1_ch3')      # tickle DDS
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -48,6 +51,8 @@ class Cleanup(LAXSubsequence):
         self.urukul1_cpld.cfg_switches(0b0000)
         # set maximum attenuation for motional board to prevent leakage
         self.urukul1_cpld.set_all_att_mu(0)
+        # set clean waveform for tickle DDS to prevent leakage
+        self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
 
         # reset main board to rescue parameters
         self.urukul2_cpld.set_profile(0)
