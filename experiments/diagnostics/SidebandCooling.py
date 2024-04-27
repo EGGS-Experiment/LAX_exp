@@ -144,11 +144,10 @@ class SidebandCooling(LAXExperiment, Experiment):
                                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                                     )**0.5
 
-        # tmp remove
+        # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
         self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.sidebandcooling.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-        # tmp remove
 
         # save results to hdf5 as a dataset
         self.set_dataset('fit_params_rsb',  fit_params_rsb)
