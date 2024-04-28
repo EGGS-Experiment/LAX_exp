@@ -6,8 +6,7 @@ Contains helpful/commonly used modules for processing datasets.
 
 __all__ = ['findThresholdScikit', 'findThresholdPeaks',
            'groupBy', 'groupBy2',
-           'processFluorescence2D']
-
+           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons']
 
 # necessary imports
 import numpy as np
@@ -17,11 +16,14 @@ from itertools import groupby
 from scipy.signal import find_peaks
 # from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 from skimage.filters import threshold_multiotsu, threshold_minimum
-
+from scipy.special import factorial
+from scipy.interpolate import interp1d
 
 '''
 Thresholding
 '''
+
+
 def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None):
     """
     Get the binary discrimination threshold for a dataset
@@ -55,16 +57,15 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
     # tmp remove
 
     # start with minimum error thresholding since it's most likely to recognize the signal/background threshold
-    thresh_values_start =  np.array([threshold_minimum(counts_arr)])
+    thresh_values_start = np.array([threshold_minimum(counts_arr)])
     # use multi-otsu thresholding to get threshold values in case of num_ions > 1
-    thresh_multiotsu_values = threshold_multiotsu(counts_arr, classes=num_ions+1, nbins=num_bins)
+    thresh_multiotsu_values = threshold_multiotsu(counts_arr, classes=num_ions + 1, nbins=num_bins)
 
     # ensure duplicate thresholds are not added to list
     for thresh_val in thresh_multiotsu_values:
         # only recognize value if different from existing thresholds by thresh_dist
         if np.all(np.abs(thresh_values_start - thresh_val) > thresh_dist):
             thresh_values_start = np.append(thresh_values_start, thresh_val)
-
 
     # # create list of threshold functions
     # threshold_functions = [threshold_isodata, threshold_yen, threshold_triangle]
@@ -79,7 +80,7 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
     #         thresh_values = np.append(thresh_values, thresh_val)
 
     # print result to log
-    print('\tThresholds: {}'.format(np.sort(thresh_values_start)[: num_ions]))
+    # print('\tThresholds: {}'.format(np.sort(thresh_values_start)[: num_ions]))
     # return sorted threshold values
     return np.sort(thresh_values_start)[: num_ions]
 
@@ -108,7 +109,7 @@ def findThresholdPeaks(counts_arr):
 
     # find peaks
     # set minimum distance between peaks as half typical ion counts (convert to bins)
-    _peak_dist = round((90./1.5) / bin_width)
+    _peak_dist = round((90. / 1.5) / bin_width)
     peaks, props = find_peaks(hist_counts, distance=_peak_dist)
 
     # assume first and second peaks are the counts for background and 1 ion fluorescence, respectively
@@ -116,7 +117,7 @@ def findThresholdPeaks(counts_arr):
     counts_bgr, counts_signal = hist_bins[peaks[: 2]]
 
     # use roos thesis minimum error thresholding to calculate appropriate thresholds
-    counts_threshold = counts_signal / np.log(1 + counts_signal/counts_bgr)
+    counts_threshold = counts_signal / np.log(1 + counts_signal / counts_bgr)
 
     # guess number of ions as num_peaks - 1
     num_ions = len(peaks) - 1
@@ -128,7 +129,8 @@ def findThresholdPeaks(counts_arr):
 Dataset Processing
 '''
 
-def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
+
+def groupBy(dataset, column_num=0, reduce_func=lambda x: x):
     """
     Groups a 2-D array by a given column.
     Arguments:
@@ -153,7 +155,7 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x:x):
     return dataset_processed
 
 
-def groupBy2(dataset, column_nums=0, reduce_func=lambda x:x):
+def groupBy2(dataset, column_nums=0, reduce_func=lambda x: x):
     """
     Groups a 2-D array by a given column.
     Arguments:
@@ -196,24 +198,164 @@ def processFluorescence2D(dataset):
     """
     todo: document
 
-    Arguments:
+    Args:
         ***todo
 
     Returns:
         ***todo
     """
     # create data structures for processing
-    probability_vals =      np.zeros(len(dataset))
+    probability_vals = np.zeros(len(dataset))
 
     # calculate fluorescence detection threshold
-    threshold_list =        findThresholdScikit(dataset[:, 1])
+    threshold_list = findThresholdScikit(dataset[:, 1])
     for threshold_val in threshold_list:
         probability_vals[np.where(dataset[:, 1] > threshold_val)] += 1.
     # normalize probabilities and convert from D-state probability to S-state probability
-    dataset[:, 1] =         1. - probability_vals / len(threshold_list)
+    dataset[:, 1] = 1. - probability_vals / len(threshold_list)
 
     # process dataset into x, y, with y being averaged probability
-    dataset_processed =     groupBy(dataset, column_num=0, reduce_func=np.mean)
-    dataset_processed =     np.array([list(dataset_processed.keys()),
-                                      list(dataset_processed.values())]).transpose()
+    dataset_processed = groupBy(dataset, column_num=0, reduce_func=np.mean)
+    dataset_processed = np.array([list(dataset_processed.keys()),
+                                  list(dataset_processed.values())]).transpose()
     return dataset_processed
+
+
+def extract_ratios(dataset: np.array, sorting_col_num: int, counts_col_num: int, readout_col_num: int, reps: int, sub_reps: int):
+    """
+    From a dataset find the rsb/bsb ratios
+
+    Args:
+        dataset: dataset to be analyzed
+        sorting_col_num: column of the dataset contain the frequencies that were scanned (sideband, carrier, etc.)
+        counts_col_num: column number of the dataset containing fluorescence counts
+        readout_col_num: column number of the dataset countaining readout frequencies
+        reps: number of repetitions performed at each experimental point
+        sub_reps: number of sub-reps performed for each repetition
+
+    Returns:
+        ratios: rsb/bsb ratios
+        probs_rsb: the rsb excitation probability
+        probs_bsb: the rsb excitation probability
+        std_rsb: standard deviation for the rsb excitation probability
+        std_bsb: standard deviation for the bsb excitation probability
+        scanning_freqs_MHz_unique: frequncies we scan over
+
+    """
+    _AMO_MU_TO_MHZ = 2*2.32830644e-7
+    dataset_sorted = dataset[np.argsort(dataset[:, sorting_col_num]), :]
+    scanning_freqs = dataset_sorted[:, sorting_col_num]
+    scanning_freqs_unique = np.unique(scanning_freqs)
+    readout_freqs_sorted = np.array(dataset_sorted[:, readout_col_num])
+    counts = np.array(dataset_sorted[:, counts_col_num])
+
+    if np.array_equal(scanning_freqs, readout_freqs_sorted):
+        scanning_freqs_MHz_unique = scanning_freqs_unique * _AMO_MU_TO_MHZ
+
+    else:
+        scanning_freqs_MHz_unique = scanning_freqs_unique* 1e-6
+
+    readout_freqs_MHz_sorted = readout_freqs_sorted*_AMO_MU_TO_MHZ
+    probs = np.zeros(len(counts))
+    guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
+
+    # determine thresholds
+    threshold_list = findThresholdScikit(counts)
+    for threshold_val in threshold_list:
+        probs[np.where(counts > threshold_val)] += 1.
+
+    normalized_probs = 1. - probs / len(threshold_list)
+
+    normalized_probs_rsb = normalized_probs[guess_Ca_carrier_MHz > readout_freqs_MHz_sorted]
+    probs_rsb = np.mean(normalized_probs_rsb.reshape(-1, sub_reps * reps), 1)
+    std_rsb = np.std(normalized_probs_rsb.reshape(-1, sub_reps * reps, 1) / np.sqrt(reps * sub_reps))
+
+    normalized_probs_bsb = normalized_probs[guess_Ca_carrier_MHz < readout_freqs_MHz_sorted]
+    probs_bsb = np.mean(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1)
+    std_bsb = np.std(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1) / np.sqrt(reps * sub_reps)
+
+    ratios = np.divide(probs_rsb, probs_bsb)
+
+    return ratios, probs_rsb, probs_bsb, std_rsb, std_bsb, scanning_freqs_MHz_unique
+
+def extract_sidebands_freqs(readout_freqs_MHz):
+    """
+    Split readout frequencies into red and blue sidebands - should already be sorted and unique
+
+    Args:
+        readout_freqs_MHz: sorted and unique list of frequencies to readout for sideband analysis
+
+    Returns:
+        rsb_freqs: frequencies for readout of rsb
+        bsb_freqs: frequencies for readout of bsb
+        guess_Ca_carrier_MHz: expected carrier frequency
+    """
+    guess_Ca_carrier_MHz = np.mean(readout_freqs_MHz)
+    rsb_freqs= readout_freqs_MHz[guess_Ca_carrier_MHz > readout_freqs_MHz]
+    bsb_freqs= readout_freqs_MHz[guess_Ca_carrier_MHz < readout_freqs_MHz]
+    return rsb_freqs, bsb_freqs, guess_Ca_carrier_MHz
+
+def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
+    """
+    Convert rsb/bsb ratios to number of phonons for a coherent state
+
+    Argus:
+        ratios: rsb/bsb ratios from sidebands
+
+    Returns:
+        phonons: phonon count of coherent state
+    """
+    ratios[ratios < 0] = 0
+    ratios[ratios > .8] = .8
+
+    nbars = np.linspace(0, 2, 2001)
+    coherent_ratios = np.zeros(len(nbars))
+    for idx, nbar in enumerate(nbars):
+        coherent_ratios[idx] = prob_rsb(nbar) / prob_bsb(nbar)
+
+    interp_func = interp1d(coherent_ratios, nbars)
+    phonons = interp_func(ratios)
+    return phonons
+
+
+def coherent_state_amp(nbar, n):
+    """
+    Determine probability amplitudes of a coherent state
+    Arguemnts:
+        nbar: average phonon number
+        n: phonon number
+    Returns: coherent state amplitude
+
+
+    todo: support taking array of nbar (currently only supports n as an array but nbar needs to be an int/float)
+    """
+    return np.multiply(np.exp(-np.abs(nbar) / 2), np.power(np.sqrt(nbar), n) / np.sqrt(factorial(n)))
+
+
+def prob_bsb(nbar):
+    """
+    Determine blue sideband excitation probability for a coherent state
+
+    Args:
+        nbar: average phonon number
+
+    Returns:
+        blue sideband excitation prbability
+    """
+    n = np.arange(0, 100)
+    return 1 - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n + 1))) * np.abs(coherent_state_amp(nbar, n)) ** 2)
+
+
+def prob_rsb(nbar):
+    """
+    Determine red sideband excitation probability for a coherent state
+
+    Args:
+        nbar: average phonon number
+
+    Returns:
+        red sideband excitation prbability
+    """
+    n = np.arange(1, 100)
+    return 1 - np.abs(coherent_state_amp(nbar, 0)) ** 2 - 1 / 2 * np.sum(
+        (1 + np.cos(np.pi * np.sqrt(n))) * np.abs(coherent_state_amp(nbar, n)) ** 2)

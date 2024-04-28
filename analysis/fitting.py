@@ -6,7 +6,7 @@ Contains modules used for fitting datasets.
 
 __all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
            'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
-           'fitLine', 'fitLineLinear']
+           'fitLine', 'fitLineLinear', 'fitSincGeneric']
 
 
 # necessary imports
@@ -176,8 +176,14 @@ def fitSinc(data, time_fit_s):
         return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
 
     # separate data into x and y
-    data =              np.array(data)
-    data_x, data_y =    data.transpose()
+
+    try:
+        data =              np.array(data)
+        data_x, data_y =    data.transpose()
+    except:
+        data = np.array(data)
+        data_x = data[0,:]
+        data_y = data[1,:]
 
     # extract starting parameter guesses
     b0 =                np.mean(data_x[np.argwhere(data_y == np.max(data_y))])
@@ -359,3 +365,57 @@ def fitLineLinear(data, bounds=(-np.inf, np.inf)):
     res = lsq_linear(matrixA, data_y)
     param_fit = res.x
     return param_fit
+
+def fitSincGeneric(x: np.array,y: np.array):
+    """
+    Fitting function for a generic sinc function
+
+    Args:
+        x: x values
+        y: y values
+
+    Returns:
+        param_fit: optimized parameters from curve_fitting
+        param_err: estimated covariance from curve_fitting
+        ydata: generated curve over given domain
+    """
+
+    def fit_func(x, a, b, c,d):
+        """
+        Fitting function for a generic sinc function
+
+        Args:
+            a: amplitude
+            b: offset from zero
+            c: linewidth
+            d: amplitude offset
+
+        Returns:
+            sinc function
+        """
+        return a*np.sinc(c*(x-b))**2+d
+
+    # extract starting parameter guesses
+    # get offset as average of (median, min) of data
+    b0 =                np.mean(x[np.argwhere(y == np.max(y))])
+    # guess amplitude using max y-value with offset subtracted
+    a0 =                (np.max(y))
+
+    y_left = y[:int(np.median(np.argwhere(y == np.max(y))))]
+    y_right = y[int(np.median(np.argwhere(y == np.max(y)))):]
+    x_left = x[:int(np.median(np.argwhere(y == np.max(y))))]
+    x_right = x[int(np.median(np.argwhere(y == np.max(y)))):]
+
+
+    x_left_FWHM = x_left[(y_left-np.max(y)/2).argmin()]
+    x_right_FWHM = x_right[(y_right-np.max(y)/2).argmin()]
+    c0 = 1/(x_right_FWHM-x_left_FWHM)
+    d0 = np.min(y)
+
+    # fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
+    xdata = np.linspace(np.min(x), np.max(x), int(1e6))
+    ydata = fit_func(xdata, *param_fit)
+    param_err =             np.sqrt(np.diag(param_cov))
+    return param_fit, param_err, ydata
+

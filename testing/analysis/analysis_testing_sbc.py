@@ -21,8 +21,8 @@ from LAX_exp.extensions import *
 from LAX_exp.experiments.diagnostics.SidebandCooling import SidebandCooling
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Sideband Cooling/Datasets'
-datafile_key =              '31229'
+directory_path =            'C:/Users/joshr/OneDrive/Documents/UCLA/Research/Example_Data'
+datafile_key =              '51925'
 
 
 '''
@@ -67,6 +67,7 @@ try:
     storage_dict = {}
     exp_obj = ExperimentWrapper(results, parameters, storage_dict)
     # call the analyze method of the experiment object to process our results
+    exp_obj.build_experiment()
     exp_res = exp_obj.analyze_experiment()
 
 

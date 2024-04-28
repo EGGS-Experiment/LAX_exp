@@ -106,7 +106,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         results_tmp =           np.array(self.results)
         probability_vals =      np.zeros(len(results_tmp))
         counts_arr =            np.array(results_tmp[:, 1])
-        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
+        # time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
+        time_readout_us = 106
 
 
         # tmp remove
