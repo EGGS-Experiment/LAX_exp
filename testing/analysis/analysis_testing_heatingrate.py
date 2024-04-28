@@ -22,8 +22,8 @@ from LAX_exp.experiments.diagnostics.HeatingRate import HeatingRate
 from LAX_exp.experiments.diagnostics.SidebandCooling import SidebandCooling
 
 # datafile parameters
-directory_path =            'C:/Users/joshr/OneDrive/Documents/UCLA/Research/Example_Data'
-datafile_key =              '51584'
+directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Heating Rate/Datasets'
+datafile_key =              '31644'
 
 
 '''

@@ -174,8 +174,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         # process dataset into x, y, with y being averaged probability
         results_tmp =           groupBy(dataset, column_num=0, reduce_func=np.mean)
         results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        # time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
-        time_readout_us = 106
+        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
+
 
 
         # separate spectrum into RSB & BSB and fit using sinc profile
