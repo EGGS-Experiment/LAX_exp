@@ -116,14 +116,8 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 # antisqueeze!
                 self.squeeze_subsequence.antisqueeze()
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
-                # transfer population to D-5/2 state
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
-                # read out fluorescence
+                # sideband shelve and read out
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run()
 
                 # update dataset
