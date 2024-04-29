@@ -21,7 +21,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -678,4 +678,3 @@ class EGGSHeating(LAXExperiment, Experiment):
         #     print("\tosc{:d}:".format(osc_num))
         #     print("\t\tphase ch0 osc{:d}: {:.3f}\n".format(osc_num, self.phase_phaser_turns_arr[0, osc_num]))
         #     print("\t\tphase ch1 osc{:d}: {:.3f}\n".format(osc_num, self.phase_phaser_turns_arr[1, osc_num]))
-
