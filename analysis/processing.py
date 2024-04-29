@@ -226,12 +226,13 @@ def processFluorescence2D(dataset):
 EGGS HEATING FUNCTIONALITY
 """
 
-
-def extract_ratios(dataset: np.array, sorting_col_num: int, counts_col_num: int, readout_col_num: int, reps: int, sub_reps: int):
+def extract_ratios(dataset: np.array,
+                   sorting_col_num: int, counts_col_num: int, readout_col_num: int,
+                   reps: int, sub_reps: int):
     """
-    From a dataset find the rsb/bsb ratios
+    Calculate the rsb/bsb ratios of a dataset.
 
-    Args:
+    Arguments:
         dataset: dataset to be analyzed
         sorting_col_num: column of the dataset contain the frequencies that were scanned (sideband, carrier, etc.)
         counts_col_num: column number of the dataset containing fluorescence counts
@@ -246,7 +247,6 @@ def extract_ratios(dataset: np.array, sorting_col_num: int, counts_col_num: int,
         std_rsb: standard deviation for the rsb excitation probability
         std_bsb: standard deviation for the bsb excitation probability
         scanning_freqs_MHz_unique: frequncies we scan over
-
     """
     _AMO_MU_TO_MHZ = 2*2.32830644e-7
     dataset_sorted = dataset[np.argsort(dataset[:, sorting_col_num]), :]
@@ -297,8 +297,8 @@ def extract_sidebands_freqs(readout_freqs_MHz):
         guess_Ca_carrier_MHz: expected carrier frequency
     """
     guess_Ca_carrier_MHz = np.mean(readout_freqs_MHz)
-    rsb_freqs= readout_freqs_MHz[guess_Ca_carrier_MHz > readout_freqs_MHz]
-    bsb_freqs= readout_freqs_MHz[guess_Ca_carrier_MHz < readout_freqs_MHz]
+    rsb_freqs = readout_freqs_MHz[guess_Ca_carrier_MHz > readout_freqs_MHz]
+    bsb_freqs = readout_freqs_MHz[guess_Ca_carrier_MHz < readout_freqs_MHz]
     return rsb_freqs, bsb_freqs, guess_Ca_carrier_MHz
 
 def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
@@ -322,7 +322,6 @@ def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
     interp_func = interp1d(coherent_ratios, nbars)
     phonons = interp_func(ratios)
     return phonons
-
 
 def coherent_state_amp(nbar, n):
     """
@@ -370,7 +369,6 @@ def prob_rsb(nbar):
 """
 Laser Scan Functionality
 """
-
 def process_laser_scan_results(results):
     #todo: move to use processFluorescence2D
     # create data structures for processing
@@ -425,6 +423,5 @@ def process_laser_scan_results(results):
         # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
         fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
         peak_vals[0, 0] = fit_sinc_params[1]
-        # print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
 
     return peak_vals, results_tmp

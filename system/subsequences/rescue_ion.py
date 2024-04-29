@@ -7,6 +7,12 @@ from LAX_exp.base import LAXSubsequence
 import labrad
 from os import environ
 
+_DEATHCOUNT_STATUS_MESSAGES = [
+    "CLEAR",            #0
+    "ERROR: DEATH",      #1
+    "ERROR: TRANSITION" #2
+]
+
 
 class RescueIon(LAXSubsequence):
     """
@@ -46,9 +52,9 @@ class RescueIon(LAXSubsequence):
                                                                override=True, conversion_function=seconds_to_mu, units=us)
 
         # parameters - death detection
-        self.deathcount_length =            self.get_parameter('', group='management.death.deathcount_length', override=False)
-        self.deathcount_tolerance =         self.get_parameter('', group='management.death.deathcount_tolerance', override=False)
-        self.deathcount_threshold =         self.get_parameter('', group='management.death.deathcount_threshold', override=False)
+        self.deathcount_length =            self.get_parameter('deathcount_length', group='management.death', override=False)
+        self.deathcount_tolerance =         self.get_parameter('deathcount_tolerance', group='management.death', override=False)
+        self.deathcount_threshold =         self.get_parameter('deathcount_threshold', group='management.death', override=False)
 
         # configure variable behavior for self.resuscitate
         self.resuscitate = self._no_op
@@ -59,11 +65,14 @@ class RescueIon(LAXSubsequence):
         if self.add_397nm_spinpol is True:  self.probe_func = self.probe.on
 
         # create variables for ion death/syndrome detection
+        # holder arrays
         self._deathcount_arr =              np.zeros(self.deathcount_length, dtype=np.int32)
         self._deathcount_iter =             0
         self._deathcount_sum_counts =       0
-        self._deathcount_flag =             False
-        self._deathcount_flag_latched =     False
+        # status flags
+        self._deathcount_status =           0
+        self._deathcount_status_latched =   0
+        self._aperture_set_status =         False
 
         # create connection to labrad to open aperture
         # connect to labrad
@@ -71,7 +80,6 @@ class RescueIon(LAXSubsequence):
                                                            port=7682, tls_mode='off',
                                                            username='', password='lab')
         self.aperture =                     self.cxn.elliptec_server
-
 
 
     @kernel(flags={"fast-math"})
@@ -98,8 +106,7 @@ class RescueIon(LAXSubsequence):
     def initialize_subsequence(self) -> TNone:
         # clear ion status
         # note: do it here to prevent experiments in the pipeline from overriding it
-        self.core.break_realtime()
-        self.set_dataset('management.ion_status', 'CLEAR', broadcast=True)
+        self.set_dataset('management.dynamic.ion_status', 'CLEAR', broadcast=True)
 
     @kernel(flags={"fast-math"})
     def _resuscitate(self) -> TNone:
@@ -143,35 +150,45 @@ class RescueIon(LAXSubsequence):
 
             # process syndromes - ion death (no bright counts)
             if self._deathcount_sum_counts < self.deathcount_tolerance:
-
-                # set syndrome message and internal flag
-                self.set_dataset('management.ion_status', 'ERROR: DEATH', broadcast=True)
-                self._deathcount_flag = True
-
-                # clear death counter variables
-                self._deathcount_sum_counts =   0
-                self._deathcount_iter =         0
-                for i in range(self.deathcount_length):
-                    self._deathcount_arr[i] =   0
-
+                self._deathcount_status = 1
             # process syndromes - bad transition (no dark counts)
             elif self._deathcount_sum_counts > (self.deathcount_length - self.deathcount_tolerance):
+                self._deathcount_status = 2
+            # process syndromes - clear
+            else:
+                self._deathcount_status = 0
+
+
+            # process status change
+            if self._deathcount_status != self._deathcount_status_latched:
 
                 # set syndrome message
-                self.set_dataset('management.ion_status', 'ERROR: TRANSITION', broadcast=True)
+                self.set_dataset('management.dynamic.ion_status',
+                                 _DEATHCOUNT_STATUS_MESSAGES[self._deathcount_status],
+                                 broadcast=True)
 
-                # reset death counter variables
-                self._deathcount_sum_counts =   0
-                self._deathcount_iter =         0
-                for i in range(self.deathcount_length):
-                    self._deathcount_arr[i] =   0
+                # clear holder variables upon error
+                if self._deathcount_status != 0:
+                    self._deathcount_sum_counts =   0
+                    self._deathcount_iter =         0
+                    for i in range(self.deathcount_length):
+                        self._deathcount_arr[i] =   0
 
+                    # open aperture if we haven't already
+                    if not self._aperture_set_status:
+                        self._aperture_set_status = True
+                        self._aperture_open()
 
-
+                # update status flag
+                self._deathcount_status_latched = self._deathcount_status
             self.core.break_realtime()
 
         # update count array iterator
         self._deathcount_iter += 1
 
     @rpc(flags={"async"})
-    def _aperture_open(self):
+    def _aperture_open(self) -> TNone:
+        """
+        Open the 397nm aperture to let it rescue light.
+        """
+        self.aperture.move_home()

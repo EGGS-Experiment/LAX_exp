@@ -115,7 +115,6 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
-
         # # todo: move to use processFluorescence2D
         # # create data structures for processing
         # results_tmp =           np.array(self.results)
@@ -169,7 +168,6 @@ class LaserScan(LAXExperiment, Experiment):
         #     # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
         #     fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
         #     peak_vals[0, 0] = fit_sinc_params[1]
-        #     # print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
 
         peak_vals, results_tmp = process_laser_scan_results(self.results)
         # save results to hdf5 as a dataset
