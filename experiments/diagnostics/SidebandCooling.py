@@ -176,6 +176,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
 
 
+
         # separate spectrum into RSB & BSB and fit using sinc profile
         # guess carrier as mean of highest and lowest frequencies
         guess_carrier_mhz =     (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
