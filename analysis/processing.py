@@ -6,7 +6,8 @@ Contains helpful/commonly used modules for processing datasets.
 
 __all__ = ['findThresholdScikit', 'findThresholdPeaks',
            'groupBy', 'groupBy2',
-           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons']
+           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
+           'process_laser_scan_results']
 
 # necessary imports
 import numpy as np
@@ -221,6 +222,11 @@ def processFluorescence2D(dataset):
     return dataset_processed
 
 
+"""
+EGGS HEATING FUNCTIONALITY
+"""
+
+
 def extract_ratios(dataset: np.array, sorting_col_num: int, counts_col_num: int, readout_col_num: int, reps: int, sub_reps: int):
     """
     From a dataset find the rsb/bsb ratios
@@ -359,3 +365,66 @@ def prob_rsb(nbar):
     n = np.arange(1, 100)
     return 1 - np.abs(coherent_state_amp(nbar, 0)) ** 2 - 1 / 2 * np.sum(
         (1 + np.cos(np.pi * np.sqrt(n))) * np.abs(coherent_state_amp(nbar, n)) ** 2)
+
+
+"""
+Laser Scan Functionality
+"""
+
+def process_laser_scan_results(results):
+    #todo: move to use processFluorescence2D
+    # create data structures for processing
+    results_tmp =           np.array(results)
+    probability_vals =      np.zeros(len(results_tmp))
+    counts_arr =            np.array(results_tmp[:, 1])
+
+    # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
+    results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
+
+
+    # calculate fluorescence detection threshold
+    threshold_list =        findThresholdScikit(results_tmp[:, 1])
+    for threshold_val in threshold_list:
+        probability_vals[np.where(counts_arr > threshold_val)] += 1.
+    # normalize probabilities and convert from D-state probability to S-state probability
+    results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
+
+    # process dataset into x, y, with y being averaged probability
+    results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+    results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+
+
+    # calculate peak criteria from data
+    # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
+    # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
+    # _peak_height =          np.power(self.repetitions, -0.5)
+    _peak_height =          0.2
+    _peak_thresh =          0.05
+    # peak distance criteria is set as ~8 kHz between points
+    _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
+
+    # calculate peaks from data and extract values
+    from scipy.signal import find_peaks
+    peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
+    peak_vals =             results_tmp[peaks]
+
+    # fit sinc profile to results (only in the case of one peak)
+    if len(peaks) == 1:
+        # get index step size in frequency (mhz)
+        step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
+        freq_sinc_mhz = 1. / self.time_qubit_us
+
+        # get points +/- 6x the 1/f time for sinc fitting
+        num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
+        index_peak_center = peaks[0]
+        index_min = max(0, index_peak_center - num_points_sinc)
+        index_max = min(index_peak_center + num_points_sinc, len(results_tmp))
+        points_tmp = results_tmp[index_min: index_max]
+
+        # fit sinc profile and replace spectrum peak with fitted value
+        # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
+        fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
+        peak_vals[0, 0] = fit_sinc_params[1]
+        # print('\n\t\tOLD VAL: {:.5f}\n\t\tNEW VAL: {:.5f}\n'.format(peak_vals[0, 0], fit_sinc_params[1]))
+
+    return peak_vals, results_tmp
