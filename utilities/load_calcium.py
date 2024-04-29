@@ -151,7 +151,7 @@ class LoadIon(LAXExperiment, Experiment):
         self.mutate_dataset('_tmp_counts_y', self._result_iter, np.array([counts_signal / self.samples_per_point,
                                                                           counts_background / self.samples_per_point,
                                                                           (counts_signal - counts_background) / self.samples_per_point]))
-        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
+        self.set_dataset('management.dynamic.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
 

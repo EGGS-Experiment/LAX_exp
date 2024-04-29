@@ -61,12 +61,14 @@ class Autocalibration(EnvExperiment):
 
 
     def _prepare_parameters(self):
-        # tmp remove
+        """
+        Prepare holder variables for autocalibration.
+        :return:
+        """
         # set intermediate values for experiment
-        self._freq_carrier_aom_mhz =    103.1885
-        self._freq_rsb_aom_mhz =        102.644
-        self._freq_bsb_aom_mhz =        103.7315
-        # tmp remove
+        self._freq_carrier_aom_mhz =    102.2151
+        self._freq_rsb_aom_mhz =        101.5111
+        self._freq_bsb_aom_mhz =        102.9281
 
         # create list of parameters for calibration (to prevent overriding of experiment parameters)
         self.calibration_parameters =       {
@@ -82,26 +84,41 @@ class Autocalibration(EnvExperiment):
         }
 
     def _prepare_expids(self):
-        # create list of calibrations to submit
+        """
+        Prepare expids for calibration sequences and the main experiment queue.
+        """
+
+        '''
+        Calibration List
+        A deque that contains number of "calibration sets".
+        Each calibration set runs the same expid for a set of parameters.
+        
+        parameter_name: the parameter of the calibration set that is to be adjusted.
+        sweep_function: returns the parameters needed for the calibration.
+                        e.g. returns the previous known carrier frequency if we want to run
+                            a laser scan that finds the carrier.
+        callback:       a function that is called when the entire calibration set is completed.
+        '''
         # need: expid, parameter_name, sweep_function, callback
         self.calibrations_list =        deque([
+            # calibration set #1 - laser scan (find RF RSB)
             {
                 'parameter_name':   'freq_qubit_scan_mhz.center',
                 'sweep_function':   self.sweep_func_1,
                 'callback':         self.process_func_1,
                 'expid': {
                     "file":         "LAX_exp\\experiments\\LaserScan.py",
-                    # "file":         "LAX_exp\\testing\\_autocalib_ls_test.py",
                     "class_name":   "LaserScan",
-                    # "class_name":   "autocalib_ls_test",
                     "log_level":    30,
                     "arguments": {
                         "repetitions":  30,
                         "att_qubit_db": 30.5,
+                        "ampl_qubit_pct": 50,
+                        "time_qubit_us": 5000,
                         "freq_qubit_scan_mhz": {
                             "center":       103.1880,
-                            "span":         0.015,
-                            "step":         0.0002,
+                            "span":         0.01,
+                            "step":         0.0001,
                             "randomize":    True,
                             "seed":         None,
                             "ty":           "CenterScan"
@@ -113,9 +130,9 @@ class Autocalibration(EnvExperiment):
 
         # create list of experiments to submit
         # note: each element in the deque should be a simple expid dict
-        self.pending_experiments =         self._eggsheating_expids = deque([{
+        self.pending_experiments = deque([{
             "log_level": 30,
-            "file": "LAX_exp\\experiments\\EGGSHeating.py",
+            "file": "LAX_exp\\experiments\\eggs_heating\\EGGSHeating.py",
             "class_name": "EGGSHeating",
             "arguments": {
                 "repetitions": 50,
@@ -160,6 +177,9 @@ class Autocalibration(EnvExperiment):
     '''
 
     def sweep_func_1(self, parameter_current):
+        """
+        Gives the target parameters based on the current values of a parameter.
+        """
         return [self._freq_carrier_aom_mhz,
                 self._freq_rsb_aom_mhz,
                 self._freq_bsb_aom_mhz]

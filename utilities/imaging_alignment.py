@@ -148,7 +148,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
                                                                                           _counts_avg_signal - _counts_avg_background]))
 
         # update completion monitor
-        self.set_dataset('management.completion_pct',
+        self.set_dataset('management.dynamic.completion_pct',
                          round(100. * self._result_iter / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
         self._result_iter += 1

@@ -191,7 +191,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         # set up dynamic datasets
         # note: this has to happen during run, otherwise we will overwrite other
-        self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
+        self.set_dataset('management.dynamic.completion_pct', 0., broadcast=True, persist=True, archive=False)
         # downsample counts for dynamic plotting
         _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
         self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * nan,
@@ -426,7 +426,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             self._counts_iter += 1
 
             # monitor completion status
-            self.set_dataset('management.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+            self.set_dataset('management.dynamic.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
                              broadcast=True, persist=True, archive=False)
 
         # increment result iterator
