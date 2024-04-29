@@ -54,8 +54,8 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self._iter_background =     np.arange(self.background_samples_per_point)
 
         # prepare datasets for storing counts
-        self.set_dataset('temp.imag_align.counts_x',    np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.imag_align.counts_y',    np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_x', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)) * np.nan, broadcast=True, persist=False, archive=False)
 
     @property
     def results_shape(self):
@@ -148,7 +148,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
                                                                                           _counts_avg_signal - _counts_avg_background]))
 
         # update completion monitor
-        self.set_dataset('management.completion_pct',
+        self.set_dataset('management.dynamic.completion_pct',
                          round(100. * self._result_iter / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
         self._result_iter += 1

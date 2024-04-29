@@ -156,21 +156,12 @@ class LoadIon(LAXExperiment, Experiment):
 
     # overload the update_results function to allow real-time dataset updating
     @rpc(flags={"async"})
-    def update_results(self, iter_num: TInt32, counts_signal: TInt64, counts_background: TInt64) -> TNone:
-        # convert total counts into averaged counts
-        _counts_avg_signal =        counts_signal / self.signal_samples_per_point
-        _counts_avg_background =    counts_background / self.background_samples_per_point
-
-        # update datasets
-        self.mutate_dataset('temp.imag_align._tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
-        self.mutate_dataset('temp.imag_align._tmp_counts_y', self._result_iter, np.array([_counts_avg_signal,
-                                                                                          _counts_avg_background,
-                                                                                          _counts_avg_signal - _counts_avg_background]))
-
-        # update completion monitor
-        self.set_dataset('management.completion_pct',
-                         round(100. * self._result_iter / len(self.results), 3),
-                         broadcast=True, persist=True, archive=False)
+    def update_results(self, iter_num, counts_signal, counts_background):
+        self.mutate_dataset('_tmp_counts_x', self._result_iter, iter_num * (self.update_interval_ms * ms))
+        self.mutate_dataset('_tmp_counts_y', self._result_iter, np.array([counts_signal / self.samples_per_point,
+                                                                          counts_background / self.samples_per_point,
+                                                                          (counts_signal - counts_background) / self.samples_per_point]))
+        self.set_dataset('management.dynamic.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
 

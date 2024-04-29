@@ -204,6 +204,11 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         fit_gaussian_fwmh_mhz =                         np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
         fit_gaussian_fwmh_mhz_err =                     np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
 
+        # save results to dataset manager for dynamic experiments
+        res_dj = [fit_gaussian_params, fit_gaussian_err]
+        self.set_dataset('temp.linewidthmeasurement.results', res_dj, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.linewidthmeasurement.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+
         # save fitted results to hdf5 as a dataset
         self.set_dataset('fit_gaussian_params',         fit_gaussian_params)
         self.set_dataset('fit_gaussian_err',            fit_gaussian_err)

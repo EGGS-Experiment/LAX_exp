@@ -163,10 +163,14 @@ class RabiFlopping(LAXExperiment, Experiment):
         fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
         # todo: extract phonon number from fit
 
-
         # save results to hdf5 as a dataset
         self.set_dataset('fit_params',  fit_params)
         self.set_dataset('fit_err',     fit_err)
+
+        # save results to dataset manager for dynamic experiments
+        res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
+        self.set_dataset('temp.rabiflopping.results', res_dj, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.rabiflopping.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
         # print out fitted parameters
         print("\tResults - Rabi Flopping:")

@@ -271,7 +271,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         results_tmp =           {key_voltage: _dict_to_array(groupBy(val_dataset, column_num=0, reduce_func=_reduce_func))
                                  for key_voltage, val_dataset in results_tmp.items()}
 
-
         # extract optimal voltage for each modulation frequency
         if len(results_tmp) > 1:
             from itertools import groupby
@@ -329,6 +328,11 @@ class ParametricSweep(LAXExperiment, Experiment):
             # save results to hdf5 as a dataset
             self.set_dataset('amplitude_fit_params_saved',  amplitude_fit_params_saved)
             self.set_dataset('amplitude_fit_err_saved',     amplitude_fit_err_saved)
+
+            # save results to dataset manager for dynamic experiments
+            res_dj = [amplitude_fit_params_saved, amplitude_fit_err_saved]
+            self.set_dataset('temp.parametricsweep.results', res_dj, broadcast=True, persist=False, archive=False)
+            self.set_dataset('temp.parametricsweep.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
             # print out fit results
             print("\tResults - Parametric Sweep:")

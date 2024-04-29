@@ -179,7 +179,6 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
-
         # print peaks to log for user convenience
         # ensure we don't have too many peaks before printing to log
         if len(peak_vals) < 5:

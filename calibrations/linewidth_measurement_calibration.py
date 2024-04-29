@@ -181,7 +181,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         """
         # save data to dataset
         self.mutate_dataset('results', self._iter_dataset, np.array([freq_ftw, ampl_asf]))
-        self.set_dataset('management.completion_pct', round(100. * self._iter_dataset / len(self.results), 3),
+        self.set_dataset('management.dynamic.completion_pct', round(100. * self._iter_dataset / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
 
         # update dataset iterator

@@ -4,7 +4,8 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 
-from collections import deque
+import labrad
+from os import environ
 
 
 class RescueIon(LAXSubsequence):
@@ -17,7 +18,10 @@ class RescueIon(LAXSubsequence):
     kernel_invariants = {
         "time_rescue_mu",
         "time_resuscitate_mu",
-        "resuscitate"
+        "resuscitate",
+        "deathcount_length",
+        "deathcount_tolerance",
+        "deathcount_threshold"
     }
 
     def build_subsequence(self):
@@ -35,35 +39,43 @@ class RescueIon(LAXSubsequence):
         self.setattr_argument("death_detection",            BooleanValue(default=True), group=self.name)
 
     def prepare_subsequence(self):
-        # sequence timing
+        # parameters - sequence timing
         self.time_rescue_mu =               self.get_parameter('time_rescue_us', group='timing',
                                                                override=True, conversion_function=seconds_to_mu, units=us)
         self.time_resuscitate_mu =          self.get_parameter('time_resuscitate_us', group='timing',
                                                                override=True, conversion_function=seconds_to_mu, units=us)
 
+        # parameters - death detection
+        self.deathcount_length =            self.get_parameter('', group='management.death.deathcount_length', override=False)
+        self.deathcount_tolerance =         self.get_parameter('', group='management.death.deathcount_tolerance', override=False)
+        self.deathcount_threshold =         self.get_parameter('', group='management.death.deathcount_threshold', override=False)
+
         # configure variable behavior for self.resuscitate
         self.resuscitate = self._no_op
-        if self.resuscitate_ion is True:
-            self.resuscitate = self._resuscitate
+        if self.resuscitate_ion is True:    self.resuscitate = self._resuscitate
 
         # configure variable behavior for probe beam
         self.probe_func = self.probe.off
-        if self.add_397nm_spinpol is True:
-            self.probe_func = self.probe.on
+        if self.add_397nm_spinpol is True:  self.probe_func = self.probe.on
 
-        # ion death/syndrome detection
-        self._deathcount_length =       100
-        self._deathcount_tolerance =    5
-        self._deathcount_arr =          np.zeros(self._deathcount_length, dtype=np.int32)
-        self._deathcount_iter =         0
+        # create variables for ion death/syndrome detection
+        self._deathcount_arr =              np.zeros(self.deathcount_length, dtype=np.int32)
+        self._deathcount_iter =             0
+        self._deathcount_sum_counts =       0
+        self._deathcount_flag =             False
+        self._deathcount_flag_latched =     False
 
-        self._death_threshold_bright =  75
-        self._deathcount_sum_counts =   0
-        # todo: position switching
+        # create connection to labrad to open aperture
+        # connect to labrad
+        self.cxn =                          labrad.connect(environ['LABRADHOST'],
+                                                           port=7682, tls_mode='off',
+                                                           username='', password='lab')
+        self.aperture =                     self.cxn.elliptec_server
+
 
 
     @kernel(flags={"fast-math"})
-    def run(self, i: TInt32):
+    def run(self, i: TInt32) -> TNone:
         # check whether rescuing is enabled
         if self.rescue_enable is True:
 
@@ -83,15 +95,14 @@ class RescueIon(LAXSubsequence):
                 self.probe.off()
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
-        # reset ion status
+    def initialize_subsequence(self) -> TNone:
+        # clear ion status
         # note: do it here to prevent experiments in the pipeline from overriding it
         self.core.break_realtime()
         self.set_dataset('management.ion_status', 'CLEAR', broadcast=True)
 
-
     @kernel(flags={"fast-math"})
-    def _resuscitate(self):
+    def _resuscitate(self) -> TNone:
         # set rescue waveform and ensure 866 is on
         self.pump.rescue()
         self.repump_cooling.on()
@@ -105,45 +116,46 @@ class RescueIon(LAXSubsequence):
         self.probe.off()
 
     @kernel(flags={"fast-math"})
-    def _no_op(self):
+    def _no_op(self) -> TNone:
         delay_mu(8)
 
     @kernel(flags={"fast-math"})
-    def detect_death(self, counts: TInt32):
+    def detect_death(self, counts: TInt32) -> TNone:
         """
         todo: document
         """
         # threshold incoming counts and store data in array
-        if counts > self._death_threshold_bright:
-            self._deathcount_arr[self._deathcount_iter % self._deathcount_length] = 1
+        if counts > self.deathcount_threshold:
+            self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 1
             self._deathcount_sum_counts += 1
         else:
-            self._deathcount_arr[self._deathcount_iter % self._deathcount_length] = 0
+            self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
         self.core.break_realtime()
 
 
         # update filter once we have stored enough counts
-        if self._deathcount_iter >= self._deathcount_length:
+        if self._deathcount_iter >= self.deathcount_length:
 
             # subtract history from running average
-            counts_history = self._deathcount_arr[(self._deathcount_iter + 1) % self._deathcount_length]
+            counts_history = self._deathcount_arr[(self._deathcount_iter + 1) % self.deathcount_length]
             self._deathcount_sum_counts -= counts_history
             self.core.break_realtime()
 
             # process syndromes - ion death (no bright counts)
-            if self._deathcount_sum_counts < self._deathcount_tolerance:
+            if self._deathcount_sum_counts < self.deathcount_tolerance:
 
-                # set syndrome message
+                # set syndrome message and internal flag
                 self.set_dataset('management.ion_status', 'ERROR: DEATH', broadcast=True)
+                self._deathcount_flag = True
 
-                # reset death counter variables
+                # clear death counter variables
                 self._deathcount_sum_counts =   0
                 self._deathcount_iter =         0
-                for i in range(self._deathcount_length):
+                for i in range(self.deathcount_length):
                     self._deathcount_arr[i] =   0
 
             # process syndromes - bad transition (no dark counts)
-            elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
+            elif self._deathcount_sum_counts > (self.deathcount_length - self.deathcount_tolerance):
 
                 # set syndrome message
                 self.set_dataset('management.ion_status', 'ERROR: TRANSITION', broadcast=True)
@@ -151,15 +163,15 @@ class RescueIon(LAXSubsequence):
                 # reset death counter variables
                 self._deathcount_sum_counts =   0
                 self._deathcount_iter =         0
-                for i in range(self._deathcount_length):
+                for i in range(self.deathcount_length):
                     self._deathcount_arr[i] =   0
 
-            # process syndromes - position switch (counts below threshold)
-            # elif self._deathcount_sum_counts > (self._deathcount_length - self._deathcount_tolerance):
-            #     self.set_dataset('management.ion_status', 'ERR: POSITION SWITCH', broadcast=True)
-            #     # todo: reset
+
+
             self.core.break_realtime()
 
         # update count array iterator
         self._deathcount_iter += 1
 
+    @rpc(flags={"async"})
+    def _aperture_open(self):
