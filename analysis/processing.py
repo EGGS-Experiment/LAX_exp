@@ -6,7 +6,8 @@ Contains helpful/commonly used modules for processing datasets.
 
 __all__ = ['findThresholdScikit', 'findThresholdPeaks',
            'groupBy', 'groupBy2',
-           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
+           'processFluorescence2D',
+           'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
            'process_laser_scan_results']
 
 # necessary imports
@@ -369,7 +370,7 @@ def prob_rsb(nbar):
 """
 Laser Scan Functionality
 """
-def process_laser_scan_results(results):
+def process_laser_scan_results(results, time_us):
     #todo: move to use processFluorescence2D
     # create data structures for processing
     results_tmp =           np.array(results)
@@ -395,7 +396,7 @@ def process_laser_scan_results(results):
     # calculate peak criteria from data
     # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
     # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
-    # _peak_height =          np.power(self.repetitions, -0.5)
+    # _peak_height =          np.power(repetitions, -0.5)
     _peak_height =          0.2
     _peak_thresh =          0.05
     # peak distance criteria is set as ~8 kHz between points
@@ -410,7 +411,7 @@ def process_laser_scan_results(results):
     if len(peaks) == 1:
         # get index step size in frequency (mhz)
         step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
-        freq_sinc_mhz = 1. / self.time_qubit_us
+        freq_sinc_mhz = 1. / time_qubit_us
 
         # get points +/- 6x the 1/f time for sinc fitting
         num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
@@ -421,7 +422,7 @@ def process_laser_scan_results(results):
 
         # fit sinc profile and replace spectrum peak with fitted value
         # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
-        fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
+        fit_sinc_params, _ = fitSinc(points_tmp, time_qubit_us / 2.)
         peak_vals[0, 0] = fit_sinc_params[1]
 
     return peak_vals, results_tmp
