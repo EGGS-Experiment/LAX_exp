@@ -69,6 +69,7 @@ class Autocalibration(EnvExperiment):
         self._freq_carrier_aom_mhz =    102.2151
         self._freq_rsb_aom_mhz =        101.5111
         self._freq_bsb_aom_mhz =        102.9281
+        self._freq_eggs_wsec_khz =      1411.3
 
         # create list of parameters for calibration (to prevent overriding of experiment parameters)
         self.calibration_parameters =       {
@@ -103,18 +104,17 @@ class Autocalibration(EnvExperiment):
         self.calibrations_list =        deque([
             # calibration set #1 - laser scan (find RF RSB)
             {
-                'parameter_name':   'freq_qubit_scan_mhz.center',
-                'sweep_function':   self.sweep_func_1,
-                'callback':         self.process_func_1,
+                'preprocess_func':  self._calib_carrier_preprocess,
+                'postprocess_func': self._calib_carrier_postprocess,
                 'expid': {
                     "file":         "LAX_exp\\experiments\\LaserScan.py",
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":  30,
-                        "att_qubit_db": 30.5,
-                        "ampl_qubit_pct": 50,
-                        "time_qubit_us": 5000,
+                        "repetitions":      30,
+                        "att_qubit_db":     30.5,
+                        "ampl_qubit_pct":   50,
+                        "time_qubit_us":    5000,
                         "freq_qubit_scan_mhz": {
                             "center":       103.1880,
                             "span":         0.01,
@@ -175,16 +175,13 @@ class Autocalibration(EnvExperiment):
     '''
     Calibration Processing
     '''
-
-    def sweep_func_1(self, parameter_current):
+    def _calib_carrier_preprocess(self):
         """
         Gives the target parameters based on the current values of a parameter.
         """
-        return [self._freq_carrier_aom_mhz,
-                self._freq_rsb_aom_mhz,
-                self._freq_bsb_aom_mhz]
+        return {"freq_qubit_scan_mhz.center": self._freq_carrier_aom_mhz}
 
-    def process_func_1(self, results_list):
+    def _calib_carrier_postprocess(self, results_list):
         # guess new frequencies as mean of returned peak frequencies
         new_peak_values = np.array([np.mean(results[1][:, 0]) for results in results_list])
         print('new peak values: {}'.format(new_peak_values))
@@ -204,7 +201,6 @@ class Autocalibration(EnvExperiment):
     '''
     MAIN SEQUENCE
     '''
-
     def run(self):
         try:
             # set up target_builder function for scheduler client
@@ -360,7 +356,7 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        # print('\tAutocalibration: CALIBRATIONS INITIALIZING')
+        print('\tAutocalibration: CALIBRATIONS INITIALIZING')
         self._pending_calibrations = self.calibrations_list.copy()
         self._submit_calibration_stage()
 
@@ -368,7 +364,7 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
-        # print('\tAutocalibration: CALIBRATIONS SUBMITTING')
+        print('\tAutocalibration: CALIBRATIONS SUBMITTING')
         
         # todo: add error handling to check that pending_calibrations is non-empty
         # clear loop iterators and get new calibration stage
@@ -377,26 +373,23 @@ class Autocalibration(EnvExperiment):
         calibration_stage = self._pending_calibrations.popleft()
 
         # extract values to set up this calibration stage
-        parameter_name =                calibration_stage['parameter_name']
-        self._calibration_callback =    calibration_stage['callback']
-        param_sweep_func =              calibration_stage['sweep_function']
-        parameter_current_value =       self.calibration_parameters[parameter_name]
+        _calibration_preprocess =       calibration_stage['preprocess_func']
+        self._calibration_postprocess = calibration_stage['postprocess_func']
 
-        # submit experiments to scan parameter around previously calibrated value
-        for parameter_test_value in param_sweep_func(parameter_current_value):
-
-            # get expid and update it deeply with the calibration test value
-            expid_dj = calibration_stage['expid'].copy()
+        # get calibraton expid and update it deeply with target parameters
+        # (_calibration_preprocess should return dict where keys are parameter names and values are values)
+        expid_dj = calibration_stage['expid'].copy()
+        for parameter_name, parameter_test_value in _calibration_preprocess().items():
             update_deep(expid_dj['arguments'], parameter_name, parameter_test_value)
 
-            # submit calibrated expid to scheduler and update holding structures
-            rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
-            self._running_calibrations.update([rid_dj])
-            self._calibration_results[rid_dj] = {
-                'parameter_value':  parameter_test_value,
-                'results':          None
-            }
-            print('\t\tSubmitting calibration - RID: {:d}'.format(rid_dj))
+        # submit calibrated expid to scheduler and update holding structures
+        rid_dj = self.scheduler.submit(pipeline_name='calibrations', expid=expid_dj)
+        self._running_calibrations.update([rid_dj])
+        self._calibration_results[rid_dj] = {
+            'parameter_value':  parameter_test_value,
+            'results':          None
+        }
+        print('\t\tSubmitting calibration - RID: {:d}'.format(rid_dj))
 
         # change status to waiting
         self._status = Status.calibration_waiting
@@ -405,16 +398,17 @@ class Autocalibration(EnvExperiment):
         """
         todo: document
         """
+        # todo: fix for new style
         # create a 2D array of [param_val, res] to pass to callback
         # todo: add error handling if there's some problem with the results
         _calibration_results = [(result_dict['parameter_value'], result_dict['results'])
                                 for result_dict in self._calibration_results.values()]
-        self._calibration_callback(_calibration_results)
+        self._calibration_postprocess(_calibration_results)
 
         # clean up calibration stage
         self._running_calibrations.clear()
         self._calibration_results.clear()
-        self._calibration_callback = lambda x: x
+        self._calibration_postprocess = lambda x: x
 
         # check if we have more calibration sets to do, then load them into active calibration queue and submit again
         # otherwise, change status
@@ -423,13 +417,13 @@ class Autocalibration(EnvExperiment):
             print('\tAutocalibration: CALIBRATIONS FINISHED ===> SUBMITTING EXPERIMENTS')
             self._submit_experiments()
         else:
-            # print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
+            print('\tAutocalibration: CALIBRATION PROCESSING FINISHED ===> NEXT CALIBRATION STAGE')
             self._submit_calibration_stage()
+
 
     '''
     EXPID Storage
     '''
-
     def __expid_storage(self):
         self._eggsheating_expids = deque([{
             "log_level": 30,
