@@ -668,29 +668,50 @@ class EGGSHeating(LAXExperiment, Experiment):
     ANALYSIS
     '''
     def analyze(self):
-        pass
-        # # get relevant data
-        # _MU_to_MHz = 2 * 2.32830644e-7
-        # results_tmp = np.array([self.results])
-        # readout_freqs =     np.array([results_tmp[:, 0]]) * _MU_to_MHz
-        # counts =            np.array([results_tmp[:, 1]])
-        # carrier_freqs_hz =  np.array([results_tmp[:, 2]]) * _MU_to_MHz
-        # sideband_freqs_hz = np.array([results_tmp[:, 3]]) * _MU_to_MHz
-        # probs =             np.zeros(len(counts))
-        #
-        # threshold_list = findThresholdScikit(counts)
-        #
-        # for threshold in threshold_list:
-        #     probs[np.where(counts > threshold)] +=1
-        #
-        # normalized_probs = 1. - probs / len(threshold_list)
-        # print output config for debugging
-        # print("\tconfig:")
-        # print("\t\t{}\n".format(self.config_eggs_heating_list))
-        # print("\tdd decoupling psk list:")
-        # print("\t\t{}\n".format(self.config_dynamical_decoupling_psk_list))
-        # print("\tch1 global latency: {:.3f}\n".format(self.phase_ch1_turns))
-        # for osc_num in range(3):
-        #     print("\tosc{:d}:".format(osc_num))
-        #     print("\t\tphase ch0 osc{:d}: {:.3f}\n".format(osc_num, self.phase_phaser_turns_arr[0, osc_num]))
-        #     print("\t\tphase ch1 osc{:d}: {:.3f}\n".format(osc_num, self.phase_phaser_turns_arr[1, osc_num]))
+
+        dataset = np.array(self.results)
+        try: # should be backward-compatible with experiment which had no sub-repetitions
+            sub_reps = self.sub_repetitions
+        except:
+            sub_reps = 1
+
+            ## determine which scan we are running
+            if len(np.unique(dataset[:, 2])) > 1:  # carrier sweep
+                sorting_col_num = 2
+
+            elif len(np.unique(dataset[:, 3])) > 1:  # secular frequency sweep
+                sorting_col_num = 3
+
+            else:  # sideband readout
+                sorting_col_num = 0
+
+            ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
+                                                    1, 0, self.repetitions, sub_reps)
+
+            phonons = convert_ratios_to_coherent_phonons(ratios)
+
+            if sorting_col_num == 3 or sorting_col_num == 2:
+                phonon_err = 0
+                if sorting_col_num == 3:
+                    fit_params_phonon, fit_err_phonon, fit_data = fitSincGeneric(scanning_freq_MHz, phonons)
+                    phonon_max = str(np.round(fit_params_phonon[0], 3))
+                else:
+                    fit_data = None
+                    phonon_max = "No Phonon Number Given for EGGs Heating"
+                # plot_phonons(scanning_freq_MHz, phonons, fit_data)
+                # plot_sb_probs(scanning_freq_MHz, ave_rsb, ave_bsb, std_rsb, std_bsb)
+
+            else:
+                rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+                s_state_pop_rsb = 1. - ave_rsb
+                s_state_pop_bsb = 1. - ave_bsb
+                fit_params_rsb, fit_err_rsb, fit_rsb = fitSincGeneric(rsb_freqs_MHz, ave_rsb)
+                fit_params_bsb, fit_err_bsb, fit_bsb = fitSincGeneric(bsb_freqs_MHz, ave_bsb)
+                phonon_max = str(np.round(fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0]), 3))
+
+                # plot_sidebands(rsb_freqs_MHz, bsb_freqs_MHz, s_state_pop_rsb, s_state_pop_bsb, std_rsb, std_bsb,
+                #                1. - fit_rsb, 1. - fit_bsb)
+
+            print("\tResults - Sideband Cooling:")
+            print("\t\tn:\t{}".format(phonon_max))
+
