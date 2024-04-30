@@ -32,17 +32,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.readout_subsequence =                                          Readout(self)
         self.rescue_subsequence =                                           RescueIon(self)
 
-        # readout time - todo: integrate with sideband readout somehow
-        self.setattr_argument("time_readout_us_list",                       Scannable(
-                                                                                default=[
-                                                                                    RangeScan(0, 1500, 100, randomize=True),
-                                                                                    ExplicitScan([330]),
-                                                                                ],
-                                                                                global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
-                                                                            ), group=self.name)
-
-
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
@@ -70,6 +59,15 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - timing & phase
+        self.setattr_argument("time_readout_us_list",                       Scannable(
+                                                                                default=[
+                                                                                    RangeScan(0, 1500, 100, randomize=True),
+                                                                                    ExplicitScan([330]),
+                                                                                ],
+                                                                                global_min=1, global_max=100000, global_step=1,
+                                                                                unit="us", scale=1, ndecimals=5
+                                                                            ), group='EGGS_Heating.waveform.time_phase')
+
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
@@ -658,9 +656,11 @@ class EGGSHeating(LAXExperiment, Experiment):
             # set oscillator 2 (carrier) with phase shift
             with parallel:
                 self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
-                                                                              phase=self.phase_phaser_turns_arr[0, 2] + (dd_config_vals[1] * 0.5), clr=0)
+                                                                              phase=self.phase_phaser_turns_arr[0, 2] + (dd_config_vals[1] * 0.5),
+                                                                              clr=0)
                 self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
-                                                                              phase=self.phase_phaser_turns_arr[1, 2] + (dd_config_vals[1] * 0.5), clr=0)
+                                                                              phase=self.phase_phaser_turns_arr[1, 2] + (dd_config_vals[1] * 0.5),
+                                                                              clr=0)
                 delay_mu(dd_config_vals[0])
 
 
