@@ -5,7 +5,6 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
-from analysis.processing import *
 
 
 class LaserScan(LAXExperiment, Experiment):
@@ -23,13 +22,13 @@ class LaserScan(LAXExperiment, Experiment):
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(103.226, 0.02, 0.0005, randomize=True),
+                                                                        default=CenterScan(102.2128, 0.01, 0.0001, randomize=True),
                                                                         global_min=60, global_max=200, global_step=1,
                                                                         unit="MHz", scale=1, ndecimals=6
                                                                     ), group=self.name)
         self.setattr_argument("time_qubit_us",                      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("ampl_qubit_pct",                     NumberValue(default=50, ndecimals=3, step=10, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",                       NumberValue(default=28, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("att_qubit_db",                       NumberValue(default=31.5, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -169,7 +168,7 @@ class LaserScan(LAXExperiment, Experiment):
         #     fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
         #     peak_vals[0, 0] = fit_sinc_params[1]
 
-        peak_vals, results_tmp = process_laser_scan_results(self.results)
+        peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
 
