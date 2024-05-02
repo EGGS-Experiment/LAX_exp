@@ -44,8 +44,8 @@ class Autocalibration(EnvExperiment):
 
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
-        self.experiments_per_calibration =  2
-        self.experiment_repetitions =       2
+        self.experiments_per_calibration =  1
+        self.experiment_repetitions =       1
 
     def prepare(self):
         # create necessary data structures
@@ -129,7 +129,7 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":      30,
+                        "repetitions":      20,
                         "att_qubit_db":     31.5,
                         "ampl_qubit_pct":   40,
                         "time_qubit_us":    5000,
@@ -154,12 +154,12 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":      30,
+                        "repetitions":      20,
                         "att_qubit_db":     30,
                         "ampl_qubit_pct":   50,
                         "time_qubit_us":    5000,
                         "freq_qubit_scan_mhz": {
-                            "center":       103.1880,
+                            "center":       101.5008,
                             "span":         0.01,
                             "step":         0.0001,
                             "randomize":    True,
@@ -179,7 +179,7 @@ class Autocalibration(EnvExperiment):
                     "file": "experiments\\diagnostics\\RabiFlopping.py",
                     "class_name": "RabiFlopping",
                     "arguments": {
-                        "repetitions":          50,
+                        "repetitions":          20,
                         "cooling_type":         "Doppler",
                         # readout
                         "time_rabi_us_list":    {"npoints": 200, "randomize": 2, "seed": None,
