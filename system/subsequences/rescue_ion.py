@@ -177,7 +177,7 @@ class RescueIon(LAXSubsequence):
                     # open aperture if we haven't already
                     if not self._aperture_set_status:
                         self._aperture_set_status = True
-                        self._aperture_open()
+                        # self._aperture_open()
 
                 # update status flag
                 self._deathcount_status_latched = self._deathcount_status

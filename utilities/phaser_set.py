@@ -176,6 +176,18 @@ class PhaserSet(EnvExperiment):
 
     @kernel(flags={"fast-math"})
     def run(self):
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+        #
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_nco_frequency(-17.083495 * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[1].set_nco_frequency(-17.083495 * MHz)
+        #
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+        # self.core.break_realtime()
         # PREPARE (HARDWARE)
         self._run_prepare()
 
