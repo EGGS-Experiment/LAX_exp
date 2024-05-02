@@ -6,9 +6,9 @@ Contains helpful/commonly used modules for processing datasets.
 
 __all__ = ['findThresholdScikit', 'findThresholdPeaks',
            'groupBy', 'groupBy2',
-           'processFluorescence2D',
-           'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
-           'process_laser_scan_results']
+           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
+           'convert_ratios_to_squeezed_phonons', 'process_laser_scan_results']
+
 
 # necessary imports
 import numpy as np
@@ -20,6 +20,8 @@ from scipy.signal import find_peaks
 from skimage.filters import threshold_multiotsu, threshold_minimum
 from scipy.special import factorial
 from scipy.interpolate import interp1d
+from LAX_exp.extensions.physics_constants import *
+from LAX_exp.extensions.conversions import *
 
 '''
 Thresholding
@@ -249,7 +251,6 @@ def extract_ratios(dataset: np.array,
         std_bsb: standard deviation for the bsb excitation probability
         scanning_freqs_MHz_unique: frequncies we scan over
     """
-    _AMO_MU_TO_MHZ = 2*2.32830644e-7
     dataset_sorted = dataset[np.argsort(dataset[:, sorting_col_num]), :]
     scanning_freqs = dataset_sorted[:, sorting_col_num]
     scanning_freqs_unique = np.unique(scanning_freqs)
@@ -257,12 +258,12 @@ def extract_ratios(dataset: np.array,
     counts = np.array(dataset_sorted[:, counts_col_num])
 
     if np.array_equal(scanning_freqs, readout_freqs_sorted):
-        scanning_freqs_MHz_unique = scanning_freqs_unique * _AMO_MU_TO_MHZ
+        scanning_freqs_MHz_unique = scanning_freqs_unique * AMO_MU_TO_MHZ
 
     else:
         scanning_freqs_MHz_unique = scanning_freqs_unique* 1e-6
 
-    readout_freqs_MHz_sorted = readout_freqs_sorted*_AMO_MU_TO_MHZ
+    readout_freqs_MHz_sorted = readout_freqs_sorted* AMO_MU_TO_MHZ
     probs = np.zeros(len(counts))
     guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
 
@@ -302,6 +303,8 @@ def extract_sidebands_freqs(readout_freqs_MHz):
     bsb_freqs = readout_freqs_MHz[guess_Ca_carrier_MHz < readout_freqs_MHz]
     return rsb_freqs, bsb_freqs, guess_Ca_carrier_MHz
 
+
+"""Functions for Coherent States"""
 def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
     """
     Convert rsb/bsb ratios to number of phonons for a coherent state
@@ -318,7 +321,7 @@ def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
     nbars = np.linspace(0, 2, 2001)
     coherent_ratios = np.zeros(len(nbars))
     for idx, nbar in enumerate(nbars):
-        coherent_ratios[idx] = prob_rsb(nbar) / prob_bsb(nbar)
+        coherent_ratios[idx] = prob_rsb_coherent(nbar) / prob_bsb_coherent(nbar)
 
     interp_func = interp1d(coherent_ratios, nbars)
     phonons = interp_func(ratios)
@@ -338,7 +341,7 @@ def coherent_state_amp(nbar, n):
     return np.multiply(np.exp(-np.abs(nbar) / 2), np.power(np.sqrt(nbar), n) / np.sqrt(factorial(n)))
 
 
-def prob_bsb(nbar):
+def prob_bsb_coherent(nbar):
     """
     Determine blue sideband excitation probability for a coherent state
 
@@ -351,8 +354,7 @@ def prob_bsb(nbar):
     n = np.arange(0, 100)
     return 1 - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n + 1))) * np.abs(coherent_state_amp(nbar, n)) ** 2)
 
-
-def prob_rsb(nbar):
+def prob_rsb_coherent(nbar):
     """
     Determine red sideband excitation probability for a coherent state
 
@@ -366,6 +368,49 @@ def prob_rsb(nbar):
     return 1 - np.abs(coherent_state_amp(nbar, 0)) ** 2 - 1 / 2 * np.sum(
         (1 + np.cos(np.pi * np.sqrt(n))) * np.abs(coherent_state_amp(nbar, n)) ** 2)
 
+
+"""Functions for Squeezed States"""
+def convert_ratios_to_squeezed_phonons(ratios: np.array) -> np.array:
+    """
+    Convert rsb/bsb ratios to number of phonons for a squeeze state
+
+    Argus:
+        ratios: rsb/bsb ratios from sidebands
+
+    Returns:
+        phonons: phonon count of coherent state
+    """
+    ratios[ratios < 0] = 0
+    ratios[ratios > .8] = .8
+
+    rs = np.linspace(0, 1.5, 2001)
+    squeeze_ratios = np.zeros(len(rs))
+    for idx, r in enumerate(rs):
+        squeeze_ratios[idx] = prob_rsb_squeeze(r) / prob_bsb_squeeze(r)
+
+    interp_func = interp1d(squeeze_ratios, rs)
+    phonons = interp_func(ratios)
+    return phonons
+
+def squeeze_state_population(r,n):
+    if isinstance(n, int):
+        if n<10:
+            return (np.tanh(r)**(2*n))/(np.cosh(r))*(factorial(2*n))/((2**n) * factorial(n))**2
+        else:
+            return (np.tanh(r)**(2*n))/(np.cosh(r))*1/np.sqrt(np.pi*n)
+    low_n = n[n<10]
+    low =  (np.tanh(r)**(2*low_n))/(np.cosh(r))*(factorial(2*low_n))/((2**low_n) * factorial(low_n))**2
+    high_n = n[n>=10]
+    high =  (np.tanh(r)**(2*high_n))/(np.cosh(r))*1/np.sqrt(np.pi*high_n)
+    return np.concatenate((low,high))
+
+def prob_rsb_squeeze(r):
+    n = 2*np.arange(1, 35)
+    return 1 - squeeze_state_population(r,0) - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n))) * squeeze_state_population(r,n))
+
+def prob_bsb_squeeze(r):
+    n = 2*np.arange(0, 35)
+    return 1 - 1 / 2 * np.sum((1+np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n))
 
 """
 Laser Scan Functionality
