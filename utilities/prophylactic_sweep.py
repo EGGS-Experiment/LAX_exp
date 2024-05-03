@@ -14,6 +14,7 @@ class ProphylacticSweep(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
+        self.setattr_device("scheduler")
 
         # modulation
         self.setattr_argument("mod_time_total_s",                   NumberValue(default=10, ndecimals=3, step=1, min=0.001, max=10000000))
@@ -21,7 +22,7 @@ class ProphylacticSweep(EnvExperiment):
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default=CenterScan(1686, 10, 1., randomize=True),
                                                                         global_min=0, global_max=1000, global_step=1.,
-                                                                        unit="MHz", scale=1, ndecimals=3
+                                                                        unit="kHz", scale=1, ndecimals=3
                                                                     ))
 
     def prepare(self):
