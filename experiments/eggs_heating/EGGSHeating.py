@@ -668,50 +668,71 @@ class EGGSHeating(LAXExperiment, Experiment):
     ANALYSIS
     '''
     def analyze(self):
-
-        dataset = np.array(self.results)
-        try: # should be backward-compatible with experiment which had no sub-repetitions
+        # should be backward-compatible with experiment which had no sub-repetitions
+        try:
             sub_reps = self.sub_repetitions
-        except:
+        except Exception as e:
             sub_reps = 1
 
-            ## determine which scan we are running
-            if len(np.unique(dataset[:, 2])) > 1:  # carrier sweep
-                sorting_col_num = 2
+        # convert dataset to array
+        dataset = np.array(self.results)
 
-            elif len(np.unique(dataset[:, 3])) > 1:  # secular frequency sweep
-                sorting_col_num = 3
+        ## determine scan type
+        # carrier sweep
+        if len(np.unique(dataset[:, 2])) > 1:       sorting_col_num = 2
+        # secular frequency
+        elif len(np.unique(dataset[:, 3])) > 1:     sorting_col_num = 3
+        else:                                       sorting_col_num = 0
 
-            else:  # sideband readout
-                sorting_col_num = 0
+        ## convert results to sideband ratio
+        ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
+                                                                                       1, 0,
+                                                                                       self.repetitions, sub_reps)
+        phonons = convert_ratios_to_coherent_phonons(ratios)
 
-            ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
-                                                    1, 0, self.repetitions, sub_reps)
+        ## process carrier or secular frequency sweep
+        if (sorting_col_num == 3) or (sorting_col_num == 2):
 
-            phonons = convert_ratios_to_coherent_phonons(ratios)
+            # process secular frequency sweep
+            if sorting_col_num == 3:
+                fit_params_phonon, fit_err_phonon, fit_data = fitSincGeneric(scanning_freq_MHz, phonons)
+                phonon_max = fit_params_phonon[0]
 
-            if sorting_col_num == 3 or sorting_col_num == 2:
-                phonon_err = 0
-                if sorting_col_num == 3:
-                    fit_params_phonon, fit_err_phonon, fit_data = fitSincGeneric(scanning_freq_MHz, phonons)
-                    phonon_max = str(np.round(fit_params_phonon[0], 3))
-                else:
-                    fit_data = None
-                    phonon_max = "No Phonon Number Given for EGGs Heating"
-                # plot_phonons(scanning_freq_MHz, phonons, fit_data)
-                # plot_sb_probs(scanning_freq_MHz, ave_rsb, ave_bsb, std_rsb, std_bsb)
+                # ## todo: save results to hdf5 as a dataset
+                # self.set_dataset('spectrum_peaks',  peak_vals)
+                #
+                # # save results to dataset manager for dynamic experiments
+                # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
+                # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
+            # process EGGS carrier sweep
             else:
-                rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
-                s_state_pop_rsb = 1. - ave_rsb
-                s_state_pop_bsb = 1. - ave_bsb
-                fit_params_rsb, fit_err_rsb, fit_rsb = fitSincGeneric(rsb_freqs_MHz, ave_rsb)
-                fit_params_bsb, fit_err_bsb, fit_bsb = fitSincGeneric(bsb_freqs_MHz, ave_bsb)
-                phonon_max = str(np.round(fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0]), 3))
+                fit_data = None
+                phonon_max = "Warning: No phonon number given for EGGS Heating"
 
-                # plot_sidebands(rsb_freqs_MHz, bsb_freqs_MHz, s_state_pop_rsb, s_state_pop_bsb, std_rsb, std_bsb,
-                #                1. - fit_rsb, 1. - fit_bsb)
+            # plot results
+            # plot_phonons(scanning_freq_MHz, phonons, fit_data)
+            # plot_sb_probs(scanning_freq_MHz, ave_rsb, ave_bsb, std_rsb, std_bsb)
 
-            print("\tResults - Sideband Cooling:")
-            print("\t\tn:\t{}".format(phonon_max))
+        ## process sideband readout sweep
+        else:
+            rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+            s_state_pop_rsb = 1. - ave_rsb
+            s_state_pop_bsb = 1. - ave_bsb
+            fit_params_rsb, fit_err_rsb, fit_rsb = fitSincGeneric(rsb_freqs_MHz, ave_rsb)
+            fit_params_bsb, fit_err_bsb, fit_bsb = fitSincGeneric(bsb_freqs_MHz, ave_bsb)
+            phonon_max = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+            # plot_sidebands(rsb_freqs_MHz, bsb_freqs_MHz, s_state_pop_rsb, s_state_pop_bsb, std_rsb, std_bsb,
+            #                1. - fit_rsb, 1. - fit_bsb)
+
+            # ## todo: save results to hdf5 as a dataset
+            # self.set_dataset('spectrum_peaks',  peak_vals)
+            #
+            # # save results to dataset manager for dynamic experiments
+            # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
+            # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+
+        # print results
+        print("\tResults - Sideband Cooling:")
+        print("\t\tn:\t{}".format(str(np.round(phonon_max, 3))))
 
