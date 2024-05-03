@@ -4,7 +4,7 @@ from artiq.experiment import *
 
 class ProphylacticSweep(EnvExperiment):
     """
-    Prophylactic Sweep
+    Utility: Prophylactic Sweep
 
     Apply a tickle on top of the RF rods as a prophylaxis against undesired
     mass species from being trapped.
@@ -34,8 +34,6 @@ class ProphylacticSweep(EnvExperiment):
                                                                         for freq_khz in self.mod_freq_khz_list
                                                                     ])
         self.mod_time_mu =                                          self.core.seconds_to_mu(self.mod_time_total_s / len(self.mod_freq_mu_list))
-        # print(self.mod_time_mu)
-        # print(self.mod_dds.ftw_to_frequency(self.mod_freq_mu))
 
         # cooling holdoff time
         self.time_cooling_holdoff_mu =                              self.core.seconds_to_mu(3 * ms)
@@ -65,8 +63,12 @@ class ProphylacticSweep(EnvExperiment):
             # apply prophylaxis for given time
             delay_mu(self.mod_time_mu)
 
-            # stop counting and upload
+            # turn off output
             self.mod_dds.sw.off()
+
+            # check termination
+            if self.scheduler.check_termination():
+                raise TerminationRequested
 
         # delay experiment cancellation until sequence has finished
         self.core.wait_until_mu(now_mu())
