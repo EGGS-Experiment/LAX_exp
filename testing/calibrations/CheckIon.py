@@ -131,7 +131,7 @@ class CheckIon(LAXExperiment, Experiment):
         # check position of ion
 
         # get list of scanning frequencies and how long to chirp
-        tickle_freqs_ftw_list = mhz_to_ftw(RangeScan(laser_scan_sec_freq - self.freq_tickle_span_kh/2z * kHz,
+        tickle_freqs_ftw_list = mhz_to_ftw(RangeScan(laser_scan_sec_freq - self.freq_tickle_span_kh/2 * kHz,
                                                     laser_scan_sec_freq+ self.freq_tickle_span_khz/2 * kHz,
                                                      self.tickle_chirp_steps))
 

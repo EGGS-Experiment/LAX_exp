@@ -205,7 +205,7 @@ class Autocalibration(EnvExperiment):
             "class_name":   "EGGSHeating",
             "arguments": {
                 # config
-                "repetitions":      5,
+                "repetitions":      3,
                 "randomize_config": False,
                 "sub_repetitions":  1,
                 # SBC
@@ -260,32 +260,50 @@ class Autocalibration(EnvExperiment):
     CALIBRATION PRE & POST-PROCESSING
     """
     def _ls_carrier_preprocess(self):
-        """
-        Gives the target parameters based on the current values of a parameter.
-        """
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_carrier_mhz']}
 
     def _ls_carrier_postprocess(self, results_dict):
-        """
-        todo: document
-        """
-        # todo: implement
         print(results_dict)
+        # todo: check for any errors
+        # update calibration parameters with carrier value
+        #self.calibration_parameters['freq_carrier_mhz'] = results_dict[]
 
     def _ls_rsb_preprocess(self):
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_rsb_laserscan_mhz']}
 
     def _ls_rsb_postprocess(self, results_dict):
-        # todo: implement
-        # todo: set the sbc frequency
+        # todo: check for any errors (new value should be reasonably close to old)
+        # todo: set the sbc frequency in self.experiment_parameters
         print(results_dict)
 
     def _rabi_carrier_preprocess(self):
         return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
 
     def _rabi_carrier_postprocess(self, results_dict):
-        # todo: set the readout time
+        # todo: implement
+        # todo: set the sideband readout time by scaling the carrier readout time
         print(results_dict)
+
+    # todo: create calibrations for sideband rabi flopping (with very few points)
+    def _eggs_sideband_preprocess(self):
+        # todo: return sbc freq, sideband freqs
+        return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
+
+    def _eggs_sideband_postprocess(self, results_dict):
+        # todo: implement
+        # todo: set the sideband readout time by scaling the carrier readout time
+        print(results_dict)
+    # todo: create calibrations for eggs heating - secular
+
+    def _eggs_secular_preprocess(self):
+        # todo: implement
+        return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
+
+    def _eggs_secular_postprocess(self, results_dict):
+        # todo: implement
+        # todo: set the sideband readout time by scaling the carrier readout time
+        print(results_dict)
+
 
 
     """

@@ -22,6 +22,3 @@ pct_to_asf =                lambda pct:             int32(round(pct / 100. * 0x3
 att_to_mu =                 lambda att:             int32(0xFF) - int32(round(att * 8.))
 __all__.extend(['hz_to_ftw', 'mhz_to_ftw', 'pct_to_asf', 'att_to_mu'])
 
-#AMO Conversions
-AMO_MU_TO_MHZ = 2 * 2.32830644e-7
-__all__.extend(['AMO_MU_TO_MHZ'])
