@@ -391,34 +391,24 @@ def fitSincGeneric(x: np.array,y: np.array):
         Returns:
             sinc function
         """
-        return a*np.sinc(c*(x-b))**2+d
+        return a * np.sinc(c * (x-b))**2. + d
 
     ## extract starting parameter guesses
     # get indices of max y-values
     indices_max_y =     np.argwhere(y == np.max(y))
-
-    # get linecenter as average of (median, min) of data
+    # get linecenter as mean of max x[y_max]
     b0 =                np.mean(x[indices_max_y])
+    # get offset as average of (median, min) of data
+    d0 =                0.5 * (np.median(y) + np.min(y))
     # guess amplitude using max y-value with offset subtracted
-    a0 =                (np.max(y))
-
-    # split x- and y-arrays into left and right
-    index_split_guess = int(np.median(indices_max_y))
-    y_left =    y[: index_split_guess]
-    y_right =   y[index_split_guess: ]
-    x_left =    x[: index_split_guess]
-    x_right =   x[index_split_guess: ]
-
-    # guess amplitude parameters
-    x_left_FWHM =   x_left[(y_left-np.max(y) / 2.).argmin()]
-    x_right_FWHM =  x_right[(y_right-np.max(y) / 2.).argmin()]
-    c0 =            1. / (x_right_FWHM - x_left_FWHM)
-    d0 =            np.min(y)
+    a0 =                np.max(y) - d0
+    # get b0 by numerically guessing FWHM
+    c0 =                1. / (2. * x[np.argmin(np.abs(y - 0.5 * a0))])
 
     ## fit and convert covariance matrix to error (1 stdev)
     param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
-    xdata = np.linspace(np.min(x), np.max(x), int(1e6))
-    ydata = fit_func(xdata, *param_fit)
-    param_err =             np.sqrt(np.diag(param_cov))
+    xdata =         np.linspace(np.min(x), np.max(x), int(1e6))
+    ydata =         fit_func(xdata, *param_fit)
+    param_err =     np.sqrt(np.diag(param_cov))
     return param_fit, param_err, ydata
 

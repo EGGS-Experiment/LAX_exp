@@ -256,6 +256,7 @@ def extract_ratios(dataset: np.array,
     readout_freqs_sorted = np.array(dataset_sorted[:, readout_col_num])
     counts = np.array(dataset_sorted[:, counts_col_num])
 
+
     if np.array_equal(scanning_freqs, readout_freqs_sorted):
         scanning_freqs_MHz_unique = scanning_freqs_unique * (2 * 2.32830644e-7)
 
@@ -265,6 +266,7 @@ def extract_ratios(dataset: np.array,
     readout_freqs_MHz_sorted = readout_freqs_sorted* (2 * 2.32830644e-7)
     probs = np.zeros(len(counts))
     guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
+
 
     # determine thresholds
     threshold_list = findThresholdScikit(counts)
@@ -282,7 +284,6 @@ def extract_ratios(dataset: np.array,
     std_bsb = np.std(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1) / np.sqrt(reps * sub_reps)
 
     ratios = np.divide(probs_rsb, probs_bsb)
-
     return ratios, probs_rsb, probs_bsb, std_rsb, std_bsb, scanning_freqs_MHz_unique
 
 def extract_sidebands_freqs(readout_freqs_MHz):
