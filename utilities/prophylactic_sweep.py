@@ -21,7 +21,7 @@ class ProphylacticSweep(EnvExperiment):
         self.setattr_argument("mod_att_db",                         NumberValue(default=31, ndecimals=1, step=0.5, min=0., max=31.5))
         self.setattr_argument("mod_freq_khz_list",                  Scannable(
                                                                         default=CenterScan(1686, 10, 1., randomize=True),
-                                                                        global_min=0, global_max=1000, global_step=1.,
+                                                                        global_min=1, global_max=100000, global_step=1.,
                                                                         unit="kHz", scale=1, ndecimals=3
                                                                     ))
 
