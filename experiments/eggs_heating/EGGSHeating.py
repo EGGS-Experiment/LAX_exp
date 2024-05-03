@@ -6,7 +6,6 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
-from copy import deepcopy
 
 
 class EGGSHeating(LAXExperiment, Experiment):
@@ -733,6 +732,6 @@ class EGGSHeating(LAXExperiment, Experiment):
             # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
         # print results
-        print("\tResults - Sideband Cooling:")
+        print("\tResults - EGGS Heating:")
         print("\t\tn:\t{}".format(str(np.round(phonon_max, 3))))
 

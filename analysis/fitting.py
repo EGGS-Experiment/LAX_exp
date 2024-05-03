@@ -386,7 +386,7 @@ def fitSincGeneric(x: np.array,y: np.array):
 
         Args:
             a: amplitude
-            b: offset from zero
+            b: linecenter
             c: linewidth
             d: amplitude offset
 
@@ -396,15 +396,16 @@ def fitSincGeneric(x: np.array,y: np.array):
         return a*np.sinc(c*(x-b))**2+d
 
     # extract starting parameter guesses
-    # get offset as average of (median, min) of data
+    # get linecenter as average of (median, min) of data
     b0 =                np.mean(x[np.argwhere(y == np.max(y))])
     # guess amplitude using max y-value with offset subtracted
     a0 =                (np.max(y))
 
-    y_left = y[:int(np.median(np.argwhere(y == np.max(y))))]
-    y_right = y[int(np.median(np.argwhere(y == np.max(y)))):]
-    x_left = x[:int(np.median(np.argwhere(y == np.max(y))))]
-    x_right = x[int(np.median(np.argwhere(y == np.max(y)))):]
+    index_max_y = int(np.median(np.argwhere(y == np.max(y))))
+    y_left =    y[:index_max_y]
+    y_right =   y[index_max_y:]
+    x_left =    x[:index_max_y]
+    x_right =   x[index_max_y:]
 
 
     x_left_FWHM = x_left[(y_left-np.max(y)/2).argmin()]

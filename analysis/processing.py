@@ -20,14 +20,13 @@ from scipy.signal import find_peaks
 from skimage.filters import threshold_multiotsu, threshold_minimum
 from scipy.special import factorial
 from scipy.interpolate import interp1d
-from LAX_exp.extensions.physics_constants import *
+
 from LAX_exp.extensions.conversions import *
+
 
 '''
 Thresholding
 '''
-
-
 def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None):
     """
     Get the binary discrimination threshold for a dataset
@@ -249,7 +248,7 @@ def extract_ratios(dataset: np.array,
         probs_bsb: the rsb excitation probability
         std_rsb: standard deviation for the rsb excitation probability
         std_bsb: standard deviation for the bsb excitation probability
-        scanning_freqs_MHz_unique: frequncies we scan over
+        scanning_freqs_MHz_unique: frequencies we scan over
     """
     dataset_sorted = dataset[np.argsort(dataset[:, sorting_col_num]), :]
     scanning_freqs = dataset_sorted[:, sorting_col_num]
@@ -258,12 +257,12 @@ def extract_ratios(dataset: np.array,
     counts = np.array(dataset_sorted[:, counts_col_num])
 
     if np.array_equal(scanning_freqs, readout_freqs_sorted):
-        scanning_freqs_MHz_unique = scanning_freqs_unique * AMO_MU_TO_MHZ
+        scanning_freqs_MHz_unique = scanning_freqs_unique * (2 * 2.32830644e-7)
 
     else:
         scanning_freqs_MHz_unique = scanning_freqs_unique* 1e-6
 
-    readout_freqs_MHz_sorted = readout_freqs_sorted* AMO_MU_TO_MHZ
+    readout_freqs_MHz_sorted = readout_freqs_sorted* (2 * 2.32830644e-7)
     probs = np.zeros(len(counts))
     guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
 
@@ -362,7 +361,7 @@ def prob_rsb_coherent(nbar):
         nbar: average phonon number
 
     Returns:
-        red sideband excitation prbability
+        red sideband excitation probability
     """
     n = np.arange(1, 100)
     return 1 - np.abs(coherent_state_amp(nbar, 0)) ** 2 - 1 / 2 * np.sum(
@@ -374,11 +373,11 @@ def convert_ratios_to_squeezed_phonons(ratios: np.array) -> np.array:
     """
     Convert rsb/bsb ratios to number of phonons for a squeeze state
 
-    Argus:
+    Arguments:
         ratios: rsb/bsb ratios from sidebands
 
     Returns:
-        phonons: phonon count of coherent state
+        phonons: phonon count of squeezed state
     """
     ratios[ratios < 0] = 0
     ratios[ratios > .8] = .8
@@ -405,12 +404,13 @@ def squeeze_state_population(r,n):
     return np.concatenate((low,high))
 
 def prob_rsb_squeeze(r):
-    n = 2*np.arange(1, 35)
+    n = 2 * np.arange(1, 35)
     return 1 - squeeze_state_population(r,0) - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n))) * squeeze_state_population(r,n))
 
 def prob_bsb_squeeze(r):
     n = 2*np.arange(0, 35)
-    return 1 - 1 / 2 * np.sum((1+np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n))
+    return 1 - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n))
+
 
 """
 Laser Scan Functionality
