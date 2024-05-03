@@ -176,7 +176,6 @@ def fitSinc(data, time_fit_s):
         return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
 
     # separate data into x and y
-
     try:
         data =              np.array(data)
         data_x, data_y =    data.transpose()
@@ -379,7 +378,6 @@ def fitSincGeneric(x: np.array,y: np.array):
         param_err: estimated covariance from curve_fitting
         ydata: generated curve over given domain
     """
-
     def fit_func(x, a, b, c,d):
         """
         Fitting function for a generic sinc function
@@ -395,25 +393,29 @@ def fitSincGeneric(x: np.array,y: np.array):
         """
         return a*np.sinc(c*(x-b))**2+d
 
-    # extract starting parameter guesses
+    ## extract starting parameter guesses
+    # get indices of max y-values
+    indices_max_y =     np.argwhere(y == np.max(y))
+
     # get linecenter as average of (median, min) of data
-    b0 =                np.mean(x[np.argwhere(y == np.max(y))])
+    b0 =                np.mean(x[indices_max_y])
     # guess amplitude using max y-value with offset subtracted
     a0 =                (np.max(y))
 
-    index_max_y = int(np.median(np.argwhere(y == np.max(y))))
-    y_left =    y[:index_max_y]
-    y_right =   y[index_max_y:]
-    x_left =    x[:index_max_y]
-    x_right =   x[index_max_y:]
+    # split x- and y-arrays into left and right
+    index_split_guess = int(np.median(indices_max_y))
+    y_left =    y[: index_split_guess]
+    y_right =   y[index_split_guess: ]
+    x_left =    x[: index_split_guess]
+    x_right =   x[index_split_guess: ]
 
+    # guess amplitude parameters
+    x_left_FWHM =   x_left[(y_left-np.max(y) / 2.).argmin()]
+    x_right_FWHM =  x_right[(y_right-np.max(y) / 2.).argmin()]
+    c0 =            1. / (x_right_FWHM - x_left_FWHM)
+    d0 =            np.min(y)
 
-    x_left_FWHM = x_left[(y_left-np.max(y)/2).argmin()]
-    x_right_FWHM = x_right[(y_right-np.max(y)/2).argmin()]
-    c0 = 1/(x_right_FWHM-x_left_FWHM)
-    d0 = np.min(y)
-
-    # fit and convert covariance matrix to error (1 stdev)
+    ## fit and convert covariance matrix to error (1 stdev)
     param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
     xdata = np.linspace(np.min(x), np.max(x), int(1e6))
     ydata = fit_func(xdata, *param_fit)
