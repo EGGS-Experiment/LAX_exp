@@ -383,12 +383,12 @@ def convert_ratios_to_squeezed_phonons(ratios: np.array) -> np.array:
     ratios[ratios < 0] = 0
     ratios[ratios > .8] = .8
 
-    rs = np.linspace(0, 1.5, 2001)
+    rs = np.linspace(0, 2.0, 2001)
     squeeze_ratios = np.zeros(len(rs))
     for idx, r in enumerate(rs):
         squeeze_ratios[idx] = prob_rsb_squeeze(r) / prob_bsb_squeeze(r)
 
-    interp_func = interp1d(squeeze_ratios, rs)
+    interp_func = interp1d(squeeze_ratios, np.sinh(rs)**2)
     phonons = interp_func(ratios)
     return phonons
 
@@ -405,12 +405,12 @@ def squeeze_state_population(r,n):
     return np.concatenate((low,high))
 
 def prob_rsb_squeeze(r):
-    n = 2 * np.arange(1, 35)
-    return 1 - squeeze_state_population(r,0) - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n))) * squeeze_state_population(r,n))
+    n = 2*np.arange(1, 35)
+    return 1 - squeeze_state_population(r,0) - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n))) * squeeze_state_population(r,n/2))
 
 def prob_bsb_squeeze(r):
     n = 2*np.arange(0, 35)
-    return 1 - 1 / 2 * np.sum((1 + np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n))
+    return 1 - 1 / 2 * np.sum((1+np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n/2))
 
 
 """
