@@ -391,7 +391,7 @@ def fitSincGeneric(x: np.array,y: np.array):
         Returns:
             sinc function
         """
-        return a * np.sinc(c * (x-b))**2. + d
+        return a * np.sinc(c * (x - b))**2. + d
 
     ## extract starting parameter guesses
     # get indices of max y-values
@@ -402,11 +402,11 @@ def fitSincGeneric(x: np.array,y: np.array):
     d0 =                0.5 * (np.median(y) + np.min(y))
     # guess amplitude using max y-value with offset subtracted
     a0 =                np.max(y) - d0
-    # get b0 by numerically guessing FWHM
+    # get c0 by numerically guessing FWHM
     c0 =                1. / (2. * x[np.argmin(np.abs(y - 0.5 * a0))])
 
     ## fit and convert covariance matrix to error (1 stdev)
-    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
+    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0, b0, c0, d0])
     xdata =         np.linspace(np.min(x), np.max(x), int(1e6))
     ydata =         fit_func(xdata, *param_fit)
     param_err =     np.sqrt(np.diag(param_cov))
