@@ -44,8 +44,8 @@ class Autocalibration(EnvExperiment):
 
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
-        self.experiments_per_calibration =  1
-        self.experiment_repetitions =       5
+        self.experiments_per_calibration =  5
+        self.experiment_repetitions =       150
 
     def prepare(self):
         # create necessary data structures
@@ -99,7 +99,7 @@ class Autocalibration(EnvExperiment):
             'time_readout_us_list.sequence':                [128],
 
             # EGGS
-            'freq_eggs_heating_secular_khz_list.center':    1406.43
+            'freq_eggs_heating_secular_khz_list.sequence':  [1406.43]
         }
 
     def _prepare_expids(self):
@@ -129,17 +129,12 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":      30,
-                        "att_qubit_db":     31.5,
-                        "ampl_qubit_pct":   38,
-                        "time_qubit_us":    5000,
-                        "freq_qubit_scan_mhz": {
-                            "center":       102.1931, "span": 0.01,
-                            "step":         0.00005,
-                            "randomize":    True,
-                            "seed":         None,
-                            "ty":           "CenterScan"
-                        }
+                        "repetitions":          30,
+                        "att_qubit_db":         31.5,
+                        "ampl_qubit_pct":       38,
+                        "time_qubit_us":        5000,
+                        "freq_qubit_scan_mhz":  {"center": 102.1931, "span": 0.01, "step": 0.00005,
+                                                 "randomize": True, "seed":None, "ty": "CenterScan"}
                     }
                 }
             },
@@ -172,18 +167,12 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":  20,
-                        "att_qubit_db": 31.5,
-                        "ampl_qubit_pct": 42,
-                        "time_qubit_us": 5000,
-                        "freq_qubit_scan_mhz": {
-                            "center": 102.8975,
-                            "span": 0.01,
-                            "step": 0.00005,
-                            "randomize": True,
-                            "seed": None,
-                            "ty": "CenterScan"
-                        }
+                        "repetitions":          20,
+                        "att_qubit_db":         31.5,
+                        "ampl_qubit_pct":       42,
+                        "time_qubit_us":        5000,
+                        "freq_qubit_scan_mhz":  {"center": 102.8975, "span": 0.01, "step": 0.00005,
+                                                 "randomize": True, "seed": None, "ty": "CenterScan"}
                     }
                 }
             },
@@ -223,7 +212,7 @@ class Autocalibration(EnvExperiment):
             "log_level":    30,
             "arguments": {
                 # config
-                "repetitions":      3,
+                "repetitions":      50,
                 "randomize_config": False,
                 "sub_repetitions":  1,
                 # SBC
@@ -248,9 +237,9 @@ class Autocalibration(EnvExperiment):
                 "death_detection":          True,
                 "time_readout_us_list":     {"sequence": [128.0], "ty": "ExplicitScan"},
                 # EGGS
-                "freq_eggs_heating_carrier_mhz_list":   {"sequence": [83.0], "ty": "ExplicitScan"},
-                "freq_eggs_heating_secular_khz_list":   {"center": 1406.48, "span": 4.0, "step": 0.1,
+                "freq_eggs_heating_carrier_mhz_list":   {"center": 83.09, "span": 0.02, "step": 0.0002,
                                                          "randomize": True, "seed": None, "ty": "CenterScan"},
+                "freq_eggs_heating_secular_khz_list":   {"sequence": [1406.66], "ty": "ExplicitScan"},
                 "enable_amplitude_calibration":         False,
                 "ampl_eggs_heating_rsb_pct":            60.0,
                 "ampl_eggs_heating_bsb_pct":            0.0,
@@ -347,7 +336,7 @@ class Autocalibration(EnvExperiment):
 
         # update BSB readout freq in experiment_parameters
         time_readout_bsb_us = time_readout_carrier_us * 11.36
-        self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [time_readout_bsb_us]
+        self.experiment_parameters['time_readout_us_list.sequence'] = [time_readout_bsb_us]
 
         print('\t\tRabi Carrier Calib')
         print('\t\t\tCarrier rabi time: {:.4f}'.format(time_readout_carrier_us))

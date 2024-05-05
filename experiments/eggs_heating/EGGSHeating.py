@@ -697,16 +697,21 @@ class EGGSHeating(LAXExperiment, Experiment):
             ## process secular frequency sweep
             if sorting_col_num == 3:
                 fit_params_secular, fit_err_secular, _ = fitSincGeneric(scanning_freq_MHz, phonons)
-                phonon_max = fit_params_secular[0]
+                phonon_n = fit_params_secular[0]
+                # todo: implement
+                phonon_err = 0
 
                 # save results to hdf5 as a dataset
                 self.set_dataset('fit_params_secular',  fit_params_secular)
                 self.set_dataset('fit_err_secular',     fit_err_secular)
-                #
-                # # save results to dataset manager for dynamic experiments
-                # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
-                # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-                print("\t\tSecular Freq.: {:.4f} kHz".format(fit_params_secular[1]))
+
+                # save results to dataset manager for dynamic experiments
+                res_dj = [[phonon_n, phonon_err], [fit_params_secular, fit_err_secular]]
+                self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
+                self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+
+                # print results to log
+                print("\t\tSecular Freq.: {:.4f} kHz".format(fit_params_secular[1] * 1e3))
 
 
             ## process sideband readout sweep
@@ -714,7 +719,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 rsb_freqs_MHz, bsb_freqs_MHz, _ =       extract_sidebands_freqs(scanning_freq_MHz)
                 fit_params_rsb, fit_err_rsb, fit_rsb =  fitSincGeneric(rsb_freqs_MHz, ave_rsb)
                 fit_params_bsb, fit_err_bsb, fit_bsb =  fitSincGeneric(bsb_freqs_MHz, ave_bsb)
-                phonon_max = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+                phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+                # todo: implement
+                phonon_err = 0
 
                 # save results to hdf5 as a dataset
                 self.set_dataset('fit_params_rsb',  fit_params_rsb)
@@ -722,14 +729,13 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('fit_err_rsb',     fit_err_rsb)
                 self.set_dataset('fit_err_bsb',     fit_err_bsb)
 
-                # # save results to dataset manager for dynamic experiments
-                # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
-                # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+                # save results to dataset manager for dynamic experiments
+                res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
+                self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
+                self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
                 print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]), float(fit_params_bsb[1])))
-
-            # print("\t\tn:\t{:.3f}".format(float(phonon_max), 3))
 
         except Exception as e:
             print("Warning: unable to process data.")
