@@ -696,11 +696,12 @@ class EGGSHeating(LAXExperiment, Experiment):
 
             ## process secular frequency sweep
             if sorting_col_num == 3:
-                fit_params_secular, fit_err_secular, fit_data = fitSincGeneric(scanning_freq_MHz, phonons)
+                fit_params_secular, fit_err_secular, _ = fitSincGeneric(scanning_freq_MHz, phonons)
                 phonon_max = fit_params_secular[0]
 
-                # ## todo: save results to hdf5 as a dataset
-                # self.set_dataset('spectrum_peaks',  peak_vals)
+                # save results to hdf5 as a dataset
+                self.set_dataset('fit_params_secular',  fit_params_secular)
+                self.set_dataset('fit_err_secular',     fit_err_secular)
                 #
                 # # save results to dataset manager for dynamic experiments
                 # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
@@ -715,9 +716,12 @@ class EGGSHeating(LAXExperiment, Experiment):
                 fit_params_bsb, fit_err_bsb, fit_bsb =  fitSincGeneric(bsb_freqs_MHz, ave_bsb)
                 phonon_max = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
 
-                # ## todo: save results to hdf5 as a dataset
-                # self.set_dataset('spectrum_peaks',  peak_vals)
-                #
+                # save results to hdf5 as a dataset
+                self.set_dataset('fit_params_rsb',  fit_params_rsb)
+                self.set_dataset('fit_params_bsb',  fit_params_bsb)
+                self.set_dataset('fit_err_rsb',     fit_err_rsb)
+                self.set_dataset('fit_err_bsb',     fit_err_bsb)
+
                 # # save results to dataset manager for dynamic experiments
                 # self.set_dataset('temp.eggsheating.results', peak_vals, broadcast=True, persist=False, archive=False)
                 # self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)

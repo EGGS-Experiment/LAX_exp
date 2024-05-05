@@ -70,42 +70,42 @@ class Autocalibration(EnvExperiment):
         # create list of parameters for calibration (to prevent overriding of experiment parameters)
         self.calibration_parameters =       {
             # spectra
-            'freq_carrier_mhz':             102.2041,
-            'freq_rsb_laserscan_mhz':       101.5011,
-            'freq_bsb_laserscan_mhz':       102.9088,
+            'freq_carrier_mhz':             102.1931,
+            'freq_rsb_laserscan_mhz':       101.4884,
+            'freq_bsb_laserscan_mhz':       102.8958,
 
             # SBC
             'ampl_quench_pow_uw':           8.33,
 
             # readout
-            'time_carrier_rabi_us':         128,
+            'time_carrier_rabi_us':         11.4,
+            'time_bsb_rabi_us':             128,
 
             # EGGS
-            'freq_rsb_eggs_readout_mhz':    101.5011,
-            'freq_bsb_eggs_readout_mhz':    102.9088,
-            'freq_wsec_eggs_readout_khz':   1409.39
+            'freq_rsb_eggs_readout_mhz':    101.4911,
+            'freq_bsb_eggs_readout_mhz':    102.8962,
+            'freq_wsec_eggs_readout_khz':   1406.43
         }
 
         # create list of parameters to continually update the experiments with
         self.experiment_parameters =       {
             # sideband cooling
-            'freq_sideband_cooling_mhz_pct_list':           pyon.encode({101.4973: 100.}),
-            'ampl_quench_pct':                              2.18,
+            'freq_sideband_cooling_mhz_pct_list':           pyon.encode({101.4873: 100.}),
+            'ampl_quench_pct':                              2.25,
 
             # readout
-            'freq_rsb_readout_mhz_list.sequence':           [101.5011],
-            'freq_bsb_readout_mhz_list.sequence':           [102.9088],
+            'freq_rsb_readout_mhz_list.sequence':           [101.4911],
+            'freq_bsb_readout_mhz_list.sequence':           [102.8962],
             'time_readout_us_list.sequence':                [128],
 
             # EGGS
-            'freq_eggs_heating_secular_khz_list.center':    1411.5
+            'freq_eggs_heating_secular_khz_list.center':    1406.43
         }
 
     def _prepare_expids(self):
         """
         Prepare expids for calibration sequences and the main experiment queue.
         """
-
         '''
         Calibration List
         A deque that contains number of "calibration sets".
@@ -129,13 +129,12 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":      20,
+                        "repetitions":      30,
                         "att_qubit_db":     31.5,
-                        "ampl_qubit_pct":   40,
+                        "ampl_qubit_pct":   38,
                         "time_qubit_us":    5000,
                         "freq_qubit_scan_mhz": {
-                            "center":       102.2043,
-                            "span":         0.005,
+                            "center":       102.1931, "span": 0.01,
                             "step":         0.00005,
                             "randomize":    True,
                             "seed":         None,
@@ -154,44 +153,63 @@ class Autocalibration(EnvExperiment):
                     "class_name":   "LaserScan",
                     "log_level":    30,
                     "arguments": {
-                        "repetitions":      20,
-                        "att_qubit_db":     30,
-                        "ampl_qubit_pct":   50,
-                        "time_qubit_us":    5000,
+                        "repetitions":          20,
+                        "att_qubit_db":         31.5,
+                        "ampl_qubit_pct":       42,
+                        "time_qubit_us":        5000,
+                        "freq_qubit_scan_mhz":  {"center": 101.4881, "span": 0.01, "step": 0.00005,
+                                                "randomize": True, "seed": None, "ty": "CenterScan"}
+                    }
+                }
+            },
+            # calibration #3 - laser scan BSB
+            {
+                'name':             "ls_bsb",
+                'preprocess_func':  self._ls_bsb_preprocess,
+                'postprocess_func': self._ls_bsb_postprocess,
+                'expid': {
+                    "file":         "LAX_exp\\experiments\\diagnostics\\LaserScan.py",
+                    "class_name":   "LaserScan",
+                    "log_level":    30,
+                    "arguments": {
+                        "repetitions":  20,
+                        "att_qubit_db": 31.5,
+                        "ampl_qubit_pct": 42,
+                        "time_qubit_us": 5000,
                         "freq_qubit_scan_mhz": {
-                            "center":       101.4986,
-                            "span":         0.01,
-                            "step":         0.0001,
-                            "randomize":    True,
-                            "seed":         None,
-                            "ty":           "CenterScan"
+                            "center": 102.8975,
+                            "span": 0.01,
+                            "step": 0.00005,
+                            "randomize": True,
+                            "seed": None,
+                            "ty": "CenterScan"
                         }
                     }
                 }
             },
-            # calibration #3 - carrier rabi flop
+            # calibration #4 - carrier rabi flop
             {
                 'name':             "rabi_carrier",
                 'preprocess_func':  self._rabi_carrier_preprocess,
                 'postprocess_func': self._rabi_carrier_postprocess,
                 'expid': {
-                    "log_level": 30,
-                    "file": "experiments\\diagnostics\\RabiFlopping.py",
-                    "class_name": "RabiFlopping",
+                    "file":         "LAX_exp\\experiments\\diagnostics\\RabiFlopping.py",
+                    "class_name":   "RabiFlopping",
+                    "log_level":    30,
                     "arguments": {
-                        "repetitions":          20,
+                        "repetitions":          50,
                         "cooling_type":         "Doppler",
                         # readout
                         "time_rabi_us_list":    {"npoints": 200, "randomize": 2, "seed": None,
                                                  "start": 1.0, "stop": 50.0, "ty": "RangeScan"},
-                        "freq_rabiflop_mhz":    102.2041,
+                        "freq_rabiflop_mhz":    102.1931,
                         "att_readout_db":       8.0,
                         # rescue
                         "rescue_enable":            False,
                         "repetitions_per_rescue":   1,
                         "resuscitate_ion":          False
-                    },
-                    "repo_rev": "ab55fbe5543ea0acd2809e64ef68ba428cbbba5a"
+                    }
+                    # "repo_rev": "41897f76abd02dd6cd37e01db49b9dc9fa4f111d"
                 }
             }
         ])
@@ -200,9 +218,9 @@ class Autocalibration(EnvExperiment):
         # note: each element in the deque should be a simple expid dict
         self.pending_experiments = deque([
         {
-            "log_level":    30,
-            "file":         "experiments\\eggs_heating\\EGGSHeating.py",
+            "file":         "LAX_exp\\experiments\\eggs_heating\\EGGSHeating.py",
             "class_name":   "EGGSHeating",
+            "log_level":    30,
             "arguments": {
                 # config
                 "repetitions":      3,
@@ -211,14 +229,14 @@ class Autocalibration(EnvExperiment):
                 # SBC
                 "calibration_continuous":               False,
                 "sideband_cycles_continuous":           1,
-                "time_sideband_cooling_us":             9888.0,
+                "time_sideband_cooling_us":             10888.0,
                 "pct_per_spin_polarization":            40.0,
-                "freq_sideband_cooling_mhz_pct_list":   pyon.encode({101.4973: 100}),
+                "freq_sideband_cooling_mhz_pct_list":   pyon.encode({101.4872: 100}),
                 "att_sidebandcooling_continuous_db":    8.0,
                 "ampl_quench_pct":                      2.08,
                 # readout
-                "freq_rsb_readout_mhz_list":    {"sequence": [101.5011], "ty": "ExplicitScan"},
-                "freq_bsb_readout_mhz_list":    {"sequence": [102.9088], "ty": "ExplicitScan"},
+                "freq_rsb_readout_mhz_list":    {"sequence": [101.4911], "ty": "ExplicitScan"},
+                "freq_bsb_readout_mhz_list":    {"sequence": [102.8962], "ty": "ExplicitScan"},
                 "ampl_sideband_readout_pct":    50.0,
                 "att_sideband_readout_db":      8.0,
                 "time_sideband_readout_us":     128.0,
@@ -230,13 +248,13 @@ class Autocalibration(EnvExperiment):
                 "death_detection":          True,
                 "time_readout_us_list":     {"sequence": [128.0], "ty": "ExplicitScan"},
                 # EGGS
-                "freq_eggs_heating_carrier_mhz_list":   {"sequence": [79.53], "ty": "ExplicitScan"},
-                "freq_eggs_heating_secular_khz_list":   {"center": 1409.39, "span": 4.0, "step": 0.1,
+                "freq_eggs_heating_carrier_mhz_list":   {"sequence": [83.0], "ty": "ExplicitScan"},
+                "freq_eggs_heating_secular_khz_list":   {"center": 1406.48, "span": 4.0, "step": 0.1,
                                                          "randomize": True, "seed": None, "ty": "CenterScan"},
                 "enable_amplitude_calibration":         False,
                 "ampl_eggs_heating_rsb_pct":            60.0,
                 "ampl_eggs_heating_bsb_pct":            0.0,
-                "att_eggs_heating_db":                  31.5,
+                "att_eggs_heating_db":                  3,
                 "time_eggs_heating_ms":                 1.0,
                 "phase_eggs_heating_rsb_turns_list":    {"sequence": [0.0], "ty": "ExplicitScan"},
                 "phase_eggs_heating_bsb_turns":         0.0,
@@ -245,11 +263,11 @@ class Autocalibration(EnvExperiment):
                 "time_pulse_shape_rolloff_us":          100.0,
                 "freq_pulse_shape_sample_khz":          500,
                 "enable_dynamical_decoupling":          True,
-                "ampl_eggs_dynamical_decoupling_pct":   0.08,
+                "ampl_eggs_dynamical_decoupling_pct":   0.05,
                 "enable_dd_phase_shift_keying":         False,
                 "num_dynamical_decoupling_phase_shifts": 3
-            },
-            "repo_rev": "ab55fbe5543ea0acd2809e64ef68ba428cbbba5a"
+            }
+            # "repo_rev": "41897f76abd02dd6cd37e01db49b9dc9fa4f111d"
         } for i in range(self.experiment_repetitions)])
 
         # shuffle experiment order
@@ -263,28 +281,72 @@ class Autocalibration(EnvExperiment):
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_carrier_mhz']}
 
     def _ls_carrier_postprocess(self, results_dict):
+        # todo: check for any errors (new value should be reasonably close to old)
         print(results_dict)
-        # todo: check for any errors
+
         # update calibration parameters with carrier value
-        #self.calibration_parameters['freq_carrier_mhz'] = results_dict[]
+        # note: result is list of [[peak_freq_mhz, peak_val_pop]]
+        freq_carrier_mhz = results_dict['ls_carrier'][0, 0]
+        self.calibration_parameters['freq_carrier_mhz'] = freq_carrier_mhz
 
     def _ls_rsb_preprocess(self):
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_rsb_laserscan_mhz']}
 
     def _ls_rsb_postprocess(self, results_dict):
         # todo: check for any errors (new value should be reasonably close to old)
-        # todo: set the sbc frequency in self.experiment_parameters
         print(results_dict)
+
+        # update calibration_parameters with rsb value
+        # note: result is list of [[peak_freq_mhz, peak_val_pop]]
+        freq_rsb_mhz = results_dict['ls_rsb'][0, 0]
+        self.calibration_parameters['freq_rsb_laserscan_mhz'] = freq_rsb_mhz
+
+        # update SBC freq, RSB freq, and secular freq in experiment_parameters
+        freq_sbc_mhz = freq_rsb_mhz - 0.0009
+        self.experiment_parameters['freq_sideband_cooling_mhz_pct_list'] = pyon.encode({freq_sbc_mhz: 100.})
+
+        freq_rsb_readout_mhz = freq_rsb_mhz + 0.0023
+        self.experiment_parameters['freq_rsb_readout_mhz_list.sequence'] = [freq_rsb_readout_mhz]
+
+        freq_wsec_khz = 2. * (self.calibration_parameters['freq_carrier_mhz'] - freq_rsb_mhz) * 1000. - 2.72
+        self.experiment_parameters['freq_eggs_heating_secular_khz_list.sequence'] = [freq_wsec_khz]
+        print('\t\tLS RSB Calib\n\t\t\tSBC freq: {:.4f}\n\t\t\tRSB Readout: {:.4f}\n\t\t\twsec freq: {:.4f}'.format(freq_sbc_mhz,
+                                                                                                                    freq_rsb_readout_mhz,
+                                                                                                                    freq_wsec_khz))
+
+    def _ls_bsb_preprocess(self):
+        return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_bsb_laserscan_mhz']}
+
+    def _ls_bsb_postprocess(self, results_dict):
+        # todo: check for any errors (new value should be reasonably close to old)
+        print(results_dict)
+
+        # update calibration_parameters with bsb value
+        # note: result is list of [[peak_freq_mhz, peak_val_pop]]
+        freq_bsb_mhz = results_dict['ls_bsb'][0, 0]
+        self.calibration_parameters['freq_bsb_laserscan_mhz'] = freq_bsb_mhz
+
+        # update BSB readout freq in experiment_parameters
+        freq_bsb_readout_mhz = freq_bsb_mhz - 0.0013
+        self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [freq_bsb_readout_mhz]
 
     def _rabi_carrier_preprocess(self):
         return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
 
     def _rabi_carrier_postprocess(self, results_dict):
-        # todo: implement
-        # todo: set the sideband readout time by scaling the carrier readout time
+        # todo: check for any errors (new value should be reasonably close to old)
         print(results_dict)
 
-    # todo: create calibrations for sideband rabi flopping (with very few points)
+        # update calibration_parameters with bsb value
+        # note: result is list of [[peak_freq_mhz, peak_val_pop]]
+        time_readout_carrier_us = results_dict['rabi_carrier'][0, 0]
+        self.calibration_parameters['time_carrier_rabi_us'] = time_readout_carrier_us
+
+        # update BSB readout freq in experiment_parameters
+        time_readout_bsb_us = time_readout_carrier_us * 11.36
+        self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [time_readout_bsb_us]
+
+    # todo: create calibrations for sideband rabi flopping
     def _eggs_sideband_preprocess(self):
         # todo: return sbc freq, sideband freqs
         return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
@@ -293,7 +355,6 @@ class Autocalibration(EnvExperiment):
         # todo: implement
         # todo: set the sideband readout time by scaling the carrier readout time
         print(results_dict)
-    # todo: create calibrations for eggs heating - secular
 
     def _eggs_secular_preprocess(self):
         # todo: implement
