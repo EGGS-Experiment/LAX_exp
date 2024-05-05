@@ -45,7 +45,7 @@ class Autocalibration(EnvExperiment):
         # todo: maybe can make expid and stuff be uploaded from a file, and set the filename as an argument
         # autocalibration parameters
         self.experiments_per_calibration =  1
-        self.experiment_repetitions =       1
+        self.experiment_repetitions =       5
 
     def prepare(self):
         # create necessary data structures
@@ -282,12 +282,13 @@ class Autocalibration(EnvExperiment):
 
     def _ls_carrier_postprocess(self, results_dict):
         # todo: check for any errors (new value should be reasonably close to old)
-        print(results_dict)
 
         # update calibration parameters with carrier value
         # note: result is list of [[peak_freq_mhz, peak_val_pop]]
         freq_carrier_mhz = results_dict['ls_carrier'][0, 0]
         self.calibration_parameters['freq_carrier_mhz'] = freq_carrier_mhz
+        print('\t\tCarrier Calib')
+        print('\t\t\tCarrier freq: {:.4f}'.format(freq_carrier_mhz))
 
     def _ls_rsb_preprocess(self):
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_rsb_laserscan_mhz']}
@@ -310,16 +311,16 @@ class Autocalibration(EnvExperiment):
 
         freq_wsec_khz = 2. * (self.calibration_parameters['freq_carrier_mhz'] - freq_rsb_mhz) * 1000. - 2.72
         self.experiment_parameters['freq_eggs_heating_secular_khz_list.sequence'] = [freq_wsec_khz]
-        print('\t\tLS RSB Calib\n\t\t\tSBC freq: {:.4f}\n\t\t\tRSB Readout: {:.4f}\n\t\t\twsec freq: {:.4f}'.format(freq_sbc_mhz,
-                                                                                                                    freq_rsb_readout_mhz,
-                                                                                                                    freq_wsec_khz))
+        print('\t\tLS RSB Calib')
+        print('\t\t\tSBC freq: {:.4f}\n\t\t\tRSB Readout: {:.4f}\n\t\t\twsec freq: {:.4f}'.format(freq_sbc_mhz,
+                                                                                                  freq_rsb_readout_mhz,
+                                                                                                  freq_wsec_khz))
 
     def _ls_bsb_preprocess(self):
         return {"freq_qubit_scan_mhz.center": self.calibration_parameters['freq_bsb_laserscan_mhz']}
 
     def _ls_bsb_postprocess(self, results_dict):
         # todo: check for any errors (new value should be reasonably close to old)
-        print(results_dict)
 
         # update calibration_parameters with bsb value
         # note: result is list of [[peak_freq_mhz, peak_val_pop]]
@@ -330,21 +331,27 @@ class Autocalibration(EnvExperiment):
         freq_bsb_readout_mhz = freq_bsb_mhz - 0.0013
         self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [freq_bsb_readout_mhz]
 
+        print('\t\tBSB Calib')
+        print('\t\t\tBSB freq: {:.4f}'.format(freq_bsb_mhz))
+
     def _rabi_carrier_preprocess(self):
         return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
 
     def _rabi_carrier_postprocess(self, results_dict):
         # todo: check for any errors (new value should be reasonably close to old)
-        print(results_dict)
 
         # update calibration_parameters with bsb value
         # note: result is list of [[peak_freq_mhz, peak_val_pop]]
-        time_readout_carrier_us = results_dict['rabi_carrier'][0, 0]
+        time_readout_carrier_us = results_dict['rabi_carrier'][0][0]
         self.calibration_parameters['time_carrier_rabi_us'] = time_readout_carrier_us
 
         # update BSB readout freq in experiment_parameters
         time_readout_bsb_us = time_readout_carrier_us * 11.36
         self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [time_readout_bsb_us]
+
+        print('\t\tRabi Carrier Calib')
+        print('\t\t\tCarrier rabi time: {:.4f}'.format(time_readout_carrier_us))
+
 
     # todo: create calibrations for sideband rabi flopping
     def _eggs_sideband_preprocess(self):
