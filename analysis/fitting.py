@@ -399,14 +399,14 @@ def fitSincGeneric(x: np.array,y: np.array):
     # get linecenter as mean of max x[y_max]
     b0 =                np.mean(x[indices_max_y])
     # get offset as average of (median, min) of data
-    d0 =                0.5 * (np.median(y) + np.min(y))
+    d0 =               np.min(y)
     # guess amplitude using max y-value with offset subtracted
     a0 =                np.max(y) - d0
     # get b0 by numerically guessing FWHM
-    c0 =                1. / (2. * x[np.argmin(np.abs(y - 0.5 * a0))])
+    c0 =                1. / (2. * (np.abs(x[np.argmin(y - 0.5 * a0)]-b0)))
 
     ## fit and convert covariance matrix to error (1 stdev)
-    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
+    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0,c0,d0])
     xdata =         np.linspace(np.min(x), np.max(x), int(1e6))
     ydata =         fit_func(xdata, *param_fit)
     param_err =     np.sqrt(np.diag(param_cov))

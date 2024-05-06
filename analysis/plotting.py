@@ -13,12 +13,12 @@ def plot_sidebands(rsb_freqs_MHz: np.array, bsb_freqs_MHz:np.array, probs_rsb: n
     Args:
         rsb_freqs_MHz: rsb frequencies in MHz
         bsb_freqs_MHz: bsb frequencies in MHz
-        probs_rsb: probabilitiies of rsb excitation
-        probs_bsb: probabilitiies of bsb excitation
+        probs_rsb: probabilities of rsb excitation
+        probs_bsb: probabilities of bsb excitation
         std_rsb: standard deviation from averaging rsb excitations
         std_bsb: standard deviation from averaging bsb excitations
-        fit_rsb: fit generated for rsb excitations over a frequncy span
-        fit_bsb: fit generated for bsb excitations over a frequncy span
+        fit_rsb: fit generated for rsb excitations over a frequency span
+        fit_bsb: fit generated for bsb excitations over a frequency span
 
     Returns:
         None
@@ -47,8 +47,8 @@ def plot_sb_probs(scanning_freq_MHz: np.array,  probs_rsb: np.array,
 
     Args:
         scanning_freq_MHz: frequency span
-        probs_rsb: probabilitiies of rsb excitation
-        probs_bsb: probabilitiies of bsb excitation
+        probs_rsb: probabilities of rsb excitation
+        probs_bsb: probabilities of bsb excitation
         std_rsb: standard deviation from averaging rsb excitations
         std_bsb: standard deviation from averaging bsb excitations
 
@@ -74,7 +74,7 @@ def plot_phonons(scanning_freq_MHz: np.array, phonons: np.array, fit_data = None
     Args:
         scanning_freq_MHz: frequency span
         phonons: phonons
-        fit_data: curve generated for phonons over a frequnecy span
+        fit_data: curve generated for phonons over a frequency span
 
     Returns:
         None
