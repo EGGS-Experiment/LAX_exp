@@ -735,9 +735,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
-                print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]), float(fit_params_bsb[1])))
+                print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]) / 2., float(fit_params_bsb[1]) / 2.))
 
         except Exception as e:
             print("Warning: unable to process data.")
-            print(repr(e))
+            # print(repr(e))
 

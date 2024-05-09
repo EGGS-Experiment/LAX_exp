@@ -42,20 +42,23 @@ class testarg34(EnvExperiment):
         self.setattr_device("urukul2_ch2")
         self.setattr_device("urukul2_ch3")
 
-        self.dds = self.urukul1_ch3
-        self.dds_cpld = self.urukul1_cpld
+        self.dds =      self.urukul1_ch2
+        self.dds_cpld = self.dds.cpld
 
     def prepare(self):
-        self.freq = np.int32(0)
-        self.ampl = np.int32(0)
-        self.phase = np.int32(0)
-        self.att = np.int32(0)
+        self.freq =     np.int32(0)
+        self.ampl =     np.int32(0)
+        self.phase =    np.int32(0)
+        self.att =      np.int32(0)
 
         self._profile0_word = np.int64(0)
         self._profile1_word = np.int64(0)
         self._profile2_word = np.int64(0)
         self._profile3_word = np.int64(0)
         self._profile4_word = np.int64(0)
+        self._profile5_word = np.int64(0)
+        self._profile6_word = np.int64(0)
+        self._profile7_word = np.int64(0)
 
         self.th0 = (0., 0., 0.)
         self.th1 = (0., 0., 0.)
@@ -67,33 +70,76 @@ class testarg34(EnvExperiment):
         self.core.break_realtime()
 
         # tmp remove
-        # self.dds.set_mu(0xF, asf=0x1FF, profile=3)
-        # self.core.break_realtime()
-        # self.dds_cpld.io_update.pulse_mu(8)
-        self.dds_cpld.set_profile(1)
+        self.dds_cpld.init()
+        self.core.break_realtime()
+        self.core.break_realtime()
+        delay_mu(10000000)
+        self.core.break_realtime()
         # tmp remove
 
-        # self.dds_cpld.set_profile(7)
-        # self.dds_cpld.io_update.pulse_mu(8)
+        # tmp remove
+        self.dds.init()
+        self.core.break_realtime()
+        self.core.break_realtime()
+        delay_mu(10000000)
+        self.core.break_realtime()
+        # tmp remove
+
+        # tmp remove
+        self.dds.set_mu(0x1F0FFFF, asf=0xFFF, profile=1)
+        self.core.break_realtime()
+        # tmp remove
+
+
+        self.dds_cpld.set_profile(0)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
         self._profile0_word = np.int64(self.dds.read64(0x0E))
         self.core.break_realtime()
 
+        self.dds_cpld.set_profile(1)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
         self._profile1_word = np.int64(self.dds.read64(0x0F))
         self.core.break_realtime()
 
+        self.dds_cpld.set_profile(2)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
         self._profile2_word = np.int64(self.dds.read64(0x10))
         self.core.break_realtime()
 
+        self.dds_cpld.set_profile(3)
+        self.core.break_realtime()
         self._profile3_word = np.int64(self.dds.read64(0x11))
         self.core.break_realtime()
 
+        self.dds_cpld.set_profile(4)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
         self._profile4_word = np.int64(self.dds.read64(0x12))
         self.core.break_realtime()
 
-        self.th0 = self.dds.get(profile=3)
+        self.dds_cpld.set_profile(7)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        self._profile7_word = np.int64(self.dds.read64(0x15))
         self.core.break_realtime()
 
-        self.th1 = self.dds.get(profile=7)
+        self.th0 = self.dds.get(profile=0)
+        self.core.break_realtime()
+
+        self.th1 = self.dds.get(profile=2)
         self.core.break_realtime()
 
 
@@ -113,6 +159,14 @@ class testarg34(EnvExperiment):
         ftw_3 = np.int32(self._profile3_word & 0xFFFFFFFF)
         pow_3 = np.int32((self._profile3_word >> 32) & 0xFFFF)
         asf_3 = np.int32((self._profile3_word >> 48) & 0x3FFF)
+
+        ftw_4 = np.int32(self._profile4_word & 0xFFFFFFFF)
+        pow_4 = np.int32((self._profile4_word >> 32) & 0xFFFF)
+        asf_4 = np.int32((self._profile4_word >> 48) & 0x3FFF)
+
+        ftw_7 = np.int32(self._profile7_word & 0xFFFFFFFF)
+        pow_7 = np.int32((self._profile7_word >> 32) & 0xFFFF)
+        asf_7 = np.int32((self._profile7_word >> 48) & 0x3FFF)
 
         print(self.th0)
         print(self.th1)
@@ -138,4 +192,9 @@ class testarg34(EnvExperiment):
         print("\t\tfreq: {:.4f} MHz".format(self.dds.ftw_to_frequency(ftw_3) / MHz))
         print("\t\tampl: {:.4f} %".format(self.dds.asf_to_amplitude(asf_3) * 100.))
         print("\t\tphas: {:.4f} turns\n".format(self.dds.pow_to_turns(pow_3)))
+
+        print("\tprofile 7:")
+        print("\t\tfreq: {:.4f} MHz".format(self.dds.ftw_to_frequency(ftw_7) / MHz))
+        print("\t\tampl: {:.4f} %".format(self.dds.asf_to_amplitude(asf_7) * 100.))
+        print("\t\tphas: {:.4f} turns\n".format(self.dds.pow_to_turns(pow_7)))
 
