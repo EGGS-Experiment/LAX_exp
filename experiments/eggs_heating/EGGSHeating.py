@@ -163,6 +163,30 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.config_eggs_heating_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
                                                                           self.ampl_eggs_heating_bsb_pct,
                                                                           self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # if self.enable_amplitude_calibration:
+        #     try:
+        #         DATASET_KEY_QUADRUPOLE = "calibration.eggs.scaling_coeffs_quadrupole"
+        #         DATASET_KEY_DIPOLE = "calibration.eggs.scaling_coeffs_dipole"
+        #         scaling_coeffs_quadrupole = self.get_dataset(DATASET_KEY_QUADRUPOLE)
+        #         scaling_coeffs_dipole = self.get_dataset(DATASET_KEY_DIPOLE)
+        #         scaling_coeffs_quadrupole_keys = np.array(list(scaling_coeffs_quadrupole.keys()))
+        #         scaling_coeffs_dipole_keys = np.array(list(scaling_coeffs_dipole.keys()))
+        #         scaling_coeffs_quadrupole_vals = np.array(list(scaling_coeffs_quadrupole.items()))
+        #         scaling_coeffs_dipole_vals = np.array(list(scaling_coeffs_dipole.items()))
+        #
+        #         ampl_calib_curve_quadrupole = Akima1DInterpolator(scaling_coeffs_quadrupole_keys, scaling_coeffs_quadrupole_vals)
+        #         ampl_calib_curve_dipole = Akima1DInterpolator(scaling_coeffs_dipole_keys, scaling_coeffs_dipole_vals)
+        #         for idx, secular_freq_val_hz in enumerate(self.config_eggs_heating_list[:,1]):
+        #             carrier_freq_val_hz = self.config_eggs_heating_list[idx, 2]
+        #             rsb_key = scaling_coeffs_quadrupole_keys[np.argmin(scaling_coeffs_quadrupole_keys - (carrier_freq_val_hz - secular_freq_val_hz))]
+        #             bsb_key = scaling_coeffs_quadrupole_keys[np.argmin(scaling_coeffs_quadrupole_keys - (carrier_freq_val_hz + secular_freq_val_hz))]
+        #             carrier_key = scaling_coeffs_dipole_keys[np.argmin(scaling_coeffs_dipole_keys - carrier_freq_val_hz)]
+        #
+        #             self.config_eggs_heating_list[idx, 3] *= scaling_coeffs_quadrupole[rsb_key]
+        #             self.config_eggs_heating_list[idx, 4] *= scaling_coeffs_quadrupole[bsb_key]
+        #             self.config_eggs_heating_list[idx, 5] *= scaling_coeffs_quadrupole[carrier_key]
+        #     except Exception as e:
+        #         print("Exception occurred")
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
