@@ -2,20 +2,25 @@ import labrad
 from labrad.units import WithUnit
 import numpy as np
 from artiq.experiment import *
-from LAX_exp.analysis.processing import *
-from artiq.language.scan *
+from artiq.language.scan import *
+from LAX_exp.base import LAXExperiment
 
-from LAX_exp.extensions import hz_to_ftw
-from LAX_exp.extensions import mhz_to_ftw
+from LAX_exp.extensions import *
+from LAX_exp.analysis import *
+
+import time
+
 
 class CheckIon(LAXExperiment, Experiment):
-
     name = "Check Ion"
 
     def build_experiment(self):
+        self.ccb = self.get_device("ccb")
+        self.scheduler = self.get_device("scheduler")  # get scheduler
 
-        self.ccb =              self.get_device("ccb")
-        self.scheduler =        self.get_device("scheduler")  # get scheduler
+        self.setattr_device('aperture')
+        self.setattr_argument('camera')
+
 
         self.setattr_argument("freq_secular_freq_khz", NumberValue(
             default=1372.34, min=0, max=10000, step=1, unit="kHz", scale=1, ndecimals=3))
@@ -24,14 +29,14 @@ class CheckIon(LAXExperiment, Experiment):
                                                                             step=0.01, unit="kHz"))
 
 
-        # grab arguements for laser scan to check if it's still HCL
-        self.setattr_arguement("repetitions", NumberValue(default=30, min=1, ndecimals=0, step=1), group='CheckIon.LaserScan')
+        ### grab arguments for laser scan to check if it's still HCL
+        self.setattr_argument("repetitions", NumberValue(default=30, min=1, ndecimals=0, step=1), group='CheckIon.LaserScan')
 
-        self.setattr_arguement("time_qubit_us", NumberValue(default=5000., min=0, step=1,
+        self.setattr_argument("time_qubit_us", NumberValue(default=5000., min=0, step=1,
                                                             ndecimals=0, unit="us"), group='CheckIon.LaserScan')
 
 
-        self.setattr_arguement("att_qubit_db", NumberValue(default =31.5, min =8., max =31.5,
+        self.setattr_argument("att_qubit_db", NumberValue(default =31.5, min =8., max =31.5,
                                                            step=0.1, ndecimals=1, unit="dB"), group='CheckIon.LaserScan')
 
         self.setattr_argument("freq_span_mhz", NumberValue(default=0.15, min=0., step=0.01,unit="MHz",
@@ -42,6 +47,14 @@ class CheckIon(LAXExperiment, Experiment):
 
         self.setattr_argument("expected_laser_scan_peak_mhz", NumberValue(default=103.226, step = 0.001.,
                                                                           ndecimals =3,unit = "MHz"), group ='CheckIon.LaserScan' )
+
+        self.setattr_argument("time_qubit_us", NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000),
+                              group='CheckIon.LaserScan')
+
+
+        ### grab arguments for opening the aperture to disintegrate H2CL
+        self.setattr_argument("open_aperture_time", NumberValue(default=10, min=1, max=100, step=0.1,
+                                                                ndecimals=1, group='CheckIon.Aperture '))
 
         # grab arguments for tickle
         self.setattr_argument('time_tickle_us', NumberValue(default=100, ndecimals=3, step=100, min=1, max=1000000),
@@ -58,51 +71,55 @@ class CheckIon(LAXExperiment, Experiment):
         self.setattr_argument("tickle_chirp_steps", NumberValue(default=51, min=1, max=100, step=1,
                                                             ndecimals=0), group='CheckIon.Tickle')
 
+
         # grab tickle device
         self.setattr_device('dds_dipole')
         self.setattr_device('ttl15')
 
-        # todo: do we need these???
-        # # grab devices for doppler cooling
-        # self.setattr_device('pump')
-        # self.setattr_device('repump_cooling')
-        # self.setattr_device('repump_qubit')
+        # grab devices for doppler cooling
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+
+        self.setattr_device('aperture')
 
     def prepare_experiment(self):
 
-        self.freq_secular_freq_mhz = (self.freq_secular_freq_kHz/KHz)*MHz
+        self.freq_secular_freq_mhz = (self.freq_secular_freq_kHz/kHz)*MHz
 
-        # convert tickle parameters to machine units
+        ### convert tickle parameters to machine units
         self.att_tickle_mu =                        att_to_mu(self.att_tickle_db * dB)
         self.freq_tickle_ftw =                 hz_to_ftw(self.freq_secular_freq_khz * kHz)
         self.ampl_tickle_asf =                 pct_to_asf(self.ampl_tickle_pct)
         self.time_tickle_mu =                       self.core.seconds_to_mu(self.time_tickle_us * us)
+
+        ### get parameters for laser scan
         self.expected_peak_freq_mhz = self.expected_peak_freq_mhz *  MHz
         self.tolerable_laser_scan_drift_khz =  self.tolerable_laser_scan_drift_khz * kHz
 
-        self.aperture_wait_time = 1 * s # todo: maybe give as arguement???
-
+        ### get parameters for flipping to mirror to read images from the ANDOR camera
         self.time_flipper_trigger_mu = self.core.seconds_to_mu(50*ms)
-        self.time_flipper_wait_mu = self.core.seconds_to_mu(2*s)
+        self.time_flipper_wait_mu = self.core.seconds_to_mu(0.5*s)
 
-        self.cxn = labrad.connect()
-        self.cam = self.cxn.andor_server
-        self.flipper = self.cxn.flipper_server
-        # todo: implement aperture server
-        # self.aperture = self.cxn.aperture_server
+    @property
+    def results_shape(self):
+        return (1,1)
 
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
+        pass
 
-        # ensure DMA sequences use profile 0
+        # # ensure DMA sequences use profile 0
         self.dds_tickle.set_profile(0)
         self.dds_tickle.set_att_mu(self.att_tickle_mu)
         self.core.break_realtime()
 
     def run_main(self):
 
-        # check if we still have HCL via laser scan
+        self.aperture.pulse_aperture_open(10)
+
+        ### check if we still have HCL via laser scan
         laser_scan_sec_freq = 0.  # set up variable to take in secular frequency from laser scan
         chem_reaction = True  # assume chem reaction
         self._prepare_laser_scan_expid()  # prepare the arguments for the laser scan experiment
@@ -110,17 +127,16 @@ class CheckIon(LAXExperiment, Experiment):
         while rid_dj in self.scheduler.get_status().keys():
             pass # hold until experiment is done running
         results = self.get_dataset("temp.laserscan.results")  # get the results of the laser scan and process
-        peak_vals, _ = process_laser_scan_results(results)
+        peak_vals, _ = process_laser_scan_results(results, self.time_qubit_us)
         for i in range(100):  # run until we have HCl and not H2CL
             for peak_freq, peak_prob in peak_vals:
                 if (self.expected_peak_freq_mhz - self.tolerable_laser_scan_drift_khz <= peak_freq
                         <= self.expected_lawhser_scan_peak_mhz + self.tolerable_laser_scan_drift_khz):
-                    laser_scan_sec_freq_mhz = peak_freq * MHz
                     chem_reaction = False
 
             if chem_reaction:
                 if i == 99:
-                    raise TerminationRequested("Could Not Dissassociate Ion")
+                    raise TerminationRequested("Could Not Disassociate Ion")
                 self.pulse_aperture()
                 results = self.submit_laser_scan()
                 peak_vals, _ = process_laser_scan_results(results)
@@ -142,7 +158,6 @@ class CheckIon(LAXExperiment, Experiment):
         xpos = self.analyze_image(image, pixels_x, pixels_y)  # find x pos of ion
         for i in range(100):
             if not (self.expected_x_pos - 1 <= xpos <= self.expected_x_pos + 1):
-                # todo: is 397 on and should it be??? - damping force but would help keep ions???
                 self.tickle_ion(tickle_freqs_ftw_list, chirp_time_mu) # tickle the ion with a chirped pulse
                 image, pixels_x, pixels_y = self.check_ion_position()  # check if ion has moved back
                 xpos = self.analyze_image(image, pixels_x, pixels_y)
@@ -156,15 +171,25 @@ class CheckIon(LAXExperiment, Experiment):
         pass
 
     @kernel(flags={"fast-math"})
-    def tickle_ion(self, tickle_freqs_ftw, chirp_time_mu):
+    def tickle_ion(self, tickle_freqs_ftw, chirp_time_mu) -> TNone:
+
+        """
+        tickle the ion until HCL and Ca are in the correct positions
+
+        Args:
+            tickle_freqs_ftw: frequencies (in machine units) to apply tickle at
+            chirp_time_mu: length of time (in machine units) to wait at each frequency when we chirp
+
+        Returns:
+            None
+        """
         self.core.break_realtime()
-        # todo: is 397 on and should it be???
         ampl_tickle_asf = np.int32(self.ampl_tickle_asf)
 
         for tickle_freq_ftw in tickle_freqs_ftw:
             self.dds_tickle.set_mu(tickle_freq_ftw, asf=ampl_tickle_asf, profile=0)  # configure tickle
             self.dds_tickle.on()  # tickle
-            delay_mu(chirp_time_mu) # wait till time to move onto next freq
+            delay_mu(chirp_time_mu)  # wait till time to move onto next freq
 
         self.dds_tickle.off()
         self.core.break_realtime()
@@ -176,38 +201,46 @@ class CheckIon(LAXExperiment, Experiment):
 
     def _prepare_laser_scan_expid(self):
         self.laser_scan_expid = {
-                    "file":         "LAX_exp\\experiments\\LaserScan.py",
-                    "class_name":   "LaserScan",
-                    "log_level":    30,
-                    "arguments": {
-                        "repetitions":  self.repetitions,
-                        "att_qubit_db": self.att_qubit_db,
-                        "freq_qubit_scan_mhz": {
-                            "center":       self.freq_check_ion_secular_freq_MHz,
-                            "span":         self.freq_span_MHz,
-                            "step":         self.freq_steo_MHz,
-                            "randomize":    True,
-                            "seed":         None,
-                            "ty":           "CenterScan"
-                        }
-                    }
-                }
+            "file": "LAX_exp\\experiments\\LaserScan.py",
+            "class_name": "LaserScan",
+            "log_level": 30,
+            "arguments": {
+                "repetitions": self.repetitions,
+                "att_qubit_db": self.att_qubit_db,
+                "freq_qubit_scan_mhz": {
+                    "center": self.freq_check_ion_secular_freq_MHz,
+                    "span": self.freq_span_MHz,
+                    "step": self.freq_steo_MHz,
+                    "randomize": True,
+                    "seed": None,
+                    "ty": "CenterScan"
+                },
+                "time_qubit_us": self.time_qubit_us
+            }
+        }
 
     def check_ion_position(self):
-
+        """
+        Uses the ANDOR camera to grab an image of the ion
+        """
         identify_exposure_time = WithUnit(0.2, 's')
         # todo: figure out these parameters
         start_x = 1
         stop_x = 512
         start_y = 1
         stop_y = 512
-        h_bin = stop_y - start_y + 1 # image becomes 1d array of just x direction
+        h_bin = stop_y - start_y + 1  # image becomes 1d array of just x direction
         v_bin = 5
-        image_region = (h_bin,v_bin,start_x, stop_x, start_y, stop_y)
+        image_region = (h_bin, v_bin, start_x, stop_x, start_y, stop_y)
+        self.get_camera_image(image_region, identify_exposure_time)
 
-        pixels_x = (stop_x-start_x+1)/hbin
-        pixels_y = (stop_y-start_y+1)/vbin
+        pixels_x = (stop_x - start_x + 1) / h_bin
+        pixels_y = (stop_y - start_y + 1) / v_bin
 
+        return image, pixels_x, pixels_y
+
+    @rpc
+    def get_camera_image(self, image_region, identify_exposure_time: TFloat):
         # get single image from ANDOR
         self.cam.accquisition_stop()
         initial_exposure_time = self.cam.setup_exposure_time()
@@ -226,11 +259,13 @@ class CheckIon(LAXExperiment, Experiment):
         self.cam.mode_accquisition("Run till abort")
         self.cam.accquisition_start()
         self.cam.accquisition_wait()
-
-        return image, pixels_x, pixels_y
+        return image
 
     @kernel(flags={"fast-math"})
-    def flip_mirror(self):
+    def flip_mirror(self) -> TNone:
+        """
+        Flip the mirror to move between the ANDOR camera and the PMT
+        """
         self.ttl15.pulse(self.time_flipper_trigger_mu)
         delay_mu(self.time_flipper_wait_mu)
 
@@ -240,11 +275,11 @@ class CheckIon(LAXExperiment, Experiment):
         max_pos_x = np.argmax(image)
         return max_pos_x
 
-    def pulse_aperture(self):
-        self.aperture.open()
-        self.aperture.wait(self.aperture_wait_time)
-        self.aperture.close()
-
-
-
-
+    @rpc
+    def _pulse_aperture(self, time_pulse_s: TFloat) -> TNone:
+        """
+        Pulse the 397nm aperture to let in rescue light for a given amount of time.
+        """
+        self.aperture.move_home()
+        time.sleep(time_pulse_s)
+        self.aperture.move_absolute(2888)
