@@ -34,7 +34,7 @@
     "eggs.time_latency_ch1_system_ns": npscalar("<f8", b"w/UoXI/CxT8="),
     "management.death.deathcount_length": 200,
     "management.death.deathcount_tolerance": 3,
-    "management.dynamic.completion_pct": 90.323,
+    "management.dynamic.completion_pct": 82.395,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
