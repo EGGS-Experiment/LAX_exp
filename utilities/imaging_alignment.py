@@ -159,7 +159,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         """
         Analyze the results from the experiment.
         """
-        pass
         print(self.get_dataset('temp.imag_align._tmp_counts_x'))
+        pass
         # print results
         # print('\tCounts: {:.3f} +/- {:.3f}'.format(mean(self.pmt_dataset), std(self.pmt_dataset)))

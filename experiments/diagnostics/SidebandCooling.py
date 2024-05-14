@@ -157,7 +157,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # print out fitted parameters
         print("\tResults - Sideband Cooling:")
-        print("\t\tn:\t{:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
+        print("\t\tn:{:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
         print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]) / 2., float(fit_params_bsb[1]) / 2.))
         return results_tmp
 

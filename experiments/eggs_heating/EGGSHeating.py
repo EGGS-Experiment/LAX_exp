@@ -739,5 +739,5 @@ class EGGSHeating(LAXExperiment, Experiment):
 
         except Exception as e:
             print("Warning: unable to process data.")
-            # print(repr(e))
+            print(repr(e))
 

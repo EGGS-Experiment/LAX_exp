@@ -22,7 +22,10 @@ class ProphylacticSweep(EnvExperiment):
         self.setattr_argument("mod_time_total_s",       NumberValue(default=20, ndecimals=3, step=1, min=0.001, max=10000000))
         self.setattr_argument("mod_att_db",             NumberValue(default=3, ndecimals=1, step=0.5, min=0., max=31.5))
         self.setattr_argument("mod_freq_khz_list",      Scannable(
-                                                            default=CenterScan(1686, 1000, 100., randomize=True),
+                                                            default=[
+                                                                CenterScan(1686, 1000, 100., randomize=True),
+                                                                RangeScan(1800, 2300, 501, randomize=True),
+                                                            ],
                                                             global_min=1, global_max=100000, global_step=1.,
                                                             unit="kHz", scale=1, ndecimals=3
                                                         ))
@@ -42,6 +45,10 @@ class ProphylacticSweep(EnvExperiment):
         self.mod_time_mu =                  self.core.seconds_to_mu(self.mod_time_total_s / (len(self.mod_freq_mu_list) * self.repetitions))
         self.time_cooling_holdoff_mu =      self.core.seconds_to_mu(3 * ms)
 
+        # for completion manager
+        self._num_loops =                   len(self.mod_freq_mu_list * self.repetitions)
+        print(self._num_loops)
+
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -51,6 +58,7 @@ class ProphylacticSweep(EnvExperiment):
 
         # prepare devices for experiment
         self.prepareDevices()
+        _loop_counter = 0
 
 
         # MAIN LOOP
@@ -77,6 +85,8 @@ class ProphylacticSweep(EnvExperiment):
                 self.mod_dds.sw.off()
 
                 # todo: update progress bar
+                self.updateCompletion(_loop_counter)
+                _loop_counter += 1
 
 
                 # check termination
@@ -118,3 +128,8 @@ class ProphylacticSweep(EnvExperiment):
 
         # wait until cleanup has completed
         self.core.wait_until_mu(now_mu())
+
+    @rpc(flags={"async"})
+    def updateCompletion(self, i: TInt32) -> TNone:
+        self.set_dataset('management.dynamic.completion_pct', round(i / self._num_loops * 100., 3),
+                         broadcast=True, persist=True, archive=False)
