@@ -51,12 +51,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                                                                                 unit="kHz", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating.frequencies')
 
-        # EGGS RF - waveform - amplitude
-        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
@@ -66,7 +60,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
@@ -78,19 +71,24 @@ class EGGSHeating(LAXExperiment, Experiment):
                                                                             ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
+        # EGGS RF - waveform - amplitude - general
+        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
+        self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=0.03, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
-        # EGGS RF - dynamical decoupling - configuration
-        self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.decoupling')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=0.03, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.decoupling')
-
-        # EGGS RF - dynamical decoupling - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.decoupling.psk')
-        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.decoupling.psk')
+        # EGGS RF - waveform - PSK (Phase-shift Keying)
+        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -166,6 +164,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
+
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
         # interpolate calibration dataset
@@ -250,13 +249,14 @@ class EGGSHeating(LAXExperiment, Experiment):
             raise Exception('Error: error function window not implemented')
         else:
             raise Exception('Error: idk, some window problem')
+
         # todo: add other spicy windows
         # ensure window array has correct dimensions required
-        self.ampl_window_frac_list =                                        np.array([self.ampl_window_frac_list]).transpose()
+        self.ampl_window_frac_list =                np.array([self.ampl_window_frac_list]).transpose()
 
         # apply window to pulse shape
-        self.ampl_pulse_shape_frac_list *=                                  self.ampl_window_frac_list
-        self.ampl_pulse_shape_reverse_frac_list =                           self.ampl_pulse_shape_frac_list[::-1]
+        self.ampl_pulse_shape_frac_list *=          self.ampl_window_frac_list
+        self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
 
         # show pulse shape values to dataset so we can triple check everything is ok
         # print('\n\tps sample freq:\t\t{:f} kHz'.format(self.freq_pulse_shape_sample_khz))
@@ -365,7 +365,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
                 '''EGGS HEATING'''
                 # EGGS - START/SETUP
-                # set EGGS attenuators
+                # set phaser attenuators
                 at_mu(self.phaser_eggs.get_next_frame_mu())
                 self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
                 delay_mu(self.phaser_eggs.t_sample_mu)
@@ -474,9 +474,9 @@ class EGGSHeating(LAXExperiment, Experiment):
         Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
 
         Arguments:
-            carrier_freq_hz         (float)     : the maximum waiting time (in machine units) for the trigger signal.
-            sideband_freq_hz        (float)     : the holdoff time (in machine units)
-            phase_rsb_turns         (float)     : the phase for the rsb tone (in turns)
+            carrier_freq_hz         (float)     : the carrier frequency (in Hz).
+            sideband_freq_hz        (float)     : the sideband frequency (in Hz).
+            phase_rsb_turns         (float)     : the phase for the rsb tone (in turns).
         """
         '''
         CALCULATE PHASE DELAYS
