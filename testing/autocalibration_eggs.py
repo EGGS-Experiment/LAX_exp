@@ -198,7 +198,121 @@ class Autocalibration(EnvExperiment):
                         "repetitions_per_rescue":   1,
                         "resuscitate_ion":          False
                     }
-                    # "repo_rev": "41897f76abd02dd6cd37e01db49b9dc9fa4f111d"
+                }
+            },
+            # calibration #5 - EGGS sideband readout
+            {
+                'name':             "eggs_sideband",
+                'preprocess_func':  self._eggs_sideband_preprocess,
+                'postprocess_func': self._eggs_sideband_postprocess,
+                'expid': {
+                    "file":         "LAX_exp\\experiments\\eggs_heating\\EGGSHeating.py",
+                    "class_name":   "EGGSHeating",
+                    "log_level":    30,
+                    "arguments": {
+                        # config
+                        "repetitions":      30,
+                        "randomize_config": False,
+                        "sub_repetitions":  1,
+                        # SBC
+                        "calibration_continuous":               False,
+                        "sideband_cycles_continuous":           1,
+                        "time_sideband_cooling_us":             10888.0,
+                        "pct_per_spin_polarization":            40.0,
+                        "freq_sideband_cooling_mhz_pct_list":   pyon.encode({101.4872: 100}),
+                        "att_sidebandcooling_continuous_db":    8.0,
+                        "ampl_quench_pct":                      2.08,
+                        # readout
+                        "freq_rsb_readout_mhz_list":    {"center": 101.4911, "span": 0.02, "step": 0.00025,
+                                                         "randomize": True, "seed": None, "ty": "CenterScan"},
+                        "freq_bsb_readout_mhz_list":    {"center": 102.8962, "span": 0.02, "step": 0.00025,
+                                                         "randomize": True, "seed": None, "ty": "CenterScan"},
+                        "ampl_sideband_readout_pct":    50.0,
+                        "att_sideband_readout_db":      8.0,
+                        "time_sideband_readout_us":     128.0,
+                        # rescue
+                        "rescue_enable":            False,
+                        "repetitions_per_rescue":   1,
+                        "resuscitate_ion":          False,
+                        "add_397nm_spinpol":        False,
+                        "death_detection":          True,
+                        "time_readout_us_list":     {"sequence": [128.0], "ty": "ExplicitScan"},
+                        # EGGS
+                        "freq_eggs_heating_carrier_mhz_list":   {"sequence": [82.0], "ty": "ExplicitScan"},
+                        "freq_eggs_heating_secular_khz_list":   {"sequence": [1406.66], "ty": "ExplicitScan"},
+                        "enable_amplitude_calibration":         False,
+                        "ampl_eggs_heating_rsb_pct":            60.0,
+                        "ampl_eggs_heating_bsb_pct":            0.0,
+                        "att_eggs_heating_db":                  3,
+                        "time_eggs_heating_ms":                 1.0,
+                        "phase_eggs_heating_rsb_turns_list":    {"sequence": [0.0], "ty": "ExplicitScan"},
+                        "phase_eggs_heating_bsb_turns":         0.0,
+                        "enable_pulse_shaping":                 False,
+                        "type_pulse_shape":                     "sine_squared",
+                        "time_pulse_shape_rolloff_us":          100.0,
+                        "freq_pulse_shape_sample_khz":          500,
+                        "enable_dynamical_decoupling":          True,
+                        "ampl_eggs_dynamical_decoupling_pct":   0.05,
+                        "enable_dd_phase_shift_keying":         False,
+                        "num_dynamical_decoupling_phase_shifts": 3
+                    }
+                }
+            },
+            # calibration #6 - EGGS secular readout
+            {
+                'name':             "eggs_secular",
+                'preprocess_func':  self._eggs_secular_preprocess,
+                'postprocess_func': self._eggs_secular_postprocess,
+                'expid': {
+                    "file":         "LAX_exp\\experiments\\eggs_heating\\EGGSHeating.py",
+                    "class_name":   "EGGSHeating",
+                    "log_level":    30,
+                    "arguments": {
+                        # config
+                        "repetitions":      30,
+                        "randomize_config": False,
+                        "sub_repetitions":  1,
+                        # SBC
+                        "calibration_continuous":               False,
+                        "sideband_cycles_continuous":           1,
+                        "time_sideband_cooling_us":             10888.0,
+                        "pct_per_spin_polarization":            40.0,
+                        "freq_sideband_cooling_mhz_pct_list":   pyon.encode({101.4872: 100}),
+                        "att_sidebandcooling_continuous_db":    8.0,
+                        "ampl_quench_pct":                      2.08,
+                        # readout
+                        "freq_rsb_readout_mhz_list":    {"sequence": [101.4911], "ty": "ExplicitScan"},
+                        "freq_bsb_readout_mhz_list":    {"sequence": [102.8962], "ty": "ExplicitScan"},
+                        "ampl_sideband_readout_pct":    50.0,
+                        "att_sideband_readout_db":      8.0,
+                        "time_sideband_readout_us":     128.0,
+                        # rescue
+                        "rescue_enable":            False,
+                        "repetitions_per_rescue":   1,
+                        "resuscitate_ion":          False,
+                        "add_397nm_spinpol":        False,
+                        "death_detection":          True,
+                        "time_readout_us_list":     {"sequence": [128.0], "ty": "ExplicitScan"},
+                        # EGGS
+                        "freq_eggs_heating_carrier_mhz_list":   {"sequence": [82.0], "ty": "ExplicitScan"},
+                        "freq_eggs_heating_secular_khz_list":   {"center": 1406.66, "span": 5.0, "step": 0.1,
+                                                                 "randomize": True, "seed": None, "ty": "CenterScan"},
+                        "enable_amplitude_calibration":         False,
+                        "ampl_eggs_heating_rsb_pct":            60.0,
+                        "ampl_eggs_heating_bsb_pct":            0.0,
+                        "att_eggs_heating_db":                  3,
+                        "time_eggs_heating_ms":                 1.0,
+                        "phase_eggs_heating_rsb_turns_list":    {"sequence": [0.0], "ty": "ExplicitScan"},
+                        "phase_eggs_heating_bsb_turns":         0.0,
+                        "enable_pulse_shaping":                 False,
+                        "type_pulse_shape":                     "sine_squared",
+                        "time_pulse_shape_rolloff_us":          100.0,
+                        "freq_pulse_shape_sample_khz":          500,
+                        "enable_dynamical_decoupling":          True,
+                        "ampl_eggs_dynamical_decoupling_pct":   0.05,
+                        "enable_dd_phase_shift_keying":         False,
+                        "num_dynamical_decoupling_phase_shifts": 3
+                    }
                 }
             }
         ])
@@ -212,7 +326,7 @@ class Autocalibration(EnvExperiment):
             "log_level":    30,
             "arguments": {
                 # config
-                "repetitions":      50,
+                "repetitions":      30,
                 "randomize_config": False,
                 "sub_repetitions":  1,
                 # SBC
@@ -328,7 +442,6 @@ class Autocalibration(EnvExperiment):
 
     def _rabi_carrier_postprocess(self, results_dict):
         # todo: check for any errors (new value should be reasonably close to old)
-
         # update calibration_parameters with bsb value
         # note: result is list of [[peak_freq_mhz, peak_val_pop]]
         time_readout_carrier_us = results_dict['rabi_carrier'][0][0]
@@ -341,25 +454,54 @@ class Autocalibration(EnvExperiment):
         print('\t\tRabi Carrier Calib')
         print('\t\t\tCarrier rabi time: {:.4f}'.format(time_readout_carrier_us))
 
-
-    # todo: create calibrations for sideband rabi flopping
     def _eggs_sideband_preprocess(self):
-        # todo: return sbc freq, sideband freqs
-        return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
+        # get EGGS sideband values from experiment_parameters since they require processing
+        freq_sbc_list =         self.experiment_parameters['freq_sideband_cooling_mhz_pct_list']
+        time_readout_us =       self.experiment_parameters['time_readout_us_list.sequence']
+        freq_eggs_rsb_mhz =     self.experiment_parameters['freq_rsb_readout_mhz_list.sequence']
+        freq_eggs_bsb_mhz =     self.experiment_parameters['freq_bsb_readout_mhz_list.sequence']
+        freq_eggs_wsec_khz =    self.experiment_parameters['freq_eggs_heating_secular_khz_list.sequence']
+        return {"freq_sideband_cooling_mhz_pct_list":           freq_sbc_list,
+                "time_readout_us.sequence":                     time_readout_us,
+                "freq_rsb_readout_mhz_list.center":             freq_eggs_rsb_mhz,
+                "freq_bsb_readout_mhz_list.center":             freq_eggs_bsb_mhz,
+                "freq_eggs_heating_secular_khz_list.sequence":  freq_eggs_wsec_khz}
 
     def _eggs_sideband_postprocess(self, results_dict):
-        # todo: implement
-        # todo: set the sideband readout time by scaling the carrier readout time
-        print(results_dict)
+        # todo: check for any errors (new value should be reasonably close to old)
+        # update calibration_parameters with parameters
+        # note: result is list of [[n, n_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
+        freq_rsb_eggs_mhz = results_dict['eggs_sideband'][1][0][1] / 2.
+        freq_bsb_eggs_mhz = results_dict['eggs_sideband'][2][0][1] / 2.
+        self.experiment_parameters['freq_rsb_readout_mhz_list.sequence'] = [freq_rsb_eggs_mhz]
+        self.experiment_parameters['freq_bsb_readout_mhz_list.sequence'] = [freq_bsb_eggs_mhz]
+
+        print('\t\tEGGS Sideband Calib')
+        print('\t\t\tSideband Freqs: {:.4f}, {:.4f}'.format(freq_rsb_eggs_mhz, freq_bsb_eggs_mhz))
 
     def _eggs_secular_preprocess(self):
-        # todo: implement
-        return {"freq_rabiflop_mhz": self.calibration_parameters['freq_carrier_mhz']}
+        # get EGGS secular values from experiment_parameters since they require processing
+        freq_sbc_list =         self.experiment_parameters['freq_sideband_cooling_mhz_pct_list']
+        time_readout_us =       self.experiment_parameters['time_readout_us_list.sequence']
+        freq_eggs_rsb_mhz =     self.experiment_parameters['freq_rsb_readout_mhz_list.sequence']
+        freq_eggs_bsb_mhz =     self.experiment_parameters['freq_bsb_readout_mhz_list.sequence']
+        freq_eggs_wsec_khz =    self.experiment_parameters['freq_eggs_heating_secular_khz_list.sequence']
+        return {"freq_sideband_cooling_mhz_pct_list":           freq_sbc_list,
+                "time_readout_us.sequence":                     time_readout_us,
+                "freq_rsb_readout_mhz_list.sequence":           freq_eggs_rsb_mhz,
+                "freq_bsb_readout_mhz_list.sequence":           freq_eggs_bsb_mhz,
+                "freq_eggs_heating_secular_khz_list.center":    freq_eggs_wsec_khz}
 
     def _eggs_secular_postprocess(self, results_dict):
-        # todo: implement
-        # todo: set the sideband readout time by scaling the carrier readout time
-        print(results_dict)
+        # todo: check for any errors (new value should be reasonably close to old)
+        # update calibration_parameters with parameters
+        # note: result is list of [[n, n_err], [fit_params_secular, fit_err_secular]]
+        freq_eggs_secular_khz = results_dict['eggs_secular'][1][0][1] / 2.
+        self.experiment_parameters['freq_eggs_heating_secular_khz_list.sequence'] = [freq_eggs_secular_khz]
+
+        print('\t\tEGGS Secular Calib')
+        print('\t\t\tSecular Freq.: {:.4f}'.format(freq_eggs_secular_khz))
+
 
 
 
