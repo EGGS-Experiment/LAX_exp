@@ -318,6 +318,8 @@ class EGGSHeating(LAXExperiment, Experiment):
         # reset debug triggers
         self.ttl8.off()
         self.ttl9.off()
+        # tmp remove
+        self.ttl10.off()
 
 
     @kernel(flags={"fast-math"})
@@ -364,6 +366,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 '''EGGS HEATING'''
+                # tmp remove
+                self.ttl10.on()
+                # tmp remove
                 # EGGS - START/SETUP
                 # set phaser attenuators
                 at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -381,6 +386,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
+                # tmp remove
+                self.ttl10.off()
+                # tmp remove
 
                 '''READOUT'''
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
@@ -423,6 +431,9 @@ class EGGSHeating(LAXExperiment, Experiment):
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
+        # tmp remove
+        self.ttl10.off()
+        # tmp remove
 
 
     '''
