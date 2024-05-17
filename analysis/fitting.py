@@ -366,7 +366,7 @@ def fitLineLinear(data, bounds=(-np.inf, np.inf)):
     return param_fit
 
 
-def fitSincGeneric(x: np.array,y: np.array):
+def fitSincGeneric(x: np.array, y: np.array):
     """
     Fitting function for a generic sinc function
 
@@ -380,7 +380,7 @@ def fitSincGeneric(x: np.array,y: np.array):
         ydata: generated curve over given domain
     """
 
-    def fit_func(x, a, b, c,d):
+    def fit_func(x, a, b, c, d):
         """
         Fitting function for a generic sinc function
 
