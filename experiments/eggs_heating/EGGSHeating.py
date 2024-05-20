@@ -127,6 +127,9 @@ class EGGSHeating(LAXExperiment, Experiment):
             t_sample_multiples =                                round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
             self.time_eggs_heating_mu =                         np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
+        # add delay time after EGGS pulse to allow RF servo to re-lock
+        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
+                                                                                   conversion_function=us_to_mu)
 
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
@@ -366,10 +369,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 '''EGGS HEATING'''
-                # tmp remove
-                self.ttl10.on()
-                # tmp remove
                 # EGGS - START/SETUP
+                # activate integrator hold
+                self.ttl10.on()
                 # set phaser attenuators
                 at_mu(self.phaser_eggs.get_next_frame_mu())
                 self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
@@ -386,9 +388,10 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_stop()
-                # tmp remove
+                # deactivate integrator hold
                 self.ttl10.off()
-                # tmp remove
+                # add delay time after EGGS pulse to allow RF servo to re-lock
+                delay_mu(self.time_rf_servo_holdoff_mu)
 
                 '''READOUT'''
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
@@ -722,7 +725,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
-                print("\t\tSecular: {:.4f} +/- {:.3f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
+                print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
 
 
             ## process sideband readout sweep
@@ -746,8 +749,8 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
-                print("\t\tRSB: {:.4f} +/- {:.3f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
-                print("\t\tBSB: {:.4f} +/- {:.3f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+                print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
+                print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
         except Exception as e:
             print("Warning: unable to process data.")
