@@ -498,8 +498,8 @@ class EGGSHeatingCH1(LAXExperiment, Experiment):
 
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # oscillator 0 (RSB)
-        self.phase_phaser_turns_arr[0, 0] = 0.
-        self.phase_phaser_turns_arr[1, 0] = 0.
+        self.phase_phaser_turns_arr[0, 0] = self.phaser_eggs.phase_inherent_ch1_turns
+        self.phase_phaser_turns_arr[1, 0] = self.phaser_eggs.phase_inherent_ch1_turns
         # oscillator 1 (BSB)
         self.phase_phaser_turns_arr[0, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
         self.phase_phaser_turns_arr[1, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns

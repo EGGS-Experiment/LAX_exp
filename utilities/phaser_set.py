@@ -180,10 +180,17 @@ class PhaserSet(EnvExperiment):
         self.core.break_realtime()
         self.core.break_realtime()
 
+        # # center @ 85
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_nco_frequency(-217.083495 * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[1].set_nco_frequency(-217.083495 * MHz)
+
+        # # center @ 350
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_nco_frequency(-217.083495 * MHz)
+        self.phaser0.channel[0].set_nco_frequency(47.916505 * MHz)
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[1].set_nco_frequency(-217.083495 * MHz)
+        self.phaser0.channel[1].set_nco_frequency(47.916505 * MHz)
 
         self.core.break_realtime()
         self.core.break_realtime()
