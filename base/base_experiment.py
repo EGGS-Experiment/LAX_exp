@@ -571,7 +571,8 @@ class LAXExperiment(LAXEnvironment, ABC):
                 "rf_ampl_dbm": rf_ampl_dbm
             }
         except Exception as e:
-            print("Warning: unable to retrieve and store trap RF values in dataset.")
+            pass
+            # print("Warning: unable to retrieve and store trap RF values in dataset.")
 
         return sys_vals_rf
 

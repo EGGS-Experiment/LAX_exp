@@ -8,9 +8,9 @@ from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
 
 
-class EGGSHeating(LAXExperiment, Experiment):
+class EGGSHeatingCH1(LAXExperiment, Experiment):
     """
-    Experiment: EGGS Heating
+    Experiment: EGGS Heating CH1 TMP
 
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
@@ -493,13 +493,13 @@ class EGGSHeating(LAXExperiment, Experiment):
         CALCULATE PHASE DELAYS
         '''
         # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
-        self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
+        self.phase_ch1_turns =          (phase_rsb_turns +
                                          (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
 
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # oscillator 0 (RSB)
-        self.phase_phaser_turns_arr[0, 0] = phase_rsb_turns
-        self.phase_phaser_turns_arr[1, 0] = phase_rsb_turns
+        self.phase_phaser_turns_arr[0, 0] = 0.
+        self.phase_phaser_turns_arr[1, 0] = 0.
         # oscillator 1 (BSB)
         self.phase_phaser_turns_arr[0, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
         self.phase_phaser_turns_arr[1, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
@@ -722,7 +722,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
-                print("\t\tSecular: {:.4f} +/- {:.3f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
+                print("\t\tSecular Freq.: {:.4f} kHz".format(fit_params_secular[1] * 1e3))
 
 
             ## process sideband readout sweep
@@ -746,8 +746,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
-                print("\t\tRSB: {:.4f} +/- {:.3f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
-                print("\t\tBSB: {:.4f} +/- {:.3f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+                print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]) / 2., float(fit_params_bsb[1]) / 2.))
 
         except Exception as e:
             print("Warning: unable to process data.")
