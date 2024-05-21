@@ -176,54 +176,55 @@ class PhaserSet(EnvExperiment):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        self.core.break_realtime()
-        self.core.break_realtime()
-        self.core.break_realtime()
-
-        # # center @ 85
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+        #
+        # # # center @ 85
         # at_mu(self.phaser0.get_next_frame_mu())
         # self.phaser0.channel[0].set_nco_frequency(-217.083495 * MHz)
         # at_mu(self.phaser0.get_next_frame_mu())
         # self.phaser0.channel[1].set_nco_frequency(-217.083495 * MHz)
-
-        # # center @ 350
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_nco_frequency(47.916505 * MHz)
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[1].set_nco_frequency(47.916505 * MHz)
-
-        self.core.break_realtime()
-        self.core.break_realtime()
-        self.core.break_realtime()
-        # PREPARE (HARDWARE)
-        # self._run_prepare()
         #
-        # # MAIN LOOP
-        # for i in self._iter_repetitions:
-        #     self.core.break_realtime()
+        # # # center @ 350
+        # # at_mu(self.phaser0.get_next_frame_mu())
+        # # self.phaser0.channel[0].set_nco_frequency(47.916505 * MHz)
+        # # at_mu(self.phaser0.get_next_frame_mu())
+        # # self.phaser0.channel[1].set_nco_frequency(47.916505 * MHz)
         #
-        #     # configure oscillator frequencies
-        #     self.phaser_configure()
-        #     # clear old hardware config and resync
-        #     self.phaser_reset()
-        #     # set oscillator waveforms
-        #     self.phaser_run()
-        #     # stop phaser
-        #     self.phaser_stop()
-        #     # add reset time
-        #     delay_mu(self.time_reset_mu)
-        #
-        # # CLEAN UP
         # self.core.break_realtime()
-        # if self.cleanup:
-        #     # clear outputs
-        #     self.phaser_reset()
-        #
-        #     # reset attenuators
-        #     at_mu(self.phaser0.get_next_frame_mu())
-        #     self.phaser0.channel[0].set_att(31.5 * dB)
-        #     delay_mu(self.t_sample_mu)
-        #     self.phaser0.channel[1].set_att(31.5 * dB)
+        # self.core.break_realtime()
+        # self.core.break_realtime()
+
+        # PREPARE (HARDWARE)
+        self._run_prepare()
+
+        # MAIN LOOP
+        for i in self._iter_repetitions:
+            self.core.break_realtime()
+
+            # configure oscillator frequencies
+            self.phaser_configure()
+            # clear old hardware config and resync
+            self.phaser_reset()
+            # set oscillator waveforms
+            self.phaser_run()
+            # stop phaser
+            self.phaser_stop()
+            # add reset time
+            delay_mu(self.time_reset_mu)
+
+        # CLEAN UP
+        self.core.break_realtime()
+        if self.cleanup:
+            # clear outputs
+            self.phaser_reset()
+
+            # reset attenuators
+            at_mu(self.phaser0.get_next_frame_mu())
+            self.phaser0.channel[0].set_att(31.5 * dB)
+            delay_mu(self.t_sample_mu)
+            self.phaser0.channel[1].set_att(31.5 * dB)
 
 
     # HELPER FUNCTIONS

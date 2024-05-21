@@ -55,7 +55,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.setattr_argument("time_readout_us_list",                       Scannable(
                                                                                 default=[
                                                                                     RangeScan(0, 1500, 100, randomize=True),
-                                                                                    ExplicitScan([330]),
+                                                                                    ExplicitScan([129]),
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
