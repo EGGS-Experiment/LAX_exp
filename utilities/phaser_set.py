@@ -225,6 +225,15 @@ class PhaserSet(EnvExperiment):
             self.phaser0.channel[0].set_att(31.5 * dB)
             delay_mu(self.t_sample_mu)
             self.phaser0.channel[1].set_att(31.5 * dB)
+        else:
+            # configure oscillator frequencies
+            self.phaser_configure()
+            # clear old hardware config and resync
+            self.phaser_reset()
+            # set oscillator waveforms
+            self.phaser_run()
+            # stop phaser
+            self.phaser_stop()
 
 
     # HELPER FUNCTIONS
