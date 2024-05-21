@@ -11,6 +11,9 @@ class PhaserSet(EnvExperiment):
     name = 'Phaser Set'
 
     def build(self):
+        # get scheduler
+        self.setattr_device("scheduler")
+
         # global arguments
         self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
         self.setattr_argument("cleanup",                        BooleanValue(default=True), group='global')
@@ -214,6 +217,13 @@ class PhaserSet(EnvExperiment):
             # add reset time
             delay_mu(self.time_reset_mu)
 
+            # synchronize & check termination
+            self.core.wait_until_mu(now_mu())
+            self.core.break_realtime()
+            if self.scheduler.check_termination():
+                raise TerminationRequested
+            self.core.break_realtime()
+
         # CLEAN UP
         self.core.break_realtime()
         if self.cleanup:
@@ -234,6 +244,9 @@ class PhaserSet(EnvExperiment):
             self.phaser_run()
             # stop phaser
             self.phaser_stop()
+            # synchronize
+            self.core.wait_until_mu(now_mu())
+            self.core.break_realtime()
 
 
     # HELPER FUNCTIONS
