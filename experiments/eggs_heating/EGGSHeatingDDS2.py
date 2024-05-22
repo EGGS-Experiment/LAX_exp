@@ -6,14 +6,14 @@ from LAX_exp.system.subsequences import SqueezeConfigurable
 import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 
 
-class Squeezing(SidebandCooling.SidebandCooling):
+class EGGSHeatingDDS(SidebandCooling.SidebandCooling):
     """
-    Experiment: Squeezing
+    Experiment: EGGSHeatingDDS
 
     Create a squeezed motional state by modulating the trap RF via a DDS signal
     and readout via either sideband comparison or sideband rabi flopping.
     """
-    name = 'Squeezing'
+    name = 'EGGSHeatingDDS'
 
 
     def build_experiment(self):
@@ -70,7 +70,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # tmp remove
         self.setattr_device('ttl8')
         self.setattr_device('ttl9')
-        self.setattr_device('ttl9')
+        self.setattr_device('ttl10')
+        self.setattr_device('ttl11')
         # tmp remove
 
     def prepare_experiment(self):
@@ -106,6 +107,12 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                                      self.time_readout_mu_list),
                                                                                          -1).reshape(-1, 6)
         np.random.shuffle(self.config_squeeze_list)
+
+        # tmp remove
+        # add delay time after EGGS pulse to allow RF servo to re-lock
+        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
+                                                                                   conversion_function=us_to_mu)
+        # tmp remove
 
     @property
     def results_shape(self):
@@ -150,14 +157,18 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
                 '''SQUEEZING'''
                 # squeeze!
+                # tmp remove
+                self.ttl10.on()
+                # tmp remove
                 self.squeeze_subsequence.squeeze()
-                # configurable delay to simulate a pulse sequence
-                delay_mu(time_delay_mu)
-                # antisqueeze!
-                self.squeeze_subsequence.antisqueeze()
-
+                # tmp remove
+                self.ttl10.off()
+                # tmp remove
 
                 '''READOUT'''
+                # tmp remove
+                delay_mu(self.time_rf_servo_holdoff_mu)
+                # tmp remove
                 # sideband shelve
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 # read out fluorescence
