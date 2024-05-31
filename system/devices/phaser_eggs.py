@@ -128,6 +128,40 @@ class PhaserEGGS(LAXDevice):
         delay_mu(self.t_sample_mu)
         self.phaser.channel[1].set_att(31.5 * dB)
 
+    @kernel(flags={"fast-math"})
+    def phaser_stop(self) -> TNone:
+        """
+        Stop the phaser quickly.
+        Set maximum attenuation to prevent output leakage.
+        """
+        # disable eggs phaser output
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+
+        # switch off EGGS attenuators to prevent leakage
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[0].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[1].set_att(31.5 * dB)
+
 
     '''
     HELPER METHODS

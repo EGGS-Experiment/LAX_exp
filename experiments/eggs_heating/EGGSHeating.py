@@ -387,7 +387,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                self.phaser_stop()
+                self.phaser_eggs.phaser_stop()
                 # deactivate integrator hold
                 self.ttl10.off()
                 # add delay time after EGGS pulse to allow RF servo to re-lock
@@ -549,32 +549,6 @@ class EGGSHeating(LAXExperiment, Experiment):
             self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
             self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
             delay_mu(self.phaser_eggs.t_sample_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_stop(self) -> TNone:
-        """
-        Stop the phaser quickly.
-        Set maximum attenuation to prevent output leakage.
-        """
-        # disable eggs phaser output
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-
-        # switch off EGGS attenuators to prevent leakage
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
     @kernel(flags={"fast-math"})
     def phaser_pulseshape_point(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
