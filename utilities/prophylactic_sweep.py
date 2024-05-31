@@ -46,8 +46,7 @@ class ProphylacticSweep(EnvExperiment):
         self.time_cooling_holdoff_mu =      self.core.seconds_to_mu(3 * ms)
 
         # for completion manager
-        self._num_loops =                   len(self.mod_freq_mu_list * self.repetitions)
-        print(self._num_loops)
+        self._num_loops =                   len(self.mod_freq_mu_list) * self.repetitions
 
 
     @kernel(flags={"fast-math"})
@@ -84,7 +83,7 @@ class ProphylacticSweep(EnvExperiment):
                 # turn off output
                 self.mod_dds.sw.off()
 
-                # todo: update progress bar
+                # update progress bar
                 self.updateCompletion(_loop_counter)
                 _loop_counter += 1
 
@@ -92,12 +91,6 @@ class ProphylacticSweep(EnvExperiment):
                 if self.scheduler.check_termination():
                     self.cleanupDevices()
                     return
-
-        # tmp remove
-        self.core.break_realtime()
-        print('prophylaxis finished')
-        self.core.break_realtime()
-        # tmp remove
 
         # clean up devices
         self.cleanupDevices()
