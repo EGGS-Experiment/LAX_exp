@@ -93,6 +93,12 @@ class ProphylacticSweep(EnvExperiment):
                     self.cleanupDevices()
                     return
 
+        # tmp remove
+        self.core.break_realtime()
+        print('prophylaxis finished')
+        self.core.break_realtime()
+        # tmp remove
+
         # clean up devices
         self.cleanupDevices()
 
