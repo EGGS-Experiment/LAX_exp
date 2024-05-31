@@ -610,7 +610,6 @@ device_db["led1"] = {
     "arguments": {"channel": 0x000034}
 }
 
-
 # store phaser configuration sets
 
 # original
@@ -660,3 +659,4 @@ _phaser_trf_config = {
 device_db["phaser0"]["arguments"]["dac"] =      _phaser_dac_config
 device_db["phaser0"]["arguments"]["trf0"] =     _phaser_trf_config
 device_db["phaser0"]["arguments"]["trf1"] =     _phaser_trf_config
+

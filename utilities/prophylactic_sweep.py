@@ -88,7 +88,6 @@ class ProphylacticSweep(EnvExperiment):
                 self.updateCompletion(_loop_counter)
                 _loop_counter += 1
 
-
                 # check termination
                 if self.scheduler.check_termination():
                     self.cleanupDevices()
@@ -114,7 +113,6 @@ class ProphylacticSweep(EnvExperiment):
         Clean up devices.
         """
         # delay experiment cancellation until sequence has finished
-        self.core.reset()
         self.core.break_realtime()
 
         # clean up DDS to prevent leakage
@@ -125,9 +123,6 @@ class ProphylacticSweep(EnvExperiment):
         self.mod_dds.cfg_sw(False)
         self.mod_dds.sw.off()
         self.core.break_realtime()
-
-        # wait until cleanup has completed
-        self.core.wait_until_mu(now_mu())
 
     @rpc(flags={"async"})
     def updateCompletion(self, i: TInt32) -> TNone:
