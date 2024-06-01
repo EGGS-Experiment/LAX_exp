@@ -192,6 +192,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 '''ION SPECTRUM ANALYZER'''
                 # EGGS - START/SETUP
+                # activate integrator hold
+                self.ttl10.on()
                 # set phaser attenuators
                 at_mu(self.phaser_eggs.get_next_frame_mu())
                 self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
@@ -208,6 +210,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
+                # deactivate integrator hold
+                self.ttl10.off()
+                # add delay time after EGGS pulse to allow RF servo to re-lock
+                delay_mu(self.time_rf_servo_holdoff_mu)
 
                 '''READOUT'''
                 # antisqueeze ion
