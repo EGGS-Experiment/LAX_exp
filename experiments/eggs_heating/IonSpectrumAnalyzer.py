@@ -52,7 +52,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         # ISA - extrinsic squeezing (parametric)
-        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
+        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=100000.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([0.]),
@@ -61,7 +61,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                                     unit="turns", scale=1, ndecimals=3
                                                                                 ), group='squeeze_configurable')
-        self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
+        self.setattr_argument("time_squeeze_us",                            NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # get relevant devices
@@ -86,13 +86,59 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         '''ISA - MODIFY EXPERIMENTAL CONFIG'''
         # copy config_eggs_heating_list and insert ISA sweep columns
-        num_columns =                                   np.shape(self.config_eggs_heating_list)[1] + 3
-        self.config_ISA_list =                          np.stack(np.meshgrid(*self.config_eggs_heating_list.transpose(),
+        self.config_ISA_list =                          np.zeros((len(self.freq_sideband_readout_ftw_list) *
+                                                                  len(self.freq_eggs_carrier_hz_list) *
+                                                                  len(self.freq_eggs_secular_hz_list) *
+                                                                  len(self.phase_eggs_heating_rsb_turns_list) *
+                                                                  len(self.time_readout_mu_list) *
+                                                                  len(self.freq_ISA_sideband_offset_hz_list) *
+                                                                  len(self.phase_antisqueeze_pow_list) *
+                                                                  len(self.phase_eggs_heating_ch1_turns_list),
+                                                                  11), dtype=float)
+        self.config_ISA_list[:, [1, 2, 6, 7, 8, 9, 10, 0]] =    np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
+                                                                             self.freq_eggs_secular_hz_list,
+                                                                             self.phase_eggs_heating_rsb_turns_list,
+                                                                             self.time_readout_mu_list,
                                                                              self.freq_ISA_sideband_offset_hz_list,
                                                                              self.phase_antisqueeze_pow_list,
-                                                                             self.phase_eggs_heating_ch1_turns_list),
-                                                                 -1).reshape(-1, num_columns)
-        # todo: ensure ISA antisqueezing works properly
+                                                                             self.phase_eggs_heating_ch1_turns_list,
+                                                                             self.freq_sideband_readout_ftw_list),
+                                                                         -1).reshape(-1, 8)
+        self.config_ISA_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                          self.ampl_eggs_heating_bsb_pct,
+                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+
+        '''EGGS HEATING - AMPLITUDE CALIBRATION'''
+        # interpolate calibration dataset
+        # note: we choose 1D interpolator since it ensures smoothness at each point
+        from scipy.interpolate import Akima1DInterpolator
+        ampl_calib_points =                                     self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
+        ampl_calib_curve =                                      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+
+        # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
+        # todo: move to a phaser internal function
+        # calculate calibrated eggs sidebands amplitudes
+        if self.enable_amplitude_calibration:
+            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_ISA_list):
+                # convert frequencies to absolute units in MHz
+                rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
+                # get normalized transmission through system
+                transmitted_power_frac =                        ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
+                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
+                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
+                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
+                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+                scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
+                                                                 ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+                # update configs and convert amplitude to frac
+                self.config_ISA_list[i, [3, 4, 5]] =            np.array([scaled_power_pct[0],
+                                                                          scaled_power_pct[1],
+                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+
+
+        '''EGGS HEATING - EGGS RF CONFIGURATION'''
+        # if dynamical decoupling is disabled, set carrier amplitude to 0.
+        if not self.enable_dynamical_decoupling:                self.config_ISA_list[:, 5] = 0.
 
 
         '''ISA - INTRINSIC & EXTRINSIC SQUEEZING'''
