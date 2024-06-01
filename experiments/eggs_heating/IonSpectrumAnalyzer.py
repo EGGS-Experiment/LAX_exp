@@ -107,6 +107,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.config_ISA_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
                                                                           self.ampl_eggs_heating_bsb_pct,
                                                                           self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # if randomize_config is enabled, completely randomize the sweep configuration
+        if self.randomize_config:                       np.random.shuffle(self.config_eggs_heating_list)
+
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
         # interpolate calibration dataset
