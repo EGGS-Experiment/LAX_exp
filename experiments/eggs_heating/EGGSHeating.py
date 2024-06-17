@@ -20,7 +20,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=30, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -60,7 +60,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=10000), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),

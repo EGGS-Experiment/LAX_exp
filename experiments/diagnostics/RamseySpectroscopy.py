@@ -17,7 +17,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
 
         # ramsey parameters
         self.setattr_argument("freq_ramsey_mhz_list",               Scannable(

@@ -18,7 +18,7 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("scan_type",
                               EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2","Scan+Both","Sideband1","Sideband2","Both Sidebands"], default="Scan"))
         # scan parameters

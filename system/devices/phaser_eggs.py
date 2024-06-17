@@ -25,7 +25,6 @@ class PhaserEGGS(LAXDevice):
         "ftw_per_hz",
         "channel",
         "freq_center_hz",
-        "freq_center_ftw",
         "phase_inherent_ch1_turns",
         "time_latency_ch1_system_ns"
     }
@@ -47,7 +46,6 @@ class PhaserEGGS(LAXDevice):
 
         # get frequency parameters
         self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
-        self.freq_center_ftw =              self.frequency_to_ftw(self.freq_center_hz)
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
@@ -197,18 +195,3 @@ class PhaserEGGS(LAXDevice):
         """
         return pow_ / 0x10000
 
-    @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
-        """
-         todo: document
-         """
-        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        return int32(round(self.ftw_per_hz * frequency))
-
-    @portable(flags={"fast-math"})
-    def ftw_to_frequency(self, ftw: TInt32) -> TFloat:
-        """
-         todo: document
-         """
-        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        return ftw / self.ftw_per_hz
