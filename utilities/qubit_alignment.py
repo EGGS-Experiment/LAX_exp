@@ -64,6 +64,10 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.freq_qubit_ftw =                   hz_to_ftw(self.freq_qubit_mhz * MHz)
         self.att_qubit_mu =                     att_to_mu(self.att_qubit_db * dB)
 
+        # initialize plotting applet
+        self.ccb.issue("create_applet", "imaging_alignment",
+                       "${artiq_applet}plot_xy temp.qubit_align.counts_y --x temp.qubit_align.counts_x")
+
     @property
     def results_shape(self):
         return (self.repetitions, 2)
@@ -118,6 +122,11 @@ class QubitAlignment(LAXExperiment, Experiment):
             # update dataset
             with parallel:
                 self.update_results(i, self._state_array)
+                self.core.break_realtime()
+
+            # periodically check termination
+            if (i % 50) == 0:
+                self.check_termination()
                 self.core.break_realtime()
 
 
