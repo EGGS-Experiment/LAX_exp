@@ -235,10 +235,13 @@ class EGGSHeating(LAXExperiment, Experiment):
 
 
         ### PULSE SHAPING - AMPLITUDE WINDOW ###
+        # hotfix - 2024/06/21 - implement dd enable for pulse shaping
+        if self.enable_dynamical_decoupling:        ampl_dd_pct = 0.
+
         # create holder object for pulse amplitudes
         self.ampl_pulse_shape_frac_list =           np.tile(np.array([self.ampl_eggs_heating_rsb_pct,
                                                                       self.ampl_eggs_heating_bsb_pct,
-                                                                      self.ampl_eggs_dynamical_decoupling_pct]) / 100.,
+                                                                      ampl_dd_pct]) / 100.,
                                                             self.num_pulse_shape_samples).reshape(-1, 3)
 
         # calculate windowing values
