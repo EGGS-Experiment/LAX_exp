@@ -32,6 +32,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
+
     def prepare_experiment(self):
         # convert relevant timings to machine units
         self.time_slack_us =        2
@@ -56,6 +57,10 @@ class ImagingAlignment(LAXExperiment, Experiment):
         # prepare datasets for storing counts
         self.set_dataset('temp.imag_align.counts_x', np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
+
+        # initialize plotting applet
+        self.ccb.issue("create_applet", "imaging_alignment",
+                       "$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y --x temp.imag_align.counts_x")
 
     @property
     def results_shape(self):
@@ -133,6 +138,11 @@ class ImagingAlignment(LAXExperiment, Experiment):
                 self.update_results(i, self._counts_signal, self._counts_background)
                 self.core.break_realtime()
 
+            # periodically check termination
+            if (i % 50) == 0:
+                self.check_termination()
+                self.core.break_realtime()
+
 
     # overload the update_results function to allow real-time dataset updating
     @rpc(flags={"async"})
@@ -153,13 +163,3 @@ class ImagingAlignment(LAXExperiment, Experiment):
                          broadcast=True, persist=True, archive=False)
         self._result_iter += 1
 
-
-    # ANALYZE
-    def analyze(self):
-        """
-        Analyze the results from the experiment.
-        """
-        print(self.get_dataset('temp.imag_align._tmp_counts_x'))
-        pass
-        # print results
-        # print('\tCounts: {:.3f} +/- {:.3f}'.format(mean(self.pmt_dataset), std(self.pmt_dataset)))
