@@ -27,6 +27,7 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.setattr_argument("att_dds_db",             NumberValue(default=3., ndecimals=1, step=0.5, min=0., max=31.5), group='dds')
         self.setattr_argument("freq_dds_mhz",           NumberValue(default=10., ndecimals=6, step=0.5, min=0., max=400), group='dds')
         self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., ndecimals=3, step=5., min=0., max=100.), group='dds')
+        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
 
         # modulation parameters
         self.setattr_argument("sample_rate_khz",        NumberValue(default=250, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
@@ -54,8 +55,9 @@ class UrukulRAMAmplitude(EnvExperiment):
 
         '''CONVERT VALUES TO MACHINE UNITS'''
         # DDS values
-        self.att_dds_mu =       self.dds.cpld.att_to_mu(self.att_dds_db * dB)
-        self.freq_dds_ftw =     self.dds.frequency_to_ftw(self.freq_dds_mhz * MHz)
+        self.att_dds_mu =           self.dds.cpld.att_to_mu(self.att_dds_db * dB)
+        self.freq_dds_ftw =         self.dds.frequency_to_ftw(self.freq_dds_mhz * MHz)
+        self.phas_dds_rev_pow =     self.dds.turns_to_pow(self.phas_dds_rev_turns)
 
         # timing
         self.time_pulse_mu =    self.core.seconds_to_mu(self.time_pulse_us * us)
@@ -145,6 +147,8 @@ class UrukulRAMAmplitude(EnvExperiment):
         # set up non-modulated DDS waveform parameters
         self.dds.set_ftw(self.freq_dds_ftw)
         self.dds.cpld.io_update.pulse_mu(8)
+        self.dds.set_pow(0x00)
+        self.dds.cpld.io_update.pulse_mu(8)
 
         # set up debug TTLs
         self.ttl8.off()
@@ -221,6 +225,7 @@ class UrukulRAMAmplitude(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
 
             # open DDS switch at appropriate time
+            # todo: actually do this
             # at_mu(time_start_mu + 416 + 63 - 140)
             at_mu(time_start_mu + 416 + 63 - 140 - 244)
             self.ttl8.on()
@@ -232,6 +237,8 @@ class UrukulRAMAmplitude(EnvExperiment):
 
 
             '''PULSE DELAY'''
+            # todo: set pow reg
+            # self.dds.set_pow(self.phas_dds_rev_pow)
             # wait for main pulse
             delay_mu(self.time_body_mu)
 
