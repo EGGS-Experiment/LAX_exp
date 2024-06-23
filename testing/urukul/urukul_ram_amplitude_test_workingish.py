@@ -20,7 +20,7 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.setattr_device("scheduler")
 
         # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # DDS parameters
         self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
@@ -30,8 +30,8 @@ class UrukulRAMAmplitude(EnvExperiment):
 
         # modulation parameters
         self.setattr_argument("sample_rate_khz",        NumberValue(default=250, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=400, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_body_us",           NumberValue(default=50, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
         self.setattr_device("ttl8")
@@ -53,19 +53,15 @@ class UrukulRAMAmplitude(EnvExperiment):
             raise e
 
         '''CONVERT VALUES TO MACHINE UNITS'''
-        # DDS values
         self.att_dds_mu =       self.dds.cpld.att_to_mu(self.att_dds_db * dB)
         self.freq_dds_ftw =     self.dds.frequency_to_ftw(self.freq_dds_mhz * MHz)
-
-        # timing
         self.time_pulse_mu =    self.core.seconds_to_mu(self.time_pulse_us * us)
         self.time_body_mu =     self.core.seconds_to_mu(self.time_body_us * us)
-        self.time_holdoff_mu =  self.core.seconds_to_mu(2000. * us)
 
 
         '''SPECFIY RAM PARAMETERS'''
         # specify RAM profile values
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
+        # note: MUST BE PROFILE0 FOR BIDIRECTIONAL RAMP
         _MAX_RAM_LENGTH =                   1000    # actually 1024 words long, but add some
         self.ram_profile =                  0
         self.ram_addr_start =               0x00
@@ -106,6 +102,17 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.data_modulation_arr =          [np.int32(0)] * self.data_modulation_length
         # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in data_modulation_arr
         self.dds.amplitude_to_ram(_wav_y_vals, self.data_modulation_arr)
+
+
+        # # tmp remove - debug printouts
+        # print('num_steps:\t\t{}'.format(self.data_modulation_length))
+        # print('sync_clk_cycles:\t{}'.format(self.data_modulation_step_num_clks))
+        # print('ramp_time_ns:\t{}'.format(self.time_ramp_mu))
+        # print('waveform_len:\t{}'.format(len(self.data_modulation_arr)))
+        # print('waveform_vals:\t{}'.format(self.data_modulation_arr))
+        # raise Exception('Stop here tmp')
+        # # tmp remove - debug printouts
+
 
     def _waveform_calc(self, x: TFloat) -> TFloat:
         """
@@ -154,13 +161,9 @@ class UrukulRAMAmplitude(EnvExperiment):
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
-        # prepare devices for experiment
+        # initialize
         self.run_initialize()
 
-
-        """
-        PREPARE RAM
-        """
         # configure parameters for RAM profile
         self.dds.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_start + (self.data_modulation_length - 1),
@@ -187,44 +190,51 @@ class UrukulRAMAmplitude(EnvExperiment):
             '''PREPARE LOOP'''
             # add slack
             self.core.break_realtime()
-            delay_mu(self.time_holdoff_mu)
+            delay_mu(100000)
 
-            # initialize as profile 0 (necessary for bidirectional ramp mode)
-            self.dds.cpld.set_profile(0)
-            self.dds.cpld.io_update.pulse_mu(8)
+            # tmp remove
+            # tmp remove - leave switch open to see dynamics
+            self.dds.sw.on()
 
-            # enable RAM mode and clear DDS phase accumulator
+            # # initialize as profile 0
+            # self.dds.cpld.set_profile(0)
+            # self.dds.cpld.io_update.pulse_mu(8)
+
+            # prepare DDS output & enable RAM
             self.dds.write32(_AD9910_REG_CFR1,
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
                                (1 << 16) |              # select_sine_output
                                (1 << 13)                # phase_autoclear
                                )
+            # self.dds.cpld.io_update.pulse_mu(8)
 
-            # prime RAM sequence by pulsing IO_UPDATE
-            self.dds.cpld.io_update.pulse_mu(8)
+            # # initialize as profile 0 - maybe it should be here instead?
+            # self.dds.cpld.set_profile(1)
+            # self.dds.cpld.io_update.pulse_mu(8)
 
 
             '''RAMP-UP'''
+            # start ramp-down (coarse align to SYNC_CLK)
             time_start_mu = now_mu() & ~7
-
-            # start ramp-up (coarse align to SYNC_CLK)
             at_mu(time_start_mu)
-            self.dds.cpld.set_profile(1)
+            # self.dds.cpld.io_update.pulse_mu(8)
+            # delay_mu(512)
+            self.dds.cpld.set_profile(0)
+            # self.dds.cpld.io_update.pulse_mu(8)
 
-            # disable phase autoclear
-            self.dds.write32(_AD9910_REG_CFR1,
-                               (1 << 31) |              # ram_enable
-                               (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16)                # select_sine_output
-                               )
-            self.dds.cpld.io_update.pulse_mu(8)
+            # # turn off phase autoclear
+            # self.dds.write32(_AD9910_REG_CFR1,
+            #                    (1 << 31) |              # ram_enable
+            #                    (RAM_DEST_ASF << 29) |   # ram_destination
+            #                    (1 << 16)                # select_sine_output
+            #                    )
+            # self.dds.cpld.io_update.pulse_mu(8)
 
             # open DDS switch at appropriate time
-            # at_mu(time_start_mu + 416 + 63 - 140)
-            at_mu(time_start_mu + 416 + 63 - 140 - 244)
-            self.ttl8.on()
+            at_mu(time_start_mu + 416 + 63 - 140)
             self.dds.sw.on()
+            self.ttl8.on()
 
             # wait for ramp-up to finish
             delay_mu(self.time_ramp_mu)
@@ -237,14 +247,10 @@ class UrukulRAMAmplitude(EnvExperiment):
 
 
             '''RAMP-DOWN'''
-            time_stop_mu = now_mu() & ~7
-
             # start ramp-down (coarse align to SYNC_CLK)
+            time_stop_mu = now_mu() & ~7
             at_mu(time_stop_mu)
-            self.dds.cpld.set_profile(0)
-
-            # send debug signal
-            at_mu(time_stop_mu + 101)
+            self.dds.cpld.set_profile(1)
             self.ttl9.on()
 
             # wait for ramp-down to finish
@@ -256,9 +262,13 @@ class UrukulRAMAmplitude(EnvExperiment):
 
 
             '''LOOP CLEANUP'''
-            # disable ram
-            self.dds.set_cfr1(ram_enable=0)
-            self.dds.cpld.io_update.pulse_mu(8)
+            # # disable ram
+            # self.dds.set_cfr1(ram_enable=0)
+            # self.dds.cpld.io_update.pulse_mu(8)
+
+            # # tmp remove
+            # self.dds.cpld.set_profile(0)
+
 
             # check termination periodically
             if (i % 100) == 0:
@@ -271,11 +281,9 @@ class UrukulRAMAmplitude(EnvExperiment):
 
 
     @kernel(flags={"fast-math"})
-    def run_cleanup(self) -> TNone:
-        # add slack
-        self.core.break_realtime()
-
+    def run_cleanup(self):
         # stop output
+        self.core.break_realtime()
         self.dds.sw.off()
         self.dds.set_att_mu(0x00)
         self.dds.set_asf(0x00)
