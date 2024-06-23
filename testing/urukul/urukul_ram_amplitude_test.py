@@ -3,7 +3,6 @@ from artiq.coredevice.ad9910 import *
 from artiq.coredevice.ad9910 import _AD9910_REG_CFR1
 from artiq.coredevice.urukul import DEFAULT_PROFILE
 
-
 import numpy as np
 
 
@@ -20,7 +19,7 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.setattr_device("scheduler")
 
         # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=10000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
 
         # DDS parameters
         self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
@@ -31,8 +30,8 @@ class UrukulRAMAmplitude(EnvExperiment):
 
         # modulation parameters
         self.setattr_argument("sample_rate_khz",        NumberValue(default=250, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=400, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_body_us",           NumberValue(default=50, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
         self.setattr_device("ttl8")
@@ -102,12 +101,12 @@ class UrukulRAMAmplitude(EnvExperiment):
         _wav_y_vals =                       np.array([self._waveform_calc(x_val) for x_val in _wav_x_vals])
         _wav_y_vals =                       _wav_y_vals / np.max(_wav_y_vals) * _wav_y_scale
 
-        # # convert fractional amplitude values to asf
-        # self.data_modulation_arr =          [self.dds.amplitude_to_asf(ampl_frac) for ampl_frac in _wav_y_vals]
         # create empty array to store values
         self.data_modulation_arr =          [np.int32(0)] * self.data_modulation_length
         # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in data_modulation_arr
         self.dds.amplitude_to_ram(_wav_y_vals, self.data_modulation_arr)
+        # pre-reverse data_modulation_arr since write_ram makes a booboo and reverses the array
+        self.data_modulation_arr =          self.data_modulation_arr[::-1]
 
     def _waveform_calc(self, x: TFloat) -> TFloat:
         """
