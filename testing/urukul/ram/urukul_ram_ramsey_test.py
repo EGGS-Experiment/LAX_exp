@@ -330,19 +330,19 @@ class UrukulRAMARP(EnvExperiment):
 
 
             '''DELAY - MAIN PULSE BODY'''
-            with parallel:
-                # set POW register for ramsey
-                # self.dds.set_pow(self.phas_dds_rev_pow)
-                # todo: do i need io_update?
-                # self.dds.cpld.io_update.pulse_mu(8)
+            # with parallel:
+            #     # set POW register for ramsey
+            #     # self.dds.set_pow(self.phas_dds_rev_pow)
+            #     # todo: do i need io_update?
+            #     # self.dds.cpld.io_update.pulse_mu(8)
+            #
+            #     with sequential:
+            #         # self.dds.set_pow(self.th_pow)
+            #         self.dds.set_ftw(self.th_ftw)
+            #         self.dds.cpld.io_update.pulse_mu(8)
 
-                with sequential:
-                    # self.dds.set_pow(self.th_pow)
-                    self.dds.set_ftw(self.th_ftw)
-                    self.dds.cpld.io_update.pulse_mu(8)
-
-                # wait for main pulse
-                delay_mu(self.time_body_mu)
+            # wait for main pulse
+            delay_mu(self.time_body_mu)
 
 
             '''RAMP-DOWN'''
