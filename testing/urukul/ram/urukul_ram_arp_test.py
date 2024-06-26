@@ -37,12 +37,12 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
 
         # DRG parameters
-        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=1., ndecimals=6, step=0.5, min=0., max=400), group='drg')
-        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=200., ndecimals=6, step=0.5, min=0., max=400), group='drg')
+        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=10., ndecimals=6, step=0.5, min=0., max=400), group='drg')
+        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=1., ndecimals=6, step=0.5, min=0., max=400), group='drg')
 
         # modulation parameters
         self.setattr_argument("sample_rate_khz",        NumberValue(default=500, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
         self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
@@ -108,7 +108,7 @@ class UrukulRAMARP(EnvExperiment):
         self.ram_addr_start =               0x00
 
         # create modulation array
-        self.data_modulation_length =           round((self.sample_rate_khz * kHz) * (self.time_pulse_us * us))
+        self.data_modulation_length =       round((self.sample_rate_khz * kHz) * (self.time_pulse_us * us))
 
         # ensure that waveform array stays within the RAM
         if self.data_modulation_length >= _MAX_RAM_LENGTH:
@@ -133,7 +133,7 @@ class UrukulRAMARP(EnvExperiment):
 
 
         '''CALCULATE DRG PARAMETERS'''
-        # determine whether we're ramping up or down - -1: ramp down, 1: ramp up
+        # determine whether we're ramping up or down: -1 = ramp down, 1 = ramp up
         if self.freq_dds_start_mhz < self.freq_dds_stop_mhz:
             self.drg_slope_direction =  -1
             self.drg_limit_max_ftw =    self.freq_dds_stop_ftw
@@ -158,6 +158,17 @@ class UrukulRAMARP(EnvExperiment):
         # add to kernel invariants
         _kernel_invariants_local =  {'drg_slope_step_num_clks', 'drg_slope_step_size_ftw'}
         self.kernel_invariants |=   _kernel_invariants_local
+
+        print(self.drg_slope_direction)
+        print(self.drg_slope_step_size_ftw)
+        print('\t\tStart: {} MHz\n\t\tStop: {} MHz\n\n'.format(
+            self.dds.ftw_to_frequency(self.freq_dds_start_ftw)/MHz,
+            self.dds.ftw_to_frequency(self.freq_dds_stop_ftw)/MHz
+        ))
+        print('\t\tMax: {} MHz\n\t\tMin: {} MHz\n\n'.format(
+            self.dds.ftw_to_frequency(self.drg_limit_max_ftw)/MHz,
+            self.dds.ftw_to_frequency(self.drg_limit_min_ftw)/MHz
+        ))
 
 
         '''CALCULATE WAVEFORM'''
@@ -188,7 +199,7 @@ class UrukulRAMARP(EnvExperiment):
         User function that returns the waveform shape.
         """
         # return x
-        return np.sin(x) ** 2.
+        return np.sin(x) ** 4.
         # return 1.
 
 
@@ -307,12 +318,12 @@ class UrukulRAMARP(EnvExperiment):
 
         # set Digital Ramp Generator ramp rate (i.e. period between steps)
         # note: upper 16b is for ramping down, lower 16b is for ramping up
-        self.dds.write32(_AD9910_REG_RAMP_RATE, (self.drg_slope_step_num_clks << 16) | (0 << 0))
+        self.dds.write32(_AD9910_REG_RAMP_RATE, (self.drg_slope_step_num_clks << 16) | (self.drg_slope_step_num_clks << 0))
         self.dds.cpld.io_update.pulse_mu(8)
 
         # set Digital Ramp Generator step size
         # note: upper 32b is for ramping down, lower 32b is for ramping up
-        self.dds.write64(_AD9910_REG_RAMP_STEP, data_high=self.drg_slope_step_size_ftw, data_low=0)
+        self.dds.write64(_AD9910_REG_RAMP_STEP, data_high=self.drg_slope_step_size_ftw, data_low=-self.drg_slope_step_size_ftw)
         self.dds.cpld.io_update.pulse_mu(8)
 
 
@@ -343,18 +354,21 @@ class UrukulRAMARP(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
 
             # enable digital ramp generation
+            # note: DRG nodwell low is necessary to allow negative slopes
+            # since DRG accumulator is always initialized to the lower limit
             self.dds.write32(_AD9910_REG_CFR2,
                                (1 << 24) |              # asf_profile_enable
                                (1 << 16) |              # effective_ftw
                                (1 << 7)  |              # matched_latency_enable
                                (DRG_DEST_FTW << 20)  |  # digital_ramp_destination
-                               (1 << 19)                # digital_ramp_enable
-                            )
+                               (1 << 19) |              # digital_ramp_enable
+                               (1 << 17) |              # digital_ramp_nodwell_low
+                               (1 << 18)                # digital_ramp_nodwell_high
+                             )
             self.dds.cpld.io_update.pulse_mu(8)
 
             # add delay to allow CFR writes to latch
             delay_mu(128)
-
 
 
             '''PRIME SEQUENCE'''
@@ -394,7 +408,10 @@ class UrukulRAMARP(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
             self.core.break_realtime()
 
-            # clear POW register
+            # clear waveform registers
+            self.dds.set_ftw(self.freq_dds_start_ftw)
+            self.dds.cpld.io_update.pulse_mu(8)
+
             self.dds.set_pow(0x00)
             self.dds.cpld.io_update.pulse_mu(8)
             self.core.break_realtime()
