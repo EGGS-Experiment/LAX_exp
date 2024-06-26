@@ -1,3 +1,5 @@
+import numpy as np
+
 from artiq.experiment import *
 from artiq.coredevice.urukul import DEFAULT_PROFILE
 
@@ -5,10 +7,11 @@ from artiq.coredevice.ad9910 import *
 from artiq.coredevice.ad9910 import (_AD9910_REG_CFR1, _AD9910_REG_CFR2,
                                      _AD9910_REG_RAMP_LIMIT, _AD9910_REG_RAMP_STEP , _AD9910_REG_RAMP_RATE)
 
-import numpy as np
+# Digital Ramp Generator - Destination
+DRG_DEST_FTW =  0b00
+DRG_DEST_POW =  0b01
+DRG_DEST_ASF =  0b10
 
-# todo: linear chirp
-# todo: manual ASF register updating
 
 class UrukulRAMARP(EnvExperiment):
     """
@@ -23,7 +26,7 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_device("scheduler")
 
         # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=1000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000))
 
         # DDS parameters
         self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
@@ -34,13 +37,12 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
 
         # DRG parameters
-        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=10., ndecimals=6, step=0.5, min=0., max=400), group='drg')
-        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=20., ndecimals=6, step=0.5, min=0., max=400), group='drg')
-
+        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=1., ndecimals=6, step=0.5, min=0., max=400), group='drg')
+        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=200., ndecimals=6, step=0.5, min=0., max=400), group='drg')
 
         # modulation parameters
-        self.setattr_argument("sample_rate_khz",        NumberValue(default=250, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=200, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("sample_rate_khz",        NumberValue(default=500, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
         self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
@@ -119,9 +121,10 @@ class UrukulRAMARP(EnvExperiment):
         self.data_modulation_step_num_clks =    round(self.freq_dds_sync_clk_hz / (self.sample_rate_khz * kHz))
 
         # calculate time for ram sequence
-        self.time_ramp_mu =                     self.core.seconds_to_mu((1. / self.freq_dds_sync_clk_hz) *
-                                                                        self.data_modulation_step_num_clks *
-                                                                        self.data_modulation_length)
+        _time_ramp_s =                          (1. / self.freq_dds_sync_clk_hz *
+                                                 self.data_modulation_step_num_clks *
+                                                 self.data_modulation_length)
+        self.time_ramp_mu =                     self.core.seconds_to_mu(_time_ramp_s)
 
         # add to kernel invariants
         _kernel_invariants_local =  {'ram_profile', 'ram_addr_start', 'freq_dds_sync_clk_hz',
@@ -130,8 +133,31 @@ class UrukulRAMARP(EnvExperiment):
 
 
         '''CALCULATE DRG PARAMETERS'''
-        # todo: calculate ramp rate and step size
+        # determine whether we're ramping up or down - -1: ramp down, 1: ramp up
+        if self.freq_dds_start_mhz < self.freq_dds_stop_mhz:
+            self.drg_slope_direction =  -1
+            self.drg_limit_max_ftw =    self.freq_dds_stop_ftw
+            self.drg_limit_min_ftw =    self.freq_dds_start_ftw
+        elif self.freq_dds_start_mhz > self.freq_dds_stop_mhz:
+            self.drg_slope_direction =  1
+            self.drg_limit_max_ftw =    self.freq_dds_start_ftw
+            self.drg_limit_min_ftw =    self.freq_dds_stop_ftw
+        else:
+            raise Exception("Error: start and stop frequencies must be different.")
 
+        # since DRG accumulator shares same clock as RAM (i.e. SYNC_CLK),
+        # use same period between steps
+        self.drg_slope_step_num_clks =          self.data_modulation_step_num_clks
+
+        # again, since DRG accumulator shares same clock as RAM (i.e. SYNC_CLK),
+        # calculate DRG step size assuming same total number of steps
+        _drg_slope_step_size_hz =               abs(self.freq_dds_stop_mhz - self.freq_dds_start_mhz) * MHz / self.data_modulation_length
+        # note: workaround for negative DRG slope by overflowing _AD9910_REG_RAMP_STEP
+        self.drg_slope_step_size_ftw =          self.dds.frequency_to_ftw(_drg_slope_step_size_hz) * self.drg_slope_direction
+
+        # add to kernel invariants
+        _kernel_invariants_local =  {'drg_slope_step_num_clks', 'drg_slope_step_size_ftw'}
+        self.kernel_invariants |=   _kernel_invariants_local
 
 
         '''CALCULATE WAVEFORM'''
@@ -232,6 +258,9 @@ class UrukulRAMARP(EnvExperiment):
 
 
         # set up non-RAM DDS waveform parameters
+        self.dds.set_ftw(self.freq_dds_start_ftw)
+        self.dds.cpld.io_update.pulse_mu(8)
+
         self.dds.set_pow(0x00)
         self.dds.cpld.io_update.pulse_mu(8)
 
@@ -255,7 +284,7 @@ class UrukulRAMARP(EnvExperiment):
         self.dds.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_start + (self.data_modulation_length - 1),
             step=self.data_modulation_step_num_clks,
-            profile=self.ram_profile, mode=RAM_MODE_BIDIR_RAMP
+            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
         )
         self.core.break_realtime()
 
@@ -273,13 +302,18 @@ class UrukulRAMARP(EnvExperiment):
         PREPARE DRG
         """
         # set Digital Ramp Generator value limits
-        self.dds.write64(_AD9910_REG_RAMP_LIMIT, data_high=self.freq_dds_stop_ftw, data_low=self.freq_dds_start_ftw)
+        self.dds.write64(_AD9910_REG_RAMP_LIMIT, data_high=self.drg_limit_max_ftw, data_low=self.drg_limit_min_ftw)
+        self.dds.cpld.io_update.pulse_mu(8)
 
-        # set Digital Ramp Generator destination, direction, and step rate
+        # set Digital Ramp Generator ramp rate (i.e. period between steps)
+        # note: upper 16b is for ramping down, lower 16b is for ramping up
+        self.dds.write32(_AD9910_REG_RAMP_RATE, (self.drg_slope_step_num_clks << 16) | (0 << 0))
+        self.dds.cpld.io_update.pulse_mu(8)
 
-
-        # todo: set DRG dest, direction, step rate
-
+        # set Digital Ramp Generator step size
+        # note: upper 32b is for ramping down, lower 32b is for ramping up
+        self.dds.write64(_AD9910_REG_RAMP_STEP, data_high=self.drg_slope_step_size_ftw, data_low=0)
+        self.dds.cpld.io_update.pulse_mu(8)
 
 
         """
@@ -292,8 +326,9 @@ class UrukulRAMARP(EnvExperiment):
             self.core.break_realtime()
             delay_mu(self.time_holdoff_mu)
 
-            # initialize as profile 0 (necessary for bidirectional ramp mode)
-            self.dds.cpld.set_profile(0)
+            # initialize into correct profile for RAM
+            # note: must be profile 0 for RAM_MODE_BIDIR_RAMP
+            self.dds.cpld.set_profile(self.ram_profile)
             self.dds.cpld.io_update.pulse_mu(8)
 
             # enable RAM mode and clear DDS phase accumulator
@@ -301,11 +336,25 @@ class UrukulRAMARP(EnvExperiment):
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
                                (1 << 16) |              # select_sine_output
-                               (1 << 13)                # phase_autoclear
-                            )
+                               (1 << 13) |              # phase_autoclear
+                               (1 << 15) |              # load_lrr
+                               (1 << 14)                # drg_autoclear
+                             )
+            self.dds.cpld.io_update.pulse_mu(8)
 
             # enable digital ramp generation
-            # self.dds.set_cfr2(matched_latency_enable=1, drg_enable=1)
+            self.dds.write32(_AD9910_REG_CFR2,
+                               (1 << 24) |              # asf_profile_enable
+                               (1 << 16) |              # effective_ftw
+                               (1 << 7)  |              # matched_latency_enable
+                               (DRG_DEST_FTW << 20)  |  # digital_ramp_destination
+                               (1 << 19)                # digital_ramp_enable
+                            )
+            self.dds.cpld.io_update.pulse_mu(8)
+
+            # add delay to allow CFR writes to latch
+            delay_mu(128)
+
 
 
             '''PRIME SEQUENCE'''
@@ -319,79 +368,33 @@ class UrukulRAMARP(EnvExperiment):
                 self.dds.sw.on()
                 self.dds_fiducial.sw.on()
 
-                # prime RAM sequence
+                # prime RAM & DRG sequences
                 self.dds.cpld.io_update.pulse_mu(8)
 
                 # reset phase of fiducial DDS
                 self.dds_fiducial.cpld.io_update.pulse_mu(8)
 
-
-            # disable phase autoclear
-            self.dds.write32(_AD9910_REG_CFR1,
-                               (1 << 31) |              # ram_enable
-                               (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16)                # select_sine_output
-                               )
-
-            # send debug TTL trigger to signal start of ramp-up
+            # send debug TTL trigger to signal start of sequence
             at_mu(time_start_mu + 95)
             self.ttl8.on()
 
-            # wait for ramp-up to finish
+            # wait for pulse to finish
             delay_mu(self.time_ramp_mu)
             self.dds.sw.off()
             self.ttl8.off()
 
 
-            '''DELAY - MAIN PULSE BODY'''
-            # with parallel:
-            #     # set POW register for ramsey
-            #     # self.dds.set_pow(self.phas_dds_rev_pow)
-            #     # todo: do i need io_update?
-            #     # self.dds.cpld.io_update.pulse_mu(8)
-            #
-            #     with sequential:
-            #         # self.dds.set_pow(self.th_pow)
-            #         self.dds.set_ftw(self.th_ftw)
-            #         self.dds.cpld.io_update.pulse_mu(8)
-
-            # wait for main pulse
-            delay_mu(self.time_body_mu)
-
-
-            # '''RAMP-DOWN'''
-            # time_stop_mu = now_mu() & ~7
-            #
-            # # start ramp-down (coarse align to SYNC_CLK)
-            # at_mu(time_stop_mu)
-            # self.dds.sw.on()
-            # self.dds.cpld.set_profile(0)
-            #
-            # # send debug TTL trigger to signal start of ramp-down
-            # at_mu(time_stop_mu + 101)
-            # self.ttl9.on()
-            #
-            # # wait for ramp-down to finish
-            # delay_mu(self.time_ramp_mu)
-            #
-            # # close DDS switches
-            # with parallel:
-            #     self.dds.sw.off()
-            #     self.dds_fiducial.sw.off()
-            # delay_mu(8)
-            # self.ttl9.off()
-
-
             '''LOOP CLEANUP'''
-            # # tmp remove - internal io update
-            # self.dds.set_cfr2(matched_latency_enable=1)
-            # self.dds.cpld.io_update.pulse_mu(8)
-            # # tmp remove - internal io update
-
-            # disable ram
+            # disable RAM
             self.dds.set_cfr1(ram_enable=0)
             self.dds.cpld.io_update.pulse_mu(8)
 
+            # disable DRG
+            self.dds.set_cfr2(matched_latency_enable=1)
+            self.dds.cpld.io_update.pulse_mu(8)
+            self.core.break_realtime()
+
+            # clear POW register
             self.dds.set_pow(0x00)
             self.dds.cpld.io_update.pulse_mu(8)
             self.core.break_realtime()
@@ -427,7 +430,6 @@ class UrukulRAMARP(EnvExperiment):
         # stop RAM mode
         self.dds.set_cfr1(ram_enable=0)
         self.dds.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
 
         # stop DRG mode
         self.dds.set_cfr2(matched_latency_enable=1)
