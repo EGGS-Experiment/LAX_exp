@@ -38,7 +38,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                                                                                     ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
-                                                                                global_min=30, global_max=400, global_step=1,
+                                                                                global_min=0.005, global_max=4800, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
