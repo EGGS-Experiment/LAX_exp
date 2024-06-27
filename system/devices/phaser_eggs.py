@@ -155,10 +155,10 @@ class PhaserEGGS(LAXDevice):
             delay_mu(self.t_sample_mu)
 
         # switch off EGGS attenuators to prevent leakage
-        delay_mu(self.t_sample_mu)
-        self.phaser.channel[0].set_att(31.5 * dB)
-        delay_mu(self.t_sample_mu)
-        self.phaser.channel[1].set_att(31.5 * dB)
+        # delay_mu(self.t_sample_mu)
+        # self.phaser.channel[0].set_att(31.5 * dB)
+        # delay_mu(self.t_sample_mu)
+        # self.phaser.channel[1].set_att(31.5 * dB)
 
 
     '''

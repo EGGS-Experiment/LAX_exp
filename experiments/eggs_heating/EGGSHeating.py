@@ -341,6 +341,15 @@ class EGGSHeating(LAXExperiment, Experiment):
         # used to check_termination more frequently
         _loop_iter = 0
 
+        # tmp remove
+        # set phaser attenuators
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+        self.core.break_realtime()
+        # tmp remove
+
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -376,11 +385,11 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # EGGS - START/SETUP
                 # activate integrator hold
                 self.ttl10.on()
-                # set phaser attenuators
-                at_mu(self.phaser_eggs.get_next_frame_mu())
-                self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-                delay_mu(self.phaser_eggs.t_sample_mu)
-                self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+                # # set phaser attenuators
+                # at_mu(self.phaser_eggs.get_next_frame_mu())
+                # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
+                # delay_mu(self.phaser_eggs.t_sample_mu)
+                # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
 
                 # reset DUC phase to start DUC deterministically
                 self.phaser_eggs.reset_duc_phase()
