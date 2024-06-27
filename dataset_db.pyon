@@ -1,11 +1,11 @@
 {
     "beams.ampl_pct.ampl_probe_rescue_pct": npscalar("<f8", b"AAAAAAAASUA="),
-    "beams.ampl_pct.ampl_probe_spinpol_pct": npscalar("<f8", b"AAAAAAAAMUA="),
-    "beams.ampl_pct.ampl_pump_cooling_pct": npscalar("<f8", b"AAAAAAAALEA="),
+    "beams.ampl_pct.ampl_probe_spinpol_pct": npscalar("<f8", b"AAAAAAAALEA="),
+    "beams.ampl_pct.ampl_pump_cooling_pct": npscalar("<f8", b"AAAAAAAAKEA="),
     "beams.ampl_pct.ampl_pump_readout_pct": npscalar("<f8", b"AAAAAAAASUA="),
     "beams.ampl_pct.ampl_pump_rescue_pct": npscalar("<f8", b"AAAAAAAASUA="),
     "beams.ampl_pct.ampl_qubit_pct": npscalar("<f8", b"AAAAAAAASUA="),
-    "beams.ampl_pct.ampl_repump_cooling_pct": npscalar("<f8", b"AAAAAAAANEA="),
+    "beams.ampl_pct.ampl_repump_cooling_pct": npscalar("<f8", b"AAAAAAAAN0A="),
     "beams.ampl_pct.ampl_repump_qubit_pct": npscalar("<f8", b"AAAAAAAAMkA="),
     "beams.freq_mhz.freq_probe_rescue_mhz": npscalar("<f8", b"AAAAAAAAVEA="),
     "beams.freq_mhz.freq_probe_spinpol_mhz": npscalar("<f8", b"AAAAAABAXEA="),
@@ -35,7 +35,7 @@
     "management.death.deathcount_length": 200,
     "management.death.deathcount_threshold": 81.0,
     "management.death.deathcount_tolerance": 5,
-    "management.dynamic.completion_pct": 99.739,
+    "management.dynamic.completion_pct": 99.815,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
@@ -47,6 +47,6 @@
     "timing.time_readout_us": npscalar("<i4", b"uAsAAA=="),
     "timing.time_repump_qubit_us": npscalar("<i4", b"HgAAAA=="),
     "timing.time_rescue_us": npscalar("<f8", b"AAAAAICz9UA="),
-    "timing.time_resuscitate_us": npscalar("<f8", b"AAAAAACAnUA="),
+    "timing.time_resuscitate_us": npscalar("<f8", b"AAAAAACQpkA="),
     "timing.time_spinpol_us": npscalar("<i4", b"FAAAAA==")
 }
