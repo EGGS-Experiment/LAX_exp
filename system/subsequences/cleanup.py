@@ -20,6 +20,7 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('phaser0')
         self.setattr_device('ttl10')
         self.setattr_device('ttl11')
+        self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
 
