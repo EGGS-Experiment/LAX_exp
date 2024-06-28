@@ -18,7 +18,8 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('urukul1_cpld')
         self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser0')
-        self.setattr_device('ttl12')
+        self.setattr_device('ttl10')
+        self.setattr_device('ttl11')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
 
@@ -61,8 +62,18 @@ class Cleanup(LAXSubsequence):
 
 
         '''
+        PARAMETRIC HARDWARE
+        '''
+        # stop parametric signal via external switch
+        self.ttl11.off()
+
+
+        '''
         PHASER HARDWARE
         '''
+        # ensure integrator hold is off to prevent
+        self.ttl10.off()
+
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)

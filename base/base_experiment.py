@@ -73,6 +73,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_ch3')
 
+        self.setattr_device('ttl10')
+        self.setattr_device('ttl11')
         self.setattr_device('ttl12')
         self.setattr_device('ttl13')
         self.setattr_device('ttl14')
@@ -285,6 +287,14 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.urukul1_ch3.sw.off()  # dipole
                 self.urukul2_ch2.sw.off()  # 866nm
                 self.urukul2_ch3.sw.off()  # 854nm
+
+        # open parametric switch to prevent feedthrough of parametric signal
+        self.ttl11.off()
+        delay_mu(8)
+
+        # ensure integrator hold is off
+        self.ttl10.off()
+        delay_mu(8)
 
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
