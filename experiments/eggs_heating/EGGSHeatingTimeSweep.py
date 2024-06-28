@@ -652,6 +652,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[0, 2], clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[1, 2], clr=0)
 
+
         # main eggs pulse
         # delay_mu(self.time_eggs_heating_mu)
         # tmp remove - eggs heating time sweep
