@@ -1,6 +1,5 @@
 from artiq.experiment import *
-from LAX_exp.extensions import *
-import LAX_exp.experiments.eggs_heating.IonSpectrumAnalyzer as IonSpectrumAnalyzer
+import LAX_exp.experiments.ion_spectrum_analyzer.IonSpectrumAnalyzer as IonSpectrumAnalyzer
 
 
 class IonSpectrumAnalyzerRamsey(IonSpectrumAnalyzer.IonSpectrumAnalyzer):
