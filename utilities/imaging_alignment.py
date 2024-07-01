@@ -60,7 +60,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
 
         # initialize plotting applet
         self.ccb.issue("create_applet", "imaging_alignment",
-                       "$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y --x temp.imag_align.counts_x")
+                       '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y --x temp.imag_align.counts_x --title "Imaging Alignment" --plot-names "Signal" "Background" "Differential"')
 
     @property
     def results_shape(self):
@@ -103,13 +103,13 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # retrieve DMA handles for PMT alignment
-        _handle_alignment_signal = self.core_dma.get_handle('_PMT_ALIGNMENT_SIGNAL')
-        _handle_alignment_background = self.core_dma.get_handle('_PMT_ALIGNMENT_BACKGROUND')
+        _handle_alignment_signal =      self.core_dma.get_handle('_PMT_ALIGNMENT_SIGNAL')
+        _handle_alignment_background =  self.core_dma.get_handle('_PMT_ALIGNMENT_BACKGROUND')
         self.core.break_realtime()
 
 
         # MAIN LOOP
-        for i in self._iter_repetitions:
+        for num_rep in self._iter_repetitions:
 
             # clear holder variables
             self._counts_signal =       0
@@ -119,27 +119,23 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # store signal counts
             self.core_dma.playback_handle(_handle_alignment_signal)
             # retrieve signal counts
-            for j in self._iter_signal:
+            for num_count in self._iter_signal:
                 self._counts_signal += self.pmt.fetch_count()
             self.core.break_realtime()
 
             # store background counts
             self.core_dma.playback_handle(_handle_alignment_background)
             # retrieve background counts
-            for j in self._iter_background:
+            for num_count in self._iter_background:
                 self._counts_background += self.pmt.fetch_count()
             self.core.break_realtime()
 
-            # # add slack
-            # delay_mu(self.time_slack_mu)
-
             # update dataset
-            with parallel:
-                self.update_results(i, self._counts_signal, self._counts_background)
-                self.core.break_realtime()
+            self.update_results(num_rep, self._counts_signal, self._counts_background)
+            self.core.break_realtime()
 
             # periodically check termination
-            if (i % 50) == 0:
+            if (num_rep % 10) == 0:
                 self.check_termination()
                 self.core.break_realtime()
 
