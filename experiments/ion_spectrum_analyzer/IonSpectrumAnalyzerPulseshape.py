@@ -277,6 +277,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # squeeze ion
                 self.squeeze_subsequence.squeeze()
 
+                # activate integrator hold
+                self.ttl10.on()
+                # set phaser attenuators
+                at_mu(self.phaser_eggs.get_next_frame_mu())
+                self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
+                delay_mu(self.phaser_eggs.t_sample_mu)
+                self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+
 
                 '''ION SPECTRUM ANALYZER'''
                 # PHASER - START/SETUP
@@ -291,20 +299,29 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
 
+                self.ttl10.off()
+                # add delay time after EGGS pulse to allow RF servo to re-lock
+                delay_mu(self.time_rf_servo_holdoff_mu)
+
                 '''READOUT'''
                 self.squeeze_subsequence.antisqueeze()
+                #
+                # # set readout waveform for qubit
+                # self.qubit.set_profile(0)
+                # self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
+                #
+                # # population transfer pulse
+                # self.qubit.on()
+                # delay_mu(time_readout_mu)
+                # self.qubit.off()
+                #
+                # # read out fluorescence
+                # self.readout_subsequence.run_dma()
 
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
-
-                # population transfer pulse
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
-
-                # read out fluorescence
+                # shelve ion in the D-5/2 state
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
+                counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
                 with parallel:
