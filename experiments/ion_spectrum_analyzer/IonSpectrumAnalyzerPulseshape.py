@@ -233,6 +233,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
+        self.core.break_realtime()
+        delay(1*s)
 
 
         # MAIN LOOP
