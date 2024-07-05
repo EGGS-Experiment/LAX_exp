@@ -288,7 +288,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                self.phaser_stop()
+                self.phaser_eggs.phaser_stop()
 
 
                 '''READOUT'''
