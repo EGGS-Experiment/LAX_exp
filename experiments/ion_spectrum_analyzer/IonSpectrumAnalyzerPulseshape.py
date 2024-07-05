@@ -236,8 +236,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-            delay_mu(10000000) ### initialize delay to prevent underflow later in code
-            self.core.break_realtime()
 
             # sweep eggs rf configurations
             for config_vals in self.config_eggs_heating_list:
@@ -277,6 +275,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # squeeze ion
                 self.squeeze_subsequence.squeeze()
 
+                # activate integrator hold
+                self.ttl10.on()
+
 
                 '''ION SPECTRUM ANALYZER'''
                 # PHASER - START/SETUP
@@ -289,31 +290,37 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                self.core.break_realtime()
                 self.phaser_eggs.phaser_stop()
 
-                self.core.break_realtime()
+                self.ttl10.off()
+                delay_mu(self.time_rf_servo_holdoff_mu)
 
-                '''READOUT'''
-                self.squeeze_subsequence.antisqueeze()
 
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
+                # '''READOUT'''
+                # self.squeeze_subsequence.antisqueeze()
+                #
+                # # set readout waveform for qubit
+                # self.qubit.set_profile(0)
+                # self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
+                #
+                # # population transfer pulse
+                # self.qubit.on()
+                # delay_mu(time_readout_mu)
+                # self.qubit.off()
+                #
+                # # read out fluorescence
+                # self.readout_subsequence.run_dma()
 
-                # population transfer pulse
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
-
-                # read out fluorescence
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
+                counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
                 with parallel:
                     self.update_results(
                         freq_readout_ftw,
-                        self.readout_subsequence.fetch_count(),
+                        # self.readout_subsequence.fetch_count(),
+                        counts,
                         carrier_freq_hz,
                         sideband_freq_hz,
                         offset_freq_hz,
@@ -326,6 +333,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
+                # death detection
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
+
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
@@ -337,6 +349,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # CLEANUP
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
+
+        self.ttl10.off()
 
 
     # HELPER FUNCTIONS - PHASER
