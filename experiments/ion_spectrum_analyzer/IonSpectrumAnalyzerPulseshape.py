@@ -374,7 +374,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(10000000)
+        delay_mu(100000000)
 
 
         if self.enable_pulse_shaping:
@@ -390,7 +390,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # record phaser falling pulse shape for antisqueezing
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(1000000)
+        delay_mu(10000000)
 
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_ANTISQUEEZE'):
@@ -404,7 +404,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(10000000)
+        delay_mu(100000000)
 
         # record phaser falling pulse shape DMA sequence
         self.core.break_realtime()
@@ -420,7 +420,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(10000000)
+        delay_mu(100000000)
 
         # set attenuations for phaser outputs
         self.core.break_realtime()
@@ -428,6 +428,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, offset_freq_hz: TFloat, phase_rsb_turns: TFloat):
