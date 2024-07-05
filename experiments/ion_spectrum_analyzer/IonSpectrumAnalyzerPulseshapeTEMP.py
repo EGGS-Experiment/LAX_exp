@@ -172,7 +172,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                           len(self.freq_ISA_secular_hz_list) *
                                                                           len(self.phase_ISA_rsb_turns_list) *
                                                                           len(self.time_readout_mu_list),
-                                                                          6), dtype=float)
+                                                                          9), dtype=float)
 
         # note: sideband readout frequencies are at the end of the
         # meshgrid to support adjacent_sidebands configuration option
@@ -323,7 +323,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_ISA_list),
-                6)
+                7)
 
 
     # MAIN SEQUENCE
@@ -398,6 +398,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 phase_rsb_index =           np.int32(config_vals[6])
                 time_readout_mu =           np.int64(config_vals[7])
                 offset_freq_hz  =  config_vals[8]
+
+
 
                 # get corresponding RSB phase in turns from the index
                 phase_rsb_turns = self.phase_ISA_rsb_turns_list[phase_rsb_index]
