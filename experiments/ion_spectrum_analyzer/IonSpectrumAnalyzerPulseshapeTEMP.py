@@ -138,7 +138,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.time_ISA_mu =                         np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
         # add delay time after ISA pulse to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="ISA",
+        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
                                                                                    conversion_function=us_to_mu)
 
         '''ISA HEATING - PHASES'''
