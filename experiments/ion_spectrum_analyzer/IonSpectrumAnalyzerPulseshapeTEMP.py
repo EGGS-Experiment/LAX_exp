@@ -172,7 +172,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                           len(self.freq_ISA_secular_hz_list) *
                                                                           len(self.phase_ISA_rsb_turns_list) *
                                                                           len(self.time_readout_mu_list),
-                                                                          9), dtype=float)
+                                                                          6), dtype=float)
 
         # note: sideband readout frequencies are at the end of the
         # meshgrid to support adjacent_sidebands configuration option
@@ -182,7 +182,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                      self.time_readout_mu_list,
                                                                                      self.freq_ISA_sideband_offset_hz_list,
                                                                                      self.freq_sideband_readout_ftw_list),
-                                                                         -1).reshape(-1, 5)
+                                                                         -1).reshape(-1, 6)
         self.config_ISA_list[:, [3, 4, 5]] =           np.array([self.ampl_ISA_rsb_pct,
                                                                           self.ampl_ISA_bsb_pct,
                                                                           self.ampl_ISA_dynamical_decoupling_pct]) / 100.
