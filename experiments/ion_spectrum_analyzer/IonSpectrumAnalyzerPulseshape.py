@@ -253,11 +253,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 offset_freq_hz =            config_vals[7]
                 phase_antisqueeze_pow =     np.int32(config_vals[8])
                 phase_rsb_turns =           config_vals[9]
+
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout
                 # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
-                self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
