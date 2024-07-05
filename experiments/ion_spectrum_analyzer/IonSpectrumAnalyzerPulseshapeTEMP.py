@@ -195,7 +195,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # interpolate calibration dataset
         # note: we choose 1D interpolator since it ensures smoothness at each point
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                     self.get_dataset('calibration.ISA.transmission.resonance_ratio_curve_mhz')
+        ampl_calib_points =                                     self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
         ampl_calib_curve =                                      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
