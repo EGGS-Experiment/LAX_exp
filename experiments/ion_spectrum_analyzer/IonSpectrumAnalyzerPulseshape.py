@@ -274,7 +274,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
                 # squeeze ion
-                # self.squeeze_subsequence.squeeze()
+                self.squeeze_subsequence.squeeze()
 
                 # activate integrator hold
                 self.ttl10.on()
@@ -297,8 +297,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 delay_mu(self.time_rf_servo_holdoff_mu)
 
 
-                # '''READOUT'''
-                # self.squeeze_subsequence.antisqueeze()
+                '''READOUT'''
+                self.squeeze_subsequence.antisqueeze()
                 #
                 # # set readout waveform for qubit
                 # self.qubit.set_profile(0)
@@ -373,6 +373,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(1000000)
+
+
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
                 # set amplitude values at given time
@@ -385,6 +389,9 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # record phaser falling pulse shape for antisqueezing
         self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(1000000)
+
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_ANTISQUEEZE'):
                 # set amplitude values at given time
@@ -394,6 +401,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         else:
             with self.core_dma.record('_PHASER_PULSESHAPE_ANTISQUEEZE'):
                 pass
+
+        self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(1000000)
 
         # record phaser falling pulse shape DMA sequence
         self.core.break_realtime()
@@ -406,6 +417,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         else:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
                 pass
+
+        self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(1000000)
 
         # set attenuations for phaser outputs
         self.core.break_realtime()
