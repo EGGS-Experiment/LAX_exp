@@ -234,6 +234,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.core.break_realtime()
 
 
+
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
@@ -263,7 +264,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core.break_realtime()
 
                 # configure squeezing/antisqueezing
-                self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
+                # self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
                 self.core.break_realtime()
 
 
@@ -273,7 +274,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # sideband cool
                 self.sidebandcool_subsequence.run_dma()
                 # squeeze ion
-                self.squeeze_subsequence.squeeze()
+                # self.squeeze_subsequence.squeeze()
 
                 # activate integrator hold
                 self.ttl10.on()
