@@ -256,7 +256,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout
-                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
+                # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
                 self.core.break_realtime()
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
