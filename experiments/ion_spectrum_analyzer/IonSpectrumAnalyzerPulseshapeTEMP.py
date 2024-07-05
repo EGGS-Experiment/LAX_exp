@@ -6,11 +6,13 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
+import LAX_exp.experiments.eggs_heating.EGGSHeating as EGGSHeating
 
+from math import gcd
 
-class IonSpectrumAnalyzer(LAXExperiment, Experiment):
+class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     """
-    Experiment: ISA Heating Phase Pulseshape
+    Experiment: Ion Spectrum Analyzer Pulse Shape TEMP
 
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
