@@ -236,6 +236,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
+            delay_mu(1000000)
 
             # sweep eggs rf configurations
             for config_vals in self.config_eggs_heating_list:
@@ -280,7 +281,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # PHASER - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
-                self.core.break_realtime()
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # PHASER - RUN
@@ -289,9 +289,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
-
-                self.core.break_realtime()
-
 
                 '''READOUT'''
                 self.squeeze_subsequence.antisqueeze()
