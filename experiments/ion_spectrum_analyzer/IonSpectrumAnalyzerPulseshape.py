@@ -236,7 +236,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-            delay_mu(1000000) ### initialize delay to prevent underflow later in code
+            delay_mu(10000000) ### initialize delay to prevent underflow later in code
+            self.core.break_realtime()
 
             # sweep eggs rf configurations
             for config_vals in self.config_eggs_heating_list:
