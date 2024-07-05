@@ -374,7 +374,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(1000000)
+        delay_mu(10000000)
 
 
         if self.enable_pulse_shaping:
@@ -404,7 +404,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(1000000)
+        delay_mu(10000000)
 
         # record phaser falling pulse shape DMA sequence
         self.core.break_realtime()
@@ -420,7 +420,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         self.core.break_realtime()
         # add slack for recording DMA sequences - 1 ms
-        delay_mu(1000000)
+        delay_mu(10000000)
 
         # set attenuations for phaser outputs
         self.core.break_realtime()
