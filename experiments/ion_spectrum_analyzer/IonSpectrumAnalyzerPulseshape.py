@@ -228,13 +228,12 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
+        delay(1*s)
 
         # get custom sequence handles
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
-        self.core.break_realtime()
-        delay(1*s)
 
 
         # MAIN LOOP
@@ -260,6 +259,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 # configure EGGS tones and set readout
                 # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
+                delay(1*s)
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
