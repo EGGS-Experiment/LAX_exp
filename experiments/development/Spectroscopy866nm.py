@@ -22,18 +22,18 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
 
         # probe frequency scan
-        self.setattr_argument("freq_probe_scan_mhz",    Scannable(
-                                                            default=RangeScan(85, 129, 45, randomize=True),
-                                                            global_min=80, global_max=140, global_step=1,
-                                                            unit="MHz", scale=1, ndecimals=6
-                                                        ))
+        self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
+                                                                            default=RangeScan(85, 129, 45, randomize=True),
+                                                                            global_min=80, global_max=140, global_step=1,
+                                                                            unit="MHz", scale=1, ndecimals=6
+                                                                        ))
 
         # adc (sampler) recording
-        self.setattr_argument("adc_channel_num",        NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
-        self.setattr_argument("adc_channel_gain",       EnumerationValue(['1', '10', '100', '1000'], default='100'))
+        self.setattr_argument("adc_channel_num",                        NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("adc_channel_gain",                       EnumerationValue(['1', '10', '100', '1000'], default='100'))
 
         # relevant devices
         self.setattr_device('pump')
@@ -42,48 +42,38 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.setattr_device('sampler0')
 
         # subsequences
-        self.probe_subsequence =                        AbsorptionProbe(self)
-        self.rescue_subsequence =                       RescueIon(self)
+        self.probe_subsequence =                                        AbsorptionProbe(self)
+        self.rescue_subsequence =                                       RescueIon(self)
 
 
     def prepare_experiment(self):
-        """
-        Prepare experimental values to reduce runtime overhead.
-        """
-        '''CONVERT VALUES TO MACHINE UNITS'''
         # convert probe frequency scans
-        self.freq_probe_scan_mhz =                      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
-        self.freq_probe_scan_ftw =                      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_mhz =                                      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_ftw =                                      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
-        # tmp remove
-        # set adc holdoff time to ensure adc records when probe beam is actually on
-        self.time_adc_holdoff_mu =                      self.core.seconds_to_mu(1000 * us)
-        self.adc_channel_gain_mu =                      int(np.log10(int(self.adc_channel_gain)))
-
-
-        '''CALIBRATE BEAM POWERS'''
         # get amplitude calibration curve from dataset manager and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
-        ampl_calib_curve =                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+        ampl_calib_points =                                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
+        ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
-        # verify desired scan range is serviceable by calibration values
-        min_freq_mhz =  np.min(self.freq_probe_scan_mhz)
-        max_freq_mhz =  np.max(self.freq_probe_scan_mhz)
-        if (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])):
-            raise Exception("Error: lower bound of frequency scan range below valid calibration range.")
-        if (max_freq_mhz < np.max(ampl_calib_points[:, 0])) & (max_freq_mhz > np.min(ampl_calib_points[:, 0])):
-            raise Exception("Error: upper bound of frequency scan range above valid calibration range.")
+        # verify scan range is serviceable by calibration values
+        min_freq_mhz =                                                  np.min(self.freq_probe_scan_mhz)
+        max_freq_mhz =                                                  np.max(self.freq_probe_scan_mhz)
+        assert (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])), "Error: lower bound of frequency scan range below valid calibration range."
+        assert (max_freq_mhz < np.max(ampl_calib_points[:, 0])) & (max_freq_mhz > np.min(ampl_calib_points[:, 0])), "Error: upper bound of frequency scan range above valid calibration range."
 
         # get calibrated amplitude values
-        ampl_probe_scan_pct =       np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
-        self.ampl_probe_scan_asf =  np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
+        ampl_probe_scan_pct =                                           np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
+        self.ampl_probe_scan_asf =                                      np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
 
-
-        '''CREATE EXPERIMENT CONFIG'''
         # set up probe waveform config
-        self.config_linewidth_measurement_list =                        np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
+        self.waveform_probe_scan =                                      np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
+
+        # tmp remove
+        # set adc holdoff time to ensure adc records when probe beam is actually on
+        self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(1000 * us)
+        self.adc_channel_gain_mu =                                      int(np.log10(int(self.adc_channel_gain)))
 
 
     @property
@@ -92,7 +82,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                 4)
 
 
-    '''MAIN SEQUENCE'''
+    # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
@@ -106,24 +96,23 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.core.reset()
 
         # create buffer to hold sampler values
-        buffer_sampler =    [0] * 8
-        read_actual =       0
-        read_control =      0
+        buffer_sampler = [0] * 8
+        read_actual = 0
+        read_control = 0
 
-
-        '''MAIN LOOP'''
+        # main loop
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
-            for waveform_params in self.config_linewidth_measurement_list:
+            # sweep frequency
+            for waveform_params in self.waveform_probe_scan:
                 self.core.break_realtime()
 
-                # configure probe beam waveform
-                freq_probe_ftw = waveform_params[0]
-                ampl_probe_asf = waveform_params[1]
-                self.pump.set_mu(freq_probe_ftw, asf=ampl_probe_asf, profile=1)
+                # get waveform parameters and set probe beam frequency
+                freq_ftw = waveform_params[0]
+                ampl_asf = waveform_params[1]
+                self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
                 self.core.break_realtime()
-
 
                 # get actual data
                 with parallel:
@@ -152,15 +141,15 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                         self.sampler0.sample_mu(buffer_sampler)
                         read_control = buffer_sampler[6]
 
-
-                # get stored counts from PMT
-                counts_actual =     self.pmt.fetch_count()
-                counts_control =    self.pmt.fetch_count()
+                # get counts and update datasets
+                counts_actual = self.pmt.fetch_count()
+                counts_control = self.pmt.fetch_count()
 
                 # update datasets
-                self.core.break_realtime()
-                self.update_results(freq_probe_ftw, 1, counts_actual, read_actual)
-                self.update_results(freq_probe_ftw, 0, counts_control, read_control)
+                with parallel:
+                    self.core.break_realtime()
+                    self.update_results(freq_ftw, 1, counts_actual, read_actual)
+                    self.update_results(freq_ftw, 0, counts_control, read_control)
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -174,14 +163,11 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
 
-    '''
-    ANALYSIS
-    '''
+    # ANALYSIS
     def analyze_experiment(self):
         """
         Process resultant spectrum and attempt to fit.
         """
-        '''COLLATE DATA'''
         # create data structures for processing
         results_tmp =           np.array(self.results)[:, :3]
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
@@ -210,8 +196,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.set_dataset('res_signal',  res_signal)
         self.set_dataset('res_bgr',     res_bgr)
 
-
-        '''FIT DATA'''
         # fit gaussian, lorentzian, and voigt profiles
         # todo: fit voigt profile
         fit_gaussian_params, fit_gaussian_err =         fitGaussian(res_final[:, :2])
@@ -235,8 +219,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # self.set_dataset('fit_voigt_params',            fit_voigt_params)
         # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
 
-
-        '''PRINT RESULTS'''
         # print out fitted parameters
         print("\tResults - Linewidth Measurement:")
         print("\t\tGaussian Fit:")

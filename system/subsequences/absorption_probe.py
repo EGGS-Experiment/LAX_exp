@@ -22,7 +22,6 @@ class AbsorptionProbe(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_device('pump')
-        self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
