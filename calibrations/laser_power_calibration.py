@@ -13,7 +13,7 @@ class LaserPowerCalibration(EnvExperiment):
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """
-    # kernel_invariants = {}
+    # kernel_invariants = set()
 
     def build(self):
         """
@@ -44,7 +44,7 @@ class LaserPowerCalibration(EnvExperiment):
 
         # result storage
         self.setattr_argument("save_to_dataset_manager",    BooleanValue(default=True), group='dataset')
-        self.setattr_argument("dataset_name",               StringValue(default='pump_beam_397nm'), group='dataset')
+        self.setattr_argument("dataset_name",               StringValue(default='pump_beam'), group='dataset')
 
 
     def prepare(self):
@@ -114,8 +114,10 @@ class LaserPowerCalibration(EnvExperiment):
         self.dds.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
+        self.dds.cpld.get_all_att_mu()
         self.dds.set_att(self.dds_attenuation_db * dB)
         self.dds.sw.on()
+        self.core.break_realtime()
 
         # set up ADC
         self.adc.set_gain_mu(self.adc_channel_num, self.adc_gain_mu)

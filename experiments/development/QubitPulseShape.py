@@ -1,303 +1,181 @@
-from artiq.experiment import *
-from artiq.coredevice.ad9910 import *
-from artiq.coredevice.ad9910 import _AD9910_REG_CFR1
-from artiq.coredevice.urukul import DEFAULT_PROFILE
-
 import numpy as np
+from artiq.experiment import *
+
+from LAX_exp.analysis import *
+from LAX_exp.extensions import *
+from LAX_exp.base import LAXExperiment
+from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
+from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
 
 
-class UrukulRAMAmplitude(EnvExperiment):
+class RabiFlopping(LAXExperiment, Experiment):
     """
-    Urukul RAM Amplitude Test
-    Test amplitude modulation via RAM on the AD9910.
+    Experiment: Rabi Flopping
+
+    Measures ion fluorescence vs 729nm pulse time and frequency.
     """
+    name = 'Rabi Flopping'
 
 
-    def build(self):
-        self.setattr_device("core")
-        self.setattr_device("core_dma")
-        self.setattr_device("scheduler")
+    def build_experiment(self):
+        # core arguments
+        self.setattr_argument("repetitions",                        NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
 
-        # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
-
-        # DDS parameters
-        self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
-        self.setattr_argument("att_dds_db",             NumberValue(default=3., ndecimals=1, step=0.5, min=0., max=31.5), group='dds')
-        self.setattr_argument("freq_dds_mhz",           NumberValue(default=10., ndecimals=6, step=0.5, min=0., max=400), group='dds')
-        self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., ndecimals=3, step=5., min=0., max=100.), group='dds')
-        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
-
-        # modulation parameters
-        self.setattr_argument("sample_rate_khz",        NumberValue(default=250, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-
-        # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # rabi flopping arguments
+        self.setattr_argument("cooling_type",                       EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
+        self.setattr_argument("time_rabi_us_list",                  Scannable(
+                                                                        default=[
+                                                                            ExplicitScan([6.05]),
+                                                                            RangeScan(1, 50, 200, randomize=True),
+                                                                        ],
+                                                                        global_min=1, global_max=100000, global_step=1,
+                                                                        unit="us", scale=1, ndecimals=5
+                                                                    ), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=102.1020, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("att_readout_db",                     NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
 
-    def prepare(self):
-        """
-        Prepare values for speedy evaluation.
-        """
-        '''GET DEVICES'''
-        try:
-            self.dds = self.get_device(self.dds_name)
-            # add DDS name to kernel invariants
-            kernel_invariants = getattr(self, "kernel_invariants", set())
-            self.kernel_invariants = kernel_invariants | {'dds'}
-        except Exception as e:
-            print("Error: invalid DDS channel.")
-            raise e
+        # get devices
+        self.setattr_device('qubit')
 
-        '''CONVERT VALUES TO MACHINE UNITS'''
-        # DDS values
-        self.att_dds_mu =           self.dds.cpld.att_to_mu(self.att_dds_db * dB)
-        self.freq_dds_ftw =         self.dds.frequency_to_ftw(self.freq_dds_mhz * MHz)
-        self.phas_dds_rev_pow =     self.dds.turns_to_pow(self.phas_dds_rev_turns)
+        # prepare sequences
+        self.initialize_subsequence =                               InitializeQubit(self)
+        self.doppler_subsequence =                                  NoOperation(self)
+        self.sidebandcool_pulsed_subsequence =                      SidebandCoolPulsed(self)
+        self.sidebandcool_continuous_subsequence =                  SidebandCoolContinuous(self)
+        self.readout_subsequence =                                  Readout(self)
+        self.rescue_subsequence =                                   RescueIon(self)
 
-        # timing
-        self.time_pulse_mu =    self.core.seconds_to_mu(self.time_pulse_us * us)
-        self.time_body_mu =     self.core.seconds_to_mu(self.time_body_us * us)
-        self.time_holdoff_mu =  self.core.seconds_to_mu(2000. * us)
+    def prepare_experiment(self):
+        # choose correct cooling subsequence
+        if self.cooling_type == "Doppler":
+            self.cooling_subsequence =                              self.doppler_subsequence
+        elif self.cooling_type == "SBC - Continuous":
+            self.cooling_subsequence =                              self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "SBC - Pulsed":
+            self.cooling_subsequence =                              self.sidebandcool_pulsed_subsequence
 
 
-        '''SPECFIY RAM PARAMETERS'''
-        # specify RAM profile values
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
-        _MAX_RAM_LENGTH =                   1000    # actually 1024 words long, but add some
-        self.ram_profile =                  0
-        self.ram_addr_start =               0x00
+        # convert rabi flopping arguments
+        max_time_us =                                               np.max(list(self.time_rabi_us_list))
+        self.time_rabiflop_mu_list =                                np.array([
+                                                                        [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
+                                                                        for time_us in self.time_rabi_us_list
+                                                                    ])
+        self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
+        self.att_readout_mu =                                       att_to_mu(self.att_readout_db * dB)
 
-        # create modulation array
-        self.data_modulation_length =           round((self.sample_rate_khz * kHz) * (self.time_pulse_us * us))
-
-        # ensure that waveform array stays within the RAM
-        if self.data_modulation_length >= _MAX_RAM_LENGTH:
-            raise Exception("Error: Waveform is too long ({:d} words).".format(self.data_modulation_length))
-        elif (self.ram_addr_start + self.data_modulation_length) >= _MAX_RAM_LENGTH:
-            raise Exception("Error: Max RAM address exceeds allowable range (address: {:d}).".format(self.data_modulation_length + self.ram_addr_start))
-
-        # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
-        self.freq_dds_sync_clk_hz =             1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
-        self.data_modulation_step_num_clks =    round(self.freq_dds_sync_clk_hz / (self.sample_rate_khz * kHz))
-
-        # calculate time for ram sequence
-        self.time_ramp_mu =                     self.core.seconds_to_mu((1. / self.freq_dds_sync_clk_hz) *
-                                                                        self.data_modulation_step_num_clks *
-                                                                        self.data_modulation_length)
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.time_rabiflop_mu_list),
+                2)
 
 
-        '''CALCULATE WAVEFORM'''
-        # scale waveform
-        _wav_x_scale =                      np.pi / 2.
-        _wav_y_scale =                      self.ampl_dds_max_pct / 100.
-
-        # create scaled x-axis
-        _wav_x_vals =                       np.linspace(0., 1., self.data_modulation_length) * _wav_x_scale
-        # calculate waveform y-values, then normalize and rescale
-        _wav_y_vals =                       np.array([self._waveform_calc(x_val) for x_val in _wav_x_vals])
-        _wav_y_vals =                       _wav_y_vals / np.max(_wav_y_vals) * _wav_y_scale
-
-        # create empty array to store values
-        self.data_modulation_arr =          [np.int32(0)] * self.data_modulation_length
-        # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in data_modulation_arr
-        self.dds.amplitude_to_ram(_wav_y_vals, self.data_modulation_arr)
-        # pre-reverse data_modulation_arr since write_ram makes a booboo and reverses the array
-        self.data_modulation_arr =          self.data_modulation_arr[::-1]
-
-    def _waveform_calc(self, x: TFloat) -> TFloat:
-        """
-        User function that returns the waveform shape.
-        """
-        return np.sin(x) ** 2.
-        # return 1.
-
-
-    """
-    MAIN FUNCTIONS
-    """
+    # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def run_initialize(self) -> TNone:
-        # reset core
+    def initialize_experiment(self):
+        self.core.break_realtime()
+
+        # record subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.cooling_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
+
+        # set qubit readout waveform
+        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+
+    @kernel(flags={"fast-math"})
+    def run_main(self):
         self.core.reset()
-        self.core.break_realtime()
 
-        # initialize urukul (idk why but everyone does it each time)
-        self.dds.cpld.init()
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # also initialize DDS for fun? i guess?
-        self.dds.init()
-        self.core.break_realtime()
-        delay_mu(1000000)
+        for trial_num in range(self.repetitions):
 
-        # disable RAM mode
-        self.dds.set_cfr1()
-        self.dds.cpld.io_update.pulse_mu(8)
+            # sweep time
+            for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+                self.core.break_realtime()
 
-        # set up essential DDS parameters
-        self.dds.sw.off()
-        self.dds.set_att_mu(self.att_dds_mu)
-        self.dds.set_cfr2(matched_latency_enable=1)
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
 
-        # set up non-modulated DDS waveform parameters
-        self.dds.set_ftw(self.freq_dds_ftw)
-        self.dds.cpld.io_update.pulse_mu(8)
-        self.dds.set_pow(0x00)
-        self.dds.cpld.io_update.pulse_mu(8)
+                # run sideband cooling
+                self.cooling_subsequence.run_dma()
 
-        # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
-        self.core.break_realtime()
+                # prepare qubit beam for readout
+                self.qubit.set_profile(0)
+                self.qubit.set_att_mu(self.att_readout_mu)
+                delay_mu(time_rabi_pair_mu[0])
+
+                # rabi flop
+                self.qubit.on()
+                delay_mu(time_rabi_pair_mu[1])
+                self.qubit.off()
+
+                # do readout
+                self.readout_subsequence.run_dma()
+
+                # update dataset
+                with parallel:
+                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)
+
+            # support graceful termination
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
 
 
-    @kernel(flags={"fast-math"})
-    def run(self) -> TNone:
-        # prepare devices for experiment
-        self.run_initialize()
-
-
+    # ANALYSIS
+    def analyze_experiment(self):
         """
-        PREPARE RAM
+        Fit rabi flopping data with an exponentially damped sine curve
         """
-        # configure parameters for RAM profile
-        self.dds.set_profile_ram(
-            start=self.ram_addr_start, end=self.ram_addr_start + (self.data_modulation_length - 1),
-            step=self.data_modulation_step_num_clks,
-            profile=self.ram_profile, mode=RAM_MODE_BIDIR_RAMP
-        )
-        self.core.break_realtime()
+        # create data structures for processing
+        results_tmp =           np.array(self.results)
+        probability_vals =      np.zeros(len(results_tmp))
+        counts_arr =            np.array(results_tmp[:, 1])
 
-        # set RAM profile
-        self.dds.cpld.set_profile(self.ram_profile)
-        self.dds.cpld.io_update.pulse_mu(8)
-        # write waveform to RAM profile
-        delay_mu(1000000)   # 1ms
-        self.dds.write_ram(self.data_modulation_arr)
-        delay_mu(1000000)   # 1ms
-        self.core.break_realtime()
+        # convert x-axis (time) from machine units to seconds
+        results_tmp[:, 0] =     np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
 
 
-        """
-        MAIN LOOP
-        """
-        for i in range(self.repetitions):
+        # calculate fluorescence detection threshold
+        threshold_list =        findThresholdScikit(results_tmp[:, 1])
+        for threshold_val in threshold_list:
+            probability_vals[np.where(counts_arr > threshold_val)] += 1.
+        # normalize probabilities and convert from D-state probability to S-state probability
+        results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
 
-            '''PREPARE LOOP'''
-            # add slack
-            self.core.break_realtime()
-            delay_mu(self.time_holdoff_mu)
-
-            # initialize as profile 0 (necessary for bidirectional ramp mode)
-            self.dds.cpld.set_profile(0)
-            self.dds.cpld.io_update.pulse_mu(8)
-
-            # enable RAM mode and clear DDS phase accumulator
-            self.dds.write32(_AD9910_REG_CFR1,
-                               (1 << 31) |              # ram_enable
-                               (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16) |              # select_sine_output
-                               (1 << 13)                # phase_autoclear
-                               )
-
-            # prime RAM sequence by pulsing IO_UPDATE
-            self.dds.cpld.io_update.pulse_mu(8)
+        # process dataset into x, y, with y being averaged probability
+        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
 
-            '''RAMP-UP'''
-            time_start_mu = now_mu() & ~7
+        # fit rabi flopping using damped harmonic oscillator
+        fit_params, fit_err =   fitDampedOscillator(results_tmp)
+        # todo: use fit parameters to attempt to fit roos eqn(A.5)
+        # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
-            # start ramp-up (coarse align to SYNC_CLK)
-            at_mu(time_start_mu)
-            self.dds.cpld.set_profile(1)
+        # process fit parameters to give values of interest
+        fit_period_us =         (2 * np.pi * 1.e6) / fit_params[2]
+        fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
+        # todo: extract phonon number from fit
 
-            # disable phase autoclear
-            self.dds.write32(_AD9910_REG_CFR1,
-                               (1 << 31) |              # ram_enable
-                               (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16)                # select_sine_output
-                               )
-            self.dds.cpld.io_update.pulse_mu(8)
+        # save results to hdf5 as a dataset
+        self.set_dataset('fit_params',  fit_params)
+        self.set_dataset('fit_err',     fit_err)
 
-            # open DDS switch at appropriate time
-            # todo: actually do this
-            # at_mu(time_start_mu + 416 + 63 - 140)
-            at_mu(time_start_mu + 416 + 63 - 140 - 244)
-            self.ttl8.on()
-            self.dds.sw.on()
+        # save results to dataset manager for dynamic experiments
+        res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
+        self.set_dataset('temp.rabiflopping.results', res_dj, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.rabiflopping.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
-            # wait for ramp-up to finish
-            delay_mu(self.time_ramp_mu)
-            self.ttl8.off()
-
-
-            '''PULSE DELAY'''
-            # todo: set pow reg
-            # self.dds.set_pow(self.phas_dds_rev_pow)
-            # wait for main pulse
-            delay_mu(self.time_body_mu)
-
-
-            '''RAMP-DOWN'''
-            time_stop_mu = now_mu() & ~7
-
-            # start ramp-down (coarse align to SYNC_CLK)
-            at_mu(time_stop_mu)
-            self.dds.cpld.set_profile(0)
-
-            # send debug signal
-            at_mu(time_stop_mu + 101)
-            self.ttl9.on()
-
-            # wait for ramp-down to finish
-            delay_mu(self.time_ramp_mu)
-
-            # close DDS switch
-            self.dds.sw.off()
-            self.ttl9.off()
-
-
-            '''LOOP CLEANUP'''
-            # disable ram
-            self.dds.set_cfr1(ram_enable=0)
-            self.dds.cpld.io_update.pulse_mu(8)
-
-            # check termination periodically
-            if (i % 100) == 0:
-                if self.scheduler.check_termination():
-                    self.run_cleanup()
-                    return
-
-        # clean up
-        self.run_cleanup()
-
-
-    @kernel(flags={"fast-math"})
-    def run_cleanup(self) -> TNone:
-        # add slack
-        self.core.break_realtime()
-
-        # stop output
-        self.dds.sw.off()
-        self.dds.set_att_mu(0x00)
-        self.dds.set_asf(0x00)
-        self.dds.cpld.io_update.pulse_mu(8)
-
-        # stop RAM mode
-        self.dds.set_cfr1(ram_enable=0)
-        self.dds.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
-
-        # set clean output
-        self.dds.cpld.set_profile(DEFAULT_PROFILE)
-        self.dds.cpld.io_update.pulse_mu(8)
-        self.dds.set(300. * MHz, amplitude=0., profile=DEFAULT_PROFILE)
-        self.core.break_realtime()
-
-        # synchronize timeline
-        self.core.wait_until_mu(now_mu())
-
+        # print out fitted parameters
+        print("\tResults - Rabi Flopping:")
+        print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
+        return results_tmp

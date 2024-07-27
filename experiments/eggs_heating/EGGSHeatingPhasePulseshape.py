@@ -299,7 +299,8 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         # update dynamical decoupling config list with verified PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   self.time_psk_delay_mu
         # ensure that psk rate doesn't exceed the shaping time (t_max_phaser_update_rate_mu; about 25 * t_sample_mu)
-        assert self.time_psk_delay_mu >= self.t_max_phaser_update_rate_mu,  "Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate."
+        if self.time_psk_delay_mu >= self.t_max_phaser_update_rate_mu:
+            raise Exception("Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate.")
 
         # set appropriate phaser run method for dynamical decoupling PSK
         if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
@@ -340,11 +341,6 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
-
-        # get custom sequence handles
-        _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
-        _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
-        self.core.break_realtime()
 
         # get phaser pulse shaping sequence handles for each RSB
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
