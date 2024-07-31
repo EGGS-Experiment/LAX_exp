@@ -16,7 +16,8 @@ class PhaserPulseShaper(LAXEnvironment):
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
         "_max_waveforms", "t_max_phaser_update_rate_mu",
-        "_dma_names", "_dma_handles"
+        "_dma_names", "_dma_handles",
+        "_phase_offsets_turns"
     }
 
 
@@ -24,11 +25,17 @@ class PhaserPulseShaper(LAXEnvironment):
         # get relevant devices
         self.setattr_device('phaser_eggs')
 
-    def prepare(self):
+    def prepare(self) -> TNone:
+        """
+        todo: document
+        """
         # set global variables
         self._max_waveforms =               64
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators) is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
+        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
+        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+        # store global CH1 offsets
+        self._phase_offsets_turns =         np.array([0., 0., 0., 0., 0.])
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =       ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
@@ -49,10 +56,12 @@ class PhaserPulseShaper(LAXEnvironment):
         record waveform as DMA sequence
         """
         '''PREPARE INPUTS'''
+        # get total lengths of arrays
         len_ampls =     len(ampl_frac_list)
         len_phases =    len(phas_turns_list)
         len_times =     len(sample_interval_mu_list)
 
+        # get length of each row (i.e. number of oscs)
         num_ampl_vals = len(ampl_frac_list[0])
         num_phas_vals = len(phas_turns_list[0])
 
@@ -109,16 +118,21 @@ class PhaserPulseShaper(LAXEnvironment):
         # loop over input array (guided by ampl_frac_list)
         for osc_num in range(len(ampl_frac_list)):
             # set outputs for both phaser channels in parallel
+            # todo: account for field geometry & offsets - use phase offset addition
             with parallel:
-                self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num], phase=phase_turns_list[osc_num], clr=0)
-                self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num], phase=phase_turns_list[osc_num], clr=0)
+                self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num],
+                                                                                    phase=phase_turns_list[osc_num],
+                                                                                    clr=0)
+                self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num],
+                                                                                    phase=phase_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
+                                                                                    clr=0)
                 delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})
     def waveform_load(self) -> TNone:
         """
         Retrieve all waveforms from DMA.
-        Must be called before any ***.
+        Must be called after all DMA sequences are recorded.
         """
         # get waveform DMA sequence handles
         for i in range(self._num_waveforms):
