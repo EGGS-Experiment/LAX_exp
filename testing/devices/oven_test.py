@@ -17,7 +17,7 @@ class OvenTest(LAXExperiment, Experiment):
 
     def build_experiment(self):
 
-        self.setattr_device('gpp3060')
+        self.setattr_device('oven')
 
 
     def prepare_experiment(self):
@@ -30,12 +30,12 @@ class OvenTest(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.gpp3060.turn_oven_on()       # turn on oven
+        self.oven.on()     # turn on oven
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(5*s)
+        delay(10*s)
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -45,5 +45,5 @@ class OvenTest(LAXExperiment, Experiment):
     @rpc
     def cleanup_devices(self):
         # turn off oven
-        self.gpp3060.turn_oven_off()
+        self.oven.off()
 
