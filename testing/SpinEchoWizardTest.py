@@ -14,9 +14,9 @@ from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 import matplotlib.pyplot as plt
 
 
-class pulseshapingtest(LAXEnvironment, Experiment):
+class SpinEchoWizardTest(LAXEnvironment, Experiment):
     """
-    pulseshapingtest
+    SpinEchoWizardTest
     """
 
     def build(self):
