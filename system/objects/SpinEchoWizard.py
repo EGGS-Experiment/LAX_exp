@@ -36,20 +36,20 @@ class SpinEchoWizard(LAXEnvironment):
         # spin-echo
         self.enable_delay_spinecho =        True
         self.time_delay_spinecho_us =       1000
-        self.sequence_blocks =              [
-            [(40., -0.2), (40., 0.2), (20., 0.)],
-            [(40., -0.2), (40., 0.7), (20., -0.25)],
-            [(40., -0.2), (40., 0.2), (20., 0.)],
-            [(40., -0.2), (40., 0.7), (20., -0.25)]
-        ]
+        self.sequence_blocks = np.array([
+            [[40., -0.2], [40., 0.2], [20., 0.]],
+            [[20., -0.2], [20., 0.7], [20., -0.25]],
+            [[40., -0.2], [40., 0.2], [20., 0.]],
+            [[20., -0.2], [20., 0.7], [20., -0.25]]
+        ])
 
         # field geometry
         # todo: target
         # todo: phase values
 
         # get relevant devices
-        # self.setattr_device('core')
-        # self.setattr_device('phaser_eggs')
+        self.setattr_device('core')
+        self.setattr_device('phaser_eggs')
 
     def prepare(self):
         """
@@ -83,7 +83,7 @@ class SpinEchoWizard(LAXEnvironment):
         # convert pulse times to mu
         self.time_pulse_mu = self.core.seconds_to_mu(self.time_pulse_us * us)
         # todo: account for 40ns delay from each osc
-        self.time_delay_spinecho_us = self.core.seconds_to_mu(self.time_delay_spinecho_us * us)
+        self.time_delay_spinecho_mu = self.core.seconds_to_mu(self.time_delay_spinecho_us * us)
         # todo: ensure both pulse and spinecho times are 40ns multiples
 
 
@@ -106,15 +106,15 @@ class SpinEchoWizard(LAXEnvironment):
         # ensure pulse shaping sample interval is multiple of phaser sample rate
         # note: -2 accounts for 2x t_sample_mu delay from having to set 3 oscillators
         num_multiples = round(self.time_pulse_shape_sample_mu / self.phaser_eggs.t_sample_mu) - 2
-        self.time_pulse_shape_sample_mu = np.int64(num_multiples * self.self.phaser_eggs.t_sample_mu)
+        self.time_pulse_shape_sample_mu = np.int64(num_multiples * self.phaser_eggs.t_sample_mu)
 
         # calculate number of samples
         self.num_pulse_shape_samples = round(self.time_pulse_shape_rolloff_mu / self.time_pulse_shape_sample_mu)
         # ensure rolloff time is integer number of pulse shape samples
-        self.time_pulse_shape_rolloff_mu = np.int64(self.num_pulse_shape_samples * self.time_pulse_shape_rolloff_mu)
+        self.time_pulse_shape_rolloff_mu = np.int64(self.num_pulse_shape_samples * self.time_pulse_shape_sample_mu)
 
         # create x-axis value array
-        self._pulse_shape_array_times_mu = np.linspace(0, self.num_pulse_shape_samples, self.num_pulse_shape_samples, dtype=np.int64)
+        self._pulse_shape_array_times_mu = np.arange(self.num_pulse_shape_samples, dtype=np.int64) * self.time_pulse_shape_sample_mu
 
 
         '''calculate pulse shape window (i.e. y-vals)'''
@@ -135,12 +135,6 @@ class SpinEchoWizard(LAXEnvironment):
     #     """
     #     todo: document
     #     """
-    #     self.sequence_blocks = np.array([
-    #         [[40., -0.2], [40., 0.2], [20., 0.]],
-    #         [[20., -0.2], [20., 0.7], [20., -0.25]],
-    #         [[40., -0.2], [40., 0.2], [20., 0.]],
-    #         [[20., -0.2], [20., 0.7], [20., -0.25]]
-    #     ])
     #
     #     # todo: set up blocks
     #     # todo: don't bother doing any pulse shaping if enable_ps is OFF
@@ -180,20 +174,13 @@ class SpinEchoWizard(LAXEnvironment):
         todo: document
         record waveform as DMA sequence
         """
-        self.sequence_blocks = np.array([
-            [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[20., -0.2], [20., 0.7], [20., -0.25]],
-            [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[20., -0.2], [20., 0.7], [20., -0.25]]
-        ])
-
         # get shapes of blocks
         num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
 
         # create temporary holder objects
-        _ampl_arrs =    np.zeros((num_oscs, 0), dtype=np.float64)
-        _phas_arrs =    np.zeros((num_oscs, 0), dtype=np.float64)
-        _time_arr =     np.array(0, dtype=np.int64)
+        _ampl_arrs =    list(np.zeros((num_oscs, 0), dtype=np.float64))
+        _phas_arrs =    list(np.zeros((num_oscs, 0), dtype=np.float64))
+        _time_arr =     np.zeros(0, dtype=np.int64)
 
 
         ###BEGIN COMPILATION - CONTIGUOUS SEQUENCES###
@@ -274,7 +261,7 @@ class SpinEchoWizard(LAXEnvironment):
                         _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], wind_ampl_tmp)
 
                         # do phases
-                        wind_phas_tmp = np.ones(len(wind_ampl_tmp)) * block_osc_vals[1]
+                        wind_phas_tmp = np.ones(len(self.ampl_window_rising)) * block_osc_vals[1]
                         _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], wind_phas_tmp)
 
                     # do timing
@@ -307,7 +294,7 @@ class SpinEchoWizard(LAXEnvironment):
                         _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], wind_ampl_tmp)
 
                         # do phases
-                        wind_phas_tmp = np.ones(len(wind_ampl_tmp)) * block_osc_vals[1]
+                        wind_phas_tmp = np.ones(len(self.ampl_window_falling)) * block_osc_vals[1]
                         _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], wind_phas_tmp)
 
                     # do timing
@@ -330,11 +317,45 @@ class SpinEchoWizard(LAXEnvironment):
         self._phas_tmp_arr = np.array(_phas_arrs)
         self._time_tmp_arr = np.array(_time_arr)
 
-
     def display_waveform(self):
         """
         todo: document
         """
-        pass
+        try:
+            # get sequence shape
+            num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
 
+            # get cumulative times from pulse delays in _time_tmp_arr
+            # and convert units from mu to us
+            # todo: use core mu_to_seconds
+            _x_axis_time_us = np.cumsum(self._time_tmp_arr) / 1e3
 
+            # create waveform summary figure
+            # fig, ax = plt.subplots(figsize=(5, 2.7), layout='constrained')
+            fig, axs = plt.subplots(num_oscs, 2, layout='constrained')
+            # create color list
+            colors = plt.cm.rainbow(np.linspace(0, 1, num_oscs))
+
+            # plot waveforms for each oscillator
+            # for idx, osc_waveform in enumerate(self._ampl_tmp_arr):
+            for idx in range(num_oscs):
+                # waveform plot
+                axs[idx, 0].set_title('Amplitude - Osc. {:d}'.format(idx))
+                axs[idx, 0].set_ylabel('Amplitude (%)')
+                axs[idx, 0].set_xlabel('Time (us)')
+                axs[idx, 0].set_ylim(0., 100.)
+                axs[idx, 0].plot(_x_axis_time_us, self._ampl_tmp_arr[idx], label='osc_{:}'.format(idx), c=colors[idx])
+
+                # phase plot
+                axs[idx, 1].set_title('Phase - Osc. {:d}'.format(idx))
+                axs[idx, 1].set_ylabel('Phase (turns)')
+                axs[idx, 1].set_xlabel('Time (us)')
+                axs[idx, 1].set_ylim(-1., 1.)
+                axs[idx, 1].plot(_x_axis_time_us, self._phas_tmp_arr[idx], label='osc_{:}'.format(idx), c=colors[idx])
+            # axs[0, idx].legend(loc="upper left")
+
+            # display figure
+            plt.show()
+
+        except Exception as e:
+            print(repr(e))

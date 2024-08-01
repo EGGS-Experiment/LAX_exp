@@ -7,12 +7,14 @@ from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
 from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
                                    rtio_input_data)
 
-from LAX_exp.base import LAXExperiment
-from LAX_exp.system.objects.PhaserPulseShape import PhaserPulseShape
+from LAX_exp.base import LAXExperiment, LAXEnvironment
+from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 
+import matplotlib.pyplot as plt
 
-class pulseshapingtest(LAXExperiment, Experiment):
+
+class pulseshapingtest(LAXEnvironment, Experiment):
     """
     pulseshapingtest
     """
@@ -33,20 +35,24 @@ class pulseshapingtest(LAXExperiment, Experiment):
 
         # objects
         self.spinecho_wizard = SpinEchoWizard(self)
-        self.pulse_shaper = PhaserPulseShape(self)
+        self.pulse_shaper = PhaserPulseShaper(self)
 
     def prepare(self):
         pass
 
     def run(self):
-        self.pulse_shaper.prepare()
-        self.pulse_shaper.calculate_pulseshape()
-        self.pulse_shaper.compile_waveform()
+        self.spinecho_wizard.prepare()
+        self.spinecho_wizard.calculate_pulseshape()
+        self.spinecho_wizard.compile_waveform()
 
-        print(self.pulse_shaper._ampl_tmp_arr)
-        print('\tsize: {}\n'.format(len(self.pulse_shaper._ampl_tmp_arr)))
-        print(self.pulse_shaper._phas_tmp_arr)
-        print('\tsize: {}\n'.format(len(self.pulse_shaper._phas_tmp_arr)))
-        print(self.pulse_shaper._time_tmp_arr)
-        print('\tsize: {}\n'.format(len(self.pulse_shaper._time_tmp_arr)))
+        # print(self.spinecho_wizard._ampl_tmp_arr)
+        # print('\tampl size: {}\n'.format(np.shape(self.spinecho_wizard._ampl_tmp_arr)))
+        # # print(self.spinecho_wizard._phas_tmp_arr)
+        # print('\tphas size: {}\n'.format(np.shape(self.spinecho_wizard._phas_tmp_arr)))
+        # # print(self.spinecho_wizard._time_tmp_arr)
+        # print('\ttime size: {}\n'.format(np.shape(self.spinecho_wizard._time_tmp_arr)))
+
+        # plt.plot(self.spinecho_wizard._ampl_tmp_arr[0])
+        # plt.show()
+        self.spinecho_wizard.display_waveform()
 
