@@ -23,8 +23,8 @@ device_db_ext = {
 
     "oven": {
         "type": "local",
-        "module": "LAX_exp.system.devices.oven",
-        "class": "Oven"
+        "module": "LAX_exp.system.devices.gpp3060",
+        "class": "GPP3060"
     },
 
     # BEAMS

@@ -57,7 +57,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.shutters.open_423_shutter()
 
         # turn on oven
-        self.oven.on()
+        self.gpp3060.turn_oven_on()
 
     @property
     def results_shape(self):
@@ -111,7 +111,7 @@ class IonLoad(LAXExperiment, Experiment):
     @rpc
     def cleanup_devices(self):
         # turn off oven
-        self.oven.off()
+        self.gpp3060.turn_oven_off()
 
         # close shutters
         self.shutters.open_377_shutter()
@@ -120,7 +120,7 @@ class IonLoad(LAXExperiment, Experiment):
         # disconnect from labjack
         self.shutters.close_labjack()
 
-    @rpc
+    @rpc(flags={"async"}) # does this need to be async 
     def check_time(self, time):
         return 600 > self.core.mu_to_seconds(time - self.start_time)  # check if longer than 10 min
 
