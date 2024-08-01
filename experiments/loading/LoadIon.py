@@ -18,19 +18,19 @@ class IonLoad(LAXExperiment, Experiment):
 
         # laser arguments
         self.setattr_argument('freq_397',
-                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"))
-        self.setattr_argument('ampl_397', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.))
-        self.setattr_argument('att_397', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"))
+                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='397')
+        self.setattr_argument('ampl_397', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='397')
+        self.setattr_argument('att_397', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='397')
 
         self.setattr_argument('freq_866',
-                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"))
-        self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.))
-        self.setattr_argument('att_866', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"))
+                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='866')
+        self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='866')
+        self.setattr_argument('att_866', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='866')
 
         # pmt arguments
-        self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0, step=1, min=80, max=250))
+        self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0, step=1, min=80, max=250), group='phonton_counting')
         self.setattr_argument('pmt_sample_time_us',
-                              NumberValue(default=3000, ndecimals=0, step=1, min=1000, max=10000, unit='us'))
+                              NumberValue(default=3e-3, ndecimals=0, step=1, min=1e-6, max=5e-3, unit='us'), group='phonton_counting')
 
         # relevant devices
         self.setattr_device('pump')
@@ -38,6 +38,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('shutters')
         self.setattr_device('oven')
         self.setattr_device('pmt')
+        self.setattr_device('scheduler')
 
     def prepare_experiment(self):
 
@@ -84,15 +85,16 @@ class IonLoad(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
+        self.core.break_realtime()  # add slack
 
         counts = 0
         idx = 0
         breaker = False
 
         while counts < self.ion_count_threshold:
+            self.core.break_realtime()  # add slack
             counts = self.pmt.fetch_count()  # grab counts from PMT
             self.check_termination()  # check if termination is over threshold
-            self.core.break_realtime()  # add slack
             idx += 1
 
             if idx >= 49:
@@ -120,7 +122,7 @@ class IonLoad(LAXExperiment, Experiment):
 
     @rpc
     def check_time(self, time):
-        return 10 > self.core.mu_to_seconds(time - self.start_time) / 60
+        return 600 > self.core.mu_to_seconds(time - self.start_time)  # check if longer than 10 min
 
     @rpc
     def check_termination(self):
