@@ -8,10 +8,9 @@ from LAX_exp.base import LAXEnvironment
 
 class PhaserPulseShaper(LAXEnvironment):
     """
-    Helper: Phase Pulse Shaper
+    Helper: Phaser Pulse Shaper
 
-    Cool the ions to the ground state of motion via sideband cooling,
-    then apply bichromatic heating tones, and try to read out the fluorescence.
+    todo: document
     """
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
@@ -148,4 +147,3 @@ class PhaserPulseShaper(LAXEnvironment):
         Play back a previously recorded waveform.
         """
         self.core_dma.playback_handle(self._dma_handles[waveform_num])
-

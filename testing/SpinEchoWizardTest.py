@@ -1,11 +1,4 @@
-import labrad
-import numpy as np
-from os import environ
 from artiq.experiment import *
-from datetime import datetime
-from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
-from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
-                                   rtio_input_data)
 
 from LAX_exp.base import LAXExperiment, LAXEnvironment
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper

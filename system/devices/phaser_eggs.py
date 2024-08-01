@@ -76,7 +76,7 @@ class PhaserEGGS(LAXDevice):
     DUC Methods
     '''
     @kernel(flags={"fast-math"})
-    def reset_duc_phase(self):
+    def reset_duc_phase(self) -> TNone:
         """
         Disable amplitude and phase accumulator for all oscillators.
         """
@@ -97,7 +97,7 @@ class PhaserEGGS(LAXDevice):
     Oscillator Methods
     '''
     @kernel(flags={"fast-math"})
-    def reset_oscillators(self):
+    def reset_oscillators(self) -> TNone:
         """
         Reset frequency, amplitude, and phase accumulators for all oscillators on both channels of the phaser.
         Maximum attenuation is set to minimize leakage of downstream phaser components.

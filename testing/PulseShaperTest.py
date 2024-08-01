@@ -21,7 +21,7 @@ class PulseShaperTest(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # general
-        self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=1000))
+        self.setattr_argument("repetitions",            NumberValue(default=100000, ndecimals=0, step=1, min=1, max=1000))
 
         # timing
         self.setattr_argument("time_reset_us",          NumberValue(default=2000, ndecimals=3, step=500, min=0.001, max=100000))
@@ -69,14 +69,32 @@ class PulseShaperTest(LAXExperiment, Experiment):
 
         # run waveform
         for i in range(self.repetitions):
+            # prepare phaser - attenuators
+            at_mu(self.phaser_eggs.get_next_frame_mu())
+            self.phaser_eggs.channel[0].set_att(self.att_phaser_db * dB)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+            self.phaser_eggs.channel[1].set_att(self.att_phaser_db * dB)
+            self.core.break_realtime()
+
             # play waveform
             at_mu(self.phaser_eggs.get_next_frame_mu())
-            self.ttl8.on()
-            self.pulse_shaper.waveform_playback(self._wav_idx)
+            with parallel:
+                self.ttl8.on()
+                with sequential:
+                    self.phaser_eggs.reset_duc_phase()
+                    self.pulse_shaper.waveform_playback(self._wav_idx)
             self.ttl8.off()
 
-            # delay reset time
-            delay_mu(self.time_reset_mu)
+            # add delay for reset
+            with parallel:
+                delay_mu(self.time_reset_mu)
+                self.phaser_eggs.reset_oscillators()
+
+            # periodically check termination
+            if i % 10:
+                self.check_termination()
+                self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def run_prepare(self):
@@ -86,13 +104,6 @@ class PulseShaperTest(LAXExperiment, Experiment):
         # prepare TTLs
         self.ttl8.off()
         self.ttl9.off()
-
-        # prepare phaser - attenuators
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_phaser_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_phaser_db * dB)
-        self.core.break_realtime()
 
         # prepare phaser - frequencies
         self.phaser_configure(self.freq_carrier_hz, self.freq_sideband_hz)
@@ -151,4 +162,5 @@ class PulseShaperTest(LAXExperiment, Experiment):
             delay_mu(self.phaser_eggs.t_sample_mu)
 
     def analyze(self):
-        self.spinecho_wizard.display_waveform()
+        # self.spinecho_wizard.display_waveform()
+        pass

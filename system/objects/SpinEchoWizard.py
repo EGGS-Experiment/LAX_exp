@@ -33,20 +33,20 @@ class SpinEchoWizard(LAXEnvironment):
         #     [[20., -0.2], [20., 0.7], [20., -0.25]]
         # ])
         self.sequence_blocks = np.array([
-            [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[40., -0.2], [40., 0.2], [20., 0.5]],
-            [[40., -0.2], [40., 0.2], [20., 0.]]
+            [[40., -0.0], [40., 0.0], [20., 0.]]
+            # [[40., -0.0], [40., 0.0], [20., 0.]],
+            # [[40., -0.0], [40., 0.0], [20., 0.]]
         ])
 
         # pulse shaping
         self.enable_pulse_shaping =         True
-        self.pulse_shape_blocks =           True
+        self.pulse_shape_blocks =           False
         self.type_pulse_shape =             'sine_squared'
         self.time_pulse_shape_rolloff_us =  100
         self.freq_pulse_shape_sample_khz =  500
 
         # spin-echo delay
-        self.enable_delay_spinecho =        True
+        self.enable_delay_spinecho =        False
         self.time_delay_spinecho_us =       10
 
         # get relevant devices
