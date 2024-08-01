@@ -36,7 +36,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('shutters')
-        self.setattr_device('oven')
+        self.setattr_device('gpp3060')
         self.setattr_device('pmt')
         self.setattr_device('scheduler')
 
@@ -120,7 +120,7 @@ class IonLoad(LAXExperiment, Experiment):
         # disconnect from labjack
         self.shutters.close_labjack()
 
-    @rpc(flags={"async"}) # does this need to be async 
+    @rpc(flags={"async"}) # does this need to be async
     def check_time(self, time):
         return 600 > self.core.mu_to_seconds(time - self.start_time)  # check if longer than 10 min
 
