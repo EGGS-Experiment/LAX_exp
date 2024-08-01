@@ -8,13 +8,13 @@ from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, Resc
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
 
 
-class RabiFlopping(LAXExperiment, Experiment):
+class QubitPulseShape(LAXExperiment, Experiment):
     """
-    Experiment: Rabi Flopping
+    Experiment: Qubit Pulse Shape
 
-    Measures ion fluorescence vs 729nm pulse time and frequency.
+    Configure pulse shaping for 729nm via Rabi flopping.
     """
-    name = 'Rabi Flopping'
+    name = 'Qubit Pulse Shape'
 
 
     def build_experiment(self):

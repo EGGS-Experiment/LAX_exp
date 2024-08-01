@@ -7,15 +7,20 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
 
+from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
+from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
+
+class EGGSHeatingRDX(LAXExperiment, Experiment):
     """
-    Experiment: EGGS Heating Phase Pulseshape
+    Experiment: EGGS Heating RDX
 
     Cool the ions to the ground state of motion via sideband cooling,
-    then apply bichromatic heating tones, and try to read out the fluorescence.
+    then apply bichromatic heating tones, and measure ion temperature
+    via sideband thermometry.
     """
-    name = 'EGGS Heating Phase Pulseshape'
+    name = 'EGGS Heating RDX'
+    kernel_invariants = {"config_eggs_heating_list"}
 
 
     def build_experiment(self):
@@ -60,8 +65,16 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, ndecimals=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=0.01, ndecimals=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=1000, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
+                                                                                default=[
+                                                                                    RangeScan(0, 1.0, 21, randomize=True),
+                                                                                    ExplicitScan([0.]),
+                                                                                ],
+                                                                                global_min=0.0, global_max=1.0, global_step=1,
+                                                                                unit="turns", scale=1, ndecimals=3
+                                                                            ), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_ch1_turns_list",          Scannable(
                                                                                 default=[
                                                                                     RangeScan(0, 1.0, 21, randomize=True),
                                                                                     ExplicitScan([0.]),
@@ -72,13 +85,10 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=99., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
-        self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
@@ -87,8 +97,8 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("enable_phase_shift_keying",                  BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_psk_phase_shifts",                       NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -97,224 +107,136 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.setattr_device('ttl9')
         self.setattr_device('ttl10')
 
+        # instantiate helper objects
+        self.spinecho_wizard = SpinEchoWizard(self)
+        self.pulse_shaper = PhaserPulseShaper(self)
+
     def prepare_experiment(self):
         """
         Prepare experimental values.
         """
-        # ensure phaser amplitudes sum to less than 100%
-        # total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
-        #                                                                      self.ampl_eggs_heating_bsb_pct +
-        #                                                                      self.ampl_eggs_dynamical_decoupling_pct)
-        # assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
-
         '''SUBSEQUENCE PARAMETERS'''
         # get readout values
         self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
         self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
                                                                           for time_us in self.time_readout_us_list])
+        # # add to kernel invariants
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        _kernel_invariants_local = {'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'time_rf_servo_holdoff_mu',
+                                    'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list', 'phase_eggs_heating_rsb_turns_list',
+                                    'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns'}
+        self.kernel_invariants = kernel_invariants | _kernel_invariants_local
 
         '''EGGS HEATING - TIMING'''
-        self.time_eggs_heating_mu =                             self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
-
-        # ensure eggs heating time is a multiple of the phaser sample period
-        # note: 1 frame period = 4 ns/clock * 8 clock cycles * 10 words = 320ns
-        # todo: move to an internal phaser function
-        if self.time_eggs_heating_mu % self.phaser_eggs.t_sample_mu:
-            # round eggs heating time up to the nearest multiple of phaser frame period
-            t_sample_multiples =                                round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
-            self.time_eggs_heating_mu =                         np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
-
         # add delay time after EGGS pulse to allow RF servo to re-lock
         self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
                                                                                    conversion_function=us_to_mu)
-
-        '''EGGS HEATING - PHASES'''
-        # preallocate variables for phase
-        self.phase_ch1_turns =                                  np.float(0)
-        self.phase_phaser_turns_arr =                           np.zeros((2, 3), dtype=float)
-
 
         '''EGGS HEATING - CONFIG'''
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_eggs_carrier_hz_list =                        np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                        np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.phase_eggs_heating_rsb_turns_list =                np.array(list(self.phase_eggs_heating_rsb_turns_list))
+        self.phase_eggs_heating_ch1_turns_list =                np.array(list(self.phase_eggs_heating_ch1_turns_list))
 
-        # map phase to index to facilitate pulse shaping
-        self.phase_eggs_heating_index_to_turns =                np.arange(len(self.phase_eggs_heating_rsb_turns_list))
-        # create data structures to allow programmatic recording & playback of DMA handles
-        self.phase_eggs_heating_dma_names_rise =                ['_eggs_heating_rise_' + str(i) for i in range(len(self.phase_eggs_heating_rsb_turns_list))]
-        self.phase_eggs_heating_dma_names_fall =                ['_eggs_heating_fall_' + str(i) for i in range(len(self.phase_eggs_heating_rsb_turns_list))]
-        self.phase_eggs_heating_dma_handles_rise =              [(0, np.int64(0), np.int32(0))] * len(self.phase_eggs_heating_rsb_turns_list)
-        self.phase_eggs_heating_dma_handles_fall =              [(0, np.int64(0), np.int32(0))] * len(self.phase_eggs_heating_rsb_turns_list)
-
+        # map phase to index to facilitate waveform recording
+        self.waveform_index_to_phase_rsb_turns =                np.arange(len(self.phase_eggs_heating_rsb_turns_list))
 
         # implement frequency sub-repetitions by "multiplying" the eggs frequency
         self.freq_eggs_carrier_hz_list =                        np.repeat(self.freq_eggs_carrier_hz_list, self.sub_repetitions)
 
-        # create config data structure with amplitude values
+        # create config data structure
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                           len(self.freq_eggs_carrier_hz_list) *
                                                                           len(self.freq_eggs_secular_hz_list) *
                                                                           len(self.phase_eggs_heating_rsb_turns_list) *
+                                                                          len(self.phase_eggs_heating_ch1_turns_list) *
                                                                           len(self.time_readout_mu_list),
-                                                                          8), dtype=float)
-
-        # note: sideband readout frequencies are at the end of the
-        # meshgrid to support adjacent_sidebands configuration option
-        self.config_eggs_heating_list[:, [1, 2, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
+                                                                          6), dtype=float)
+        # note: sideband readout frequencies are at the end of the meshgrid
+        # to ensure successive rsb/bsb measurements are adjacent
+        self.config_eggs_heating_list[:, [1, 2, -3, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
                                                                                      self.freq_eggs_secular_hz_list,
-                                                                                     self.phase_eggs_heating_index_to_turns,
+                                                                                     self.waveform_index_to_phase_rsb_turns,
+                                                                                     self.phase_eggs_heating_ch1_turns_list,
                                                                                      self.time_readout_mu_list,
                                                                                      self.freq_sideband_readout_ftw_list),
-                                                                         -1).reshape(-1, 5)
-        self.config_eggs_heating_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
-                                                                          self.ampl_eggs_heating_bsb_pct,
-                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+                                                                         -1).reshape(-1, 6)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
 
-
-        '''EGGS HEATING - AMPLITUDE CALIBRATION'''
-        # interpolate calibration dataset
-        # note: we choose 1D interpolator since it ensures smoothness at each point
-        from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                     self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
-        ampl_calib_curve =                                      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
-
-        # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
-        # todo: move to a phaser internal function
-        # calculate calibrated eggs sidebands amplitudes
-        if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
-                # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
-                # get normalized transmission through system
-                transmitted_power_frac =                        ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
-                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
-                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                                                                 ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, [3, 4, 5]] =   np.array([scaled_power_pct[0],
-                                                                          scaled_power_pct[1],
-                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # configure waveform via pulse shaper & spin echo wizard
+        self._prepare_waveform()
 
 
-        '''EGGS HEATING - EGGS RF CONFIGURATION'''
-        # if dynamical decoupling is disabled, set carrier amplitude to 0.
-        if not self.enable_dynamical_decoupling:                self.config_eggs_heating_list[:, 5] = 0.
-
-        # configure pulse shaping
-        # note: instead of having to deal with adjusting shape, etc., will just add the pulse shaping in addition to the actual pulse
-        self._prepare_pulseshape()
-
-        # configure phase-shift keying for dynamical decoupling
-        self._prepare_psk()
-
-    def _prepare_pulseshape(self):
+    def _prepare_waveform(self) -> TNone:
         """
-        Calculate waveform and timings for phaser pulse shaping.
+        Calculate waveforms and timings for the EGGS pulse.
         """
-        ### PULSE SHAPING - TIMING ###
-        # convert build variables to units of choice
-        self.time_pulse_shape_rolloff_mu =          self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
+        '''PREPARE WAVEFORM COMPILATION'''
+        # create holding structures for EGGS pulse waveforms
+        self.waveform_index_to_pulseshaper_vals =   list()      # store compiled waveforms
+        self.waveform_index_to_pulseshaper_id =     np.zeros(len(self.phase_eggs_heating_rsb_turns_list), dtype=np.int32)   # store pulseshaper waveform ID
 
-        # todo: document
-        self.t_max_phaser_update_rate_mu =          25 * self.phaser_eggs.t_sample_mu
-        self.time_pulse_shape_sample_mu =           self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
-        # todo: add error handling and printouts if there's some sampling problem
+        # set correct phase delays for field geometries
+        self.pulse_shaper._phase_offsets_turns = np.array([0., 0., 0.5, 0., 0.])
 
-        # ensure pulse shaping time is a multiple of the max sustained phaser update rate
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators) is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
-        if self.time_pulse_shape_sample_mu % self.t_max_phaser_update_rate_mu:
-            # round pulse shaping sample time up to the nearest multiple of phaser sample period
-            t_sample_multiples =                    round((self.time_pulse_shape_sample_mu / self.t_max_phaser_update_rate_mu) + 0.5)
-            self.time_pulse_shape_sample_mu =       np.int64(t_sample_multiples * self.t_max_phaser_update_rate_mu)
+        # set up the spin echo wizard generally
+        self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us
+        self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
+        self.spinecho_wizard.pulse_shape_blocks =           False
+        self.spinecho_wizard.type_pulse_shape =             self.type_pulse_shape
+        self.spinecho_wizard.time_pulse_shape_rolloff_us =  self.time_pulse_shape_rolloff_us
+        self.spinecho_wizard.freq_pulse_shape_sample_khz =  self.freq_pulse_shape_sample_khz
+        self.spinecho_wizard.enable_delay_spinecho =        False
 
-        # delay time between successive updates to the pulse envelope, accounts for 2x t_sample_mu delay from having to set 3 oscillators
-        self.time_pulse_shape_delay_mu =            np.int64(self.time_pulse_shape_sample_mu - 2 * self.phaser_eggs.t_sample_mu)
-        # note: calculation of the number of samples accounts for the delay from setting multiple oscillators
-        self.num_pulse_shape_samples =              np.int32(self.time_pulse_shape_rolloff_mu / (self.time_pulse_shape_sample_mu))
+        '''DESIGN WAVEFORM SEQUENCE'''
+        # set up blocks for pulse sequence
+        num_blocks = 1
+        if self.enable_phase_shift_keying:  num_blocks = self.num_psk_phase_shifts + 1
 
+        # create bare waveform block sequence
+        _sequence_blocks = np.zeros((num_blocks, 3, 2), dtype=float)
 
-        ### PULSE SHAPING - AMPLITUDE WINDOW ###
-        # hotfix - 2024/06/21 - implement dd enable for pulse shaping
-        ampl_dd_pct =                               self.ampl_eggs_dynamical_decoupling_pct
-        if not self.enable_dynamical_decoupling:    ampl_dd_pct = 0.
+        # set oscillator amplitudes
+        _sequence_blocks[:, 0, 0] = self.ampl_eggs_heating_rsb_pct
+        _sequence_blocks[:, 1, 0] = self.ampl_eggs_heating_bsb_pct
+        _sequence_blocks[:, 2, 0] = self.ampl_eggs_heating_carrier_pct
 
-        # create holder object for pulse amplitudes
-        self.ampl_pulse_shape_frac_list =           np.tile(np.array([self.ampl_eggs_heating_rsb_pct,
-                                                                      self.ampl_eggs_heating_bsb_pct,
-                                                                      ampl_dd_pct]) / 100.,
-                                                            self.num_pulse_shape_samples).reshape(-1, 3)
+        # set bsb phase and account for oscillator delay time
+        # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
+        phase_bsb_update_delay_turns = np.mean(self.freq_eggs_secular_hz_list) * (self.phaser_eggs.t_sample_mu * ns)
+        _sequence_blocks[:, 1, 1] = self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
-        # calculate windowing values
-        if self.type_pulse_shape == 'sine_squared':
-            # calculate sine squared window
-            self.ampl_window_frac_list =                                    np.power(np.sin(
-                                                                                (np.pi / (2. * self.num_pulse_shape_samples)) *
-                                                                                np.linspace(1, self.num_pulse_shape_samples, self.num_pulse_shape_samples)),
-                                                                            2)
-        elif self.type_pulse_shape == 'error_function':
-            raise Exception('Error: error function window not implemented')
-        else:
-            raise Exception('Error: idk, some window problem')
+        # set PSK phases on the carrier
+        if self.enable_phase_shift_keying:
+            _sequence_blocks[::2, 2, 1] =   0.
+            _sequence_blocks[1::2, 2, 1] =  0.5
 
-        # todo: add other spicy windows
-        # ensure window array has correct dimensions required
-        self.ampl_window_frac_list =                np.array([self.ampl_window_frac_list]).transpose()
+        # record EGGS pulse waveforms
+        for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
+            # update sequence block with rsb phase
+            phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[i]
+            _sequence_blocks[:, 0, 1] = phase_rsb_turns
 
-        # apply window to pulse shape
-        self.ampl_pulse_shape_frac_list *=          self.ampl_window_frac_list
-        self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
+            # create waveform
+            self.spinecho_wizard.sequence_blocks = _sequence_blocks
+            self.spinecho_wizard.calculate_pulseshape()
+            self.spinecho_wizard.compile_waveform()
 
-        # show pulse shape values to dataset so we can triple check everything is ok
-        # print('\n\tps sample freq:\t\t{:f} kHz'.format(self.freq_pulse_shape_sample_khz))
-        # print('\tps sample time (raw):\t\t{:f} ns'.format(self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))))
-        # print('\tps sample time (aligned):\t{:f} ns'.format(self.time_pulse_shape_sample_mu))
-        # print('\tps delay time:\t\t{:f} ns'.format(self.time_pulse_shape_delay_mu))
-        # print('\tps num samples:\t\t{:d}\n'.format(self.num_pulse_shape_samples))
-
-
-    def _prepare_psk(self):
-        """
-        Calculate and prepare timings for PSK.
-        """
-        # create config holder for dynamical decoupling PSK; holds time_mu and phase in turns
-        self.config_dynamical_decoupling_psk_list =                         np.zeros((self.num_dynamical_decoupling_phase_shifts + 1, 2), dtype=np.int64)
-        self.config_dynamical_decoupling_psk_list[1::2] =                   1
-
-        # divide total eggs heating time into PSK segments
-        self.time_psk_delay_mu =                                            np.int64(round(self.time_eggs_heating_mu / (self.num_dynamical_decoupling_phase_shifts + 1)))
-        # ensure PSK interval time is a multiple of the phaser sample period
-        if self.time_psk_delay_mu % self.phaser_eggs.t_sample_mu:
-            # round dynamical decoupling PSK interval to the nearest multiple of phaser sample period
-            t_sample_multiples =                                            round(self.time_psk_delay_mu / self.phaser_eggs.t_sample_mu + 0.5)
-            self.time_psk_delay_mu =                                        np.int64(t_sample_multiples * self.phaser_eggs.t_sample_mu)
-
-        # update dynamical decoupling config list with verified PSK time
-        self.config_dynamical_decoupling_psk_list[:, 0] =                   self.time_psk_delay_mu
-        # ensure that psk rate doesn't exceed the shaping time (t_max_phaser_update_rate_mu; about 25 * t_sample_mu)
-        if self.time_psk_delay_mu >= self.t_max_phaser_update_rate_mu:
-            raise Exception("Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate.")
-
-        # set appropriate phaser run method for dynamical decoupling PSK
-        if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
-        else:                                                               self.phaser_run = self.phaser_run_nopsk
+            # get waveform data and store in holding structure
+            self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
-                6)
+                7)
 
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -322,8 +244,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         ### PHASER INITIALIZATION ###
-        self.phaser_setup()
-        self.core.break_realtime()
+        self.phaser_record()
 
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -331,29 +252,27 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
+        # ensure INT HOLD on RF servo is deactivated
+        self.ttl10.off()
+
         # reset debug triggers
         self.ttl8.off()
         self.ttl9.off()
-        # tmp remove
-        self.ttl10.off()
 
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
-        # get phaser pulse shaping sequence handles for each RSB
-        for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
-            self.phase_eggs_heating_dma_handles_rise[i] = self.core_dma.get_handle(self.phase_eggs_heating_dma_names_rise[i])
-            self.core.break_realtime()
-            self.phase_eggs_heating_dma_handles_fall[i] = self.core_dma.get_handle(self.phase_eggs_heating_dma_names_fall[i])
-            self.core.break_realtime()
+        # load waveform DMA handles
+        self.pulse_shaper.waveform_load()
+        self.core.break_realtime()
 
         # used to check_termination more frequently
         _loop_iter = 0
 
         # tmp remove
-        # set phaser attenuators
+        # set phaser attenuators here to prevent turn on glitch (problematic when cables direct to trap)
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
@@ -370,21 +289,20 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
 
                 '''CONFIGURE'''
                 # extract values from config list
-                freq_readout_ftw =          np.int32(config_vals[0])
-                carrier_freq_hz =           config_vals[1]
-                sideband_freq_hz =          config_vals[2]
-                ampl_rsb_frac =             config_vals[3]
-                ampl_bsb_frac =             config_vals[4]
-                ampl_dd_frac =              config_vals[5]
-                phase_rsb_index =           np.int32(config_vals[6])
-                time_readout_mu =           np.int64(config_vals[7])
+                freq_readout_ftw =      np.int32(config_vals[0])
+                carrier_freq_hz =       config_vals[1]
+                sideband_freq_hz =      config_vals[2]
+                phase_rsb_index =       np.int32(config_vals[3])
+                phase_ch1_turns =       config_vals[4]
+                time_readout_mu =       np.int64(config_vals[5])
 
-                # get corresponding RSB phase in turns from the index
+                # get corresponding RSB phase and waveform ID from the index
                 phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[phase_rsb_index]
+                waveform_id = self.waveform_index_to_pulseshaper_id[phase_rsb_index]
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
+                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
@@ -396,29 +314,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 '''EGGS HEATING'''
-                # EGGS - START/SETUP
-                # activate integrator hold
-                self.ttl10.on()
-                # # set phaser attenuators
-                # at_mu(self.phaser_eggs.get_next_frame_mu())
-                # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-                # delay_mu(self.phaser_eggs.t_sample_mu)
-                # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-
-                # reset DUC phase to start DUC deterministically
-                self.phaser_eggs.reset_duc_phase()
-                self.core_dma.playback_handle(self.phase_eggs_heating_dma_handles_rise[phase_rsb_index])
-
-                # EGGS - RUN
-                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
-
-                # EGGS - STOP
-                self.core_dma.playback_handle(self.phase_eggs_heating_dma_handles_fall[phase_rsb_index])
-                self.phaser_eggs.phaser_stop()
-                # deactivate integrator hold
-                self.ttl10.off()
-                # add delay time after EGGS pulse to allow RF servo to re-lock
-                delay_mu(self.time_rf_servo_holdoff_mu)
+                self.phaser_run(waveform_id)
 
                 '''READOUT'''
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
@@ -433,10 +329,12 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
                         carrier_freq_hz,
                         sideband_freq_hz,
                         phase_rsb_turns,
+                        phase_ch1_turns,
                         time_readout_mu
                     )
                     self.core.break_realtime()
 
+                '''LOOP CLEANUP'''
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
@@ -454,74 +352,70 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
-        # tmp remove
 
 
     '''
     HELPER FUNCTIONS - PHASER
     '''
     @kernel(flags={"fast-math"})
-    def phaser_setup(self) -> TNone:
+    def phaser_run(self, waveform_id: TInt32) -> TNone:
+        """
+        Run the main EGGS pulse together with supporting functionality.
+        Arguments:
+            waveform_id     (TInt32)    : the ID of the waveform to run.
+        """
+        # EGGS - START/SETUP
+        # activate integrator hold
+        self.ttl10.on()
+
+        # # set phaser attenuators - warning creates turn on glitch
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
+        # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
+        # delay_mu(self.phaser_eggs.t_sample_mu)
+        # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+
+        # EGGS - RUN
+        # reset DUC phase to start DUC deterministically
+        self.phaser_eggs.reset_duc_phase()
+        # play recorded waveform
+        self.pulse_shaper.waveform_playback(waveform_id)
+
+        # EGGS - STOP
+        # stop all oscillators (doesn't unset attenuators)
+        self.phaser_eggs.phaser_stop()
+        # deactivate integrator hold
+        self.ttl10.off()
+        # add delay time after EGGS pulse to allow RF servo to re-lock
+        delay_mu(self.time_rf_servo_holdoff_mu)
+
+    @kernel(flags={"fast-math"})
+    def phaser_record(self) -> TNone:
         """
         Set up core phaser functionality and record the pulse-shaped waveforms.
         Should be run during initialize_experiment.
         """
-        # get starting phase values for pulse shaping
-        carrier_freq_hz =   self.config_eggs_heating_list[0, 1]
-        sideband_freq_hz =  self.config_eggs_heating_list[0, 2]
-        self.core.break_realtime()
-
-        # record DMA sequences for each RSB phase
+        # record phaser sequences onto DMA for each RSB phase
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
 
-            # get RSB phase
-            phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[i]
-
-            # configure EGGS tones and set readout frequency; also necessary to ensure phase delays are correctly set
-            self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_rsb_turns)
+            # get waveform for given RSB phase
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
             self.core.break_realtime()
 
-            # add slack for recording DMA sequences - 1 ms
-            delay_mu(1000000)
-
-            # record phaser rising pulse shape DMA sequence
-            if self.enable_pulse_shaping:
-                with self.core_dma.record(self.phase_eggs_heating_dma_names_rise[i]):
-                    # set amplitude values at given time
-                    for ampl_val_list in self.ampl_pulse_shape_frac_list:
-                        self.phaser_pulseshape_point(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
-                        delay_mu(self.time_pulse_shape_delay_mu)
-            else:
-                with self.core_dma.record(self.phase_eggs_heating_dma_names_rise[i]):
-                    pass
-            self.core.break_realtime()
-
-            # add slack for recording DMA sequences - 1 ms
-            delay_mu(1000000)
-
-            # record phaser falling pulse shape DMA sequence
-            if self.enable_pulse_shaping:
-                with self.core_dma.record(self.phase_eggs_heating_dma_names_fall[i]):
-                    # set amplitude values at given time
-                    for ampl_val_list in self.ampl_pulse_shape_reverse_frac_list:
-                        self.phaser_pulseshape_point(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
-                        delay_mu(self.time_pulse_shape_delay_mu)
-            else:
-                with self.core_dma.record(self.phase_eggs_heating_dma_names_fall[i]):
-                    pass
+            # record phaser pulse sequence and save returned waveform ID
+            delay_mu(100000)  # add slack for recording DMA sequences (100 us)
+            _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
+            self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, phase_rsb_turns: TFloat) -> TNone:
+    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, phase_ch1_offset_turns: TFloat) -> TNone:
         """
         Configure the tones on phaser for EGGS.
         Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
@@ -529,26 +423,13 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         Arguments:
             carrier_freq_hz         (float)     : the carrier frequency (in Hz).
             sideband_freq_hz        (float)     : the sideband frequency (in Hz).
-            phase_rsb_turns         (float)     : the phase for the rsb tone (in turns).
+            phase_ch1_offset_turns  (float)     : the phase offset for CH1 (in turns).
         """
         '''
         CALCULATE PHASE DELAYS
         '''
         # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
-        self.phase_ch1_turns =          (self.phaser_eggs.phase_inherent_ch1_turns +
-                                         (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
-
-        # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
-        # oscillator 0 (RSB)
-        self.phase_phaser_turns_arr[0, 0] = phase_rsb_turns
-        self.phase_phaser_turns_arr[1, 0] = phase_rsb_turns
-        # oscillator 1 (BSB)
-        self.phase_phaser_turns_arr[0, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
-        self.phase_phaser_turns_arr[1, 1] = (sideband_freq_hz * self.phaser_eggs.t_sample_mu * ns) + self.phase_eggs_heating_bsb_turns
-        # oscillator 2 (carrier) (note: ch1 has 0.5 turns to put carrier in dipole config)
-        self.phase_phaser_turns_arr[0, 2] = 0.
-        self.phase_phaser_turns_arr[1, 2] = 0.5
-        self.core.break_realtime()
+        phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns)
 
         '''
         SET CARRIER FREQUENCY
@@ -564,7 +445,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
 
         # set DUC phase delay to compensate for inter-channel latency
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_duc_phase(self.phase_ch1_turns)
+        self.phaser_eggs.channel[1].set_duc_phase(phase_ch1_turns)
         self.phaser_eggs.duc_stb()
 
         '''
@@ -587,106 +468,6 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
             self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
             self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
             delay_mu(self.phaser_eggs.t_sample_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_pulseshape_point(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
-        """
-        Convenience function for pulse-shaping the EGGS waveform.
-        Sets the same oscillator amplitudes for both channels.
-        The phase used is the existing value of self.phaser_phaser_turns_arr.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[0, 1], clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[1, 1], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[0, 2], clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[1, 2], clr=0)
-
-
-    '''
-    HELPER FUNCTIONS - PSK
-    '''
-    @kernel(flags={"fast-math"})
-    def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
-        """
-        Activate phaser channel outputs for EGGS heating.
-        Sets the same oscillator amplitudes for both channels.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.ttl8.on()
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[0, 1], clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[1, 1], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[0, 2], clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[1, 2], clr=0)
-
-        # main eggs pulse
-        delay_mu(self.time_eggs_heating_mu)
-        self.ttl8.off()
-
-    @kernel(flags={"fast-math"})
-    def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
-        """
-        Activate phaser channel outputs for EGGS heating.
-        Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.
-        Arguments:
-            ampl_rsb_frac   (float) : the red sideband amplitude (as a decimal fraction).
-            ampl_bsb_frac   (float) : the blue sideband amplitude (as a decimal fraction).
-            ampl_dd_frac    (float) : the dynamical decoupling amplitude (as a decimal fraction).
-        """
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[0, 1], clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_phaser_turns_arr[1, 1], clr=0)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[0, 2], clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[1, 2], clr=0)
-
-        # first PSK delay period
-        delay_mu(self.config_dynamical_decoupling_psk_list[0][0])
-
-        # conduct PSK on carrier
-        for dd_config_vals in self.config_dynamical_decoupling_psk_list[1:]:
-            # set oscillator 2 (carrier) with phase shift
-            with parallel:
-                self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
-                                                                              phase=self.phase_phaser_turns_arr[0, 2] + (dd_config_vals[1] * 0.5),
-                                                                              clr=0)
-                self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac,
-                                                                              phase=self.phase_phaser_turns_arr[1, 2] + (dd_config_vals[1] * 0.5),
-                                                                              clr=0)
-                delay_mu(dd_config_vals[0])
 
 
     '''
@@ -767,4 +548,3 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         except Exception as e:
             print("Warning: unable to process data.")
             print(repr(e))
-

@@ -24,6 +24,20 @@ class SpinEchoWizard(LAXEnvironment):
 
 
     def build(self):
+        """
+        todo: document
+        """
+        # set max hardware sample rate
+        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
+        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
+        self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+
+        # get relevant devices
+        self.setattr_device('core')
+        self.setattr_device('phaser_eggs')
+
+
+        '''WAVEFORM CONFIGURATION ARGUMENTS'''
         # waveform block sequence
         self.time_pulse_us =                200
         # self.sequence_blocks = np.array([
@@ -49,29 +63,19 @@ class SpinEchoWizard(LAXEnvironment):
         self.enable_delay_spinecho =        False
         self.time_delay_spinecho_us =       10
 
-        # get relevant devices
-        self.setattr_device('core')
-        self.setattr_device('phaser_eggs')
-
-    def prepare(self):
+    def calculate_pulseshape(self) -> TNone:
         """
         todo: document
         """
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
-        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
-        self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
-
-        # convert pulse times to mu and ensure they are multiples of the phaser sample rate (40ns)
+        '''precalculate timings'''
+        # convert pulse times to mu and ensure they are multiples of the phaser sample period (40ns)
+        # note: 1 frame period = 4 ns/clock * 8 clock cycles * 10 words = 320ns
         self.time_pulse_mu = self.core.seconds_to_mu(self.time_pulse_us * us)
         self.time_pulse_mu -= self.time_pulse_mu % self.phaser_eggs.t_sample_mu
 
         self.time_delay_spinecho_mu = self.core.seconds_to_mu(self.time_delay_spinecho_us * us)
         self.time_delay_spinecho_mu -= self.time_delay_spinecho_mu % self.phaser_eggs.t_sample_mu
 
-    def calculate_pulseshape(self) -> TNone:
-        """
-        todo: document
-        """
         '''calculate num samples (i.e. x-axis)'''
         # convert build variables to units of choice
         self.time_pulse_shape_rolloff_mu =          self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
@@ -93,7 +97,6 @@ class SpinEchoWizard(LAXEnvironment):
 
         # create x-axis value array
         self._pulse_shape_array_times_mu = np.arange(self.num_pulse_shape_samples, dtype=np.int64) * self.time_pulse_shape_sample_mu
-
 
         '''calculate pulse shape window (i.e. y-vals)'''
         if self.type_pulse_shape == 'sine_squared':
@@ -283,8 +286,6 @@ class SpinEchoWizard(LAXEnvironment):
         wav_data_phas = self._phas_tmp_arr.transpose()
         wav_data_time = self._time_tmp_arr
         return wav_data_ampl, wav_data_phas, wav_data_time
-
-
 
     def display_waveform(self):
         """
