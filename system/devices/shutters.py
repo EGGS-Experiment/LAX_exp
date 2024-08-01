@@ -30,28 +30,28 @@ class Shutters(LAXDevice):
         pass
 
     @rpc
-    def open_377_shutter(self, port) -> TNone:
+    def open_377_shutter(self) -> TNone:
         """
         Open the Shutter
         """
         self.labjack.write_name(self.port_name_377, 1)
 
     @rpc
-    def close_377_shutter(self, port) -> TNone:
+    def close_377_shutter(self) -> TNone:
         """
         Close the Shutter
         """
         self.labjack.write_name(self.port_name_377, 0)
 
     @rpc
-    def open_423_shutter(self, port) -> TNone:
+    def open_423_shutter(self) -> TNone:
         """
         Open the Shutter
         """
         self.labjack.write_name(self.port_name_423, 1)
 
     @rpc
-    def close_423_shutter(self, port) -> TNone:
+    def close_423_shutter(self) -> TNone:
         """
         Close the Shutter
         """
