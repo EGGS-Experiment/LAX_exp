@@ -18,24 +18,34 @@ class IonLoad(LAXExperiment, Experiment):
 
         # laser arguments
         self.setattr_argument('freq_397_mhz',
-                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='397')
-        self.setattr_argument('ampl_397', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='397')
-        self.setattr_argument('att_397_dB', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='397')
+                              NumberValue(default=110., ndecimals=1,
+                                          step=0.1, min=90., max=120., unit="MHz"), group='397')
+        self.setattr_argument('ampl_397', NumberValue(default=50., ndecimals=1,
+                                                      step=0.1, min=0., max=100.), group='397')
+        self.setattr_argument('att_397_dB', NumberValue(default=14., ndecimals=1,
+                                                        step=0.1, min=0., max=31.5, unit="dB"), group='397')
 
-        self.setattr_argument('freq_866_mhz',
-                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='866')
-        self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='866')
-        self.setattr_argument('att_866_dB', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='866')
+        self.setattr_argument('freq_866_mhz',NumberValue(default=110., ndecimals=1,
+                                                         step=0.1, min=90., max=120., unit="MHz"), group='866')
+        self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1,
+                                                      step=0.1, min=0., max=100.), group='866')
+        self.setattr_argument('att_866_dB', NumberValue(default=14., ndecimals=1,
+                                                        step=0.1, min=0., max=31.5, unit="dB"), group='866')
 
         self.setattr_argument('freq_854_mhz',
-                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='854')
-        self.setattr_argument('ampl_854', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='854')
-        self.setattr_argument('att_854_dB', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='854')
+                              NumberValue(default=110., ndecimals=1,
+                                          step=0.1, min=90., max=120., unit="MHz"), group='854')
+        self.setattr_argument('ampl_854', NumberValue(default=50., ndecimals=1,
+                                                      step=0.1, min=0., max=100.), group='854')
+        self.setattr_argument('att_854_dB', NumberValue(default=14., ndecimals=1,
+                                                        step=0.1, min=0., max=31.5, unit="dB"), group='854')
 
         # pmt arguments
-        self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0, step=1, min=80, max=250), group='phonton_counting')
+        self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0,
+                                                                 step=1, min=80, max=250), group='phonton_counting')
         self.setattr_argument('pmt_sample_time_us',
-                              NumberValue(default=3e-3, ndecimals=0, step=1, min=1e-6, max=5e-3, unit='us'), group='phonton_counting')
+                              NumberValue(default=3e-3, ndecimals=0,
+                                          step=1, min=1e-6, max=5e-3, unit='us'), group='phonton_counting')
 
         # relevant devices
         self.setattr_device('pump')
@@ -44,6 +54,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('shutters')
         self.setattr_device('gpp3060')
         self.setattr_device('pmt')
+        self.setattr_device('aperture')
         self.setattr_device('scheduler')
 
     def prepare_experiment(self):
@@ -100,6 +111,9 @@ class IonLoad(LAXExperiment, Experiment):
         self.gpp3060.turn_oven_on()   # turn on oven
         self.core.break_realtime()
 
+        self.aperture.open_aperture()
+        self.core.break_realtime()
+
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.break_realtime()  # add slack
@@ -146,10 +160,13 @@ class IonLoad(LAXExperiment, Experiment):
         # disconnect from labjack
         self.shutters.close_labjack()
 
+        #close aperture
+        self.aperture.close_aperture()
+
     @kernel
     def check_time(self) -> TBool:
         self.core.break_realtime()
-        return 600 > self.core.mu_to_seconds(self.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
+        return 600 > self.core.mu_to_seconds(self.get_rtio_counter_mu() - self.start_time) # check if longer than 10 min
 
     @rpc
     def check_termination(self):
