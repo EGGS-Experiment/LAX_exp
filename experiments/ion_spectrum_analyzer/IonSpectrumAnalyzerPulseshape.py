@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.system.subsequences import SqueezeConfigurable
@@ -8,20 +9,18 @@ import LAX_exp.experiments.eggs_heating.EGGSHeating as EGGSHeating
 from math import gcd
 
 # todo: generally migrate everything over to machine units
-# todo: program phase/profile onto urukul
-# todo: synchronize timing for carrier/urukul
 # todo: ensure attenuations/power/freq are correctly set
 
 
 class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     """
-    Experiment: Ion Spectrum Analyzer
+    Experiment: Ion Spectrum Analyzer Pulse Shape
 
     ***todo: redocument***
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
     """
-    name = 'Ion Spectrum Analyzer'
+    name = 'Ion Spectrum Analyzer Pulse Shape'
 
 
     def build_experiment(self):
@@ -47,18 +46,15 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                             ), group=self.name)
 
         # ISA - antisqueezing
-        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_rsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_bsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=True), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         self.setattr_argument("enable_ISA_antisqueezing_dipole",            BooleanValue(default=False), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_dipole_pct",          NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
         self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         # extrinsic squeezing
-        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=1542.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
+        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=100001.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([0.]),
@@ -67,12 +63,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                                     unit="turns", scale=1, ndecimals=3
                                                                                 ), group='squeeze_configurable')
-        self.setattr_argument("time_squeeze_us",                            NumberValue(default=50., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
+        self.setattr_argument("time_squeeze_us",                            NumberValue(default=30., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # tmp remove
         self.setattr_device('dds_parametric')
-        self.setattr_device('ttl10')
 
 
     def prepare_experiment(self):
@@ -82,12 +77,16 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         #                                                                      self.ampl_eggs_dynamical_decoupling_pct)
         # assert total_phaser_channel_amplitude <= 100.,                      "Error: total phaser amplitude exceeds 100%."
 
+        # tmp remove: alias enable_ISA_antisqueezing and enable_ISA_antisqueezing_dipole as an int type
+        self.status_ISA_antisqueezing = int(self.enable_ISA_antisqueezing)
+        self.status_ISA_antisqueezing_dipole = int(self.enable_ISA_antisqueezing_dipole)
+        # tmp remove
+
         # run preparations for sideband cooling
         super().prepare_experiment()
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
         self.time_readout_mu_list =                                         np.array([self.core.seconds_to_mu(time_us * us)
                                                                                       for time_us in self.time_readout_us_list])
-
 
         ### EGGS HEATING - TIMING ###
         self.time_eggs_heating_mu =                                         self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
@@ -219,13 +218,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         if self.enable_ISA_antisqueezing:                                   self.phaser_run = self.phaser_run_ISA_antisqueezing
         else:                                                               self.phaser_run = self.phaser_run_nopsk
 
-        #
-
-        # convert intrinsic ISA squeezing values to pct
-        self.ampl_ISA_antisqueezing_rsb_frac =                              self.ampl_ISA_antisqueezing_rsb_pct / 100.
-        self.ampl_ISA_antisqueezing_bsb_frac =                              self.ampl_ISA_antisqueezing_bsb_pct / 100.
-        self.ampl_ISA_antisqueezing_dipole_frac =                           self.ampl_ISA_antisqueezing_dipole_pct / 100. * float(self.enable_ISA_antisqueezing_dipole)
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_eggs_heating_list),
@@ -236,11 +228,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
-
         # get custom sequence handles
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
         _handle_eggs_pulseshape_fall =      self.core_dma.get_handle('_PHASER_PULSESHAPE_FALL')
         self.core.break_realtime()
+
 
 
         # MAIN LOOP
@@ -261,18 +253,18 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 offset_freq_hz =            config_vals[7]
                 phase_antisqueeze_pow =     np.int32(config_vals[8])
                 phase_rsb_turns =           config_vals[9]
+
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout
-                self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
-                self.core.break_realtime()
+                # self.phaser_psk_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz)
                 self.phaser_configure(carrier_freq_hz, sideband_freq_hz, offset_freq_hz, phase_rsb_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
 
                 # configure squeezing/antisqueezing
-                self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
+                # self.squeeze_subsequence.configure(self.freq_squeeze_ftw, phase_antisqueeze_pow, self.time_squeeze_mu)
                 self.core.break_realtime()
 
 
@@ -284,14 +276,14 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # squeeze ion
                 self.squeeze_subsequence.squeeze()
 
+                # activate integrator hold
+                self.ttl10.on()
+
 
                 '''ION SPECTRUM ANALYZER'''
                 # PHASER - START/SETUP
                 # todo: hide it all away in a method
                 self.phaser_eggs.reset_duc_phase()
-                # tmp remove - integrator hold
-                # self.ttl10.on()
-                # tmp remove - integrator hold
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # PHASER - RUN
@@ -299,33 +291,37 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
                 # PHASER - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
-                self.phaser_stop()
-                # tmp remove - integrator hold
-                # self.ttl10.off()
-                # tmp remove - integrator hold
+                self.phaser_eggs.phaser_stop()
+
+                self.ttl10.off()
+                delay_mu(self.time_rf_servo_holdoff_mu)
 
 
                 '''READOUT'''
-                # antisqueeze ion
                 self.squeeze_subsequence.antisqueeze()
+                #
+                # # set readout waveform for qubit
+                # self.qubit.set_profile(0)
+                # self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
+                #
+                # # population transfer pulse
+                # self.qubit.on()
+                # delay_mu(time_readout_mu)
+                # self.qubit.off()
+                #
+                # # read out fluorescence
+                # self.readout_subsequence.run_dma()
 
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
-
-                # population transfer pulse
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
-
-                # read out fluorescence
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
+                counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
                 with parallel:
                     self.update_results(
                         freq_readout_ftw,
-                        self.readout_subsequence.fetch_count(),
+                        # self.readout_subsequence.fetch_count(),
+                        counts,
                         carrier_freq_hz,
                         sideband_freq_hz,
                         offset_freq_hz,
@@ -338,6 +334,11 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
+                # death detection
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
+
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
@@ -349,6 +350,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         # CLEANUP
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
+
+        self.ttl10.off()
 
 
     # HELPER FUNCTIONS - PHASER
@@ -370,6 +373,10 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(100000000)
+
+
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
                 # set amplitude values at given time
@@ -380,17 +387,40 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
                 pass
 
+        # record phaser falling pulse shape for antisqueezing
+        self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(10000000)
+
+        if self.enable_pulse_shaping:
+            with self.core_dma.record('_PHASER_PULSESHAPE_ANTISQUEEZE'):
+                # set amplitude values at given time
+                for ampl_val_list in self.ampl_pulse_shape_antisqueeze_frac_list:
+                    self.phaser_pulseshape_point_reverse(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
+                    delay_mu(self.time_pulse_shape_delay_mu)
+        else:
+            with self.core_dma.record('_PHASER_PULSESHAPE_ANTISQUEEZE'):
+                pass
+
+        self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(100000000)
+
         # record phaser falling pulse shape DMA sequence
         self.core.break_realtime()
         if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
                 # set amplitude values at given time
                 for ampl_val_list in self.ampl_pulse_shape_reverse_frac_list:
-                    self.phaser_pulseshape_point(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
+                    self.phaser_pulseshape_point_reverse(ampl_val_list[0], ampl_val_list[1], ampl_val_list[2])
                     delay_mu(self.time_pulse_shape_delay_mu)
         else:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
                 pass
+
+        self.core.break_realtime()
+        # add slack for recording DMA sequences - 1 ms
+        delay_mu(100000000)
 
         # set attenuations for phaser outputs
         self.core.break_realtime()
@@ -398,6 +428,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, offset_freq_hz: TFloat, phase_rsb_turns: TFloat):
@@ -495,21 +527,24 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         '''
         ISA - INTRINSIC ANTISQUEEZING
         '''
+        # run pulse-shaped antisqueezinf roll-off
+        self.core_dma.playback('_PHASER_PULSESHAPE_ANTISQUEEZE')
+
         # adjust oscillator 0 (BSB) phase for antisqueezing
         with parallel:
             self.ttl8.on()
-            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac, phase=self.phase_ch0_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
-            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac, phase=self.phase_ch1_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac * self.status_ISA_antisqueezing, phase=self.phase_ch0_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac * self.status_ISA_antisqueezing, phase=self.phase_ch1_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # adjust oscillator 1 (BSB) phase for antisqueezing
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
-            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac * self.status_ISA_antisqueezing, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac * self.status_ISA_antisqueezing, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # turn off oscillator 2 (carrier) during antisqueezing
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_dipole_frac, phase=self.phase_ch0_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
-            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_dipole_frac, phase=self.phase_ch1_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac * self.status_ISA_antisqueezing_dipole, phase=self.phase_ch0_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac * self.status_ISA_antisqueezing_dipole, phase=self.phase_ch1_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
@@ -551,3 +586,133 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # update dynamical decoupling config list with new PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   np.int64(time_psk_tmp_delay_mu)
+
+
+    # HELPER FUNCTIONS - PULSE SHAPING
+    def _prepare_pulseshape(self):
+        """
+        todo: document
+        :return:
+        """
+        ### PULSE SHAPING - TIMING ###
+        # convert build variables to units of choice
+        self.time_pulse_shape_rolloff_mu =                                  self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
+
+        # todo: document
+        self.t_max_phaser_update_rate_mu =                                  25 * self.phaser_eggs.t_sample_mu
+        self.time_pulse_shape_sample_mu =                                   self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
+        # todo: add error handling and printouts if there's some sampling problem
+
+        # ensure pulse shaping time is a multiple of the max sustained phaser update rate
+        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators) is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
+        if self.time_pulse_shape_sample_mu % self.t_max_phaser_update_rate_mu:
+            # round pulse shaping sample time up to the nearest multiple of phaser sample period
+            t_sample_multiples =                                            round((self.time_pulse_shape_sample_mu / self.t_max_phaser_update_rate_mu) + 0.5)
+            self.time_pulse_shape_sample_mu =                               np.int64(t_sample_multiples * self.t_max_phaser_update_rate_mu)
+
+        # delay time between successive updates to the pulse envelope, accounts for 2x t_sample_mu delay from having to set 3 oscillators
+        self.time_pulse_shape_delay_mu =                                    np.int64(self.time_pulse_shape_sample_mu - 2 * self.phaser_eggs.t_sample_mu)
+        # note: calculation of the number of samples accounts for the delay from setting multiple oscillators
+        self.num_pulse_shape_samples =                                      np.int32(self.time_pulse_shape_rolloff_mu / (self.time_pulse_shape_sample_mu))
+
+
+        ### PULSE SHAPING - AMPLITUDE WINDOW ###
+        # create holder object for pulse amplitudes
+        self.ampl_pulse_shape_frac_list =                                   np.tile(np.array([self.ampl_eggs_heating_rsb_pct,
+                                                                                              self.ampl_eggs_heating_bsb_pct,
+                                                                                              self.ampl_eggs_dynamical_decoupling_pct]) / 100.,
+                                                                                    self.num_pulse_shape_samples).reshape(-1, 3)
+        # todo: calculate as abs and scale as frac
+        # calculate windowing values
+        if self.type_pulse_shape == 'sine_squared':
+            # calculate sine squared window
+            self.ampl_window_frac_list =                                    np.power(np.sin(
+                                                                                (np.pi / (2. * self.num_pulse_shape_samples)) *
+                                                                                np.linspace(1, self.num_pulse_shape_samples, self.num_pulse_shape_samples)),
+                                                                            2)
+        elif self.type_pulse_shape == 'error_function':
+            raise Exception('Error: error function window not implemented')
+        else:
+            raise Exception('Error: idk, some window problem')
+        # todo: add other spicy windows
+        # ensure window array has correct dimensions required
+        self.ampl_window_frac_list =                                        np.array([self.ampl_window_frac_list]).transpose()
+
+        # apply window to rising pulse shape
+        self.ampl_pulse_shape_frac_list *=                                  self.ampl_window_frac_list
+
+        # apply correct window behavior to falling pulse shape
+        self.ampl_pulse_shape_reverse_frac_list =                           np.copy(self.ampl_pulse_shape_frac_list[::-1])
+        if self.enable_ISA_antisqueezing is True:
+            self.ampl_pulse_shape_reverse_frac_list *=                      np.array([self.status_ISA_antisqueezing,
+                                                                                      self.status_ISA_antisqueezing,
+                                                                                      self.status_ISA_antisqueezing_dipole])
+
+        # apply correct window behavior to antisqueezing pulse
+        self.ampl_pulse_shape_antisqueeze_frac_list =                       np.copy(self.ampl_pulse_shape_frac_list[::-1]) * (1 - np.array([self.status_ISA_antisqueezing,
+                                                                                                                                   self.status_ISA_antisqueezing,
+                                                                                                                                   self.status_ISA_antisqueezing_dipole]))
+        self.ampl_pulse_shape_antisqueeze_frac_list +=                      np.array([self.status_ISA_antisqueezing * self.ampl_eggs_heating_rsb_pct,
+                                                                                      self.status_ISA_antisqueezing * self.ampl_eggs_heating_bsb_pct,
+                                                                                      self.status_ISA_antisqueezing_dipole * self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+
+        # remove antisqueezing turns for reverse pulseshaping if enable_ISA_antisqueezing is False
+        if self.enable_ISA_antisqueezing is False:
+            self.phase_ISA_antisqueezing_rsb_turns =        0.
+            self.phase_ISA_antisqueezing_bsb_turns =        0.
+            self.phase_ISA_antisqueezing_dipole_turns =     0.
+
+        # todo: save select pulse shape values to dataset so we can triple check that everything's ok
+        # print('\n\tps sample freq:\t\t{:f} kHz'.format(self.freq_pulse_shape_sample_khz))
+        # print('\tps sample time (raw):\t\t{:f} ns'.format(self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))))
+        # print('\tps sample time (aligned):\t{:f} ns'.format(self.time_pulse_shape_sample_mu))
+        # print('\tps delay time:\t\t{:f} ns'.format(self.time_pulse_shape_delay_mu))
+        # print('\tps num samples:\t\t{:d}\n'.format(self.num_pulse_shape_samples))
+
+    @kernel(flags={"fast-math"})
+    def phaser_pulseshape_point(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
+        """
+        todo: document
+        :param rsb_ampl:
+        :param bsb_ampl:
+        :param dd_ampl:
+        :return:
+        """
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch0_osc0, clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 1 (BSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 2 (carrier)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2, clr=0)
+
+    @kernel(flags={"fast-math"})
+    def phaser_pulseshape_point_reverse(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
+        """
+        todo: document
+        :param rsb_ampl:
+        :param bsb_ampl:
+        :param dd_ampl:
+        :return:
+        """
+        # set oscillator 0 (RSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch0_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_ch1_osc0 + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 1 (BSB)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch0_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_bsb_frac, phase=self.phase_ch1_osc1 + self.phase_ISA_antisqueezing_bsb_turns, clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        # set oscillator 2 (carrier)
+        with parallel:
+            self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch0_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)
+            self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_ch1_osc2 + self.phase_ISA_antisqueezing_dipole_turns, clr=0)

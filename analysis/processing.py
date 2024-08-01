@@ -20,7 +20,6 @@ from skimage.filters import threshold_multiotsu, threshold_minimum
 from scipy.special import factorial
 from scipy.interpolate import interp1d
 
-
 '''
 Thresholding
 '''
@@ -228,6 +227,93 @@ EGGS HEATING FUNCTIONALITY
 """
 
 
+def extract_ratios_double_scan(dataset: np.array,
+                               upper_scan_col_num: int, lower_scan_col_num: int, counts_col_num: int, readout_col_num: int,
+                               reps: int, sub_reps: int):
+    """
+      Calculate the rsb/bsb ratios of a dataset.
+
+      Arguments:
+          dataset: dataset to be analyzed
+          sorting_col_num: column of the dataset contain the frequencies that were scanned (sideband, carrier, etc.)
+          counts_col_num: column number of the dataset containing fluorescence counts
+          readout_col_num: column number of the dataset containing readout frequencies
+          reps: number of repetitions performed at each experimental point
+          sub_reps: number of sub-reps performed for each repetition
+
+      Returns:
+          ratios: rsb/bsb ratios
+          probs_rsb: the rsb excitation probability
+          probs_bsb: the rsb excitation probability
+          std_rsb: standard deviation for the rsb excitation probability
+          std_bsb: standard deviation for the bsb excitation probability
+          scanning_freqs_MHz_unique: frequencies we scan over
+      """
+
+    ratios_list = []
+    probs_rsb_list = []
+    probs_bsb_list = []
+    std_rsb_list = []
+    std_bsb_list = []
+    scanning_freqs_MHz_unique_list = []
+
+    dataset_sorted = dataset[np.argsort(dataset[:, upper_scan_col_num]), :]
+    scanning_freqs = dataset_sorted[:, upper_scan_col_num]
+    upper_scanning_freqs_unique = np.unique(scanning_freqs)
+
+    for upper_scan_freq in upper_scanning_freqs_unique:
+
+        # sort dataset by the frequencies we scanned and then get a unique list of them
+        dataset_lower = dataset_sorted[np.where(dataset[:, upper_scan_col_num] == upper_scan_freq), :]
+        dataset_lower_sorted = dataset_lower[np.argsort(dataset_lower[:, lower_scan_col_num]), :]
+        lower_scanning_freqs = dataset_lower_sorted[:, lower_scan_col_num]
+        lower_scanning_freqs_unique = np.unique(lower_scanning_freqs)
+        readout_freqs_sorted = np.array(dataset_lower_sorted[:, readout_col_num])
+
+        # grab photon counts
+        counts = np.array(dataset_lower_sorted[:, counts_col_num])
+
+        # decide if we need to apply a scaling factor if we scan over an AOM frequency
+        if np.array_equal(scanning_freqs, readout_freqs_sorted):
+            scanning_freqs_MHz_unique = lower_scanning_freqs_unique * (2 * 2.32830644e-7)
+
+        else:
+            scanning_freqs_MHz_unique = lower_scanning_freqs_unique * 1e-6
+
+        # get the frequencies we use for readout
+        readout_freqs_MHz_sorted = readout_freqs_sorted * (2 * 2.32830644e-7)
+        # assume we read out both the rsb and bsb so the carrier should be in between these frequencies
+        guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
+
+        probs = np.zeros(len(counts))
+        # determine thresholds
+        threshold_list = findThresholdScikit(counts)
+        for threshold_val in threshold_list:
+            probs[np.where(counts > threshold_val)] += 1.
+
+        normalized_probs = 1. - probs / len(threshold_list)
+
+        # get probabilities of exciting the rsb and the associated standard deviations from the n experimental trials
+        normalized_probs_rsb = normalized_probs[guess_Ca_carrier_MHz > readout_freqs_MHz_sorted]
+        probs_rsb = np.mean(normalized_probs_rsb.reshape(-1, sub_reps * reps), 1)
+        std_rsb = np.std(normalized_probs_rsb.reshape(-1, sub_reps * reps, 1) / np.sqrt(reps * sub_reps))
+
+        # get probabilities of exciting the bsb and the associated standard deviations from the n experimental trials
+        normalized_probs_bsb = normalized_probs[guess_Ca_carrier_MHz < readout_freqs_MHz_sorted]
+        probs_bsb = np.mean(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1)
+        std_bsb = np.std(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1) / np.sqrt(reps * sub_reps)
+
+        # find the ratios from the probability of exciting the rsb and bsb
+        ratios = np.divide(probs_rsb, probs_bsb)
+
+        ratios_list.append(ratios)
+        probs_rsb_list.append(probs_rsb)
+        probs_bsb_list.append(probs_rsb)
+        std_rsb_list.append(std_rsb)
+
+    return ratios_list, probs_rsb_list, probs_bsb_list, std_rsb_list, std_bsb_list, scanning_freqs_MHz_unique_list
+
+
 def extract_ratios(dataset: np.array,
                    sorting_col_num: int, counts_col_num: int, readout_col_num: int,
                    reps: int, sub_reps: int):
@@ -238,7 +324,7 @@ def extract_ratios(dataset: np.array,
         dataset: dataset to be analyzed
         sorting_col_num: column of the dataset contain the frequencies that were scanned (sideband, carrier, etc.)
         counts_col_num: column number of the dataset containing fluorescence counts
-        readout_col_num: column number of the dataset countaining readout frequencies
+        readout_col_num: column number of the dataset containing readout frequencies
         reps: number of repetitions performed at each experimental point
         sub_reps: number of sub-reps performed for each repetition
 

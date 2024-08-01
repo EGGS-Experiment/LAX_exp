@@ -44,15 +44,15 @@ class SidebandCoolContinuous(LAXSubsequence):
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
         self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=8888, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
-        self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=38, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=9888, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
+        self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=25.4, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({101.5575: 100}), group='sideband_cooling.continuous')
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({101.6332: 100}), group='sideband_cooling.continuous')
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=2.18, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
+        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=3.0, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%

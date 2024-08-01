@@ -21,9 +21,11 @@ class MultiXYPlot(PlotWidget):
 
         # Set plot name format
         self._name_format = args.plot_names
-        if '{index}' not in args.plot_names:
-            # Append index
-            self._name_format += ' {index}'
+        if type(self._name_format) is not list:
+            self._name_format = [self._name_format]
+        # if '{index}' not in args.plot_names:
+        #     # Append index
+        #     self._name_format += ' {index}'
 
         # Set labels
         self.plotItem.setLabel('bottom', args.x_label)
@@ -148,16 +150,18 @@ class MultiXYPlot(PlotWidget):
                 color = pyqtgraph.intColor(i)
                 self.plotItem.plot(x=fit_x[idx], y=fit_values[idx], pen=color)
 
-        # tmp remove
-        _names = ['Signal', 'Background', 'Differential']
-        # tmp remove
 
         for y_values, i in zip(y.transpose(), graph_index):
             # Assemble name of the plot
-            # tmp remove
-            # name = self._name_format.format(index=i)
-            name = _names[i]
-            # tmp remove
+            try:
+                name = self._name_format[i]
+            except IndexError:
+                name = self._name_format[0]
+                # ensure multiply-listed named are differentiated via index
+                if '{index}' not in name:
+                    name += ' {index}'
+                name = name.format(index=i)
+
             # Pick a color and plot graph
             color = pyqtgraph.intColor(i)
             pen = pyqtgraph.mkPen(color, width=1)
@@ -179,7 +183,7 @@ def main():
                                   help="Multiply data before plotting")
     applet.argparser.add_argument("--index", nargs='+', default=[], type=int,
                                   help="Only plot the graphs at the given indices (plots all by default)")
-    applet.argparser.add_argument("--plot-names", default='Plot', type=str,
+    applet.argparser.add_argument("--plot-names", nargs="+", default='Plot', type=str,
                                   help="Prefix of numbered plot names (formatting with `{index}` possible)")
 
     # Add datasets

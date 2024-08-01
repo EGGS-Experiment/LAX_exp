@@ -26,7 +26,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     ExplicitScan([1542.2]),
                                                                                     CenterScan(1542.2, 10, 0.25, randomize=True)
                                                                                 ],
-                                                                                global_min=0, global_max=100000, global_step=1,
+                                                                                global_min=0, global_max=400000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=5
                                                                             ), group=self.name)
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
@@ -69,6 +69,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
         self.setattr_device('dds_parametric')
         # tmp remove
         self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         self.setattr_device('ttl9')
         # tmp remove
 

@@ -19,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",       EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -157,8 +157,9 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # print out fitted parameters
         print("\tResults - Sideband Cooling:")
-        print("\t\tn:\t{:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
-        print("\t\tRSB: {:.4f}\n\t\tBSB: {:.4f}".format(float(fit_params_rsb[1]) / 2., float(fit_params_bsb[1]) / 2.))
+        print("\t\tn: {:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
+        print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
+        print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
         return results_tmp
 
     def _extract_phonon(self, dataset, time_fit_us):

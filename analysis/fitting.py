@@ -5,8 +5,8 @@ Contains modules used for fitting datasets.
 """
 
 __all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
-           'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
-           'fitLine', 'fitLineLinear', 'fitSincGeneric']
+           'fitSinc', 'fitSincGeneric', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
+           'fitLine', 'fitLineLinear']
 
 
 # necessary imports
@@ -141,7 +141,7 @@ def fitDampedDrivenOscillatorPhase(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -223,8 +223,8 @@ def fitGaussian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
-    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    gamma0 =            np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
+    b0 =                np.log(2) / gamma0**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -244,7 +244,7 @@ def fitLorentzian(data):
     Returns:
         ***todo
     """
-    # regular old lorentzin
+    # regular old lorentzian
     def fit_func(x, a, b, mu):
         """
         todo: document arguments
@@ -259,7 +259,7 @@ def fitLorentzian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -298,8 +298,8 @@ def fitVoigt(data):
     # get position of max as line center
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
-    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    gamma0 =            np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
+    b0 =                np.log(2) / gamma0**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -366,7 +366,7 @@ def fitLineLinear(data, bounds=(-np.inf, np.inf)):
     return param_fit
 
 
-def fitSincGeneric(x: np.array,y: np.array):
+def fitSincGeneric(x: np.array, y: np.array):
     """
     Fitting function for a generic sinc function
 
@@ -380,22 +380,24 @@ def fitSincGeneric(x: np.array,y: np.array):
         ydata: generated curve over given domain
     """
 
-    def fit_func(x, a, b, c,d):
+    def fit_func(x, a, b, c, d):
         """
         Fitting function for a generic sinc function
 
         Args:
             a: amplitude
-            b: offset from zero
+            b: linecenter
             c: linewidth
             d: amplitude offset
 
         Returns:
             sinc function
         """
-        return a*np.sinc(c*(x-b))**2+d
-    print('old fitfunc')
-    # extract starting parameter guesses
+        return a * np.sinc(c * (x - b))**2. + d
+
+    ## extract starting parameter guesses
+    # get indices of max y-values
+    indices_max_y =     np.argwhere(y == np.max(y))
     # get offset as average of (median, min) of data
     b0 =                np.mean(x[np.argwhere(y == np.max(y))])
     d0 =               np.min(y)
@@ -484,3 +486,4 @@ def fitSincGeneric(x: np.array,y: np.array):
 #     ydata = fit_func(xdata, *param_fit)
 #     param_err =             np.sqrt(np.diag(param_cov))
 #     return param_fit, param_err, ydata
+

@@ -11,34 +11,37 @@ class PhaserSet(EnvExperiment):
     name = 'Phaser Set'
 
     def build(self):
+        # get scheduler
+        self.setattr_device("scheduler")
+
         # global arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=100, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("cleanup",                        BooleanValue(default=True), group='global')
+        self.setattr_argument("repetitions",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("cleanup",                        BooleanValue(default=False), group='global')
         self.setattr_argument("freq_carrier_mhz",               NumberValue(default=82, ndecimals=5, step=1, min=1, max=10000), group='global')
-        self.setattr_argument("time_pulse_ms",                  NumberValue(default=5., ndecimals=5, step=1, min=0.000001, max=100000), group='global')
+        self.setattr_argument("time_pulse_ms",                  NumberValue(default=10000., ndecimals=5, step=1, min=0.000001, max=100000), group='global')
         self.setattr_argument("time_reset_ms",                  NumberValue(default=2., ndecimals=5, step=1, min=0.000001, max=100000), group='global')
         # self.setattr_argument("clear_dac_phase_accumulator", BooleanValue(default=False), group='global')
         self.setattr_argument("synchronize_oscillator_updates", BooleanValue(default=True), group='global')
 
         # channel-specific arguments
-        self.setattr_argument("att_ch0_db",                     NumberValue(default=3., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
-        self.setattr_argument("att_ch1_db",                     NumberValue(default=3., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
+        self.setattr_argument("att_ch0_db",                     NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
+        self.setattr_argument("att_ch1_db",                     NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
         self.setattr_argument("time_latency_ch1_system_ns",     NumberValue(default=0.17, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
         self.setattr_argument("apply_ch1_latency_on_oscillators", BooleanValue(default=True), group='channels')
         self.setattr_argument("phase_inherent_ch1_turns",       NumberValue(default=0.07, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
 
         # oscillators - channel 0
         # note: oscillator waveforms are in the format [freq_khz, ampl_pct, phas_turns]
-        self.setattr_argument("waveform_ch0_osc0",  PYONValue(default=[0., 98., 0.]), group='oscillators_ch0')
-        self.setattr_argument("waveform_ch0_osc1",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch0')
+        self.setattr_argument("waveform_ch0_osc0",  PYONValue(default=[-1000., 49., 0.]), group='oscillators_ch0')
+        self.setattr_argument("waveform_ch0_osc1",  PYONValue(default=[1000., 49., 0.]), group='oscillators_ch0')
         self.setattr_argument("waveform_ch0_osc2",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch0')
         self.setattr_argument("waveform_ch0_osc3",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch0')
         self.setattr_argument("waveform_ch0_osc4",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch0')
 
         # oscillators - channel 1
         # note: oscillator waveforms are in the format [freq_khz, ampl_pct, phas_turns]
-        self.setattr_argument("waveform_ch1_osc0",  PYONValue(default=[0., 98., 0.]), group='oscillators_ch1')
-        self.setattr_argument("waveform_ch1_osc1",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
+        self.setattr_argument("waveform_ch1_osc0",  PYONValue(default=[-1000., 49., 0.]), group='oscillators_ch1')
+        self.setattr_argument("waveform_ch1_osc1",  PYONValue(default=[1000., 49., 0.]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc2",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc3",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
         self.setattr_argument("waveform_ch1_osc4",  PYONValue(default=[0., 0., 0.]), group='oscillators_ch1')
@@ -179,16 +182,24 @@ class PhaserSet(EnvExperiment):
         self.core.break_realtime()
         self.core.break_realtime()
         self.core.break_realtime()
-
+        #
+        # # # center @ 85
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_nco_frequency(-217.083495 * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[1].set_nco_frequency(-217.083495 * MHz)
+        #
+        # center @ 350
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_nco_frequency(-217.083495 * MHz)
+        self.phaser0.channel[0].set_nco_frequency(188. * MHz)
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[1].set_nco_frequency(-217.083495 * MHz)
+        self.phaser0.channel[1].set_nco_frequency(188. * MHz)
 
         self.core.break_realtime()
         self.core.break_realtime()
         self.core.break_realtime()
-        # PREPARE (HARDWARE)
+        #
+        # # PREPARE (HARDWARE)
         # self._run_prepare()
         #
         # # MAIN LOOP
@@ -206,6 +217,13 @@ class PhaserSet(EnvExperiment):
         #     # add reset time
         #     delay_mu(self.time_reset_mu)
         #
+        #     # synchronize & check termination
+        #     self.core.wait_until_mu(now_mu())
+        #     self.core.break_realtime()
+        #     if self.scheduler.check_termination():
+        #         raise TerminationRequested
+        #     self.core.break_realtime()
+        #
         # # CLEAN UP
         # self.core.break_realtime()
         # if self.cleanup:
@@ -217,6 +235,16 @@ class PhaserSet(EnvExperiment):
         #     self.phaser0.channel[0].set_att(31.5 * dB)
         #     delay_mu(self.t_sample_mu)
         #     self.phaser0.channel[1].set_att(31.5 * dB)
+        # else:
+        #     # configure oscillator frequencies
+        #     self.phaser_configure()
+        #     # clear old hardware config and resync
+        #     self.phaser_reset()
+        #     # set oscillator waveforms
+        #     self.phaser_run()
+        #     # synchronize
+        #     self.core.wait_until_mu(now_mu())
+        #     self.core.break_realtime()
 
 
     # HELPER FUNCTIONS
