@@ -27,6 +27,11 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='866')
         self.setattr_argument('att_866_dB', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='866')
 
+        self.setattr_argument('freq_854_mhz',
+                              NumberValue(default=110., ndecimals=1, step=0.1, min=90., max=120., unit="MHz"), group='854')
+        self.setattr_argument('ampl_854', NumberValue(default=50., ndecimals=1, step=0.1, min=0., max=100.), group='854')
+        self.setattr_argument('att_854_dB', NumberValue(default=14., ndecimals=1, step=0.1, min=0., max=31.5, unit="dB"), group='854')
+
         # pmt arguments
         self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0, step=1, min=80, max=250), group='phonton_counting')
         self.setattr_argument('pmt_sample_time_us',
@@ -35,6 +40,7 @@ class IonLoad(LAXExperiment, Experiment):
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
         self.setattr_device('shutters')
         self.setattr_device('gpp3060')
         self.setattr_device('pmt')
@@ -46,6 +52,11 @@ class IonLoad(LAXExperiment, Experiment):
         self.ftw_397 = extensions.mhz_to_ftw(self.freq_397_mhz)
         self.asf_397 = extensions.pct_to_asf(self.ampl_397)
         self.att_397 = extensions.att_to_mu(self.att_397_dB)
+
+        # convert 854 parameters
+        self.ftw_854 = extensions.mhz_to_ftw(self.freq_854_mhz)
+        self.asf_854 = extensions.pct_to_asf(self.ampl_854)
+        self.att_854 = extensions.att_to_mu(self.att_854_dB)
 
         # convert 866 parameters
         self.ftw_866 = extensions.mhz_to_ftw(self.freq_866_mhz)
@@ -61,14 +72,25 @@ class IonLoad(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
+        self.pump.beam.cpld.get_att_mu()
 
         # set 397 parameters
         self.pump.set_mu(self.ftw_397, asf=self.asf_397, profile=6)
         self.pump.set_att_mu(self.att_397)
 
+        # set 854 parameters
+        self.repump_qubit.set_mu(self.ftw_854, asf=self.asf_854, profile=6)
+        self.repump_qubit.set_att_mu(self.att_854)
+
         # set 866 parameters
         self.repump_cooling.set_mu(self.ftw_866, asf=self.asf_866, profile=6)
         self.repump_cooling.set_att_mu(self.att_866)
+
+        # turn on lasers
+        self.pump.on()
+        self.repump_qubit.on()
+        self.repump_cooling.on()
+
 
         # open shutters
         self.shutters.open_377_shutter()
