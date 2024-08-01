@@ -5,18 +5,18 @@ from os import environ
 import labrad
 
 
-class GPP3060(LAXDevice):
+class Oven(LAXDevice):
     """
     High-level api functions for using the Oven
     """
 
-    name = "gpp3060"
+    name = "oven"
 
     def prepare_device(self):
         self.cxn = labrad.connect(environ['LABRADHOST'],
                                   port=7682, tls_mode='off',
                                   username='', password='lab')
-        self.gpp3060 = self.cxn.GPP3060_server
+        self.oven = self.cxn.GPP3060_server
 
         self.ovenChannel = 1
 
@@ -25,18 +25,18 @@ class GPP3060(LAXDevice):
         pass
 
     @rpc
-    def turn_oven_on(self) -> TNone:
+    def on(self) -> TNone:
         """
         Turn on the oven to 1 volt
         """
-        self.gpp3060.channelVoltage(self.ovenChannel, 1.)
+        self.oven.channelVoltage(self.ovenChannel, 1.)
 
     @rpc
-    def turn_oven_off(self) -> None:
+    def off(self) -> None:
         """
         Turn off the oven
         """
-        self.gpp3060.channelVoltage(self.ovenChannel, 0)
+        self.oven.channelVoltage(self.ovenChannel, 0)
 
     @rpc
     def set_oven_voltage(self, voltage):
@@ -45,7 +45,7 @@ class GPP3060(LAXDevice):
         Set the oven voltage
         """
         # assert 0. <= voltage <= 30., f"voltage must be between 0V and 30V"
-        self.gpp3060.channelVoltage(self.ovenChannel, voltage)
+        self.oven.channelVoltage(self.ovenChannel, voltage)
 
     @rpc
     def set_oven_current(self, current):
@@ -54,4 +54,4 @@ class GPP3060(LAXDevice):
         Set the oven voltage
         """
         # assert 0. <= current <= 6., f"current must be between 0A and 6A"
-        self.gpp3060.channelCurrent(self.ovenChannel, current)
+        self.oven.channelCurrent(self.ovenChannel, current)
