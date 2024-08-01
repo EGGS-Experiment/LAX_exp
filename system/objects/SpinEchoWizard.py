@@ -23,29 +23,30 @@ class SpinEchoWizard(LAXEnvironment):
 
 
     def build(self):
-        # general
-        self.time_pulse_us =                500
-
-        # pulse shaping
-        self.enable_pulse_shaping =         True
-        self.time_pulse_shape_rolloff_us =  100
-        self.freq_pulse_shape_sample_khz =  500
-        self.type_pulse_shape =             'sine_squared'
-        self.pulse_shape_blocks =           True
-
-        # spin-echo
-        self.enable_delay_spinecho =        True
-        self.time_delay_spinecho_us =       1000
+        # waveform block sequence
+        self.time_pulse_us =                200
+        # self.sequence_blocks = np.array([
+        #     [[40., -0.2], [40., 0.2], [20., 0.]],
+        #     [[20., -0.2], [20., 0.7], [20., -0.25]],
+        #     [[40., -0.2], [40., 0.2], [20., 0.]],
+        #     [[20., -0.2], [20., 0.7], [20., -0.25]]
+        # ])
         self.sequence_blocks = np.array([
             [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[20., -0.2], [20., 0.7], [20., -0.25]],
-            [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[20., -0.2], [20., 0.7], [20., -0.25]]
+            [[40., -0.2], [40., 0.2], [20., 0.5]]
+            # [[40., -0.2], [40., 0.2], [20., 0.]]
         ])
 
-        # field geometry
-        # todo: target
-        # todo: phase values
+        # pulse shaping
+        self.enable_pulse_shaping =         False
+        self.pulse_shape_blocks =           True
+        self.type_pulse_shape =             'sine_squared'
+        self.time_pulse_shape_rolloff_us =  100
+        self.freq_pulse_shape_sample_khz =  500
+
+        # spin-echo delay
+        self.enable_delay_spinecho =        True
+        self.time_delay_spinecho_us =       1000
 
         # get relevant devices
         self.setattr_device('core')
@@ -55,39 +56,17 @@ class SpinEchoWizard(LAXEnvironment):
         """
         todo: document
         """
-        # structure: create time blocks
-        # num blocks + delays
-        # note: block has - time, osc ampls, osc phases
-
-        # structure: calculate general amplitude windows
-        # calculate a priori
-        # multiply by ampls
-
-        # structure: fill in time blocks (create lists of times and values)
-        # multiply windows by osc ampls
-        # set phases
-
-        # structure: join blocks for final waveform
-        # replace delays by delay
-        # stitch pulse shaping with blocks
-
-
-        # note: one compile function; reuse many times for sweeps
-        # note: test function that displays waveforms
-
-        # set global variables
-        self._max_waveforms =               64
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators) is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
+        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
+        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
 
-        # convert pulse times to mu
+        # convert pulse times to mu and ensure they are multiples of the phaser sample rate (40ns)
         self.time_pulse_mu = self.core.seconds_to_mu(self.time_pulse_us * us)
-        # todo: account for 40ns delay from each osc
+        self.time_pulse_mu -= self.time_pulse_mu % self.phaser_eggs.t_sample_mu
+
         self.time_delay_spinecho_mu = self.core.seconds_to_mu(self.time_delay_spinecho_us * us)
-        # todo: ensure both pulse and spinecho times are 40ns multiples
+        self.time_delay_spinecho_mu -= self.time_delay_spinecho_mu % self.phaser_eggs.t_sample_mu
 
-
-    # todo: make general, anyone can use
     def calculate_pulseshape(self) -> TNone:
         """
         todo: document
@@ -98,8 +77,6 @@ class SpinEchoWizard(LAXEnvironment):
         self.time_pulse_shape_sample_mu =           self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
 
         # ensure pulse shaping sample interval is valid (greater than min val)
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
-        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:
             raise Exception("Error: waveform sample rate too fast.")
 
@@ -131,44 +108,6 @@ class SpinEchoWizard(LAXEnvironment):
             raise Exception('Error: idk, some window problem')
 
 
-    # def create_block(self) -> TNone:
-    #     """
-    #     todo: document
-    #     """
-    #
-    #     # todo: set up blocks
-    #     # todo: don't bother doing any pulse shaping if enable_ps is OFF
-    #     # todo: ind pulseshape OR delay means do fall and rise for EVERY block
-    #     # todo: if 0 ampl between two blocks, then pulseshape
-    #
-    #     # todo: only do transitions if pulse_shape_blocks AND enable_delay are off
-    #     # todo: get transitions between each block
-    #     # ampl_start, ampl_stop, phase_st
-    #     # self.transitions = self.sequence_blocks[:, :, 0]
-    #     num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
-    #     self.transitions0 = np.concatenate(([np.zeros(num_oscs)], self.sequence_blocks[:, :, 0], [np.zeros(num_oscs)]), axis=0)
-    #     self.transitions10 = self.transitions0[1:, :]
-    #     self.transitions11 = self.transitions0[:-1, :]
-    #
-    #     self.transitions2 = []
-    #     for i in range(num_blocks + 1):
-    #         thde = []
-    #         for j in range(num_oscs):
-    #             thde.append((self.transitions10[i, j], self.transitions11[i, j]))
-    #
-    #         self.transitions2.append(thde)
-    #
-    #     # todo: need ampl changes,
-    #
-    #
-    #     # todo: think in terms of transitions - normally prev ampl to next ampl
-    #     # todo: but if pulse_shape_blocks is on, then should go to 0 (i.e. still 1 transition block, but transition shape itself is different
-    #
-    #     # todo: actually, maybe not - way to do it is that each block has a pulse_rise, main, pulse_fall
-    #
-    #     # todo: should still put in a set for main blocks
-    #     # todo: make delays coded as main blocks
-
     def compile_waveform(self):
         """
         todo: document
@@ -184,8 +123,9 @@ class SpinEchoWizard(LAXEnvironment):
 
 
         ###BEGIN COMPILATION - CONTIGUOUS SEQUENCES###
-        if self.pulse_shape_blocks is False:
-
+        _contiguous_sequence = ((self.pulse_shape_blocks is False) or
+                                ((self.enable_delay_spinecho is False) and (self.enable_pulse_shaping is False)))
+        if _contiguous_sequence:
             # implement pulse shaping: rising
             if self.enable_pulse_shaping is True:
                 # pulse shape each oscillator individually
@@ -241,9 +181,16 @@ class SpinEchoWizard(LAXEnvironment):
                 _time_arr = np.append(_time_arr, time_tmp)
 
 
+            # ensure pulse turns off
+            for idx_osc in range(num_oscs):
+                _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], 0.)
+                _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], 0.)
+            # set minimum delay time
+            _time_arr = np.append(_time_arr, self.phaser_eggs.t_sample_mu)
+
+
         ###BEGIN COMPILATION - NON-CONTIGUOUS SEQUENCES###
         else:
-
             # process blocks
             for idx_block in range(num_blocks):
                 # get block vals
@@ -302,6 +249,14 @@ class SpinEchoWizard(LAXEnvironment):
                     _time_arr = np.append(_time_arr, time_tmp)
 
 
+                # ensure pulse turns off
+                for idx_osc in range(num_oscs):
+                    _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], 0.)
+                    _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], 0.)
+                # set minimum delay time
+                _time_arr = np.append(_time_arr, self.phaser_eggs.t_sample_mu)
+
+
                 # implement spin-echo delay between blocks
                 if self.enable_delay_spinecho and (idx_block < (num_blocks - 1)):
                     # clear ampl and phase for each osc
@@ -326,33 +281,44 @@ class SpinEchoWizard(LAXEnvironment):
             num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
 
             # get cumulative times from pulse delays in _time_tmp_arr
-            # and convert units from mu to us
-            # todo: use core mu_to_seconds
-            _x_axis_time_us = np.cumsum(self._time_tmp_arr) / 1e3
+            # note: since timings are post-update delays, need to ensure we start at 0
+            _x_axis_time_mu = np.cumsum(np.concatenate(([0], self._time_tmp_arr)))[:-1]
+            # convert units from mu to us
+            _x_axis_time_us = self.core.mu_to_seconds(_x_axis_time_mu) / us
 
             # create waveform summary figure
-            # fig, ax = plt.subplots(figsize=(5, 2.7), layout='constrained')
             fig, axs = plt.subplots(num_oscs, 2, layout='constrained')
-            # create color list
+            fig.suptitle('Spin-Echo Wizard\nTotal pulse time: {:.3f} us'.format(_x_axis_time_us[-1]),
+                         fontsize=14)
+            # create color list to serve truth and beauty
             colors = plt.cm.rainbow(np.linspace(0, 1, num_oscs))
 
             # plot waveforms for each oscillator
-            # for idx, osc_waveform in enumerate(self._ampl_tmp_arr):
             for idx in range(num_oscs):
                 # waveform plot
-                axs[idx, 0].set_title('Amplitude - Osc. {:d}'.format(idx))
-                axs[idx, 0].set_ylabel('Amplitude (%)')
+                axs[idx, 0].set_title('Amplitude: osc_{:d}'.format(idx))
                 axs[idx, 0].set_xlabel('Time (us)')
+                axs[idx, 0].set_xlim(0., _x_axis_time_us[-1])
+                axs[idx, 0].set_ylabel('Amplitude (%)')
                 axs[idx, 0].set_ylim(0., 100.)
-                axs[idx, 0].plot(_x_axis_time_us, self._ampl_tmp_arr[idx], label='osc_{:}'.format(idx), c=colors[idx])
+                axs[idx, 0].plot(_x_axis_time_us, self._ampl_tmp_arr[idx],
+                                 label='osc_{:}'.format(idx), c=colors[idx],
+                                 drawstyle="steps-post")
 
                 # phase plot
-                axs[idx, 1].set_title('Phase - Osc. {:d}'.format(idx))
-                axs[idx, 1].set_ylabel('Phase (turns)')
+                axs[idx, 1].set_title('Phase: osc_{:d}'.format(idx))
                 axs[idx, 1].set_xlabel('Time (us)')
+                axs[idx, 1].set_xlim(0., _x_axis_time_us[-1])
+                axs[idx, 1].set_ylabel('Phase (turns)')
                 axs[idx, 1].set_ylim(-1., 1.)
-                axs[idx, 1].plot(_x_axis_time_us, self._phas_tmp_arr[idx], label='osc_{:}'.format(idx), c=colors[idx])
-            # axs[0, idx].legend(loc="upper left")
+                axs[idx, 1].plot(_x_axis_time_us, self._phas_tmp_arr[idx],
+                                 label='osc_{:}'.format(idx), c=colors[idx],
+                                 drawstyle="steps-post")
+
+            # debugging
+            print(self._ampl_tmp_arr)
+            print(self._phas_tmp_arr)
+            print(self._time_tmp_arr)
 
             # display figure
             plt.show()
