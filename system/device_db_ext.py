@@ -2,8 +2,6 @@
 
 device_db_ext = {
 
-
-
     # LABRAD Devices
     "aperture": {
         "type": "local",
@@ -15,6 +13,18 @@ device_db_ext = {
         "type": "local",
         "module": "LAX_exp.system.devices.andor_camera",
         "class": "AndorCamera"
+    },
+
+    "shutters": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.shutters",
+        "class": "Shutters"
+    },
+
+    "oven": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.oven",
+        "class": "Oven"
     },
 
     # BEAMS

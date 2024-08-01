@@ -11,7 +11,7 @@ class Shutters(LAXDevice):
     High-level api functions for using the Andor Camera
     """
 
-    name = "Shutters"
+    name = "shutters"
 
     def prepare_device(self):
         self.cxn = labrad.connect(environ['LABRADHOST'],
@@ -22,11 +22,12 @@ class Shutters(LAXDevice):
         self.port_name_377 = "DIO0"
         self.port_name_423 = "DIO2"
 
-    @kernel(flags={"fast-math"})
-    def initialize_device(self):
-
         if self.labjack.device_handle is not None:
             self.labjack.device_select(["T7", "ANY", "ANY"])
+
+    @kernel(flags={"fast-math"})
+    def initialize_device(self):
+        pass
 
     @rpc
     def open_377_shutter(self, port) -> TNone:
