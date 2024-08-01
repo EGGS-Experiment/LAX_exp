@@ -23,9 +23,11 @@ class PhaserPulseShaper(LAXEnvironment):
 
     def build(self):
         # get relevant devices
+        self.setattr_device('core')
+        self.setattr_device('core_dma')
         self.setattr_device('phaser_eggs')
 
-    def prepare(self) -> TNone:
+    def prepare(self):
         """
         todo: document
         """
@@ -67,13 +69,13 @@ class PhaserPulseShaper(LAXEnvironment):
         num_phas_vals = len(phas_turns_list[0])
 
         # ensure all inputs have correct dimensionality
-        if not ((len_ampls == len_phases) & (len_phases == len_times)):
+        if not ((len_ampls == len_phases) and (len_phases == len_times)):
             raise Exception("Error: waveform arrays do not have same sizes.")
 
         # ensure oscillator updates have correct dimensionality
         if not (num_ampl_vals == num_phas_vals):
             raise Exception("Error: waveform arrays do not have same sizes.")
-        elif (num_ampl_vals > 5) | (num_phas_vals > 5):
+        elif (num_ampl_vals > 5) or (num_phas_vals > 5):
             raise Exception("Error: waveform arrays exceed number of oscillators.")
 
         # ensure we haven't exceeded max number of waveforms

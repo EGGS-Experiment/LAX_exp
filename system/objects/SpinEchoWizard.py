@@ -47,7 +47,7 @@ class SpinEchoWizard(LAXEnvironment):
 
         # spin-echo delay
         self.enable_delay_spinecho =        True
-        self.time_delay_spinecho_us =       200
+        self.time_delay_spinecho_us =       10
 
         # get relevant devices
         self.setattr_device('core')
@@ -278,7 +278,8 @@ class SpinEchoWizard(LAXEnvironment):
         todo: annotate return types
         todo: document
         """
-        wav_data_ampl = self._ampl_tmp_arr.transpose()
+        # note: need to convert ampls from pct to frac
+        wav_data_ampl = self._ampl_tmp_arr.transpose() / 100.
         wav_data_phas = self._phas_tmp_arr.transpose()
         wav_data_time = self._time_tmp_arr
         return wav_data_ampl, wav_data_phas, wav_data_time
@@ -329,11 +330,12 @@ class SpinEchoWizard(LAXEnvironment):
                                  drawstyle="steps-post")
 
             # debugging
-            print(self._ampl_tmp_arr)
-            print(self._phas_tmp_arr)
-            print(self._time_tmp_arr)
+            # print(self._ampl_tmp_arr)
+            # print(self._phas_tmp_arr)
+            # print(self._time_tmp_arr)
 
             # display figure
+            # plt.show(block=False)
             plt.show()
 
         except Exception as e:

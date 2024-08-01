@@ -14,14 +14,14 @@ from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 import matplotlib.pyplot as plt
 
 
-class PulseShaperTest(LAXEnvironment, Experiment):
+class PulseShaperTest(LAXExperiment, Experiment):
     """
     PulseShaperTest
     """
 
-    def build(self):
+    def build_experiment(self):
         # general
-        self.setattr_argument("repetitions",            NumberValue(default=50, ndecimals=0, step=1, min=1, max=1000))
+        self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=1000))
 
         # timing
         self.setattr_argument("time_reset_us",          NumberValue(default=2000, ndecimals=3, step=500, min=0.001, max=100000))
@@ -30,7 +30,7 @@ class PulseShaperTest(LAXEnvironment, Experiment):
         self.setattr_argument("freq_carrier_mhz",       NumberValue(default=50., ndecimals=6, step=1., min=0., max=200.))
         self.setattr_argument("freq_sideband_khz",      NumberValue(default=1400, ndecimals=3, step=100, min=-10000, max=10000))
         self.setattr_argument("phase_ch1_turns",        NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0))
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=5., ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("att_phaser_db",          NumberValue(default=5., ndecimals=1, step=0.5, min=0, max=31.5))
 
         # core devices
         self.setattr_device("core")
@@ -43,31 +43,37 @@ class PulseShaperTest(LAXEnvironment, Experiment):
         self.spinecho_wizard = SpinEchoWizard(self)
         self.pulse_shaper = PhaserPulseShaper(self)
 
-    def prepare(self):
-        # prepare waveform
+    def prepare_experiment(self):
+        # prepare hardware values
+        self.time_reset_mu =    self.core.seconds_to_mu(self.time_reset_us * us)
+        self.freq_carrier_hz =  self.freq_carrier_mhz * MHz
+        self.freq_sideband_hz = self.freq_sideband_khz * kHz
+        # prepare waveform playback
+        self._wav_idx = 0
+
+        # create waveform
         self.spinecho_wizard.prepare()
         self.spinecho_wizard.calculate_pulseshape()
         self.spinecho_wizard.compile_waveform()
         # get waveform data
         self._wav_data_ampl, self._wav_data_phas, self._wav_data_time = self.spinecho_wizard.get_waveform()
 
-        # prepare waveform playback
-        self._wav_idx = 0
-
-        # prepare hardware values
-        self.time_reset_mu =    self.core.seconds_to_mu(self.time_reset_us * us)
-        self.freq_carrier_hz =  self.freq_carrier_mhz * MHz
-        self.freq_sideband_hz = self.freq_sideband_khz * kHz
+    @property
+    def results_shape(self):
+        return (2, 2)
 
     @kernel(flags={"fast-math"})
-    def run(self) -> TNone:
+    def run_main(self):
         # setup hardware
         self.run_prepare()
 
         # run waveform
         for i in range(self.repetitions):
             # play waveform
+            at_mu(self.phaser_eggs.get_next_frame_mu())
+            self.ttl8.on()
             self.pulse_shaper.waveform_playback(self._wav_idx)
+            self.ttl8.off()
 
             # delay reset time
             delay_mu(self.time_reset_mu)
@@ -94,11 +100,11 @@ class PulseShaperTest(LAXEnvironment, Experiment):
 
         # waveform - record
         # delay_mu(1000000)
-        self._wav_idx = self.pulse_shaper.record_waveform(self._wav_data_ampl, self._wav_data_phas, self._wav_data_time)
+        self._wav_idx = self.pulse_shaper.waveform_record(self._wav_data_ampl, self._wav_data_phas, self._wav_data_time)
         self.core.break_realtime()
 
         # waveform - load
-        self.pulse_shaper.load_waveform()
+        self.pulse_shaper.waveform_load()
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
