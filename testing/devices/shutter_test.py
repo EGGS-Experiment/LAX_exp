@@ -21,20 +21,19 @@ class ShutterTest(LAXExperiment, Experiment):
 
 
     def prepare_experiment(self):
-
-
-        # turn on oven
-        self.shutters.open_423_shutter()
-        self.shutters.open_377_shutter()
-
+        pass
     @property
     def results_shape(self):
-        return None
+        return (2,2)
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+        # open shutters
+        self.shutters.open_423_shutter()
+        self.shutters.open_377_shutter()
         self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def run_main(self):

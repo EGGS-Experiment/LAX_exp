@@ -21,18 +21,16 @@ class OvenTest(LAXExperiment, Experiment):
 
 
     def prepare_experiment(self):
-
-
-        # turn on oven
-        self.gpp3060.turn_oven_on()
+        pass
 
     @property
     def results_shape(self):
-        return None
+        return (2,2)
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+        self.gpp3060.turn_oven_on()       # turn on oven
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})

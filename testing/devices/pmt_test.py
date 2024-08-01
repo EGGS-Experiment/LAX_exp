@@ -24,19 +24,21 @@ class PMTTest(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return None
+        return (2,2)
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.core.break_realtime()
-        self.pmt.count(self.pmt_sample_time_us)
+        pass
+
 
     @kernel(flags={"fast-math"})
     def run_main(self):
 
         for i in range(100):
+            self.pmt.count(self.pmt_sample_time_us)
             self.append_to_dataset(self.DATASET_KEY, self.pmt.fetch_count())
+            self.core.break_realtime()
 
     # ANALYSIS
     def analyze_experiment(self):
