@@ -16,6 +16,7 @@ class SpinEchoWizard(LAXEnvironment):
     Output format is designed for Phaser Pulse Shaper object.
     """
     name = 'Spin Echo Wizard'
+    # todo: kernel_invariants
     # kernel_invariants = {
     #     "_max_waveforms", "t_max_phaser_update_rate_mu",
     #     "_dma_names", "_dma_handles"
@@ -33,12 +34,12 @@ class SpinEchoWizard(LAXEnvironment):
         # ])
         self.sequence_blocks = np.array([
             [[40., -0.2], [40., 0.2], [20., 0.]],
-            [[40., -0.2], [40., 0.2], [20., 0.5]]
-            # [[40., -0.2], [40., 0.2], [20., 0.]]
+            [[40., -0.2], [40., 0.2], [20., 0.5]],
+            [[40., -0.2], [40., 0.2], [20., 0.]]
         ])
 
         # pulse shaping
-        self.enable_pulse_shaping =         False
+        self.enable_pulse_shaping =         True
         self.pulse_shape_blocks =           True
         self.type_pulse_shape =             'sine_squared'
         self.time_pulse_shape_rolloff_us =  100
@@ -46,7 +47,7 @@ class SpinEchoWizard(LAXEnvironment):
 
         # spin-echo delay
         self.enable_delay_spinecho =        True
-        self.time_delay_spinecho_us =       1000
+        self.time_delay_spinecho_us =       200
 
         # get relevant devices
         self.setattr_device('core')
@@ -271,6 +272,18 @@ class SpinEchoWizard(LAXEnvironment):
         self._ampl_tmp_arr = np.array(_ampl_arrs)
         self._phas_tmp_arr = np.array(_phas_arrs)
         self._time_tmp_arr = np.array(_time_arr)
+
+    def get_waveform(self):
+        """
+        todo: annotate return types
+        todo: document
+        """
+        wav_data_ampl = self._ampl_tmp_arr.transpose()
+        wav_data_phas = self._phas_tmp_arr.transpose()
+        wav_data_time = self._time_tmp_arr
+        return wav_data_ampl, wav_data_phas, wav_data_time
+
+
 
     def display_waveform(self):
         """
