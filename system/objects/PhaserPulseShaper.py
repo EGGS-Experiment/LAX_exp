@@ -37,7 +37,6 @@ class PhaserPulseShaper(LAXEnvironment):
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
 
         # store global CH1 offsets
-        # self._phase_offsets_turns =         np.array([0., 0.5, 0., 0., 0.])
         self._phase_offsets_turns =         np.array([0., 0., 0., 0., 0.])
 
         # create data structures to allow programmatic recording & playback of DMA handles

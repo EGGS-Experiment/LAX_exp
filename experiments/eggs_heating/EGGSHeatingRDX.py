@@ -25,7 +25,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -67,8 +67,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=1000, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([0.]),
-                                                                                    RangeScan(0, 1.0, 6, randomize=True),
+                                                                                    ExplicitScan([0., 0.5]),
+                                                                                    RangeScan(0, 1.0, 3, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, ndecimals=3
@@ -84,13 +84,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=5., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=8., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
@@ -179,9 +179,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.waveform_index_to_pulseshaper_id =     np.zeros(len(self.phase_eggs_heating_rsb_turns_list), dtype=np.int32)   # store pulseshaper waveform ID
 
         # set correct phase delays for field geometries
-        self.pulse_shaper._phase_offsets_turns = np.array([0., 0., 0.5, 0., 0.])
+        self.pulse_shaper._phase_offsets_turns =    np.array([0., 0., 0., 0., 0.])
 
         # set up the spin echo wizard generally
+        # todo: need to change timing if we have PSK
         self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           False
@@ -226,6 +227,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
             # get waveform data and store in holding structure
             self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
+
+        # tmp remove
+        # _wav_print_idk = self.waveform_index_to_pulseshaper_vals[0]
+        # print(_wav_print_idk[0])
+        # print(_wav_print_idk[1])
+        # print(_wav_print_idk[2])
+        # print(_sequence_blocks)
+        # self.spinecho_wizard.display_waveform()
+        # tmp remove
 
     @property
     def results_shape(self):
@@ -373,8 +383,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
-        # activate debug TTLs
-        self.ttl8.on()
 
         # # set phaser attenuators - warning creates turn on glitch
         # at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -385,8 +393,12 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
-        # play recorded waveform
-        self.pulse_shaper.waveform_playback(waveform_id)
+        with parallel:
+            # activate debug TTLs
+            self.ttl8.on()
+
+            # play recorded waveform
+            self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
         # stop all oscillators (doesn't unset attenuators)
