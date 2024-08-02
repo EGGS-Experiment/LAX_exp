@@ -5,6 +5,10 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout
 
+# tmp remove
+from collections import deque
+# tmp remove
+
 
 class QubitAlignment(LAXExperiment, Experiment):
     """
@@ -22,11 +26,11 @@ class QubitAlignment(LAXExperiment, Experiment):
         """
         # general
         self.setattr_argument('time_total_s',           NumberValue(default=500, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=50, ndecimals=0, step=10, min=1, max=500), group='timing')
+        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=15, max=500), group='timing')
 
         # qubit
         self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, ndecimals=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.0128, ndecimals=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.0069, ndecimals=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='qubit')
         self.setattr_argument('counts_threshold',       NumberValue(default=80, ndecimals=0, step=10, min=1, max=1000), group='qubit')
 
@@ -67,6 +71,12 @@ class QubitAlignment(LAXExperiment, Experiment):
         # initialize plotting applet
         self.ccb.issue("create_applet", "qubit_alignment",
                        '${artiq_applet}plot_xy temp.qubit_align.counts_y --x temp.qubit_align.counts_x --title "Qubit Alignment"')
+
+        # tmp remove
+        # todo: set the filter up properly
+        self._th_wind = 100
+        self._th0 = deque(maxlen=self._th_wind)
+        # tmp remove
 
     @property
     def results_shape(self):
@@ -133,11 +143,17 @@ class QubitAlignment(LAXExperiment, Experiment):
     @rpc(flags={"async"})
     def update_results(self, iter_num, state_array):
         # convert raw counts into a probability
-        dstate_probability = np.sum((state_array < self.counts_threshold) * 1.) / self.samples_per_point
+        # dstate_probability = np.sum((state_array < self.counts_threshold) * 1.) / self.samples_per_point
+        # tmp remove
+        for val in state_array:
+            self._th0.append((val < self.counts_threshold) * 1.)
+        # tmp remove
+
 
         # update datasets
         self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
-        self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, dstate_probability)
+        # self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, dstate_probability)
+        self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, np.mean(self._th0))
 
         # update completion monitor
         self.set_dataset('management.dynamic.completion_pct',
