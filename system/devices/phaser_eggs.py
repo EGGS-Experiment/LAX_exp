@@ -132,6 +132,9 @@ class PhaserEGGS(LAXDevice):
         Stop the phaser quickly.
         Set maximum attenuation to prevent output leakage.
         """
+        # # tmp remove - idk how to best do this
+        # at_mu(self.phaser.get_next_frame_mu())
+
         # disable eggs phaser output
         with parallel:
             self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)

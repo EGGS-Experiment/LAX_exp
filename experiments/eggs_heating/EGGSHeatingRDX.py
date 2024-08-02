@@ -25,7 +25,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=10000, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -39,8 +39,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([1.]),
-                                                                                    ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                                                                                    ExplicitScan([83.2028]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -48,8 +47,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                     ExplicitScan([777.5]),
+                                                                                    CenterScan(777.5, 4, 0.5, randomize=True),
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
@@ -68,16 +67,16 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=1000, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    RangeScan(0, 1.0, 21, randomize=True),
                                                                                     ExplicitScan([0.]),
+                                                                                    RangeScan(0, 1.0, 6, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, ndecimals=3
                                                                             ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    RangeScan(0, 1.0, 21, randomize=True),
                                                                                     ExplicitScan([0.]),
+                                                                                    RangeScan(0, 1.0, 21, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, ndecimals=3
@@ -85,15 +84,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=99., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=0., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=8., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=50, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
@@ -374,6 +373,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
+        # activate debug TTLs
+        self.ttl8.on()
 
         # # set phaser attenuators - warning creates turn on glitch
         # at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -392,6 +393,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.phaser_eggs.phaser_stop()
         # deactivate integrator hold
         self.ttl10.off()
+        # stop debug TTLs
+        self.ttl8.off()
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_rf_servo_holdoff_mu)
 

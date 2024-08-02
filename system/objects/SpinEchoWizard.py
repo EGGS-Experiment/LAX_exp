@@ -27,14 +27,14 @@ class SpinEchoWizard(LAXEnvironment):
         """
         todo: document
         """
+        # get relevant devices
+        self.setattr_device('core')
+        self.setattr_device('phaser_eggs')
+
         # set max hardware sample rate
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
         # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
-
-        # get relevant devices
-        self.setattr_device('core')
-        self.setattr_device('phaser_eggs')
 
 
         '''WAVEFORM CONFIGURATION ARGUMENTS'''
