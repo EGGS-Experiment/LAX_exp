@@ -25,8 +25,8 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_argument('att_397_dB', NumberValue(default=14., ndecimals=1,
                                                         step=0.1, min=0., max=31.5, unit="dB"), group='397')
 
-        self.setattr_argument('freq_866_mhz',NumberValue(default=110., ndecimals=1,
-                                                         step=0.1, min=90., max=120., unit="MHz"), group='866')
+        self.setattr_argument('freq_866_mhz', NumberValue(default=110., ndecimals=1,
+                                                          step=0.1, min=90., max=120., unit="MHz"), group='866')
         self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1,
                                                       step=0.1, min=0., max=100.), group='866')
         self.setattr_argument('att_866_dB', NumberValue(default=14., ndecimals=1,
@@ -42,10 +42,35 @@ class IonLoad(LAXExperiment, Experiment):
 
         # pmt arguments
         self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0,
-                                                                 step=1, min=80, max=250), group='phonton_counting')
+                                                                 step=1, min=80, max=250), group='Photon Counting')
         self.setattr_argument('pmt_sample_time_us',
                               NumberValue(default=3e-3, ndecimals=0,
-                                          step=1, min=1e-6, max=5e-3, unit='us'), group='phonton_counting')
+                                          step=1, min=1e-6, max=5e-3, unit='us'), group='Photon Counting')
+
+        # starting trap arguments
+        self.setattr_argument('starting_east_endcap_voltage',
+                              NumberValue(default=19., ndecimals=1, step=0.1, min=0., max=300.),
+                              group='Starting Trap Parameters')
+        self.setattr_argument('starting_west_endcap_voltage',
+                              NumberValue(default=25., ndecimals=1, step=0.1, min=0., max=300.),
+                              group='Starting Trap Parameters')
+
+        # starting trap arguments
+        self.setattr_argument('ending_east_endcap_voltage',
+                              NumberValue(default=19., ndecimals=1, step=0.1, min=0., max=300.),
+                              group='Ending Trap Parameters')
+        self.setattr_argument('ending_west_endcap_voltage',
+                              NumberValue(default=25., ndecimals=1, step=0.1, min=0., max=300.),
+                              group='Ending Trap Parameters')
+        self.setattr_argument('ending_v_shim_voltage',
+                              NumberValue(default=60., ndecimals=1, step=0.1, min=0., max=150.),
+                              group='Ending Trap Parameters')
+        self.setattr_argument('ending_h_shim_voltage',
+                              NumberValue(default=51.5, ndecimals=1, step=0.1, min=0., max=150.),
+                              group='Ending Trap Parameters')
+        self.setattr_argument('ending_a_ramp2_voltage',
+                              NumberValue(default=2., ndecimals=1, step=0.1, min=0., max=100.),
+                              group='Ending Trap Parameters')
 
         # relevant devices
         self.setattr_device('pump')
@@ -55,6 +80,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('gpp3060')
         self.setattr_device('pmt')
         self.setattr_device('aperture')
+        self.setattr_device('trap_dc')
         self.setattr_device('scheduler')
 
     def prepare_experiment(self):
@@ -74,10 +100,9 @@ class IonLoad(LAXExperiment, Experiment):
         self.asf_866 = extensions.pct_to_asf(self.ampl_866)
         self.att_866 = extensions.att_to_mu(self.att_866_dB)
 
-
     @property
     def results_shape(self):
-        return (2,2)
+        return (2, 2)
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
@@ -101,14 +126,26 @@ class IonLoad(LAXExperiment, Experiment):
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
+        self.core.break_realtime()
 
+        # set endcaps to loading voltages
+        self.trap_dc.set_east_endcap_voltage(self.starting_east_endcap_voltage)
+        self.trap_dc.set_west_endcap_voltage(self.starting_west_endcap_voltage)
+
+        # turn on endcap channels and ensure others are off
+        self.trap_dc.east_endcap_on()
+        self.trap_dc.west_endcap_on()
+        self.trap_dc.h_shim_off()
+        self.trap_dc.v_shim_off()
+        self.trap_dc.a_ramp2_off()
+        self.core.break_realtime()
 
         # open shutters
         self.shutters.open_377_shutter()
         self.shutters.open_423_shutter()
         self.core.break_realtime()
 
-        self.gpp3060.turn_oven_on()   # turn on oven
+        self.gpp3060.turn_oven_on()  # turn on oven
         self.core.break_realtime()
 
         self.aperture.open_aperture()
@@ -131,7 +168,7 @@ class IonLoad(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             if counts >= self.ion_count_threshold:
-                count_successes +=1
+                count_successes += 1
 
             idx += 1
 
@@ -160,13 +197,32 @@ class IonLoad(LAXExperiment, Experiment):
         # disconnect from labjack
         self.shutters.close_labjack()
 
-        #close aperture
+        # close aperture
         self.aperture.close_aperture()
+
+        # set trap parameters as if ion was loaded
+        self.trap_dc.set_east_endcap_voltage(self.starting_east_endcap_voltage)
+        self.trap_dc.set_west_endcap_voltage(self.starting_west_endcap_voltage)
+        self.trap_dc.set_h_shim_voltage(self.ending_h_shim_voltage)
+        self.trap_dc.set_v_shim_voltage(self.ending_v_shim_voltage)
+        self.trap_dc.set_a_ramp2_voltage(self.ending_a_ramp2_voltage)
+
+        # turn on the endcap channels
+        self.trap_dc.east_endcap_on()
+        self.trap_dc.west_endcap_on()
+        self.trap_dc.h_shim_on()
+        self.trap_dc.v_shim_on()
+        self.trap_dc.a_ramp2_on()
+
+        # ramp endcaps to end values
+        self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
+                                       [100, 100])
 
     @kernel
     def check_time(self) -> TBool:
         self.core.break_realtime()
-        return 600 > self.core.mu_to_seconds(self.get_rtio_counter_mu() - self.start_time) # check if longer than 10 min
+        return 600 > self.core.mu_to_seconds(
+            self.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
 
     @rpc
     def check_termination(self):
