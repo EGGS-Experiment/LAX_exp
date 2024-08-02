@@ -8,13 +8,14 @@ from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandCoolPulsed, SidebandReadout)
 
 
-class SidebandCooling(LAXExperiment, Experiment):
+class SidebandCoolingOptimization(LAXExperiment, Experiment):
     """
-    Experiment: Sideband Cooling
+    Experiment: Sideband Cooling Optimization
 
-    Measure ion temperature via sideband ratio following sideband cooling.
+    Measures temperature after a given number of RSB pulses.
+    Optimize
     """
-    name = 'Sideband Cooling'
+    name = 'Sideband Cooling Optimization'
 
 
     def build_experiment(self):
