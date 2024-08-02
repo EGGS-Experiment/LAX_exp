@@ -19,16 +19,16 @@ class Shutters(LAXDevice):
                                   username='', password='lab')
         self.labjack = self.cxn.labjack_server
 
+
         self.port_name_377 = "DIO0"
         self.port_name_423 = "DIO2"
 
         device_handle = self.labjack.device_info()
         if device_handle is -1:
-            self.labjack.device_select([7, 4, 470034742])
-
-    @kernel(flags={"fast-math"})
-    def initialize_device(self):
-        pass
+            # get device list
+            dev_list = self.labjack.device_list()
+            # assume desired labjack is first in list
+            self.labjack.device_select(dev_list[0])
 
     @rpc
     def open_377_shutter(self) -> TNone:
@@ -60,5 +60,7 @@ class Shutters(LAXDevice):
 
     @rpc
     def close_labjack(self) -> TNone:
-
+        """
+        Close labjack
+        """
         self.labjack.device_close()

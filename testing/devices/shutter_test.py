@@ -28,6 +28,8 @@ class ShutterTest(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         # open shutters
+        self.core.break_realtime()
+        delay(3*s)
         self.shutters.open_377_shutter()
         self.core.break_realtime()
         self.shutters.open_423_shutter()
@@ -36,7 +38,7 @@ class ShutterTest(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(10*s)
+        delay(3*s)
 
     # ANALYSIS
     def analyze_experiment(self):
