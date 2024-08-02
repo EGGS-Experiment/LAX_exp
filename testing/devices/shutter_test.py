@@ -1,4 +1,3 @@
-import extensions
 import numpy as np
 from artiq.experiment import *
 
@@ -19,7 +18,6 @@ class ShutterTest(LAXExperiment, Experiment):
 
         self.setattr_device('shutters')
 
-
     def prepare_experiment(self):
         pass
     @property
@@ -30,14 +28,15 @@ class ShutterTest(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         # open shutters
-        self.shutters.open_423_shutter()
         self.shutters.open_377_shutter()
+        self.core.break_realtime()
+        self.shutters.open_423_shutter()
         self.core.break_realtime()
 
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(12*s)
+        delay(10*s)
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -49,4 +48,5 @@ class ShutterTest(LAXExperiment, Experiment):
         # turn off oven
         self.shutters.close_377_shutter()
         self.shutters.close_423_shutter()
+        self.shutters.close_labjack()
 

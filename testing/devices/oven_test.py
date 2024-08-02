@@ -1,8 +1,6 @@
-import extensions
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 import labrad
 
@@ -19,7 +17,6 @@ class OvenTest(LAXExperiment, Experiment):
 
         self.setattr_device('oven')
 
-
     def prepare_experiment(self):
         pass
 
@@ -30,12 +27,16 @@ class OvenTest(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.oven.on()     # turn on oven
+        self.oven.set_oven_voltage(2)  # turn on oven
+        self.oven.on()
         self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(10*s)
+        delay(4*s)
+        # self.core.wait_until_mu(now_mu())
+        # self.core.break_realtime()
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -45,5 +46,6 @@ class OvenTest(LAXExperiment, Experiment):
     @rpc
     def cleanup_devices(self):
         # turn off oven
+        self.oven.set_oven_voltage(0)
         self.oven.off()
 

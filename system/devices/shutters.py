@@ -22,8 +22,9 @@ class Shutters(LAXDevice):
         self.port_name_377 = "DIO0"
         self.port_name_423 = "DIO2"
 
-        if self.labjack.device_handle is not None:
-            self.labjack.device_select(["T7", "ANY", "ANY"])
+        device_handle = self.labjack.device_info()
+        if device_handle is -1:
+            self.labjack.device_select([7, 4, 470034742])
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

@@ -1,6 +1,6 @@
 from LAX_exp.base import LAXExperiment
 import labrad
-
+from artiq.experiment import *
 
 class ApertureTest(LAXExperiment, Experiment):
     """
@@ -25,12 +25,12 @@ class ApertureTest(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.aperture.open_aperture()       # turn on oven
+        self.aperture.open_aperture()       # open aperture
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(15*s)
+        delay(3*s)
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -39,6 +39,6 @@ class ApertureTest(LAXExperiment, Experiment):
 
     @rpc
     def cleanup_devices(self):
-        # turn off oven
+        # close aperture
         self.aperture.close_aperture()
 
