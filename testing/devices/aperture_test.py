@@ -1,23 +1,18 @@
-import extensions
-import numpy as np
-from artiq.experiment import *
-
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 import labrad
 
 
-class OvenTest(LAXExperiment, Experiment):
+class ApertureTest(LAXExperiment, Experiment):
     """
-    Experiment: Oven Test
+    Experiment: Aperture Test
 
     Test Oven
     """
-    name = 'Oven Test'
+    name = 'Aperture Test'
 
     def build_experiment(self):
 
-        self.setattr_device('oven')
+        self.setattr_device('aperture')
 
 
     def prepare_experiment(self):
@@ -30,12 +25,12 @@ class OvenTest(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.oven.on()     # turn on oven
+        self.aperture.open_aperture()       # turn on oven
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        delay(10*s)
+        delay(15*s)
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -45,5 +40,5 @@ class OvenTest(LAXExperiment, Experiment):
     @rpc
     def cleanup_devices(self):
         # turn off oven
-        self.oven.off()
+        self.aperture.close_aperture()
 
