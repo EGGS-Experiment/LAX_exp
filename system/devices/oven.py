@@ -16,7 +16,7 @@ class Oven(LAXDevice):
         self.cxn = labrad.connect(environ['LABRADHOST'],
                                   port=7682, tls_mode='off',
                                   username='', password='lab')
-        self.oven = self.cxn.GPP3060_server
+        self.oven = self.cxn.gpp3060_server
 
         self.ovenChannel = 1
 
@@ -27,16 +27,17 @@ class Oven(LAXDevice):
     @rpc
     def on(self) -> TNone:
         """
-        Turn on the oven to 1 volt
+        Toggle Oven off
         """
-        self.oven.channelVoltage(self.ovenChannel, 1.)
+        self.oven.channel_toggle(self.ovenChannel, 1)
 
     @rpc
     def off(self) -> None:
         """
-        Turn off the oven
+        Toggle Oven on
         """
-        self.oven.channelVoltage(self.ovenChannel, 0)
+        self.oven.channel_voltage(self.ovenChannel, 0)
+        self.oven.channel_toggle(self.ovenChannel, 0)
 
     @rpc
     def set_oven_voltage(self, voltage):
@@ -44,8 +45,10 @@ class Oven(LAXDevice):
         """
         Set the oven voltage
         """
-        # assert 0. <= voltage <= 30., f"voltage must be between 0V and 30V"
-        self.oven.channelVoltage(self.ovenChannel, voltage)
+        if not 0. <= voltage <= 5.0:
+            raise Exception(f"voltage must be between 0V and 5V")
+
+        self.oven.channel_voltage(self.ovenChannel, voltage)
 
     @rpc
     def set_oven_current(self, current):
@@ -53,5 +56,16 @@ class Oven(LAXDevice):
         """
         Set the oven voltage
         """
-        # assert 0. <= current <= 6., f"current must be between 0A and 6A"
-        self.oven.channelCurrent(self.ovenChannel, current)
+        if not 0. <= current <= 4.0:
+            raise Exception("current must be between 0A and 4A")
+
+        self.oven.channel_current(self.ovenChannel, current)
+
+    @rpc
+    def get_oven_voltage(self) -> TFloat:
+
+        return self.oven.measure_voltage(self.ovenChannel)
+
+    @rpc
+    def get_oven_current(self) -> TFloat:
+        return self.oven.measure_current(self.ovenChannel)
