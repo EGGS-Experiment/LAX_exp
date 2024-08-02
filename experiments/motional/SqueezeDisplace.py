@@ -43,7 +43,7 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         # set up squeezing
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
         self.displace_subsequence =                                         Displace(self)
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -51,13 +51,13 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
         self.freq_sideband_readout_ftw_list =                               self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         # convert squeezing to machine units
-        self.freq_squeeze_ftw =                                             self.dds_modulation.frequency_to_ftw(self.freq_squeeze_khz * kHz)
-        self.phase_antisqueeze_pow =                                        self.dds_modulation.turns_to_pow(self.phase_antisqueeze_turns)
+        self.freq_squeeze_ftw =                                             self.dds_parametric.frequency_to_ftw(self.freq_squeeze_khz * kHz)
+        self.phase_antisqueeze_pow =                                        self.dds_parametric.turns_to_pow(self.phase_antisqueeze_turns)
         self.time_squeeze_mu =                                              self.core.seconds_to_mu(self.time_squeeze_us * us)
 
         # convert displacement to machine units
-        self.freq_displace_ftw =                                            self.dds_modulation.frequency_to_ftw(self.freq_displace_khz * kHz)
-        self.phase_displace_pow =                                           self.dds_modulation.turns_to_pow(self.phase_displace_turns)
+        self.freq_displace_ftw =                                            self.dds_parametric.frequency_to_ftw(self.freq_displace_khz * kHz)
+        self.phase_displace_pow =                                           self.dds_parametric.turns_to_pow(self.phase_displace_turns)
         self.time_displace_mu =                                             self.core.seconds_to_mu(self.time_displace_us * us)
 
         # readout timing
@@ -116,20 +116,17 @@ class SqueezeDisplace(SidebandCooling.SidebandCooling):
                 '''READOUT'''
                 # antisqueeze!
                 self.squeeze_subsequence.antisqueeze()
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
-                # transfer population to D-5/2 state
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
-                # read out fluorescence
+                # sideband shelve and read out
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run()
 
                 # update dataset
                 with parallel:
                     self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), time_readout_mu)
                     self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

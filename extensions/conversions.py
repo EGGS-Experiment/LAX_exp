@@ -21,3 +21,4 @@ mhz_to_ftw =                lambda mhz:             int32(round(mhz / 1.e3 * 0xF
 pct_to_asf =                lambda pct:             int32(round(pct / 100. * 0x3FFF))
 att_to_mu =                 lambda att:             int32(0xFF) - int32(round(att * 8.))
 __all__.extend(['hz_to_ftw', 'mhz_to_ftw', 'pct_to_asf', 'att_to_mu'])
+

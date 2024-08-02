@@ -26,7 +26,7 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                                                                     ExplicitScan([1542.2]),
                                                                                     CenterScan(1542.2, 10, 0.25, randomize=True)
                                                                                 ],
-                                                                                global_min=0, global_max=100000, global_step=1,
+                                                                                global_min=0, global_max=400000, global_step=1,
                                                                                 unit="kHz", scale=1, ndecimals=5
                                                                             ), group=self.name)
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
@@ -66,14 +66,17 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
         # set up squeezing
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_parametric')
         # tmp remove
-        self.setattr_device('urukul1_ch2')
         self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_experiment(self):
+        # ensure delay time is above minimum value
+        assert min(list(self.time_delay_us_list)) > 1, "Error: Delay time must be greater than 1 us."
+
         # run preparations for sideband cooling
         super().prepare_experiment()
         self.freq_sideband_readout_ftw_list =                                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
@@ -82,11 +85,12 @@ class Squeezing(SidebandCooling.SidebandCooling):
         # convert squeezing to machine units
         self.freq_squeeze_ftw_list =                                            np.array([hz_to_ftw(freq_khz * kHz)
                                                                                           for freq_khz in self.freq_squeeze_khz_list])
-        self.phase_antisqueeze_pow_list =                                       np.array([self.dds_modulation.turns_to_pow(phase_turns)
+        self.phase_antisqueeze_pow_list =                                       np.array([self.dds_parametric.turns_to_pow(phase_turns)
                                                                                           for phase_turns in self.phase_antisqueeze_turns_list])
         self.time_squeeze_mu_list =                                             np.array([self.core.seconds_to_mu(time_us * us)
                                                                                           for time_us in self.time_squeeze_us_list])
         # note: 2.381 is inherent system overhead; will be smaller if we stop doing stuff with urukul1_ch2
+        # todo: change the inherent system overhead
         self.time_delay_mu_list =                                               np.array([self.core.seconds_to_mu((time_us - 2.381) * us)
                                                                                           for time_us in self.time_delay_us_list])
         self.time_readout_mu_list =                                             np.array([self.core.seconds_to_mu(time_us * us)
@@ -154,13 +158,8 @@ class Squeezing(SidebandCooling.SidebandCooling):
 
 
                 '''READOUT'''
-                # set readout waveform for qubit
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_sideband_readout_mu)
-                # transfer population to D-5/2 state
-                self.qubit.on()
-                delay_mu(time_readout_mu)
-                self.qubit.off()
+                # sideband shelve
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 # read out fluorescence
                 self.readout_subsequence.run()
 
@@ -170,6 +169,9 @@ class Squeezing(SidebandCooling.SidebandCooling):
                                         freq_squeeze_ftw, phase_antisqueeze_pow,
                                         time_squeeze_mu, time_delay_mu, time_readout_mu)
                     self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

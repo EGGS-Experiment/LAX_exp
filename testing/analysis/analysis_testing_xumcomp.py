@@ -21,9 +21,8 @@ from LAX_exp.extensions import *
 # from LAX_exp.experiments.parametric.ParametricSweep import ParametricSweep
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Parametric/Datasets'
-datafile_key =              '44023'
-
+directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Parametric/Datasets/2023_12_testing'
+datafile_key =              '43684'
 
 '''
 MAIN SEQUENCE
@@ -115,7 +114,11 @@ try:
         m_fit_re, m_fit_im = (res.x[1].real, res.x[1].imag)
         voltage_optimal = - (b_fit_re * m_fit_re + b_fit_im * m_fit_im) / (m_fit_re ** 2. + m_fit_im ** 2.)
         min_pos = res.x[0] + voltage_optimal * res.x[1]
-        return np.array([*res.x, min_pos])
+
+        # tmp remove
+        aa_err = np.array([np.sum(np.abs(resids)) / np.sqrt(len(resids)) for resids in aa1])
+        # tmp remove
+        return np.array([*res.x, min_pos, voltage_optimal, aa_err])
     def fitmintmp2(col_num):
         _restmp = th1[:, col_num, [1, 2, 3]]
         _restmp = np.array([
@@ -133,6 +136,10 @@ try:
     kk21 = np.array([[np.abs(val), np.angle(val) / np.pi] for val in kk1[:, 1]])
     kk22 = np.array([[np.real(val), np.imag(val) / np.pi] for val in kk1[:, 2]])
 
+    aa0 = kk1[:, 3]
+    aa1 = kk1[:, 4]
+
+
 
     # # plot extracted minima (in complex plane)
     # for val in kk22:
@@ -141,8 +148,7 @@ try:
     # plt.plot(*kk22.transpose())
     # plt.show()
 
-    print(np.abs(kk1[:, 2]))
-    plt.plot(th1[0,:,0], np.abs(kk1[:,2]))
+    # plt.plot(th1[0, :, 0], np.abs(kk1[:,2]))
     plt.show()
 
     # plot voltage sweeps in complex plane for each frequency
@@ -156,8 +162,8 @@ try:
             scde = np.array([[np.real(val[0] * np.exp(1.j * val[1])), np.imag(val[0] * np.exp(1.j * val[1]))]
                              for val in th1[:, ind, [2, 3]]])
             # print(scde)
-            ax.plot(*scde.transpose(), marker='x', alpha=0.3)
-    plt.show()
+            # ax.plot(*scde.transpose(), marker='x', alpha=0.3)
+    # plt.show()
 
     fixed_channel = 'H Shim' if parameters['dc_micromotion_channel'] == 'V Shim' else 'V Shim'
     print('RID: {:s}'.format(datafile_key))
@@ -187,7 +193,6 @@ try:
         np.median(yz1),
         np.std(yz1))
     )
-
 
 except Exception as e:
     print("Error during testing: {}".format(repr(e)))

@@ -132,7 +132,7 @@ dmypy.json
 **/*.pyc
 **/.DS_Store
 **/__pycache__
-**/*.pyon
+#**/*.pyon
 **/*.h5
 
 # all of .idea (pycharm's config files)
@@ -141,7 +141,7 @@ dmypy.json
 .idea/**
 
 # artiq stuff
-**/*.pyon
+#**/*.pyon
 
 # stuff we produce
 #**/*.txt

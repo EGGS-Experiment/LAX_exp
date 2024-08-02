@@ -5,10 +5,11 @@ import time
 import h5py
 import socket
 import logging
+import traceback
 
 from sipyco import pyon
 from datetime import datetime
-from numpy import array, zeros
+from numpy import array, zeros, int32, nan
 from abc import ABC, abstractmethod
 
 logger = logging.getLogger("artiq.master.experiments")
@@ -68,6 +69,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         self.setattr_device('urukul0_ch0')
         self.setattr_device('urukul1_ch1')
+        self.setattr_device('urukul1_ch3')
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_ch3')
 
@@ -77,8 +79,9 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         self.setattr_device('phaser0')
 
-        # set looping iterator for the _update_results method
+        # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
+        setattr(self, '_counts_iter', 0)
 
     def build_experiment(self):
         """
@@ -153,14 +156,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         initialize_func = kernel_from_string(["self"], _initialize_code)
         setattr(self, '_initialize_experiment', initialize_func)
 
-
         # todo: somehow call prepare method for everything not devices
         # call prepare methods of all child objects
         self.call_child_method('prepare')
 
-        # create dataset for results
+        # create data structures for results
         self.set_dataset('results', zeros(self.results_shape))
         self.setattr_dataset('results')
+
+        # create data structures for dynamic updates
+        self._dynamic_reduction_factor = self.get_dataset('management.dynamic_plot_reduction_factor',
+                                                          default=10,archive=False)
+        self.kernel_invariants.add("_dynamic_reduction_factor")
+        # preprocess values for completion monitoring
+        self._completion_iter_to_pct = 100. / len(self.results)
 
     def prepare_experiment(self):
         """
@@ -180,18 +189,25 @@ class LAXExperiment(LAXEnvironment, ABC):
         Main sequence of the experiment.
         Repeat a given sequence a number of times.
         """
-        # set up completion monitor
-        self.set_dataset('management.completion_pct', 0., broadcast=True, persist=True, archive=False)
+        # set up dynamic datasets
+        # note: this has to happen during run, otherwise we will overwrite other
+        self.set_dataset('management.dynamic.completion_pct', 0., broadcast=True, persist=True, archive=False)
+        # downsample counts for dynamic plotting
+        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
+        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * nan,
+                         broadcast=True, persist=False, archive=False)
 
         # start counting initialization time
-        time_init_start = datetime.timestamp(datetime.now())
+        time_global_start = datetime.timestamp(datetime.now())
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
         self._initialize_experiment(self)
 
         # record initialization time
         time_init_stop = datetime.timestamp(datetime.now())
-        print('\tInitialize Time: {:.2f}'.format(time_init_stop - time_init_start))
+        time_expinit = time_init_stop - time_global_start
+        self.set_dataset('time_init', time_expinit)
+        print('\tInitialize Time:\t{:.2f}'.format(time_expinit))
 
         # call user-defined initialize function
         # todo: see if we can move this into _initialize_experiment for speed
@@ -205,13 +221,19 @@ class LAXExperiment(LAXEnvironment, ABC):
             # run the main part of the experiment
             self.run_main()
         except TerminationRequested:
-            # run cleanup, bypassing any analysis methods
-            self._run_cleanup()
             print('\tExperiment successfully terminated.')
-            raise TerminationRequested
+        except Exception as e:
+            print('\tError during experiment: {}'.format(repr(e)))
+            print(traceback.format_exc())
 
         # set devices back to their default state
         self._run_cleanup()
+
+        # record total runtime
+        time_run_stop = datetime.timestamp(datetime.now())
+        time_exprun = time_run_stop - time_init_stop
+        print('\tRun Time:\t\t{:.2f}'.format(time_exprun))
+        self.set_dataset('time_run', time_exprun)
 
     @kernel(flags={"fast-math"})
     def _initialize_experiment(self):
@@ -226,6 +248,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         Set all devices back to their original state.
         """
         self.core.break_realtime()
+        # todo: set attenuations for parametric and modulation DDSs
 
         # reset hardware to allow use by users
         with parallel:
@@ -241,10 +264,11 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # reset main board to rescue parameters
             with sequential:
-                self.urukul2_cpld.set_profile(0)
+                # set to readout values
+                self.urukul2_cpld.set_profile(1)
                 self.urukul2_cpld.cfg_switches(0b1110)
 
-        delay_mu(10)
+        delay_mu(100)
         with sequential:
             # enable all external RF switches
             with parallel:
@@ -258,6 +282,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             with parallel:
                 self.urukul0_ch0.sw.off()  # 729nm
                 self.urukul1_ch1.sw.off()  # parametric
+                self.urukul1_ch3.sw.off()  # dipole
                 self.urukul2_ch2.sw.off()  # 866nm
                 self.urukul2_ch3.sw.off()  # 854nm
 
@@ -283,6 +308,9 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
+
+            # add slack
+            self.core.break_realtime()
 
         # ensure all events in the FIFOs are completed before
         # we exit the kernel
@@ -388,8 +416,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         For efficiency, data is added by mutating indices of a preallocated dataset.
         Contains an internal iterator to keep track of the current index.
         """
+        # store results in main dataset
         self.mutate_dataset('results', self._result_iter, array(args))
-        self.set_dataset('management.completion_pct', round(100. * self._result_iter / len(self.results), 3), broadcast=True, persist=True, archive=False)
+
+        # do intermediate processing
+        if (self._result_iter % self._dynamic_reduction_factor) == 0:
+            # plot counts in real-time to monitor ion death
+            self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
+            self._counts_iter += 1
+
+            # monitor completion status
+            self.set_dataset('management.dynamic.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+                             broadcast=True, persist=True, archive=False)
+
+        # increment result iterator
         self._result_iter += 1
 
     @property
@@ -411,6 +451,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         expid =         exp_params["expid"]
 
         # todo: try to get default save dir list
+        # problem: we don't have access to dataset managers in this stage
         # try:
         #     th0 = self.get_dataset('management.dataset_save_locations')
         #     print(th0)
@@ -418,7 +459,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         #     print(e)
         #     print('whoops')
         save_dir_list = [
-            'Z:\\Motion\\Data'
+            'Z:\\Motion\\Data',
+            'D:\\Results'
         ]
 
         # save to all relevant directories

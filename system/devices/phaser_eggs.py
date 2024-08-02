@@ -25,7 +25,6 @@ class PhaserEGGS(LAXDevice):
         "ftw_per_hz",
         "channel",
         "freq_center_hz",
-        "freq_center_ftw",
         "phase_inherent_ch1_turns",
         "time_latency_ch1_system_ns"
     }
@@ -47,7 +46,6 @@ class PhaserEGGS(LAXDevice):
 
         # get frequency parameters
         self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
-        self.freq_center_ftw =              self.frequency_to_ftw(self.freq_center_hz)
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
@@ -78,7 +76,7 @@ class PhaserEGGS(LAXDevice):
     DUC Methods
     '''
     @kernel(flags={"fast-math"})
-    def reset_duc_phase(self):
+    def reset_duc_phase(self) -> TNone:
         """
         Disable amplitude and phase accumulator for all oscillators.
         """
@@ -98,31 +96,14 @@ class PhaserEGGS(LAXDevice):
     '''
     Oscillator Methods
     '''
-
     @kernel(flags={"fast-math"})
-    def disable_oscillators(self):
+    def reset_oscillators(self) -> TNone:
         """
-        Set amplitude to 0 and keep phase accumulator cleared for all oscillators.
-        # todo: document
-        # note: this is different from reset_oscillators since it doesn't reset frequency, and persistently clears the phase accumulator
+        Reset frequency, amplitude, and phase accumulators for all oscillators on both channels of the phaser.
+        Maximum attenuation is set to minimize leakage of downstream phaser components.
+        This function synchronizes to the frame for each oscillator reset.
         """
-        # synchronize to frame
-        at_mu(self.phaser.get_next_frame_mu())
-
-        # clear oscillator amplitudes
-        for i in range(5):
-
-            # do it for both channels
-            with parallel:
-                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                delay_mu(self.t_sample_mu)
-
-    @kernel(flags={"fast-math"})
-    def reset_oscillators(self):
-        """
-        Reset frequency and amplitude for all oscillators on both channels of the phaser.
-        """
+        # clear oscillators
         for i in range(5):
             # synchronize to frame
             at_mu(self.phaser.get_next_frame_mu())
@@ -135,13 +116,53 @@ class PhaserEGGS(LAXDevice):
 
             # clear oscillator amplitudes
             with parallel:
-                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
                 delay_mu(self.t_sample_mu)
+
+        # set max attenuations for phaser outputs to reduce effect of internal noise
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[1].set_att(31.5 * dB)
+
+    @kernel(flags={"fast-math"})
+    def phaser_stop(self) -> TNone:
+        """
+        Stop the phaser quickly.
+        Set maximum attenuation to prevent output leakage.
+        """
+        # disable eggs phaser output
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+
+        # switch off EGGS attenuators to prevent leakage
+        # delay_mu(self.t_sample_mu)
+        # self.phaser.channel[0].set_att(31.5 * dB)
+        # delay_mu(self.t_sample_mu)
+        # self.phaser.channel[1].set_att(31.5 * dB)
 
 
     '''
-    Helper Methods
+    HELPER METHODS
     '''
     @portable(flags={"fast-math"})
     def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
@@ -174,18 +195,3 @@ class PhaserEGGS(LAXDevice):
         """
         return pow_ / 0x10000
 
-    @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
-        """
-         todo: document
-         """
-        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        return int32(round(self.ftw_per_hz * frequency))
-
-    @portable(flags={"fast-math"})
-    def ftw_to_frequency(self, ftw: TInt32) -> TFloat:
-        """
-         todo: document
-         """
-        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        return ftw / self.ftw_per_hz

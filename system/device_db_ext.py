@@ -2,6 +2,31 @@
 
 device_db_ext = {
 
+    # LABRAD Devices
+    "aperture": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.aperture",
+        "class": "Aperture"
+    },
+
+    "camera": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.andor_camera",
+        "class": "AndorCamera"
+    },
+
+    "shutters": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.shutters",
+        "class": "Shutters"
+    },
+
+    "oven": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.oven",
+        "class": "Oven"
+    },
+
     # BEAMS
     "probe": {
         "type": "local",
@@ -36,10 +61,10 @@ device_db_ext = {
         "module": "LAX_exp.system.devices.dds_dipole",
         "class": "DDSDipole"
     },
-    "dds_modulation": {
+    "dds_parametric": {
         "type": "local",
-        "module": "LAX_exp.system.devices.dds_modulation",
-        "class": "DDSModulation"
+        "module": "LAX_exp.system.devices.dds_parametric",
+        "class": "DDSParametric"
     },
     "phaser_eggs": {
         "type": "local",

@@ -21,7 +21,7 @@ class TickleDDS(LAXSubsequence):
         self.setattr_argument('att_tickle_db',          NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
-        self.setattr_device('dds_modulation')
+        self.setattr_device('dds_dipole')
         self.setattr_device('ttl8')
 
     def prepare_subsequence(self):
@@ -35,17 +35,17 @@ class TickleDDS(LAXSubsequence):
 
         # configure DDS here
         # this ensures that dds channel will have correct attenuation in any DMA sequences recorded later
-        self.dds_modulation.set_att_mu(self.att_tickle_mu)
-        self.dds_modulation.set_profile(0)
-        self.dds_modulation.set_phase_absolute()
+        self.dds_dipole.set_att_mu(self.att_tickle_mu)
+        self.dds_dipole.set_profile(0)
+        self.dds_dipole.set_phase_absolute()
 
     @kernel(flags={"fast-math"})
     def run(self):
         # reset DDS phase
-        self.dds_modulation.reset_phase()
+        self.dds_dipole.reset_phase()
         self.ttl8.on()
 
         # tickle for given time
-        self.dds_modulation.on()
+        self.dds_dipole.on()
         delay_mu(self.time_tickle_mu)
-        self.dds_modulation.off()
+        self.dds_dipole.off()

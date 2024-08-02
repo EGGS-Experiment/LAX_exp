@@ -67,6 +67,7 @@ try:
     storage_dict = {}
     exp_obj = ExperimentWrapper(results, parameters, storage_dict)
     # call the analyze method of the experiment object to process our results
+    exp_obj.build_experiment()
     exp_res = exp_obj.analyze_experiment()
 
 

@@ -19,7 +19,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                            NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",                    Scannable(
@@ -124,6 +124,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 self.update_results(freq_ftw, 0, 0, 0)
                 self.core.break_realtime()
 
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
@@ -173,6 +176,11 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
         fit_gaussian_fwmh_mhz =                         2 * (2. * fit_gaussian_params[1]) ** -0.5
         fit_gaussian_fwmh_mhz_err =                     fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])
+
+        # save results to dataset manager for dynamic experiments
+        res_dj = [fit_gaussian_params, fit_gaussian_err]
+        self.set_dataset('temp.linewidthmeasurement.results', res_dj, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.linewidthmeasurement.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
         # save fitted results to hdf5 as a dataset
         self.set_dataset('fit_gaussian_params',         fit_gaussian_params)

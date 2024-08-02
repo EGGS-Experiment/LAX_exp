@@ -47,6 +47,15 @@ class Beam729(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num):
+    def set_profile(self, profile_num: TInt32):
         self.beam.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
+
+    @kernel(flags={"fast-math"})
+    def io_update(self):
+        """
+        Pulse the CPLDs IO_UPDATE pin.
+        Can be used to clear the phase accumulator if the phase_autoclear
+            flag is set in CFR1.
+        """
+        self.beam.cpld.io_update.pulse_mu(8)

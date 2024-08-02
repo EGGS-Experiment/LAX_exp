@@ -5,14 +5,14 @@ Contains modules used for fitting datasets.
 """
 
 __all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
-           'fitSinc', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
-           'fitLine']
+           'fitSinc', 'fitSincGeneric', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
+           'fitLine', 'fitLineLinear']
 
 
 # necessary imports
 import numpy as np
 from scipy.special import wofz
-from scipy.optimize import curve_fit, least_squares
+from scipy.optimize import curve_fit, least_squares, lsq_linear
 
 
 '''
@@ -141,7 +141,7 @@ def fitDampedDrivenOscillatorPhase(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -176,8 +176,13 @@ def fitSinc(data, time_fit_s):
         return ((a**2. / (a**2. + (x - b)**2.)) * np.sin((np.pi * time_fit_s) * (a**2. + (x - b)**2.)**0.5)**2. + c)
 
     # separate data into x and y
-    data =              np.array(data)
-    data_x, data_y =    data.transpose()
+    try:
+        data =              np.array(data)
+        data_x, data_y =    data.transpose()
+    except:
+        data = np.array(data)
+        data_x = data[0,:]
+        data_y = data[1,:]
 
     # extract starting parameter guesses
     b0 =                np.mean(data_x[np.argwhere(data_y == np.max(data_y))])
@@ -218,8 +223,8 @@ def fitGaussian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
-    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    gamma0 =            np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
+    b0 =                np.log(2) / gamma0**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -239,7 +244,7 @@ def fitLorentzian(data):
     Returns:
         ***todo
     """
-    # regular old lorentzin
+    # regular old lorentzian
     def fit_func(x, a, b, mu):
         """
         todo: document arguments
@@ -254,7 +259,7 @@ def fitLorentzian(data):
     # get position of max as linecenter
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    b0 =                data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
+    b0 =                np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -293,8 +298,8 @@ def fitVoigt(data):
     # get position of max as line center
     mu0, a0 =           data[np.argmax(data_y)]
     # get b0 by numerically guessing FWHM
-    gamma0 =            data_x[np.argmin(np.abs(data_y - 0.5 * a0))]
-    b0 =                np.log(2) / (gamma0 - mu0)**2.
+    gamma0 =            np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
+    b0 =                np.log(2) / gamma0**2.
     # create array of initial guess parameters
     param_guess =       np.array([a0, b0, mu0])
 
@@ -309,7 +314,7 @@ Fitting: Other
 '''
 def fitLine(data, bounds=(-np.inf, np.inf)):
     """
-    Fit linear trend to data.
+    Fit linear trend to data using nonlinear least-squares.
 
     Arguments:
         ***todo
@@ -335,4 +340,150 @@ def fitLine(data, bounds=(-np.inf, np.inf)):
     # do a linear least squares fit to the data
     res = least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]), bounds=bounds)
     res_intercept, res_slope = res.x
+    # todo: make it follow param_fit, param_err return style
     return res_intercept, res_slope
+
+def fitLineLinear(data, bounds=(-np.inf, np.inf)):
+    """
+    Fit linear trend to data using linear least-squares.
+
+    Arguments:
+        ***todo
+
+    Returns:
+        ***todo
+    """
+    # separate data into x and y
+    data =              np.array(data)
+    data_x, data_y =    data.transpose()
+
+    # create design matrix
+    matrixA = np.array([np.ones(len(data_y)), data_x]).transpose()
+
+    # do a linear least squares fit
+    res = lsq_linear(matrixA, data_y)
+    param_fit = res.x
+    return param_fit
+
+
+def fitSincGeneric(x: np.array, y: np.array):
+    """
+    Fitting function for a generic sinc function
+
+    Args:
+        x: x values
+        y: y values
+
+    Returns:
+        param_fit: optimized parameters from curve_fitting
+        param_err: estimated covariance from curve_fitting
+        ydata: generated curve over given domain
+    """
+
+    def fit_func(x, a, b, c, d):
+        """
+        Fitting function for a generic sinc function
+
+        Args:
+            a: amplitude
+            b: linecenter
+            c: linewidth
+            d: amplitude offset
+
+        Returns:
+            sinc function
+        """
+        return a * np.sinc(c * (x - b))**2. + d
+
+    ## extract starting parameter guesses
+    # get indices of max y-values
+    indices_max_y =     np.argwhere(y == np.max(y))
+    # get offset as average of (median, min) of data
+    b0 =                np.mean(x[np.argwhere(y == np.max(y))])
+    d0 =               np.min(y)
+    # guess amplitude using max y-value with offset subtracted
+    a0 =                np.max(y) - d0
+    # get b0 by numerically guessing FWHM
+    c0 =                1. / (2. * (np.abs(x[np.argmin(y - 0.5 * a0)]-b0)))
+
+    ## fit and convert covariance matrix to error (1 stdev)
+    param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0,c0,d0], bounds =((0,0,0,0), (np.inf, np.inf, np.inf, np.inf)))
+    xdata =         np.linspace(np.min(x), np.max(x), int(1e6))
+    ydata =         fit_func(xdata, *param_fit)
+    param_err =     np.sqrt(np.diag(param_cov))
+    return param_fit, param_err, ydata
+
+
+
+# def fitSincGeneric(x: np.array,y: np.array):
+#     """
+#     Fitting function for a generic sinc function
+#
+#     Args:
+#         x: x values
+#         y: y values
+#
+#     Returns:
+#         param_fit: optimized parameters from curve_fitting
+#         param_err: estimated covariance from curve_fitting
+#         ydata: generated curve over given domain
+#     """
+#     def fit_func(x, a, b, c,d):
+#         """
+#         Fitting function for a generic sinc function
+#
+#         Args:
+#             a: amplitude
+#             b: linecenter
+#             c: linewidth
+#             d: amplitude offset
+#
+#         Returns:
+#             sinc function
+#         """
+#         return a * np.sinc(c * (x - b))**2. + d
+#
+#     # ## extract starting parameter guesses
+#     # # get indices of max y-values
+#     # indices_max_y =     np.argwhere(y == np.max(y))
+#     # # get linecenter as mean of max x[y_max]
+#     # b0 =                np.mean(x[indices_max_y])
+#     # # get offset as average of (median, min) of data
+#     # d0 =                0.5 * (np.median(y) + np.min(y))
+#     # # guess amplitude using max y-value with offset subtracted
+#     # a0 =                np.max(y) - d0
+#     # # get c0 by numerically guessing FWHM
+#     # c0 =                1. / (2. * x[np.argmin(np.abs(y - 0.5 * a0))])
+#     #
+#     # ## fit and convert covariance matrix to error (1 stdev)
+#     # param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0, b0, c0, d0])
+#     # xdata =         np.linspace(np.min(x), np.max(x), int(1e6))
+#     # ydata =         fit_func(xdata, *param_fit)
+#     # param_err =     np.sqrt(np.diag(param_cov))
+#     # return param_fit, param_err, ydata
+#
+#     # extract starting parameter guesses
+#     # get linecenter as average of (median, min) of data
+#     b0 =                np.mean(x[np.argwhere(y == np.max(y))])
+#     # guess amplitude using max y-value with offset subtracted
+#     a0 =                (np.max(y))
+#
+#     index_max_y = int(np.median(np.argwhere(y == np.max(y))))
+#     y_left =    y[:index_max_y]
+#     y_right =   y[index_max_y:]
+#     x_left =    x[:index_max_y]
+#     x_right =   x[index_max_y:]
+#
+#
+#     x_left_FWHM = x_left[(y_left-np.max(y)/2).argmin()]
+#     x_right_FWHM = x_right[(y_right-np.max(y)/2).argmin()]
+#     c0 = 1/(x_right_FWHM-x_left_FWHM)
+#     d0 = np.min(y)
+#
+#     # fit and convert covariance matrix to error (1 stdev)
+#     param_fit, param_cov =  curve_fit(fit_func, x, y, p0=[a0,b0, c0, d0])
+#     xdata = np.linspace(np.min(x), np.max(x), int(1e6))
+#     ydata = fit_func(xdata, *param_fit)
+#     param_err =             np.sqrt(np.diag(param_cov))
+#     return param_fit, param_err, ydata
+
