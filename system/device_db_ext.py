@@ -27,6 +27,13 @@ device_db_ext = {
         "class": "Oven"
     },
 
+    "trap_dc": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.trap_dc",
+        "class": "TrapDC"
+
+    },
+
     # BEAMS
     "probe": {
         "type": "local",
