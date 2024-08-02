@@ -61,7 +61,7 @@ class SpinEchoWizard(LAXEnvironment):
 
         # spin-echo delay
         self.enable_delay_spinecho =        False
-        self.time_delay_spinecho_us =       10
+        self.time_delay_spinecho_us =       250
 
     def calculate_pulseshape(self) -> TNone:
         """

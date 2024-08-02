@@ -190,6 +190,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.spinecho_wizard.time_pulse_shape_rolloff_us =  self.time_pulse_shape_rolloff_us
         self.spinecho_wizard.freq_pulse_shape_sample_khz =  self.freq_pulse_shape_sample_khz
         self.spinecho_wizard.enable_delay_spinecho =        False
+        self.spinecho_wizard.time_delay_spinecho_us =       250
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # set up blocks for pulse sequence
