@@ -118,6 +118,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         """
         Prepare experimental values.
         """
+        # ensure phaser amplitudes sum to less than 100%
+        total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
+                                                                             self.ampl_eggs_heating_bsb_pct +
+                                                                             self.ampl_eggs_dynamical_decoupling_pct)
+        if total_phaser_channel_amplitude > 100.:
+            raise Exception("Error: phaser oscillator amplitudes greater than 100%.")
+
         '''SUBSEQUENCE PARAMETERS'''
         # get readout values
         self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
