@@ -18,11 +18,6 @@ class SpinEchoWizardTest(LAXEnvironment, Experiment):
         self.setattr_device("core_dma")
         self.setattr_device("ttl8")
         self.setattr_device("ttl9")
-
-        self.setattr_device("ttl0_counter")
-        self.setattr_device('urukul2_ch2')
-        self.setattr_device('urukul2_cpld')
-
         self.setattr_device('phaser0')
         self.setattr_device('phaser_eggs')
 
@@ -34,7 +29,6 @@ class SpinEchoWizardTest(LAXEnvironment, Experiment):
         pass
 
     def run(self):
-        self.spinecho_wizard.prepare()
         self.spinecho_wizard.calculate_pulseshape()
         self.spinecho_wizard.compile_waveform()
 

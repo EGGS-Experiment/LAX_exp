@@ -56,6 +56,7 @@ class SpinEchoWizard(LAXEnvironment):
         self.enable_pulse_shaping =         True
         self.pulse_shape_blocks =           False
         self.type_pulse_shape =             'sine_squared'
+        # self.type_pulse_shape =             'error_function'
         self.time_pulse_shape_rolloff_us =  100
         self.freq_pulse_shape_sample_khz =  500
 
@@ -101,15 +102,25 @@ class SpinEchoWizard(LAXEnvironment):
         '''calculate pulse shape window (i.e. y-vals)'''
         if self.type_pulse_shape == 'sine_squared':
             # calculate x-axis scaling factor
-            scale_factor_x = np.pi / (2. * self.time_pulse_shape_rolloff_mu)
+            scale_factor_x = (np.pi / 2.) / self.time_pulse_shape_rolloff_mu
+            x_vals_readjusted = scale_factor_x * self._pulse_shape_array_times_mu
             # calculate sine squared window
-            self.ampl_window_rising = np.power(np.sin(scale_factor_x * self._pulse_shape_array_times_mu), 2)
-            self.ampl_window_falling = self.ampl_window_rising[::-1]
+            self.ampl_window_rising = np.sin(x_vals_readjusted) ** 2.
 
         elif self.type_pulse_shape == 'error_function':
-            raise Exception('Error: error function window not implemented')
+            # import error function
+            from math import erf
+            # readjust x-axis
+            scale_factor_x = (2. * np.pi) / self.time_pulse_shape_rolloff_mu
+            x_vals_readjusted = (scale_factor_x * self._pulse_shape_array_times_mu) - np.pi
+            # calculate erf window
+            self.ampl_window_rising = np.array([(1. + erf(x_val)) / 2. for x_val in x_vals_readjusted])
+
         else:
             raise Exception('Error: idk, some window problem')
+
+        # falling pulse shape should be simple reverse of rising window
+        self.ampl_window_falling = self.ampl_window_rising[::-1]
 
 
     def compile_waveform(self):
