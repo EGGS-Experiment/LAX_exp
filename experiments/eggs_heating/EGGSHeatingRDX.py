@@ -121,7 +121,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # ensure phaser amplitudes sum to less than 100%
         total_phaser_channel_amplitude =                                    (self.ampl_eggs_heating_rsb_pct +
                                                                              self.ampl_eggs_heating_bsb_pct +
-                                                                             self.ampl_eggs_dynamical_decoupling_pct)
+                                                                             self.ampl_eggs_heating_carrier_pct)
         if total_phaser_channel_amplitude > 100.:
             raise Exception("Error: phaser oscillator amplitudes greater than 100%.")
 
