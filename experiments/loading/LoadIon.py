@@ -1,8 +1,9 @@
 import extensions
 import numpy as np
 from artiq.experiment import *
+import cv2
+from scipy.ndimage import gaussian_filter
 
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 
 
@@ -57,20 +58,29 @@ class IonLoad(LAXExperiment, Experiment):
 
         # starting trap arguments
         self.setattr_argument('ending_east_endcap_voltage',
-                              NumberValue(default=19., ndecimals=1, step=0.1, min=0., max=300.),
+                              NumberValue(default=202., ndecimals=1, step=0.1, min=0., max=300.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_west_endcap_voltage',
-                              NumberValue(default=25., ndecimals=1, step=0.1, min=0., max=300.),
+                              NumberValue(default=289., ndecimals=1, step=0.1, min=0., max=300.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_v_shim_voltage',
-                              NumberValue(default=60., ndecimals=1, step=0.1, min=0., max=150.),
+                              NumberValue(default=66.9, ndecimals=1, step=0.1, min=0., max=150.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_h_shim_voltage',
-                              NumberValue(default=51.5, ndecimals=1, step=0.1, min=0., max=150.),
+                              NumberValue(default=50.1, ndecimals=1, step=0.1, min=0., max=150.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_a_ramp2_voltage',
-                              NumberValue(default=2., ndecimals=1, step=0.1, min=0., max=100.),
+                              NumberValue(default=2.0, ndecimals=1, step=0.1, min=0., max=100.),
                               group='Ending Trap Parameters')
+
+        # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
+        self.setattr_argument('image_width_pixels', NumberValue(default=400,
+                                                                     min=100, max=450, step=1,
+                                                                     scale=1, ndecimals=0), group='Camera')
+
+        self.setattr_argument('image_height_pixels', NumberValue(default=400,
+                                                                   min=100, max=450, step=1,
+                                                                   scale=1, ndecimals=0), group='Camera')
 
         # relevant devices
         self.setattr_device('pump')
@@ -82,8 +92,12 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('aperture')
         self.setattr_device('trap_dc')
         self.setattr_device('scheduler')
+        self.setattr_device('camera')
 
     def prepare_experiment(self):
+
+        # define image region
+        self.image_region = (self.horizontal_image_region, self.vertical_image_region)
 
         # convert 397 parameters
         self.ftw_397 = extensions.mhz_to_ftw(self.freq_397_mhz)
@@ -107,6 +121,7 @@ class IonLoad(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+
         self.core.break_realtime()
         self.pump.beam.cpld.get_att_mu()
 
@@ -145,23 +160,32 @@ class IonLoad(LAXExperiment, Experiment):
         self.shutters.open_423_shutter()
         self.core.break_realtime()
 
-        self.gpp3060.turn_oven_on()  # turn on oven
+        # turn on the oven
+        self.gpp3060.turn_oven_on()
         self.core.break_realtime()
 
+        # open aperture
         self.aperture.open_aperture()
+        self.core.break_realtime()
+
+        # set camera region of interest
+        self.camera.set_image_region(tuple(self.image_region))
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
+        """
+        Run till ion is loaded or timeout
+        """
         self.core.break_realtime()  # add slack
         self.start_time = self.get_rtio_counter_mu()
 
-        counts = 0
         idx = 0
         breaker = False
         count_successes = 0
 
         while count_successes < 10:
+            idx += 1
             self.core.break_realtime()  # add slack
             self.pmt.count(self.pmt_sample_time_us)  # set pmt sample time
             counts = self.pmt.fetch_count()  # grab counts from PMT
@@ -169,16 +193,16 @@ class IonLoad(LAXExperiment, Experiment):
 
             if counts >= self.ion_count_threshold:
                 count_successes += 1
-
-            idx += 1
+                if count_successes >=10:
+                    print("ION LOADED!!!")
 
             if idx >= 49:
                 idx = 0
                 breaker = self.check_time()
+                if breaker: break
                 self.check_termination()  # check if termination is over threshold
                 self.core.break_realtime()
 
-            if breaker: break
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -187,6 +211,10 @@ class IonLoad(LAXExperiment, Experiment):
 
     @rpc
     def cleanup_devices(self):
+        """
+        Set all devices to states as if ion was loaded
+        All but trap electrodes set to original state
+        """
         # turn off oven
         self.gpp3060.turn_oven_off()
 
@@ -218,8 +246,44 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
                                        [100, 100])
 
+    @rpc
+    def take_image(self) -> TArray:
+        """
+        Take image with andor camera and return data
+
+        Returns:
+            TArray with image data
+        """
+        self.camera.acquire_single_image()
+        image = self.camera.get_most_recent_image()
+        return image
+
+    @rpc
+    def find_num_ions_from_image(self, image) -> TFloat:
+        """
+        Find the number of ions loaded from an image taken with the andor camera
+
+        Args:
+            image (array): pixel values of andor camera
+
+        Returns:
+            TFloat: number of ions predicted
+        """
+        upper_percentile = np.percentile(data, 99)
+        image[image < upper_percentile] = 0
+        image[image >= upper_percentile] = 1
+        kernel = np.ones((2, 2), np.uint8)
+        image = cv2.erode(image, kernel, iterations=3)
+        image = cv2.dilate(image, kernel, iterations=3)
+        image[image > 0] = 1
+        labels = measure.label(image)
+        return len(np.unique(labels)) - 1
+
     @kernel
     def check_time(self) -> TBool:
+        """
+        Check wall clock time to see if 10 min (600 sec) has elapsed with no ion loaded
+        """
         self.core.break_realtime()
         return 600 > self.core.mu_to_seconds(
             self.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
