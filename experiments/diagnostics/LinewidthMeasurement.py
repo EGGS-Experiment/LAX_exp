@@ -65,8 +65,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # get amplitude calibration curve from dataset manager and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
-        # ampl_calib_points =     self.get_dataset('calibration.beam_power.pump_beam.asf_calibration_curve_mhz_pct')
-        ampl_calib_points =     self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
+        # ampl_calib_points =     self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
+        ampl_calib_points =     self.get_dataset('calibration.beam_power.pump_beam.asf_calibration_curve_mhz_pct')
         ampl_calib_curve =      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # verify desired scan range is serviceable by calibration values

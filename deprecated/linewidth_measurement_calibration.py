@@ -1,7 +1,6 @@
 import labrad
 import numpy as np
 from os import environ
-from time import sleep
 from datetime import datetime
 from artiq.experiment import *
 
@@ -22,16 +21,16 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         self.setattr_device("core_dma")
 
         # search parameters
-        self.setattr_argument("target_voltage_mv",                          NumberValue(default=40, ndecimals=3, step=1, min=-10000, max=10000))
-        self.setattr_argument("target_tolerance_mv",                        NumberValue(default=1, ndecimals=3, step=1, min=0, max=1000))
+        self.setattr_argument("target_voltage_mv",                          NumberValue(default=55.1, ndecimals=3, step=1, min=-10000, max=10000))
+        self.setattr_argument("target_tolerance_mv",                        NumberValue(default=5, ndecimals=3, step=1, min=0, max=1000))
 
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",                          Scannable(
-                                                                                default=RangeScan(95, 125, 121, randomize=True),
+                                                                                default=RangeScan(70, 140, 141, randomize=True),
                                                                                 global_min=70, global_max=140, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=5
                                                                             ), group='DDS')
-        self.setattr_argument("dds_channel_num",                            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3), group='DDS')
+        self.setattr_argument("dds_channel_num",                            NumberValue(default=2, ndecimals=0, step=1, min=0, max=3), group='DDS')
         self.setattr_argument("dds_ampl_min_pct",                           NumberValue(default=5, ndecimals=2, step=1, min=1, max=40), group='DDS')
         self.setattr_argument("dds_ampl_max_pct",                           NumberValue(default=50, ndecimals=2, step=1, min=5, max=50), group='DDS')
         self.setattr_argument("dds_attenuation_db",                         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
@@ -39,7 +38,7 @@ class LinewidthMeasurementCalibration(EnvExperiment):
         # sampler setup
         self.setattr_argument("adc_channel_num",                            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='ADC')
         self.setattr_argument("adc_gain_num",                               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
-        self.setattr_argument("adc_sample_num",                             NumberValue(default=100, ndecimals=0, step=1, min=1, max=5000), group='ADC')
+        self.setattr_argument("adc_sample_num",                             NumberValue(default=250, ndecimals=0, step=1, min=1, max=5000), group='ADC')
 
 
     def prepare(self):
