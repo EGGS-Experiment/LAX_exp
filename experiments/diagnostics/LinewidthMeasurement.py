@@ -52,29 +52,29 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         """
         '''CONVERT VALUES TO MACHINE UNITS'''
         # convert probe frequency scans
-        self.freq_probe_scan_mhz =                      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
-        self.freq_probe_scan_ftw =                      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_mhz =      np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_ftw =      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
         # tmp remove
         # set adc holdoff time to ensure adc records when probe beam is actually on
-        self.time_adc_holdoff_mu =                      self.core.seconds_to_mu(1000 * us)
-        self.adc_channel_gain_mu =                      int(np.log10(int(self.adc_channel_gain)))
+        self.time_adc_holdoff_mu =      self.core.seconds_to_mu(1000 * us)
+        self.adc_channel_gain_mu =      int(np.log10(int(self.adc_channel_gain)))
 
 
         '''CALIBRATE BEAM POWERS'''
         # get amplitude calibration curve from dataset manager and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
-        # ampl_calib_points =                             self.get_dataset('calibration.beam_power.pump_beam.asf_calibration_curve_mhz_pct')
-        ampl_calib_points =                             self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
-        ampl_calib_curve =                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+        # ampl_calib_points =     self.get_dataset('calibration.beam_power.pump_beam.asf_calibration_curve_mhz_pct')
+        ampl_calib_points =     self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
+        ampl_calib_curve =      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # verify desired scan range is serviceable by calibration values
         min_freq_mhz =  np.min(self.freq_probe_scan_mhz)
         max_freq_mhz =  np.max(self.freq_probe_scan_mhz)
-        if (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])):
+        if min_freq_mhz < np.min(ampl_calib_points[:, 0]):
             raise Exception("Error: lower bound of frequency scan range below valid calibration range.")
-        if (max_freq_mhz < np.max(ampl_calib_points[:, 0])) & (max_freq_mhz > np.min(ampl_calib_points[:, 0])):
+        elif max_freq_mhz > np.max(ampl_calib_points[:, 0]):
             raise Exception("Error: upper bound of frequency scan range above valid calibration range.")
 
         # get calibrated amplitude values
@@ -84,7 +84,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         '''CREATE EXPERIMENT CONFIG'''
         # set up probe waveform config
-        self.config_linewidth_measurement_list =                        np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
+        self.config_linewidth_measurement_list =    np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
 
 
     @property
