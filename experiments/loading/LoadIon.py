@@ -5,6 +5,7 @@ import skimage
 from skimage import measure
 
 from LAX_exp.base import LAXExperiment
+from artiq.language.units import *
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -90,6 +91,8 @@ class IonLoad(LAXExperiment, Experiment):
                                                                    min=1, max=5, step=1,
                                                                    scale=1, ndecimals=0), group='Camera')
 
+        self.setattr_argument('exposure_time_ms', NumberValue(default=100, ndecimals=1, min = 1, max = 1000,
+                                                              step = 0.1, unit='ms'), group = 'Camera')
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
@@ -118,6 +121,8 @@ class IonLoad(LAXExperiment, Experiment):
         self.image_region = (self.horizontal_binning, self.vertical_binning,
                              start_x, end_x, start_y, end_y)
 
+        self.exposure_time_s = self.exposure_time_ms/ms
+
         # convert 397 parameters
         self.ftw_397 = extensions.mhz_to_ftw(self.freq_397_mhz)
         self.asf_397 = extensions.pct_to_asf(self.ampl_397)
@@ -132,6 +137,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.ftw_866 = extensions.mhz_to_ftw(self.freq_866_mhz)
         self.asf_866 = extensions.pct_to_asf(self.ampl_866)
         self.att_866 = extensions.att_to_mu(self.att_866_dB)
+
 
     @property
     def results_shape(self):
@@ -187,8 +193,9 @@ class IonLoad(LAXExperiment, Experiment):
         self.aperture.open_aperture()
         self.core.break_realtime()
 
-        # set camera region of interest
+        # set camera region of interest and exposure time
         self.camera.set_image_region(self.image_region)
+        self.camera.set_exposure_time(self.exposure_time)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
