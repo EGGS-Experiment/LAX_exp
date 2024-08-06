@@ -93,8 +93,9 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - Ramsey
-        self.setattr_argument("enable_ramsey_delay",                       BooleanValue(default=True), group='EGGS_Heating.ramsey')
+        self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
         self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
+        self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier'], default='Carrier'), group='EGGS_Heating.ramsey')
         self.setattr_argument("phase_ramsey_anti_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0., 0.5]),
@@ -206,11 +207,21 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         _sequence_blocks[:, 0, 1] = self.phase_eggs_heating_rsb_turns
         _sequence_blocks[:, 1, 1] = self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
+        # get ramsey phase target so we can Ramsey on different oscillators
+        ramsey_osc_target = 0
+        if self.target_ramsey_phase == 'RSB':
+            ramsey_osc_target = 0
+        elif self.target_ramsey_phase == 'BSB':
+            ramsey_osc_target = 1
+        elif self.target_ramsey_phase == 'Carrier':
+            ramsey_osc_target = 2
+
+
         # record EGGS pulse waveforms
         for i in range(len(self.phase_ramsey_anti_turns_list)):
-            # update sequence block with rsb phase
+            # update sequence block with ramsey phase
             phase_ramsey_turns = self.phase_ramsey_anti_turns_list[i]
-            _sequence_blocks[1, 2, 1] = phase_ramsey_turns
+            _sequence_blocks[1, ramsey_osc_target, 1] = phase_ramsey_turns
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks
