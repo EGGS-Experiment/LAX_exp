@@ -95,7 +95,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # EGGS RF - Ramsey
         self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
         self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
-        self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier'], default='Carrier'), group='EGGS_Heating.ramsey')
+        self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='Carrier'), group='EGGS_Heating.ramsey')
         self.setattr_argument("phase_ramsey_anti_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0., 0.5]),
@@ -222,6 +222,11 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             # update sequence block with ramsey phase
             phase_ramsey_turns = self.phase_ramsey_anti_turns_list[i]
             _sequence_blocks[1, ramsey_osc_target, 1] = phase_ramsey_turns
+
+            # set phase shift for RSB+BSB case
+            if self.target_ramsey_phase == 'RSB+BSB':
+                _sequence_blocks[1, 0, 1] = phase_ramsey_turns
+                _sequence_blocks[1, 1, 1] = phase_ramsey_turns
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks
