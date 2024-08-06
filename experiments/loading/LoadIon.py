@@ -1,10 +1,11 @@
 import extensions
 import numpy as np
 from artiq.experiment import *
-import cv2
-from scipy.ndimage import gaussian_filter
+import skimage
+from skimage import measure
 
 from LAX_exp.base import LAXExperiment
+from artiq.language.units import *
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -82,6 +83,16 @@ class IonLoad(LAXExperiment, Experiment):
                                                                    min=100, max=450, step=1,
                                                                    scale=1, ndecimals=0), group='Camera')
 
+        self.setattr_argument('horizontal_binning', NumberValue(default=1,
+                                                                   min=1, max=5, step=1,
+                                                                   scale=1, ndecimals=0), group='Camera')
+
+        self.setattr_argument('vertical_binning', NumberValue(default=1,
+                                                                   min=1, max=5, step=1,
+                                                                   scale=1, ndecimals=0), group='Camera')
+
+        self.setattr_argument('exposure_time_ms', NumberValue(default=100, ndecimals=1, min = 1, max = 1000,
+                                                              step = 0.1, unit='ms'), group = 'Camera')
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
@@ -96,8 +107,21 @@ class IonLoad(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
 
-        # define image region
-        self.image_region = (self.horizontal_image_region, self.vertical_image_region)
+        # set up image region
+        border_x = (self.IMAGE_WIDTH - self.image_width_pixels) / 2
+        border_y = (self.IMAGE_HEIGHT - self.image_height_pixels) / 2
+
+        start_x = int(border_x)
+        end_x = int(self.IMAGE_WIDTH - border_x) - 1
+
+        start_y = int(border_y)
+        end_y = int(self.IMAGE_WIDTH - border_y) - 1
+
+
+        self.image_region = (self.horizontal_binning, self.vertical_binning,
+                             start_x, end_x, start_y, end_y)
+
+        self.exposure_time_s = self.exposure_time_ms/ms
 
         # convert 397 parameters
         self.ftw_397 = extensions.mhz_to_ftw(self.freq_397_mhz)
@@ -113,6 +137,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.ftw_866 = extensions.mhz_to_ftw(self.freq_866_mhz)
         self.asf_866 = extensions.pct_to_asf(self.ampl_866)
         self.att_866 = extensions.att_to_mu(self.att_866_dB)
+
 
     @property
     def results_shape(self):
@@ -168,8 +193,9 @@ class IonLoad(LAXExperiment, Experiment):
         self.aperture.open_aperture()
         self.core.break_realtime()
 
-        # set camera region of interest
-        self.camera.set_image_region(tuple(self.image_region))
+        # set camera region of interest and exposure time
+        self.camera.set_image_region(self.image_region)
+        self.camera.set_exposure_time(self.exposure_time)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -183,18 +209,31 @@ class IonLoad(LAXExperiment, Experiment):
         idx = 0
         breaker = False
         count_successes = 0
+        num_ions = 0
 
-        while count_successes < 10:
+        while count_successes < 10 or num_ions == 0:
+            # increment loop counter
             idx += 1
+
+            # read from pmt
             self.core.break_realtime()  # add slack
             self.pmt.count(self.pmt_sample_time_us)  # set pmt sample time
             counts = self.pmt.fetch_count()  # grab counts from PMT
             self.core.break_realtime()
 
+            # read from camera
+            self.camera.acquire_single_image()
+            image = self.camera.get_most_recent_image()
+            num_ions = self.get_num_ions(image)
+
+            if num_ions > 0:
+                self.print_ion_loaded_message(num_ions)
+
+
             if counts >= self.ion_count_threshold:
                 count_successes += 1
                 if count_successes >=10:
-                    print("ION LOADED!!!")
+                    self.print_ion_loaded_message()
 
             if idx >= 49:
                 idx = 0
@@ -208,6 +247,14 @@ class IonLoad(LAXExperiment, Experiment):
     def analyze_experiment(self):
 
         self.cleanup_devices()
+
+    @rpc
+    def print_ion_loaded_message(num_ions = None):
+
+        if num_ions is not None:
+            print(f"{num_ions} IONS LOADED!!!")
+        else:
+            print("ION LOADED!!!")
 
     @rpc
     def cleanup_devices(self):
@@ -246,38 +293,37 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
                                        [100, 100])
 
-    @rpc
-    def take_image(self) -> TArray:
-        """
-        Take image with andor camera and return data
-
-        Returns:
-            TArray with image data
-        """
-        self.camera.acquire_single_image()
-        image = self.camera.get_most_recent_image()
-        return image
 
     @rpc
-    def find_num_ions_from_image(self, image) -> TFloat:
+    def get_num_ions(self, data) -> TInt32:
         """
-        Find the number of ions loaded from an image taken with the andor camera
-
-        Args:
-            image (array): pixel values of andor camera
-
-        Returns:
-            TFloat: number of ions predicted
+        Return number of ions determined from camera image
         """
+
+        # reshape 1D array into 2D array
+        data = np.reshape(data, (self.image_width_pixels, self.image_height_pixels))
+
+        # threshold data into binary image
         upper_percentile = np.percentile(data, 99)
-        image[image < upper_percentile] = 0
-        image[image >= upper_percentile] = 1
+        data[data < upper_percentile] = 0
+        data[data >= upper_percentile] = 1
+
+        # erode then dilate image to remove small bright regions (scatter) and accentuate larger regions (ions)
         kernel = np.ones((2, 2), np.uint8)
-        image = cv2.erode(image, kernel, iterations=3)
-        image = cv2.dilate(image, kernel, iterations=3)
-        image[image > 0] = 1
-        labels = measure.label(image)
+        for i in range(3):
+            data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
+        for i in range(3):
+            data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
+
+        # ensure binary image
+        data[data > 0] = 1
+
+        # label all pixels as belonging to a localized patter
+        labels = measure.label(data)
+
+        # return number of localized patter (-1 as background is given a label)
         return len(np.unique(labels)) - 1
+
 
     @kernel
     def check_time(self) -> TBool:
