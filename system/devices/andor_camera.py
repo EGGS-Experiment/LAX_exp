@@ -28,14 +28,14 @@ class AndorCamera(LAXDevice):
         """
         Close the Camera Shutter
         """
-        self.camera.modeShutter('Close')
+        self.camera.mode_shutter('Close')
 
     @rpc
     def open_camera_shutter(self):
         """
         Open the Camera Shutter
         """
-        self.camera.modeShutter('Open')
+        self.camera.mode_shutter('Open')
 
     @rpc
     def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat = None):
@@ -49,32 +49,32 @@ class AndorCamera(LAXDevice):
             image (np.array): Image acquired
         """
         ### acquire a single image
-        self.camera.accquisition_stop()
+        self.camera.acquisition_stop()
         if identify_exposure_time is not None:
             initial_exposure_time = self.get_exposure_time()
             self.set_exposure_time(identify_exposure_time)
         if image_region is not None:
-            initial_image_region = self.camera.get_image_region()
-            self.camera.set_image_region(*image_region)
+            initial_image_region = self.camera.image_region_get()
+            self.camera.image_region_set(*image_region)
         self.camera.mode_shutter("Open")
-        self.camera.mode_accquisition("Single Scan")
-        self.camera.accquisition_start()
-        self.camera.accquisition_wait()
+        self.camera.mode_acquisition("Single Scan")
+        self.camera.acquisition_start()
+        self.camera.acquisition_wait()
 
         ### return ANDOR to previous settings
         if image_region is not None:
-            self.camera.set_image_region(*initial_image_region)
+            self.camera.image_region_set(*initial_image_region)
         if identify_exposure_time is not None:
             self.camera.setup_exposure_time(initial_exposure_time)
 
-        # self.camera.accquisition_stop()
+        self.camera.acquisition_stop()
         # self.camera.mode_shutter("Close")
 
 
     @rpc
     def continually_acquire_images(self, image_region=None, identify_exposure_time: TFloat = None):
         """
-        Acquire a single image from the camera and then reset to previous setting
+        Acquire many images from the camera
 
         Args:
             image_region: area of ion trap to take picture of
@@ -84,61 +84,78 @@ class AndorCamera(LAXDevice):
         """
 
         ### acquire a single image
-        self.camera.accquisition_stop()
+        self.camera.acquisition_stop()
         if identify_exposure_time is not None:
             self.set_exposure_time(identify_exposure_time)
         if image_region is not None:
             self.camera.set_image_region(*image_region)
 
         self.camera.mode_shutter("Open")
-        self.camera.mode_accquisition("Run till abort")
-        self.camera.accquisition_start()
+        self.camera.mode_acquisition("Run till abort")
+        self.camera.acquisition_start()
+        self.camera.polling(True, 1)
 
 
     @rpc
-    def stop_acquisition_of_images(self):
+    def stop_acquisition(self):
         """
         Stop camera from taking new images
         """
-        self.camera.accquisition_stop()
+        self.camera.acquisition_stop()
 
     @rpc
-    def get_most_recent_image(self) -> TArray:
+    def start_acquisition(self):
+        """
+        Let Camera take new image
+        """
+        self.camera.acquisition_start()
+
+    @rpc
+    def get_most_recent_image(self) -> TArray(TFloat,1):
         """
         Retrieve most recent image camera took
         """
-        return self.camera.acquireImageRecent()
+        self.stop_acquisition()
+        return self.camera.acquire_image_recent()
+
 
     @rpc
-    def get_all_acquired_images(self) -> TArray:
+    def get_all_acquired_images(self) -> TArray(TInt32,1):
         """
         Retrieve all images in camera's data buffer
         """
-        return self.camera.acquireData()
+        self.stop_acquisition()
+        data = self.camera.acquire_data()
+        return data
 
     @rpc
     def set_exposure_time(self, exposure_time: TFloat):
         """
         Set exposure time (in seconds) for image acquisition
         """
+        self.stop_acquisition()
         self.camera.setup_exposure_time(exposure_time)
+        self.start_acquisition()
 
     @rpc
     def get_exposure_time(self) -> TFloat:
         """
         Get exposure time (in seconds) for image acquisition
         """
+        self.stop_acquisition()
         return self.camera.setup_exposure_time()
 
     @rpc
-    def set_image_region(self, image_region) -> TNone:
+    def set_image_region(self, image_region: TTuple) -> TNone:
         """
         Set image region
 
         Args:
             image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
-        self.camera.setImageRegion(*image_region)
+        self.stop_acquisition()
+        self.camera.image_region_set(*image_region)
+        self.start_acquisition()
 
     @rpc
     def get_image_region(self) -> TTuple:
@@ -148,7 +165,30 @@ class AndorCamera(LAXDevice):
         Returns:
             image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
-        return self.camera.getImageRegion()
+        self.stop_acquisition()
+        return self.camera.image_region_get()
+        self.start_acquisition()
+
+    @rpc
+    def get_acquisition_status(self) -> TBool:
+        """
+        Return status of acquisitons of camera
+        """
+        return self.camera.acquisition_status()
+
+    @rpc
+    def get_acquisition_mode(self) -> TStr:
+        """
+        Return mode of acquisitions of camera
+        """
+        return self.camera.mode_acquisition()
+
+    @rpc
+    def get_mode_trigger(self) -> TStr:
+        """
+        Return trigger
+        """
+        return self.camera.mode_trigger()
 
 
 
