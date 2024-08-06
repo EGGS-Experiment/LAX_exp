@@ -19,7 +19,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     then apply bichromatic heating tones in a Ramsey sequence,
     and measure ion temperature via sideband thermometry.
     """
-    name = 'EGGS Heating RDX'
+    name = 'EGGS Heating Ramsey'
     kernel_invariants = {
         'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'time_rf_servo_holdoff_mu', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
