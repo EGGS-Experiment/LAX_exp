@@ -38,7 +38,7 @@
     "management.death.deathcount_length": 200,
     "management.death.deathcount_threshold": 81.0,
     "management.death.deathcount_tolerance": 5,
-    "management.dynamic.completion_pct": 99.96,
+    "management.dynamic.completion_pct": 0.0,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
@@ -49,7 +49,7 @@
     "timing.time_rabiflop_us": npscalar("<f8", b"AAAAAAAAeUA="),
     "timing.time_readout_us": npscalar("<i4", b"uAsAAA=="),
     "timing.time_repump_qubit_us": npscalar("<i4", b"HgAAAA=="),
-    "timing.time_rescue_us": npscalar("<f8", b"AAAAAICz9UA="),
+    "timing.time_rescue_us": npscalar("<f8", b"AAAAAABAv0A="),
     "timing.time_resuscitate_us": npscalar("<f8", b"AAAAAADAi0A="),
     "timing.time_spinpol_us": npscalar("<i4", b"FAAAAA==")
 }
