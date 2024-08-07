@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import skimage.morphology
 from scipy.ndimage import gaussian_filter
 from skimage import measure
 import pandas as pd
@@ -37,8 +38,12 @@ def show_ions(data):
 
 
     kernel = np.ones((2, 2), np.uint8)
-    data = cv2.erode(data, kernel, iterations=3)
-    data = cv2.dilate(data, kernel, iterations=3)
+    for i in range(3):
+        data = np.uint16(skimage.morphology.binary_erosion(data, kernel))
+
+    for i in range(3):
+        data = np.uint16(skimage.morphology.binary_dilation(data, kernel))
+    # data = cv2.dilate(data, kernel, iterations=3)
     data[data > 0] = 1
     data[data > 0] = 1
     labels = measure.label(data)

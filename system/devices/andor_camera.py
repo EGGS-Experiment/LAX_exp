@@ -59,7 +59,7 @@ class AndorCamera(LAXDevice):
         self.camera.mode_shutter("Open")
         self.camera.mode_acquisition("Single Scan")
         self.camera.acquisition_start()
-        self.camera.acquisition_wait()
+        self.wait_for_acquisition()
 
         ### return ANDOR to previous settings
         if image_region is not None:
@@ -68,8 +68,6 @@ class AndorCamera(LAXDevice):
             self.camera.setup_exposure_time(initial_exposure_time)
 
         self.camera.acquisition_stop()
-        # self.camera.mode_shutter("Close")
-
 
     @rpc
     def continually_acquire_images(self, image_region=None, identify_exposure_time: TFloat = None):
@@ -92,9 +90,8 @@ class AndorCamera(LAXDevice):
 
         self.camera.mode_shutter("Open")
         self.camera.mode_acquisition("Run till abort")
-        self.camera.acquisition_start()
-        self.camera.polling(True, 1)
-
+        self.start_acquisition()
+        self.camera.polling(True, 1.5)
 
     @rpc
     def stop_acquisition(self):
@@ -106,21 +103,27 @@ class AndorCamera(LAXDevice):
     @rpc
     def start_acquisition(self):
         """
-        Let Camera take new image
+        Let Camera take new image(s)
         """
         self.camera.acquisition_start()
 
     @rpc
-    def get_most_recent_image(self) -> TArray(TFloat,1):
+    def wait_for_acquisition(self):
+        """
+        Wait until image is acquired
+        """
+        self.camera.acquisition_wait()
+
+    @rpc
+    def get_most_recent_image(self) -> TArray(TFloat, 1):
         """
         Retrieve most recent image camera took
         """
         self.stop_acquisition()
         return self.camera.acquire_image_recent()
 
-
     @rpc
-    def get_all_acquired_images(self) -> TArray(TInt32,1):
+    def get_all_acquired_images(self) -> TArray(TInt32, 1):
         """
         Retrieve all images in camera's data buffer
         """
@@ -172,7 +175,7 @@ class AndorCamera(LAXDevice):
     @rpc
     def get_acquisition_status(self) -> TBool:
         """
-        Return status of acquisitons of camera
+        Return status of acquisitions of camera
         """
         return self.camera.acquisition_status()
 
@@ -190,5 +193,16 @@ class AndorCamera(LAXDevice):
         """
         return self.camera.mode_trigger()
 
+    @rpc
+    def set_mode_trigger(self, trigger: TStr):
+        """
+        Set mode trigger of camera
+        """
+        self.camera.mode_trigger(trigger)
 
-
+    @rpc
+    def check_images_in_buffer(self) -> TInt32:
+        """
+        Check number of image in camera buffer
+        """
+        return self.camera.buffer_new_images()
