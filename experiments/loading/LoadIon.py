@@ -1,11 +1,9 @@
-import extensions
 import numpy as np
 from artiq.experiment import *
 import skimage
-from skimage import measure
 
+from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from artiq.language.units import *
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -20,41 +18,41 @@ class IonLoad(LAXExperiment, Experiment):
 
         # laser arguments
         self.setattr_argument('freq_397_mhz',
-                              NumberValue(default=110., ndecimals=1,
+                              NumberValue(default=100., ndecimals=1,
                                           step=0.1, min=90., max=120., unit="MHz"), group='397')
         self.setattr_argument('ampl_397', NumberValue(default=50., ndecimals=1,
                                                       step=0.1, min=0., max=100.), group='397')
         self.setattr_argument('att_397_dB', NumberValue(default=14., ndecimals=1,
                                                         step=0.1, min=0., max=31.5, unit="dB"), group='397')
 
-        self.setattr_argument('freq_866_mhz', NumberValue(default=110., ndecimals=1,
+        self.setattr_argument('freq_866_mhz', NumberValue(default=112., ndecimals=1,
                                                           step=0.1, min=90., max=120., unit="MHz"), group='866')
-        self.setattr_argument('ampl_866', NumberValue(default=50., ndecimals=1,
+        self.setattr_argument('ampl_866', NumberValue(default=23., ndecimals=1,
                                                       step=0.1, min=0., max=100.), group='866')
         self.setattr_argument('att_866_dB', NumberValue(default=14., ndecimals=1,
                                                         step=0.1, min=0., max=31.5, unit="dB"), group='866')
 
         self.setattr_argument('freq_854_mhz',
-                              NumberValue(default=110., ndecimals=1,
+                              NumberValue(default=112., ndecimals=1,
                                           step=0.1, min=90., max=120., unit="MHz"), group='854')
-        self.setattr_argument('ampl_854', NumberValue(default=50., ndecimals=1,
+        self.setattr_argument('ampl_854', NumberValue(default=18., ndecimals=1,
                                                       step=0.1, min=0., max=100.), group='854')
         self.setattr_argument('att_854_dB', NumberValue(default=14., ndecimals=1,
                                                         step=0.1, min=0., max=31.5, unit="dB"), group='854')
 
         # pmt arguments
-        self.setattr_argument('ion_count_threshold', NumberValue(default=120, ndecimals=0,
+        self.setattr_argument('ion_count_threshold', NumberValue(default=70, ndecimals=0,
                                                                  step=1, min=80, max=250), group='Photon Counting')
         self.setattr_argument('pmt_sample_time_us',
-                              NumberValue(default=3e-3, ndecimals=0,
-                                          step=1, min=1e-6, max=5e-3, unit='us'), group='Photon Counting')
+                              NumberValue(default=3e000, ndecimals=0,
+                                          step=1, min=1e-3, max=1e10, unit='us'), group='Photon Counting')
 
         # starting trap arguments
         self.setattr_argument('starting_east_endcap_voltage',
-                              NumberValue(default=19., ndecimals=1, step=0.1, min=0., max=300.),
+                              NumberValue(default=15., ndecimals=1, step=0.1, min=0., max=300.),
                               group='Starting Trap Parameters')
         self.setattr_argument('starting_west_endcap_voltage',
-                              NumberValue(default=25., ndecimals=1, step=0.1, min=0., max=300.),
+                              NumberValue(default=24., ndecimals=1, step=0.1, min=0., max=300.),
                               group='Starting Trap Parameters')
 
         # starting trap arguments
@@ -65,10 +63,10 @@ class IonLoad(LAXExperiment, Experiment):
                               NumberValue(default=289., ndecimals=1, step=0.1, min=0., max=300.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_v_shim_voltage',
-                              NumberValue(default=66.9, ndecimals=1, step=0.1, min=0., max=150.),
+                              NumberValue(default=69.2, ndecimals=1, step=0.1, min=0., max=150.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_h_shim_voltage',
-                              NumberValue(default=50.1, ndecimals=1, step=0.1, min=0., max=150.),
+                              NumberValue(default=50.5, ndecimals=1, step=0.1, min=0., max=150.),
                               group='Ending Trap Parameters')
         self.setattr_argument('ending_a_ramp2_voltage',
                               NumberValue(default=2.0, ndecimals=1, step=0.1, min=0., max=100.),
@@ -98,7 +96,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('shutters')
-        self.setattr_device('gpp3060')
+        self.setattr_device('oven')
         self.setattr_device('pmt')
         self.setattr_device('aperture')
         self.setattr_device('trap_dc')
@@ -124,19 +122,19 @@ class IonLoad(LAXExperiment, Experiment):
         self.exposure_time_s = self.exposure_time_ms/ms
 
         # convert 397 parameters
-        self.ftw_397 = extensions.mhz_to_ftw(self.freq_397_mhz)
-        self.asf_397 = extensions.pct_to_asf(self.ampl_397)
-        self.att_397 = extensions.att_to_mu(self.att_397_dB)
+        self.ftw_397 = mhz_to_ftw(self.freq_397_mhz)
+        self.asf_397 = pct_to_asf(self.ampl_397)
+        self.att_397 = att_to_mu(self.att_397_dB)
 
         # convert 854 parameters
-        self.ftw_854 = extensions.mhz_to_ftw(self.freq_854_mhz)
-        self.asf_854 = extensions.pct_to_asf(self.ampl_854)
-        self.att_854 = extensions.att_to_mu(self.att_854_dB)
+        self.ftw_854 = mhz_to_ftw(self.freq_854_mhz)
+        self.asf_854 = pct_to_asf(self.ampl_854)
+        self.att_854 = att_to_mu(self.att_854_dB)
 
         # convert 866 parameters
-        self.ftw_866 = extensions.mhz_to_ftw(self.freq_866_mhz)
-        self.asf_866 = extensions.pct_to_asf(self.ampl_866)
-        self.att_866 = extensions.att_to_mu(self.att_866_dB)
+        self.ftw_866 = mhz_to_ftw(self.freq_866_mhz)
+        self.asf_866 = pct_to_asf(self.ampl_866)
+        self.att_866 = att_to_mu(self.att_866_dB)
 
 
     @property
@@ -219,6 +217,13 @@ class IonLoad(LAXExperiment, Experiment):
             self.core.break_realtime()  # add slack
             self.pmt.count(self.pmt_sample_time_us)  # set pmt sample time
             counts = self.pmt.fetch_count()  # grab counts from PMT
+            self.core.break_realtime()
+
+            # flip to camera
+            self.ttl15.off()
+            delay_mu(1000000)
+            self.ttl15.pulse_mu(10000000)
+            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
 
             # read from camera
@@ -319,7 +324,7 @@ class IonLoad(LAXExperiment, Experiment):
         data[data > 0] = 1
 
         # label all pixels as belonging to a localized patter
-        labels = measure.label(data)
+        labels = skimage.measure.label(data)
 
         # return number of localized patter (-1 as background is given a label)
         return len(np.unique(labels)) - 1
