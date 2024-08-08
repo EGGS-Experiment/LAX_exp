@@ -17,7 +17,6 @@ class IonLoad(LAXExperiment, Experiment):
     IMAGE_HEIGHT = 512
     IMAGE_WIDTH = 512
 
-
     def build_experiment(self):
 
         # laser arguments
@@ -51,6 +50,9 @@ class IonLoad(LAXExperiment, Experiment):
                               NumberValue(default=3e3, ndecimals=0,
                                           step=1, min=300, max=3e4, unit='us'), group='Photon Counting')
 
+        self.setattr_argument('pmt_num_samples', NumberValue(default=30, step=1, ndecimals=0, min=1, max=100
+                                                             ), group='Photon Counting')
+
         # starting trap arguments
         self.setattr_argument('starting_east_endcap_voltage',
                               NumberValue(default=15., ndecimals=1, step=0.1, min=0., max=300.),
@@ -78,23 +80,23 @@ class IonLoad(LAXExperiment, Experiment):
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument('image_width_pixels', NumberValue(default=400,
-                                                                     min=100, max=450, step=1,
-                                                                     scale=1, ndecimals=0), group='Camera')
+                                                                min=100, max=450, step=1,
+                                                                scale=1, ndecimals=0), group='Camera')
 
         self.setattr_argument('image_height_pixels', NumberValue(default=400,
-                                                                   min=100, max=450, step=1,
-                                                                   scale=1, ndecimals=0), group='Camera')
+                                                                 min=100, max=450, step=1,
+                                                                 scale=1, ndecimals=0), group='Camera')
 
         self.setattr_argument('horizontal_binning', NumberValue(default=1,
-                                                                   min=1, max=5, step=1,
-                                                                   scale=1, ndecimals=0), group='Camera')
+                                                                min=1, max=5, step=1,
+                                                                scale=1, ndecimals=0), group='Camera')
 
         self.setattr_argument('vertical_binning', NumberValue(default=1,
-                                                                   min=1, max=5, step=1,
-                                                                   scale=1, ndecimals=0), group='Camera')
+                                                              min=1, max=5, step=1,
+                                                              scale=1, ndecimals=0), group='Camera')
 
-        self.setattr_argument('exposure_time_ms', NumberValue(default=100, ndecimals=1, min = 1, max = 1000,
-                                                              step = 0.1, unit='ms'), group = 'Camera')
+        self.setattr_argument('exposure_time_ms', NumberValue(default=100, ndecimals=1, min=1, max=1000,
+                                                              step=0.1, unit='ms'), group='Camera')
         # relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
@@ -123,11 +125,10 @@ class IonLoad(LAXExperiment, Experiment):
         start_y = int(border_y)
         end_y = int(self.IMAGE_WIDTH - border_y) - 1
 
-
         self.image_region = (self.horizontal_binning, self.vertical_binning,
                              start_x, end_x, start_y, end_y)
 
-        self.exposure_time_s = self.exposure_time_ms/ms
+        self.exposure_time_s = self.exposure_time_ms / ms
 
         # convert 397 parameters
         self.ftw_397 = mhz_to_ftw(self.freq_397_mhz)
@@ -146,12 +147,12 @@ class IonLoad(LAXExperiment, Experiment):
 
         self.pmt_sample_time_mu = us_to_mu(self.pmt_sample_time_us)
 
-
         # intialize start time
         self.start_time = np.int64(0)
 
         self.set_dataset("counts", [])
 
+        self.pmt_inverse_num_samples = 1 / self.pmt_num_samples
 
     @property
     def results_shape(self):
@@ -198,8 +199,6 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.a_ramp2_off()
         self.core.break_realtime()
 
-
-
         # # open shutters
         # self.shutters.open_377_shutter()
         # self.shutters.open_423_shutter()
@@ -239,15 +238,19 @@ class IonLoad(LAXExperiment, Experiment):
         while count_successes < 10 or num_ions == 0:
             # increment loop counter
             idx += 1
+            counts = 0
             # read from pmt
-            self.core.break_realtime()  # add slack
-            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
-            delay_mu(8)
-            counts = self.pmt.fetch_count()  # grab counts from PMT
-            self.core.break_realtime()
-            self.append_to_dataset('counts',  counts)
-            self.core.break_realtime()
+            for i in range(self.pmt_num_samples):
+                self.core.break_realtime()  # add slack
+                self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
+                delay_mu(8)
+                counts += self.pmt.fetch_count()  # grab counts from PMT
+                self.core.break_realtime()
 
+            counts = counts * self.pmt_inverse_num_samples
+            delay_mu(100) # see if this is enough
+            self.append_to_dataset('counts', counts)
+            self.core.break_realtime()
 
             # read from camera
             # self.camera.acquire_single_image()
@@ -259,12 +262,9 @@ class IonLoad(LAXExperiment, Experiment):
                 self.print_ion_loaded_message(num_ions)
                 break
 
-
             if counts >= self.ion_count_threshold:
-                count_successes += 1
-                if count_successes >=10:
-                    self.print_ion_loaded_message()
-                    break
+                self.print_ion_loaded_message()
+                break
 
             if idx >= 49:
                 self.check_termination()  # check if termination is over threshold
@@ -278,7 +278,6 @@ class IonLoad(LAXExperiment, Experiment):
                 self.check_termination()
                 self.core.break_realtime()
 
-
     # ANALYSIS
     def analyze_experiment(self):
         print("in analyzer")
@@ -286,7 +285,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.cleanup_devices()
 
     @rpc
-    def print_ion_loaded_message(num_ions = None):
+    def print_ion_loaded_message(num_ions=None):
 
         if num_ions is not None:
             print(f"{num_ions} IONS LOADED!!!")
@@ -331,7 +330,6 @@ class IonLoad(LAXExperiment, Experiment):
         # self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
         #                                [100, 100])
 
-
     @rpc
     def get_num_ions(self, data) -> TInt32:
         """
@@ -361,7 +359,6 @@ class IonLoad(LAXExperiment, Experiment):
 
         # return number of localized patter (-1 as background is given a label)
         return len(np.unique(labels)) - 1
-
 
     @kernel
     def check_time(self) -> TBool:
@@ -410,4 +407,3 @@ class IonLoad(LAXExperiment, Experiment):
             self.core.break_realtime()
             self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
-
