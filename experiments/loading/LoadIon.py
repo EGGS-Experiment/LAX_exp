@@ -4,6 +4,7 @@ import skimage
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
+from matplotlib import pyplot as plt
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -205,21 +206,22 @@ class IonLoad(LAXExperiment, Experiment):
         # self.core.break_realtime()
 
         # turn on the oven
-        self.oven.set_oven_voltage(1)
-        self.oven.on()
-        self.core.break_realtime()
-
-        # open aperture
-        self.aperture.open_aperture()
-        self.core.break_realtime()
+        # self.oven.set_oven_voltage(1)
+        # self.oven.on()
+        # self.core.break_realtime()
+        #
+        # # open aperture
+        # self.aperture.open_aperture()
+        # self.core.break_realtime()
 
         # set camera region of interest and exposure time
+        self.core.break_realtime()
         self.camera.set_image_region(self.image_region)
-        self.camera.set_exposure_time(self.exposure_time_s)
-        self.camera.stop_acquisition()
         self.core.break_realtime()
 
         self.set_flipper_to_pmt()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
@@ -229,63 +231,65 @@ class IonLoad(LAXExperiment, Experiment):
 
         self.core.break_realtime()  # add slack
         self.start_time = self.core.get_rtio_counter_mu()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
         idx = 0
         breaker = False
-        count_successes = 0
         num_ions = 0
+        counts = 0.
+        delay_mu(100000)
+        delay(5*s)
+        for i in range(self.pmt_num_samples):
+            self.core.break_realtime()  # add slack
+            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
+            delay_mu(50)
+            counts += self.pmt.fetch_count()  # grab counts from PMT
 
-        while count_successes < 10 or num_ions == 0:
-            # increment loop counter
-            idx += 1
-            counts = 0
-            # read from pmt
-            for i in range(self.pmt_num_samples):
-                self.core.break_realtime()  # add slack
-                self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
-                delay_mu(8)
-                counts += self.pmt.fetch_count()  # grab counts from PMT
-                self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        counts = counts * self.pmt_inverse_num_samples
+        delay_mu(1000)  # see if this is enough
+        self.append_to_dataset('counts', counts)
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
-            counts = counts * self.pmt_inverse_num_samples
-            delay_mu(100) # see if this is enough
-            self.append_to_dataset('counts', counts)
-            self.core.break_realtime()
 
-            # read from camera
-            # self.camera.acquire_single_image()
-            # image = self.camera.get_most_recent_image()
-            # num_ions = self.get_num_ions(image)
-            #
+        self.flipper.flip()
+        self.core.break_realtime()
+        delay(5 * s)
 
-            if num_ions > 0:
-                self.print_ion_loaded_message(num_ions)
-                break
+        # while num_ions == 0:
+        #
+        #     idx += 1
+        #
+        #     # # read from camera
+        #     self.camera.acquire_single_image()
+        #     image = self.camera.get_most_recent_image()
+        #     num_ions = self.show_ions(image)
+        #
+        #     if idx >= 49:
+        #         self.check_termination()  # check if termination is over threshold
+        #         self.core.break_realtime()
+        #         idx = 0
+        #         breaker = self.check_time()
+        #         if breaker: break
+        #
+        #     if num_ions > 0:
+        #         self.print_ion_loaded_message(num_ions)
+        #
+        #     with parallel:
+        #         self.check_termination()
+        #         self.core.break_realtime()
 
-            if counts >= self.ion_count_threshold:
-                self.print_ion_loaded_message()
-                break
-
-            if idx >= 49:
-                self.check_termination()  # check if termination is over threshold
-                self.core.break_realtime()
-                idx = 0
-                # breaker = self.check_time()
-                if breaker: break
-
-            # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
 
     # ANALYSIS
     def analyze_experiment(self):
-        print("in analyzer")
         print(self.get_dataset("counts"))
         self.cleanup_devices()
 
     @rpc
-    def print_ion_loaded_message(num_ions=None):
+    def print_ion_loaded_message(self, num_ions=None):
 
         if num_ions is not None:
             print(f"{num_ions} IONS LOADED!!!")
@@ -381,13 +385,20 @@ class IonLoad(LAXExperiment, Experiment):
     def set_flipper_to_pmt(self):
         self.flipper.flip()
         self.core.break_realtime()
-        self.pmt.count(self.pmt_sample_time_us)
-        delay_mu(8)
-        counts = self.pmt.fetch_count()
-        delay_mu(8)
-        self.core.break_realtime()
+        counts = 0.
+        for i in range(self.pmt_num_samples):
+            self.core.break_realtime()  # add slack
+            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
+            delay_mu(8)
+            counts += self.pmt.fetch_count()  # grab counts from PMT
+            self.core.break_realtime()
 
-        if counts <= 10:
+        delay(1*s)
+        counts = counts * self.pmt_inverse_num_samples
+        print(counts)
+        delay_mu(100) # see if this is enough
+
+        if counts < 85:
             self.flipper.flip()
             self.core.break_realtime()
 
@@ -407,3 +418,38 @@ class IonLoad(LAXExperiment, Experiment):
             self.core.break_realtime()
             self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
+
+    @rpc
+    def show_ions(self, data) -> TInt32:
+
+        data = np.reshape(data, (self.image_width_pixels, self.image_height_pixels))
+
+        plt.figure(1)
+        plt.title("Original Image")
+        plt.imshow(data)
+        plt.savefig("Z:\motion\Pictures\original.png")
+
+        upper_percentile = np.percentile(data, 99)
+        data[data < upper_percentile] = 0
+        data[data >= upper_percentile] = 1
+
+        kernel = np.ones((2, 2), np.uint8)
+        for i in range(3):
+            data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
+
+        for i in range(3):
+            data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
+
+        data[data > 0] = 1
+        labels = skimage.measure.label(data)
+        plt.figure(2)
+        plt.imshow(data)
+        plt.title("Manipulated Image")
+        plt.savefig("Z:\motion\Pictures\manipulated.png")
+        return len(np.unique(labels)) - 1
+
+
+
+
+
+
