@@ -27,9 +27,10 @@ class OvenTest(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.oven.set_oven_voltage(2)  # turn on oven
+        self.oven.set_oven_voltage(1)  # turn on oven
         self.oven.on()
         self.core.break_realtime()
+        self.oven.off()
 
 
     @kernel(flags={"fast-math"})

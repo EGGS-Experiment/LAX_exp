@@ -9,6 +9,7 @@ device_db_ext = {
         "class": "Aperture"
     },
 
+
     "camera": {
         "type": "local",
         "module": "LAX_exp.system.devices.andor_camera",
@@ -59,6 +60,13 @@ device_db_ext = {
         "type": "local",
         "module": "LAX_exp.system.devices.beam_729",
         "class": "Beam729"
+    },
+
+    # Flipper
+    "flipper": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.flipper",
+        "class": "Flipper"
     },
 
 

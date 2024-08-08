@@ -14,6 +14,10 @@ class IonLoad(LAXExperiment, Experiment):
     """
     name = 'Ion Load'
 
+    IMAGE_HEIGHT = 512
+    IMAGE_WIDTH = 512
+
+
     def build_experiment(self):
 
         # laser arguments
@@ -44,8 +48,8 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_argument('ion_count_threshold', NumberValue(default=70, ndecimals=0,
                                                                  step=1, min=80, max=250), group='Photon Counting')
         self.setattr_argument('pmt_sample_time_us',
-                              NumberValue(default=3e000, ndecimals=0,
-                                          step=1, min=1e-3, max=1e10, unit='us'), group='Photon Counting')
+                              NumberValue(default=3e3, ndecimals=0,
+                                          step=1, min=300, max=3e4, unit='us'), group='Photon Counting')
 
         # starting trap arguments
         self.setattr_argument('starting_east_endcap_voltage',
@@ -95,15 +99,19 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
-        self.setattr_device('shutters')
+        # self.setattr_device('shutters')
         self.setattr_device('oven')
         self.setattr_device('pmt')
         self.setattr_device('aperture')
         self.setattr_device('trap_dc')
+
         self.setattr_device('scheduler')
         self.setattr_device('camera')
+        self.setattr_device('flipper')
 
     def prepare_experiment(self):
+
+        self.pmt_sample_time_us = np.int64(self.pmt_sample_time_us)
 
         # set up image region
         border_x = (self.IMAGE_WIDTH - self.image_width_pixels) / 2
@@ -136,6 +144,14 @@ class IonLoad(LAXExperiment, Experiment):
         self.asf_866 = pct_to_asf(self.ampl_866)
         self.att_866 = att_to_mu(self.att_866_dB)
 
+        self.pmt_sample_time_mu = us_to_mu(self.pmt_sample_time_us)
+
+
+        # intialize start time
+        self.start_time = np.int64(0)
+
+        self.set_dataset("counts", [])
+
 
     @property
     def results_shape(self):
@@ -147,18 +163,22 @@ class IonLoad(LAXExperiment, Experiment):
 
         self.core.break_realtime()
         self.pump.beam.cpld.get_att_mu()
+        self.core.break_realtime()
 
         # set 397 parameters
         self.pump.set_mu(self.ftw_397, asf=self.asf_397, profile=6)
         self.pump.set_att_mu(self.att_397)
+        self.core.break_realtime()
 
         # set 854 parameters
         self.repump_qubit.set_mu(self.ftw_854, asf=self.asf_854, profile=6)
         self.repump_qubit.set_att_mu(self.att_854)
+        self.core.break_realtime()
 
         # set 866 parameters
         self.repump_cooling.set_mu(self.ftw_866, asf=self.asf_866, profile=6)
         self.repump_cooling.set_att_mu(self.att_866)
+        self.core.break_realtime()
 
         # turn on lasers
         self.pump.on()
@@ -178,13 +198,16 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.a_ramp2_off()
         self.core.break_realtime()
 
-        # open shutters
-        self.shutters.open_377_shutter()
-        self.shutters.open_423_shutter()
-        self.core.break_realtime()
+
+
+        # # open shutters
+        # self.shutters.open_377_shutter()
+        # self.shutters.open_423_shutter()
+        # self.core.break_realtime()
 
         # turn on the oven
-        self.gpp3060.turn_oven_on()
+        self.oven.set_oven_voltage(1)
+        self.oven.on()
         self.core.break_realtime()
 
         # open aperture
@@ -193,16 +216,20 @@ class IonLoad(LAXExperiment, Experiment):
 
         # set camera region of interest and exposure time
         self.camera.set_image_region(self.image_region)
-        self.camera.set_exposure_time(self.exposure_time)
+        self.camera.set_exposure_time(self.exposure_time_s)
+        self.camera.stop_acquisition()
         self.core.break_realtime()
+
+        self.set_flipper_to_pmt()
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         """
         Run till ion is loaded or timeout
         """
+
         self.core.break_realtime()  # add slack
-        self.start_time = self.get_rtio_counter_mu()
+        self.start_time = self.core.get_rtio_counter_mu()
 
         idx = 0
         breaker = False
@@ -212,45 +239,50 @@ class IonLoad(LAXExperiment, Experiment):
         while count_successes < 10 or num_ions == 0:
             # increment loop counter
             idx += 1
-
             # read from pmt
             self.core.break_realtime()  # add slack
-            self.pmt.count(self.pmt_sample_time_us)  # set pmt sample time
+            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
+            delay_mu(8)
             counts = self.pmt.fetch_count()  # grab counts from PMT
             self.core.break_realtime()
-
-            # flip to camera
-            self.ttl15.off()
-            delay_mu(1000000)
-            self.ttl15.pulse_mu(10000000)
-            self.core.wait_until_mu(now_mu())
+            self.append_to_dataset('counts',  counts)
             self.core.break_realtime()
 
+
             # read from camera
-            self.camera.acquire_single_image()
-            image = self.camera.get_most_recent_image()
-            num_ions = self.get_num_ions(image)
+            # self.camera.acquire_single_image()
+            # image = self.camera.get_most_recent_image()
+            # num_ions = self.get_num_ions(image)
+            #
 
             if num_ions > 0:
                 self.print_ion_loaded_message(num_ions)
+                break
 
 
             if counts >= self.ion_count_threshold:
                 count_successes += 1
                 if count_successes >=10:
                     self.print_ion_loaded_message()
+                    break
 
             if idx >= 49:
-                idx = 0
-                breaker = self.check_time()
-                if breaker: break
                 self.check_termination()  # check if termination is over threshold
+                self.core.break_realtime()
+                idx = 0
+                # breaker = self.check_time()
+                if breaker: break
+
+            # support graceful termination
+            with parallel:
+                self.check_termination()
                 self.core.break_realtime()
 
 
     # ANALYSIS
     def analyze_experiment(self):
-
+        print("in analyzer")
+        print(self.get_dataset("counts"))
         self.cleanup_devices()
 
     @rpc
@@ -268,14 +300,15 @@ class IonLoad(LAXExperiment, Experiment):
         All but trap electrodes set to original state
         """
         # turn off oven
-        self.gpp3060.turn_oven_off()
+        self.oven.set_oven_voltage(0)
+        self.oven.off()
 
-        # close shutters
-        self.shutters.open_377_shutter()
-        self.shutters.open_423_shutter()
+        # # close shutters
+        # self.shutters.open_377_shutter()
+        # self.shutters.open_423_shutter()
 
         # disconnect from labjack
-        self.shutters.close_labjack()
+        # self.shutters.close_labjack()
 
         # close aperture
         self.aperture.close_aperture()
@@ -295,8 +328,8 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.a_ramp2_on()
 
         # ramp endcaps to end values
-        self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
-                                       [100, 100])
+        # self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
+        #                                [100, 100])
 
 
     @rpc
@@ -337,13 +370,44 @@ class IonLoad(LAXExperiment, Experiment):
         """
         self.core.break_realtime()
         return 600 > self.core.mu_to_seconds(
-            self.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
+            self.core.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
 
-    @rpc
-    def check_termination(self):
-        """
-        Check whether termination of the experiment has been requested.
-        """
-        if self.scheduler.check_termination():
-            self.cleanup_devices()
-            raise TerminationRequested
+    # @rpc
+    # def check_termination(self):
+    #     """
+    #     Check whether termination of the experiment has been requested.
+    #     """
+    #     if self.scheduler.check_termination():
+    #         raise TerminationRequested
+
+    @kernel
+    def set_flipper_to_pmt(self):
+        self.flipper.flip()
+        self.core.break_realtime()
+        self.pmt.count(self.pmt_sample_time_us)
+        delay_mu(8)
+        counts = self.pmt.fetch_count()
+        delay_mu(8)
+        self.core.break_realtime()
+
+        if counts <= 10:
+            self.flipper.flip()
+            self.core.break_realtime()
+
+    @kernel
+    def set_flipper_to_camera(self):
+        self.flipper.flip()
+        self.core.break_realtime()
+        self.pmt.count(self.pmt_sample_time_us)
+        delay_mu(8)
+        counts = self.pmt.fetch_count()
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+
+        if counts > 10:
+            self.flipper.flip()
+            self.core.break_realtime()
+            self.core.wait_until_mu(now_mu())
+            self.core.break_realtime()
+
