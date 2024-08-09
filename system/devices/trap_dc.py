@@ -19,8 +19,8 @@ class TrapDC(LAXDevice):
     WEST_ENDCAP_CHANNEL = 27
     V_SHIM_CHANNEL = 20
     H_SHIM_CHANNEL = 25
-    A_RAMP_1_CHANNEL = 24
-    A_RAMP_2_CHANNEL = 23
+    ARAMP_1_CHANNEL = 24
+    ARAMP_2_CHANNEL = 23
 
     def prepare_device(self):
         self.cxn = labrad.connect(environ['LABRADHOST'],
@@ -59,11 +59,11 @@ class TrapDC(LAXDevice):
         self.trap_dc.toggle(self.H_SHIM_CHANNEL, 1)
 
     @rpc
-    def a_ramp2_on(self) -> TNone:
+    def aramp2_on(self) -> TNone:
         """
         Turn on a ramp2 channel
         """
-        self.trap_dc.toggle(self.A_RAMP_2_CHANNEL, 1)
+        self.trap_dc.toggle(self.ARAMP_2_CHANNEL, 1)
 
     """Toggle Channels OFF"""
 
@@ -96,11 +96,11 @@ class TrapDC(LAXDevice):
         self.trap_dc.toggle(self.H_SHIM_CHANNEL, 0)
 
     @rpc
-    def a_ramp2_off(self) -> TNone:
+    def aramp2_off(self) -> TNone:
         """
         Turn off a ramp2 channel
         """
-        self.trap_dc.toggle(self.A_RAMP_2_CHANNEL, 0)
+        self.trap_dc.toggle(self.ARAMP_2_CHANNEL, 0)
 
     """Set Voltages"""
 
@@ -159,7 +159,7 @@ class TrapDC(LAXDevice):
         self.trap_dc.voltage_fast(self.V_SHIM_CHANNEL, voltage)
 
     @rpc
-    def set_a_ramp2_voltage(self, voltage):
+    def set_aramp2_voltage(self, voltage):
         """
         Set a ramp2 voltage
 
@@ -172,7 +172,7 @@ class TrapDC(LAXDevice):
 
         if not 0 <= voltage <= 100:
             raise Exception("voltage must be between 0V and 100V")
-        self.trap_dc.voltage_fast(self.A_RAMP_2_CHANNEL, voltage)
+        self.trap_dc.voltage_fast(self.ARAMP_2_CHANNEL, voltage)
 
     """Ramp Voltages"""
 
