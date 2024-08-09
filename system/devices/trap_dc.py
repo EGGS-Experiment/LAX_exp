@@ -1,3 +1,4 @@
+import time
 from artiq.experiment import *
 
 from LAX_exp.base import LAXDevice
@@ -225,7 +226,13 @@ class TrapDC(LAXDevice):
 
         if not 0 <= max(voltages) <= 300:
             raise Exception("voltage must be between 0V and 300V")
-        self.trap_dc.ramp_multiple([self.EAST_ENDCAP_CHANNEL, self.WEST_ENDCAP_CHANNEL], voltages, rates)
+
+        try:
+            self.trap_dc.ramp_multiple([self.EAST_ENDCAP_CHANNEL, self.WEST_ENDCAP_CHANNEL], voltages, rates)
+        except Exception as e:
+            print(repr(e))
+
+        time.sleep(3)
 
     """CLEAR ALL VOLTAGES"""
 
