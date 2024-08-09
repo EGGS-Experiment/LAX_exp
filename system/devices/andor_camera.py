@@ -44,10 +44,9 @@ class AndorCamera(LAXDevice):
 
         Args:
             image_region: area of ion trap to take picture of
-
-        Returns:
-            image (np.array): Image acquired
+            identify_exposure_time: exposure time of camera
         """
+
         ### acquire a single image
         self.camera.acquisition_stop()
         if identify_exposure_time is not None:
@@ -76,12 +75,10 @@ class AndorCamera(LAXDevice):
 
         Args:
             image_region: area of ion trap to take picture of
-
-        Returns:
-            image (np.array): Image acquired
+            identify_exposure_time: exposure time of camera
         """
 
-        ### acquire a single image
+        ### acquire many images
         self.camera.acquisition_stop()
         if identify_exposure_time is not None:
             self.set_exposure_time(identify_exposure_time)
@@ -115,17 +112,23 @@ class AndorCamera(LAXDevice):
         self.camera.acquisition_wait()
 
     @rpc
-    def get_most_recent_image(self) -> TArray(TFloat, 1):
+    def get_most_recent_image(self) -> TArray(TInt32, 1):
         """
         Retrieve most recent image camera took
+
+        Returns:
+            TArray(TFloat): the most recent image the camera took
         """
         self.stop_acquisition()
         return self.camera.acquire_image_recent()
 
     @rpc
-    def get_all_acquired_images(self) -> TArray(TInt32, 1):
+    def get_all_acquired_images(self) -> TArray(TFloat, 1):
         """
         Retrieve all images in camera's data buffer
+
+        Returns:
+            TArray(TFloat): the images in camera's data buffer
         """
         self.stop_acquisition()
         data = self.camera.acquire_data()
@@ -135,6 +138,9 @@ class AndorCamera(LAXDevice):
     def set_exposure_time(self, exposure_time: TFloat):
         """
         Set exposure time (in seconds) for image acquisition
+
+        Args:
+
         """
         self.stop_acquisition()
         self.camera.setup_exposure_time(exposure_time)
@@ -189,7 +195,10 @@ class AndorCamera(LAXDevice):
     @rpc
     def get_mode_trigger(self) -> TStr:
         """
-        Return trigger
+        Return trigger mode
+
+        Returns:
+            mode_trigger (string): the trigger mode
         """
         return self.camera.mode_trigger()
 
@@ -197,6 +206,9 @@ class AndorCamera(LAXDevice):
     def set_mode_trigger(self, trigger: TStr):
         """
         Set mode trigger of camera
+
+        Args:
+            trigger (string): the trigger mode
         """
         self.camera.mode_trigger(trigger)
 
@@ -204,5 +216,8 @@ class AndorCamera(LAXDevice):
     def check_images_in_buffer(self) -> TInt32:
         """
         Check number of image in camera buffer
+
+        Returns:
+            TInt32: the number of images in buffer
         """
         return self.camera.buffer_new_images()
