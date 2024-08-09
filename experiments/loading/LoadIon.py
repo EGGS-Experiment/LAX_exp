@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from datetime import datetime
 import os
 import time
+from scipy import ndimage
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -487,10 +488,14 @@ class IonLoad(LAXExperiment, Experiment):
         data[data < upper_percentile] = 0
         data[data >= upper_percentile] = 1
 
-        kernel = np.ones((2, 2), np.uint8)
+        kernel = np.zeros((4, 4), np.uint8)
+        kernel[1,1] = 1
+        kernel[1,2] = 1
+        kernel[2,1] = 1
+        kernel[2,2] = 1
 
-        for i in range(4):
-            data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
+
+        data = ndimage.binary_erosion(data, kernel, iterations=3)
         # data[data > 0] = 1
         labels = skimage.measure.label(data)
         plt.figure(2)
