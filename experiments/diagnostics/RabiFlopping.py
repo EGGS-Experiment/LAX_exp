@@ -65,7 +65,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                                             for time_us in self.time_rabi_us_list
                                         ])
         # turn off delay equalization based on input
-        if self.equalize_delays:        self.time_rabiflop_mu_list[:, 0] = np.int64(8)
+        if not self.equalize_delays:    self.time_rabiflop_mu_list[:, 0] = np.int64(8)
 
     @property
     def results_shape(self):
