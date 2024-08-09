@@ -154,7 +154,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.set_dataset("counts", [])
         self.pmt_inverse_num_samples = 1 / self.PMT_SAMPLE_NUM
 
-        self.aramp_ions_voltage_list = np.arange(6,self.MAX_ARAMP, 0.5)
+        self.aramp_ions_voltage_list = np.arange(6,self.MAX_ARAMP, 0.25)
 
         ### set up filepaths
         year_month = datetime.today().strftime('%Y-%m')
@@ -210,9 +210,9 @@ class IonLoad(LAXExperiment, Experiment):
         # self.core.break_realtime()
 
         # turn on the oven
-        # self.oven.set_oven_voltage(1)
-        # self.oven.on()
-        # self.core.break_realtime()
+        self.oven.set_oven_voltage(1)
+        self.oven.on()
+        self.core.break_realtime()
 
         # open aperture
         self.aperture.open_aperture()
@@ -334,7 +334,6 @@ class IonLoad(LAXExperiment, Experiment):
             self.trap_dc.set_aramp2_voltage(aramp_voltage)
             time.sleep(1)
             self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
-            time.sleep(1)
 
             self.camera.acquire_single_image()
             image = self.camera.get_most_recent_image()
@@ -489,11 +488,9 @@ class IonLoad(LAXExperiment, Experiment):
 
         kernel = np.ones((2, 2), np.uint8)
 
-        for i in range(2):
+        for i in range(4):
             data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
-
-        data[data < upper_percentile] = 0
-        data[data >= upper_percentile] = 1
+        # data[data > 0] = 1
         labels = skimage.measure.label(data)
         plt.figure(2)
         plt.imshow(data)
