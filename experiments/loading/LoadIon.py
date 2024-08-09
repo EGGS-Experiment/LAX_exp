@@ -21,7 +21,7 @@ class IonLoad(LAXExperiment, Experiment):
     IMAGE_WIDTH = 512
     PMT_SAMPLE_TIME_US = 3000
     PMT_SAMPLE_NUM = 30
-    MAX_A_RAMP = 12
+    MAX_ARAMP = 12
 
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
@@ -76,7 +76,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.setattr_argument('ending_h_shim_voltage',
                               NumberValue(default=50.5, ndecimals=1, step=0.1, min=0., max=150.),
                               group='Ending Trap Parameters')
-        self.setattr_argument('ending_a_ramp2_voltage',
+        self.setattr_argument('ending_aramp2_voltage',
                               NumberValue(default=2.0, ndecimals=1, step=0.1, min=0., max=100.),
                               group='Ending Trap Parameters')
 
@@ -153,7 +153,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.set_dataset("counts", [])
         self.pmt_inverse_num_samples = 1 / self.PMT_SAMPLE_NUM
 
-        self.a_ramp_ions_list = np.arange(2, self.MAX_A_RAMP, 0.5)
+        self.aramp_ions_voltage_list = np.arange(6,self.MAX_ARAMP, 0.5)
 
         ### set up filepaths
         year_month = datetime.today().strftime('%Y-%m')
@@ -200,7 +200,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.west_endcap_on()
         self.trap_dc.h_shim_off()
         self.trap_dc.v_shim_off()
-        self.trap_dc.a_ramp2_off()
+        self.trap_dc.aramp2_off()
         self.core.break_realtime()
 
         # # open shutters
@@ -238,17 +238,14 @@ class IonLoad(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-        while num_ions != self.desired_num_ions:
+        while num_ions != self.desired_num_of_ions:
             num_ions = self.load_ion()
             self.cleanup_devices()
 
             if num_ions != self.desired_num_of_ions and num_ions != 0:
-                num_ions = self.a_ramp_ions()
-                if num_ions == self.desired_num_of_ions:
-                    break
-                else:
-                    self.initialize_experiment()
-                    break
+                num_ions = self.aramp_ions()
+            if num_ions != self.desired_num_of_ions:
+                self.initialize_experiment()
 
         with parallel:
             self.check_termination()
@@ -301,7 +298,7 @@ class IonLoad(LAXExperiment, Experiment):
                 idx = 0
                 breaker = self.check_time()
                 if breaker:
-                    print("TOOK OVER 10 MIN TO LOAD --- ENDING PROGRAM")
+                    print("TOOK OVER 15 MIN TO LOAD --- ENDING PROGRAM")
                     break
 
             if num_ions >= self.desired_num_of_ions:
@@ -309,23 +306,34 @@ class IonLoad(LAXExperiment, Experiment):
                 # ensure camera sees ion from 3 consecutive pictures to prevent singular false positive
                 if ion_spottings >= 3:
                     camera_success = True
+                    delay(5*s) # wait for any dark ions
+                    self.camera.acquire_single_image()
+                    image = self.camera.get_most_recent_image()
+                    num_ions = self.show_ions(image, 'pre_aramp_orginal.png', 'pre_aramp_maipulated.png')
                     self.print_ion_loaded_message(num_ions)
                     return num_ions
 
             else:
                 ion_spottings = 0  # reset if image analysis shows no ions in trap
 
+        return 0
+
     @kernel
-    def a_ramp_ions(self) -> TInt32:
+    def aramp_ions(self) -> TInt32:
 
-        for aramp_voltage in self.a_ramp_ions_list:
+        self.core.break_realtime()
+        print("STARTING ARAMP PROCEDURE")
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
-            self.trap_dc.set_a_ramp2_voltage(aramp_voltage)
+        for aramp_voltage in self.aramp_ions_voltage_list:
+
+            self.trap_dc.set_aramp2_voltage(aramp_voltage)
             delay(2*s)
-            self.wait_until_mu(now_mu())
+            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
-            self.trap_dc.set_a_ramp2_voltage(self.ending_aramp2_voltage)
-            self.wait_until_mu(now_mu())
+            self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
+            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
 
             self.camera.acquire_single_image()
@@ -339,6 +347,10 @@ class IonLoad(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+        self.camera.acquire_single_image()
+        image = self.camera.get_most_recent_image()
+        num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
+        return num_ions
 
     @rpc
     def print_ion_loaded_message(self, num_ions=None):
@@ -375,12 +387,12 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.set_west_endcap_voltage(self.starting_west_endcap_voltage)
         self.trap_dc.set_h_shim_voltage(self.ending_h_shim_voltage)
         self.trap_dc.set_v_shim_voltage(self.ending_v_shim_voltage)
-        self.trap_dc.set_a_ramp2_voltage(self.ending_a_ramp2_voltage)
+        self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
 
         # turn on the endcap channels
         self.trap_dc.h_shim_on()
         self.trap_dc.v_shim_on()
-        self.trap_dc.a_ramp2_on()
+        self.trap_dc.aramp2_on()
 
         # ramp endcaps to end values
         self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
@@ -395,7 +407,7 @@ class IonLoad(LAXExperiment, Experiment):
         Check wall clock time to see if 10 min (600 sec) has elapsed with no ion loaded
         """
         self.core.break_realtime()
-        return 600 < self.core.mu_to_seconds(
+        return 900 < self.core.mu_to_seconds(
             self.core.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
 
 
