@@ -5,6 +5,7 @@ from LAX_exp.extensions import *
 
 from os import environ
 import labrad
+from artiq.language.units import *
 
 
 class Flipper(LAXDevice):
@@ -17,7 +18,8 @@ class Flipper(LAXDevice):
 
     def prepare_device(self):
 
-        self.wait_time_mu = us_to_mu(200e3)
+        self.wait_time_mu = us_to_mu(1000e3)
+        self.time_flipper_trigger_mu = self.core.seconds_to_mu(50*ms)
 
 
     @kernel(flags={"fast-math"})
@@ -27,10 +29,8 @@ class Flipper(LAXDevice):
     @kernel
     def flip(self):
         self.core.break_realtime()
+        self.flipper.on()
+        delay_mu(self.time_flipper_trigger_mu)
         self.flipper.off()
-        delay_mu(1000000)
-        self.flipper.pulse_mu(10000000)
-        delay_mu(self.wait_time_mu)
         self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-
+        delay_mu(self.wait_time_mu)
