@@ -17,6 +17,8 @@ class IonLoad(LAXExperiment, Experiment):
 
     IMAGE_HEIGHT = 512
     IMAGE_WIDTH = 512
+    PMT_SAMPLE_TIME_US = 3000
+    PMT_SAMPLE_NUM = 30
 
     def build_experiment(self):
 
@@ -43,16 +45,6 @@ class IonLoad(LAXExperiment, Experiment):
                                                       step=0.1, min=0., max=100.), group='854')
         self.setattr_argument('att_854_dB', NumberValue(default=14., ndecimals=1,
                                                         step=0.1, min=0., max=31.5, unit="dB"), group='854')
-
-        # pmt arguments
-        self.setattr_argument('ion_count_threshold', NumberValue(default=70, ndecimals=0,
-                                                                 step=1, min=80, max=250), group='Photon Counting')
-        self.setattr_argument('pmt_sample_time_us',
-                              NumberValue(default=3e3, ndecimals=0,
-                                          step=1, min=300, max=3e4, unit='us'), group='Photon Counting')
-
-        self.setattr_argument('pmt_num_samples', NumberValue(default=30, step=1, ndecimals=0, min=1, max=100
-                                                             ), group='Photon Counting')
 
         # starting trap arguments
         self.setattr_argument('starting_east_endcap_voltage',
@@ -114,8 +106,6 @@ class IonLoad(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
 
-        self.pmt_sample_time_us = np.int64(self.pmt_sample_time_us)
-
         # set up image region
         border_x = (self.IMAGE_WIDTH - self.image_width_pixels) / 2
         border_y = (self.IMAGE_HEIGHT - self.image_height_pixels) / 2
@@ -132,28 +122,27 @@ class IonLoad(LAXExperiment, Experiment):
         self.exposure_time_s = self.exposure_time_ms / ms
 
         # convert 397 parameters
-        self.ftw_397 = mhz_to_ftw(self.freq_397_mhz)
+        self.ftw_397 = self.pump.frequency_to_ftw(self.freq_397_mhz*MHz)
         self.asf_397 = pct_to_asf(self.ampl_397)
         self.att_397 = att_to_mu(self.att_397_dB)
 
         # convert 854 parameters
-        self.ftw_854 = mhz_to_ftw(self.freq_854_mhz)
+        self.ftw_854 = self.repump_qubit.frequency_to_ftw(self.freq_854_mhz*MHz)
         self.asf_854 = pct_to_asf(self.ampl_854)
         self.att_854 = att_to_mu(self.att_854_dB)
 
         # convert 866 parameters
-        self.ftw_866 = mhz_to_ftw(self.freq_866_mhz)
+        self.ftw_866 = self.repump_cooling.frequency_to_ftw(self.freq_866_mhz*MHz)
         self.asf_866 = pct_to_asf(self.ampl_866)
         self.att_866 = att_to_mu(self.att_866_dB)
 
-        self.pmt_sample_time_mu = us_to_mu(self.pmt_sample_time_us)
+        self.pmt_sample_time_mu = us_to_mu(self.PMT_SAMPLE_TIME_US)
 
-        # intialize start time
+        # initialize start time
         self.start_time = np.int64(0)
 
         self.set_dataset("counts", [])
-
-        self.pmt_inverse_num_samples = 1 / self.pmt_num_samples
+        self.pmt_inverse_num_samples = 1 / self.PMT_SAMPLE_NUM
 
     @property
     def results_shape(self):
@@ -206,13 +195,13 @@ class IonLoad(LAXExperiment, Experiment):
         # self.core.break_realtime()
 
         # turn on the oven
-        # self.oven.set_oven_voltage(1)
-        # self.oven.on()
-        # self.core.break_realtime()
-        #
-        # # open aperture
-        # self.aperture.open_aperture()
-        # self.core.break_realtime()
+        self.oven.set_oven_voltage(1)
+        self.oven.on()
+        self.core.break_realtime()
+
+        # open aperture
+        self.aperture.open_aperture()
+        self.core.break_realtime()
 
         # set camera region of interest and exposure time
         self.core.break_realtime()
@@ -234,53 +223,55 @@ class IonLoad(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
+        # define some variables for later use
         idx = 0
         breaker = False
         num_ions = 0
-        counts = 0.
-        delay_mu(100000)
-        delay(5*s)
-        for i in range(self.pmt_num_samples):
-            self.core.break_realtime()  # add slack
-            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
-            delay_mu(50)
-            counts += self.pmt.fetch_count()  # grab counts from PMT
+        camera_success = False
+        ion_spottings = 0
 
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-        counts = counts * self.pmt_inverse_num_samples
-        delay_mu(1000)  # see if this is enough
+        # gather counts from pmt to later verify flipper worked correctly
+        delay_mu(100000)
+        counts = self.sample_pmt_counts()
         self.append_to_dataset('counts', counts)
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-
+        # flip to camera
         self.flipper.flip()
         self.core.break_realtime()
-        delay(5 * s)
 
-        # while num_ions == 0:
-        #
-        #     idx += 1
-        #
-        #     # # read from camera
-        #     self.camera.acquire_single_image()
-        #     image = self.camera.get_most_recent_image()
-        #     num_ions = self.show_ions(image)
-        #
-        #     if idx >= 49:
-        #         self.check_termination()  # check if termination is over threshold
-        #         self.core.break_realtime()
-        #         idx = 0
-        #         breaker = self.check_time()
-        #         if breaker: break
-        #
-        #     if num_ions > 0:
-        #         self.print_ion_loaded_message(num_ions)
-        #
-        #     with parallel:
-        #         self.check_termination()
-        #         self.core.break_realtime()
+        while camera_success is not True: # run loop while we don't see ions
+
+            idx += 1
+
+            # read from camera and gather number of ions
+            self.camera.acquire_single_image()
+            image = self.camera.get_most_recent_image()
+            num_ions = self.show_ions(image)
+
+            # every 5 image check if termination was requested or if we've taken too long to load
+            if idx >= 5:
+                self.check_termination()  # check if termination is over threshold
+                self.core.break_realtime()
+                idx = 0
+                breaker = self.check_time()
+                if breaker:
+                    print("TOOK OVER 10 MIN TO LOAD --- ENDING PROGRAM")
+                    break
+
+            if num_ions > 0:
+                ion_spottings += 1
+                if ion_spottings >= 3: # ensure camera sees ion from 3 consecutive pictures to prevent singular false positive
+                    camera_success = True
+                    self.print_ion_loaded_message(num_ions)
+
+            else:
+                ion_spottings = 0 # reset if image analysis shows no ions in trap
+
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
 
 
     # ANALYSIS
@@ -324,45 +315,16 @@ class IonLoad(LAXExperiment, Experiment):
         self.trap_dc.set_a_ramp2_voltage(self.ending_a_ramp2_voltage)
 
         # turn on the endcap channels
-        self.trap_dc.east_endcap_on()
-        self.trap_dc.west_endcap_on()
         self.trap_dc.h_shim_on()
         self.trap_dc.v_shim_on()
         self.trap_dc.a_ramp2_on()
 
         # ramp endcaps to end values
-        # self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
-        #                                [100, 100])
+        self.trap_dc.ramp_both_endcaps([self.ending_east_endcap_voltage, self.ending_west_endcap_voltage],
+                                       [100., 100.])
 
-    @rpc
-    def get_num_ions(self, data) -> TInt32:
-        """
-        Return number of ions determined from camera image
-        """
-
-        # reshape 1D array into 2D array
-        data = np.reshape(data, (self.image_width_pixels, self.image_height_pixels))
-
-        # threshold data into binary image
-        upper_percentile = np.percentile(data, 99)
-        data[data < upper_percentile] = 0
-        data[data >= upper_percentile] = 1
-
-        # erode then dilate image to remove small bright regions (scatter) and accentuate larger regions (ions)
-        kernel = np.ones((2, 2), np.uint8)
-        for i in range(3):
-            data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
-        for i in range(3):
-            data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
-
-        # ensure binary image
-        data[data > 0] = 1
-
-        # label all pixels as belonging to a localized patter
-        labels = skimage.measure.label(data)
-
-        # return number of localized patter (-1 as background is given a label)
-        return len(np.unique(labels)) - 1
+        self.trap_dc.set_east_endcap_voltage(self.ending_east_endcap_voltage)
+        self.trap_dc.set_west_endcap_voltage(self.ending_west_endcap_voltage)
 
     @kernel
     def check_time(self) -> TBool:
@@ -370,19 +332,35 @@ class IonLoad(LAXExperiment, Experiment):
         Check wall clock time to see if 10 min (600 sec) has elapsed with no ion loaded
         """
         self.core.break_realtime()
-        return 600 > self.core.mu_to_seconds(
+        return 600 < self.core.mu_to_seconds(
             self.core.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
 
-    # @rpc
-    # def check_termination(self):
-    #     """
-    #     Check whether termination of the experiment has been requested.
-    #     """
-    #     if self.scheduler.check_termination():
-    #         raise TerminationRequested
+
+    @kernel
+    def sample_pmt_counts(self):
+        counts = 0.
+        for i in range(self.PMT_SAMPLE_NUM):
+            self.core.break_realtime()  # add slack
+            self.pmt.count(self.pmt_sample_time_mu)  # set pmt sample time
+            delay_mu(8)
+            counts += self.pmt.fetch_count()  # grab counts from PMT
+            self.core.break_realtime()
+
+        counts = counts * self.pmt_inverse_num_samples
+        delay_mu(100)
+        return counts
 
     @kernel
     def set_flipper_to_pmt(self):
+        self.flipper.flip()
+        self.core.break_realtime()
+        counts = self.sample_pmt_counts()
+
+        if counts < 15:
+            self.flipper.flip()
+            self.core.break_realtime()
+    @kernel
+    def set_flipper_to_camera(self):
         self.flipper.flip()
         self.core.break_realtime()
         counts = 0.
@@ -393,30 +371,11 @@ class IonLoad(LAXExperiment, Experiment):
             counts += self.pmt.fetch_count()  # grab counts from PMT
             self.core.break_realtime()
 
-        delay(1*s)
         counts = counts * self.pmt_inverse_num_samples
-        print(counts)
-        delay_mu(100) # see if this is enough
+        delay_mu(100)  # see if this is enough
 
-        if counts < 85:
+        if counts > 15:
             self.flipper.flip()
-            self.core.break_realtime()
-
-    @kernel
-    def set_flipper_to_camera(self):
-        self.flipper.flip()
-        self.core.break_realtime()
-        self.pmt.count(self.pmt_sample_time_us)
-        delay_mu(8)
-        counts = self.pmt.fetch_count()
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-
-        if counts > 10:
-            self.flipper.flip()
-            self.core.break_realtime()
-            self.core.wait_until_mu(now_mu())
             self.core.break_realtime()
 
     @rpc
@@ -447,9 +406,3 @@ class IonLoad(LAXExperiment, Experiment):
         plt.title("Manipulated Image")
         plt.savefig("Z:\motion\Pictures\manipulated.png")
         return len(np.unique(labels)) - 1
-
-
-
-
-
-
