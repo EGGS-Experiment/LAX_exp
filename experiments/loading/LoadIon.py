@@ -7,6 +7,7 @@ from LAX_exp.base import LAXExperiment
 from matplotlib import pyplot as plt
 from datetime import datetime
 import os
+import time
 
 
 class IonLoad(LAXExperiment, Experiment):
@@ -209,9 +210,9 @@ class IonLoad(LAXExperiment, Experiment):
         # self.core.break_realtime()
 
         # turn on the oven
-        self.oven.set_oven_voltage(1)
-        self.oven.on()
-        self.core.break_realtime()
+        # self.oven.set_oven_voltage(1)
+        # self.oven.on()
+        # self.core.break_realtime()
 
         # open aperture
         self.aperture.open_aperture()
@@ -239,13 +240,19 @@ class IonLoad(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         while num_ions != self.desired_num_of_ions:
-            num_ions = self.load_ion()
-            self.cleanup_devices()
+            with parallel:
+                self.check_termination()
+                self.core.break_realtime()
 
-            if num_ions != self.desired_num_of_ions and num_ions != 0:
-                num_ions = self.aramp_ions()
-            if num_ions != self.desired_num_of_ions:
+            if num_ions <= self.desired_num_of_ions:
                 self.initialize_experiment()
+                num_ions = self.load_ion()
+
+            else:
+                self.cleanup_devices()
+                num_ions = self.aramp_ions()
+                self.core.wait_until_mu(now_mu())
+                self.core.break_realtime()
 
         with parallel:
             self.check_termination()
@@ -306,7 +313,6 @@ class IonLoad(LAXExperiment, Experiment):
                 # ensure camera sees ion from 3 consecutive pictures to prevent singular false positive
                 if ion_spottings >= 3:
                     camera_success = True
-                    delay(5*s) # wait for any dark ions
                     self.camera.acquire_single_image()
                     image = self.camera.get_most_recent_image()
                     num_ions = self.show_ions(image, 'pre_aramp_orginal.png', 'pre_aramp_maipulated.png')
@@ -318,39 +324,32 @@ class IonLoad(LAXExperiment, Experiment):
 
         return 0
 
-    @kernel
+    @rpc
     def aramp_ions(self) -> TInt32:
 
-        self.core.break_realtime()
         print("STARTING ARAMP PROCEDURE")
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
 
         for aramp_voltage in self.aramp_ions_voltage_list:
 
             self.trap_dc.set_aramp2_voltage(aramp_voltage)
-            delay(2*s)
-            self.core.wait_until_mu(now_mu())
-            self.core.break_realtime()
+            time.sleep(1)
             self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
-            self.core.wait_until_mu(now_mu())
-            self.core.break_realtime()
+            time.sleep(1)
 
             self.camera.acquire_single_image()
             image = self.camera.get_most_recent_image()
             num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
+            print(num_ions)
 
             if num_ions <= self.desired_num_of_ions:
                 return num_ions
 
-        with parallel:
             self.check_termination()
-            self.core.break_realtime()
 
-        self.camera.acquire_single_image()
-        image = self.camera.get_most_recent_image()
-        num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
-        return num_ions
+        # self.camera.acquire_single_image()
+        # image = self.camera.get_most_recent_image()
+        # num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
+        return 0
 
     @rpc
     def print_ion_loaded_message(self, num_ions=None):
@@ -489,13 +488,12 @@ class IonLoad(LAXExperiment, Experiment):
         data[data >= upper_percentile] = 1
 
         kernel = np.ones((2, 2), np.uint8)
-        for i in range(3):
+
+        for i in range(2):
             data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
 
-        for i in range(3):
-            data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
-
-        data[data > 0] = 1
+        data[data < upper_percentile] = 0
+        data[data >= upper_percentile] = 1
         labels = skimage.measure.label(data)
         plt.figure(2)
         plt.imshow(data)
