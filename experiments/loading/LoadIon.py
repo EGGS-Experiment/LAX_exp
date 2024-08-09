@@ -210,9 +210,9 @@ class IonLoad(LAXExperiment, Experiment):
         # self.core.break_realtime()
 
         # turn on the oven
-        self.oven.set_oven_voltage(1)
-        self.oven.on()
-        self.core.break_realtime()
+        # self.oven.set_oven_voltage(1)
+        # self.oven.on()
+        # self.core.break_realtime()
 
         # open aperture
         self.aperture.open_aperture()
@@ -334,6 +334,7 @@ class IonLoad(LAXExperiment, Experiment):
             self.trap_dc.set_aramp2_voltage(aramp_voltage)
             time.sleep(1)
             self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
+            time.sleep(2)
 
             self.camera.acquire_single_image()
             image = self.camera.get_most_recent_image()
