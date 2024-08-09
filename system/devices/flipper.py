@@ -18,6 +18,7 @@ class Flipper(LAXDevice):
 
     def prepare_device(self):
 
+        # define times so flipper finishes before other code is called
         self.wait_time_mu = us_to_mu(1000e3)
         self.time_flipper_trigger_mu = self.core.seconds_to_mu(50*ms)
 
@@ -28,6 +29,9 @@ class Flipper(LAXDevice):
 
     @kernel
     def flip(self):
+        """
+        flip the mirror so light is sent to either PMT or camera
+        """
         self.core.break_realtime()
         self.flipper.on()
         delay_mu(self.time_flipper_trigger_mu)
