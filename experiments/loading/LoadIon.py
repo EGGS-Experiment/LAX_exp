@@ -23,13 +23,15 @@ class IonLoad(LAXExperiment, Experiment):
     IMAGE_WIDTH = 512
     PMT_SAMPLE_TIME_US = 3000
     PMT_SAMPLE_NUM = 30
-    MAX_ARAMP = 12
+
+    LOADING = True
+    ARAMPING = False
 
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
     def build_experiment(self):
 
-        #general arguments
+        # general arguments
         self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1,
                                                                  max=10, ndecimals=0, step=1))
 
@@ -82,6 +84,16 @@ class IonLoad(LAXExperiment, Experiment):
                               NumberValue(default=2.0, ndecimals=1, step=0.1, min=0., max=100.),
                               group='Ending Trap Parameters')
 
+
+        self.setattr_argument('start_aramp_voltage', NumberValue(default=6, min=2, max=12, ndecimals=0, step=1),
+                              group='Aramp Parameters')
+
+        self.setattr_argument('end_aramp_voltage', NumberValue(default=10, min=3, max=12, ndecimals=0, step=1),
+                              group='Aramp Parameters')
+
+        self.setattr_argument('aramp_voltage_step', NumberValue(default=0.5, min=0.1, max=1, ndecimals=2,
+                                                                step=0.01),group='Aramp Parameters')
+
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument('image_width_pixels', NumberValue(default=400,
                                                                 min=100, max=450, step=1,
@@ -133,17 +145,17 @@ class IonLoad(LAXExperiment, Experiment):
         self.exposure_time_s = self.exposure_time_ms / ms
 
         # convert 397 parameters
-        self.ftw_397 = self.pump.frequency_to_ftw(self.freq_397_mhz*MHz)
+        self.ftw_397 = self.pump.frequency_to_ftw(self.freq_397_mhz * MHz)
         self.asf_397 = pct_to_asf(self.ampl_397)
         self.att_397 = att_to_mu(self.att_397_dB)
 
         # convert 854 parameters
-        self.ftw_854 = self.repump_qubit.frequency_to_ftw(self.freq_854_mhz*MHz)
+        self.ftw_854 = self.repump_qubit.frequency_to_ftw(self.freq_854_mhz * MHz)
         self.asf_854 = pct_to_asf(self.ampl_854)
         self.att_854 = att_to_mu(self.att_854_dB)
 
         # convert 866 parameters
-        self.ftw_866 = self.repump_cooling.frequency_to_ftw(self.freq_866_mhz*MHz)
+        self.ftw_866 = self.repump_cooling.frequency_to_ftw(self.freq_866_mhz * MHz)
         self.asf_866 = pct_to_asf(self.ampl_866)
         self.att_866 = att_to_mu(self.att_866_dB)
 
@@ -155,7 +167,8 @@ class IonLoad(LAXExperiment, Experiment):
         self.set_dataset("counts", [])
         self.pmt_inverse_num_samples = 1 / self.PMT_SAMPLE_NUM
 
-        self.aramp_ions_voltage_list = np.arange(6,self.MAX_ARAMP, 0.25)
+        self.aramp_ions_voltage_list = np.arange(self.start_aramp_voltage, self.end_aramp_voltage,
+                                                 self.aramp_voltage_step)
 
         ### set up filepaths
         year_month = datetime.today().strftime('%Y-%m')
@@ -279,6 +292,9 @@ class IonLoad(LAXExperiment, Experiment):
         camera_success = False
         ion_spottings = 0
 
+        self.LOADING = True
+        self.ANALYZING = False
+
         # gather counts from pmt to later verify flipper worked correctly
         delay_mu(100000)
         counts = self.sample_pmt_counts()
@@ -328,6 +344,9 @@ class IonLoad(LAXExperiment, Experiment):
     @rpc
     def aramp_ions(self) -> TInt32:
 
+        self.LOADING = False
+        self.ANALYZING = True
+
         print("STARTING ARAMP PROCEDURE")
 
         for aramp_voltage in self.aramp_ions_voltage_list:
@@ -339,7 +358,7 @@ class IonLoad(LAXExperiment, Experiment):
 
             self.camera.acquire_single_image()
             image = self.camera.get_most_recent_image()
-            num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
+            num_ions = self.show_ions(image, 'post_aramp_original.png', 'post_aramp_manipulated.png')
             print(num_ions)
 
             if num_ions <= self.desired_num_of_ions:
@@ -410,7 +429,6 @@ class IonLoad(LAXExperiment, Experiment):
         return 900 < self.core.mu_to_seconds(
             self.core.get_rtio_counter_mu() - self.start_time)  # check if longer than 10 min
 
-
     @kernel
     def sample_pmt_counts(self):
         """
@@ -441,7 +459,7 @@ class IonLoad(LAXExperiment, Experiment):
         self.core.break_realtime()
         counts = self.sample_pmt_counts()
 
-        if counts < 15:   # if PMT counts are below the dark count threshold flip again
+        if counts < 15:  # if PMT counts are below the dark count threshold flip again
             self.flipper.flip()
             self.core.break_realtime()
 
@@ -454,12 +472,12 @@ class IonLoad(LAXExperiment, Experiment):
         self.core.break_realtime()
         counts = self.sample_pmt_counts()
 
-        if counts > 15:   # if PMT counts are above the dark count threshold flip again
+        if counts > 15:  # if PMT counts are above the dark count threshold flip again
             self.flipper.flip()
             self.core.break_realtime()
 
     @rpc
-    def show_ions(self, data, filepath1 = None, filepath2 = None) -> TInt32:
+    def show_ions(self, data, filepath1=None, filepath2=None) -> TInt32:
         """
         Process image data from camera and extract the number of ions in the trap
 
@@ -488,15 +506,20 @@ class IonLoad(LAXExperiment, Experiment):
         data[data < upper_percentile] = 0
         data[data >= upper_percentile] = 1
 
-        kernel = np.zeros((4, 4), np.uint8)
-        kernel[1,1] = 1
-        kernel[1,2] = 1
-        kernel[2,1] = 1
-        kernel[2,2] = 1
+        if self.LOADING:
+            kernel1 = np.ones((2, 2))
+            data = ndimage.binary_erosion(data, kernel1, iterations=2)
+        elif self.ARAMPING:
+            kernel1 = np.array([[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]])
+            data = ndimage.binary_erosion(data, kernel1, iterations=1)
+            kernel2 = np.ones((1, 2))
+            data = ndimage.binary_erosion(data, kernel2, iterations=1)
+            kernel3 = np.ones((2, 1))
+            data = ndimage.binary_erosion(data, kernel3, iterations=1)
+            kernel4 = np.ones((1, 2))
+            data = ndimage.binary_erosion(data, kernel4, iterations=1)
 
-
-        data = ndimage.binary_erosion(data, kernel, iterations=3)
-        # data[data > 0] = 1
+        data[data > 0] = 1
         labels = skimage.measure.label(data)
         plt.figure(2)
         plt.imshow(data)
