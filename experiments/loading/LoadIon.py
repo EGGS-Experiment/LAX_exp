@@ -11,13 +11,13 @@ import time
 from scipy import ndimage
 
 
-class IonLoad(LAXExperiment, Experiment):
+class IonLoadAndAramp(LAXExperiment, Experiment):
     """
-    Experiment: Ion Load
+    Experiment: Ion Load and Aramp
 
     Gets the number of counts as a function of frequency for a fixed time.
     """
-    name = 'Ion Load'
+    name = 'Ion Load and Aramp'
 
     IMAGE_HEIGHT = 512
     IMAGE_WIDTH = 512
