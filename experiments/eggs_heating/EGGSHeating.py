@@ -291,7 +291,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         # update dynamical decoupling config list with verified PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   self.time_psk_delay_mu
         # ensure that psk rate doesn't exceed the shaping time (t_max_phaser_update_rate_mu; about 25 * t_sample_mu)
-        if self.enable_dynamical_decoupling and (self.time_psk_delay_mu < self.t_max_phaser_update_rate_mu):
+        if self.enable_dd_phase_shift_keying and (self.time_psk_delay_mu < self.t_max_phaser_update_rate_mu):
             raise Exception("Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate.")
 
         # set appropriate phaser run method for dynamical decoupling PSK

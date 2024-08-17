@@ -59,8 +59,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
+        # self.ccb.issue("create_applet", "imaging_alignment",
+        #                '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
+        #                '--x temp.imag_align.counts_x --title "Imaging Alignment" --plot-names "Signal" "Background" "Differential"')
         self.ccb.issue("create_applet", "imaging_alignment",
-                       '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y --x temp.imag_align.counts_x --title "Imaging Alignment" --plot-names "Signal" "Background" "Differential"')
+                       '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
+                       '--x temp.imag_align.counts_x --title "Imaging Alignment"')
 
     @property
     def results_shape(self):

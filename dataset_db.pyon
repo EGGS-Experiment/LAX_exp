@@ -38,7 +38,7 @@
     "management.death.deathcount_length": 200,
     "management.death.deathcount_threshold": 81.0,
     "management.death.deathcount_tolerance": 5,
-    "management.dynamic.completion_pct": 0.0,
+    "management.dynamic.completion_pct": 5.355,
     "management.dynamic_plot_reduction_factor": 28,
     "pmt.gating_edge": "rising",
     "pmt.time_pmt_gating_us": npscalar("<f8", b"AAAAAAAAWUA="),
