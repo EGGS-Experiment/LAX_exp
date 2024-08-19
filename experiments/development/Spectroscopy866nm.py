@@ -21,19 +21,19 @@ class Spectroscopy866nm(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                NumberValue(default=500, ndecimals=0, step=1, min=1, max=100000))
 
         # probe frequency scan
         self.setattr_argument("time_probe_us",              NumberValue(default=20, ndecimals=3, step=5, min=5, max=10000), group=self.name)
         self.setattr_argument("freq_probe_scan_mhz",        Scannable(
-                                                                default=RangeScan(85, 129, 45, randomize=True),
+                                                                default=RangeScan(101, 119, 200, randomize=True),
                                                                 global_min=80, global_max=140, global_step=1,
                                                                 unit="MHz", scale=1, ndecimals=6
                                                             ), group=self.name)
 
         # configure 397nm waveform
-        self.setattr_argument("freq_397nm_mhz",             NumberValue(default=110, ndecimals=6, step=1, min=1, max=400), group='397nm')
-        self.setattr_argument("ampl_397nm_pct",             NumberValue(default=50, ndecimals=3, step=10, min=1, max=50.), group='397nm')
+        self.setattr_argument("freq_397nm_mhz",             NumberValue(default=124, ndecimals=6, step=1, min=1, max=400), group='397nm')
+        self.setattr_argument("ampl_397nm_pct",             NumberValue(default=15, ndecimals=3, step=10, min=1, max=50.), group='397nm')
 
         # adc (sampler) recording
         self.setattr_argument("adc_channel_num",            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='adc')
@@ -51,39 +51,39 @@ class Spectroscopy866nm(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # convert probe values
-        self.time_probe_us =                                self.core.seconds_to_mu(self.time_probe_us * us)
-        self.freq_probe_scan_mhz =                          np.array(list(self.freq_probe_scan_mhz))
-        self.freq_probe_scan_ftw =                          np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
+        self.time_probe_mu =            self.core.seconds_to_mu(self.time_probe_us * us)
+        self.freq_probe_scan_mhz =      np.array(list(self.freq_probe_scan_mhz))
+        self.freq_probe_scan_ftw =      np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
         # convert 397nm values
-        self.freq_397nm_ftw =                               self.pump.frequency_to_ftw(self.freq_397nm_mhz * MHz)
-        self.ampl_397nm_asf =                               self.pump.amplitude_to_asf(self.ampl_397nm_pct / 100.)
+        self.freq_397nm_ftw =       self.pump.frequency_to_ftw(self.freq_397nm_mhz * MHz)
+        self.ampl_397nm_asf =       self.pump.amplitude_to_asf(self.ampl_397nm_pct / 100.)
 
         # get amplitude calibration curve from dataset manager and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
-        ampl_calib_points =                                             self.get_dataset('calibration.beam_power.repump_cooling_beam.asf_calibration_curve_mhz_pct')
-        ampl_calib_curve =                                              Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
+        ampl_calib_points =     self.get_dataset('calibration.beam_power.repump_cooling_beam.asf_calibration_curve_mhz_pct')
+        ampl_calib_curve =      Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
 
         # verify scan range is serviceable by calibration values
-        min_freq_mhz =                                                  np.min(self.freq_probe_scan_mhz)
-        max_freq_mhz =                                                  np.max(self.freq_probe_scan_mhz)
-        if (min_freq_mhz < np.max(ampl_calib_points[:, 0])) & (min_freq_mhz > np.min(ampl_calib_points[:, 0])):
+        min_freq_mhz =  np.min(self.freq_probe_scan_mhz)
+        max_freq_mhz =  np.max(self.freq_probe_scan_mhz)
+        if min_freq_mhz < np.min(ampl_calib_points[:, 0]):
             raise Exception("Error: lower bound of frequency scan range below valid calibration range.")
-        if (max_freq_mhz < np.max(ampl_calib_points[:, 0])) & (max_freq_mhz > np.min(ampl_calib_points[:, 0])):
+        elif max_freq_mhz > np.max(ampl_calib_points[:, 0]):
             raise Exception("Error: upper bound of frequency scan range above valid calibration range.")
 
         # get calibrated amplitude values
-        ampl_probe_scan_pct =                                           np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
-        self.ampl_probe_scan_asf =                                      np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
+        ampl_probe_scan_pct =           np.array(ampl_calib_curve(self.freq_probe_scan_mhz))
+        self.ampl_probe_scan_asf =      np.array([pct_to_asf(ampl_pct) for ampl_pct in ampl_probe_scan_pct])
 
         # set up probe waveform config
-        self.waveform_probe_scan =                                      np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
+        self.waveform_probe_scan =      np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
 
         # tmp remove
         # set adc holdoff time to ensure adc records when probe beam is actually on
-        self.time_adc_holdoff_mu =                                      self.core.seconds_to_mu(1000 * us)
-        self.adc_channel_gain_mu =                                      int(np.log10(int(self.adc_channel_gain)))
+        self.time_adc_holdoff_mu =      self.core.seconds_to_mu(1000 * us)
+        self.adc_channel_gain_mu =      int(np.log10(int(self.adc_channel_gain)))
 
 
     @property

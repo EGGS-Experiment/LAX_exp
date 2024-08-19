@@ -23,7 +23,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_argument('time_sample_us',             NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
-        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, ndecimals=0, step=10, min=1, max=100), group='sampling')
         self.setattr_argument('background_samples_per_point',   NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
@@ -64,7 +64,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         #                '--x temp.imag_align.counts_x --title "Imaging Alignment" --plot-names "Signal" "Background" "Differential"')
         self.ccb.issue("create_applet", "imaging_alignment",
                        '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
-                       '--x temp.imag_align.counts_x --title "Imaging Alignment"')
+                       ' --x temp.imag_align.counts_x --title "Imaging Alignment"')
 
     @property
     def results_shape(self):
