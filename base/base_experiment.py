@@ -192,11 +192,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         Repeat a given sequence a number of times.
         """
         # set up dynamic datasets
-        # note: this has to happen during run, otherwise we will overwrite other
+        # note: this has to happen during run, otherwise we will overwrite other count plotters
         self.set_dataset('management.dynamic.completion_pct', 0., broadcast=True, persist=True, archive=False)
         # downsample counts for dynamic plotting
-        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
-        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * nan,
+        dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
+        dynamic_counts_arr = zeros(dynamic_counts_len, dtype=int32) * nan
+        # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
+        dynamic_counts_arr[0] = 0
+        self.set_dataset('temp.counts.trace', dynamic_counts_arr,
                          broadcast=True, persist=False, archive=False)
 
         # start counting initialization time

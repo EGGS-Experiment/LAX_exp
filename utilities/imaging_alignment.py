@@ -23,7 +23,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_argument('time_sample_us',             NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
-        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, ndecimals=0, step=10, min=1, max=100), group='sampling')
         self.setattr_argument('background_samples_per_point',   NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
@@ -54,17 +54,20 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self._iter_signal =         np.arange(self.signal_samples_per_point)
         self._iter_background =     np.arange(self.background_samples_per_point)
 
+        # todo: move to prepare/run somehow to prevent overriding
         # prepare datasets for storing counts
-        self.set_dataset('temp.imag_align.counts_x', np.zeros(self.repetitions), broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)), broadcast=True, persist=False, archive=False)
+        # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
+        counts_x_arr = np.zeros(self.repetitions) * np.nan
+        counts_x_arr[0] = 0
+        counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
+        counts_y_arr[0, :] = 0
+        self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
-        # self.ccb.issue("create_applet", "imaging_alignment",
-        #                '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
-        #                '--x temp.imag_align.counts_x --title "Imaging Alignment" --plot-names "Signal" "Background" "Differential"')
         self.ccb.issue("create_applet", "imaging_alignment",
                        '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
-                       '--x temp.imag_align.counts_x --title "Imaging Alignment"')
+                       ' --x temp.imag_align.counts_x --title "Imaging Alignment"')
 
     @property
     def results_shape(self):

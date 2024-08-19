@@ -60,6 +60,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         self._iter_loop =                       np.arange(self.samples_per_point)
         self._state_array =                     np.zeros(self.samples_per_point, dtype=np.int32)
 
+        # todo: move to prepare/run somehow to prevent overriding
         # prepare datasets for storing counts
         self.set_dataset('temp.qubit_align.counts_x', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.qubit_align.counts_y', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
@@ -70,7 +71,8 @@ class QubitAlignment(LAXExperiment, Experiment):
 
         # initialize plotting applet
         self.ccb.issue("create_applet", "qubit_alignment",
-                       '${artiq_applet}plot_xy temp.qubit_align.counts_y --x temp.qubit_align.counts_x --title "Qubit Alignment"')
+                       '${artiq_applet}plot_xy temp.qubit_align.counts_y'
+                       ' --x temp.qubit_align.counts_x --title "Qubit Alignment"')
 
         # tmp remove
         # todo: set the filter up properly
