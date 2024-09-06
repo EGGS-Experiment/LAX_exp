@@ -398,6 +398,11 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # delay_mu(self.phaser_eggs.t_sample_mu)
         # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
 
+        # tmp remove
+        # add delay time after integrator hold to reduce effect of turn-on glitches
+        delay_mu(self.time_rf_servo_holdoff_mu)
+        # tmp remove
+
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
