@@ -432,7 +432,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(100000)  # add slack for recording DMA sequences (100 us)
+            delay_mu(1000000)  # add slack for recording DMA sequences (1 ms)
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()

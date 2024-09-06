@@ -35,6 +35,7 @@ class SpinEchoWizard(LAXEnvironment):
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
         # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+        self.num_max_phaser_samples =       200
 
 
         '''WAVEFORM CONFIGURATION ARGUMENTS'''
@@ -83,7 +84,9 @@ class SpinEchoWizard(LAXEnvironment):
         self.time_pulse_shape_sample_mu =           self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
 
         # ensure pulse shaping sample interval is valid (greater than min val)
-        if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:
+        # if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:
+        #     raise Exception("Error: waveform sample rate too fast.")
+        if self.time_pulse_shape_sample_mu < (5 * self.self.phaser_eggs.t_sample_mu):
             raise Exception("Error: waveform sample rate too fast.")
 
         # ensure pulse shaping sample interval is multiple of phaser sample rate
@@ -95,6 +98,9 @@ class SpinEchoWizard(LAXEnvironment):
         self.num_pulse_shape_samples = round(self.time_pulse_shape_rolloff_mu / self.time_pulse_shape_sample_mu)
         # ensure rolloff time is integer number of pulse shape samples
         self.time_pulse_shape_rolloff_mu = np.int64(self.num_pulse_shape_samples * self.time_pulse_shape_sample_mu)
+        # ensure we aren't submitting too many samples to prevent overloading DMA
+        if self.num_pulse_shape_samples < self.num_max_phaser_samples:
+            raise Exception("Error: too many points in waveform. Reduce sample rate or rollon time.")
 
         # create x-axis value array
         self._pulse_shape_array_times_mu = np.arange(self.num_pulse_shape_samples, dtype=np.int64) * self.time_pulse_shape_sample_mu

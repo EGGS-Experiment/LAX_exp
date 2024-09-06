@@ -48,7 +48,7 @@ class Tickle(LAXExperiment, Experiment):
                                                                         global_min=100, global_max=1000000, global_step=100,
                                                                         unit="us", scale=1, ndecimals=0
                                                                     ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, ndecimals=1, step=0.5, min=2, max=31.5), group=self.name)
+        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, ndecimals=1, step=0.5, min=0., max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')

@@ -22,6 +22,7 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_cpld')
+        self.setattr_device('phaser0')
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
 
@@ -37,7 +38,8 @@ class testarg34(EnvExperiment):
         # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        self.cxn=labrad.connect()
+        pass
+        # self.cxn=labrad.connect()
         # self.dc=self.cxn.dc_server
         # self.voltage_set(24, 0.)
         # self.dc.toggle(24,1)
@@ -51,8 +53,29 @@ class testarg34(EnvExperiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
-    # @kernel
+    @kernel
     def run(self):
+        self.core.reset()
+        self.core.break_realtime()
+        delay_mu(1000000)
+
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att(0. * dB)
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_duc_frequency(80. * MHz)
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].oscillator[0].set_frequency(0. * MHz)
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
+
+
+        self.core.break_realtime()
+
+
         # self.core.reset()
         # self.ttl8.off()
         # self.ttl9.off()
@@ -82,6 +105,6 @@ class testarg34(EnvExperiment):
         # delay_mu(10000000)
         # self.ttl9.on()
 
-        delay_mu(500000000)
-        self.ttl8.off()
-        self.ttl9.off()
+        # delay_mu(500000000)
+        # self.ttl8.off()
+        # self.ttl9.off()
