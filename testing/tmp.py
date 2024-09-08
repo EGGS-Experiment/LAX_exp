@@ -22,7 +22,7 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_cpld')
-        self.setattr_device('phaser0')
+        self.setattr_device('phaser1')
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
 
@@ -60,17 +60,17 @@ class testarg34(EnvExperiment):
         delay_mu(1000000)
 
 
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(0. * dB)
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].set_att(0. * dB)
 
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_duc_frequency(80. * MHz)
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].set_duc_frequency(80. * MHz)
 
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_frequency(0. * MHz)
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].oscillator[0].set_frequency(0. * MHz)
 
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
 
 
         self.core.break_realtime()
