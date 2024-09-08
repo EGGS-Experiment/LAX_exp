@@ -464,6 +464,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         expid =         exp_params["expid"]
 
         # todo: try to get default save dir list
+        # todo: why don't we get them during build/prepare? then access them here?
         # problem: we don't have access to dataset managers in this stage
         # try:
         #     th0 = self.get_dataset('management.dataset_save_locations')
@@ -472,8 +473,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         #     print(e)
         #     print('whoops')
         save_dir_list = [
-            'Z:\\Motion\\Data',
-            'D:\\Results'
+            'Z:\\Motion\\Data',     # save to motion drive
+            'D:\\Results'           # save to local backup drive
         ]
 
         # save to all relevant directories
