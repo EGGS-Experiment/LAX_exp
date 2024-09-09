@@ -634,7 +634,7 @@ device_db["led1"] = {
 }
 
 
-# store phaser configuration sets
+##### STORE PHASER CONFIGURATION SETS #####
 
 # original
 # _phaser_trf_config = {
