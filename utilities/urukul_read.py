@@ -3,8 +3,10 @@ from enum import Enum
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import *
+from artiq.coredevice.urukul import DEFAULT_PROFILE
 from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0
 from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
+
 
 RAM_MODE_DIRECTSWITCH = 0
 RAM_MODE_RAMPUP = 1
@@ -37,15 +39,25 @@ class UrukulRead(EnvExperiment):
         self.setattr_device("core")
 
         # DDS parameters
-        # self.setattr_argument("dds_name_list",      PYONValue(default=['urukul0_ch1', 'urukul0_ch1']))
-        self.setattr_argument("dds_name",           StringValue(default='urukul0_ch1'))
+        dds_device_list = self._get_dds_devices()
+        self.setattr_argument("dds_target",         EnumerationValue(list(dds_device_list), default='urukul2_ch1'))
 
         # profile parameters
-        self.setattr_argument('dds_profile',        NumberValue(default=0, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument('dds_profile',        NumberValue(default=7, ndecimals=0, step=1, min=0, max=7))
         self.setattr_argument("is_profile_ram",     BooleanValue(default=False))
 
         # RAM data
         self.setattr_argument("read_ram_data",      BooleanValue(default=False))
+
+    def _get_dds_devices(self):
+        """
+        Get all valid DDS (AD9910) devices from the device_db.
+        """
+        def is_local_phaser_device(v):
+            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
+
+        # get only local phaser devices from device_db
+        return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
 
     def prepare(self):
         """
@@ -64,14 +76,13 @@ class UrukulRead(EnvExperiment):
         '''GET DEVICES'''
         try:
             # todo: support arb. access
-            self.dds = self.get_device(self.dds_name)
+            self.dds = self.get_device(self.dds_target)
+            self.dds_cpld = self.dds.cpld
 
             # add DDS name to kernel invariants
             kernel_invariants = getattr(self, "kernel_invariants", set())
-            self.kernel_invariants = kernel_invariants | {'dds'}
+            self.kernel_invariants = kernel_invariants | {'dds', 'dds_cpld'}
 
-            # get all other channels on urukul as well (to prevent booboos from profile change)
-            # todo
         except Exception as e:
             print("Error: invalid DDS channel.")
             raise e
@@ -90,6 +101,9 @@ class UrukulRead(EnvExperiment):
     """
     @kernel(flags={"fast-math"})
     def run_initialize(self) -> TNone:
+        """
+        Initialize devices prior to execution.
+        """
         # reset core
         self.core.reset()
         self.core.break_realtime()
@@ -126,35 +140,41 @@ class UrukulRead(EnvExperiment):
         self.dds_cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
-        # note: need to read directly from register (instead of using get_mu) since profile may be RAM
+        # todo: need to read directly from register (instead of using get_mu) since profile may be RAM
         self._profile_word = np.int64(self.dds.read64(_AD9910_REG_PROFILE0 + self.dds_profile))
         self.core.break_realtime()
 
-        # read data from RAM
-        if self.read_ram_data:
-            self.read_ram(self._ram_data_array)
-            delay_mu(10000000)
-            self.core.break_realtime()
+        # # read data from RAM
+        # if self.read_ram_data:
+        #     self.read_ram(self._ram_data_array)
+        #     delay_mu(10000000)
+        #     self.core.break_realtime()
 
-    @kernel(flags={"fast-math"})
-    def read_profile_data(self, dds_num: TInt32, profile_num: TInt32) -> TInt64:
-        """
-        todo: document
-        """
-        # get desired DDS and CPLD from device list
-        dds_dev =   self.dds_device_list[dds_num]
-        dds_cpld =  dds_dev.cpld
+        # clean up by setting default profile
+        self.dds_cpld.set_profile(DEFAULT_PROFILE)
+        self.dds_cpld.io_update.pulse_mu(8)
+        self.core.wait_until_mu(now_mu())
 
-        # prepare DDS in desired profile (necessary since values are only taken from active profile)
-        dds_cpld.set_profile(profile_num)
-        dds_cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
 
-        # note: need to read directly from register (instead of using get_mu) since profile may be RAM
-        _profile_word = np.int64(dds_dev.read64(_AD9910_REG_PROFILE0 + profile_num))
-        self.core.break_realtime()
-
-        return _profile_word
+    # @kernel(flags={"fast-math"})
+    # def read_profile_data(self, dds_num: TInt32, profile_num: TInt32) -> TInt64:
+    #     """
+    #     todo: document
+    #     """
+    #     # get desired DDS and CPLD from device list
+    #     dds_dev =   self.dds_device_list[dds_num]
+    #     dds_cpld =  dds_dev.cpld
+    #
+    #     # prepare DDS in desired profile (necessary since values are only taken from active profile)
+    #     dds_cpld.set_profile(profile_num)
+    #     dds_cpld.io_update.pulse_mu(8)
+    #     self.core.break_realtime()
+    #
+    #     # note: need to read directly from register (instead of using get_mu) since profile may be RAM
+    #     _profile_word = np.int64(dds_dev.read64(_AD9910_REG_PROFILE0 + profile_num))
+    #     self.core.break_realtime()
+    #
+    #     return _profile_word
 
 
     """
@@ -165,8 +185,8 @@ class UrukulRead(EnvExperiment):
         Process results to extract DDS data.
         """
         # print & save results
-        print("\tDDS: {}".format(self.dds_name))
-        print("\tProfile: {}".format(self.dds_profile))
+        print("\tDDS:\t\t{}".format(self.dds_target))
+        print("\tProfile:\t{}".format(self.dds_profile))
 
         # process profile data as single-tone waveform
         if not self.is_profile_ram:
@@ -207,11 +227,12 @@ class UrukulRead(EnvExperiment):
             # todo: print and store RAM array data
 
 
-    @rpc
+    # @rpc
     def process_profile_word_singletone(self, profile_word: TInt64) -> TTuple([TFloat, TFloat, TFloat]):
         """
         Extract single-tone waveform from DDS profile word.
         """
+        print(profile_word)
         # extract values from profile word
         ftw = np.int32(profile_word & 0xFFFFFFFF)
         pow = np.int32((profile_word >> 32) & 0xFFFF)
