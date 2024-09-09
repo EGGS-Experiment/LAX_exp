@@ -18,6 +18,7 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('urukul1_cpld')
         self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser0')
+        self.setattr_device('phaser1')
         self.setattr_device('ttl10')
         self.setattr_device('ttl11')
         self.setattr_device('ttl12')
@@ -75,6 +76,7 @@ class Cleanup(LAXSubsequence):
         # ensure integrator hold is off to prevent
         self.ttl10.off()
 
+        ### PHASER0 ###
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)
@@ -96,6 +98,31 @@ class Cleanup(LAXSubsequence):
             with parallel:
                 self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                delay_mu(40)
+
+
+        ### PHASER1 ###
+        # reset phaser attenuators
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].set_att(31.5 * dB)
+        delay_mu(40)
+        self.phaser1.channel[1].set_att(31.5 * dB)
+
+        # reset phaser oscillators
+        for i in range(5):
+            # synchronize to frame
+            at_mu(self.phaser1.get_next_frame_mu())
+
+            # clear oscillator frequencies
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_frequency(0.)
+                self.phaser1.channel[1].oscillator[i].set_frequency(0.)
+                delay_mu(40)
+
+            # clear oscillator amplitudes
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
 
 

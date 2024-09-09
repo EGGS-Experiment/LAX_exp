@@ -80,6 +80,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('ttl14')
 
         self.setattr_device('phaser0')
+        self.setattr_device('phaser1')
 
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
@@ -299,6 +300,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.ttl10.off()
         delay_mu(8)
 
+        ### PHASER0 ###
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)
@@ -320,6 +322,33 @@ class LAXExperiment(LAXEnvironment, ABC):
             with parallel:
                 self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                delay_mu(40)
+
+            # add slack
+            self.core.break_realtime()
+
+        ### PHASER1 ###
+        # reset phaser attenuators
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].set_att(31.5 * dB)
+        delay_mu(40)
+        self.phaser1.channel[1].set_att(31.5 * dB)
+
+        # reset phaser oscillators
+        for i in range(5):
+            # synchronize to frame
+            at_mu(self.phaser1.get_next_frame_mu())
+
+            # clear oscillator frequencies
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_frequency(0.)
+                self.phaser1.channel[1].oscillator[i].set_frequency(0.)
+                delay_mu(40)
+
+            # clear oscillator amplitudes
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
 
             # add slack

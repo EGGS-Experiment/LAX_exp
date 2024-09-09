@@ -22,7 +22,7 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_cpld')
-        self.setattr_device('phaser1')
+        self.setattr_device('phaser0')
 
         # print(self.get_device_db())
 
@@ -63,45 +63,45 @@ class testarg34(EnvExperiment):
         self.core.reset()
         self.core.break_realtime()
 
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[0].set_nco_frequency(100. * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_nco_frequency(100. * MHz)
         # delay_mu(40)
-        # self.phaser1.channel[1].set_nco_frequency(100. * MHz)
+        # self.phaser0.channel[1].set_nco_frequency(100. * MHz)
         # # clear DAC NCO phase
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[0].set_nco_phase(0.)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_nco_phase(0.)
         # delay_mu(40)
-        # self.phaser1.channel[1].set_nco_phase(0.)
+        # self.phaser0.channel[1].set_nco_phase(0.)
         # # sync DAC for both channels
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.dac_sync()
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.dac_sync()
         # # add slack
         # self.core.break_realtime()
 
 
 
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[0].set_att(0. * dB)
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[1].set_att(0. * dB)
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att(0. * dB)
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[1].set_att(0. * dB)
 
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[0].set_duc_frequency(5. * MHz)
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[1].set_duc_frequency(5. * MHz)
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[0].set_duc_cfg()
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.channel[1].set_duc_cfg()
-        # at_mu(self.phaser1.get_next_frame_mu())
-        # self.phaser1.duc_stb()
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_duc_frequency(5. * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[1].set_duc_frequency(5. * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_duc_cfg()
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[1].set_duc_cfg()
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.duc_stb()
 
 
 
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].oscillator[0].set_frequency(5. * MHz)
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, phase=0., clr=0)
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].oscillator[0].set_frequency(5. * MHz)
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
         self.core.break_realtime()
 
 
