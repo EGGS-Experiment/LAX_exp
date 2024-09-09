@@ -1,7 +1,6 @@
 import numpy as np
 from artiq.experiment import *
 
-from os import environ
 from time import sleep
 
 

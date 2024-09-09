@@ -24,6 +24,8 @@ class testarg34(EnvExperiment):
         self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser1')
 
+        # print(self.get_device_db())
+
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
 
         # calib_timestamp = datetime.timestamp(datetime.now())
@@ -53,26 +55,53 @@ class testarg34(EnvExperiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
+    # def run(self):
+    #     pass
+
     @kernel
     def run(self):
         self.core.reset()
         self.core.break_realtime()
-        delay_mu(1000000)
+
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[0].set_nco_frequency(100. * MHz)
+        # delay_mu(40)
+        # self.phaser1.channel[1].set_nco_frequency(100. * MHz)
+        # # clear DAC NCO phase
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[0].set_nco_phase(0.)
+        # delay_mu(40)
+        # self.phaser1.channel[1].set_nco_phase(0.)
+        # # sync DAC for both channels
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.dac_sync()
+        # # add slack
+        # self.core.break_realtime()
+
+
+
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[0].set_att(0. * dB)
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[1].set_att(0. * dB)
+
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[0].set_duc_frequency(5. * MHz)
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[1].set_duc_frequency(5. * MHz)
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[0].set_duc_cfg()
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.channel[1].set_duc_cfg()
+        # at_mu(self.phaser1.get_next_frame_mu())
+        # self.phaser1.duc_stb()
+
 
 
         at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_att(0. * dB)
-
+        self.phaser1.channel[0].oscillator[0].set_frequency(5. * MHz)
         at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_duc_frequency(80. * MHz)
-
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].oscillator[0].set_frequency(0. * MHz)
-
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
-
-
+        self.phaser1.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, phase=0., clr=0)
         self.core.break_realtime()
 
 
@@ -89,7 +118,6 @@ class testarg34(EnvExperiment):
         # self.voltage_set(24, 1.0)
         # self.ttl9.on()
         # self.core.wait_until_mu()
-
 
 
         # self.core.wait_until_mu(now_mu())

@@ -15,7 +15,7 @@ class PhaserConfigure(EnvExperiment):
 
         # get list of valid phaser devices and set them as arguments
         phaser_device_list = self._get_phaser_devices()
-        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list)))
+        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser1'))
 
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
@@ -31,7 +31,7 @@ class PhaserConfigure(EnvExperiment):
         Get all valid phaser devices from the device_db.
         """
         def is_local_phaser_device(v):
-            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
+            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "Phaser")
 
         # get only local phaser devices from device_db
         return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
@@ -43,7 +43,7 @@ class PhaserConfigure(EnvExperiment):
         try:
             # get relevant phaser device and add to kernel invariants
             self.phaser = self.get_device(self.phaser_target)
-            self.kernel_invariants = self.kernel_invariants | {"phaser", self.phaser_target}
+            self.kernel_invariants = self.kernel_invariants | {"phaser"}
 
         except Exception as e:
             print("Error: unable to instantiate target phaser device.")
@@ -57,7 +57,7 @@ class PhaserConfigure(EnvExperiment):
 
         # set relevant values for phaser initialization
         self.time_phaser_sample_mu = int64(40)
-
+        self.kernel_invariants = self.kernel_invariants | {"time_phaser_sample_mu"}
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -73,7 +73,7 @@ class PhaserConfigure(EnvExperiment):
         # set maximum attenuation to eliminate output
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att(31.5 * dB)
-        delay_mu(self.time_phaser_sample_mu)
+        at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[1].set_att(31.5 * dB)
 
         # add slack
@@ -84,6 +84,7 @@ class PhaserConfigure(EnvExperiment):
         *************PHASER*******************
         '''
         # initialize phaser
+        delay_mu(1000000)
         self.phaser.init(debug=True)
 
         # add slack
@@ -165,9 +166,9 @@ class PhaserConfigure(EnvExperiment):
         '''
         # enable outputs for both channels here
         # note: want to do this at end instead of beginning since output may be nonzero and
-        # will be cycling through frequencies as we initialize components
+        #   will be cycling through frequencies as we initialize components
         # note: want to leave trf outputs persistently enabled since phase relation
-        # between channels can change after adjusting the TRF
+        #   between channels can change after adjusting the TRF
         # note: no need to set TRF frequency here since we already do this in device_db
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].en_trf_out(rf=1, lo=0)
@@ -181,4 +182,3 @@ class PhaserConfigure(EnvExperiment):
 
         # ensure completion
         self.core.wait_until_mu(now_mu())
-
