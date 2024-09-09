@@ -232,7 +232,6 @@ class UrukulRead(EnvExperiment):
         """
         Extract single-tone waveform from DDS profile word.
         """
-        print(profile_word)
         # extract values from profile word
         ftw = np.int32(profile_word & 0xFFFFFFFF)
         pow = np.int32((profile_word >> 32) & 0xFFFF)

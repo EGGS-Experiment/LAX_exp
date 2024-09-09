@@ -2,11 +2,11 @@ from numpy import int64
 from artiq.experiment import *
 
 
-class PhaserInitializeRDX(EnvExperiment):
+class PhaserConfigure(EnvExperiment):
     """
-    Utility: Phaser Initialize RDX
+    Utility: Phaser Configure
 
-    Initialize the phaser.
+    Initialize and configure the selected phaser device.
     """
 
     def build(self):
@@ -14,28 +14,40 @@ class PhaserInitializeRDX(EnvExperiment):
         self.setattr_device("core")
 
         # get list of valid phaser devices and set them as arguments
-        self.phaser_device_list = self._get_phaser_devices()
-        self.setattr_argument("phaser_target",      EnumerationValue(list(self.phaser_device_list)))
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
+        phaser_device_list = self._get_phaser_devices()
+        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list)))
 
-        # todo: set 
+        # frequency configuration
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
+        # todo: TRF selection - enumeration value
+
+        # dataset management
+        # todo: dataset updating - boolean: freq_center
+        # self.setattr_argument("calibration",        BooleanValue(default=False))
+
 
     def _get_phaser_devices(self):
         """
         Get all valid phaser devices from the device_db.
         """
         def is_local_phaser_device(v):
-            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "Phaser")
+            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
 
         # get only local phaser devices from device_db
         return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
 
     def prepare(self):
         """
-        todo: document
+        Prepare kernel values before running.
         """
-        # get relevant phaser device
+        try:
+            # get relevant phaser device and add to kernel invariants
+            self.phaser = self.get_device(self.phaser_target)
+            self.kernel_invariants = self.kernel_invariants | {"phaser", self.phaser_target}
 
+        except Exception as e:
+            print("Error: unable to instantiate target phaser device.")
+            raise e
 
         # ensure NCO frequency is valid
         if (self.freq_nco_mhz > 400.) or (self.freq_nco_mhz < -400.):
@@ -59,10 +71,10 @@ class PhaserInitializeRDX(EnvExperiment):
         *************ATTENUATORS*******************
         '''
         # set maximum attenuation to eliminate output
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_att(31.5 * dB)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_att(31.5 * dB)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].set_att(31.5 * dB)
+        self.phaser.channel[1].set_att(31.5 * dB)
 
         # add slack
         self.core.break_realtime()
@@ -72,7 +84,7 @@ class PhaserInitializeRDX(EnvExperiment):
         *************PHASER*******************
         '''
         # initialize phaser
-        self.phaser1.init(debug=True)
+        self.phaser.init(debug=True)
 
         # add slack
         self.core.break_realtime()
@@ -84,20 +96,20 @@ class PhaserInitializeRDX(EnvExperiment):
         # set DAC NCO frequency to center output at 85 MHz exactly
         # note: TRF372017 freq is 302.083918 MHz => DAC NCO should be 217.083918 MHz
         # note: currently using -217.083495 as NCO center? idk why
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_nco_frequency(self.freq_nco_mhz * MHz)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_nco_frequency(self.freq_nco_mhz * MHz)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].set_nco_frequency(self.freq_nco_mhz * MHz)
+        self.phaser.channel[1].set_nco_frequency(self.freq_nco_mhz * MHz)
 
         # clear DAC NCO phase
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_nco_phase(0.)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_nco_phase(0.)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].set_nco_phase(0.)
+        self.phaser.channel[1].set_nco_phase(0.)
 
         # sync DAC for both channels
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.dac_sync()
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.dac_sync()
 
         # add slack
         self.core.break_realtime()
@@ -107,20 +119,20 @@ class PhaserInitializeRDX(EnvExperiment):
         *************DUC (DIGITAL UPCONVERTER)*******************
         '''
         # set channel DUC frequencies to 0
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_duc_frequency(0. * MHz)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_frequency(0. * MHz)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].set_duc_frequency(0. * MHz)
+        self.phaser.channel[1].set_duc_frequency(0. * MHz)
 
         # clear channel DUC phase accumulators
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_duc_cfg(clr_once=1)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_cfg(clr_once=1)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].set_duc_cfg(clr_once=1)
+        self.phaser.channel[1].set_duc_cfg(clr_once=1)
 
         # strobe update register for both DUCs to latch changes
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.duc_stb()
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.duc_stb()
 
         # add slack
         self.core.break_realtime()
@@ -133,16 +145,16 @@ class PhaserInitializeRDX(EnvExperiment):
         # note: this has to happen before TRF or attenuator adjustment to ensure channel outputs are 0
         for i in range(5):
             # clear channel 0 oscillator
-            at_mu(self.phaser1.get_next_frame_mu())
-            self.phaser1.channel[0].oscillator[i].set_frequency(0. * MHz)
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[0].oscillator[i].set_frequency(0. * MHz)
             delay_mu(self.time_phaser_sample_mu)
-            self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+            self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
 
             # clear channel 1 oscillator
-            at_mu(self.phaser1.get_next_frame_mu())
-            self.phaser1.channel[1].oscillator[i].set_frequency(0. * MHz)
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[1].oscillator[i].set_frequency(0. * MHz)
             delay_mu(self.time_phaser_sample_mu)
-            self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+            self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
 
         # add slack
         self.core.break_realtime()
@@ -157,11 +169,16 @@ class PhaserInitializeRDX(EnvExperiment):
         # note: want to leave trf outputs persistently enabled since phase relation
         # between channels can change after adjusting the TRF
         # note: no need to set TRF frequency here since we already do this in device_db
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].en_trf_out(rf=1, lo=0)
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].en_trf_out(rf=1, lo=0)
         delay_mu(self.time_phaser_sample_mu)
-        self.phaser1.channel[1].en_trf_out(rf=1, lo=0)
+        self.phaser.channel[1].en_trf_out(rf=1, lo=0)
+
+        # todo: set up TRF frequency values
 
         # add slack
         self.core.break_realtime()
+
+        # ensure completion
+        self.core.wait_until_mu(now_mu())
 
