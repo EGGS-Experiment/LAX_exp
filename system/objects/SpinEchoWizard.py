@@ -86,7 +86,7 @@ class SpinEchoWizard(LAXEnvironment):
         # ensure pulse shaping sample interval is valid (greater than min val)
         # if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:
         #     raise Exception("Error: waveform sample rate too fast.")
-        if self.time_pulse_shape_sample_mu < (5 * self.self.phaser_eggs.t_sample_mu):
+        if self.time_pulse_shape_sample_mu < (5 * self.phaser_eggs.t_sample_mu):
             raise Exception("Error: waveform sample rate too fast.")
 
         # ensure pulse shaping sample interval is multiple of phaser sample rate
