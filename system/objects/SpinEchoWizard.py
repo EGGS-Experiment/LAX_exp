@@ -99,7 +99,7 @@ class SpinEchoWizard(LAXEnvironment):
         # ensure rolloff time is integer number of pulse shape samples
         self.time_pulse_shape_rolloff_mu = np.int64(self.num_pulse_shape_samples * self.time_pulse_shape_sample_mu)
         # ensure we aren't submitting too many samples to prevent overloading DMA
-        if self.num_pulse_shape_samples < self.num_max_phaser_samples:
+        if self.num_pulse_shape_samples > self.num_max_phaser_samples:
             raise Exception("Error: too many points in waveform. Reduce sample rate or rollon time.")
 
         # create x-axis value array
