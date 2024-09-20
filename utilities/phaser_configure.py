@@ -2,6 +2,40 @@ from numpy import int64
 from artiq.experiment import *
 from artiq.coredevice.trf372017 import TRF372017
 
+TRF_CONFIG_302_MHZ = {
+    'pll_div_sel':          0b01,
+    'rdiv':                 3,
+    'nint':                 29,
+    'prsc_sel':             0,
+    'cal_clk_sel':          0b1101,
+
+    'lo_div_sel':           0b11,
+    'lo_div_bias':          0b00,
+    'bufout_bias':          0b00,
+
+    'tx_div_sel':           0b11,
+    'tx_div_bias':          0b00
+}
+
+TRF_CONFIG_781_MHZ = {
+    'rdiv':                 2,
+    'nint':                 25,
+    'pll_div_sel':          0b01,
+    'prsc_sel':             0,
+
+    'icp':                  0b00000,
+    'icp_double':           0,
+
+    'cal_clk_sel':          0b1110,
+
+    'lo_div_sel':           0b11,
+    'lo_div_bias':          0b00,
+    'bufout_bias':          0b00,
+
+    'tx_div_sel':           0b10,
+    'tx_div_bias':          0b00
+}
+
 
 class PhaserConfigure(EnvExperiment):
     """
@@ -16,11 +50,12 @@ class PhaserConfigure(EnvExperiment):
 
         # get list of valid phaser devices and set them as arguments
         phaser_device_list = self._get_phaser_devices()
-        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser1'))
+        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083918, 781.251239], default="N/A"))
+        # todo: add support for basic freq - i.e. 2.4 something GHz
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083918, 781.251239], default=302.083918))
 
         # dataset management
         # todo: dataset updating - boolean: freq_center
@@ -34,7 +69,6 @@ class PhaserConfigure(EnvExperiment):
             return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "Phaser")
 
         # get only local phaser devices from device_db
-        # todo: make it return values as well so we can get the TRF dict
         return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
 
     def prepare(self):
@@ -61,45 +95,15 @@ class PhaserConfigure(EnvExperiment):
             print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
 
         # set up TRF configuration
-        if self.freq_trf_mhz == "None":
+        if self.freq_trf_mhz == "N/A":
             self.configure_trf = False
             self.configure_trf_mmap = []
         else:
             self.configure_trf = True
             if self.freq_trf_mhz == 781.251239:
-                trf_config_update = {
-                    'rdiv': 2,
-                    'nint': 25,
-                    'pll_div_sel': 0b01,
-                    'prsc_sel': 0,
-
-                    'icp': 0b00000,
-                    'icp_double': 0,
-
-                    'cal_clk_sel': 0b1110,
-
-                    'lo_div_sel': 0b11,
-                    'lo_div_bias': 0b00,
-                    'bufout_bias': 0b00,
-
-                    'tx_div_sel': 0b10,
-                    'tx_div_bias': 0b00
-                }
+                trf_config_update = TRF_CONFIG_302_MHZ
             elif self.freq_trf_mhz == 302.083918:
-                trf_config_update = {
-                    'pll_div_sel':          0b01,
-                    'rdiv':                 3,
-                    'nint':                 29,
-                    'prsc_sel':             0,
-                    'cal_clk_sel':          0b1101,
-
-                    'lo_div_sel':           0b11,
-                    'lo_div_bias':          0b00,
-                    'bufout_bias':          0b00,
-
-                    'tx_div_sel':           0b11,
-                    'tx_div_bias':          0b00
-                }
+                trf_config_update = TRF_CONFIG_781_MHZ
             else:
                 raise Exception("Invalid TRF frequency.")
 
@@ -107,12 +111,15 @@ class PhaserConfigure(EnvExperiment):
             trf_object = TRF372017(trf_config_update)
             self.configure_trf_mmap = trf_object.get_mmap()
 
-    @kernel(flags={"fast-math"})
     def run(self):
+        pass
+
+    @kernel(flags={"fast-math"})
+    def run_tmp(self) -> TNone:
         """
-        todo:document
-        :return:
+        Initialize and configure hardware elements on the phaser.
         """
+        self.core.wait_until_mu(now_mu())
         self.core.reset()
 
         '''
