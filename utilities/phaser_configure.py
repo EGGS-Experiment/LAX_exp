@@ -1,5 +1,6 @@
 from numpy import int64
 from artiq.experiment import *
+from artiq.coredevice.trf372017 import TRF372017
 
 
 class PhaserConfigure(EnvExperiment):
@@ -19,12 +20,11 @@ class PhaserConfigure(EnvExperiment):
 
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
-        # todo: TRF selection - enumeration value
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083918, 781.251239], default="N/A"))
 
         # dataset management
         # todo: dataset updating - boolean: freq_center
         # self.setattr_argument("calibration",        BooleanValue(default=False))
-
 
     def _get_phaser_devices(self):
         """
@@ -34,6 +34,7 @@ class PhaserConfigure(EnvExperiment):
             return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "Phaser")
 
         # get only local phaser devices from device_db
+        # todo: make it return values as well so we can get the TRF dict
         return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
 
     def prepare(self):
@@ -49,15 +50,62 @@ class PhaserConfigure(EnvExperiment):
             print("Error: unable to instantiate target phaser device.")
             raise e
 
+        # set relevant values for phaser initialization
+        self.time_phaser_sample_mu = int64(40)
+        self.kernel_invariants = self.kernel_invariants | {"time_phaser_sample_mu"}
+
         # ensure NCO frequency is valid
         if (self.freq_nco_mhz > 400.) or (self.freq_nco_mhz < -400.):
             raise Exception("Invalid phaser NCO frequency. Must be in range [-400, 400].")
         elif (self.freq_nco_mhz > 300.) or (self.freq_nco_mhz < -300.):
             print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
 
-        # set relevant values for phaser initialization
-        self.time_phaser_sample_mu = int64(40)
-        self.kernel_invariants = self.kernel_invariants | {"time_phaser_sample_mu"}
+        # set up TRF configuration
+        if self.freq_trf_mhz == "None":
+            self.configure_trf = False
+            self.configure_trf_mmap = []
+        else:
+            self.configure_trf = True
+            if self.freq_trf_mhz == 781.251239:
+                trf_config_update = {
+                    'rdiv': 2,
+                    'nint': 25,
+                    'pll_div_sel': 0b01,
+                    'prsc_sel': 0,
+
+                    'icp': 0b00000,
+                    'icp_double': 0,
+
+                    'cal_clk_sel': 0b1110,
+
+                    'lo_div_sel': 0b11,
+                    'lo_div_bias': 0b00,
+                    'bufout_bias': 0b00,
+
+                    'tx_div_sel': 0b10,
+                    'tx_div_bias': 0b00
+                }
+            elif self.freq_trf_mhz == 302.083918:
+                trf_config_update = {
+                    'pll_div_sel':          0b01,
+                    'rdiv':                 3,
+                    'nint':                 29,
+                    'prsc_sel':             0,
+                    'cal_clk_sel':          0b1101,
+
+                    'lo_div_sel':           0b11,
+                    'lo_div_bias':          0b00,
+                    'bufout_bias':          0b00,
+
+                    'tx_div_sel':           0b11,
+                    'tx_div_bias':          0b00
+                }
+            else:
+                raise Exception("Invalid TRF frequency.")
+
+            # create a TRF object and get mmap
+            trf_object = TRF372017(trf_config_update)
+            self.configure_trf_mmap = trf_object.get_mmap()
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -89,6 +137,12 @@ class PhaserConfigure(EnvExperiment):
 
         # add slack
         self.core.break_realtime()
+
+        # ensure TRF outputs are disabled while we configure things
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].en_trf_out(rf=0, lo=0)
+        delay_mu(self.time_phaser_sample_mu)
+        self.phaser.channel[1].en_trf_out(rf=0, lo=0)
 
 
         '''
@@ -164,21 +218,28 @@ class PhaserConfigure(EnvExperiment):
         '''
         *************TRF (UPCONVERTER)*******************
         '''
+        # update TRFs on both channels with mmap to set output freq center
+        if self.configure_trf is True:
+            delay(1000000)
+            for i in range(2):
+                for data in self.configure_trf_mmap:
+                    self.core.break_realtime()
+                    at_mu(self.phaser.get_next_frame_mu())
+                    self.phaser.channel[i].trf_write(data)
+
         # enable outputs for both channels here
         # note: want to do this at end instead of beginning since output may be nonzero and
         #   will be cycling through frequencies as we initialize components
         # note: want to leave trf outputs persistently enabled since phase relation
         #   between channels can change after adjusting the TRF
-        # note: no need to set TRF frequency here since we already do this in device_db
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].en_trf_out(rf=1, lo=0)
         delay_mu(self.time_phaser_sample_mu)
         self.phaser.channel[1].en_trf_out(rf=1, lo=0)
-
-        # todo: set up TRF frequency values
 
         # add slack
         self.core.break_realtime()
 
         # ensure completion
         self.core.wait_until_mu(now_mu())
+
