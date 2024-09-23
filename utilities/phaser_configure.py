@@ -17,6 +17,7 @@ TRF_CONFIG_302_MHZ = {
     'tx_div_bias':          0b00
 }
 
+
 TRF_CONFIG_781_MHZ = {
     'rdiv':                 2,
     'nint':                 25,
@@ -53,9 +54,10 @@ class PhaserConfigure(EnvExperiment):
         self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
+        # self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., ndecimals=6, step=100, min=-300., max=300.))
         # todo: add support for basic freq - i.e. 2.4 something GHz
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083918, 781.251239], default=302.083918))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083853, 781.251239], default=302.083853))
 
         # dataset management
         # todo: dataset updating - boolean: freq_center
@@ -101,21 +103,19 @@ class PhaserConfigure(EnvExperiment):
         else:
             self.configure_trf = True
             if self.freq_trf_mhz == 781.251239:
-                trf_config_update = TRF_CONFIG_302_MHZ
-            elif self.freq_trf_mhz == 302.083918:
                 trf_config_update = TRF_CONFIG_781_MHZ
+            elif self.freq_trf_mhz == 302.083853:
+                trf_config_update = TRF_CONFIG_302_MHZ
             else:
                 raise Exception("Invalid TRF frequency.")
 
             # create a TRF object and get mmap
             trf_object = TRF372017(trf_config_update)
+            # trf_object = TRF372017()
             self.configure_trf_mmap = trf_object.get_mmap()
 
-    def run(self):
-        pass
-
     @kernel(flags={"fast-math"})
-    def run_tmp(self) -> TNone:
+    def run(self) -> TNone:
         """
         Initialize and configure hardware elements on the phaser.
         """
@@ -227,7 +227,7 @@ class PhaserConfigure(EnvExperiment):
         '''
         # update TRFs on both channels with mmap to set output freq center
         if self.configure_trf is True:
-            delay(1000000)
+            delay_mu(1000000)
             for i in range(2):
                 for data in self.configure_trf_mmap:
                     self.core.break_realtime()

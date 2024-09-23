@@ -664,42 +664,42 @@ _phaser_dac_config = {
     'fifo_offset':          5
 }
 
-# # TRF @ ~302.083918 MHz
-# _phaser_trf_config = {
-#     'pll_div_sel':          0b01,
-#     'rdiv':                 3,
-#     'nint':                 29,
-#     'prsc_sel':             0,
-#     'cal_clk_sel':          0b1101,
-#
-#     'lo_div_sel':           0b11,
-#     'lo_div_bias':          0b00,
-#     'bufout_bias':          0b00,
-#
-#     'tx_div_sel':           0b11,
-#     'tx_div_bias':          0b00
-# }
-
-
-# TRF @ 781.2512395 MHz
+# # TRF @ ~302.083853 MHz
 _phaser_trf_config = {
-    'rdiv':                 2,
-    'nint':                 25,
     'pll_div_sel':          0b01,
+    'rdiv':                 3,
+    'nint':                 29,
     'prsc_sel':             0,
-
-    'icp':                  0b00000,
-    'icp_double':           0,
-
-    'cal_clk_sel':          0b1110,
+    'cal_clk_sel':          0b1101,
 
     'lo_div_sel':           0b11,
     'lo_div_bias':          0b00,
     'bufout_bias':          0b00,
 
-    'tx_div_sel':           0b10,
+    'tx_div_sel':           0b11,
     'tx_div_bias':          0b00
 }
+
+
+# # TRF @ 781.2512395 MHz
+# _phaser_trf_config = {
+#     'rdiv':                 2,
+#     'nint':                 25,
+#     'pll_div_sel':          0b01,
+#     'prsc_sel':             0,
+#
+#     'icp':                  0b00000,
+#     'icp_double':           0,
+#
+#     'cal_clk_sel':          0b1110,
+#
+#     'lo_div_sel':           0b11,
+#     'lo_div_bias':          0b00,
+#     'bufout_bias':          0b00,
+#
+#     'tx_div_sel':           0b10,
+#     'tx_div_bias':          0b00
+# }
 
 
 # update phaser0 config options
