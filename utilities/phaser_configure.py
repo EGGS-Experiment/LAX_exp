@@ -58,7 +58,7 @@ class PhaserConfigure(EnvExperiment):
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
         # self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., ndecimals=6, step=100, min=-300., max=300.))
         # # todo: add support for basic freq - i.e. 2.4 something GHz
-        # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", 302.083853, 781.251239], default=302.083853))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
 
         # dataset management
         # todo: dataset updating - boolean: freq_center
@@ -103,9 +103,9 @@ class PhaserConfigure(EnvExperiment):
             self.configure_trf_mmap = []
         else:
             self.configure_trf = True
-            if self.freq_trf_mhz == 781.251239:
+            if self.freq_trf_mhz == "781.251239":
                 trf_config_update = TRF_CONFIG_781_MHZ
-            elif self.freq_trf_mhz == 302.083853:
+            elif self.freq_trf_mhz == "302.083853":
                 trf_config_update = TRF_CONFIG_302_MHZ
             else:
                 raise Exception("Invalid TRF frequency.")
