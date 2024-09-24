@@ -36,7 +36,8 @@ __all__.extend(['Squeeze', 'SqueezeConfigurable',
 # spin state manipulation
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.ramsey import Ramsey
-__all__.extend(['RabiFlop', 'Ramsey'])
+from LAX_exp.system.subsequences.ramsey_configurable import RamseyConfigurable
+__all__.extend(['RabiFlop', 'Ramsey', 'RamseyConfigurable'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout
