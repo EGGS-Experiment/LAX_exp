@@ -67,84 +67,84 @@ class testarg34(EnvExperiment):
 
     # def run(self):
     #     pass
-    def run_tmp(self):
+    def run(self):
         print(list(self.thkim2))
 
-    @kernel
-    def run(self):
-        self.core.reset()
-        self.core.break_realtime()
-
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[0].set_nco_frequency(100. * MHz)
-        # delay_mu(40)
-        # self.phaser0.channel[1].set_nco_frequency(100. * MHz)
-        # # clear DAC NCO phase
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[0].set_nco_phase(0.)
-        # delay_mu(40)
-        # self.phaser0.channel[1].set_nco_phase(0.)
-        # # sync DAC for both channels
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.dac_sync()
-        # # add slack
-        # self.core.break_realtime()
-
-
-
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(0. * dB)
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[1].set_att(0. * dB)
-
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[0].set_duc_frequency(5. * MHz)
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[1].set_duc_frequency(5. * MHz)
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[0].set_duc_cfg()
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.channel[1].set_duc_cfg()
-        # at_mu(self.phaser0.get_next_frame_mu())
-        # self.phaser0.duc_stb()
-
-
-
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_frequency(5. * MHz)
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
-        self.core.break_realtime()
-
-
-        # self.core.reset()
-        # self.ttl8.off()
-        # self.ttl9.off()
-        # self.core.break_realtime()
-        # delay_mu(10000000)
-        # self.core.break_realtime()
-
-        # self.ttl8.on()
-        # self.core.wait_until_mu(now_mu())
-        # delay_mu(500000)
-        # self.voltage_set(24, 1.0)
-        # self.ttl9.on()
-        # self.core.wait_until_mu()
-
-
-        # self.core.wait_until_mu(now_mu())
-        # with parallel:
-        # self.ttl8.on()
-        # self.voltage_set(24, 1.0)
-        # delay_mu(1000000)
-        # self.core.wait_until_mu(now_mu())
-        # delay_mu(10000000)
-        # self.ttl8.on()
-        # self.core.break_realtime()
-
-        # delay_mu(10000000)
-        # self.ttl9.on()
-
-        # delay_mu(500000000)
-        # self.ttl8.off()
-        # self.ttl9.off()
+    # @kernel
+    # def run_tmp(self):
+    #     self.core.reset()
+    #     self.core.break_realtime()
+    #
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_nco_frequency(100. * MHz)
+    #     # delay_mu(40)
+    #     # self.phaser0.channel[1].set_nco_frequency(100. * MHz)
+    #     # # clear DAC NCO phase
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_nco_phase(0.)
+    #     # delay_mu(40)
+    #     # self.phaser0.channel[1].set_nco_phase(0.)
+    #     # # sync DAC for both channels
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.dac_sync()
+    #     # # add slack
+    #     # self.core.break_realtime()
+    #
+    #
+    #
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].set_att(0. * dB)
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[1].set_att(0. * dB)
+    #
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_duc_frequency(5. * MHz)
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[1].set_duc_frequency(5. * MHz)
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_duc_cfg()
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[1].set_duc_cfg()
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.duc_stb()
+    #
+    #
+    #
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].oscillator[0].set_frequency(5. * MHz)
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
+    #     self.core.break_realtime()
+    #
+    #
+    #     # self.core.reset()
+    #     # self.ttl8.off()
+    #     # self.ttl9.off()
+    #     # self.core.break_realtime()
+    #     # delay_mu(10000000)
+    #     # self.core.break_realtime()
+    #
+    #     # self.ttl8.on()
+    #     # self.core.wait_until_mu(now_mu())
+    #     # delay_mu(500000)
+    #     # self.voltage_set(24, 1.0)
+    #     # self.ttl9.on()
+    #     # self.core.wait_until_mu()
+    #
+    #
+    #     # self.core.wait_until_mu(now_mu())
+    #     # with parallel:
+    #     # self.ttl8.on()
+    #     # self.voltage_set(24, 1.0)
+    #     # delay_mu(1000000)
+    #     # self.core.wait_until_mu(now_mu())
+    #     # delay_mu(10000000)
+    #     # self.ttl8.on()
+    #     # self.core.break_realtime()
+    #
+    #     # delay_mu(10000000)
+    #     # self.ttl9.on()
+    #
+    #     # delay_mu(500000000)
+    #     # self.ttl8.off()
+    #     # self.ttl9.off()
