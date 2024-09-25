@@ -33,34 +33,34 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",                         NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
-        self.setattr_argument("mod_freq_khz_list",                  Scannable(
-                                                                        default= [
-                                                                            ExplicitScan([1252.4]),
-                                                                            CenterScan(1090.8, 10, 0.25, randomize=True),
-                                                                        ],
-                                                                        global_min=1, global_max=200000, global_step=1,
-                                                                        unit="kHz", scale=1, ndecimals=4
-                                                                    ), group='modulation')
+        self.setattr_argument("mod_att_db",             NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_freq_khz_list",      Scannable(
+                                                            default= [
+                                                                ExplicitScan([1252.4]),
+                                                                CenterScan(1090.8, 10, 0.25, randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=200000, global_step=1,
+                                                            unit="kHz", scale=1, ndecimals=4
+                                                        ), group='modulation')
 
         # shimming voltages
         self.dc_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='H Shim'), group='voltage')
         self.setattr_argument("dc_voltages_v_list",     Scannable(
-                                                                        default=[
-                                                                            CenterScan(52.8, 4., 0.1, randomize=True),
-                                                                            ExplicitScan([38.5]),
-                                                                        ],
-                                                                        global_min=0, global_max=400, global_step=1,
-                                                                        unit="V", scale=1, ndecimals=1
-                                                                    ), group='voltage')
+                                                            default=[
+                                                                CenterScan(52.8, 4., 0.1, randomize=True),
+                                                                ExplicitScan([38.5]),
+                                                            ],
+                                                            global_min=0, global_max=400, global_step=1,
+                                                            unit="V", scale=1, ndecimals=1
+                                                        ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",                   NumberValue(default=25, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",                   NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=25, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -120,7 +120,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
     @rpc(flags={"async"})
-    def prepareDevicesLabrad(self):
+    def prepareDevicesLabrad(self) -> TNone:
         """
         Prepare LabRAD devices for the experiment via RPC.
         """
@@ -133,7 +133,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         with parallel:
@@ -160,7 +160,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # tmp remove: fix
 
     @kernel(flags={"fast-math"})
-    def _check_PMT_counting(self):
+    def _check_PMT_counting(self) -> TNone:
         """
         Check that everything is set up to ensure the ion is fluorescing correctly.
         Runs a given number of PMT readout sequences and compares the average fluorescence
@@ -176,7 +176,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.reset()
 
         # run given number of repetitions
@@ -221,7 +221,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
 
     @rpc(flags={"async"})
-    def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)):
+    def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)) -> TNone:
         """
         Convert modulation frequency and timestamps from machine units and demodulate.
 
@@ -255,27 +255,30 @@ class ParametricSweep(LAXExperiment, Experiment):
         """
         # todo: group first by freq and voltage, and mean
         # todo: then fit for each freq (account for disjunction if both eggs and rf somehow)
-        # todo: then fit for each freq
         # note: no need to convert units since we already do this in _process_results
         # also, we leave out counts (5th column) from fitting
-        results_tmp =           np.array(self.results)[:, :4]
+        results_tmp =   np.array(self.results)[:, :4]
         # group dataset first by shim voltage
-        results_tmp =           groupBy(results_tmp, column_num=1)
+        results_tmp =   groupBy(results_tmp, column_num=1)
 
         # group dataset by modulation frequency and average results,
         # then convert resultant dict into 2D dataset
-        _reduce_func =          lambda ds: np.mean(ds, axis=0)
-        _dict_to_array =        lambda _dict: np.concatenate((np.array([list(_dict.keys())]).transpose(),
-                                                              np.array(list(_dict.values()))),
-                                                             axis=-1)
-        results_tmp =           {key_voltage: _dict_to_array(groupBy(val_dataset, column_num=0, reduce_func=_reduce_func))
-                                 for key_voltage, val_dataset in results_tmp.items()}
+        _reduce_func =      lambda ds: np.mean(ds, axis=0)
+        _dict_to_array =    lambda _dict: np.concatenate((np.array([list(_dict.keys())]).transpose(),
+                                                          np.array(list(_dict.values()))),
+                                                         axis=-1)
+        results_tmp =       {key_voltage: _dict_to_array(groupBy(val_dataset, column_num=0, reduce_func=_reduce_func))
+                             for key_voltage, val_dataset in results_tmp.items()}
 
-        # extract optimal voltage for each modulation frequency
+
+        # PROCESS SHIMMING: >1 voltage used
         if len(results_tmp) > 1:
             from itertools import groupby
+
             def groupByList(dataset, column_num=0, reduce_func=lambda x: x):
-                # sort array by given column number (necessary for itertools.groupby)
+                """
+                Sort array by given column number (necessary for itertools.groupby).
+                """
                 dataset = np.array(dataset)
                 dataset = dataset[np.argsort(dataset[:, column_num])]
 
@@ -290,7 +293,12 @@ class ParametricSweep(LAXExperiment, Experiment):
             __results_tmp = np.array([sublist[np.argsort(sublist[:, 0])] for sublist in __results_tmp])
 
             def extractVoltageOptimum(col_num):
-                # create array of [voltage, a*exp(i \theta)]
+                """
+                Extract the voltage optimum from a dataset.
+                Arguments:
+                    col_num (int): Column number to extract voltage
+                """
+                # create array of [voltage, corr_ampl, corr_phase]
                 _data = __results_tmp[:, col_num, [1, 2, 3]]
                 _data = np.array([
                     _data[:, 0],
@@ -303,15 +311,35 @@ class ParametricSweep(LAXExperiment, Experiment):
                 [__results_tmp[0, col_num, 0] * 1000.,  *extractVoltageOptimum(col_num)]
                 for col_num in range(len(__results_tmp[0, :, 0]))
             ]
-            # np.array(list(voltage_optima.items()))
-
-            # save and print results
             self.set_dataset('voltage_optima_khz_v', voltage_optima)
-            for res_arr in voltage_optima:
-                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(res_arr[0], res_arr[1], res_arr[2]))
 
-        # todo: check that frequencies are continuous
-        if len(results_tmp) == 1:
+            # group optima by frequencies and average over them
+            voltage_optima_grouped =    [np.array(sublist[1]) for sublist in groupByList(voltage_optima, column_num=0)]
+            voltage_optima_vals =       np.array([_reduce_func(sublist[:, :2]) for sublist in voltage_optima_grouped])
+
+            # if more than one repetition, calculate error as stderr of voltage_optima instead of fit err
+            if self.repetitions > 1:
+                voltage_optima_vals[:, 2] = np.array([np.std(sublist[:, 1]) / np.sqrt(len(sublist)) for sublist in voltage_optima_grouped])
+
+            # if lots of frequencies (within a single wsec) are swept, then average over freqs
+            freq_range_khz = np.max(voltage_optima_vals[:, 0]) - np.min(voltage_optima_vals[:, 0])
+            if freq_range_khz < 50.:
+                v_vals = np.mean(voltage_optima_vals, axis=0)
+                v_err = np.std(voltage_optima_vals[:, 1]) / np.sqrt(len(voltage_optima_vals))
+                voltage_optima_vals = np.array([v_vals[0], v_vals[1], v_err])
+
+            # print results to log
+            for sublist in voltage_optima_grouped:
+                print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(*sublist))
+
+            # set voltage to optimal val if val is in range
+            mean_voltage_optimum = np.mean(voltage_optima_vals)
+            if (mean_voltage_optimum > np.min(self.dc_voltages_v_list)) & (mean_voltage_optimum < np.max(self.dc_voltages_v_list)):
+                self.voltage_set(self.dc_channel_num, mean_voltage_optimum)
+
+
+        # PROCESS SECULAR FREQUENCY SWEEP: only one voltage used
+        else:
             # fit amplitude for all voltages
             results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
                                      for key_voltage, val_dataset in results_tmp.items()}
@@ -320,8 +348,8 @@ class ParametricSweep(LAXExperiment, Experiment):
             #                          for key_voltage, val_dataset in results_tmp.items()}
 
             # process fit results
-            amplitude_fit_params_saved =   np.array([[key_voltage, *fit_params[0]]
-                                                     for key_voltage, fit_params in results_amplitude_fit.items()])
+            amplitude_fit_params_saved =    np.array([[key_voltage, *fit_params[0]]
+                                                      for key_voltage, fit_params in results_amplitude_fit.items()])
             amplitude_fit_err_saved =       np.array([[key_voltage, *fit_params[1]]
                                                       for key_voltage, fit_params in results_amplitude_fit.items()])
 
@@ -334,12 +362,10 @@ class ParametricSweep(LAXExperiment, Experiment):
             self.set_dataset('temp.parametricsweep.results', res_dj, broadcast=True, persist=False, archive=False)
             self.set_dataset('temp.parametricsweep.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
+            # average results if we do multiple repetitions
+            # todo: is this necessary?
+
             # print out fit results
             print("\tResults - Parametric Sweep:")
-            # todo: make it always print out the mean of results (or not? maybe?)
-            if len(results_tmp.keys()) == 1:
-                print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
-                print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
-            else:
-                # todo
-                pass
+            print("\t\tMode Frequency (kHz):\t{:.2f} +/- {:.2f}".format(amplitude_fit_params_saved[0, 2]*1.e3, amplitude_fit_err_saved[0, 2]*1.e3))
+            print("\t\tLinewidth (kHz):\t{:.2f} +/- {:.2f}".format(abs(amplitude_fit_params_saved[0, 3])*1.e3, amplitude_fit_err_saved[0, 3]*1.e3))
