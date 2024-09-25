@@ -33,14 +33,15 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",             NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",             NumberValue(default=17, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",      Scannable(
                                                             default= [
-                                                                ExplicitScan([1252.4]),
-                                                                CenterScan(1090.8, 10, 0.25, randomize=True),
+                                                                CenterScan(1390.76, 3, 0.5, randomize=True),
+                                                                ExplicitScan([1390.76, 1685.11]),
+                                                                # CenterScan(1566.5, 6, 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=200000, global_step=1,
                                                             unit="kHz", scale=1, ndecimals=4
@@ -48,18 +49,18 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # shimming voltages
         self.dc_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='H Shim'), group='voltage')
+        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'), group='voltage')
         self.setattr_argument("dc_voltages_v_list",     Scannable(
                                                             default=[
-                                                                CenterScan(52.8, 4., 0.1, randomize=True),
-                                                                ExplicitScan([38.5]),
+                                                                CenterScan(74.4, 4., 0.6, randomize=True),
+                                                                ExplicitScan([75.5]),
                                                             ],
                                                             global_min=0, global_max=400, global_step=1,
                                                             unit="V", scale=1, ndecimals=1
                                                         ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=25, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
         self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
@@ -70,8 +71,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_device('pmt')
 
         # get relevant subsequences
-        self.parametric_subsequence =                               ParametricExcite(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        self.parametric_subsequence =   ParametricExcite(self)
+        self.rescue_subsequence =       RescueIon(self)
 
 
     def prepare_experiment(self):
@@ -315,7 +316,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
             # group optima by frequencies and average over them
             voltage_optima_grouped =    [np.array(sublist[1]) for sublist in groupByList(voltage_optima, column_num=0)]
-            voltage_optima_vals =       np.array([_reduce_func(sublist[:, :2]) for sublist in voltage_optima_grouped])
+            voltage_optima_vals =       np.array([_reduce_func(sublist) for sublist in voltage_optima_grouped])
 
             # if more than one repetition, calculate error as stderr of voltage_optima instead of fit err
             if self.repetitions > 1:
@@ -326,10 +327,10 @@ class ParametricSweep(LAXExperiment, Experiment):
             if freq_range_khz < 50.:
                 v_vals = np.mean(voltage_optima_vals, axis=0)
                 v_err = np.std(voltage_optima_vals[:, 1]) / np.sqrt(len(voltage_optima_vals))
-                voltage_optima_vals = np.array([v_vals[0], v_vals[1], v_err])
+                voltage_optima_vals = np.array([[v_vals[0], v_vals[1], v_err]])
 
             # print results to log
-            for sublist in voltage_optima_grouped:
+            for sublist in voltage_optima_vals:
                 print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(*sublist))
 
             # set voltage to optimal val if val is in range

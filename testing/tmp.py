@@ -24,15 +24,15 @@ class testarg34(EnvExperiment):
         self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser0')
 
-        self.setattr_argument("thkim2", Scannable(
-            default=[
-                CenterScan(777.5, 4, 0.1, randomize=True),
-                ExplicitScan([777.5]),
-                ExplicitScan([767.2, 319.2, 1582, 3182]),
-            ],
-            global_min=0, global_max=10000, global_step=1,
-            unit="kHz", scale=1, ndecimals=3
-        ), group='EGGS_Heating.frequencies')
+        # self.setattr_argument("thkim2", Scannable(
+        #     default=[
+        #         CenterScan(777.5, 4, 0.1, randomize=True),
+        #         ExplicitScan([777.5]),
+        #         ExplicitScan([767.2, 319.2, 1582, 3182]),
+        #     ],
+        #     global_min=0, global_max=10000, global_step=1,
+        #     unit="kHz", scale=1, ndecimals=3
+        # ), group='EGGS_Heating.frequencies')
 
         # print(self.get_device_db())
 
@@ -67,11 +67,11 @@ class testarg34(EnvExperiment):
 
     # def run(self):
     #     pass
-    def run(self):
+    def run_tmp(self):
         print(list(self.thkim2))
 
     @kernel
-    def run_tmp(self):
+    def run(self):
         self.core.reset()
         self.core.break_realtime()
 
