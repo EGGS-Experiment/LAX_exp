@@ -23,24 +23,24 @@ class LaserPowerCalibration(EnvExperiment):
         self.setattr_device("core_dma")
 
         # search parameters
-        self.setattr_argument("target_voltage_mv",          NumberValue(default=40, ndecimals=3, step=1, min=-10000, max=10000))
-        self.setattr_argument("target_tolerance_mv",        NumberValue(default=1, ndecimals=3, step=1, min=0, max=1000))
+        self.setattr_argument("target_voltage_mv",          NumberValue(default=55.1, ndecimals=3, step=1, min=-10000, max=10000))
+        self.setattr_argument("target_tolerance_mv",        NumberValue(default=5, ndecimals=3, step=1, min=0, max=1000))
 
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",          Scannable(
-                                                                    default=RangeScan(95, 125, 121, randomize=True),
+                                                                    default=RangeScan(70, 140, 351, randomize=True),
                                                                     global_min=70, global_max=140, global_step=1,
                                                                     unit="MHz", scale=1, ndecimals=5
                                                                 ), group='DDS')
         self.setattr_argument("dds_channel_num",            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3), group='DDS')
-        self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=5, ndecimals=2, step=1, min=1, max=40), group='DDS')
+        self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=1, ndecimals=2, step=1, min=1, max=40), group='DDS')
         self.setattr_argument("dds_ampl_max_pct",           NumberValue(default=50, ndecimals=2, step=1, min=5, max=50), group='DDS')
         self.setattr_argument("dds_attenuation_db",         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup
         self.setattr_argument("adc_channel_num",            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='ADC')
         self.setattr_argument("adc_gain_num",               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
-        self.setattr_argument("adc_sample_num",             NumberValue(default=100, ndecimals=0, step=1, min=1, max=5000), group='ADC')
+        self.setattr_argument("adc_sample_num",             NumberValue(default=250, ndecimals=0, step=1, min=1, max=5000), group='ADC')
 
         # result storage
         self.setattr_argument("save_to_dataset_manager",    BooleanValue(default=True), group='dataset')
@@ -97,7 +97,6 @@ class LaserPowerCalibration(EnvExperiment):
         self.time_start =               datetime.timestamp(datetime.now())
 
 
-
     """
     MAIN SEQUENCE
     """
@@ -108,13 +107,15 @@ class LaserPowerCalibration(EnvExperiment):
         """
         self.core.reset()
 
-        # set up DDS
+        # set up DDS profile
         self.dds.sw.off()
         self.dds.cpld.set_profile(DEFAULT_PROFILE)
         self.dds.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
-        self.dds.cpld.get_all_att_mu()
+        # set DDS attenuator without affecting other DDSs on board
+        self.dds.cpld.get_att_mu()
+        self.core.break_realtime()
         self.dds.set_att(self.dds_attenuation_db * dB)
         self.dds.sw.on()
         self.core.break_realtime()
@@ -134,8 +135,9 @@ class LaserPowerCalibration(EnvExperiment):
         for freq_ftw in self.dds_freq_ftw_list:
 
             # add slack
-            self.core.break_realtime()
-            at_mu(now_mu() + self.time_slack_mu)
+            # self.core.break_realtime()
+            # at_mu(now_mu() + self.time_slack_mu)
+            at_mu(now_mu() + 250000)
 
             # search recursively for target amplitude
             ampl_calib_asf = self._recursion_search(freq_ftw, self.dds_ampl_min_asf, self.dds_ampl_max_asf)
@@ -174,6 +176,9 @@ class LaserPowerCalibration(EnvExperiment):
             return self._recursion_search(freq_ftw, ampl_center_asf, ampl_max_asf)
         else:
             return self._recursion_search(freq_ftw, ampl_min_asf, ampl_center_asf)
+
+        # note: explicit return needed for artiq compiler, otherwise error
+        return ampl_center_asf
 
     @kernel(flags={"fast-math"})
     def _adc_read(self) -> TInt32:

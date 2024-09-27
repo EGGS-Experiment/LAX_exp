@@ -22,6 +22,19 @@ class testarg34(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device('urukul2_ch2')
         self.setattr_device('urukul2_cpld')
+        self.setattr_device('phaser0')
+
+        self.setattr_argument("thkim2", Scannable(
+            default=[
+                CenterScan(777.5, 4, 0.1, randomize=True),
+                ExplicitScan([777.5]),
+                ExplicitScan([767.2, 319.2, 1582, 3182]),
+            ],
+            global_min=0, global_max=10000, global_step=1,
+            unit="kHz", scale=1, ndecimals=3
+        ), group='EGGS_Heating.frequencies')
+
+        # print(self.get_device_db())
 
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)
 
@@ -37,7 +50,8 @@ class testarg34(EnvExperiment):
         # self.set_dataset('calibration.temperature.calibration_timestamp', calib_timestamp, broadcast=True, persist=True)
 
     def prepare(self):
-        self.cxn=labrad.connect()
+        pass
+        # self.cxn=labrad.connect()
         # self.dc=self.cxn.dc_server
         # self.voltage_set(24, 0.)
         # self.dc.toggle(24,1)
@@ -51,37 +65,86 @@ class testarg34(EnvExperiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
-    # @kernel
+    # def run(self):
+    #     pass
     def run(self):
-        # self.core.reset()
-        # self.ttl8.off()
-        # self.ttl9.off()
-        # self.core.break_realtime()
-        # delay_mu(10000000)
-        # self.core.break_realtime()
+        print(list(self.thkim2))
 
-        # self.ttl8.on()
-        # self.core.wait_until_mu(now_mu())
-        # delay_mu(500000)
-        # self.voltage_set(24, 1.0)
-        # self.ttl9.on()
-        # self.core.wait_until_mu()
-
-
-
-        # self.core.wait_until_mu(now_mu())
-        # with parallel:
-        # self.ttl8.on()
-        # self.voltage_set(24, 1.0)
-        # delay_mu(1000000)
-        # self.core.wait_until_mu(now_mu())
-        # delay_mu(10000000)
-        # self.ttl8.on()
-        # self.core.break_realtime()
-
-        # delay_mu(10000000)
-        # self.ttl9.on()
-
-        delay_mu(500000000)
-        self.ttl8.off()
-        self.ttl9.off()
+    # @kernel
+    # def run_tmp(self):
+    #     self.core.reset()
+    #     self.core.break_realtime()
+    #
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_nco_frequency(100. * MHz)
+    #     # delay_mu(40)
+    #     # self.phaser0.channel[1].set_nco_frequency(100. * MHz)
+    #     # # clear DAC NCO phase
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_nco_phase(0.)
+    #     # delay_mu(40)
+    #     # self.phaser0.channel[1].set_nco_phase(0.)
+    #     # # sync DAC for both channels
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.dac_sync()
+    #     # # add slack
+    #     # self.core.break_realtime()
+    #
+    #
+    #
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].set_att(0. * dB)
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[1].set_att(0. * dB)
+    #
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_duc_frequency(5. * MHz)
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[1].set_duc_frequency(5. * MHz)
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[0].set_duc_cfg()
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.channel[1].set_duc_cfg()
+    #     # at_mu(self.phaser0.get_next_frame_mu())
+    #     # self.phaser0.duc_stb()
+    #
+    #
+    #
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].oscillator[0].set_frequency(5. * MHz)
+    #     at_mu(self.phaser0.get_next_frame_mu())
+    #     self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.999, phase=0., clr=0)
+    #     self.core.break_realtime()
+    #
+    #
+    #     # self.core.reset()
+    #     # self.ttl8.off()
+    #     # self.ttl9.off()
+    #     # self.core.break_realtime()
+    #     # delay_mu(10000000)
+    #     # self.core.break_realtime()
+    #
+    #     # self.ttl8.on()
+    #     # self.core.wait_until_mu(now_mu())
+    #     # delay_mu(500000)
+    #     # self.voltage_set(24, 1.0)
+    #     # self.ttl9.on()
+    #     # self.core.wait_until_mu()
+    #
+    #
+    #     # self.core.wait_until_mu(now_mu())
+    #     # with parallel:
+    #     # self.ttl8.on()
+    #     # self.voltage_set(24, 1.0)
+    #     # delay_mu(1000000)
+    #     # self.core.wait_until_mu(now_mu())
+    #     # delay_mu(10000000)
+    #     # self.ttl8.on()
+    #     # self.core.break_realtime()
+    #
+    #     # delay_mu(10000000)
+    #     # self.ttl9.on()
+    #
+    #     # delay_mu(500000000)
+    #     # self.ttl8.off()
+    #     # self.ttl9.off()

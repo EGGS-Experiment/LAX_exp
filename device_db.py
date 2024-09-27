@@ -274,7 +274,8 @@ device_db["urukul0_cpld"] = {
         "sync_device": None,
         "io_update_device": "ttl_urukul0_io_update",
         "refclk": 125000000.0,
-        "clk_sel": 2
+        "clk_sel": 2,
+        "clk_div": 0
     }
 }
 
@@ -283,6 +284,7 @@ device_db["urukul0_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 4,
         "cpld_device": "urukul0_cpld",
@@ -295,6 +297,7 @@ device_db["urukul0_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 5,
         "cpld_device": "urukul0_cpld",
@@ -307,6 +310,7 @@ device_db["urukul0_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 6,
         "cpld_device": "urukul0_cpld",
@@ -319,6 +323,7 @@ device_db["urukul0_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 7,
         "cpld_device": "urukul0_cpld",
@@ -384,7 +389,8 @@ device_db["urukul1_cpld"] = {
         "sync_device": None,
         "io_update_device": "ttl_urukul1_io_update",
         "refclk": 125000000.0,
-        "clk_sel": 2
+        "clk_sel": 2,
+        "clk_div": 0
     }
 }
 
@@ -393,6 +399,7 @@ device_db["urukul1_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 4,
         "cpld_device": "urukul1_cpld",
@@ -405,6 +412,7 @@ device_db["urukul1_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 5,
         "cpld_device": "urukul1_cpld",
@@ -417,6 +425,7 @@ device_db["urukul1_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 6,
         "cpld_device": "urukul1_cpld",
@@ -429,6 +438,7 @@ device_db["urukul1_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 7,
         "cpld_device": "urukul1_cpld",
@@ -494,7 +504,8 @@ device_db["urukul2_cpld"] = {
         "sync_device": None,
         "io_update_device": "ttl_urukul2_io_update",
         "refclk": 125000000.0,
-        "clk_sel": 2
+        "clk_sel": 2,
+        "clk_div": 0
     }
 }
 
@@ -503,6 +514,7 @@ device_db["urukul2_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 4,
         "cpld_device": "urukul2_cpld",
@@ -515,6 +527,7 @@ device_db["urukul2_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 5,
         "cpld_device": "urukul2_cpld",
@@ -527,6 +540,7 @@ device_db["urukul2_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 6,
         "cpld_device": "urukul2_cpld",
@@ -539,6 +553,7 @@ device_db["urukul2_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
+        "pll_en": 1,
         "pll_n": 32,
         "chip_select": 7,
         "cpld_device": "urukul2_cpld",
@@ -560,30 +575,37 @@ device_db["phaser0"] = {
     }
 }
 
-device_db["fastino0"] = {
+device_db["phaser1"] = {
     "type": "local",
-    "module": "artiq.coredevice.fastino",
-    "class": "Fastino",
-    "arguments": {"channel": 0x00002f, "log2_width": 0}
+    "module": "artiq.coredevice.phaser",
+    "class": "Phaser",
+    "arguments": {
+        "channel_base": 0x00002f,
+        "miso_delay": 1,
+
+        # disable fifo_offset tuning so we can
+        # establish deterministic latency
+        "tune_fifo_offset": False
+    }
 }
 
 device_db["spi_sampler0_adc"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
     "class": "SPIMaster",
-    "arguments": {"channel": 0x000030}
+    "arguments": {"channel": 0x000034}
 }
 device_db["spi_sampler0_pgia"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
     "class": "SPIMaster",
-    "arguments": {"channel": 0x000031}
+    "arguments": {"channel": 0x000035}
 }
 device_db["ttl_sampler0_cnv"] = {
     "type": "local",
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
-    "arguments": {"channel": 0x000032},
+    "arguments": {"channel": 0x000036},
 }
 device_db["sampler0"] = {
     "type": "local",
@@ -600,18 +622,18 @@ device_db["led0"] = {
     "type": "local",
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
-    "arguments": {"channel": 0x000033}
+    "arguments": {"channel": 0x000037}
 }
 
 device_db["led1"] = {
     "type": "local",
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
-    "arguments": {"channel": 0x000034}
+    "arguments": {"channel": 0x000038}
 }
 
 
-# store phaser configuration sets
+##### STORE PHASER CONFIGURATION SETS #####
 
 # original
 # _phaser_trf_config = {
@@ -656,7 +678,24 @@ _phaser_trf_config = {
     'tx_div_bias':          0b00
 }
 
-# update phaser0 config options
-device_db["phaser0"]["arguments"]["dac"] =      _phaser_dac_config
-device_db["phaser0"]["arguments"]["trf0"] =     _phaser_trf_config
-device_db["phaser0"]["arguments"]["trf1"] =     _phaser_trf_config
+
+# # TRF @ 781.2512395 MHz
+# _phaser_trf_config = {
+#     'rdiv':                 2,
+#     'nint':                 25,
+#     'pll_div_sel':          0b01,
+#     'prsc_sel':             0,
+#
+#     'icp':                  0b00000,
+#     'icp_double':           0,
+#
+#     'cal_clk_sel':          0b1110,
+#
+#     'lo_div_sel':           0b11,
+#     'lo_div_bias':          0b00,
+#     'bufout_bias':          0b00,
+#
+#     'tx_div_sel':           0b10,
+#     'tx_div_bias':          0b00
+# }
+

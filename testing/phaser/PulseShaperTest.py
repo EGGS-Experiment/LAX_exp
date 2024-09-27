@@ -52,7 +52,6 @@ class PulseShaperTest(LAXExperiment, Experiment):
         self._wav_idx = 0
 
         # create waveform
-        self.spinecho_wizard.prepare()
         self.spinecho_wizard.calculate_pulseshape()
         self.spinecho_wizard.compile_waveform()
         # get waveform data
@@ -69,12 +68,6 @@ class PulseShaperTest(LAXExperiment, Experiment):
 
         # run waveform
         for i in range(self.repetitions):
-            # prepare phaser - attenuators
-            at_mu(self.phaser_eggs.get_next_frame_mu())
-            self.phaser_eggs.channel[0].set_att(self.att_phaser_db * dB)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-            self.phaser_eggs.channel[1].set_att(self.att_phaser_db * dB)
-            self.core.break_realtime()
 
             # play waveform
             at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -88,7 +81,7 @@ class PulseShaperTest(LAXExperiment, Experiment):
             # add delay for reset
             with parallel:
                 delay_mu(self.time_reset_mu)
-                self.phaser_eggs.reset_oscillators()
+                self.phaser_eggs.phaser_stop()
 
             # periodically check termination
             if i % 10:
@@ -104,6 +97,13 @@ class PulseShaperTest(LAXExperiment, Experiment):
         # prepare TTLs
         self.ttl8.off()
         self.ttl9.off()
+
+        # prepare phaser - attenuators
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_att(self.att_phaser_db * dB)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_att(self.att_phaser_db * dB)
+        self.core.break_realtime()
 
         # prepare phaser - frequencies
         self.phaser_configure(self.freq_carrier_hz, self.freq_sideband_hz)

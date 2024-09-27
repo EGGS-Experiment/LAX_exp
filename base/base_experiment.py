@@ -78,6 +78,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device('ttl14')
 
         self.setattr_device('phaser0')
+        self.setattr_device('phaser1')
 
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
@@ -190,11 +191,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         Repeat a given sequence a number of times.
         """
         # set up dynamic datasets
-        # note: this has to happen during run, otherwise we will overwrite other
+        # note: this has to happen during run, otherwise we will overwrite other count plotters
         self.set_dataset('management.dynamic.completion_pct', 0., broadcast=True, persist=True, archive=False)
         # downsample counts for dynamic plotting
-        _dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
-        self.set_dataset('temp.counts.trace', zeros(_dynamic_counts_len, dtype=int32) * nan,
+        dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
+        dynamic_counts_arr = zeros(dynamic_counts_len, dtype=int32) * nan
+        # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
+        dynamic_counts_arr[0] = 0
+        self.set_dataset('temp.counts.trace', dynamic_counts_arr,
                          broadcast=True, persist=False, archive=False)
 
         # start counting initialization time
@@ -307,6 +311,33 @@ class LAXExperiment(LAXEnvironment, ABC):
             with parallel:
                 self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+                delay_mu(40)
+
+            # add slack
+            self.core.break_realtime()
+
+        ### PHASER1 ###
+        # reset phaser attenuators
+        at_mu(self.phaser1.get_next_frame_mu())
+        self.phaser1.channel[0].set_att(31.5 * dB)
+        delay_mu(40)
+        self.phaser1.channel[1].set_att(31.5 * dB)
+
+        # reset phaser oscillators
+        for i in range(5):
+            # synchronize to frame
+            at_mu(self.phaser1.get_next_frame_mu())
+
+            # clear oscillator frequencies
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_frequency(0.)
+                self.phaser1.channel[1].oscillator[i].set_frequency(0.)
+                delay_mu(40)
+
+            # clear oscillator amplitudes
+            with parallel:
+                self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+                self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
 
             # add slack
@@ -440,6 +471,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
+
     def write_results(self, exp_params):
         """
         Write arguments, datasets, and parameters in a well-structured format
@@ -451,6 +483,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         expid =         exp_params["expid"]
 
         # todo: try to get default save dir list
+        # todo: why don't we get them during build/prepare? then access them here?
         # problem: we don't have access to dataset managers in this stage
         # try:
         #     th0 = self.get_dataset('management.dataset_save_locations')
@@ -459,8 +492,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         #     print(e)
         #     print('whoops')
         save_dir_list = [
-            'Z:\\Motion\\Data',
-            'D:\\Results'
+            'Z:\\Motion\\Data',     # save to motion drive
+            'D:\\Results'           # save to local backup drive
         ]
 
         # save to all relevant directories

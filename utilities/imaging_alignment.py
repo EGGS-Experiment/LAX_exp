@@ -23,7 +23,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_argument('time_sample_us',             NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
-        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, ndecimals=0, step=10, min=1, max=100), group='sampling')
         self.setattr_argument('background_samples_per_point',   NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
@@ -53,9 +53,11 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self._iter_signal =         np.arange(self.signal_samples_per_point)
         self._iter_background =     np.arange(self.background_samples_per_point)
 
+        # todo: move to prepare/run somehow to prevent overriding
         # prepare datasets for storing counts
         self.set_dataset('temp.imag_align.counts_x', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)) * np.nan, broadcast=True, persist=False, archive=False)
+
 
     @property
     def results_shape(self):

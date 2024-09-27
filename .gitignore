@@ -145,3 +145,5 @@ dmypy.json
 
 # stuff we produce
 #**/*.txt
+/dataset_db.mdb
+/dataset_db.mdb-lock

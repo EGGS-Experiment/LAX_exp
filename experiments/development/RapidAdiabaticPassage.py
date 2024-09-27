@@ -8,13 +8,13 @@ from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, Resc
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
 
 
-class RabiFlopping(LAXExperiment, Experiment):
+class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
-    Experiment: Rabi Flopping
+    Experiment: Rapid Adiabatic Passage
 
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
-    name = 'Rabi Flopping'
+    name = 'Rapid Adiabatic Passage'
 
 
     def build_experiment(self):

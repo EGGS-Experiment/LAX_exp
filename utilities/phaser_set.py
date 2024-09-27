@@ -195,6 +195,23 @@ class PhaserSet(EnvExperiment):
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[1].set_nco_frequency(188. * MHz)
 
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_att(8 * dB)
+        #
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].set_duc_frequency(100 * MHz)
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.duc_stb()
+        #
+        #
+        # self.core.break_realtime()
+        #
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].oscillator[0].set_frequency(0)
+        #
+        # at_mu(self.phaser0.get_next_frame_mu())
+        # self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, phase=0.0, clr=0)
+
         self.core.break_realtime()
         self.core.break_realtime()
         self.core.break_realtime()

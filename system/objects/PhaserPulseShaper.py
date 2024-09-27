@@ -15,8 +15,8 @@ class PhaserPulseShaper(LAXEnvironment):
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
         "_max_waveforms", "t_max_phaser_update_rate_mu",
-        "_dma_names", "_dma_handles",
-        "_phase_offsets_turns"
+        "_phase_offsets_turns",
+        "_dma_names"
     }
 
 
@@ -33,10 +33,10 @@ class PhaserPulseShaper(LAXEnvironment):
         # set global variables
         self._max_waveforms =               64
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
-        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
+        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+
         # store global CH1 offsets
-        # self._phase_offsets_turns =         np.array([0., 0.5, 0., 0., 0.])
         self._phase_offsets_turns =         np.array([0., 0., 0., 0., 0.])
 
         # create data structures to allow programmatic recording & playback of DMA handles
@@ -54,8 +54,8 @@ class PhaserPulseShaper(LAXEnvironment):
     def waveform_record(self, ampl_frac_list: TArray(TFloat, 2), phas_turns_list: TArray(TFloat, 2),
                         sample_interval_mu_list: TArray(TInt64, 1)) -> TInt32:
         """
-        todo: document
-        record waveform as DMA sequence
+        Record waveform as DMA sequence.
+        todo: finish documenting
         """
         '''PREPARE INPUTS'''
         # get total lengths of arrays
@@ -81,14 +81,6 @@ class PhaserPulseShaper(LAXEnvironment):
         if self._num_waveforms > self._max_waveforms:
             raise Exception("Error: too many waveforms recorded.")
 
-        # # ensure sample period is slower than the max update rate
-        # # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators) is (conservatively) about 1.5 MSPS (i.e. 25 sample periods))
-        # if sample_interval_mu < self.t_max_phaser_update_rate_mu:
-        #     raise Exception("Error: waveform sample rate too fast.")
-        #     # # round pulse shaping sample period up to the nearest multiple of phaser sample period
-        #     # t_sample_multiples =                    round((self.time_pulse_shape_sample_mu / self.t_max_phaser_update_rate_mu) + 0.5)
-        #     # self.time_pulse_shape_sample_mu =       np.int64(t_sample_multiples * self.t_max_phaser_update_rate_mu)
-
 
         '''RECORD WAVEFORMS'''
         # add slack for recording DMA sequences (1 ms)
@@ -97,13 +89,11 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # record phaser rising pulse shape DMA sequence
         with self.core_dma.record(self._dma_names[self._num_waveforms]):
-
             for i in range(len_ampls):
                 # set waveform values
                 self._waveform_point(ampl_frac_list[i], phas_turns_list[i])
                 # set variable delay
                 delay_mu(sample_interval_mu_list[i])
-
         # add slack after DMA recording
         self.core.break_realtime()
 
@@ -146,4 +136,5 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         Play back a previously recorded waveform.
         """
+        # note: don't synchronize to frame - let user do this since user may also need to reset DUC
         self.core_dma.playback_handle(self._dma_handles[waveform_num])

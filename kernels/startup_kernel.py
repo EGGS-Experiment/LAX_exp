@@ -33,6 +33,7 @@ class StartupKernel(EnvExperiment):
     EXCLUDE = set()
 
     # List of devices classes to be initialized
+    # note: these device classes are initialized in order
     DEVICE_CLASSES = [
         'CPLD',         # note: Urukul CPLDs have to be initialized before the DDS channels themselves
         'AD9910',

@@ -8,40 +8,44 @@ from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, Resc
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
 
 
-class QubitPulseShape(LAXExperiment, Experiment):
+class RabiFloppingDelay(LAXExperiment, Experiment):
     """
-    Experiment: Qubit Pulse Shape
+    Experiment: Rabi Flopping Delay
 
-    Configure pulse shaping for 729nm via Rabi flopping.
+    Measures ion fluorescence vs 729nm pulse time and frequency.
     """
-    name = 'Qubit Pulse Shape'
+    name = 'Rabi Flopping Delay'
 
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=40, ndecimals=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
+        self.setattr_argument("time_stateprep_delay_ms_list",      Scannable(
+                                                            default=[
+                                                                ExplicitScan([6.05]),
+                                                                RangeScan(1, 100, 100, randomize=True),
+                                                            ],
+                                                            global_min=0.001, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, ndecimals=5
+                                                        ), group=self.name)
         self.setattr_argument("time_rabi_us_list",      Scannable(
-                                                                default=[
-                                                                    ExplicitScan([6.05]),
-                                                                    RangeScan(1, 50, 200, randomize=True),
-                                                                ],
-                                                                global_min=1, global_max=100000, global_step=1,
-                                                                unit="us", scale=1, ndecimals=5
-                                                            ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+                                                            default=[
+                                                                RangeScan(1, 50, 200, randomize=True),
+                                                                ExplicitScan([6.05]),
+                                                            ],
+                                                            global_min=1, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, ndecimals=5
+                                                        ), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.7035, ndecimals=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
 
-        # pulse shaping arguments
-        self.setattr_argument("sample_rate_khz",                NumberValue(default=500, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=200, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
@@ -53,27 +57,39 @@ class QubitPulseShape(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence =                              self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence =                              self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "SBC - Pulsed":
-            self.cooling_subsequence =                              self.sidebandcool_pulsed_subsequence
+        if self.cooling_type == "Doppler":                  self.cooling_subsequence =  self.doppler_subsequence
+        elif self.cooling_type == "SBC - Continuous":       self.cooling_subsequence =  self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "SBC - Pulsed":           self.cooling_subsequence =  self.sidebandcool_pulsed_subsequence
 
+        # convert input arguments to machine units
+        self.freq_rabiflop_ftw =    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
+        self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
+        self.time_stateprep_delay_mu_list = np.array([
+                                                seconds_to_mu(time_ms * ms)
+                                                for time_ms in self.time_stateprep_delay_ms_list
+                                            ])
 
-        # convert rabi flopping arguments
-        max_time_us =                                               np.max(list(self.time_rabi_us_list))
-        self.time_rabiflop_mu_list =                                np.array([
-                                                                        [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
-                                                                        for time_us in self.time_rabi_us_list
-                                                                    ])
-        self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
-        self.att_readout_mu =                                       att_to_mu(self.att_readout_db * dB)
+        # convert time to machine units
+        max_time_us =                   np.max(list(self.time_rabi_us_list))
+        # create timing list such that all shots have same length
+        self.time_rabiflop_mu_list =    np.array([
+                                            [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
+                                            for time_us in self.time_rabi_us_list
+                                        ])
+        # turn off delay equalization based on input
+        if not self.equalize_delays:    self.time_rabiflop_mu_list[:, 0] = np.int64(8)
+
+        # create experiment configuration list
+        self.config_rabiflopping_list = np.stack(np.meshgrid(self.time_rabiflop_mu_list[:, 1],
+                                                             self.time_stateprep_delay_mu_list),
+                                                 -1).reshape(-1, 2)
+        self.config_rabiflopping_list =     np.array(self.config_rabiflopping_list, dtype=np.int64)
+        np.random.shuffle(self.config_rabiflopping_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.time_rabiflop_mu_list),
-                2)
+        return (self.repetitions * len(self.config_rabiflopping_list),
+                3)
 
 
     # MAIN SEQUENCE
@@ -89,16 +105,17 @@ class QubitPulseShape(LAXExperiment, Experiment):
         # set qubit readout waveform
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
 
-        # todo: set
-
     @kernel(flags={"fast-math"})
     def run_main(self):
         self.core.reset()
 
         for trial_num in range(self.repetitions):
+            for config_vals in self.config_rabiflopping_list:
 
-            # sweep time
-            for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+                # extract values from config list
+                # time_rabi_equalization_mu = config_vals[0]
+                time_rabi_flop_mu =         config_vals[0]
+                time_stateprep_delay_mu =   config_vals[1]
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
@@ -110,11 +127,16 @@ class QubitPulseShape(LAXExperiment, Experiment):
                 # prepare qubit beam for readout
                 self.qubit.set_profile(0)
                 self.qubit.set_att_mu(self.att_readout_mu)
-                delay_mu(time_rabi_pair_mu[0])
+
+                # add EXTRA delay before running
+                delay_mu(time_stateprep_delay_mu)
+
+                # add delay to ensure each shot takes same time
+                # delay_mu(time_rabi_equalization_mu)
 
                 # rabi flop
                 self.qubit.on()
-                delay_mu(time_rabi_pair_mu[1])
+                delay_mu(time_rabi_flop_mu)
                 self.qubit.off()
 
                 # do readout
@@ -122,7 +144,11 @@ class QubitPulseShape(LAXExperiment, Experiment):
 
                 # update dataset
                 with parallel:
-                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                    self.update_results(
+                        time_rabi_flop_mu,
+                        self.readout_subsequence.fetch_count(),
+                        time_stateprep_delay_mu
+                    )
                     self.core.break_realtime()
 
                 # resuscitate ion

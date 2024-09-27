@@ -22,8 +22,7 @@ def _write_to_group(group, k, v):
             # convert any dicts to text
             _write(group, k, str(v))
     except Exception as e:
-        print(e)
-        pass
+        logger.warning("Error: unable to write key {} to group {}: {}".format(k, group, e))
 
 
 class LAXDatasetManager:

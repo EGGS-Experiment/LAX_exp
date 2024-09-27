@@ -1,6 +1,9 @@
 import numpy as np
 from artiq.experiment import *
 
+from collections import OrderedDict
+from itertools import product, chain, zip_longest
+
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
@@ -8,19 +11,20 @@ from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
 
 
-class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
+class EGGSHeatingMultiRange(LAXExperiment, Experiment):
     """
-    Experiment: EGGS Heating Time Sweep
+    Experiment: EGGS Heating Multi Range
 
     Cool the ions to the ground state of motion via sideband cooling,
     then apply bichromatic heating tones, and try to read out the fluorescence.
+    Scans multiple ranges in a silly way and allows user choice of amplitudes.
     """
     name = 'EGGS Heating'
 
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -32,7 +36,18 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         self.rescue_subsequence =                                           RescueIon(self)
 
         # EGGS RF
-        self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
+        self.setattr_argument("num_scan_ranges",                            EnumerationValue(["1", "2", "3"], default="1"), group='EGGS_Heating.frequencies')
+        self.setattr_argument("scan_configuration",                         EnumerationValue(["Normal", "Randomize", "Interleave"], default="Normal"), group='EGGS_Heating.frequencies')
+        self.setattr_argument("freq_eggs_heating_carrier_mhz_list_0",       Scannable(
+                                                                                default=[
+                                                                                    ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                                                                                    ExplicitScan([3.]),
+                                                                                    CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                                                                                ],
+                                                                                global_min=0.005, global_max=4800, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                            ), group='EGGS_Heating.frequencies')
+        self.setattr_argument("freq_eggs_heating_carrier_mhz_list_1",         Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([3.]),
                                                                                     ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
@@ -41,10 +56,19 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
                                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                                 unit="MHz", scale=1, ndecimals=6
                                                                             ), group='EGGS_Heating.frequencies')
+        self.setattr_argument("freq_eggs_heating_carrier_mhz_list_2",         Scannable(
+                                                                                default=[
+                                                                                    ExplicitScan([9., 91., 92.]),
+                                                                                    ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                                                                                    CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                                                                                ],
+                                                                                global_min=0.005, global_max=4800, global_step=1,
+                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                            ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                     ExplicitScan([777.5]),
+                                                                                    CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
@@ -63,8 +87,8 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    RangeScan(0, 1.0, 9, randomize=True),
                                                                                     ExplicitScan([0.]),
+                                                                                    RangeScan(0, 1.0, 9, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, ndecimals=3
@@ -74,18 +98,23 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_0",                NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_0",                NumberValue(default=12., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_1",                NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_1",                NumberValue(default=22., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_2",                NumberValue(default=30., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_2",                NumberValue(default=32., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",         NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_0",       NumberValue(default=1., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_1",       NumberValue(default=2., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_2",       NumberValue(default=3., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        # self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        # tmp remove - eggs heating time sweep
-        self.setattr_argument("enable_pulse_shaping_rise",                  BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("enable_pulse_shaping_fall",                  BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        # tmp remove - eggs heating time sweep
+        self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
@@ -117,17 +146,8 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         '''SUBSEQUENCE PARAMETERS'''
         # get readout values
         self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-        # self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
-        #                                                                   for time_us in self.time_readout_us_list])
-        # tmp remove - eggs heating time sweep
-        # convert EGGS sweep times to machine units
-        _time_eggs_sweep_mu_list =                              np.array([self.core.seconds_to_mu(time_us * us)
+        self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
                                                                           for time_us in self.time_readout_us_list])
-        # ensure that all EGGS sweep times are multiples of the phaser sample period (i.e. 40 ns)
-        _time_eggs_sweep_mu_list -=                             _time_eggs_sweep_mu_list % self.phaser_eggs.t_sample_mu
-        # remove duplicate entries and doubly ensure that values are of correct type
-        self.time_readout_mu_list =                             np.int64(np.unique(_time_eggs_sweep_mu_list))
-        # tmp remove - eggs heating time sweep
 
         '''EGGS HEATING - TIMING'''
         self.time_eggs_heating_mu =                             self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
@@ -151,32 +171,94 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
 
 
         '''EGGS HEATING - CONFIG'''
+        # # collate eggs carrier frequencies
+        # eggs_freq_dict = OrderedDict[{
+        #     i: np.array(list(getattr(self, "freq_eggs_heating_carrier_mhz_list_{:d}".format(i))))
+        #     for i in range(self.num_scan_ranges)
+        # }]
+        # eggs_freq_min_list = np.array([np.min(freq_list) for freq_list in eggs_freq_dict.values()])
+        # eggs_freq_max_list = np.array([np.max(freq_list) for freq_list in eggs_freq_dict.values()])
+        #
+        # # ensures ranges are non-overlapping
+        # idx_freq_sort = np.argsort(eggs_freq_min_list)
+        # freq_range_overlap_check = eggs_freq_max_list[idx_freq_sort][:-1] - eggs_freq_min_list[idx_freq_sort][1:]
+        # if any(freq_range_overlap_check > 0):
+        #     raise Exception("Error with freq_eggs_carrier_mhz_list: ranges must be non-overlapping.")
+
+
+        # collate EGGS carrier frequencies with respective amplitudes
+        eggs_freq_ampl_list_holder = []
+        for i in range(int(self.num_scan_ranges)):
+            # programmatically retrieve relevant attributes
+            freq_list =     np.array(list(getattr(self, "freq_eggs_heating_carrier_mhz_list_{:d}".format(i))))
+            ampl_rsb =      getattr(self, "ampl_eggs_heating_rsb_pct_{:d}".format(i))
+            ampl_bsb =      getattr(self, "ampl_eggs_heating_bsb_pct_{:d}".format(i))
+            ampl_carrier =  getattr(self, "ampl_eggs_dynamical_decoupling_pct_{:d}".format(i))
+
+            # create configuration array and append to holder
+            tmp = np.zeros((len(freq_list), 4))
+            tmp[:, 0] = freq_list
+            tmp[:, 1:] = np.array([ampl_rsb, ampl_bsb, ampl_carrier])
+            eggs_freq_ampl_list_holder.append(tmp)
+
+        # configure list of EGGS carrier frequencies per user input
+        eggs_freq_ampl_list = []
+        if self.scan_configuration == "Normal":
+            for config_list in eggs_freq_ampl_list_holder:
+                eggs_freq_ampl_list.extend(config_list)
+
+        elif self.scan_configuration == "Randomize":
+            for config_list in eggs_freq_ampl_list_holder:
+                eggs_freq_ampl_list.extend(config_list)
+            np.random.shuffle(eggs_freq_ampl_list)
+
+        elif self.scan_configuration == "Interleave":
+            eggs_freq_ampl_list = [
+                y
+                for x in zip_longest(*eggs_freq_ampl_list_holder, fillvalue=None)
+                for y in x if y is not None
+            ]
+
         # convert build arguments to appropriate values and format as numpy arrays
-        self.freq_eggs_carrier_hz_list =                        np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                        np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.phase_eggs_heating_rsb_turns_list =                np.array(list(self.phase_eggs_heating_rsb_turns_list))
 
-        # implement frequency sub-repetitions by "multiplying" the eggs frequency
-        self.freq_eggs_carrier_hz_list =                        np.repeat(self.freq_eggs_carrier_hz_list, self.sub_repetitions)
-
         # create config data structure with amplitude values
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
-                                                                          len(self.freq_eggs_carrier_hz_list) *
+                                                                          # len(self.freq_eggs_carrier_hz_list) *
+                                                                          len(eggs_freq_ampl_list) *
                                                                           len(self.freq_eggs_secular_hz_list) *
                                                                           len(self.phase_eggs_heating_rsb_turns_list) *
                                                                           len(self.time_readout_mu_list),
                                                                           8), dtype=float)
         # note: sideband readout frequencies are at the end of the
         # meshgrid to support adjacent_sidebands configuration option
-        self.config_eggs_heating_list[:, [1, 2, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
-                                                                                     self.freq_eggs_secular_hz_list,
-                                                                                     self.phase_eggs_heating_rsb_turns_list,
-                                                                                     self.time_readout_mu_list,
-                                                                                     self.freq_sideband_readout_ftw_list),
-                                                                         -1).reshape(-1, 5)
-        self.config_eggs_heating_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
-                                                                          self.ampl_eggs_heating_bsb_pct,
-                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+        # self.config_eggs_heating_list[:, [1, 2, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
+        #                                                                              self.freq_eggs_secular_hz_list,
+        #                                                                              self.phase_eggs_heating_rsb_turns_list,
+        #                                                                              self.time_readout_mu_list,
+        #                                                                              self.freq_sideband_readout_ftw_list),
+        #                                                                  -1).reshape(-1, 5)
+        # self.config_eggs_heating_list[:, [3, 4, 5]] =           np.array([self.ampl_eggs_heating_rsb_pct,
+        #                                                                   self.ampl_eggs_heating_bsb_pct,
+        #                                                                   self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+
+        temp_exp_config = product(
+            eggs_freq_ampl_list,
+            self.freq_eggs_secular_hz_list,
+            self.phase_eggs_heating_rsb_turns_list,
+            self.time_readout_mu_list,
+            self.freq_sideband_readout_ftw_list
+        )
+        for i, exp_config_list in enumerate(temp_exp_config):
+            self.config_eggs_heating_list[i, 0] = exp_config_list[4]
+            self.config_eggs_heating_list[i, 1] = exp_config_list[0][0]
+            self.config_eggs_heating_list[i, 2] = exp_config_list[1]
+            self.config_eggs_heating_list[i, 3] = exp_config_list[0][1]
+            self.config_eggs_heating_list[i, 4] = exp_config_list[0][2]
+            self.config_eggs_heating_list[i, 5] = exp_config_list[0][3]
+            self.config_eggs_heating_list[i, 6] = exp_config_list[2]
+            self.config_eggs_heating_list[i, 7] = exp_config_list[3]
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
@@ -193,21 +275,22 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         # todo: move to a phaser internal function
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
-            for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
-                # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
-                # get normalized transmission through system
-                transmitted_power_frac =                        ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
-                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
-                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                                                                 ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                # update configs and convert amplitude to frac
-                self.config_eggs_heating_list[i, [3, 4, 5]] =   np.array([scaled_power_pct[0],
-                                                                          scaled_power_pct[1],
-                                                                          self.ampl_eggs_dynamical_decoupling_pct]) / 100.
+            pass
+            # for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
+            #     # convert frequencies to absolute units in MHz
+            #     rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
+            #     # get normalized transmission through system
+            #     transmitted_power_frac =                        ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
+            #     # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
+            #     # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
+            #     # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
+            #     #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+            #     scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
+            #                                                      ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+            #     # update configs and convert amplitude to frac
+            #     self.config_eggs_heating_list[i, [3, 4, 5]] =   np.array([scaled_power_pct[0],
+            #                                                               scaled_power_pct[1],
+            #                                                               self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
 
         '''EGGS HEATING - EGGS RF CONFIGURATION'''
@@ -220,6 +303,10 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
 
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
+
+        self.set_dataset("config", self.config_eggs_heating_list)
+        print(self.config_eggs_heating_list)
+        # raise Exception("stop here")
 
     def _prepare_pulseshape(self):
         """
@@ -249,12 +336,12 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
 
         ### PULSE SHAPING - AMPLITUDE WINDOW ###
         # hotfix - 2024/06/21 - implement dd enable for pulse shaping
-        ampl_dd_pct =                               self.ampl_eggs_dynamical_decoupling_pct
+        ampl_dd_pct =                               self.ampl_eggs_dynamical_decoupling_pct_0
         if not self.enable_dynamical_decoupling:    ampl_dd_pct = 0.
 
         # create holder object for pulse amplitudes
-        self.ampl_pulse_shape_frac_list =           np.tile(np.array([self.ampl_eggs_heating_rsb_pct,
-                                                                      self.ampl_eggs_heating_bsb_pct,
+        self.ampl_pulse_shape_frac_list =           np.tile(np.array([self.ampl_eggs_heating_rsb_pct_0,
+                                                                      self.ampl_eggs_heating_bsb_pct_0,
                                                                       ampl_dd_pct]) / 100.,
                                                             self.num_pulse_shape_samples).reshape(-1, 3)
 
@@ -278,13 +365,6 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         self.ampl_pulse_shape_frac_list *=          self.ampl_window_frac_list
         self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
 
-        # show pulse shape values to dataset so we can triple check everything is ok
-        # print('\n\tps sample freq:\t\t{:f} kHz'.format(self.freq_pulse_shape_sample_khz))
-        # print('\tps sample time (raw):\t\t{:f} ns'.format(self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))))
-        # print('\tps sample time (aligned):\t{:f} ns'.format(self.time_pulse_shape_sample_mu))
-        # print('\tps delay time:\t\t{:f} ns'.format(self.time_pulse_shape_delay_mu))
-        # print('\tps num samples:\t\t{:d}\n'.format(self.num_pulse_shape_samples))
-
     def _prepare_psk(self):
         """
         Calculate and prepare timings for PSK.
@@ -304,19 +384,16 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         # update dynamical decoupling config list with verified PSK time
         self.config_dynamical_decoupling_psk_list[:, 0] =                   self.time_psk_delay_mu
         # ensure that psk rate doesn't exceed the shaping time (t_max_phaser_update_rate_mu; about 25 * t_sample_mu)
-        assert self.time_psk_delay_mu >= self.t_max_phaser_update_rate_mu,  "Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate."
+        if self.enable_dd_phase_shift_keying and (self.time_psk_delay_mu < self.t_max_phaser_update_rate_mu):
+            raise Exception("Error: num_dynamical_decoupling_phase_shifts too high; PSK update rate exceeds max sustained event rate.")
 
         # set appropriate phaser run method for dynamical decoupling PSK
-        # if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
-        # else:                                                               self.phaser_run = self.phaser_run_nopsk
-        # tmp remove - eggs heating time sweep
-        self.phaser_run = self.phaser_run_nopsk
-        self.time_readout_mu = self.sidebandreadout_subsequence
-        # tmp remove - eggs heating time sweep
+        if self.enable_dd_phase_shift_keying:                               self.phaser_run = self.phaser_run_psk
+        else:                                                               self.phaser_run = self.phaser_run_nopsk
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_eggs_heating_list),
+        return (self.repetitions * self.sub_repetitions * len(self.config_eggs_heating_list),
                 6)
 
 
@@ -326,9 +403,6 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        # tmp remove - eggs heating time sweep
-        self.sidebandreadout_subsequence.record_dma()
-        # tmp remove - eggs heating time sweep
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
@@ -347,7 +421,6 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         self.ttl9.off()
         # tmp remove
         self.ttl10.off()
-
 
     @kernel(flags={"fast-math"})
     def run_main(self):
@@ -374,10 +447,15 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
+            # implement sub-repetitions here to avoid initial overhead
+            _subrep_iter = 0
+            _config_iter = 0
+
             # sweep experiment configurations
-            for config_vals in self.config_eggs_heating_list:
+            while _config_iter < self.num_configs:
 
                 '''CONFIGURE'''
+                config_vals = self.config_eggs_heating_list[_config_iter]
                 # extract values from config list
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
@@ -416,7 +494,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
 
                 # EGGS - RUN
-                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac, time_readout_mu)
+                self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
                 # EGGS - STOP
                 self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
@@ -427,10 +505,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
                 delay_mu(self.time_rf_servo_holdoff_mu)
 
                 '''READOUT'''
-                # self.sidebandreadout_subsequence.run_time(time_readout_mu)
-                # tmp remove - eggs heating time sweep
-                self.sidebandreadout_subsequence.run_dma()
-                # tmp remove - eggs heating time sweep
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
 
@@ -458,6 +533,17 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
                     self.check_termination()
                     self.core.break_realtime()
                 _loop_iter += 1
+
+                # handle sub-repetition logic
+                if _config_iter % 2 == 1:
+                    _subrep_iter += 1
+                    if _subrep_iter < self.sub_repetitions:
+                        _config_iter -= 1
+                    else:
+                        _subrep_iter = 0
+                        _config_iter += 1
+                else:
+                    _config_iter += 1
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -495,10 +581,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
-        # if self.enable_pulse_shaping_rise:
-        # tmp remove - eggs heating time sweep
-        if self.enable_pulse_shaping_rise:
-        # tmp remove - eggs heating time sweep
+        if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_RISE'):
                 # set amplitude values at given time
                 for ampl_val_list in self.ampl_pulse_shape_frac_list:
@@ -510,10 +593,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
 
         # record phaser falling pulse shape DMA sequence
         self.core.break_realtime()
-        # if self.enable_pulse_shaping:
-        # tmp remove - eggs heating time sweep
-        if self.enable_pulse_shaping_fall:
-        # tmp remove - eggs heating time sweep
+        if self.enable_pulse_shaping:
             with self.core_dma.record('_PHASER_PULSESHAPE_FALL'):
                 # set amplitude values at given time
                 for ampl_val_list in self.ampl_pulse_shape_reverse_frac_list:
@@ -623,11 +703,7 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
     HELPER FUNCTIONS - PSK
     '''
     @kernel(flags={"fast-math"})
-    # def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
-    # tmp remove - eggs heating time sweep
-    def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat, time_eggs_heating_mu: TInt64) -> TNone:
-    # tmp remove - eggs heating time sweep
-
+    def phaser_run_nopsk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
         """
         Activate phaser channel outputs for EGGS heating.
         Sets the same oscillator amplitudes for both channels.
@@ -652,12 +728,8 @@ class EGGSHeatingTimeSweep(LAXExperiment, Experiment):
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[0, 2], clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_dd_frac, phase=self.phase_phaser_turns_arr[1, 2], clr=0)
 
-
         # main eggs pulse
-        # delay_mu(self.time_eggs_heating_mu)
-        # tmp remove - eggs heating time sweep
-        delay_mu(time_eggs_heating_mu)
-        # tmp remove - eggs heating time sweep
+        delay_mu(self.time_eggs_heating_mu)
         self.ttl8.off()
 
     @kernel(flags={"fast-math"})
