@@ -36,7 +36,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.rescue_subsequence =                                           RescueIon(self)
 
         # EGGS RF
-        self.setattr_argument("num_scan_ranges",                            EnumerationValue([1, 2, 3], default=1), group='EGGS_Heating.frequencies')
+        self.setattr_argument("num_scan_ranges",                            EnumerationValue(["1", "2", "3"], default="1"), group='EGGS_Heating.frequencies')
         self.setattr_argument("scan_configuration",                         EnumerationValue(["Normal", "Randomize", "Interleave"], default="Normal"), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list_0",       Scannable(
                                                                                 default=[
@@ -188,7 +188,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         # collate EGGS carrier frequencies with respective amplitudes
         eggs_freq_ampl_list_holder = []
-        for i in range(self.num_scan_ranges):
+        for i in range(int(self.num_scan_ranges)):
             # programmatically retrieve relevant attributes
             freq_list =     np.array(list(getattr(self, "freq_eggs_heating_carrier_mhz_list_{:d}".format(i))))
             ampl_rsb =      getattr(self, "ampl_eggs_heating_rsb_pct_{:d}".format(i))
