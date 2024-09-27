@@ -146,9 +146,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # map phase to index to facilitate waveform recording
         self.waveform_index_to_phase_rsb_turns =                np.arange(len(self.phase_eggs_heating_rsb_turns_list))
 
-        # implement frequency sub-repetitions by "multiplying" the eggs frequency
-        self.freq_eggs_carrier_hz_list =                        np.repeat(self.freq_eggs_carrier_hz_list, self.sub_repetitions)
-
         # create config data structure
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                           len(self.freq_eggs_carrier_hz_list) *
@@ -169,6 +166,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
+
+        # precalculate length of configuration list here to reduce run-time overhead
+        self.num_configs = len(self.config_eggs_heating_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -245,7 +245,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_eggs_heating_list),
+        return (self.repetitions * self.sub_repetitions * len(self.config_eggs_heating_list),
                 7)
 
 
@@ -299,10 +299,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
+            # implement sub-repetitions here to avoid initial overhead
+            _subrep_iter = 0
+            _config_iter = 0
+
             # sweep experiment configurations
-            for config_vals in self.config_eggs_heating_list:
+            while _config_iter < self.num_configs:
 
                 '''CONFIGURE'''
+                config_vals = self.config_eggs_heating_list[_config_iter]
                 # extract values from config list
                 freq_readout_ftw =      np.int32(config_vals[0])
                 carrier_freq_hz =       config_vals[1]
@@ -362,6 +367,17 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                     self.check_termination()
                     self.core.break_realtime()
                 _loop_iter += 1
+
+                # handle sub-repetition logic
+                if _config_iter % 2 == 1:
+                    _subrep_iter += 1
+                    if _subrep_iter < self.sub_repetitions:
+                        _config_iter -= 1
+                    else:
+                        _subrep_iter = 0
+                        _config_iter += 1
+                else:
+                    _config_iter += 1
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

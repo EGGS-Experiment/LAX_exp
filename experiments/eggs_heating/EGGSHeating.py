@@ -20,9 +20,9 @@ class EGGSHeating(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000))
-        self.setattr_argument("randomize_config",                           BooleanValue(default=False))
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=40, ndecimals=0, step=1, min=1, max=500))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config",                           BooleanValue(default=True))
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
         # get subsequences
         self.initialize_subsequence =                                       InitializeQubit(self)
@@ -34,7 +34,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    RangeScan(84.65, 84.95, 100, randomize=True),
+                                                                                    RangeScan(84.65, 84.95, 100, randomize=False),
                                                                                     ExplicitScan([3.]),
                                                                                     ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
@@ -436,9 +436,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                     self.core.break_realtime()
                 _loop_iter += 1
 
-                # rescue ion as needed
-                self.rescue_subsequence.run(trial_num)
-
                 # handle sub-repetition logic
                 if _config_iter % 2 == 1:
                     _subrep_iter += 1
@@ -450,6 +447,9 @@ class EGGSHeating(LAXExperiment, Experiment):
                 else:
                     _config_iter += 1
 
+
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)
 
             # support graceful termination at the repetition level
             with parallel:

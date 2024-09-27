@@ -148,10 +148,6 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.phase_eggs_heating_dma_handles_rise =              [(0, np.int64(0), np.int32(0))] * len(self.phase_eggs_heating_rsb_turns_list)
         self.phase_eggs_heating_dma_handles_fall =              [(0, np.int64(0), np.int32(0))] * len(self.phase_eggs_heating_rsb_turns_list)
 
-
-        # implement frequency sub-repetitions by "multiplying" the eggs frequency
-        self.freq_eggs_carrier_hz_list =                        np.repeat(self.freq_eggs_carrier_hz_list, self.sub_repetitions)
-
         # create config data structure with amplitude values
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                           len(self.freq_eggs_carrier_hz_list) *
@@ -174,6 +170,9 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
+
+        # precalculate length of configuration list here to reduce run-time overhead
+        self.num_configs = len(self.config_eggs_heating_list)
 
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
@@ -272,13 +271,6 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.ampl_pulse_shape_frac_list *=          self.ampl_window_frac_list
         self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
 
-        # show pulse shape values to dataset so we can triple check everything is ok
-        # print('\n\tps sample freq:\t\t{:f} kHz'.format(self.freq_pulse_shape_sample_khz))
-        # print('\tps sample time (raw):\t\t{:f} ns'.format(self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))))
-        # print('\tps sample time (aligned):\t{:f} ns'.format(self.time_pulse_shape_sample_mu))
-        # print('\tps delay time:\t\t{:f} ns'.format(self.time_pulse_shape_delay_mu))
-        # print('\tps num samples:\t\t{:d}\n'.format(self.num_pulse_shape_samples))
-
 
     def _prepare_psk(self):
         """
@@ -308,7 +300,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_eggs_heating_list),
+        return (self.repetitions * self.sub_repetitions * len(self.config_eggs_heating_list),
                 6)
 
 
@@ -365,10 +357,15 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
+            # implement sub-repetitions here to avoid initial overhead
+            _subrep_iter = 0
+            _config_iter = 0
+
             # sweep experiment configurations
-            for config_vals in self.config_eggs_heating_list:
+            while _config_iter < self.num_configs:
 
                 '''CONFIGURE'''
+                config_vals = self.config_eggs_heating_list[_config_iter]
                 # extract values from config list
                 freq_readout_ftw =          np.int32(config_vals[0])
                 carrier_freq_hz =           config_vals[1]
@@ -449,6 +446,17 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
                     self.check_termination()
                     self.core.break_realtime()
                 _loop_iter += 1
+
+                # handle sub-repetition logic
+                if _config_iter % 2 == 1:
+                    _subrep_iter += 1
+                    if _subrep_iter < self.sub_repetitions:
+                        _config_iter -= 1
+                    else:
+                        _subrep_iter = 0
+                        _config_iter += 1
+                else:
+                    _config_iter += 1
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
