@@ -8,9 +8,9 @@ import labrad
 from os import environ
 
 _DEATHCOUNT_STATUS_MESSAGES = [
-    "CLEAR",            #0
-    "ERROR: DEATH",      #1
-    "ERROR: TRANSITION" #2
+    "CLEAR",                #0
+    "ERROR: DEATH",         #1
+    "ERROR: TRANSITION"     #2
 ]
 
 
