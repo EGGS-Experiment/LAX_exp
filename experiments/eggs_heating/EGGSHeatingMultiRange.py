@@ -24,7 +24,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
@@ -40,8 +40,8 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.setattr_argument("scan_configuration",                         EnumerationValue(["Normal", "Randomize", "Interleave"], default="Normal"), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list_0",       Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([3.]),
                                                                                     ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                                                                                    ExplicitScan([3.]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -58,7 +58,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list_2",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([3.]),
+                                                                                    ExplicitScan([9., 91., 92.]),
                                                                                     ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
@@ -67,8 +67,8 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
-                                                                                    CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                     ExplicitScan([777.5]),
+                                                                                    CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
@@ -87,8 +87,8 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    RangeScan(0, 1.0, 9, randomize=True),
                                                                                     ExplicitScan([0.]),
+                                                                                    RangeScan(0, 1.0, 9, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, ndecimals=3
@@ -98,20 +98,20 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_0",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_0",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_0",                NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_0",                NumberValue(default=12., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_1",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_1",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_1",                NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_1",                NumberValue(default=22., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_2",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_2",                NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_2",                NumberValue(default=30., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_2",                NumberValue(default=32., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_0",       NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_1",       NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_2",       NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_0",       NumberValue(default=1., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_1",       NumberValue(default=2., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_2",       NumberValue(default=3., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -198,7 +198,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
             # create configuration array and append to holder
             tmp = np.zeros((len(freq_list), 4))
             tmp[:, 0] = freq_list
-            tmp[:, 1] = np.array([ampl_rsb, ampl_bsb, ampl_carrier])
+            tmp[:, 1:] = np.array([ampl_rsb, ampl_bsb, ampl_carrier])
             eggs_freq_ampl_list_holder.append(tmp)
 
         # configure list of EGGS carrier frequencies per user input
@@ -225,7 +225,8 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         # create config data structure with amplitude values
         self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
-                                                                          len(self.freq_eggs_carrier_hz_list) *
+                                                                          # len(self.freq_eggs_carrier_hz_list) *
+                                                                          len(eggs_freq_ampl_list) *
                                                                           len(self.freq_eggs_secular_hz_list) *
                                                                           len(self.phase_eggs_heating_rsb_turns_list) *
                                                                           len(self.time_readout_mu_list),
@@ -250,14 +251,14 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
             self.freq_sideband_readout_ftw_list
         )
         for i, exp_config_list in enumerate(temp_exp_config):
-            self.config_eggs_heating_list[0] = exp_config_list[4]
-            self.config_eggs_heating_list[1] = exp_config_list[0][0]
-            self.config_eggs_heating_list[2] = exp_config_list[1]
-            self.config_eggs_heating_list[3] = exp_config_list[0][1]
-            self.config_eggs_heating_list[4] = exp_config_list[0][2]
-            self.config_eggs_heating_list[5] = exp_config_list[0][3]
-            self.config_eggs_heating_list[6] = exp_config_list[2]
-            self.config_eggs_heating_list[7] = exp_config_list[3]
+            self.config_eggs_heating_list[i, 0] = exp_config_list[4]
+            self.config_eggs_heating_list[i, 1] = exp_config_list[0][0]
+            self.config_eggs_heating_list[i, 2] = exp_config_list[1]
+            self.config_eggs_heating_list[i, 3] = exp_config_list[0][1]
+            self.config_eggs_heating_list[i, 4] = exp_config_list[0][2]
+            self.config_eggs_heating_list[i, 5] = exp_config_list[0][3]
+            self.config_eggs_heating_list[i, 6] = exp_config_list[2]
+            self.config_eggs_heating_list[i, 7] = exp_config_list[3]
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
@@ -303,8 +304,9 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
-        self.setattr_dataset("config", self.config_eggs_heating_list)
-        raise Exception("stop here")
+        self.set_dataset("config", self.config_eggs_heating_list)
+        print(self.config_eggs_heating_list)
+        # raise Exception("stop here")
 
     def _prepare_pulseshape(self):
         """
@@ -419,7 +421,6 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.ttl9.off()
         # tmp remove
         self.ttl10.off()
-
 
     @kernel(flags={"fast-math"})
     def run_main(self):
