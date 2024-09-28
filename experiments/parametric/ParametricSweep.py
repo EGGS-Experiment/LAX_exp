@@ -79,7 +79,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # get voltage parameters
         self.dc_channel_num =                               self.dc_channeldict[self.dc_channel]['num']
         self.dc_voltages_v_list =                           np.array(list(self.dc_voltages_v_list))
-        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(488 * ms)
+        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(888 * ms)
 
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =                             self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
