@@ -334,7 +334,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                 print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(*sublist))
 
             # set voltage to optimal val if val is in range
-            mean_voltage_optimum = np.mean(voltage_optima_vals)
+            mean_voltage_optimum = np.mean(voltage_optima_vals[:, 1])
             if (mean_voltage_optimum > np.min(self.dc_voltages_v_list)) & (mean_voltage_optimum < np.max(self.dc_voltages_v_list)):
                 self.voltage_set(self.dc_channel_num, mean_voltage_optimum)
 
