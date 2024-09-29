@@ -137,6 +137,9 @@ class ParametricSweep(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
+        # get DDS CPLD att values so ARTIQ remembers them
+        self.dds_parametric.cpld.get_att_mu()
+
         with parallel:
             # set cooling beams
             with sequential:
