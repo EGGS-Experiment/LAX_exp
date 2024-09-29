@@ -26,12 +26,11 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
     name = 'Micromotion Compensation RDX'
 
     kernel_invariants = {
-        "freq_mod0_ftw", "freq_mod1_ftw", "freq_mode_ftw_list", "mode_list_idx"
+        "freq_mod0_ftw", "freq_mod1_ftw", "freq_mode_ftw_list", "mode_list_idx",
+        "att_mod0_mu", "att_mod1_mu",
         "dc_channel_axis_0_num", "dc_channel_axis_1_num", "dc_scan_range_volts_list", "time_dc_synchronize_delay_mu",
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu",
         "cxn", "dc"
-        # "time_rf_gating_mu",
-        # "time_rf_holdoff_mu"
     }
 
 
@@ -48,20 +47,20 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1394.3, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mod0_db",                NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1274.13, ndecimals=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mod0_db",                NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1634., ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mod1_db",                NumberValue(default=19, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1565.92, ndecimals=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([55, 75]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([45, 85]), group='voltages')
         self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 55]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=24, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
         self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
@@ -100,7 +99,7 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
                                                   np.sort(self.dc_scan_range_volts_axis_1)])
 
         # holdoff period after we set a voltage to allow it to settle
-        self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(888 * ms)
+        self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(988 * ms)
 
 
         '''
@@ -163,7 +162,8 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
 
     @property
     def results_shape(self):
-        return (self.iterations * self.repetitions_per_voltage * self.num_steps * 5,
+        # x2 for 2 voltage axes; x2 for 2 modes; x2 for safety
+        return (self.iterations * 2 * self.num_steps * self.repetitions_per_voltage * 2 * 2,
                 5)
 
 
@@ -171,31 +171,30 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
+
+        # set up labrad devices via RPC
+        self.prepareDevicesLabrad()
+        self.core.break_realtime()
         
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
-
-        with parallel:
-            # set cooling beams
-            with sequential:
-                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-                self.pump.set_profile(0)
-                self.pump.on()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
-
-            # set up DDS for modulation
-            self.dds_parametric.set_phase_absolute()
-
-            # set up labrad devices via RPC
-            self.prepareDevicesLabrad()
         self.core.break_realtime()
+
+        # set cooling beams
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+        self.pump.set_profile(0)
+        self.pump.on()
+        self.repump_cooling.on()
+        self.repump_qubit.on()
+
+        # set up DDS for modulation
+        self.dds_parametric.set_phase_absolute()
 
 
     @kernel(flags={"fast-math"})
     def run_main(self):
         """
-        todo: document
+        Main sequence of experiment.
         """
         # run given number of iterations
         for _iter_num in range(self.iterations):
@@ -208,23 +207,18 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-            # print iteration message
-            print("\n\tBEGIN: ITERATION #{:d}".format(_iter_num))
-            self.core.break_realtime()
-            delay_mu(1000000)
-
 
             '''
             SWEEP VOLTAGE AXIS 0
             '''
             # calculate voltage and set optima
-            self.predict_optima()
+            self.predict_optimum()
             self.core.break_realtime()
 
             # generate voltage vector array and scan
             voltage_scan_axis0_v_arr = self.prepare_voltage_scan(0)
             self.core.break_realtime()
-            self.scan_voltage_axis(self.att_mod0_mu,
+            self.scan_voltage_axis([self.att_mod0_mu, self.att_mod1_mu],
                                    self.dc_channel_axis_0_num,
                                    voltage_scan_axis0_v_arr)
             self.core.break_realtime()
@@ -238,13 +232,13 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
             SWEEP VOLTAGE AXIS 1
             '''
             # calculate voltage and set optima
-            self.predict_optima(_iter_num)
+            self.predict_optimum()
             self.core.break_realtime()
 
             # generate voltage vector array and scan
             voltage_scan_axis1_v_arr = self.prepare_voltage_scan(1)
             self.core.break_realtime()
-            self.scan_voltage_axis(self.att_mod1_mu,
+            self.scan_voltage_axis([self.att_mod0_mu, self.att_mod1_mu],
                                    self.dc_channel_axis_1_num,
                                    voltage_scan_axis1_v_arr)
             self.core.break_realtime()
@@ -259,18 +253,25 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
     HELPER FUNCTIONS
     '''
     @rpc
-    def predict_optima(self, voltage_axis: TInt32) -> TNone:
+    def predict_optimum(self) -> TNone:
         """
-        # todo: document
-        Arguments:
-            voltage_axis    (TInt32)    : the voltage axis to be swept.
+        Predict the location of the global micromotion optimum using
+        linear fits to the measured optima of each mode.
         """
+        # tmp remove
+        print("\t\tbegin predict optima")
+        # tmp remove
+
         # if more than 2 minima, fit line to extract optimum
         if self._host_sweep_counter >= 2:
             # only use relatively recent results to reduce errors
             idx_min = max(self._host_sweep_counter - 4, 0)
             idx_max = self._host_sweep_counter
             optima_tmp = self._host_opt_holder[idx_min:idx_max, :, :]
+
+            # tmp remove
+            print(optima_tmp)
+            # tmp remove
 
             # fit a line to the optimum for each mode
             fit_mode_0 = fitLineLinear(optima_tmp[:, 0])
@@ -288,11 +289,11 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         else:
             opt_v_axis_0 = np.mean(self.dc_scan_range_volts_list[0])
             opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
-        print('\tOptima: [{:.2f} V, {:.2f} V]'.format(opt_v_axis_0, opt_v_axis_1))
+        print('\t\tPredicted Optimum: [{:.2f} V, {:.2f} V]'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
-                or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[1, 1]):
+                or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1, 1]):
             raise Exception("Error: global optimum predicted to be outside valid scan range.")
 
         # set voltages to optimum
@@ -304,6 +305,10 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         self._host_voltage_optima_current = opt_v_arr
         self.mutate_dataset('global_optima', self._host_sweep_counter, opt_v_arr)
 
+        # tmp remove
+        print("\t\tend predict optima")
+        # tmp remove
+
     @rpc
     def prepare_voltage_scan(self, voltage_axis: TInt32) -> TArray(TFloat, 1):
         """
@@ -313,30 +318,40 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         Returns:
             TArray(TFloat, 1)   : an array of voltages to scan.
         """
+        print("\tBEGIN SWEEP: {:d}".format(self._host_sweep_counter))
+
         # if we have data, use relative difference between previous optima to set the scan range
         if self._host_sweep_counter >= 1:
             # get previous optima
             opt_prev_mode0 = self._host_opt_holder[self._host_sweep_counter - 1, 0]
             opt_prev_mode1 = self._host_opt_holder[self._host_sweep_counter - 1, 1]
             if voltage_axis == 0:
-                voltage_range = 0.8 * abs(opt_prev_mode0[1] - opt_prev_mode1[1])
+                voltage_range = 1.4 * abs(opt_prev_mode0[1] - opt_prev_mode1[1])
             else:
-                voltage_range = 0.8 * abs(opt_prev_mode0[0] - opt_prev_mode1[0])
+                voltage_range = 1.4 * abs(opt_prev_mode0[0] - opt_prev_mode1[0])
+
+            # ensure voltage range is greater than 2V to get sufficient excitation
+            voltage_range = max(voltage_range, 2.)
 
             # set voltage scan range
             voltage_max_v = self._host_voltage_optima_current[voltage_axis] + 0.5 * voltage_range
             voltage_min_v = self._host_voltage_optima_current[voltage_axis] - 0.5 * voltage_range
 
-        # otherwise, simply set the voltage range as the bounds
+        # otherwise, simply set the voltage range as half the bounds
         else:
             voltage_min_v, voltage_max_v = self.dc_scan_range_volts_list[voltage_axis]
+            voltage_center = 0.5 * (voltage_max_v + voltage_min_v)
+            voltage_range = 0.5 * (voltage_max_v - voltage_min_v)
+            voltage_max_v = voltage_center + 0.5 * voltage_range
+            voltage_min_v = voltage_center - 0.5 * voltage_range
 
         # todo: adjust attenuation based on correlated amplitude
 
         # ensure voltages are within bounds
         voltage_max_v = min(self.dc_scan_range_volts_list[voltage_axis, 1], voltage_max_v)
         voltage_min_v = max(self.dc_scan_range_volts_list[voltage_axis, 0], voltage_min_v)
-        print('\n\t\tVoltage Scan (Axis {:d}): [{:.2f}, {:.2f}]'.format(voltage_axis, voltage_min_v, voltage_max_v))
+        # todo: print name IN ADDITION TO axis
+        print('\t\tVoltage Scan Range (Axis {:d}): [{:.2f}, {:.2f}]'.format(voltage_axis, voltage_min_v, voltage_max_v))
 
         # create voltage scan array
         voltage_scan_arr = np.linspace(voltage_min_v, voltage_max_v, self.num_steps)
@@ -362,7 +377,14 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
 
             # scan voltage configurations in the voltage vector
             for voltage_v in voltage_scan_v_arr:
-                
+
+                # set DC voltage and synchronize hardware clock with timeline
+                self.voltage_set(dc_channel_num, voltage_v)
+                self.core.wait_until_mu(now_mu())
+                # add extra delay for voltages to settle
+                delay_mu(self.time_dc_synchronize_delay_mu)
+
+                # get parametric excitation data for both modes
                 for mode_idx in self.mode_list_idx:
 
                     # extract values
@@ -374,12 +396,6 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
                     self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf,
                                                profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
                     self.core.break_realtime()
-
-                    # set DC voltage and synchronize hardware clock with timeline
-                    self.voltage_set(dc_channel_num, voltage_v)
-                    self.core.wait_until_mu(now_mu())
-                    # add extra delay for voltages to settle
-                    delay_mu(self.time_dc_synchronize_delay_mu)
 
                     # run parametric excitation and get timestamps
                     pmt_timestamp_list = self.parametric_subsequence.run()
@@ -434,6 +450,9 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
             voltage_axis    (TInt32): the voltage axis that was swept.
         """
         # tmp remove
+        print("\t\tbegin process optimum")
+        # tmp remove
+
         opt_res_store = []
 
         # process optima for each mode
@@ -446,7 +465,7 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
             # note: sort is necessary here since groupby requires key/values to be contiguous
             res_arr_tmp = res_arr[np.argsort(res_arr[:, 1])]
             res_arr_tmp = np.array([
-                [np.mean(np.array([val for val in group]), axis=0)]
+                np.mean(np.array([val for val in group]), axis=0)
                 for key, group in groupby(res_arr_tmp, lambda arr: arr[1])
             ])
 
@@ -455,14 +474,15 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
                 res_arr_tmp[:, 1],
                 res_arr_tmp[:, 2] * np.exp(1.j * res_arr_tmp[:, 3])
             ], dtype='complex128').transpose()
-            # sort results by voltage
+            # sort results by voltage (again)
             results_tmp = results_tmp[np.argsort(results_tmp[:, 1], axis=0)]
 
             # extract minimum mode voltage
             opt_voltage_v, opt_voltage_err = complexLinearFitMinimize(results_tmp)
 
             # check optima for errors
-            if (opt_voltage_v < self.dc_scan_range_volts_list[mode_idx, 0]) or (opt_voltage_v > self.dc_scan_range_volts_list[mode_idx, 1]):
+            if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
+                    (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis, 1])):
                 raise Exception("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:
                 raise Exception("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
@@ -476,7 +496,8 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
                 opt_v_vector = np.array([opt_v_mode0, opt_voltage_v])
 
             # store results in host holders
-            print("\t\tMode {:d} Opt: {:.2f} +/- {:.3f} V".format(mode_idx, opt_voltage_v, opt_voltage_err))
+            # todo: say which voltage rod is being used instead of e.g. axis0
+            print("\t\tMode {:d} Opt. (Axis {:d}): {:.2f} +/- {:.3f} V".format(mode_idx, voltage_axis, opt_voltage_v, opt_voltage_err))
             self._host_opt_holder[self._host_sweep_counter, mode_idx, :] = opt_v_vector
             opt_res_store.append(np.array([*opt_v_vector, opt_voltage_err]))
 
@@ -487,6 +508,10 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         self._host_demod_holder[:] = 0.
         self._host_demod_holder_idx[:] = 0
         self._host_sweep_counter += 1
+
+        # tmp remove
+        print("\t\tend process optimum")
+        # tmp remove
 
 
     # ANALYZE EXPERIMENT

@@ -26,6 +26,7 @@ class DDSParametric(LAXDevice):
         self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
         # break out AD9910 attributes/devices
         self.sw = self.dds.sw
+        self.cpld = self.dds.cpld
 
     @kernel(flags={"fast-math"})
     def initialize_device(self):

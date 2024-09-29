@@ -137,25 +137,24 @@ class ParametricSweep(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
+        # set up labrad devices via RPC
+        self.prepareDevicesLabrad()
+        self.core.break_realtime()
+
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
+        self.core.break_realtime()
 
-        with parallel:
-            # set cooling beams
-            with sequential:
-                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-                self.pump.set_profile(0)
-                self.pump.on()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
+        # set cooling beams
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+        self.pump.set_profile(0)
+        self.pump.on()
+        self.repump_cooling.on()
+        self.repump_qubit.on()
 
-            # set up DDS for modulation
-            with sequential:
-                self.dds_parametric.set_att_mu(self.att_modulation_mu)
-                self.dds_parametric.set_phase_absolute()
-
-            # set up labrad devices via RPC
-            self.prepareDevicesLabrad()
+        # set up DDS for modulation
+        self.dds_parametric.set_att_mu(self.att_modulation_mu)
+        self.dds_parametric.set_phase_absolute()
         self.core.break_realtime()
 
         # do check to verify that mirror is flipped to mirror
