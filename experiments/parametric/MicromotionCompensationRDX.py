@@ -16,14 +16,14 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: set kernel invariants
 
 
-class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
+class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
-    Experiment: Micromotion Compensation RDX
+    Experiment: Micromotion Compensation
 
     Characterize the micromotion along a mode by applying a parametric excitation on the
     trap RF while scanning shim voltages, then attempt to algorithmically compensate for it.
     """
-    name = 'Micromotion Compensation RDX'
+    name = 'Micromotion Compensation'
 
     kernel_invariants = {
         "freq_mod0_ftw", "freq_mod1_ftw", "freq_mode_ftw_list", "mode_list_idx",
@@ -162,8 +162,8 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
 
     @property
     def results_shape(self):
-        # x2 for 2 voltage axes; x2 for 2 modes; x2 for safety
-        return (self.iterations * 2 * self.num_steps * self.repetitions_per_voltage * 2 * 2,
+        # x2 for 2 voltage axes; x2 for 2 modes
+        return (self.iterations * 2 * self.num_steps * self.repetitions_per_voltage * 2,
                 5)
 
 
@@ -258,10 +258,6 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         Predict the location of the global micromotion optimum using
         linear fits to the measured optima of each mode.
         """
-        # tmp remove
-        print("\t\tbegin predict optima")
-        # tmp remove
-
         # if more than 2 minima, fit line to extract optimum
         if self._host_sweep_counter >= 2:
             # only use relatively recent results to reduce errors
@@ -304,10 +300,6 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         opt_v_arr = np.array([opt_v_axis_0, opt_v_axis_1])
         self._host_voltage_optima_current = opt_v_arr
         self.mutate_dataset('global_optima', self._host_sweep_counter, opt_v_arr)
-
-        # tmp remove
-        print("\t\tend predict optima")
-        # tmp remove
 
     @rpc
     def prepare_voltage_scan(self, voltage_axis: TInt32) -> TArray(TFloat, 1):
@@ -449,10 +441,6 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         Arguments:
             voltage_axis    (TInt32): the voltage axis that was swept.
         """
-        # tmp remove
-        print("\t\tbegin process optimum")
-        # tmp remove
-
         opt_res_store = []
 
         # process optima for each mode
@@ -508,10 +496,6 @@ class MicromotionCompensationRDX(ParametricSweep.ParametricSweep, Experiment):
         self._host_demod_holder[:] = 0.
         self._host_demod_holder_idx[:] = 0
         self._host_sweep_counter += 1
-
-        # tmp remove
-        print("\t\tend process optimum")
-        # tmp remove
 
 
     # ANALYZE EXPERIMENT
