@@ -39,10 +39,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                 NumberValue(default=5, ndecimals=0, step=1, min=1, max=10))
+        self.setattr_argument("iterations",                 NumberValue(default=2, ndecimals=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='configuration')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, ndecimals=0, step=1, min=1, max=100), group='configuration')
         self.setattr_argument("num_steps",                  NumberValue(default=10, ndecimals=0, step=1, min=5, max=100), group='configuration')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
@@ -51,7 +51,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("att_mod0_db",                NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
         self.setattr_argument("freq_mod1_khz",              NumberValue(default=1565.92, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mod1_db",                NumberValue(default=15, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=14, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
@@ -247,6 +247,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             self.process_optimum(1)
             self.core.break_realtime()
 
+        # run predict_optimum one more time to conclude
+        self.predict_optimum()
 
 
     '''
@@ -258,6 +260,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         Predict the location of the global micromotion optimum using
         linear fits to the measured optima of each mode.
         """
+        print("\tBEGIN SWEEP: {:d}".format(self._host_sweep_counter))
+
         # if more than 2 minima, fit line to extract optimum
         if self._host_sweep_counter >= 2:
             # only use relatively recent results to reduce errors
@@ -265,17 +269,17 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             idx_max = self._host_sweep_counter
             optima_tmp = self._host_opt_holder[idx_min:idx_max, :, :]
 
-            # tmp remove
-            print(optima_tmp)
-            # tmp remove
-
             # fit a line to the optimum for each mode
             fit_mode_0 = fitLineLinear(optima_tmp[:, 0])
             fit_mode_1 = fitLineLinear(optima_tmp[:, 1])
+            # print(fit_mode_0)
+            # print(fit_mode_1)
 
             # calculate optima as intersection of the fit lines
-            opt_v_axis_0 = (fit_mode_0[1] * fit_mode_1[0] + fit_mode_0[0]) / (1. - fit_mode_0[1] * fit_mode_1[1])
-            opt_v_axis_1 = (fit_mode_1[1] * fit_mode_0[0] + fit_mode_1[0]) / (1. - fit_mode_0[1] * fit_mode_1[1])
+            # opt_v_axis_0 = (fit_mode_0[1] * fit_mode_1[0] + fit_mode_0[0]) / (1. - fit_mode_0[1] * fit_mode_1[1])
+            # opt_v_axis_1 = (fit_mode_1[1] * fit_mode_0[0] + fit_mode_1[0]) / (1. - fit_mode_0[1] * fit_mode_1[1])
+            opt_v_axis_0 = - (fit_mode_1[0] - fit_mode_0[0]) / (fit_mode_1[1] - fit_mode_0[1])
+            opt_v_axis_1 = (fit_mode_1[1] * fit_mode_0[0] - fit_mode_0[1] * fit_mode_1[0]) / (fit_mode_1[1] - fit_mode_0[1])
 
         # if we only have 1 sweep, set optima as mean of previous sweep
         elif self._host_sweep_counter == 1:
@@ -287,11 +291,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
         print('\t\tPredicted Optimum: [{:.2f} V, {:.2f} V]'.format(opt_v_axis_0, opt_v_axis_1))
 
-        # ensure voltages are within bounds
+        # ensure voltages are within bounds before we set them
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
                 or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1, 1]):
             raise Exception("Error: global optimum predicted to be outside valid scan range.")
-
         # set voltages to optimum
         self.voltage_set(self.dc_channel_axis_0_num, opt_v_axis_0)
         self.voltage_set(self.dc_channel_axis_1_num, opt_v_axis_1)
@@ -310,8 +313,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         Returns:
             TArray(TFloat, 1)   : an array of voltages to scan.
         """
-        print("\tBEGIN SWEEP: {:d}".format(self._host_sweep_counter))
-
         # if we have data, use relative difference between previous optima to set the scan range
         if self._host_sweep_counter >= 1:
             # get previous optima
@@ -343,7 +344,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         voltage_max_v = min(self.dc_scan_range_volts_list[voltage_axis, 1], voltage_max_v)
         voltage_min_v = max(self.dc_scan_range_volts_list[voltage_axis, 0], voltage_min_v)
         # todo: print name IN ADDITION TO axis
-        print('\t\tVoltage Scan Range (Axis {:d}): [{:.2f}, {:.2f}]'.format(voltage_axis, voltage_min_v, voltage_max_v))
+        print('\t\tVoltage Scan Range (Axis {:d}): {:.2f} => {:.2f}'.format(voltage_axis, voltage_min_v, voltage_max_v))
 
         # create voltage scan array
         voltage_scan_arr = np.linspace(voltage_min_v, voltage_max_v, self.num_steps)
@@ -467,6 +468,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
             # extract minimum mode voltage
             opt_voltage_v, opt_voltage_err = complexLinearFitMinimize(results_tmp)
+            # todo: say which voltage rod is being used instead of e.g. axis0
+            print("\t\tMode {:d} Opt. (Axis {:d}): {:.2f} +/- {:.3f} V".format(mode_idx, voltage_axis,
+                                                                               opt_voltage_v, opt_voltage_err))
 
             # check optima for errors
             if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
@@ -484,8 +488,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                 opt_v_vector = np.array([opt_v_mode0, opt_voltage_v])
 
             # store results in host holders
-            # todo: say which voltage rod is being used instead of e.g. axis0
-            print("\t\tMode {:d} Opt. (Axis {:d}): {:.2f} +/- {:.3f} V".format(mode_idx, voltage_axis, opt_voltage_v, opt_voltage_err))
             self._host_opt_holder[self._host_sweep_counter, mode_idx, :] = opt_v_vector
             opt_res_store.append(np.array([*opt_v_vector, opt_voltage_err]))
 
