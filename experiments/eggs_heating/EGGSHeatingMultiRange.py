@@ -191,14 +191,14 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         for i in range(int(self.num_scan_ranges)):
             # programmatically retrieve relevant attributes
             freq_list =     np.array(list(getattr(self, "freq_eggs_heating_carrier_mhz_list_{:d}".format(i))))
-            ampl_rsb =      getattr(self, "ampl_eggs_heating_rsb_pct_{:d}".format(i))
-            ampl_bsb =      getattr(self, "ampl_eggs_heating_bsb_pct_{:d}".format(i))
-            ampl_carrier =  getattr(self, "ampl_eggs_dynamical_decoupling_pct_{:d}".format(i))
+            ampl_rsb_pct =      getattr(self, "ampl_eggs_heating_rsb_pct_{:d}".format(i))
+            ampl_bsb_pct =      getattr(self, "ampl_eggs_heating_bsb_pct_{:d}".format(i))
+            ampl_carrier_pct = getattr(self, "ampl_eggs_dynamical_decoupling_pct_{:d}".format(i))
 
             # create configuration array and append to holder
             tmp = np.zeros((len(freq_list), 4))
             tmp[:, 0] = freq_list
-            tmp[:, 1:] = np.array([ampl_rsb, ampl_bsb, ampl_carrier])
+            tmp[:, 1:] = np.array([ampl_rsb_pct, ampl_bsb_pct, ampl_carrier_pct]) / 100.
             eggs_freq_ampl_list_holder.append(tmp)
 
         # configure list of EGGS carrier frequencies per user input
@@ -307,9 +307,11 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         # configure phase-shift keying for dynamical decoupling
         self._prepare_psk()
 
+        # tmp remove
         self.set_dataset("config", self.config_eggs_heating_list)
-        print(self.config_eggs_heating_list)
+        # print(self.config_eggs_heating_list)
         # raise Exception("stop here")
+        # tmp remove
 
     def _prepare_pulseshape(self):
         """
