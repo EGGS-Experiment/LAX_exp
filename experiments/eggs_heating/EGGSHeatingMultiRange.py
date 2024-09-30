@@ -263,6 +263,9 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
 
+        # precalculate length of configuration list here to reduce run-time overhead
+        self.num_configs = len(self.config_eggs_heating_list)
+
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
         # interpolate calibration dataset

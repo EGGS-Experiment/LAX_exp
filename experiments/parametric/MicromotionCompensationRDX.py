@@ -14,7 +14,7 @@ from os import environ
 from EGGS_labrad.config.dc_config import dc_config
 
 # todo: retrieve initial mode vector guesses from dataset_db so we don't waste two sweeps
-
+# todo: actually make adaptive option usable
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
@@ -416,17 +416,17 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             dc_channel_num      (TInt32)            : the voltage channel number to be scanned.
             voltage_scan_v_arr  (TArray(TFloat, 1)) : the list of voltages to scan.
         """
-        # iterate over repetitions per voltage
-        for rep_num in range(self.repetitions_per_voltage):
+        # scan voltage configurations in the voltage vector
+        for voltage_v in voltage_scan_v_arr:
 
-            # scan voltage configurations in the voltage vector
-            for voltage_v in voltage_scan_v_arr:
+            # set DC voltage and synchronize hardware clock with timeline
+            self.voltage_set(dc_channel_num, voltage_v)
+            self.core.wait_until_mu(now_mu())
+            # add extra delay for voltages to settle
+            delay_mu(self.time_dc_synchronize_delay_mu)
 
-                # set DC voltage and synchronize hardware clock with timeline
-                self.voltage_set(dc_channel_num, voltage_v)
-                self.core.wait_until_mu(now_mu())
-                # add extra delay for voltages to settle
-                delay_mu(self.time_dc_synchronize_delay_mu)
+            # iterate over repetitions
+            for rep_num in range(self.repetitions_per_voltage):
 
                 # get parametric excitation data for both modes
                 for mode_idx in self.mode_list_idx:
@@ -448,13 +448,13 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                     self._demodulate_counts(mode_idx, mode_freq_ftw, voltage_v, pmt_timestamp_list)
                     self.core.reset()
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(rep_num)
+                # rescue ion as needed
+                self.rescue_subsequence.run(rep_num)
 
-            # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+                # support graceful termination
+                with parallel:
+                    self.check_termination()
+                    self.core.break_realtime()
 
     @rpc
     def _demodulate_counts(self, mode_idx: TInt32, freq_mu: TInt32, voltage_v: TFloat,
