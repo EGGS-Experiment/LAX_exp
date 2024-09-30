@@ -14,6 +14,9 @@ from os import environ
 from EGGS_labrad.config.dc_config import dc_config
 
 # todo: set kernel invariants
+# todo: retrieve initial mode vector guesses from dataset_db so we don't waste two sweeps
+# todo: adjust attenuation adaptively
+# todo: reduce the number of holders we use; combine - maybe only need the dataset and don't need others?
 
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
@@ -42,16 +45,16 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("iterations",                 NumberValue(default=2, ndecimals=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, ndecimals=0, step=1, min=1, max=100), group='configuration')
-        self.setattr_argument("num_steps",                  NumberValue(default=10, ndecimals=0, step=1, min=5, max=100), group='configuration')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='configuration')
+        self.setattr_argument("num_steps",                  NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='configuration')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
         self.setattr_argument("freq_mod0_khz",              NumberValue(default=1274.13, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mod0_db",                NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("att_mod0_db",                NumberValue(default=19, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
         self.setattr_argument("freq_mod1_khz",              NumberValue(default=1565.92, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mod1_db",                NumberValue(default=14, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=13, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
@@ -131,7 +134,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         DATA STRUCTURES
         '''
         # tmp remove
-        self.set_dataset('global_optima', np.zeros((self.iterations * 2, 2), dtype=float))
+        self.set_dataset('global_optima', np.zeros((self.iterations * 2 + 1, 2), dtype=float))
         self.setattr_dataset('global_optima')
         # tmp remove
 
@@ -272,8 +275,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # fit a line to the optimum for each mode
             fit_mode_0 = fitLineLinear(optima_tmp[:, 0])
             fit_mode_1 = fitLineLinear(optima_tmp[:, 1])
-            # print(fit_mode_0)
-            # print(fit_mode_1)
 
             # calculate optima as intersection of the fit lines
             # opt_v_axis_0 = (fit_mode_0[1] * fit_mode_1[0] + fit_mode_0[0]) / (1. - fit_mode_0[1] * fit_mode_1[1])
@@ -289,7 +290,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         else:
             opt_v_axis_0 = np.mean(self.dc_scan_range_volts_list[0])
             opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
-        print('\t\tPredicted Optimum: [{:.2f} V, {:.2f} V]'.format(opt_v_axis_0, opt_v_axis_1))
+        print('\t\tPredicted Optimum: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds before we set them
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
