@@ -217,7 +217,8 @@ class EGGSHeating(LAXExperiment, Experiment):
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
         # interpolate calibration dataset
         # note: we choose 1D interpolator since it ensures smoothness at each point
-        ampl_calib_points = self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
+        # ampl_calib_points = self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
+        ampl_calib_points = 1/2*np.sin(np.linspace(70*MHz, 90*MHz, int(1e4)))+1/2
         # ensure transmission curve is normalized
         ampl_calib_points[:, 1] /= np.max(ampl_calib_points[:, 1])
         # interpolate curve
