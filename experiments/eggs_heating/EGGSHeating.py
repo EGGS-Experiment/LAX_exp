@@ -20,8 +20,8 @@ class EGGSHeating(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
-        self.setattr_argument("randomize_config", BooleanValue(default=True))
+        self.setattr_argument("repetitions", NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config", BooleanValue(default=False))
         self.setattr_argument("sub_repetitions", NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
         # get subsequences
@@ -34,7 +34,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
             default=[
-                RangeScan(84.65, 84.95, 100, randomize=False),
+                RangeScan(81, 88, 300, randomize=False),
                 ExplicitScan([3.]),
                 ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                 CenterScan(83.20175, 0.05, 0.0005, randomize=True),
@@ -44,7 +44,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
             default=[
-                ExplicitScan([1113.81]),
+                ExplicitScan([500]),
                 CenterScan(777.5, 4, 0.1, randomize=True),
                 ExplicitScan([767.2, 319.2, 1582, 3182]),
             ],
@@ -55,14 +55,14 @@ class EGGSHeating(LAXExperiment, Experiment):
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list", Scannable(
             default=[
-                ExplicitScan([127.1]),
+                ExplicitScan([12.1]),
                 RangeScan(0, 1500, 100, randomize=True),
             ],
             global_min=1, global_max=100000, global_step=1,
             unit="us", scale=1, ndecimals=5
         ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("time_eggs_heating_ms",
-                              NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000),
+                              NumberValue(default=20, ndecimals=5, step=1, min=0.000001, max=100000),
                               group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list", Scannable(
             default=[
@@ -77,15 +77,15 @@ class EGGSHeating(LAXExperiment, Experiment):
                               group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("enable_amplitude_calibration", BooleanValue(default=False),
+        self.setattr_argument("enable_amplitude_calibration", BooleanValue(default=True),
                               group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db", NumberValue(default=14., ndecimals=1, step=0.5, min=0, max=31.5),
+        self.setattr_argument("att_eggs_heating_db", NumberValue(default=21., ndecimals=1, step=0.5, min=0, max=31.5),
                               group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",
-                              NumberValue(default=38., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",
-                              NumberValue(default=43., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling", BooleanValue(default=True),
@@ -183,30 +183,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.config_eggs_heating_list[:, [3, 4, 5]] = np.array([self.ampl_eggs_heating_rsb_pct,
                                                                 self.ampl_eggs_heating_bsb_pct,
                                                                 self.ampl_eggs_dynamical_decoupling_pct]) / 100.
-        # if self.enable_amplitude_calibration:
-        #     try:
-        #         DATASET_KEY_QUADRUPOLE = "calibration.eggs.scaling_coeffs_quadrupole"
-        #         DATASET_KEY_DIPOLE = "calibration.eggs.scaling_coeffs_dipole"
-        #         scaling_coeffs_quadrupole = self.get_dataset(DATASET_KEY_QUADRUPOLE)
-        #         scaling_coeffs_dipole = self.get_dataset(DATASET_KEY_DIPOLE)
-        #         scaling_coeffs_quadrupole_keys = np.array(list(scaling_coeffs_quadrupole.keys()))
-        #         scaling_coeffs_dipole_keys = np.array(list(scaling_coeffs_dipole.keys()))
-        #         scaling_coeffs_quadrupole_vals = np.array(list(scaling_coeffs_quadrupole.items()))
-        #         scaling_coeffs_dipole_vals = np.array(list(scaling_coeffs_dipole.items()))
-        #
-        #         ampl_calib_curve_quadrupole = Akima1DInterpolator(scaling_coeffs_quadrupole_keys, scaling_coeffs_quadrupole_vals)
-        #         ampl_calib_curve_dipole = Akima1DInterpolator(scaling_coeffs_dipole_keys, scaling_coeffs_dipole_vals)
-        #         for idx, secular_freq_val_hz in enumerate(self.config_eggs_heating_list[:,1]):
-        #             carrier_freq_val_hz = self.config_eggs_heating_list[idx, 2]
-        #             rsb_key = scaling_coeffs_quadrupole_keys[np.argmin(scaling_coeffs_quadrupole_keys - (carrier_freq_val_hz - secular_freq_val_hz))]
-        #             bsb_key = scaling_coeffs_quadrupole_keys[np.argmin(scaling_coeffs_quadrupole_keys - (carrier_freq_val_hz + secular_freq_val_hz))]
-        #             carrier_key = scaling_coeffs_dipole_keys[np.argmin(scaling_coeffs_dipole_keys - carrier_freq_val_hz)]
-        #
-        #             self.config_eggs_heating_list[idx, 3] *= scaling_coeffs_quadrupole[rsb_key]
-        #             self.config_eggs_heating_list[idx, 4] *= scaling_coeffs_quadrupole[bsb_key]
-        #             self.config_eggs_heating_list[idx, 5] *= scaling_coeffs_quadrupole[carrier_key]
-        #     except Exception as e:
-        #         print("Exception occurred")
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
@@ -218,21 +194,14 @@ class EGGSHeating(LAXExperiment, Experiment):
         # interpolate calibration dataset
         # note: we choose 1D interpolator since it ensures smoothness at each point
         # ampl_calib_points = self.get_dataset('calibration.eggs.transmission.resonance_ratio_curve_mhz')
-        ampl_calib_points = 1/2*np.sin(np.linspace(70*MHz, 90*MHz, int(1e4)))+1/2
+        freq_arr = np.linspace(80*MHz, 90*MHz, num=int(1e4))
+        ampl_calib_points = np.zeros((len(freq_arr),2))
+        ampl_calib_points[:,0] = freq_arr
+        ampl_calib_points[:,1] = 2/(1/2*np.exp(-((freq_arr-85*MHz) / (2*MHz))**2)+1/2)
         # ensure transmission curve is normalized
-        ampl_calib_points[:, 1] /= np.max(ampl_calib_points[:, 1])
+        ampl_calib_points[:, 1] = ampl_calib_points[:, 1] / np.max(ampl_calib_points[:, 1])
         # interpolate curve
         ampl_calib_curve = Akima1DInterpolator(ampl_calib_points[:, 0], ampl_calib_points[:, 1])
-        ampl_calib_roi_rsb = ampl_calib_curve(self.config_eggs_heating_list[:, 1] - self.config_eggs_heating_list[:, 2],
-                                              extrapolate=True)
-        ampl_calib_roi_bsb = ampl_calib_curve(self.config_eggs_heating_list[:, 1] + self.config_eggs_heating_list[:, 2],
-                                              extrapolate=True)
-
-        ampl_calib_roi_carrier = ampl_calib_curve(self.config_eggs_heating_list[:, 1],
-                                                  extrapolate=True)
-        ampl_calib_rsb_median = np.median(ampl_calib_roi_rsb)
-        ampl_calib_bsb_median = np.median(ampl_calib_roi_bsb)
-        ampl_calib_carrier_median = np.median(ampl_calib_roi_carrier)
 
         # TMP REMOVE: MAKE SURE SIDEBAND AMPLITUDES ARE SCALED CORRECTLY FOLLOWING USER INPUT SPECS
         # todo: move to a phaser internal function
@@ -240,23 +209,21 @@ class EGGSHeating(LAXExperiment, Experiment):
         if self.enable_amplitude_calibration:
             for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
                 # convert frequencies to absolute units in MHz
-                rsb_freq_mhz, bsb_freq_mhz = (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
+                rsb_freq_hz, bsb_freq_hz = (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz)
                 # get normalized transmission through system
-                transmitted_power_frac = ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz, carrier_freq_hz])
-                # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-                # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
-                # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-                # scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-                #                                                  ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
+
+                transmitted_power_frac = ampl_calib_curve([rsb_freq_hz, bsb_freq_hz, carrier_freq_hz])
+
+                # scale amplitude based on transmission curve -> lower transmission means increase amplitude
                 scaled_power_pct = (np.array([self.ampl_eggs_heating_rsb_pct, self.ampl_eggs_heating_bsb_pct,
                                               self.ampl_eggs_dynamical_decoupling_pct]) *
-                                    np.array([ampl_calib_rsb_median / transmitted_power_frac[0],
-                                              ampl_calib_bsb_median / transmitted_power_frac[1],
-                                              ampl_calib_carrier_median / transmitted_power_frac[2]]))
-
+                                    np.array([1 / (transmitted_power_frac[0] + 1e-6),
+                                              1 / (transmitted_power_frac[1] + 1e-6),
+                                              1 / (transmitted_power_frac[2] + 1e-6)]))
+                # enusre total amplitudes do not sum to more than 99%
                 if np.sum(scaled_power_pct) > 99:
-                    scaled_power_pct *= 99 / np.sum(scaled_power_pct)
+                    scaled_power_pct = scaled_power_pct * (99 / np.sum(scaled_power_pct))
+
 
                 # update configs and convert amplitude to frac
                 self.config_eggs_heating_list[i, [3, 4, 5]] = np.array([scaled_power_pct[0],
