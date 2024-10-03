@@ -9,6 +9,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
+import pandas as pd
 
 
 class EGGSHeatingMultiTone(LAXExperiment, Experiment):
@@ -29,12 +30,14 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         self.setattr_argument("randomize_config", BooleanValue(default=True))
         self.setattr_argument("sub_repetitions", NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
 
-        # get subsequences
-        self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence = SidebandReadout(self)
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
+
+
+        # # get subsequences
+        # self.initialize_subsequence = InitializeQubit(self)
+        # self.sidebandcool_subsequence = SidebandCoolContinuous(self)
+        # self.sidebandreadout_subsequence = SidebandReadout(self)
+        # self.readout_subsequence = Readout(self)
+        # self.rescue_subsequence = RescueIon(self)
 
         # EGGS RF
         self.setattr_argument("scan_configuration", EnumerationValue(["Normal", "Randomize"], default="Normal"),
@@ -92,25 +95,34 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             unit="MHz", scale=1, ndecimals=6
         ), group='EGGS_Heating.frequencies')
 
-        self.setattr_argument("freq_eggs_heating_secular_khz", NumberValue(
-            default=777.5,
-            min=0, max=10000, step=1,
+        self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
+            default=[
+                ExplicitScan([777.5]),
+                CenterScan(777.5, 4, 0.1, randomize=True),
+                ExplicitScan([767.2, 319.2, 1582, 3182]),
+            ],
+            global_min=0, global_max=10000, global_step=1,
             unit="kHz", scale=1, ndecimals=3
         ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_readout_us", NumberValue(
-            default=98.8,
-            min=1, max=100000, step=1,
+        self.setattr_argument("time_readout_us_list", Scannable(
+            default=[
+                ExplicitScan([98.8]),
+                RangeScan(0, 1500, 100, randomize=True),],
+            global_min=1, global_max=100000, global_step=1,
             unit="us", scale=1, ndecimals=5
         ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("time_eggs_heating_ms",
                               NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000),
                               group='EGGS_Heating.waveform.time_phase')
 
-        self.setattr_argument("phase_eggs_heating_turns", NumberValue(
-            default=0.,
-            min=0.0, max=1.0, step=1,
+        self.setattr_argument("phase_eggs_heating_turns_list", Scannable(
+            default=[
+                ExplicitScan([0.]),
+                RangeScan(0, 1.0, 9, randomize=True),
+            ],
+            global_min=0.0, global_max=1.0, global_step=1,
             unit="turns", scale=1, ndecimals=3
         ), group='EGGS_Heating.waveform.time_phase')
 
@@ -152,13 +164,13 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                               group='EGGS_Heating.pulse_shaping')
 
         # # get relevant devices
-        self.setattr_device("qubit")
-        self.setattr_device('phaser_eggs')
-        #
-        # # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
-        self.setattr_device('ttl10')
+        # self.setattr_device("qubit")
+        # self.setattr_device('phaser_eggs')
+        # #
+        # # # tmp remove
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
+        # self.setattr_device('ttl10')
         # # tmp remove
 
     def prepare_experiment(self):
@@ -166,6 +178,8 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         Prepare experimental values.
         """
         self.num_configs = 1
+
+        print(self.ampl_eggs_heating_tone_pct_1)
 
         if (self.ampl_eggs_heating_tone_pct_0 + self.ampl_eggs_heating_tone_pct_1 + self.ampl_eggs_heating_tone_pct_2 +
             self.ampl_eggs_heating_tone_pct_3 + self.ampl_eggs_heating_tone_pct_4) > 99.:
@@ -178,19 +192,21 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         '''SUBSEQUENCE PARAMETERS'''
 
         # get readout values
-        self.freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+        self.freq_sideband_readout_ftw_list = np.array([100,110])
+        # self.freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
         self.freq_sideband_readout_ftw_list = np.array(list(self.freq_sideband_readout_ftw_list))
-        self.time_readout_mu = self.core.seconds_to_mu(self.time_readout_us * us)
+        self.time_readout_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                              for time_us in self.time_readout_us_list])
 
         '''EGGS HEATING - TIMING'''
         self.time_eggs_heating_mu = self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
 
         # ensure eggs heating time is a multiple of the phaser sample period
         # note: 1 frame period = 4 ns/clock * 8 clock cycles * 10 words = 320ns
-        if self.time_eggs_heating_mu % self.phaser_eggs.t_sample_mu:
-            # round eggs heating time up to the nearest multiple of phaser frame period
-            t_sample_multiples = round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
-            self.time_eggs_heating_mu = np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
+        # if self.time_eggs_heating_mu % self.phaser_eggs.t_sample_mu:
+        #     # round eggs heating time up to the nearest multiple of phaser frame period
+        #     t_sample_multiples = round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
+        #     self.time_eggs_heating_mu = np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
         # add delay time after EGGS pulse to allow RF servo to re-lock
         self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
@@ -198,16 +214,22 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
-        self.phase_ch1_turns = np.float(0)
+        self.phase_ch1_turns = np.float64(0)
         self.phase_phaser_turns_arr = np.zeros((2, 5), dtype=float)
 
         '''EGGS HEATING - CONFIG'''
 
         # convert build arguments to appropriate values and format as numpy arrays
-        self.freq_eggs_secular_hz = self.freq_eggs_heating_secular_khz * kHz
+        self.freq_eggs_secular_hz_list = np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
+        self.phase_eggs_heating_turns_list = np.array(list(self.phase_eggs_heating_turns_list))
 
         # create config data structure with amplitude values
-        self.config_eggs_heating_list = np.zeros((max_freq_length,10), dtype=float)
+        self.config_eggs_heating_list = np.zeros((len(self.freq_sideband_readout_ftw_list) *
+                                                  max_freq_length *
+                                                  len(self.freq_eggs_secular_hz_list) *
+                                                  len(self.phase_eggs_heating_turns_list) *
+                                                  len(self.time_readout_mu_list),
+                                                  14), dtype=float)
 
 
         # pad frequency ranges that are shorter than the the longest frequency range
@@ -227,31 +249,47 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                                                       np.zeros(
                                                           max_freq_length - len(self.freq_eggs_heating_mhz_list_4)))
 
+        self.ampl_eggs_heating_tone_pct_0_list = (self.freq_eggs_heating_mhz_list_0_padded > 0) * self.ampl_eggs_heating_tone_pct_0
+        self.ampl_eggs_heating_tone_pct_1_list = (self.freq_eggs_heating_mhz_list_1_padded > 0) * self.ampl_eggs_heating_tone_pct_1
+        self.ampl_eggs_heating_tone_pct_2_list = (self.freq_eggs_heating_mhz_list_2_padded > 0)* self.ampl_eggs_heating_tone_pct_2
+        self.ampl_eggs_heating_tone_pct_3_list = (self.freq_eggs_heating_mhz_list_3_padded > 0)* self.ampl_eggs_heating_tone_pct_3
+        self.ampl_eggs_heating_tone_pct_4_list = (self.freq_eggs_heating_mhz_list_4_padded > 0)* self.ampl_eggs_heating_tone_pct_4
+
         self.freq_eggs_heating_hz_list_0_padded = np.array(list(self.freq_eggs_heating_mhz_list_0_padded)) * MHz
         self.diff_freqs_hz_1 = (self.freq_eggs_heating_mhz_list_1_padded - self.freq_eggs_heating_mhz_list_0_padded) * MHz
         self.diff_freqs_hz_2 = (self.freq_eggs_heating_mhz_list_2_padded  - self.freq_eggs_heating_mhz_list_0_padded) * MHz
         self.diff_freqs_hz_3 = (self.freq_eggs_heating_mhz_list_3_padded  - self.freq_eggs_heating_mhz_list_0_padded) * MHz
         self.diff_freqs_hz_4 = (self.freq_eggs_heating_mhz_list_4_padded  - self.freq_eggs_heating_mhz_list_0_padded) * MHz
 
-        # note: sideband readout frequencies are at the end of the
-        # meshgrid to support adjacent_sidebands configuration option
-        self.config_eggs_heating_list[:, 0]  = self.freq_eggs_heating_hz_list_0_padded
-        self.config_eggs_heating_list[:, 1] = self.diff_freqs_hz_1
-        self.config_eggs_heating_list[:, 2] = self.diff_freqs_hz_2
-        self.config_eggs_heating_list[:, 3] = self.diff_freqs_hz_3
-        self.config_eggs_heating_list[:, 4] = self.diff_freqs_hz_4
 
+        self.config_eggs_heating_list[:, [0, 10, 11, 12, 13]] = np.stack(np.meshgrid(self.freq_eggs_heating_hz_list_0_padded,
+                                                                                     self.freq_eggs_secular_hz_list,
+                                                                                     self.phase_eggs_heating_turns_list,
+                                                                                     self.time_readout_mu_list,
+                                                                                     self.freq_sideband_readout_ftw_list),
+                                                                         -1).reshape(-1, 5)
 
-        # if outside specified freq range set amplitude to zero
-        self.config_eggs_heating_list[:, 5] = (self.freq_eggs_heating_mhz_list_0 != 0) * self.ampl_eggs_heating_tone_pct_0/100.
-        self.config_eggs_heating_list[:, 6] = (self.freq_eggs_heating_mhz_list_1 != 0) * self.ampl_eggs_heating_tone_pct_1/100.
-        self.config_eggs_heating_list[:, 7] = (self.freq_eggs_heating_mhz_list_2 != 0) * self.ampl_eggs_heating_tone_pct_2/100.
-        self.config_eggs_heating_list[:, 8] = (self.freq_eggs_heating_mhz_list_3 != 0) * self.ampl_eggs_heating_tone_pct_3/100.
-        self.config_eggs_heating_list[:, 9] = (self.freq_eggs_heating_mhz_list_4 != 0) * self.ampl_eggs_heating_tone_pct_4/100.
+        for i, arr in enumerate(np.array([self.diff_freqs_hz_1, self.diff_freqs_hz_2,
+                                          self.diff_freqs_hz_3, self.diff_freqs_hz_4])):
+            arr_reshaped = np.stack(np.meshgrid(arr, self.freq_eggs_secular_hz_list,
+                                                self.phase_eggs_heating_turns_list,
+                                                self.time_readout_mu_list,
+                                                self.freq_sideband_readout_ftw_list),
+                                                -1).reshape(-1, 5)
 
-        # for config_vals in self.config_eggs_heating_list:
-        #     print(config_vals)
-        #     break
+            self.config_eggs_heating_list[:, i+1] = arr_reshaped[:,0]
+
+        for i, arr in enumerate(np.array([self.ampl_eggs_heating_tone_pct_0_list, self.ampl_eggs_heating_tone_pct_1_list,
+                                          self.ampl_eggs_heating_tone_pct_1_list, self.ampl_eggs_heating_tone_pct_3_list,
+                                          self.ampl_eggs_heating_tone_pct_2_list])):
+            arr_reshaped = np.stack(np.meshgrid(arr, self.freq_eggs_secular_hz_list,
+                                                self.phase_eggs_heating_turns_list,
+                                                self.time_readout_mu_list,
+                                                self.freq_sideband_readout_ftw_list),
+                                    -1).reshape(-1, 5)
+
+        raise Exception
+
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
@@ -269,21 +307,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         # calculate calibrated eggs sidebands amplitudes
         if self.enable_amplitude_calibration:
             pass
-            # for i, (_, carrier_freq_hz, secular_freq_hz, _, _, _, _, _) in enumerate(self.config_eggs_heating_list):
-            #     # convert frequencies to absolute units in MHz
-            #     rsb_freq_mhz, bsb_freq_mhz =                    (np.array([-secular_freq_hz, secular_freq_hz]) + carrier_freq_hz) / MHz
-            #     # get normalized transmission through system
-            #     transmitted_power_frac =                        ampl_calib_curve([rsb_freq_mhz, bsb_freq_mhz])
-            #     # adjust sideband amplitudes to have equal power and normalize to ampl_eggs_heating_frac
-            #     # TMP FIX: MAKE SURE SCALED POWER FOLLOWS SPECIFICATIONS OF RSB AND BSB PCT
-            #     # scaled_power_pct =                                          (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-            #     #                                                              ((self.ampl_eggs_heating_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-            #     scaled_power_pct =                              (np.array([transmitted_power_frac[1], transmitted_power_frac[0]]) *
-            #                                                      ((self.ampl_eggs_heating_rsb_pct / 100.) / (transmitted_power_frac[0] + transmitted_power_frac[1])))
-            #     # update configs and convert amplitude to frac
-            #     self.config_eggs_heating_list[i, [3, 4, 5]] =   np.array([scaled_power_pct[0],
-            #                                                               scaled_power_pct[1],
-            #                                                               self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
         '''EGGS HEATING - EGGS RF CONFIGURATION'''
         # configure pulse shaping
@@ -416,10 +439,10 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                     '''CONFIGURE'''
                     config_vals = self.config_eggs_heating_list[_config_iter]
                     # extract values from config list
-                    sideband_freq_hz = self.freq_eggs_secular_hz
-                    phase_turns = self.phase_eggs_heating_turns
-                    time_readout_mu = np.int64(self.time_readout_mu)
-                    freq_readout_ftw = np.int32(config_vals[3])
+                    sideband_freq_hz = config_vals[10]
+                    phase_turns = config_vals[11]
+                    time_readout_mu = np.int64(config_vals[12])
+                    freq_readout_ftw = np.int32(config_vals[13])
                     ampl_tone_0 = config_vals[5]
                     ampl_tone_1 = config_vals[6]
                     ampl_tone_2 = config_vals[7]
@@ -429,8 +452,9 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                     center_freq = config_vals[0]
                     diff_freq_1 = config_vals[1]
                     diff_freq_2 = config_vals[2]
-                    diff_freq_3 = config_vals[2]
-                    diff_freq_4 = config_vals[3]
+                    diff_freq_3 = config_vals[3]
+                    diff_freq_4 = config_vals[4]
+
 
                     self.core.break_realtime()
                     # configure EGGS tones and set readout frequency
