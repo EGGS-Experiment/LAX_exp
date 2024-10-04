@@ -293,21 +293,18 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             arr_reshaped = np.stack(np.meshgrid(arr, self.freq_eggs_secular_hz_list,
                                                 self.phase_eggs_heating_turns_list,
                                                 self.time_readout_mu_list,
-                                                self.freq_sideband_readout_ftw_list),
-                                    -1).reshape(-1, 5)
-
+                                                self.freq_sideband_readout_ftw_list), -1).reshape(-1, 5)
             self.config_eggs_heating_list[:, i + 1] = arr_reshaped[:, 0]
 
         # ensure these amplitude arrays are the same shape as the grid created above
-        for i, arr in enumerate(
-                np.array([self.ampl_eggs_heating_tone_pct_0_list, self.ampl_eggs_heating_tone_pct_1_list,
+        for i, arr in enumerate(np.array([self.ampl_eggs_heating_tone_pct_0_list, self.ampl_eggs_heating_tone_pct_1_list,
                           self.ampl_eggs_heating_tone_pct_1_list, self.ampl_eggs_heating_tone_pct_3_list,
                           self.ampl_eggs_heating_tone_pct_2_list])):
             arr_reshaped = np.stack(np.meshgrid(arr, self.freq_eggs_secular_hz_list,
                                                 self.phase_eggs_heating_turns_list,
                                                 self.time_readout_mu_list,
-                                                self.freq_sideband_readout_ftw_list),
-                                    -1).reshape(-1, 5)
+                                                self.freq_sideband_readout_ftw_list), -1).reshape(-1, 5)
+            self.config_eggs_heating_list[:, i + 5] = arr_reshaped[:, 0]
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
