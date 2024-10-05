@@ -690,18 +690,49 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             ampl_tone_4_pct (float) : amplitude of oscillator 4 (as a decimal fraction).
         """
 
-        counter = 0
-        for amp in [ampl_tone_0_pct, ampl_tone_1_pct, ampl_tone_2_pct, ampl_tone_3_pct, ampl_tone_4_pct]:
-            self.phaser_eggs.channel[0].oscillator[counter].set_amplitude_phase(amplitude=amp,
-                                                                                phase=self.phase_phaser_turns_arr[
-                                                                                    0, counter],
-                                                                                clr=0)
-            self.phaser_eggs.channel[1].oscillator[counter].set_amplitude_phase(amplitude=amp,
-                                                                                phase=self.phase_phaser_turns_arr[
-                                                                                    1, counter],
-                                                                                clr=0)
-            counter = counter + 1
+        # counter = 0
+        # for amp in [ampl_tone_0_pct, ampl_tone_1_pct, ampl_tone_2_pct, ampl_tone_3_pct, ampl_tone_4_pct]:
+        #     self.phaser_eggs.channel[0].oscillator[counter].set_amplitude_phase(amplitude=amp,
+        #                                                                         phase=self.phase_phaser_turns_arr[
+        #                                                                             0, counter],
+        #                                                                         clr=0)
+        #     self.phaser_eggs.channel[1].oscillator[counter].set_amplitude_phase(amplitude=amp,
+        #                                                                         phase=self.phase_phaser_turns_arr[
+        #                                                                             1, counter],
+        #                                                                         clr=0)
+        #     counter = counter + 1
+
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 0], clr=0)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 0], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 1], clr=0)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 1], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 2], clr=0)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 2], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 3], clr=0)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 3], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 4], clr=0)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 4], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+
 
     '''
     HELPER FUNCTIONS - PSK
@@ -723,16 +754,46 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         """
         counter = 0
         self.ttl8.on()
-        for amp in [ampl_tone_0_pct, ampl_tone_1_pct, ampl_tone_2_pct, ampl_tone_3_pct, ampl_tone_4_pct]:
-            self.phaser_eggs.channel[0].oscillator[counter].set_amplitude_phase(amplitude=amp,
-                                                                                phase=self.phase_phaser_turns_arr[
-                                                                                    0, counter],
-                                                                                clr=0)
-            self.phaser_eggs.channel[1].oscillator[counter].set_amplitude_phase(amplitude=amp,
-                                                                                phase=self.phase_phaser_turns_arr[
-                                                                                    1, counter],
-                                                                                clr=0)
-            counter = counter + 1
+        # for amp in [ampl_tone_0_pct, ampl_tone_1_pct, ampl_tone_2_pct, ampl_tone_3_pct, ampl_tone_4_pct]:
+        #     self.phaser_eggs.channel[0].oscillator[counter].set_amplitude_phase(amplitude=amp,
+        #                                                                         phase=self.phase_phaser_turns_arr[
+        #                                                                             0, counter],
+        #                                                                         clr=0)
+        #     self.phaser_eggs.channel[1].oscillator[counter].set_amplitude_phase(amplitude=amp,
+        #                                                                         phase=self.phase_phaser_turns_arr[
+        #                                                                             1, counter],
+        #                                                                         clr=0)
+        #     counter = counter + 1
+
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 0], clr=0)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 0], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 1], clr=0)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 1], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 2], clr=0)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 2], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 3], clr=0)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 3], clr=0)
+            delay_mu(self.phaser_eggs.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
+                                                                     phase=self.phase_phaser_turns_arr[0, 4], clr=0)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
+                                                                     phase=self.phase_phaser_turns_arr[1, 4], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
