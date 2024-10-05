@@ -47,6 +47,7 @@ class Cleanup(LAXSubsequence):
         self.urukul0_cpld.set_profile(0)
         self.urukul0_cpld.io_update.pulse_mu(8)
         self.urukul0_cpld.cfg_switches(0b0000)
+        self.core.break_realtime()
 
         # reset motional board to rescue parameters
         self.urukul1_cpld.set_profile(0)
@@ -56,11 +57,13 @@ class Cleanup(LAXSubsequence):
         self.urukul1_cpld.set_all_att_mu(0)
         # set clean waveform for tickle DDS to prevent leakage
         self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
+        self.core.break_realtime()
 
         # reset main board to rescue parameters
         self.urukul2_cpld.set_profile(0)
         self.urukul2_cpld.io_update.pulse_mu(8)
         self.urukul2_cpld.cfg_switches(0b1110)
+        self.core.break_realtime()
 
 
         '''
@@ -82,10 +85,12 @@ class Cleanup(LAXSubsequence):
         self.phaser0.channel[0].set_att(31.5 * dB)
         delay_mu(40)
         self.phaser0.channel[1].set_att(31.5 * dB)
+        self.core.break_realtime()
 
         # reset phaser oscillators
         for i in range(5):
             # synchronize to frame
+            self.core.break_realtime()
             at_mu(self.phaser0.get_next_frame_mu())
 
             # clear oscillator frequencies
@@ -107,10 +112,12 @@ class Cleanup(LAXSubsequence):
         self.phaser1.channel[0].set_att(31.5 * dB)
         delay_mu(40)
         self.phaser1.channel[1].set_att(31.5 * dB)
+        self.core.break_realtime()
 
         # reset phaser oscillators
         for i in range(5):
             # synchronize to frame
+            self.core.break_realtime()
             at_mu(self.phaser1.get_next_frame_mu())
 
             # clear oscillator frequencies
