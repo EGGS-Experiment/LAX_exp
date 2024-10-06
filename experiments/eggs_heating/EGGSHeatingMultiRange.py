@@ -439,14 +439,15 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         # used to check_termination more frequently
         _loop_iter = 0
 
-        # tmp remove
         # set phaser attenuators
+        # note: this is done here instead of during sequence
+        # since attenuator setting glitches cause heating if there is no
+        # high-pass to filter them
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
         self.core.break_realtime()
-        # tmp remove
 
 
         # MAIN LOOP
@@ -554,9 +555,8 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         '''CLEANUP'''
         self.core.break_realtime()

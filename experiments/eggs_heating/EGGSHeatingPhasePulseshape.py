@@ -344,14 +344,15 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         # used to check_termination more frequently
         _loop_iter = 0
 
-        # tmp remove
         # set phaser attenuators
+        # note: this is done here instead of during sequence
+        # since attenuator setting glitches cause heating if there is no
+        # high-pass to filter them
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
         self.core.break_realtime()
-        # tmp remove
 
 
         # MAIN LOOP
@@ -423,16 +424,15 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        phase_rsb_turns,
-                        time_readout_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_rsb_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -462,9 +462,8 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         '''CLEANUP'''
         self.core.break_realtime()
