@@ -267,8 +267,8 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
 
         # create data structures to hold pulse shaping DMA sequences
-        self.phaser_dma_handle_pulseshape_rise = [(0, np.int64(0), np.int32(0))]
-        self.phaser_dma_handle_pulseshape_fall = [(0, np.int64(0), np.int32(0))]
+        self.phaser_dma_handle_pulseshape_rise = (0, np.int64(0), np.int32(0))
+        self.phaser_dma_handle_pulseshape_fall = (0, np.int64(0), np.int32(0))
 
     def _prepare_psk(self):
         """

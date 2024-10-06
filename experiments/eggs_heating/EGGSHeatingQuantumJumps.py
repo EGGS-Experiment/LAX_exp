@@ -20,9 +20,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",       BooleanValue(default=True))
-        self.setattr_argument("sub_repetitions",        NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
+        self.setattr_argument("sub_repetitions",        NumberValue(default=40, ndecimals=0, step=1, min=1, max=500))
 
         # quantum jump arguments
         self.setattr_argument("num_quantum_jumps",              NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000), group='EGGS_Heating.quantum_jumps')
@@ -79,12 +79,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("enable_amplitude_calibration",           BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                    NumberValue(default=14., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",              NumberValue(default=38., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",              NumberValue(default=43., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                    NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",              NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",              NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",            BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",     NumberValue(default=0.4, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",     NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -144,12 +144,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.phase_eggs_heating_rsb_turns_list =    np.array(list(self.phase_eggs_heating_rsb_turns_list))
 
         # create config data structure with amplitude values
-        self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
-                                                                          len(self.freq_eggs_carrier_hz_list) *
-                                                                          len(self.freq_eggs_secular_hz_list) *
-                                                                          len(self.phase_eggs_heating_rsb_turns_list) *
-                                                                          len(self.time_readout_mu_list),
-                                                                          8), dtype=float)
+        self.config_eggs_heating_list = np.zeros((len(self.freq_sideband_readout_ftw_list) *
+                                                  len(self.freq_eggs_carrier_hz_list) *
+                                                  len(self.freq_eggs_secular_hz_list) *
+                                                  len(self.phase_eggs_heating_rsb_turns_list) *
+                                                  len(self.time_readout_mu_list),
+                                                  8), dtype=float)
         # note: sideband readout frequencies are at the end of the
         # meshgrid to support adjacent_sidebands configuration option
         self.config_eggs_heating_list[:, [1, 2, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
@@ -163,7 +163,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                                                                           self.ampl_eggs_dynamical_decoupling_pct]) / 100.
 
         # if randomize_config is enabled, completely randomize the sweep configuration
-        if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
+        if self.randomize_config: np.random.shuffle(self.config_eggs_heating_list)
 
         # precalculate length of configuration list here to reduce run-time overhead
         self.num_configs = len(self.config_eggs_heating_list)
@@ -173,8 +173,8 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # get mean of sideband frequencies for thresholding
         self.freq_sideband_readout_mean_ftw = np.mean(self.freq_sideband_readout_ftw_list)
         # store sub_repetitions results for real-time monitoring
-        self._quantum_jump_monitor_rsb = np.zeros(len(self.sub_repetitions), dtype=np.int32)
-        self._quantum_jump_monitor_bsb = np.zeros(len(self.sub_repetitions), dtype=np.int32)
+        self._quantum_jump_monitor_rsb = np.zeros(self.sub_repetitions, dtype=np.int32)
+        self._quantum_jump_monitor_bsb = np.zeros(self.sub_repetitions, dtype=np.int32)
 
         # todo: coherent_c interpolator
 
@@ -285,8 +285,8 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.ampl_pulse_shape_reverse_frac_list =   self.ampl_pulse_shape_frac_list[::-1]
 
         # create data structures to hold pulse shaping DMA sequences
-        self.phaser_dma_handle_pulseshape_rise =    [(0, np.int64(0), np.int32(0))]
-        self.phaser_dma_handle_pulseshape_fall =    [(0, np.int64(0), np.int32(0))]
+        self.phaser_dma_handle_pulseshape_rise =    (0, np.int64(0), np.int32(0))
+        self.phaser_dma_handle_pulseshape_fall =    (0, np.int64(0), np.int32(0))
 
     def _prepare_psk(self):
         """
@@ -500,7 +500,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                                            ampl_bsb_frac, ampl_dd_frac, phase_rsb_turns, time_readout_mu)
 
                     # update results for quantum jumps
-                    self.update_quantum_jump_rsults(freq_readout_ftw, counts, carrier_freq_hz)
+                    self.update_quantum_jump_results(freq_readout_ftw, counts, carrier_freq_hz)
                     self.core.break_realtime()
 
                     # resuscitate ion
