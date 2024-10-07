@@ -593,12 +593,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                 bsb_total += 1
         self.core.break_realtime()
 
-
-        # tmp remove
-        self.core.break_realtime()
-        print(rsb_total/bsb_total)
-        self.core.break_realtime()
-        # tmp remove
+        # # tmp remove
+        # print results
+        # self.core.break_realtime()
+        # print(rsb_total/bsb_total)
+        # self.core.break_realtime()
+        # # tmp remove
 
         # note: multiply instead of divide for efficiency and to avoid divide-by-zero errors
         return rsb_total > bsb_total * self.quantum_jump_threshold_phonon
