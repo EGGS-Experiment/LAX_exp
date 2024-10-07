@@ -20,24 +20,28 @@ class PhaserPulseShaper(LAXEnvironment):
     }
 
 
-    def build(self):
+    def build(self, phase_offsets_turns=np.array([0.,0.,0.,0.,0.])):
         # get relevant devices
         self.setattr_device('core')
         self.setattr_device('core_dma')
         self.setattr_device('phaser_eggs')
 
+        # initialize important variables
+        # note: we do this here since "prepare" method is run AFTER prepare_experiment
+        if len(phase_offsets_turns) == 5:
+            self._phase_offsets_turns = phase_offsets_turns
+        else:
+            raise Exception("Error in PhaserPulseShaper - phase_offsets_turns must have length 5: {}".format(phase_offsets_turns))
+
     def prepare(self):
         """
-        todo: document
+        Prepare relevant values for waveform compilation.
         """
         # set global variables
         self._max_waveforms =               64
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
         # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
-
-        # store global CH1 offsets
-        self._phase_offsets_turns =         np.array([0., 0., 0., 0., 0.])
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =       ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
@@ -56,6 +60,10 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         Record waveform as DMA sequence.
         todo: finish documenting
+        Arguments:
+            todo
+        Returns:
+                (TInt32)    : the index of the recorded waveform (for later playback).
         """
         '''PREPARE INPUTS'''
         # get total lengths of arrays
@@ -112,12 +120,16 @@ class PhaserPulseShaper(LAXEnvironment):
             # set outputs for both phaser channels in parallel
             # todo: account for field geometry & offsets - use phase offset addition
             with parallel:
-                self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num],
-                                                                                    phase=phase_turns_list[osc_num],
-                                                                                    clr=0)
-                self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(amplitude=ampl_frac_list[osc_num],
-                                                                                    phase=phase_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
-                                                                                    clr=0)
+                self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(
+                    amplitude=ampl_frac_list[osc_num],
+                    phase=phase_turns_list[osc_num],
+                    clr=0
+                )
+                self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(
+                    amplitude=ampl_frac_list[osc_num],
+                    phase=phase_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
+                    clr=0
+                )
                 delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})

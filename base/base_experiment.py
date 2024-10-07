@@ -103,11 +103,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def prepare(self):
         """
         General construction of the experiment object.
-
         Called right before run (unlike build, which is called upon instantiation).
         ***todo*** prepare_device is called before prepare_experiment to ensure that any values in prepare_device
-        _prepare_experiment is called after prepare_experiment since subsequence instantiation may require
-            values computed only in prepare_experiment.
         """
         # store arguments in dataset manager
         self._save_arguments()
@@ -160,7 +157,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         setattr(self, '_initialize_experiment', initialize_func)
 
         # todo: somehow call prepare method for everything not devices
+        # todo: maybe - we could make LAX classes NOT put prepare_<class> under prepare?
         # call prepare methods of all child objects
+        # note: this will call the prepare_<class> methods AGAIN, i.e. any preparation
+        # that happens in prepare_experiment will get reset
         self.call_child_method('prepare')
 
         # create data structures for results
@@ -169,7 +169,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # create data structures for dynamic updates
         self._dynamic_reduction_factor = self.get_dataset('management.dynamic_plot_reduction_factor',
-                                                          default=10,archive=False)
+                                                          default=10, archive=False)
         self.kernel_invariants.add("_dynamic_reduction_factor")
         # preprocess values for completion monitoring
         self._completion_iter_to_pct = 100. / len(self.results)

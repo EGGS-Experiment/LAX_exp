@@ -114,7 +114,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
-        self.pulse_shaper = PhaserPulseShaper(self)
+        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
 
     def prepare_experiment(self):
         """
