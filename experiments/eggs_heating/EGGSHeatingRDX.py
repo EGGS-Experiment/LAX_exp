@@ -235,16 +235,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
 
         # tmp remove
-        self.set_dataset("waveforms", self.waveform_index_to_pulseshaper_vals)
-        # tmp remove
-
-        # tmp remove
-        _wav_print_idk = self.waveform_index_to_pulseshaper_vals[0]
-        print(_wav_print_idk[0])
-        print(_wav_print_idk[1])
-        print(_wav_print_idk[2])
-        print(_sequence_blocks)
-        self.spinecho_wizard.display_waveform()
+        # _wav_print_idk = self.waveform_index_to_pulseshaper_vals[0]
+        # print(_wav_print_idk[0])
+        # print(_wav_print_idk[1])
+        # print(_wav_print_idk[2])
+        # print(_sequence_blocks)
+        # self.spinecho_wizard.display_waveform()
+        # self.set_dataset("waveforms", self.waveform_index_to_pulseshaper_vals)
         # tmp remove
 
     @property
