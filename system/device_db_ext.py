@@ -2,6 +2,39 @@
 
 device_db_ext = {
 
+    # LABRAD Devices
+    "aperture": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.aperture",
+        "class": "Aperture"
+    },
+
+
+    "camera": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.andor_camera",
+        "class": "AndorCamera"
+    },
+
+    "shutters": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.shutters",
+        "class": "Shutters"
+    },
+
+    "oven": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.oven",
+        "class": "Oven"
+    },
+
+    "trap_dc": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.trap_dc",
+        "class": "TrapDC"
+
+    },
+
     # BEAMS
     "probe": {
         "type": "local",
@@ -27,6 +60,13 @@ device_db_ext = {
         "type": "local",
         "module": "LAX_exp.system.devices.beam_729",
         "class": "Beam729"
+    },
+
+    # Flipper
+    "flipper": {
+        "type": "local",
+        "module": "LAX_exp.system.devices.flipper",
+        "class": "Flipper"
     },
 
 
