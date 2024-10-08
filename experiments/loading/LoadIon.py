@@ -25,7 +25,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     PMT_SAMPLE_NUM = 30
 
     LOADING = True
-    ARAMPING = False
 
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
@@ -85,13 +84,13 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                               group='Ending Trap Parameters')
 
 
-        self.setattr_argument('start_aramp_voltage', NumberValue(default=6, min=2, max=12, ndecimals=0, step=1),
+        self.setattr_argument('start_aramp_voltage', NumberValue(default=17., min=2, max=30, ndecimals=0, step=0.1),
                               group='Aramp Parameters')
 
-        self.setattr_argument('end_aramp_voltage', NumberValue(default=10, min=3, max=12, ndecimals=0, step=1),
+        self.setattr_argument('end_aramp_voltage', NumberValue(default=23., min=3, max=30, ndecimals=0, step=0.1),
                               group='Aramp Parameters')
 
-        self.setattr_argument('aramp_voltage_step', NumberValue(default=0.5, min=0.1, max=1, ndecimals=2,
+        self.setattr_argument('aramp_voltage_step', NumberValue(default=0.25, min=0.1, max=1, ndecimals=2,
                                                                 step=0.01),group='Aramp Parameters')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
@@ -117,7 +116,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
-        # self.setattr_device('shutters')
+        self.setattr_device('shutters')
         self.setattr_device('oven')
         self.setattr_device('pmt')
         self.setattr_device('aperture')
@@ -218,15 +217,16 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.trap_dc.aramp2_off()
         self.core.break_realtime()
 
-        # # open shutters
-        # self.shutters.open_377_shutter()
-        # self.shutters.open_423_shutter()
-        # self.core.break_realtime()
+        # open shutters
+        self.shutters.open_377_shutter()
+        self.shutters.open_423_shutter()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
         # turn on the oven
-        # self.oven.set_oven_voltage(1)
-        # self.oven.on()
-        # self.core.break_realtime()
+        self.oven.set_oven_voltage(1)
+        self.oven.on()
+        self.core.break_realtime()
 
         # open aperture
         self.aperture.open_aperture()
@@ -258,11 +258,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 self.check_termination()
                 self.core.break_realtime()
 
-            if num_ions <= self.desired_num_of_ions:
+            if num_ions < self.desired_num_of_ions:
                 self.initialize_experiment()
                 num_ions = self.load_ion()
 
-            else:
+            elif num_ions > self.desired_num_of_ions:
                 self.cleanup_devices()
                 num_ions = self.aramp_ions()
                 self.core.wait_until_mu(now_mu())
@@ -274,7 +274,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     # ANALYSIS
     def analyze_experiment(self):
-        print(self.get_dataset("counts"))
         self.cleanup_devices()
 
     @kernel
@@ -291,9 +290,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         num_ions = 0
         camera_success = False
         ion_spottings = 0
+        over_time = False
 
         self.LOADING = True
-        self.ANALYZING = False
 
         # gather counts from pmt to later verify flipper worked correctly
         delay_mu(100000)
@@ -304,9 +303,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # flip to camera
         self.flipper.flip()
+        self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-        while camera_success is not True:  # run loop while we don't see ions
+        while camera_success is not True and over_time is not True:  # run loop while we don't see ions
 
             idx += 1
 
@@ -323,16 +323,13 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 breaker = self.check_time()
                 if breaker:
                     print("TOOK OVER 15 MIN TO LOAD --- ENDING PROGRAM")
-                    break
+                    over_time = True
 
             if num_ions >= self.desired_num_of_ions:
                 ion_spottings += 1
                 # ensure camera sees ion from 3 consecutive pictures to prevent singular false positive
                 if ion_spottings >= 3:
                     camera_success = True
-                    self.camera.acquire_single_image()
-                    image = self.camera.get_most_recent_image()
-                    num_ions = self.show_ions(image, 'pre_aramp_orginal.png', 'pre_aramp_maipulated.png')
                     self.print_ion_loaded_message(num_ions)
                     return num_ions
 
@@ -345,30 +342,26 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     def aramp_ions(self) -> TInt32:
 
         self.LOADING = False
-        self.ANALYZING = True
 
         print("STARTING ARAMP PROCEDURE")
 
         for aramp_voltage in self.aramp_ions_voltage_list:
 
+            print(f"ARAMPING AT VOLTAGE {aramp_voltage}")
+
             self.trap_dc.set_aramp2_voltage(aramp_voltage)
-            time.sleep(1)
+            time.sleep(2)
             self.trap_dc.set_aramp2_voltage(self.ending_aramp2_voltage)
             time.sleep(2)
 
             self.camera.acquire_single_image()
             image = self.camera.get_most_recent_image()
             num_ions = self.show_ions(image, 'post_aramp_original.png', 'post_aramp_manipulated.png')
-            print(num_ions)
-
             if num_ions <= self.desired_num_of_ions:
                 return num_ions
 
             self.check_termination()
 
-        # self.camera.acquire_single_image()
-        # image = self.camera.get_most_recent_image()
-        # num_ions = self.show_ions(image,'post_aramp_original.png', 'post_aramp_manipulated.png')
         return 0
 
     @rpc
@@ -392,11 +385,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.oven.off()
 
         # # close shutters
-        # self.shutters.open_377_shutter()
-        # self.shutters.open_423_shutter()
+        self.shutters.open_377_shutter()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        self.shutters.open_423_shutter()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
         # disconnect from labjack
-        # self.shutters.close_labjack()
+        self.shutters.close_labjack()
 
         # close aperture
         self.aperture.close_aperture()
@@ -502,22 +499,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.imshow(data)
         plt.savefig(os.path.join(self.data_path, filepath1))
 
-        upper_percentile = np.percentile(data, 99)
+        upper_percentile = np.percentile(data, 99.98)
         data[data < upper_percentile] = 0
         data[data >= upper_percentile] = 1
 
-        if self.LOADING:
-            kernel1 = np.ones((2, 2))
-            data = ndimage.binary_erosion(data, kernel1, iterations=2)
-        elif self.ARAMPING:
-            kernel1 = np.array([[0, 1, 0], [1, 1, 1], [1, 1, 1], [0, 1, 0]])
-            data = ndimage.binary_erosion(data, kernel1, iterations=1)
-            kernel2 = np.ones((1, 2))
-            data = ndimage.binary_erosion(data, kernel2, iterations=1)
-            kernel3 = np.ones((2, 1))
-            data = ndimage.binary_erosion(data, kernel3, iterations=1)
-            kernel4 = np.ones((1, 2))
-            data = ndimage.binary_erosion(data, kernel4, iterations=1)
+        kernel1 = np.ones((2, 2))
+        data = ndimage.binary_erosion(data, kernel1, iterations=2)
 
         data[data > 0] = 1
         labels = skimage.measure.label(data)
