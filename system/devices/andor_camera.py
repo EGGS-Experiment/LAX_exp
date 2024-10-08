@@ -19,10 +19,6 @@ class AndorCamera(LAXDevice):
                                   username='', password='lab')
         self.camera = self.cxn.andor_server
 
-    @kernel(flags={"fast-math"})
-    def initialize_device(self):
-        pass
-
     @rpc
     def close_camera_shutter(self):
         """
@@ -119,7 +115,7 @@ class AndorCamera(LAXDevice):
         Returns:
             TArray(TFloat): the most recent image the camera took
         """
-        self.stop_acquisition()
+        # self.stop_acquisition()
         return self.camera.acquire_image_recent()
 
     @rpc
