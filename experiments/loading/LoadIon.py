@@ -272,9 +272,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+        self.cleanup_devices()
+
     # ANALYSIS
     def analyze_experiment(self):
-        self.cleanup_devices()
+        pass
 
     @kernel
     def load_ion(self) -> TInt32:
