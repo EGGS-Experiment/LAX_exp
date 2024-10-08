@@ -1,37 +1,19 @@
 from artiq.experiment import *
-
 from LAX_exp.base import LAXDevice
 
-from os import environ
 import labrad
+from os import environ
 
 
 class AndorCamera(LAXDevice):
     """
-    High-level api functions for using the Andor Camera
+    High-level API functions for using the Andor Camera
     """
-
     name = "camera"
 
     def prepare_device(self):
-        self.cxn = labrad.connect(environ['LABRADHOST'],
-                                  port=7682, tls_mode='off',
-                                  username='', password='lab')
+        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.camera = self.cxn.andor_server
-
-    @rpc
-    def close_camera_shutter(self):
-        """
-        Close the Camera Shutter
-        """
-        self.camera.mode_shutter('Close')
-
-    @rpc
-    def open_camera_shutter(self):
-        """
-        Open the Camera Shutter
-        """
-        self.camera.mode_shutter('Open')
 
     @rpc
     def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat = None):
@@ -42,7 +24,6 @@ class AndorCamera(LAXDevice):
             image_region: area of ion trap to take picture of
             identify_exposure_time: exposure time of camera
         """
-
         ### acquire a single image
         self.camera.acquisition_stop()
         if identify_exposure_time is not None:
@@ -73,7 +54,6 @@ class AndorCamera(LAXDevice):
             image_region: area of ion trap to take picture of
             identify_exposure_time: exposure time of camera
         """
-
         ### acquire many images
         self.camera.acquisition_stop()
         if identify_exposure_time is not None:
@@ -111,18 +91,15 @@ class AndorCamera(LAXDevice):
     def get_most_recent_image(self) -> TArray(TInt32, 1):
         """
         Retrieve most recent image camera took
-
         Returns:
             TArray(TFloat): the most recent image the camera took
         """
-        # self.stop_acquisition()
         return self.camera.acquire_image_recent()
 
     @rpc
     def get_all_acquired_images(self) -> TArray(TFloat, 1):
         """
         Retrieve all images in camera's data buffer
-
         Returns:
             TArray(TFloat): the images in camera's data buffer
         """
@@ -134,9 +111,7 @@ class AndorCamera(LAXDevice):
     def set_exposure_time(self, exposure_time: TFloat):
         """
         Set exposure time (in seconds) for image acquisition
-
         Args:
-
         """
         self.stop_acquisition()
         self.camera.setup_exposure_time(exposure_time)
@@ -154,7 +129,6 @@ class AndorCamera(LAXDevice):
     def set_image_region(self, image_region: TTuple) -> TNone:
         """
         Set image region
-
         Args:
             image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
@@ -166,7 +140,6 @@ class AndorCamera(LAXDevice):
     def get_image_region(self) -> TTuple:
         """
         Get image region
-
         Returns:
             image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
@@ -174,46 +147,3 @@ class AndorCamera(LAXDevice):
         return self.camera.image_region_get()
         self.start_acquisition()
 
-    @rpc
-    def get_acquisition_status(self) -> TBool:
-        """
-        Return status of acquisitions of camera
-        """
-        return self.camera.acquisition_status()
-
-    @rpc
-    def get_acquisition_mode(self) -> TStr:
-        """
-        Return mode of acquisitions of camera
-        """
-        return self.camera.mode_acquisition()
-
-    @rpc
-    def get_mode_trigger(self) -> TStr:
-        """
-        Return trigger mode
-
-        Returns:
-            mode_trigger (string): the trigger mode
-        """
-        return self.camera.mode_trigger()
-
-    @rpc
-    def set_mode_trigger(self, trigger: TStr):
-        """
-        Set mode trigger of camera
-
-        Args:
-            trigger (string): the trigger mode
-        """
-        self.camera.mode_trigger(trigger)
-
-    @rpc
-    def check_images_in_buffer(self) -> TInt32:
-        """
-        Check number of image in camera buffer
-
-        Returns:
-            TInt32: the number of images in buffer
-        """
-        return self.camera.buffer_new_images()
