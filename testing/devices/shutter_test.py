@@ -34,7 +34,8 @@ class ShutterTest(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.shutters.open_423_shutter()
         self.core.break_realtime()
-        delay(10*s)
+        self.core.wait_until_mu(now_mu())
+        delay(3*s)
 
 
     @kernel(flags={"fast-math"})
