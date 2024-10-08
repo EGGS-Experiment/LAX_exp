@@ -386,11 +386,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # # close shutters
         self.shutters.open_377_shutter()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
         self.shutters.open_423_shutter()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
 
         # disconnect from labjack
         self.shutters.close_labjack()
@@ -499,7 +495,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.imshow(data)
         plt.savefig(os.path.join(self.data_path, filepath1))
 
-        upper_percentile = np.percentile(data, 99.98)
+        upper_percentile = np.percentile(data, 99.97)
         data[data < upper_percentile] = 0
         data[data >= upper_percentile] = 1
 
