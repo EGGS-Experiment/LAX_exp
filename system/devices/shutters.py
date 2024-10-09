@@ -1,66 +1,73 @@
 from artiq.experiment import *
-
 from LAX_exp.base import LAXDevice
 
-from os import environ
 import labrad
+from os import environ
 
 
 class Shutters(LAXDevice):
     """
-    High-level api functions for using the Andor Camera
+    High-level API functions for using the shutters
     """
-
     name = "shutters"
 
     def prepare_device(self):
-        self.cxn = labrad.connect(environ['LABRADHOST'],
-                                  port=7682, tls_mode='off',
-                                  username='', password='lab')
+        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.labjack = self.cxn.labjack_server
-
 
         self.port_name_377 = "DIO0"
         self.port_name_423 = "DIO2"
 
         device_handle = self.labjack.device_info()
-        if device_handle is -1:
+        if device_handle == -1:
             # get device list
             dev_list = self.labjack.device_list()
             # assume desired labjack is first in list
             self.labjack.device_select(dev_list[0])
 
     @rpc
-    def open_377_shutter(self) -> TNone:
+    def toggle_377_shutter(self, status: TBool) -> TNone:
         """
-        Open the Shutter
+        Toggle the 377nm Shutter.
         """
-        self.labjack.write_name(self.port_name_377, 1)
+        try:
+            self.labjack.write_name(self.port_name_377, status)
+        except Exception as e:
+            if self.reconnect_to_labjack():
+                self.labjack.write_name(self.port_name_377, status)
+            else:
+                raise ConnectionError("Cannot Connect to Labjack")
 
     @rpc
-    def close_377_shutter(self) -> TNone:
+    def toggle_423_shutter(self, status: TBool) -> TNone:
         """
-        Close the Shutter
+        Toggle the 423nm Shutter.
         """
-        self.labjack.write_name(self.port_name_377, 0)
+        try:
+            self.labjack.write_name(self.port_name_423, status)
+        except Exception as e:
+            if self.reconnect_to_labjack():
+                self.labjack.write_name(self.port_name_423, status)
+            else:
+                raise ConnectionError("Cannot Connect to Labjack")
 
     @rpc
-    def open_423_shutter(self) -> TNone:
+    def reconnect_to_labjack(self) -> TNone:
         """
-        Open the Shutter
-        """
-        self.labjack.write_name(self.port_name_423, 1)
-
-    @rpc
-    def close_423_shutter(self) -> TNone:
-        """
-        Close the Shutter
-        """
-        self.labjack.write_name(self.port_name_423, 0)
-
-    @rpc
-    def close_labjack(self) -> TNone:
-        """
-        Close labjack
+        reconnect to the labjack
         """
         self.labjack.device_close()
+        device_handle = self.labjack.device_info()
+
+        if device_handle == -1:
+            # get device list
+            dev_list = self.labjack.device_list()
+            # assume desired labjack is first in list
+            self.labjack.device_select(dev_list[0])
+
+            if len(dev_list) >= 1:
+                return True
+            else:
+                return False
+
+        return True
