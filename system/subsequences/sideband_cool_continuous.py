@@ -55,63 +55,63 @@ class SidebandCoolContinuous(LAXSubsequence):
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
-        mode_total_pct =                                                np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
-        # assert mode_total_pct == 100,                                   "Error: total sideband cooling mode percentages exceed 100%."
+        mode_total_pct =    np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
+        # assert mode_total_pct == 100, "Error: total sideband cooling mode percentages exceed 100%."
 
-        # DDS parameters
-        self.ampl_qubit_asf =                                           self.get_parameter('ampl_qubit_pct',
-                                                                                           group='beams.ampl_pct', override=True,
-                                                                                           conversion_function=pct_to_asf)
+        '''PARAMETERS - DDS'''
+        self.ampl_qubit_asf =       self.get_parameter('ampl_qubit_pct',
+                                                       group='beams.ampl_pct', override=True,
+                                                       conversion_function=pct_to_asf)
 
-        # get timing parameters
-        self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
-                                                                                           group='timing', override=True,
-                                                                                           conversion_function=seconds_to_mu, units=us)
-        self.time_spinpol_mu =                                          self.get_parameter('time_spinpol_us',
-                                                                                           group='timing', override=True,
-                                                                                           conversion_function=seconds_to_mu, units=us)
+        '''PARAMETERS - TIMING'''
+        self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us',
+                                                       group='timing', override=True,
+                                                       conversion_function=seconds_to_mu, units=us)
+        self.time_spinpol_mu =      self.get_parameter('time_spinpol_us',
+                                                       group='timing', override=True,
+                                                       conversion_function=seconds_to_mu, units=us)
         # get waveform parameters
-        self.freq_repump_qubit_ftw =                                    self.get_parameter('freq_repump_qubit_mhz',
-                                                                                           group='beams.freq_mhz', override=False,
-                                                                                           conversion_function=hz_to_ftw, units=MHz)
+        self.freq_repump_qubit_ftw = self.get_parameter('freq_repump_qubit_mhz',
+                                                        group='beams.freq_mhz', override=False,
+                                                        conversion_function=hz_to_ftw, units=MHz)
 
 
-        ### SIDEBAND COOLING ###
+        '''PREPARE SIDEBAND COOLING'''
         # CONFIG
-        self.qubit_func =                                               self.qubit.off if self.calibration_continuous is True else self.qubit.on
-        self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz)
-                                                                                  for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
-        self.iter_sideband_cooling_modes_list =                         np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))
+        self.qubit_func = self.qubit.off if self.calibration_continuous is True else self.qubit.on
+        self.freq_sideband_cooling_ftw_list =   np.array([hz_to_ftw(freq_mhz * MHz)
+                                                          for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
+        self.iter_sideband_cooling_modes_list = np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))
 
         # POWER
-        self.ampl_quench_asf =                                          pct_to_asf(self.ampl_quench_pct)
-        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
+        self.ampl_quench_asf =          pct_to_asf(self.ampl_quench_pct)
+        self.att_sidebandcooling_mu =   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
 
         # TIMING
-        self.time_sideband_cooling_mu =                                 self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
+        self.time_sideband_cooling_mu = self.core.seconds_to_mu(self.time_sideband_cooling_us * us)
         # create list of cycle times
-        cycle_time_us =                                                 self.time_sideband_cooling_us / self.sideband_cycles_continuous
-        cycle_timings_us_list =                                         np.linspace(0, self.time_sideband_cooling_us, self.sideband_cycles_continuous + 1)[:-1]
+        cycle_time_us =         self.time_sideband_cooling_us / self.sideband_cycles_continuous
+        cycle_timings_us_list = np.linspace(0, self.time_sideband_cooling_us, self.sideband_cycles_continuous + 1)[:-1]
 
         # create list of SBC profile times within a cycle
-        cycle_profile_times_pct =                                       np.array([0] + list(self.freq_sideband_cooling_mhz_pct_list.values()))
-        cycle_profile_timings_us =                                      np.cumsum(cycle_profile_times_pct / 100 * cycle_time_us)[:-1]
+        cycle_profile_times_pct =   np.array([0] + list(self.freq_sideband_cooling_mhz_pct_list.values()))
+        cycle_profile_timings_us =  np.cumsum(cycle_profile_times_pct / 100 * cycle_time_us)[:-1]
 
         # create final timing list
-        delay_sideband_cooling_cycle_us_list =                          np.array([time_cycle_start_us + cycle_profile_timings_us
-                                                                                 for time_cycle_start_us in cycle_timings_us_list])
-        self.delay_sideband_cooling_cycle_mu_list =                     np.array([self.core.seconds_to_mu(time_us_list * us)
-                                                                                  for time_us_list in delay_sideband_cooling_cycle_us_list])
+        delay_sideband_cooling_cycle_us_list =      np.array([time_cycle_start_us + cycle_profile_timings_us
+                                                              for time_cycle_start_us in cycle_timings_us_list])
+        self.delay_sideband_cooling_cycle_mu_list = np.array([self.core.seconds_to_mu(time_us_list * us)
+                                                              for time_us_list in delay_sideband_cooling_cycle_us_list])
 
         # spin polarization timings
-        self.time_spinpolarization_mu_list =                            self.core.seconds_to_mu(np.arange(0, 1, self.pct_per_spin_polarization / 100)
-                                                                                                * (self.time_sideband_cooling_us * us))
-        self.time_spinpolarization_mu_list =                            self.time_spinpolarization_mu_list[1:]
+        self.time_spinpolarization_mu_list =    self.core.seconds_to_mu(np.arange(0, 1, self.pct_per_spin_polarization / 100)
+                                                                        * (self.time_sideband_cooling_us * us))
+        self.time_spinpolarization_mu_list =    self.time_spinpolarization_mu_list[1:]
 
         # 854nm quench power calibration
-        self.power_quench_calibration_num_samples =                     100
-        self.power_quench_calibration_store_mu =                        np.int32(0)
-        self.power_quench_calibration_mu_list =                         np.array([0]*8)
+        self.power_quench_calibration_num_samples = 100
+        self.power_quench_calibration_store_mu =    np.int32(0)
+        self.power_quench_calibration_mu_list =     np.array([0]*8)
 
         # # tmp remove
         # # interleave sideband cooling of different modes every cycle

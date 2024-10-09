@@ -293,6 +293,10 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.ampl_pulse_shape_frac_list *= self.ampl_window_frac_list
         self.ampl_pulse_shape_reverse_frac_list = self.ampl_pulse_shape_frac_list[::-1]
 
+        # create data structures to hold pulse shaping DMA sequences
+        self.phaser_dma_handle_pulseshape_rise = (0, np.int64(0), np.int32(0))
+        self.phaser_dma_handle_pulseshape_fall = (0, np.int64(0), np.int32(0))
+
     def _prepare_psk(self):
         """
         Calculate and prepare timings for PSK.
@@ -366,14 +370,15 @@ class EGGSHeating(LAXExperiment, Experiment):
         # used to check_termination more frequently
         _loop_iter = 0
 
-        # tmp remove
         # set phaser attenuators
+        # note: this is done here instead of during sequence
+        # since attenuator setting glitches cause heating if there is no
+        # high-pass to filter them
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
         self.core.break_realtime()
-        # tmp remove
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -423,13 +428,13 @@ class EGGSHeating(LAXExperiment, Experiment):
 
                 # reset DUC phase to start DUC deterministically
                 self.phaser_eggs.reset_duc_phase()
-                self.core_dma.playback_handle(_handle_eggs_pulseshape_rise)
+                self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_rise)
 
                 # EGGS - RUN
                 self.phaser_run(ampl_rsb_frac, ampl_bsb_frac, ampl_dd_frac)
 
                 # EGGS - STOP
-                self.core_dma.playback_handle(_handle_eggs_pulseshape_fall)
+                self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
                 # deactivate integrator hold
                 self.ttl10.off()
@@ -442,16 +447,15 @@ class EGGSHeating(LAXExperiment, Experiment):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        phase_rsb_turns,
-                        time_readout_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_rsb_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -481,9 +485,8 @@ class EGGSHeating(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination at the repetition level
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         '''CLEANUP'''
         self.core.break_realtime()

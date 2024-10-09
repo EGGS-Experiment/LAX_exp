@@ -5,32 +5,32 @@ device_db_ext = {
     # LABRAD Devices
     "aperture": {
         "type": "local",
-        "module": "LAX_exp.system.devices.aperture",
+        "module": "LAX_exp.system.devices_labrad.aperture",
         "class": "Aperture"
     },
 
 
     "camera": {
         "type": "local",
-        "module": "LAX_exp.system.devices.andor_camera",
+        "module": "LAX_exp.system.devices_labrad.andor_camera",
         "class": "AndorCamera"
     },
 
     "shutters": {
         "type": "local",
-        "module": "LAX_exp.system.devices.shutters",
+        "module": "LAX_exp.system.devices_labrad.shutters",
         "class": "Shutters"
     },
 
     "oven": {
         "type": "local",
-        "module": "LAX_exp.system.devices.oven",
+        "module": "LAX_exp.system.devices_labrad.oven",
         "class": "Oven"
     },
 
     "trap_dc": {
         "type": "local",
-        "module": "LAX_exp.system.devices.trap_dc",
+        "module": "LAX_exp.system.devices_labrad.trap_dc",
         "class": "TrapDC"
 
     },

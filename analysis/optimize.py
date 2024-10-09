@@ -4,19 +4,41 @@ LAX.analysis.optimize
 Contains modules used for optimization.
 """
 
-__all__ = ['complexLinearFitMinimize']
+__all__ = ['complexLinearFit', 'complexLinearFitMinimize']
 
 
 # necessary imports
 import numpy as np
 from scipy.optimize import lsq_linear
-
 # todo: write an optimizer/gradient descent module
 
 
 '''
 Linear Optimization
 '''
+def complexLinearFit(dataset):
+    """
+    Do a complex linear least-squares fit to a 2D dataset.
+    Arguments:
+        dataset (list(list(float, complex)): the dataset comprised of the real
+            independent variable, and the complex dependent variable.
+
+    Returns:
+        tuple(tuple(float)):    the fitted parameters stored as real numbers.
+                                i.e. ((b_re, b_im), (m_re, m_im)).
+    """
+    # create y-vector
+    vectorY = dataset[:, 1]
+    # create design matrix
+    matrixA = np.array([np.ones(len(vectorY)), dataset[:, 0]]).transpose()
+
+    # do a complex LINEAR least squares fit
+    res = lsq_linear(matrixA, vectorY)
+    b_fit_re, b_fit_im = (res.x[0].real, res.x[0].imag)
+    m_fit_re, m_fit_im = (res.x[1].real, res.x[1].imag)
+    return (b_fit_re, b_fit_im), (m_fit_re, m_fit_im)
+
+
 def complexLinearFitMinimize(dataset):
     """
     Extract the optimal voltage to minimize complex displacement

@@ -79,7 +79,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         # get voltage parameters
         self.dc_channel_num =                               self.dc_channeldict[self.dc_channel]['num']
         self.dc_voltages_v_list =                           np.array(list(self.dc_voltages_v_list))
-        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(488 * ms)
+        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(888 * ms)
 
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =                             self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
@@ -137,22 +137,24 @@ class ParametricSweep(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        with parallel:
-            # set cooling beams
-            with sequential:
-                self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-                self.pump.set_profile(0)
-                self.pump.on()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
+        # set up labrad devices via RPC
+        self.prepareDevicesLabrad()
+        self.core.break_realtime()
 
-            # set up DDS for modulation
-            with sequential:
-                self.dds_parametric.set_att_mu(self.att_modulation_mu)
-                self.dds_parametric.set_phase_absolute()
+        # get DDS CPLD att values so ARTIQ remembers them
+        self.dds_parametric.cpld.get_att_mu()
+        self.core.break_realtime()
 
-            # set up labrad devices via RPC
-            self.prepareDevicesLabrad()
+        # set cooling beams
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+        self.pump.set_profile(0)
+        self.pump.on()
+        self.repump_cooling.on()
+        self.repump_qubit.on()
+
+        # set up DDS for modulation
+        self.dds_parametric.set_att_mu(self.att_modulation_mu)
+        self.dds_parametric.set_phase_absolute()
         self.core.break_realtime()
 
         # do check to verify that mirror is flipped to mirror
@@ -334,7 +336,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                 print('\tFreq. (kHz): {:.2f}\tOpt. Voltage (V): {:.2f} +/- {:.2f} V'.format(*sublist))
 
             # set voltage to optimal val if val is in range
-            mean_voltage_optimum = np.mean(voltage_optima_vals)
+            mean_voltage_optimum = np.mean(voltage_optima_vals[:, 1])
             if (mean_voltage_optimum > np.min(self.dc_voltages_v_list)) & (mean_voltage_optimum < np.max(self.dc_voltages_v_list)):
                 self.voltage_set(self.dc_channel_num, mean_voltage_optimum)
 
