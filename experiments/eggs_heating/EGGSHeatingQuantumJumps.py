@@ -379,8 +379,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
 
             # check if we have found a peak
+            '''QUANTUM JUMP SEARCH'''
+            self.core.break_realtime()
             if _peak_check is True:
-                break
+                self.perform_quantum_jumps()
+                # reset peak_check and continue scan
+                _peak_check = False
 
             # implement sub-repetitions here to avoid initial overhead
             _subrep_iter = 0
@@ -471,40 +475,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
             # support graceful termination at the repetition level
             self.check_termination()
             self.core.break_realtime()
-
-
-        '''QUANTUM JUMP SEARCH'''
-        self.core.break_realtime()
-        if _peak_check is True:
-
-            # run given number of quantum jumps
-            for idx_jump in range(self.num_quantum_jumps):
-
-                # loop over configuration list (i.e. RSB, BSB)
-                for config_vals in self.config_quantum_jumps:
-
-                    # extract values from config list
-                    freq_readout_ftw =  np.int32(config_vals[0])
-                    # note: override config list with quantum jump frequency
-                    carrier_freq_hz =   _carrier_freq_quantum_jumps
-                    sideband_freq_hz =  config_vals[2]
-                    ampl_rsb_frac =     config_vals[3]
-                    ampl_bsb_frac =     config_vals[4]
-                    ampl_dd_frac =      config_vals[5]
-                    phase_rsb_turns =   config_vals[6]
-                    time_readout_mu =   np.int64(config_vals[7])
-                    self.core.break_realtime()
-
-                    # start jumps
-                    counts = self.run_loop(freq_readout_ftw, carrier_freq_hz, sideband_freq_hz, ampl_rsb_frac,
-                                           ampl_bsb_frac, ampl_dd_frac, phase_rsb_turns, time_readout_mu)
-
-                    # update results for quantum jumps
-                    self.update_quantum_jump_results(freq_readout_ftw, counts, carrier_freq_hz)
-                    self.core.break_realtime()
-
-                    # resuscitate ion
-                    self.rescue_subsequence.resuscitate()
 
         '''CLEANUP'''
         self.core.break_realtime()
@@ -603,13 +573,47 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # note: multiply instead of divide for efficiency and to avoid divide-by-zero errors
         return rsb_total > bsb_total * self.quantum_jump_threshold_phonon
 
+    @kernel
+    def perform_quantum_jumps(self):
+
+        # run given number of quantum jumps
+        for idx_jump in range(self.num_quantum_jumps):
+
+            # loop over configuration list (i.e. RSB, BSB)
+            for config_vals in self.config_quantum_jumps:
+                # extract values from config list
+                freq_readout_ftw = np.int32(config_vals[0])
+                # note: override config list with quantum jump frequency
+                carrier_freq_hz = _carrier_freq_quantum_jumps
+                sideband_freq_hz = config_vals[2]
+                ampl_rsb_frac = config_vals[3]
+                ampl_bsb_frac = config_vals[4]
+                ampl_dd_frac = config_vals[5]
+                phase_rsb_turns = config_vals[6]
+                time_readout_mu = np.int64(config_vals[7])
+                self.core.break_realtime()
+
+                # start jumps
+                counts = self.run_loop(freq_readout_ftw, carrier_freq_hz, sideband_freq_hz, ampl_rsb_frac,
+                                       ampl_bsb_frac, ampl_dd_frac, phase_rsb_turns, time_readout_mu)
+
+                # update results for quantum jumps
+                self.update_quantum_jump_results(freq_readout_ftw, counts, carrier_freq_hz)
+                self.core.break_realtime()
+
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
     @rpc(flags={"async"})
     def update_quantum_jump_results(self, *args):
         """
         Store results in the "quantum jumps" dataset.
         """
         # store results in quantum jumps dataset
-        self.mutate_dataset('results_quantum_jumps', self._results_quantum_jumps_idx, np.array(args))
+        self.set_dataset(f'results_quantum_jumps_{self._results_quantum_jumps_idx}', np.zeros((self.num_quantum_jumps * 2, 3)))
+        self.setattr_dataset(f'results_quantum_jumps'_{self._results_quantum_jumps_idx})
+        self.mutate_dataset(f'results_quantum_jumps_{self._results_quantum_jumps_idx}',
+                            self._results_quantum_jumps_idx, np.array(args))
         self._results_quantum_jumps_idx += 1
 
 
