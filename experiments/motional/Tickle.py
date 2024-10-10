@@ -111,7 +111,7 @@ class Tickle(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
             for config_vals in self.config_tickle_list:

@@ -189,7 +189,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         # get custom sequence handles
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')

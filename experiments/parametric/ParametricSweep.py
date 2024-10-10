@@ -103,7 +103,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.fluorescence_calibration_time_mu =             np.int64(30000000)  # 30ms
         self.fluorescence_calibration_threshold_counts =    400
 
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.dc_voltages_v_list) * len(self.mod_freq_khz_list),
@@ -180,7 +179,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.reset()
+        self.core.break_realtime()
 
         # run given number of repetitions
         for trial_num in range(self.repetitions):

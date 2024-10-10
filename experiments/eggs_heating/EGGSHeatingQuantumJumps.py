@@ -352,7 +352,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         """
         todo: document
         """
-        self.core.reset()
+        self.core.break_realtime()
 
         # get custom sequence handles
         self.phaser_dma_handle_pulseshape_rise = self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')

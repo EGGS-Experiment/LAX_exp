@@ -57,7 +57,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
 
