@@ -13,31 +13,32 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     Measures ion fluorescence after conducting a Ramsey Spectroscopy sequence.
     """
     name = 'Ramsey Spectroscopy'
-
+    kernel_invariants = {
+        'freq_ramsey_ftw_list'
+    }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
 
         # ramsey parameters
-        self.setattr_argument("freq_ramsey_mhz_list",               Scannable(
-                                                                        default=CenterScan(104.335, 0.5, 0.001),
-                                                                        global_min=30, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=5
-                                                                    ))
+        self.setattr_argument("freq_ramsey_mhz_list",   Scannable(
+                                                            default=CenterScan(104.335, 0.5, 0.001),
+                                                            global_min=30, global_max=200, global_step=1,
+                                                            unit="MHz", scale=1, ndecimals=5
+                                                        ))
         # get devices
         self.setattr_device('qubit')
 
         # prepare sequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.readout_subsequence =                                  Readout(self)
-        self.ramsey_subsequence =                                   Ramsey(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.ramsey_subsequence =       Ramsey(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         # convert ramsey detunings to ftw
-        self.freq_ramsey_ftw_list =                                 np.array([hz_to_ftw(freq_mhz * MHz)
-                                                                              for freq_mhz in list(self.freq_ramsey_mhz_list)])
+        self.freq_ramsey_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_ramsey_mhz_list)])
 
     @property
     def results_shape(self):
@@ -47,7 +48,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -56,9 +57,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
 
             # sweep ramsey detunings
@@ -78,14 +78,12 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                with parallel:
-                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
-                    self.core.break_realtime()
+                self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
+                self.core.break_realtime()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()

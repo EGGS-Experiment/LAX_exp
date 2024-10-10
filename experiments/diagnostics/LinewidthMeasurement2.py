@@ -21,7 +21,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         'time_adc_holdoff_mu', 'adc_channel_gain_mu'
     }
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
@@ -92,10 +91,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 4)
 
 
-
     '''MAIN SEQUENCE'''
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # set ADC channel gains
@@ -107,7 +105,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.probe_subsequence.record_dma()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # main loop

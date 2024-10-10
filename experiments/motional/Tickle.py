@@ -14,7 +14,6 @@ class Tickle(LAXExperiment, Experiment):
     """
     name = 'Tickle'
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                    NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
@@ -70,17 +69,17 @@ class Tickle(LAXExperiment, Experiment):
         elif self.tickle_source == 'Dipole':        self.dds_tickle = self.dds_dipole
 
         # convert tickle parameters to machine units
-        self.att_tickle_mu =                        att_to_mu(self.att_tickle_db * dB)
-        self.freq_tickle_ftw_list =                 np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_tickle_khz_list])
-        self.ampl_tickle_asf_list =                 np.array([pct_to_asf(ampl_pct) for ampl_pct in self.ampl_tickle_pct_list])
-        self.time_tickle_mu_list =                  np.array([self.core.seconds_to_mu(time_us * us) for time_us in self.time_tickle_us_list])
+        self.att_tickle_mu =        att_to_mu(self.att_tickle_db * dB)
+        self.freq_tickle_ftw_list = np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_tickle_khz_list])
+        self.ampl_tickle_asf_list = np.array([pct_to_asf(ampl_pct) for ampl_pct in self.ampl_tickle_pct_list])
+        self.time_tickle_mu_list =  np.array([self.core.seconds_to_mu(time_us * us) for time_us in self.time_tickle_us_list])
 
         # create an array of values for the experiment to sweep
         # (i.e. tickle frequency, tickle time, readout FTW)
-        self.config_tickle_list =                   np.stack(np.meshgrid(self.freq_tickle_ftw_list,
-                                                                         self.ampl_tickle_asf_list,
-                                                                         self.time_tickle_mu_list),
-                                                             -1).reshape(-1, 3)
+        self.config_tickle_list = np.stack(np.meshgrid(self.freq_tickle_ftw_list,
+                                                       self.ampl_tickle_asf_list,
+                                                       self.time_tickle_mu_list),
+                                           -1).reshape(-1, 3)
         np.random.shuffle(self.config_tickle_list)
 
         # tmp remove
@@ -98,7 +97,7 @@ class Tickle(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # ensure DMA sequences use profile 0
@@ -110,7 +109,7 @@ class Tickle(LAXExperiment, Experiment):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
@@ -138,14 +137,13 @@ class Tickle(LAXExperiment, Experiment):
                 self.readout_subsequence.run()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_tickle_ftw,
-                        self.readout_subsequence.fetch_count(),
-                        ampl_tickle_asf,
-                        time_tickle_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_tickle_ftw,
+                    self.readout_subsequence.fetch_count(),
+                    ampl_tickle_asf,
+                    time_tickle_mu
+                )
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -154,18 +152,16 @@ class Tickle(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         # todo: cleanup
 
     @rpc(flags={"async"})
-    def update_results(self, *args):
+    def update_results(self, *args) -> TNone:
         # tmp remove
-        res_tmp = np.array([])
-        counts_tmp = 0
-
+        counts_tmp =    0
+        res_tmp =       np.array([])
         if self.readout_type == "Timestamped":
             counts_tmp = args[1][-1]
             self.mutate_dataset('timestamped_counts', self._result_iter, args[1])
@@ -174,7 +170,6 @@ class Tickle(LAXExperiment, Experiment):
             res_tmp = np.array([args])
             counts_tmp = args[1]
         # tmp remove
-
 
         # store results in main dataset
         self.mutate_dataset('results', self._result_iter, res_tmp)

@@ -17,7 +17,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
     """
     name = 'EGGS Heating Quantum Jumps'
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",            NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000))
@@ -323,7 +322,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -346,9 +345,8 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # tmp remove
         self.ttl10.off()
 
-
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         """
         todo: document
         """

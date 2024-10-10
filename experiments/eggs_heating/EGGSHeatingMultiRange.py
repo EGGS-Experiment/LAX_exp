@@ -19,7 +19,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
     then apply bichromatic heating tones, and try to read out the fluorescence.
     Scans multiple ranges in a silly way and allows user choice of amplitudes.
     """
-    name = 'EGGS Heating'
+    name = 'EGGS Heating Multi Range'
 
 
     def build_experiment(self):
@@ -404,7 +404,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -428,7 +428,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.ttl10.off()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # get custom sequence handles

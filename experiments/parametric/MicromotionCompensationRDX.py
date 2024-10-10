@@ -16,6 +16,7 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: retrieve initial mode vector guesses from dataset_db so we don't waste two sweeps
 # todo: actually make adaptive option usable
 
+
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
     Experiment: Micromotion Compensation
@@ -26,15 +27,19 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     name = 'Micromotion Compensation'
 
     kernel_invariants = {
+        # modulation & modes
         "freq_mode_0_ftw", "freq_mode_1_ftw", "freq_mode_ftw_list", "mode_list_idx",
         "att_mode_0_mu", "att_mode_1_mu", "att_db_bounds_list",
+        # voltages
         "dc_channel_axis_0_num", "dc_channel_axis_1_num", "dc_scan_range_volts_list", "time_dc_synchronize_delay_mu",
         "dc_channel_axes_names",
+        # beam values
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu",
+        # magic numbers
         "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE",
+        # labrad
         "cxn", "dc"
     }
-
 
     def build_experiment(self):
         # get DC channel configuration dictionary
@@ -200,7 +205,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         """
         Main sequence of experiment.
         """

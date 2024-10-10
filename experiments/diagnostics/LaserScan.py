@@ -18,7 +18,6 @@ class LaserScan(LAXExperiment, Experiment):
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu'
     }
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",            NumberValue(default=20, ndecimals=0, step=1, min=1, max=100000))
@@ -60,7 +59,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # ensure DMA sequences use profile 0
@@ -75,7 +74,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):

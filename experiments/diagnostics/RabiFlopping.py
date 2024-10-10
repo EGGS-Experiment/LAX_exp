@@ -18,7 +18,6 @@ class RabiFlopping(LAXExperiment, Experiment):
         'freq_rabiflop_ftw', 'att_readout_mu', 'time_rabiflop_mu_list'
     }
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
@@ -76,7 +75,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -88,9 +87,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
 
             # sweep rabi flopping times

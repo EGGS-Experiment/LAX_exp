@@ -19,7 +19,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         'config_heating_rate_list'
     }
 
-
     def build_experiment(self):
         # heating rate wait times
         self.setattr_argument("time_heating_rate_ms_list",  PYONValue([1, 2, 5, 10, 50]))

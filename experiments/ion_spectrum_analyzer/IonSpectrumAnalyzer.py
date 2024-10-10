@@ -188,7 +188,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # get custom sequence handles
@@ -273,19 +273,18 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        offset_freq_hz,
-                        time_readout_mu,
-                        phase_antisqueeze_pow,
-                        phase_rsb_turns,
-                        phase_ch1_turns
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    offset_freq_hz,
+                    time_readout_mu,
+                    phase_antisqueeze_pow,
+                    phase_rsb_turns,
+                    phase_ch1_turns
+                )
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -304,9 +303,8 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         # CLEANUP
         self.core.break_realtime()
@@ -432,7 +430,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})
-    def phaser_run_ISA_antisqueezing(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat):
+    def phaser_run_ISA_antisqueezing(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
         """
         Activate phaser channel outputs for EGGS heating.
         Sets the same RSB, BSB, and dynamical decoupling amplitudes for both channels.

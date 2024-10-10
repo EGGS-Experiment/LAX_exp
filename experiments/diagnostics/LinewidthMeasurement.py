@@ -24,7 +24,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         'config_linewidth_measurement_list'
     }
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",            NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
@@ -91,7 +90,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # set up probe waveform config
         self.config_linewidth_measurement_list = np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
 
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.freq_probe_scan_ftw) * 2,
@@ -100,7 +98,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
     '''MAIN SEQUENCE'''
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # set ADC channel gains
@@ -108,7 +106,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # create buffer to hold sampler values

@@ -26,7 +26,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns'
     }
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
@@ -276,9 +275,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.ttl8.off()
         self.ttl9.off()
 
-
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # load waveform DMA handles

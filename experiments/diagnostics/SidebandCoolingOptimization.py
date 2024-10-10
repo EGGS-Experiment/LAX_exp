@@ -49,7 +49,7 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -58,9 +58,8 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
         self.sidebandreadout_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):

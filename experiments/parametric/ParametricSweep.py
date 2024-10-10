@@ -30,7 +30,6 @@ class ParametricSweep(LAXExperiment, Experiment):
     """
     name = 'Parametric Sweep'
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
@@ -175,7 +174,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         counts_calibration = self.pmt.fetch_count()
         if counts_calibration < self.fluorescence_calibration_threshold_counts:
             raise InsufficientCounts("Error: PMT not receiving sufficient counts.")
-
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:

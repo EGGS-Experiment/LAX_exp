@@ -15,14 +15,14 @@ class SidebandCooling(LAXExperiment, Experiment):
     Measure ion temperature via sideband ratio following sideband cooling.
     """
     name = 'Sideband Cooling'
-
+    kernel_invariants = set()
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
 
         # sideband cooling type
-        self.setattr_argument("cooling_type",       EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
 
         # get relevant devices
         self.setattr_device('qubit')
@@ -37,8 +37,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
-        if self.cooling_type == "Continuous":       self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "Pulsed":         self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
+        if self.cooling_type == "Continuous":   self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "Pulsed":     self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
     @property
     def results_shape(self):
@@ -48,7 +48,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -57,11 +57,9 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.sidebandreadout_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
 
             # scan over sideband readout frequencies
@@ -82,9 +80,8 @@ class SidebandCooling(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                with parallel:
-                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
-                    self.core.break_realtime()
+                self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -93,9 +90,8 @@ class SidebandCooling(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
 
     # ANALYSIS
@@ -104,57 +100,51 @@ class SidebandCooling(LAXExperiment, Experiment):
         Fit resultant spectrum with a sinc profile.
         """
         # create data structures for processing
-        results_tmp =           np.array(self.results)
-        probability_vals =      np.zeros(len(results_tmp))
-        counts_arr =            np.array(results_tmp[:, 1])
-        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
-
+        results_tmp =       np.array(self.results)
+        probability_vals =  np.zeros(len(results_tmp))
+        counts_arr =        np.array(results_tmp[:, 1])
+        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
-        results_tmp[:, 0] *=    2.e3 / 0xFFFFFFFF
-
+        results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
 
         # calculate fluorescence detection threshold
-        threshold_list =        findThresholdScikit(results_tmp[:, 1])
+        threshold_list = findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
         # normalize probabilities and convert from D-state probability to S-state probability
-        results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
-
+        results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
         # process dataset into x, y, with y being averaged probability
-        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
+        results_tmp =   groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp =   np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
         # separate spectrum into RSB & BSB and fit using sinc profile
         # guess carrier as mean of highest and lowest frequencies
         guess_carrier_mhz =             (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
         # split data into RSB and BSB
-        split =                         lambda arr, cond: [arr[cond], arr[~cond]]
+        split = lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, time_readout_us)
-        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, time_readout_us)
+        fit_params_rsb, fit_err_rsb = fitSinc(results_rsb, time_readout_us)
+        fit_params_bsb, fit_err_bsb = fitSinc(results_bsb, time_readout_us)
 
         # process fit parameters to give values of interest
-        sinc_max =                      lambda a, t: np.sin(np.pi * t * a)**2.
+        sinc_max =  lambda a, t: np.sin(np.pi * t * a)**2.
         # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
-                                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
-        phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
-                                                    )**0.5
+        phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
+                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
+        phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
+                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
+                                    )**0.5
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
         self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.sidebandcooling.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-
         # save results to hdf5 as a dataset
         self.set_dataset('fit_params_rsb',  fit_params_rsb)
         self.set_dataset('fit_params_bsb',  fit_params_bsb)
         self.set_dataset('fit_err_rsb',     fit_err_rsb)
         self.set_dataset('fit_err_bsb',     fit_err_bsb)
-
         # print out fitted parameters
         print("\tResults - Sideband Cooling:")
         print("\t\tn: {:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
@@ -173,30 +163,28 @@ class SidebandCooling(LAXExperiment, Experiment):
             ***todo
         """
         # process dataset into x, y, with y being averaged probability
-        results_tmp =           groupBy(dataset, column_num=0, reduce_func=np.mean)
-        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        time_readout_us =       self.sidebandreadout_subsequence.time_sideband_readout_us
-
-
+        results_tmp =       groupBy(dataset, column_num=0, reduce_func=np.mean)
+        results_tmp =       np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
 
         # separate spectrum into RSB & BSB and fit using sinc profile
         # guess carrier as mean of highest and lowest frequencies
-        guess_carrier_mhz =     (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
+        guess_carrier_mhz = (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
         # split data into RSB and BSB
-        split =                         lambda arr, cond: [arr[cond], arr[~cond]]
-        results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
+        split = lambda arr, cond: [arr[cond], arr[~cond]]
+        results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         # fit sinc profile
         fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, time_fit_us)
         fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, time_fit_us)
 
         # process fit parameters to give values of interest
-        sinc_max =                      lambda a, t: np.sin(np.pi*t*a)**2.
-        # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =                      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
-                                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
-        phonon_err =                    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
-                                                    )**0.5
+        sinc_max = lambda a, t: np.sin(np.pi*t*a)**2.
+        # phonon_n =      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
+        phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
+                        (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
+        phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
+                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
+                                    )**0.5
         return np.array([abs(phonon_n), abs(phonon_err)])
 
