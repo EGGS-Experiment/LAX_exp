@@ -185,9 +185,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self._results_quantum_jumps_idx = 0
         self._dataset_quantum_jumps_idx = 0
 
-        self.max_num_quantum_jumps =    8   # set max number of possible peaks to prevent boobooing
-        self.peak_rsb_threshold_frac =  np.int32(0.2 * self.sub_repetitions)  # RSB threshold for peak detection
-        self.peak_bsb_threshold_frac =  np.int32(0.2 * self.sub_repetitions)  # BSB threshold for peak detection
+        self.max_num_quantum_jumps = 8  # set max number of possible peaks to prevent boobooing
+        self.peak_sb_threshold_min_frac = np.int32(0.10 * self.sub_repetitions) # min threshold for peak detection
+        self.peak_sb_threshold_max_frac = np.int32(0.95 * self.sub_repetitions) # max threshold for peak detection
 
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
@@ -539,7 +539,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
     def process_peak(self) -> TBool:
         """
         Checks whether a peak has been found using the data from a single sub_rep period.
-        A "peak" is considered found if the sideband ratio exceeds the given threshold.
+        A "peak" is considered found if the sideband ratio exceeds the given threshold and the
+        constituent RSB and BSB values fall within a threshold range to prevent false positives
+        (e.g. from ion death or mass change).
         Returns:
             TBool   : True if peak detected, False otherwise.
         """
@@ -557,10 +559,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # return peak criteria check
         # note: multiply instead of divide for efficiency and to avoid divide-by-zero errors
-        return ((rsb_total > self.peak_rsb_threshold_frac) and
-                (bsb_total > self.peak_rsb_threshold_frac) and
-                (rsb_total > bsb_total * self.quantum_jump_threshold_phonon)
-                )
+        return ((rsb_total > self.peak_sb_threshold_min_frac) and (rsb_total < self.peak_sb_threshold_max_frac) and
+                (bsb_total > self.peak_sb_threshold_min_frac) and (bsb_total < self.peak_sb_threshold_max_frac) and
+                (rsb_total > bsb_total * self.quantum_jump_threshold_phonon))
 
     @kernel(flags={"fast-math"})
     def run_quantum_jumps(self, carrier_freq_hz: TFloat) -> TNone:
