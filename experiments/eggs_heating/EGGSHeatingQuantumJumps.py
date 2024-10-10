@@ -25,7 +25,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.setattr_argument("sub_repetitions",        NumberValue(default=40, ndecimals=0, step=1, min=1, max=500))
 
         # quantum jump arguments
-        self.setattr_argument("num_quantum_jumps",              NumberValue(default=150, ndecimals=0, step=1, min=1, max=100000), group='EGGS_Heating.quantum_jumps')
+        self.setattr_argument("num_quantum_jumps",              NumberValue(default=500, ndecimals=0, step=1, min=1, max=100000), group='EGGS_Heating.quantum_jumps')
         self.setattr_argument("count_threshold",                NumberValue(default=85, ndecimals=0, step=10, min=0, max=250), group='EGGS_Heating.quantum_jumps')
         self.setattr_argument("quantum_jump_threshold_phonon",  NumberValue(default=0.75, ndecimals=2, step=0.1, min=0., max=1.2), group='EGGS_Heating.quantum_jumps')
 
@@ -39,8 +39,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",     Scannable(
                                                                             default=[
-                                                                                RangeScan(84.65, 84.95, 100, randomize=False),
-                                                                                ExplicitScan([3.]),
+                                                                                RangeScan(84.35, 84.55, 100, randomize=False),
                                                                                 ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                                                                                 CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                             ],
@@ -49,7 +48,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                                                                         ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",     Scannable(
                                                                             default=[
-                                                                                ExplicitScan([1113.81]),
+                                                                                ExplicitScan([1117.16]),
                                                                                 CenterScan(777.5, 4, 0.1, randomize=True),
                                                                                 ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                             ],
@@ -60,7 +59,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list",                   Scannable(
                                                                             default=[
-                                                                                ExplicitScan([127.1]),
+                                                                                ExplicitScan([123.3]),
                                                                                 RangeScan(0, 1500, 100, randomize=True),
                                                                             ],
                                                                             global_min=1, global_max=100000, global_step=1,
@@ -79,12 +78,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("enable_amplitude_calibration",           BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                    NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",              NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",              NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                    NumberValue(default=14., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",              NumberValue(default=31.5, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",              NumberValue(default=43., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",            BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",     NumberValue(default=0.1, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct",     NumberValue(default=0.4, ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -94,7 +93,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_dd_phase_shift_keying",           BooleanValue(default=True), group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_dynamical_decoupling_phase_shifts",  NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_dynamical_decoupling_phase_shifts",  NumberValue(default=5, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
         # get relevant devices
         self.setattr_device("qubit")
