@@ -181,13 +181,13 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.config_quantum_jumps = np.zeros((2, np.shape(self.config_eggs_heating_list)[1]))
         self.config_quantum_jumps[:, :] = self.config_eggs_heating_list[0]
         self.config_quantum_jumps[:, 0] = self.freq_sideband_readout_ftw_list
-
         # create index iterators for quantum jump data structures
         self._results_quantum_jumps_idx = 0
         self._dataset_quantum_jumps_idx = 0
 
-        # set max number of possible peaks to prevent boobooing
-        self.max_num_quantum_jumps = 8
+        self.max_num_quantum_jumps =    8   # set max number of possible peaks to prevent boobooing
+        self.peak_rsb_threshold_frac =  np.int32(0.2 * self.sub_repetitions)  # RSB threshold for peak detection
+        self.peak_bsb_threshold_frac =  np.int32(0.2 * self.sub_repetitions)  # BSB threshold for peak detection
 
 
         '''EGGS HEATING - AMPLITUDE CALIBRATION'''
@@ -555,8 +555,12 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                 bsb_total += 1
         self.core.break_realtime()
 
+        # return peak criteria check
         # note: multiply instead of divide for efficiency and to avoid divide-by-zero errors
-        return rsb_total > bsb_total * self.quantum_jump_threshold_phonon
+        return ((rsb_total > self.peak_rsb_threshold_frac) and
+                (bsb_total > self.peak_rsb_threshold_frac) and
+                (rsb_total > bsb_total * self.quantum_jump_threshold_phonon)
+                )
 
     @kernel(flags={"fast-math"})
     def run_quantum_jumps(self, carrier_freq_hz: TFloat) -> TNone:
