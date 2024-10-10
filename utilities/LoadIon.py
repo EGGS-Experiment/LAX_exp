@@ -75,6 +75,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
+        self.setattr_device('scheduler')
         self.readout_subsequence = Readout(self)
 
         # relevant devices - labrad
@@ -137,13 +138,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     def initialize_experiment(self):
         self.core.break_realtime()
 
-        # tmp remove
-        delay_mu(1000000)
-        print("\tINITIALIZE START")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
         '''HARDWARE INITIALIZATION'''
         # store attenuations to prevent overriding
         self.pump.beam.cpld.get_att_mu()
@@ -164,14 +158,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
-
-        # tmp remove
-        delay_mu(1000000)
-        self.core.break_realtime()
-        print("\tHARDWARE INITIALIZE FINISH")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
 
         '''SET UP CAMERA'''
         # set camera region of interest and exposure time
@@ -208,13 +194,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-        # tmp remove
-        delay_mu(1000000)
-        print("\tLABRAD INITIALIZE FINISH")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
@@ -226,13 +205,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # run loading loop until we load desired_num_of_ions
         num_ions = 0
         while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
-
-            # tmp remove
-            delay_mu(1000000)
-            print("\tRUN MAIN LOADING LOOP")
-            self.core.break_realtime()
-            delay_mu(1000000)
-            # tmp remove
 
             self.check_termination()
             self.core.break_realtime()
@@ -259,20 +231,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def load_ion(self) -> TInt32:
         """
-        Function for Loading Ion.
+        Function for loading an ion.
         Returns:
             TInt32: number of ions in trap
         """
-        # tmp remove
-        delay_mu(1000000)
-        print("\tSTART LOAD ION")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
         # define some variables for later use
         idx = 0
-        num_ions = 0
         ion_spottings = 0
 
         # run loop while we don't see ions
@@ -300,7 +264,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 if ion_spottings >= 3:
                     print(num_ions, "ION(s) LOADED")
                     self.core.break_realtime()
-                    delay_mu(1000000)
                     return num_ions
             else:
                 ion_spottings = 0  # reset if image analysis shows no ions in trap
@@ -339,7 +302,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     def cleanup_devices(self) -> TNone:
         """
         Set all devices to states as if ion was loaded.
-        All but trap electrodes set to original state --- trap electrodes set to final trapping potential
+        All but trap electrodes set to original state --- trap electrodes set to final trapping potential.
         """
         # turn off oven
         self.oven.set_oven_voltage(0)
@@ -348,12 +311,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # close shutters
         self.shutters.toggle_377_shutter(False)
         self.shutters.toggle_423_shutter(False)
-        # # tmp remove
-        # delay_mu(1000000)
-        # print("\tRUN main loading loop")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # # tmp remove
 
         # set trap parameters as if ion was loaded
         self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
@@ -412,9 +369,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         data = ndimage.binary_erosion(data, kernel1, iterations=2)
         data[data > 0] = 1
         labels = skimage.measure.label(data)
-        # # tmp remove
-        # print('\t\tlabels: {}'.format(np.unique(labels)))
-        # # tmp remove
 
         # create camera image (processed)
         plt.figure(2)
@@ -426,7 +380,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
         """
-        Adjust the flipper to send light to the camera.
+        Set the flipper to send light to the camera.
         """
         # store PMT count events
         for i in range(self.pmt_sample_num):
@@ -444,4 +398,14 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
             self.flipper.flip()
         self.core.break_realtime()
+
+    @rpc
+    def check_termination(self) -> TNone:
+        """
+        OVERRIDE base check_termination to ensure devices are always cleaned up
+        in case of termination.
+        """
+        if self.scheduler.check_termination():
+            self.cleanup_devices()
+            raise TerminationRequested
 

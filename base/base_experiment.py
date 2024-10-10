@@ -359,7 +359,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
 
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         """
         To be subclassed.
 
@@ -367,7 +367,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
-    def run_main(self):
+    def run_main(self) -> TNone:
         """
         Can be subclassed.
 
@@ -391,7 +391,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         pass
 
     @rpc
-    def check_termination(self):
+    def check_termination(self) -> TNone:
         """
         Check whether termination of the experiment has been requested.
         """
@@ -399,7 +399,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             raise TerminationRequested
 
     @kernel(flags={"fast-math"})
-    def noop(self):
+    def noop(self) -> TNone:
         """
         A hardware no-op function to allow for customizable pulse sequence configuration.
         """
