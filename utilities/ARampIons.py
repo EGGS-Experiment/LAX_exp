@@ -17,19 +17,18 @@ from LAX_exp.system.subsequences import Readout
 # todo: speed things up here and there
 
 
-class IonLoadAndAramp(LAXExperiment, Experiment):
+class Aramp(LAXExperiment, Experiment):
     """
-    Utility: Ion Load and Aramp
+    Utility: Aramp
 
     Gets the number of counts as a function of frequency for a fixed time.
     """
-    name = 'Ion Load and Aramp'
+    name = 'Aramp'
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
     kernel_invariants = {
         "pmt_sample_num", "pmt_dark_threshold_counts",
         "att_397_mu", "att_866_mu", "att_854_mu",
-        "time_runtime_max_mu",
         "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path"
     }
 
@@ -37,39 +36,33 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # general arguments
         self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, ndecimals=0, step=1))
 
-        # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=18.8, ndecimals=1, step=0.1, min=0., max=300.),
-                                                            group='Starting Trap Parameters')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=24., ndecimals=1, step=0.1, min=0., max=300.),
-                                                            group='Starting Trap Parameters')
 
         # ending trap arguments
-        self.setattr_argument('end_east_endcap_voltage',     NumberValue(default=205., ndecimals=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('east_endcap_voltage',     NumberValue(default=205., ndecimals=1, step=0.1, min=0., max=400.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_west_endcap_voltage',     NumberValue(default=308., ndecimals=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('west_endcap_voltage',     NumberValue(default=308., ndecimals=1, step=0.1, min=0., max=400.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=67.6, ndecimals=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('v_shim_voltage',          NumberValue(default=67.6, ndecimals=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=48.3, ndecimals=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('h_shim_voltage',          NumberValue(default=48.3, ndecimals=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, ndecimals=1, step=0.1, min=0., max=50.),
+        self.setattr_argument('final_aramp_voltage',          NumberValue(default=2.8, ndecimals=1, step=0.1, min=0., max=50.),
                                                                 group='Ending Trap Parameters')
-
-        # aramping parameters
-        self.setattr_argument("aramp_ions_voltage_list",    Scannable(
-                                                                    default=[
-                                                                        RangeScan(18, 24, 20, randomize=True),
-                                                                        ExplicitScan([19, 20, 21, 22, 23, 24]),
-                                                                    ],
-                                                                    global_min=0.0, global_max=30.0, global_step=1,
-                                                                    unit="V", scale=1, ndecimals=2
-                                                                ), group='A-Ramp Ejection')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, ndecimals=0), group='Camera')
         self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, ndecimals=0), group='Camera')
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, ndecimals=0), group='Camera')
         self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, ndecimals=0), group='Camera')
+
+
+        # aramping parameters
+        self.setattr_argument("aramp_ions_voltage_list", Scannable(
+            default=[
+                # RangeScan(18, 24, 20, randomize=True),
+                ExplicitScan([7, 8, 9, 10, 11, 12, 13]),
+                    ],
+                global_min=0.0, global_max=30.0, global_step=0.1, unit="volts", scale=1, ndecimals=3))
 
         # relevant devices - sinara
         self.setattr_device('pump')
@@ -78,9 +71,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.readout_subsequence = Readout(self)
 
         # relevant devices - labrad
-        self.setattr_device('shutters')
-        self.setattr_device('oven')
-        self.setattr_device('aperture')
         self.setattr_device('trap_dc')
         self.setattr_device('camera')
         self.setattr_device('flipper')
@@ -114,9 +104,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.att_854_mu = att_to_mu(14 * dB)
         self.att_866_mu = att_to_mu(14 * dB)
 
-        '''OVEN SETUP'''
-        self.oven_voltage = 1.
-        self.oven_current = 3.25
 
         '''A-RAMP SETUP'''
         self.time_aramp_pulse_s = 2.
@@ -179,29 +166,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         '''SET UP TRAP'''
-        # set endcaps to loading voltages
-        self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
-        self.trap_dc.set_west_endcap_voltage(self.start_west_endcap_voltage)
-        # turn on endcap channels and ensure others are off
+        # ramp endcaps in case not already ramped
+        self.trap_dc.ramp_both_endcaps([self.east_endcap_voltage, self.west_endcap_voltage],
+                                       [100., 100.])
+        # note: we add sleep and set voltages AGAIN to reflect updates on GUIs
+        time.sleep(3)
+        self.trap_dc.set_east_endcap_voltage(self.east_endcap_voltage)
+        self.trap_dc.set_west_endcap_voltage(self.west_endcap_voltage)
+        self.trap_dc.set_h_shim_voltage(self.h_shim_voltage)
+        self.trap_dc.set_v_shim_voltage(self.v_shim_voltage)
+        # turn on voltages
         self.trap_dc.east_endcap_toggle(True)
         self.trap_dc.west_endcap_toggle(True)
-        self.trap_dc.h_shim_toggle(False)
-        self.trap_dc.v_shim_toggle(False)
-        self.trap_dc.aramp_toggle(False)
-        self.core.break_realtime()
-
-        '''SET UP LOADING LASERS'''
-        # open 397nm aperture
-        self.aperture.open_aperture()
-        # open shutters
-        self.shutters.toggle_377_shutter(True)
-        self.shutters.toggle_423_shutter(True)
-        self.core.break_realtime()
-
-        '''START OVEN'''
-        # turn on the oven
-        self.oven.set_oven_voltage(self.oven_voltage)
-        self.oven.toggle(True)
+        self.trap_dc.h_shim_toggle(True)
+        self.trap_dc.v_shim_toggle(True)
+        self.trap_dc.aramp_toggle(True)
         self.core.break_realtime()
 
         # synchronize timeline
@@ -223,32 +202,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get start time to check if we exceed max time
         self.start_time_mu = self.core.get_rtio_counter_mu()
 
-        # run loading loop until we load desired_num_of_ions
-        num_ions = 0
-        while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
 
-            # tmp remove
-            delay_mu(1000000)
-            print("\tRUN MAIN LOADING LOOP")
-            self.core.break_realtime()
-            delay_mu(1000000)
-            # tmp remove
-
-            self.check_termination()
-            self.core.break_realtime()
-
-            # load ions if below desired count
-            if num_ions < self.desired_num_of_ions:
-                self.initialize_experiment()
-                num_ions = self.load_ion()
-                self.core.break_realtime()
-
-            # eject excess ions via A-ramping
-            elif num_ions > self.desired_num_of_ions:
-                self.cleanup_devices()
-                num_ions = self.aramp_ions()
-                self.core.break_realtime()
-                self.core.wait_until_mu(now_mu())
+        self.aramp_ions()
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
 
         '''CLEAN UP'''
         self.cleanup_devices()
@@ -256,60 +213,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-    @kernel(flags={"fast-math"})
-    def load_ion(self) -> TInt32:
-        """
-        Function for Loading Ion.
-        Returns:
-            TInt32: number of ions in trap
-        """
-        # tmp remove
-        delay_mu(1000000)
-        print("\tSTART LOAD ION")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
-        # define some variables for later use
-        idx = 0
-        num_ions = 0
-        ion_spottings = 0
-
-        # run loop while we don't see ions
-        while True:
-            self.core.break_realtime()
-
-            # extract number of ions on camera
-            num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_maipulated.png')
-            self.core.break_realtime()
-
-            # periodically check if we've reached a stop condition
-            # i.e. max_time reached or termination_requested
-            if idx % 5 == 0:
-                if (self.core.get_rtio_counter_mu() - self.start_time_mu) > self.time_runtime_max_mu:
-                    print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD --- ENDING PROGRAM")
-                    return -1
-                else:
-                    self.check_termination()
-                    self.core.break_realtime()
-
-            # check to see if we have loaded enough ions
-            if num_ions >= self.desired_num_of_ions:
-                ion_spottings += 1
-                # ensure camera sees ion in 3 consecutive images to prevent singular false positive
-                if ion_spottings >= 3:
-                    print(num_ions, "ION(s) LOADED")
-                    self.core.break_realtime()
-                    delay_mu(1000000)
-                    return num_ions
-            else:
-                ion_spottings = 0  # reset if image analysis shows no ions in trap
-            idx += 1
-
-        return 0
-
     @rpc
-    def aramp_ions(self) -> TInt32:
+    def aramp_ions(self):
         """
         Pulse A-ramp to get rid of excess ions.
         Returns:
@@ -319,65 +224,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         print("STARTING ARAMP PROCEDURE")
         for aramp_voltage in self.aramp_ions_voltage_list:
 
-            print(f"ARAMPING AT VOLTAGE {aramp_voltage}")
+            print(f"ARAMPING AT VOLTAGE {np.round(aramp_voltage,2)}")
 
             # pulse A-ramp for given period
             self.trap_dc.set_aramp_voltage(aramp_voltage)
             time.sleep(self.time_aramp_pulse_s)
-            self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
+            self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
             time.sleep(self.time_aramp_pulse_s)
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
+
             if num_ions <= self.desired_num_of_ions:
-                return num_ions
+                break
 
             self.check_termination()
-        return 0
-
-    @rpc
-    def cleanup_devices(self) -> TNone:
-        """
-        Set all devices to states as if ion was loaded.
-        All but trap electrodes set to original state --- trap electrodes set to final trapping potential
-        """
-        # turn off oven
-        self.oven.set_oven_voltage(0)
-        self.oven.toggle(False)
-
-        # close shutters
-        self.shutters.toggle_377_shutter(False)
-        self.shutters.toggle_423_shutter(False)
-        # # tmp remove
-        # delay_mu(1000000)
-        # print("\tRUN main loading loop")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # # tmp remove
-
-        # set trap parameters as if ion was loaded
-        self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
-        self.trap_dc.set_west_endcap_voltage(self.start_west_endcap_voltage)
-        self.trap_dc.set_h_shim_voltage(self.end_h_shim_voltage)
-        self.trap_dc.set_v_shim_voltage(self.end_v_shim_voltage)
-        self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-
-        # turn on the endcap channels
-        self.trap_dc.h_shim_toggle(True)
-        self.trap_dc.v_shim_toggle(True)
-        self.trap_dc.aramp_toggle(True)
-
-        # ramp endcaps to end values
-        self.trap_dc.ramp_both_endcaps([self.end_east_endcap_voltage, self.end_west_endcap_voltage],
-                                       [100., 100.])
-        # note: we add sleep and set voltages AGAIN to reflect updates on GUIs
-        time.sleep(2)
-        self.trap_dc.set_east_endcap_voltage(self.end_east_endcap_voltage)
-        self.trap_dc.set_west_endcap_voltage(self.end_west_endcap_voltage)
-
-        # close aperture
-        # note: do this last to keep ion happy during voltage adjustments
-        self.aperture.close_aperture()
 
     @rpc
     def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
@@ -412,9 +273,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         data = ndimage.binary_erosion(data, kernel1, iterations=2)
         data[data > 0] = 1
         labels = skimage.measure.label(data)
-        # # tmp remove
-        # print('\t\tlabels: {}'.format(np.unique(labels)))
-        # # tmp remove
 
         # create camera image (processed)
         plt.figure(2)
@@ -422,6 +280,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.title("Manipulated Image")
         plt.savefig(os.path.join(self.data_path, filepath2))
         return len(np.unique(labels)) - 1
+
+    @rpc
+    def cleanup_devices(self) -> TNone:
+        """
+        Set all devices to states as if ion was loaded.
+        All but trap electrodes set to original state --- trap electrodes set to final trapping potential
+        """
+
+        # set final trap parameters
+        self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
+
+        # turn on the endcap channels
+        self.trap_dc.h_shim_toggle(True)
+        self.trap_dc.v_shim_toggle(True)
+        self.trap_dc.aramp_toggle(True)
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:

@@ -13,6 +13,7 @@ class TrapDC(LAXDevice):
     """
     name = "trap_dc"
 
+    # todo: make it get from dc_config somehow (preferably registry)
     EAST_ENDCAP_CHANNEL =   28
     WEST_ENDCAP_CHANNEL =   27
     V_SHIM_CHANNEL =        20
