@@ -29,13 +29,14 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     kernel_invariants = {
         "pmt_sample_num", "pmt_dark_threshold_counts",
         "att_397_mu", "att_866_mu", "att_854_mu",
-        "time_runtime_max_mu",
-        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path"
+        "time_runtime_max_s", "start_time_s",
+        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
+        "time_aramp_pulse_s", "oven_voltage", "oven_current"
     }
 
     def build_experiment(self):
         # general arguments
-        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, ndecimals=0, step=1))
+        self.setattr_argument('desired_num_of_ions', NumberValue(default=2, min=1, max=10, ndecimals=0, step=1))
 
         # starting trap arguments
         self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=18.8, ndecimals=1, step=0.1, min=0., max=300.),
@@ -94,9 +95,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         '''HARDWARE VALUES'''
         self.pmt_sample_num = 30
         self.pmt_dark_threshold_counts = 15
-        self.time_runtime_max_mu = self.core.seconds_to_mu(900.)
+        self.time_runtime_max_s = 900.
 
-        self.start_time_mu = np.int64(0)
+        self.start_time_s = np.int64(0)
 
         '''CAMERA SETUP'''
         self.IMAGE_HEIGHT = 512
@@ -135,10 +136,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        '''HARDWARE INITIALIZATION'''
         # store attenuations to prevent overriding
         self.pump.beam.cpld.get_att_mu()
         self.core.break_realtime()
@@ -159,10 +159,18 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
 
+        # synchronize timeline
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+
+    @rpc
+    def initialize_labrad_devices(self) -> TNone:
+        """
+        Initialize labrad devices via RPC.
+        """
         '''SET UP CAMERA'''
         # set camera region of interest and exposure time
         self.camera.set_image_region(self.image_region)
-        self.core.break_realtime()
 
         '''SET UP TRAP'''
         # set endcaps to loading voltages
@@ -174,7 +182,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.trap_dc.h_shim_toggle(False)
         self.trap_dc.v_shim_toggle(False)
         self.trap_dc.aramp_toggle(False)
-        self.core.break_realtime()
 
         '''SET UP LOADING LASERS'''
         # open 397nm aperture
@@ -182,53 +189,39 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # open shutters
         self.shutters.toggle_377_shutter(True)
         self.shutters.toggle_423_shutter(True)
-        self.core.break_realtime()
 
         '''START OVEN'''
         # turn on the oven
         self.oven.set_oven_voltage(self.oven_voltage)
         self.oven.toggle(True)
-        self.core.break_realtime()
 
-        # synchronize timeline
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
+    @rpc
     def run_main(self) -> TNone:
         """
         Run till ion is loaded or timeout.
         """
         # get start time to check if we exceed max time
-        self.start_time_mu = self.core.get_rtio_counter_mu()
+        self.start_time_s = time.time()
 
         # run loading loop until we load desired_num_of_ions
         num_ions = 0
         while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
-
             self.check_termination()
-            self.core.break_realtime()
 
             # load ions if below desired count
             if num_ions < self.desired_num_of_ions:
-                self.initialize_experiment()
+                self.initialize_labrad_devices()
                 num_ions = self.load_ion()
-                self.core.break_realtime()
 
             # eject excess ions via A-ramping
             elif num_ions > self.desired_num_of_ions:
                 self.cleanup_devices()
                 num_ions = self.aramp_ions()
-                self.core.break_realtime()
-                self.core.wait_until_mu(now_mu())
 
         '''CLEAN UP'''
         self.cleanup_devices()
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
 
-    @kernel(flags={"fast-math"})
+    @rpc
     def load_ion(self) -> TInt32:
         """
         Function for loading an ion.
@@ -241,21 +234,17 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # run loop while we don't see ions
         while True:
-            self.core.break_realtime()
-
             # extract number of ions on camera
             num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_maipulated.png')
-            self.core.break_realtime()
 
             # periodically check if we've reached a stop condition
             # i.e. max_time reached or termination_requested
             if idx % 5 == 0:
-                if (self.core.get_rtio_counter_mu() - self.start_time_mu) > self.time_runtime_max_mu:
+                if (time.time() - self.start_time_s) > self.time_runtime_max_s:
                     print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD --- ENDING PROGRAM")
                     return -1
                 else:
                     self.check_termination()
-                    self.core.break_realtime()
 
             # check to see if we have loaded enough ions
             if num_ions >= self.desired_num_of_ions:
@@ -263,7 +252,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 # ensure camera sees ion in 3 consecutive images to prevent singular false positive
                 if ion_spottings >= 3:
                     print(num_ions, "ION(s) LOADED")
-                    self.core.break_realtime()
                     return num_ions
             else:
                 ion_spottings = 0  # reset if image analysis shows no ions in trap

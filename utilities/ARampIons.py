@@ -13,15 +13,11 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
 
 
-# todo: finish kernel_invariants
-# todo: speed things up here and there
-
-
-class Aramp(LAXExperiment, Experiment):
+class ARampEjection(LAXExperiment, Experiment):
     """
-    Utility: Aramp
+    Utility: A-Ramp Ejection
 
-    Gets the number of counts as a function of frequency for a fixed time.
+    Eject excess ions in the trap by pulsing the voltage on the A-ramp.
     """
     name = 'Aramp'
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
@@ -29,8 +25,7 @@ class Aramp(LAXExperiment, Experiment):
     kernel_invariants = {
         "pmt_sample_num", "pmt_dark_threshold_counts",
         "att_397_mu", "att_866_mu", "att_854_mu",
-        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
-        "time_runtime_max_mu", "time_aramp_pulse_s"
+        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path", "time_aramp_pulse_s"
     }
 
     def build_experiment(self):
@@ -86,9 +81,6 @@ class Aramp(LAXExperiment, Experiment):
         '''HARDWARE VALUES'''
         self.pmt_sample_num = 30
         self.pmt_dark_threshold_counts = 15
-        self.time_runtime_max_mu = self.core.seconds_to_mu(900.)
-
-        self.start_time_mu = np.int64(0)
 
         '''CAMERA SETUP'''
         self.IMAGE_HEIGHT = 512
@@ -174,48 +166,35 @@ class Aramp(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-    @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
         Run till ion is loaded or timeout.
         """
-        # get start time to check if we exceed max time
-        self.start_time_mu = self.core.get_rtio_counter_mu()
-
         self.aramp_ions()
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-
-        '''CLEAN UP'''
         self.cleanup_devices()
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
 
     @rpc
     def aramp_ions(self) -> TNone:
         """
         Pulse A-ramp to get rid of excess ions.
-        Returns:
-            TInt32: Number of ions.
         """
         # todo: allow for some error conditions
         print("STARTING ARAMP PROCEDURE")
         for aramp_voltage in self.aramp_ions_voltage_list:
-
-            print(f"ARAMPING AT VOLTAGE {np.round(aramp_voltage,2)}")
-
-            # pulse A-ramp for given period
-            self.trap_dc.set_aramp_voltage(aramp_voltage)
-            time.sleep(self.time_aramp_pulse_s)
-            self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
-            time.sleep(self.time_aramp_pulse_s)
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
             if num_ions <= self.desired_num_of_ions:
                 break
 
+            # pulse A-ramp for given period
+            print(f"ARAMPING AT VOLTAGE {np.round(aramp_voltage,2)}")
+            self.trap_dc.set_aramp_voltage(aramp_voltage)
+            time.sleep(self.time_aramp_pulse_s)
+            self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
+            time.sleep(self.time_aramp_pulse_s)
+
+            # check termination
             self.check_termination()
 
     @rpc
