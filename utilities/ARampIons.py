@@ -174,12 +174,13 @@ class Aramp(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
+    @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
         Run till ion is loaded or timeout.
         """
         # get start time to check if we exceed max time
-        self.start_time = time.time()
+        self.start_time_mu = self.core.get_rtio_counter_mu()
 
         self.aramp_ions()
         self.core.break_realtime()
