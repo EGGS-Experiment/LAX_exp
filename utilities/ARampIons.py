@@ -29,7 +29,8 @@ class Aramp(LAXExperiment, Experiment):
     kernel_invariants = {
         "pmt_sample_num", "pmt_dark_threshold_counts",
         "att_397_mu", "att_866_mu", "att_854_mu",
-        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path"
+        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
+        "time_runtime_max_mu", "time_aramp_pulse_s"
     }
 
     def build_experiment(self):
@@ -55,19 +56,21 @@ class Aramp(LAXExperiment, Experiment):
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, ndecimals=0), group='Camera')
         self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, ndecimals=0), group='Camera')
 
-
         # aramping parameters
-        self.setattr_argument("aramp_ions_voltage_list", Scannable(
-            default=[
-                # RangeScan(18, 24, 20, randomize=True),
-                ExplicitScan([7, 8, 9, 10, 11, 12, 13]),
-                    ],
-                global_min=0.0, global_max=30.0, global_step=0.1, unit="volts", scale=1, ndecimals=3))
+        self.setattr_argument("aramp_ions_voltage_list",    Scannable(
+                                                                    default=[
+                                                                        ExplicitScan([14.5, 15, 16, 16.5, 17, 17.5, 18]),
+                                                                        RangeScan(18, 24, 20, randomize=True),
+                                                                    ],
+                                                                    global_min=0.0, global_max=30.0, global_step=1,
+                                                                    unit="V", scale=1, ndecimals=2
+                                                                ), group='A-Ramp Ejection')
 
         # relevant devices - sinara
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
+        self.setattr_device('scheduler')
         self.readout_subsequence = Readout(self)
 
         # relevant devices - labrad
@@ -104,7 +107,6 @@ class Aramp(LAXExperiment, Experiment):
         self.att_854_mu = att_to_mu(14 * dB)
         self.att_866_mu = att_to_mu(14 * dB)
 
-
         '''A-RAMP SETUP'''
         self.time_aramp_pulse_s = 2.
 
@@ -123,13 +125,6 @@ class Aramp(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
-
-        # tmp remove
-        delay_mu(1000000)
-        print("\tINITIALIZE START")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
 
         '''HARDWARE INITIALIZATION'''
         # store attenuations to prevent overriding
@@ -152,14 +147,6 @@ class Aramp(LAXExperiment, Experiment):
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
 
-        # tmp remove
-        delay_mu(1000000)
-        self.core.break_realtime()
-        print("\tHARDWARE INITIALIZE FINISH")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
         '''SET UP CAMERA'''
         # set camera region of interest and exposure time
         self.camera.set_image_region(self.image_region)
@@ -178,8 +165,8 @@ class Aramp(LAXExperiment, Experiment):
         # turn on voltages
         self.trap_dc.east_endcap_toggle(True)
         self.trap_dc.west_endcap_toggle(True)
-        self.trap_dc.h_shim_toggle(True)
-        self.trap_dc.v_shim_toggle(True)
+        self.trap_dc.h_shim_toggle(False)
+        self.trap_dc.v_shim_toggle(False)
         self.trap_dc.aramp_toggle(True)
         self.core.break_realtime()
 
@@ -187,21 +174,12 @@ class Aramp(LAXExperiment, Experiment):
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
-        # tmp remove
-        delay_mu(1000000)
-        print("\tLABRAD INITIALIZE FINISH")
-        self.core.break_realtime()
-        delay_mu(1000000)
-        # tmp remove
-
-    @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
         Run till ion is loaded or timeout.
         """
         # get start time to check if we exceed max time
-        self.start_time_mu = self.core.get_rtio_counter_mu()
-
+        self.start_time = time.time()
 
         self.aramp_ions()
         self.core.break_realtime()
@@ -214,7 +192,7 @@ class Aramp(LAXExperiment, Experiment):
         self.core.break_realtime()
 
     @rpc
-    def aramp_ions(self):
+    def aramp_ions(self) -> TNone:
         """
         Pulse A-ramp to get rid of excess ions.
         Returns:
@@ -234,7 +212,6 @@ class Aramp(LAXExperiment, Experiment):
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
-
             if num_ions <= self.desired_num_of_ions:
                 break
 
@@ -287,7 +264,6 @@ class Aramp(LAXExperiment, Experiment):
         Set all devices to states as if ion was loaded.
         All but trap electrodes set to original state --- trap electrodes set to final trapping potential
         """
-
         # set final trap parameters
         self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
 
@@ -299,7 +275,7 @@ class Aramp(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
         """
-        Adjust the flipper to send light to the camera.
+        Set the flipper to send light to the camera.
         """
         # store PMT count events
         for i in range(self.pmt_sample_num):
@@ -318,3 +294,12 @@ class Aramp(LAXExperiment, Experiment):
             self.flipper.flip()
         self.core.break_realtime()
 
+    @rpc
+    def check_termination(self) -> TNone:
+        """
+        OVERRIDE base check_termination to ensure devices are always cleaned up
+        in case of termination.
+        """
+        if self.scheduler.check_termination():
+            self.cleanup_devices()
+            raise TerminationRequested
