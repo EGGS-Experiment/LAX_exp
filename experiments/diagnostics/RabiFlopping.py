@@ -20,7 +20,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=30, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=30, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
@@ -30,9 +30,9 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, ndecimals=5
+                                                            unit="us", scale=1, precision=5
                                                         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, ndecimals=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
 

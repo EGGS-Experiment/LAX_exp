@@ -21,14 +21,14 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=20, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("scan_type",      EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2",
                                                                   "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan"))
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=CenterScan(102.410, 0.02, 0.0001, randomize=True),
                                                             global_min=60, global_max=200, global_step=1,
-                                                            unit="MHz", scale=1, ndecimals=6
+                                                            unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
         self.setattr_argument("freq_sideband_1",    NumberValue(default=0.76, min=0, max=20, step=1, unit="MHz", scale=1, ndecimals=6), group=self.name)
         self.setattr_argument("freq_sideband_2",    NumberValue(default=1.07, min=0, max=20, step=1, unit="MHz", scale=1, ndecimals=6), group=self.name)

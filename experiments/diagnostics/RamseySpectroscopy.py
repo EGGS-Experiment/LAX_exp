@@ -19,13 +19,13 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=5, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=5, precision=0, step=1, min=1, max=100000))
 
         # ramsey parameters
         self.setattr_argument("freq_ramsey_mhz_list",   Scannable(
                                                             default=CenterScan(104.335, 0.5, 0.001),
                                                             global_min=30, global_max=200, global_step=1,
-                                                            unit="MHz", scale=1, ndecimals=5
+                                                            unit="MHz", scale=1, precision=5
                                                         ))
         # get devices
         self.setattr_device('qubit')

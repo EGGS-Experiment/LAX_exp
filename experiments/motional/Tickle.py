@@ -16,7 +16,7 @@ class Tickle(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
         # readout configuration
         self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)

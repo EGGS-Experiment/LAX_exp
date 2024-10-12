@@ -19,7 +19,7 @@ class DopplerRecooling(LAXSubsequence):
 
     def build_subsequence(self):
         # number of input counts to listen for
-        self.setattr_argument("num_counts",     NumberValue(default=200, ndecimals=0, step=1, min=10, max=10000000), group=self.name)
+        self.setattr_argument("num_counts",     NumberValue(default=200, precision=0, step=1, min=10, max=10000000), group=self.name)
 
         # get relevant devices
         self.setattr_device('pump')

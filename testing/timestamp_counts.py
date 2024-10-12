@@ -27,20 +27,20 @@ class TimestampCounts(EnvExperiment):
         self.setattr_device("core_dma")
 
         # num_counts
-        self.setattr_argument("num_counts",                         NumberValue(default=1000000, ndecimals=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_counts",                         NumberValue(default=1000000, precision=0, step=1, min=1, max=10000000))
 
         # modulation
-        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.1, ndecimals=3, step=0.01, min=0, max=1000000))
+        self.setattr_argument("ampl_mod_vpp",                       NumberValue(default=0.1, precision=3, step=0.01, min=0, max=1000000))
         self.setattr_argument("freq_mod_mhz_list",                  Scannable(
                                                                         default=CenterScan(1.206, 0.04, 0.0002, randomize=True),
                                                                         global_min=0, global_max=1000, global_step=0.001,
-                                                                        unit="MHz", scale=1, ndecimals=5
+                                                                        unit="MHz", scale=1, precision=5
                                                                     ))
 
         # voltage values
         self.dc_micromotion_channeldict =                           dc_config.channeldict
         self.setattr_argument("dc_micromotion_channel",             EnumerationValue(list(self.dc_micromotion_channeldict.keys()), default='V Shim'))
-        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, ndecimals=3, step=1, min=0, max=1000000))
+        self.setattr_argument("dc_micromotion_voltage_v",           NumberValue(default=37.0, precision=3, step=1, min=0, max=1000000))
 
 
     def prepare(self):

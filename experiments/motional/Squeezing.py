@@ -24,7 +24,7 @@ class Squeezing(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # get subsequences
         self.initialize_subsequence =       InitializeQubit(self)
@@ -40,7 +40,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                                         CenterScan(1542.2, 10, 0.25, randomize=True)
                                                                     ],
                                                                     global_min=0, global_max=400000, global_step=1,
-                                                                    unit="kHz", scale=1, ndecimals=5
+                                                                    unit="kHz", scale=1, precision=5
                                                                 ), group=self.name)
         self.setattr_argument("phase_antisqueeze_turns_list",   Scannable(
                                                                     default=[
@@ -48,7 +48,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                                         RangeScan(0, 1.0, 6, randomize=True)
                                                                     ],
                                                                     global_min=0.0, global_max=1.0, global_step=1,
-                                                                    unit="turns", scale=1, ndecimals=3
+                                                                    unit="turns", scale=1, precision=3
                                                                 ), group=self.name)
         self.setattr_argument("time_squeeze_us_list",           Scannable(
                                                                     default=[
@@ -56,7 +56,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                                         RangeScan(8, 250, 100, randomize=True)
                                                                     ],
                                                                     global_min=2, global_max=10000000, global_step=10,
-                                                                    unit="us", scale=1, ndecimals=3
+                                                                    unit="us", scale=1, precision=3
                                                                 ), group=self.name)
         self.setattr_argument("time_delay_us_list",             Scannable(
                                                                     default=[
@@ -64,7 +64,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                                         RangeScan(5, 7, 51, randomize=True)
                                                                     ],
                                                                     global_min=2.5, global_max=10000000, global_step=5,
-                                                                    unit="us", scale=1, ndecimals=3
+                                                                    unit="us", scale=1, precision=3
                                                                 ), group=self.name)
         self.setattr_argument("time_readout_us_list",           Scannable(
                                                                     default=[

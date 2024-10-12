@@ -20,7 +20,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=20, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",            NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
@@ -30,10 +30,10 @@ class LaserScan(LAXExperiment, Experiment):
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
                                                             global_min=60, global_max=200, global_step=0.1,
-                                                            unit="MHz", scale=1, ndecimals=6
+                                                            unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, ndecimals=3, step=10, min=1, max=50), group=self.name)
+        self.setattr_argument("time_qubit_us",  NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices

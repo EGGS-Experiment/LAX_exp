@@ -21,7 +21,7 @@ class SqueezeConfigurable(LAXSubsequence):
     def build_subsequence(self):
         self.setattr_argument("enable_squeezing",           BooleanValue(default=False), group=self.name)
         self.setattr_argument("enable_antisqueezing",       BooleanValue(default=False), group=self.name)
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('att_squeeze_db',             NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')

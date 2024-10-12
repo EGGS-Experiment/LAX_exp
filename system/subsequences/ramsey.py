@@ -21,8 +21,8 @@ class Ramsey(LAXSubsequence):
         self.setattr_device('qubit')
 
         # get arguments
-        self.setattr_argument('time_pi2pulse_us',           NumberValue(default=125, ndecimals=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
-        self.setattr_argument('time_ramsey_delay_us',       NumberValue(default=1000, ndecimals=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
+        self.setattr_argument('time_pi2pulse_us',           NumberValue(default=125, precision=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
+        self.setattr_argument('time_ramsey_delay_us',       NumberValue(default=1000, precision=3, step=10, min=1, max=1000000), group='ramsey_spectroscopy')
 
     def prepare_subsequence(self):
         # convert parameters to machine units

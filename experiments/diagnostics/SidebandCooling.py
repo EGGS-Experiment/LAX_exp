@@ -19,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))

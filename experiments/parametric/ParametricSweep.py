@@ -32,10 +32,10 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=2, precision=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",             NumberValue(default=17, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",             NumberValue(default=17, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",      Scannable(
                                                             default= [
                                                                 CenterScan(1390.76, 3, 0.5, randomize=True),
@@ -43,7 +43,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                 # CenterScan(1566.5, 6, 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=200000, global_step=1,
-                                                            unit="kHz", scale=1, ndecimals=4
+                                                            unit="kHz", scale=1, precision=4
                                                         ), group='modulation')
 
         # shimming voltages
@@ -55,11 +55,11 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                 ExplicitScan([75.5]),
                                                             ],
                                                             global_min=0, global_max=400, global_step=1,
-                                                            unit="V", scale=1, ndecimals=1
+                                                            unit="V", scale=1, precision=1
                                                         ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, precision=2, step=5, min=0.01, max=50), group='cooling')
         self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices

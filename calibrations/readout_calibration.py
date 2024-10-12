@@ -27,10 +27,10 @@ class ReadoutCalibration(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # search parameters
-        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=10, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=100, precision=0, step=10, min=1, max=10000))
 
         # readout scan parameters
-        self.setattr_argument("time_readout_us",                            NumberValue(default=3000, ndecimals=3, step=100, min=1, max=100000), group='Readout')
+        self.setattr_argument("time_readout_us",                            NumberValue(default=3000, precision=3, step=100, min=1, max=100000), group='Readout')
         self.setattr_argument("freq_readout_mhz_list",                      Scannable(
                                                                                 default=[
                                                                                     RangeScan(100, 110, 21, randomize=True),

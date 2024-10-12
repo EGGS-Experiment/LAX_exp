@@ -23,7 +23,7 @@ class Displace(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_argument("enable_displacement",        BooleanValue(default=True), group=self.name)
-        self.setattr_argument('att_displace_db',            NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('att_displace_db',            NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_dipole')

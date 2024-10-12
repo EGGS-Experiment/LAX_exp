@@ -27,7 +27,7 @@ class TickleFastDDS(LAXSubsequence):
     }
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
+        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='ticklefast')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')

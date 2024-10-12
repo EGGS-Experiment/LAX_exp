@@ -18,16 +18,16 @@ class ProphylacticSweep(EnvExperiment):
         self.setattr_device("scheduler")
 
         # modulation
-        self.setattr_argument("repetitions",            NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
-        self.setattr_argument("mod_time_total_s",       NumberValue(default=20, ndecimals=3, step=1, min=0.001, max=10000000))
-        self.setattr_argument("mod_att_db",             NumberValue(default=3, ndecimals=1, step=0.5, min=0., max=31.5))
+        self.setattr_argument("repetitions",            NumberValue(default=5, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("mod_time_total_s",       NumberValue(default=20, precision=3, step=1, min=0.001, max=10000000))
+        self.setattr_argument("mod_att_db",             NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
         self.setattr_argument("mod_freq_khz_list",      Scannable(
                                                             default=[
                                                                 CenterScan(1686, 1000, 100., randomize=True),
                                                                 RangeScan(1800, 2300, 501, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1.,
-                                                            unit="kHz", scale=1, ndecimals=3
+                                                            unit="kHz", scale=1, precision=3
                                                         ))
 
     def prepare(self):

@@ -22,7 +22,7 @@ class TickleFastPhaser(LAXSubsequence):
     }
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_phaser_db', NumberValue(default=0, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
+        self.setattr_argument('att_ticklefast_phaser_db', NumberValue(default=0, precision=1, step=0.5, min=0, max=31.5), group='ticklefast')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')

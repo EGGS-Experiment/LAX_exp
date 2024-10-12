@@ -24,9 +24,9 @@ class AbsorptionProbe2(LAXSubsequence):
 
     def build_subsequence(self):
         # subsequence arguments
-        self.setattr_argument("repetitions_per_point",                      NumberValue(default=50, ndecimals=0, step=1, min=1, max=1000), group='absorption_probe')
-        self.setattr_argument("time_probe_us",                              NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000), group='absorption_probe')
-        self.setattr_argument("time_reset_us",                              NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000), group='absorption_probe')
+        self.setattr_argument("repetitions_per_point",                      NumberValue(default=50, precision=0, step=1, min=1, max=1000), group='absorption_probe')
+        self.setattr_argument("time_probe_us",                              NumberValue(default=2, precision=0, step=1, min=1, max=10000), group='absorption_probe')
+        self.setattr_argument("time_reset_us",                              NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='absorption_probe')
 
         # get relevant devices
         self.setattr_device('pump')

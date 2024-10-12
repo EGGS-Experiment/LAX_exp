@@ -23,17 +23,17 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(
                                                             default=RangeScan(85, 129, 45, randomize=True),
                                                             global_min=80, global_max=140, global_step=1,
-                                                            unit="MHz", scale=1, ndecimals=6
+                                                            unit="MHz", scale=1, precision=6
                                                         ))
 
         # adc (sampler) recording
-        self.setattr_argument("adc_channel_num",    NumberValue(default=2, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument("adc_channel_num",    NumberValue(default=2, precision=0, step=1, min=0, max=7))
         self.setattr_argument("adc_channel_gain",   EnumerationValue(['1', '10', '100', '1000'], default='100'))
 
         # relevant devices

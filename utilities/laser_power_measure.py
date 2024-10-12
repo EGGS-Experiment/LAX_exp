@@ -21,8 +21,8 @@ class LaserPowerMeasure(EnvExperiment):
 
         # sampler
         self.setattr_argument("channel_gain_dict",              PYONValue({2: 1}), group='sampler')
-        self.setattr_argument("sample_rate_hz",                 NumberValue(default=100, ndecimals=3, step=1, min=1, max=5100), group='sampler')
-        self.setattr_argument("time_total_s",                   NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000), group='sampler')
+        self.setattr_argument("sample_rate_hz",                 NumberValue(default=100, precision=3, step=1, min=1, max=5100), group='sampler')
+        self.setattr_argument("time_total_s",                   NumberValue(default=1, precision=0, step=1, min=1, max=100000), group='sampler')
 
         # photodiode
         self.setattr_argument("laser_wavelength_nm",            NumberValue(default=397, ndecimals=0, step=10, min=200, max=3200), group='photodiode')

@@ -31,9 +31,9 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument('calibration_pulsed',                     BooleanValue(default=False), group='sideband_cooling.pulsed')
-        self.setattr_argument('sideband_cycles_pulsed',                 NumberValue(default=80, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
-        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=0, ndecimals=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
-        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument('sideband_cycles_pulsed',                 NumberValue(default=80, precision=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=0, precision=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
+        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, precision=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
 
         # sideband cooling timing
         self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'), group='sideband_cooling.pulsed')
@@ -42,7 +42,7 @@ class SidebandCoolPulsed(LAXSubsequence):
 
         # sideband cooling waveform
         self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([103.77]), group='sideband_cooling.pulsed')
-        self.setattr_argument("att_sidebandcooling_pulsed_db",          NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.pulsed')
+        self.setattr_argument("att_sidebandcooling_pulsed_db",          NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='sideband_cooling.pulsed')
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)

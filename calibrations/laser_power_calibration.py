@@ -23,18 +23,18 @@ class LaserPowerCalibration(EnvExperiment):
         self.setattr_device("core_dma")
 
         # search parameters
-        self.setattr_argument("target_voltage_mv",          NumberValue(default=55.1, ndecimals=3, step=1, min=-10000, max=10000))
-        self.setattr_argument("target_tolerance_mv",        NumberValue(default=5, ndecimals=3, step=1, min=0, max=1000))
+        self.setattr_argument("target_voltage_mv",          NumberValue(default=55.1, precision=3, step=1, min=-10000, max=10000))
+        self.setattr_argument("target_tolerance_mv",        NumberValue(default=5, precision=3, step=1, min=0, max=1000))
 
         # DDS setup
         self.setattr_argument("dds_freq_mhz_list",          Scannable(
                                                                     default=RangeScan(70, 140, 351, randomize=True),
                                                                     global_min=70, global_max=140, global_step=1,
-                                                                    unit="MHz", scale=1, ndecimals=5
+                                                                    unit="MHz", scale=1, precision=5
                                                                 ), group='DDS')
-        self.setattr_argument("dds_channel_num",            NumberValue(default=1, ndecimals=0, step=1, min=0, max=3), group='DDS')
-        self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=1, ndecimals=2, step=1, min=1, max=40), group='DDS')
-        self.setattr_argument("dds_ampl_max_pct",           NumberValue(default=50, ndecimals=2, step=1, min=5, max=50), group='DDS')
+        self.setattr_argument("dds_channel_num",            NumberValue(default=1, precision=0, step=1, min=0, max=3), group='DDS')
+        self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=1, precision=2, step=1, min=1, max=40), group='DDS')
+        self.setattr_argument("dds_ampl_max_pct",           NumberValue(default=50, precision=2, step=1, min=5, max=50), group='DDS')
         self.setattr_argument("dds_attenuation_db",         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup

@@ -22,16 +22,16 @@ class EGGSResonanceCalibration(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("repetitions",                                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                                    NumberValue(default=5, precision=0, step=1, min=1, max=10000))
 
         # eggs heating
         self.setattr_argument("freq_eggs_heating_mhz_list",                     Scannable(
                                                                                         default=RangeScan(10, 300, 2901, randomize=True),
                                                                                         global_min=30, global_max=400, global_step=1,
-                                                                                        unit="MHz", scale=1, ndecimals=5
+                                                                                        unit="MHz", scale=1, precision=5
                                                                                     ))
         # spectrum analyzer
-        self.setattr_argument("spectrum_analyzer_bandwidth_khz",                NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("spectrum_analyzer_bandwidth_khz",                NumberValue(default=10, precision=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("spectrum_analyzer_attenuation_internal_db",      NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
         self.setattr_argument("spectrum_analyzer_attenuation_external_db",      NumberValue(default=0, ndecimals=5, step=1, min=0.00001, max=10000))
 
