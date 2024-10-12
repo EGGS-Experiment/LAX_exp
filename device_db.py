@@ -7,7 +7,13 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"host": core_addr, "ref_period": 1e-09, "target": "rv32g"},
+        "arguments": {
+            "host": core_addr,
+            "ref_period": 1e-09,
+            "analyzer_proxy": "core_analyzer",
+            "target": "rv32g",
+            "satellite_cpu_targets": {}
+        },
     },
     "core_log": {
         "type": "controller",
@@ -21,6 +27,13 @@ device_db = {
         "port_proxy": 1383,
         "port": 1384,
         "command": "aqctl_moninj_proxy --port-proxy {port_proxy} --port-control {port} --bind {bind} " + core_addr
+    },
+    "core_analyzer": {
+        "type": "controller",
+        "host": "::1",
+        "port_proxy": 1385,
+        "port": 1386,
+        "command": "aqctl_coreanalyzer_proxy --port-proxy {port_proxy} --port-control {port} --bind {bind} " + core_addr
     },
     "core_cache": {
         "type": "local",
@@ -285,8 +298,8 @@ device_db["urukul0_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 4,
         "cpld_device": "urukul0_cpld",
         "sw_device": "ttl_urukul0_sw0"
@@ -298,8 +311,8 @@ device_db["urukul0_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 5,
         "cpld_device": "urukul0_cpld",
         "sw_device": "ttl_urukul0_sw1"
@@ -311,8 +324,8 @@ device_db["urukul0_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 6,
         "cpld_device": "urukul0_cpld",
         "sw_device": "ttl_urukul0_sw2"
@@ -324,8 +337,8 @@ device_db["urukul0_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 7,
         "cpld_device": "urukul0_cpld",
         "sw_device": "ttl_urukul0_sw3"
@@ -400,8 +413,8 @@ device_db["urukul1_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 4,
         "cpld_device": "urukul1_cpld",
         "sw_device": "ttl_urukul1_sw0"
@@ -413,8 +426,8 @@ device_db["urukul1_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 5,
         "cpld_device": "urukul1_cpld",
         "sw_device": "ttl_urukul1_sw1"
@@ -426,8 +439,8 @@ device_db["urukul1_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 6,
         "cpld_device": "urukul1_cpld",
         "sw_device": "ttl_urukul1_sw2"
@@ -439,8 +452,8 @@ device_db["urukul1_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 7,
         "cpld_device": "urukul1_cpld",
         "sw_device": "ttl_urukul1_sw3"
@@ -515,8 +528,8 @@ device_db["urukul2_ch0"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 4,
         "cpld_device": "urukul2_cpld",
         "sw_device": "ttl_urukul2_sw0"
@@ -528,8 +541,8 @@ device_db["urukul2_ch1"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 5,
         "cpld_device": "urukul2_cpld",
         "sw_device": "ttl_urukul2_sw1"
@@ -541,8 +554,8 @@ device_db["urukul2_ch2"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 6,
         "cpld_device": "urukul2_cpld",
         "sw_device": "ttl_urukul2_sw2"
@@ -554,8 +567,8 @@ device_db["urukul2_ch3"] = {
     "module": "artiq.coredevice.ad9910",
     "class": "AD9910",
     "arguments": {
-        "pll_en": 1,
         "pll_n": 32,
+        "pll_en": 1,
         "chip_select": 7,
         "cpld_device": "urukul2_cpld",
         "sw_device": "ttl_urukul2_sw3"
@@ -568,11 +581,7 @@ device_db["phaser0"] = {
     "class": "Phaser",
     "arguments": {
         "channel_base": 0x00002a,
-        "miso_delay": 1,
-
-        # disable fifo_offset tuning so we can
-        # establish deterministic latency
-        "tune_fifo_offset": False
+        "miso_delay": 1, "gw_rev": 1
     }
 }
 
@@ -582,11 +591,7 @@ device_db["phaser1"] = {
     "class": "Phaser",
     "arguments": {
         "channel_base": 0x00002f,
-        "miso_delay": 1,
-
-        # disable fifo_offset tuning so we can
-        # establish deterministic latency
-        "tune_fifo_offset": False
+        "miso_delay": 1, "gw_rev": 1
     }
 }
 
@@ -615,7 +620,8 @@ device_db["sampler0"] = {
     "arguments": {
         "spi_adc_device": "spi_sampler0_adc",
         "spi_pgia_device": "spi_sampler0_pgia",
-        "cnv_device": "ttl_sampler0_cnv"
+        "cnv_device": "ttl_sampler0_cnv",
+        "hw_rev": "v2.2"
     }
 }
 
@@ -631,6 +637,13 @@ device_db["led1"] = {
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
     "arguments": {"channel": 0x000038}
+}
+
+device_db["led2"] = {
+    "type": "local",
+    "module": "artiq.coredevice.ttl",
+    "class": "TTLOut",
+    "arguments": {"channel": 0x000039}
 }
 
 
@@ -711,3 +724,5 @@ device_db["phaser0"]["arguments"]["trf1"] =     _phaser_trf_config
 device_db["phaser1"]["arguments"]["dac"] =      _phaser_dac_config
 device_db["phaser1"]["arguments"]["trf0"] =     _phaser_trf_config
 device_db["phaser1"]["arguments"]["trf1"] =     _phaser_trf_config
+
+
