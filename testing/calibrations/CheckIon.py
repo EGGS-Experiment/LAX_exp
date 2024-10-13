@@ -46,8 +46,7 @@ class CheckIon(LAXExperiment, Experiment):
         self.setattr_argument('att_tickle_db', NumberValue(default=10, precision=1, step=0.5, min=0, max=31.5),
                               group='CheckIon.Tickle')
 
-        self.setattr_argument("ampl_tickle_pct", NumberValue(default=0.35, min=0.1, max=100.0, step=0.01,
-            unit="pct", precision=2), group='CheckIon.Tickle')
+        self.setattr_argument("ampl_tickle_pct", NumberValue(default=0.35, min=0.1, max=100.0, step=0.01, precision=2), group='CheckIon.Tickle')
 
         self.setattr_argument("freq_tickle_span_khz", NumberValue(default=5, min=1.0, max=10.0, step=0.01,
                                                              unit="kHz", precision=2), group='CheckIon.Tickle')
