@@ -88,6 +88,10 @@ class CheckIon(LAXExperiment, Experiment):
         # todo: implement aperture server
         # self.aperture = self.cxn.aperture_server
 
+    @property
+    def results_shape(self):
+        return (2, 2)
+
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
