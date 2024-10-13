@@ -1,5 +1,4 @@
 import labrad
-from labrad.units import WithUnit
 import numpy as np
 from artiq.experiment import *
 from LAX_exp.analysis.processing import *
@@ -194,7 +193,7 @@ class CheckIon(LAXExperiment, Experiment):
 
     def check_ion_position(self):
 
-        identify_exposure_time = WithUnit(0.2, 's')
+        # identify_exposure_time = WithUnit(0.2, 's')
         # todo: figure out these parameters
         start_x = 1
         stop_x = 512
@@ -210,7 +209,7 @@ class CheckIon(LAXExperiment, Experiment):
         # get single image from ANDOR
         self.cam.accquisition_stop()
         initial_exposure_time = self.cam.setup_exposure_time()
-        self.cam.setup_exposure_time(identify_exposure_time)
+        # self.cam.setup_exposure_time(identify_exposure_time)
         initial_image_region = self.cam.get_image_region()
         self.cam.set_image_region(*image_region)
         self.cam.mode_shutter("Open")

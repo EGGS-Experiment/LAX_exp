@@ -42,10 +42,10 @@ class testarg34(EnvExperiment):
         self.setattr_device("urukul2_ch2")
         self.setattr_device("urukul2_ch3")
 
+    def prepare(self):
         self.dds =      self.urukul1_ch2
         self.dds_cpld = self.dds.cpld
 
-    def prepare(self):
         self.freq =     np.int32(0)
         self.ampl =     np.int32(0)
         self.phase =    np.int32(0)

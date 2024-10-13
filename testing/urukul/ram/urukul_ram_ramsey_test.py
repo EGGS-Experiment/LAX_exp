@@ -8,9 +8,9 @@ import numpy as np
 # todo: linear chirp
 # todo: manual ASF register updating
 
-class UrukulRAMARP(EnvExperiment):
+class UrukulRAMRamsey(EnvExperiment):
     """
-    Urukul RAM ARP Test
+    Urukul RAM Ramsey Test
     Test adiabatic rapid passage via AD9910 RAM.
     """
 
