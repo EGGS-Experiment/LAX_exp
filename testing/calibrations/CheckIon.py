@@ -1,20 +1,19 @@
 import labrad
 import numpy as np
 from artiq.experiment import *
-from LAX_exp.analysis.processing import *
 
+from LAX_exp.base import LAXExperiment
+from LAX_exp.analysis.processing import *
 from LAX_exp.extensions import hz_to_ftw
 from LAX_exp.extensions import mhz_to_ftw
 
 class CheckIon(LAXExperiment, Experiment):
-
+    """
+    todo: document
+    """
     name = "Check Ion"
 
     def build_experiment(self):
-
-        self.ccb =              self.get_device("ccb")
-        self.scheduler =        self.get_device("scheduler")  # get scheduler
-
         self.setattr_argument("freq_secular_freq_khz", NumberValue(
             default=1372.34, min=0, max=10000, step=1, unit="kHz", scale=1, precision=3))
 
@@ -242,7 +241,4 @@ class CheckIon(LAXExperiment, Experiment):
         self.aperture.open()
         self.aperture.wait(self.aperture_wait_time)
         self.aperture.close()
-
-
-
 
