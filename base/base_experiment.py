@@ -242,14 +242,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('time_run', time_exprun)
 
     @kernel(flags={"fast-math"})
-    def _initialize_experiment(self):
+    def _initialize_experiment(self) -> TNone:
         """
         Call the initialize functions of devices and sub/sequences (in that order).
         """
         pass
 
     @kernel(flags={"fast-math"})
-    def _run_cleanup(self):
+    def _run_cleanup(self) -> TNone:
         """
         Set all devices back to their original state.
         """

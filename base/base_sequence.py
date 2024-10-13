@@ -81,7 +81,7 @@ class LAXSequence(LAXEnvironment, ABC):
     '''
 
     @kernel(flags={"fast-math"})
-    def initialize_sequence(self):
+    def initialize_sequence(self) -> TNone:
         """
         To be subclassed.
 
