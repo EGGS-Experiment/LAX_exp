@@ -130,7 +130,7 @@ class EGGSHeatingCH1(LAXExperiment, Experiment):
 
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
-        self.phase_ch1_turns =                                  np.float(0)
+        self.phase_ch1_turns =                                  float(0)
         self.phase_phaser_turns_arr =                           np.zeros((2, 3), dtype=float)
 
 

@@ -33,15 +33,15 @@ class PhaserTesting(EnvExperiment):
         self.dac_register_1f =                      np.int32(0)
 
         # preallocate phase holders
-        self.phase_ch1_turns =                      np.float(0)
+        self.phase_ch1_turns =                      float(0)
 
-        self.phase_ch0_osc0 =                       np.float(0)
-        self.phase_ch0_osc1 =                       np.float(0)
-        self.phase_ch0_osc2 =                       np.float(0)
+        self.phase_ch0_osc0 =                       float(0)
+        self.phase_ch0_osc1 =                       float(0)
+        self.phase_ch0_osc2 =                       float(0)
 
-        self.phase_ch1_osc0 =                       np.float(0)
-        self.phase_ch1_osc1 =                       np.float(0)
-        self.phase_ch1_osc2 =                       np.float(0)
+        self.phase_ch1_osc0 =                       float(0)
+        self.phase_ch1_osc1 =                       float(0)
+        self.phase_ch1_osc2 =                       float(0)
 
         ### TIMING ###
         self.time_pulse_mu =                        self.core.seconds_to_mu(self.time_pulse_ms * ms)

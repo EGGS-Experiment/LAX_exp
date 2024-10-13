@@ -53,8 +53,8 @@ class TickleFastDDS(LAXSubsequence):
 
         # set empty variables for phase to compensate for ch0 & ch1 delays
         self.phase_ch1_inherent_turns =     0.
-        self.phase_ch1_latency_turns =      np.float(0)
-        self.phase_ch1_delay_turns =        np.float(0)
+        self.phase_ch1_latency_turns =      float(0)
+        self.phase_ch1_delay_turns =        float(0)
         self.phase_ch1_final_pow =          np.int32(0)
 
         # set parameter for DDS preparation latency before we can

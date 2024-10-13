@@ -3,7 +3,6 @@ from labrad.units import WithUnit
 import numpy as np
 from artiq.experiment import *
 from LAX_exp.analysis.processing import *
-from artiq.language.scan *
 
 from LAX_exp.extensions import hz_to_ftw
 from LAX_exp.extensions import mhz_to_ftw
@@ -40,7 +39,7 @@ class CheckIon(LAXExperiment, Experiment):
         self.setattr_argument("freq_step_mhz", NumberValue(default=0.0002, min=0., step=0.00001, unit="MHz",
                                                            precision=5), group='CheckIon.LaserScan')
 
-        self.setattr_argument("expected_laser_scan_peak_mhz", NumberValue(default=103.226, step = 0.001.,
+        self.setattr_argument("expected_laser_scan_peak_mhz", NumberValue(default=103.226, step = 0.001,
                                                                           precision =3,unit = "MHz"), group ='CheckIon.LaserScan' )
 
         # grab arguments for tickle
