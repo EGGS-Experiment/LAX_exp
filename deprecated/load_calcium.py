@@ -30,24 +30,24 @@ class LoadIon(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # loading
-        self.setattr_argument('time_total_s',           NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='loading')
-        self.setattr_argument('monitor_interval_ms',    NumberValue(default=500, ndecimals=0, step=100, min=50, max=100000), group='loading')
-        self.setattr_argument('oven_current_amps',      NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='loading')
-        self.setattr_argument('ion_threshold_counts',   NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='loading')
+        self.setattr_argument('time_total_s',           NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='loading')
+        self.setattr_argument('monitor_interval_ms',    NumberValue(default=500, precision=0, step=100, min=50, max=100000), group='loading')
+        self.setattr_argument('oven_current_amps',      NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='loading')
+        self.setattr_argument('ion_threshold_counts',   NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='loading')
 
         # electrode voltages
-        self.setattr_argument('voltage_load_east_endcap_v', NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_loading')
-        self.setattr_argument('voltage_load_west_endcap_v', NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_loading')
-        self.setattr_argument('voltage_load_vert_shim_v',   NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_loading')
-        self.setattr_argument('voltage_load_horiz_shim_v',  NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_loading')
-        self.setattr_argument('voltage_load_a_ramp_v',      NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_loading')
+        self.setattr_argument('voltage_load_east_endcap_v', NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_loading')
+        self.setattr_argument('voltage_load_west_endcap_v', NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_loading')
+        self.setattr_argument('voltage_load_vert_shim_v',   NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_loading')
+        self.setattr_argument('voltage_load_horiz_shim_v',  NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_loading')
+        self.setattr_argument('voltage_load_a_ramp_v',      NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_loading')
 
         # trapping voltages
-        self.setattr_argument('voltage_trap_east_endcap_v', NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_trapping')
-        self.setattr_argument('voltage_trap_west_endcap_v', NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_trapping')
-        self.setattr_argument('voltage_trap_vert_shim_v',   NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_trapping')
-        self.setattr_argument('voltage_trap_horiz_shim_v',  NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_trapping')
-        self.setattr_argument('voltage_trap_a_ramp_v',      NumberValue(default=20, ndecimals=0, step=100, min=5, max=100000), group='voltages_trapping')
+        self.setattr_argument('voltage_trap_east_endcap_v', NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_trapping')
+        self.setattr_argument('voltage_trap_west_endcap_v', NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_trapping')
+        self.setattr_argument('voltage_trap_vert_shim_v',   NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_trapping')
+        self.setattr_argument('voltage_trap_horiz_shim_v',  NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_trapping')
+        self.setattr_argument('voltage_trap_a_ramp_v',      NumberValue(default=20, precision=0, step=100, min=5, max=100000), group='voltages_trapping')
 
         # relevant devices
         self.setattr_device('probe')

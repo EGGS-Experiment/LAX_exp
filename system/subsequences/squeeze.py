@@ -24,9 +24,9 @@ class Squeeze(LAXSubsequence):
         self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, precision=3, step=10, min=1, max=400000), group=self.name)
         self.setattr_argument('att_squeeze_db',             NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
-        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group=self.name)
-        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
-        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., precision=3, step=100, min=1, max=1000000), group=self.name)
+        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')

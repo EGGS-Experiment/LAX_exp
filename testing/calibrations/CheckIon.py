@@ -18,45 +18,45 @@ class CheckIon(LAXExperiment, Experiment):
         self.scheduler =        self.get_device("scheduler")  # get scheduler
 
         self.setattr_argument("freq_secular_freq_khz", NumberValue(
-            default=1372.34, min=0, max=10000, step=1, unit="kHz", scale=1, ndecimals=3))
+            default=1372.34, min=0, max=10000, step=1, unit="kHz", scale=1, precision=3))
 
         self.setattr_argument("tolerable_laser_scan_drift_khz", NumberValue(default=5., min=0., max=10000.,
                                                                             step=0.01, unit="kHz"))
 
 
         # grab arguements for laser scan to check if it's still HCL
-        self.setattr_arguement("repetitions", NumberValue(default=30, min=1, ndecimals=0, step=1), group='CheckIon.LaserScan')
+        self.setattr_arguement("repetitions", NumberValue(default=30, min=1, precision=0, step=1), group='CheckIon.LaserScan')
 
         self.setattr_arguement("time_qubit_us", NumberValue(default=5000., min=0, step=1,
-                                                            ndecimals=0, unit="us"), group='CheckIon.LaserScan')
+                                                            precision=0, unit="us"), group='CheckIon.LaserScan')
 
 
         self.setattr_arguement("att_qubit_db", NumberValue(default =31.5, min =8., max =31.5,
-                                                           step=0.1, ndecimals=1, unit="dB"), group='CheckIon.LaserScan')
+                                                           step=0.1, precision=1, unit="dB"), group='CheckIon.LaserScan')
 
         self.setattr_argument("freq_span_mhz", NumberValue(default=0.15, min=0., step=0.01,unit="MHz",
-                                                           ndecimals=2), group='CheckIon.LaserScan')
+                                                           precision=2), group='CheckIon.LaserScan')
 
         self.setattr_argument("freq_step_mhz", NumberValue(default=0.0002, min=0., step=0.00001, unit="MHz",
-                                                           ndecimals=5), group='CheckIon.LaserScan')
+                                                           precision=5), group='CheckIon.LaserScan')
 
         self.setattr_argument("expected_laser_scan_peak_mhz", NumberValue(default=103.226, step = 0.001.,
-                                                                          ndecimals =3,unit = "MHz"), group ='CheckIon.LaserScan' )
+                                                                          precision =3,unit = "MHz"), group ='CheckIon.LaserScan' )
 
         # grab arguments for tickle
-        self.setattr_argument('time_tickle_us', NumberValue(default=100, ndecimals=3, step=100, min=1, max=1000000),
+        self.setattr_argument('time_tickle_us', NumberValue(default=100, precision=3, step=100, min=1, max=1000000),
                               group= 'CheckIon.Tickle')
-        self.setattr_argument('att_tickle_db', NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5),
+        self.setattr_argument('att_tickle_db', NumberValue(default=10, precision=1, step=0.5, min=0, max=31.5),
                               group='CheckIon.Tickle')
 
         self.setattr_argument("ampl_tickle_pct", NumberValue(default=0.35, min=0.1, max=100.0, step=0.01,
-            unit="pct", ndecimals=2), group='CheckIon.Tickle')
+            unit="pct", precision=2), group='CheckIon.Tickle')
 
         self.setattr_argument("freq_tickle_span_khz", NumberValue(default=5, min=1.0, max=10.0, step=0.01,
-                                                             unit="kHz", ndecimals=2), group='CheckIon.Tickle')
+                                                             unit="kHz", precision=2), group='CheckIon.Tickle')
 
         self.setattr_argument("tickle_chirp_steps", NumberValue(default=51, min=1, max=100, step=1,
-                                                            ndecimals=0), group='CheckIon.Tickle')
+                                                            precision=0), group='CheckIon.Tickle')
 
         # grab tickle device
         self.setattr_device('dds_dipole')

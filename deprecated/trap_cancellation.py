@@ -25,15 +25,15 @@ class TrapRFCancellation(EnvExperiment):
         self.setattr_device("core_dma")
 
         # experiment runs
-        self.setattr_argument("time_run_s",                         NumberValue(default=10, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_run_s",                         NumberValue(default=10, precision=5, step=0.1, min=0, max=1000000))
 
         # trap cancellation parameters
-        self.setattr_argument("time_rf_cancel_us",                  NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=1000000))
-        self.setattr_argument("time_rf_restore_us",                 NumberValue(default=0.5, ndecimals=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_rf_cancel_us",                  NumberValue(default=0.5, precision=5, step=0.1, min=0, max=1000000))
+        self.setattr_argument("time_rf_restore_us",                 NumberValue(default=0.5, precision=5, step=0.1, min=0, max=1000000))
 
         # trigger timing
-        self.setattr_argument("freq_trig_hz",                       NumberValue(default=10, ndecimals=3, step=0.1, min=0.001, max=10000))
-        self.setattr_argument("freq_rf_mhz",                        NumberValue(default=19.0435, ndecimals=7, step=0.001, min=0.000001, max=10000000))
+        self.setattr_argument("freq_trig_hz",                       NumberValue(default=10, precision=3, step=0.1, min=0.001, max=10000))
+        self.setattr_argument("freq_rf_mhz",                        NumberValue(default=19.0435, precision=7, step=0.001, min=0.000001, max=10000000))
 
 
     def prepare(self):

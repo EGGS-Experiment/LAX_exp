@@ -43,7 +43,7 @@ class UrukulRead(EnvExperiment):
         self.setattr_argument("dds_target",         EnumerationValue(list(dds_device_list), default='urukul2_ch1'))
 
         # profile parameters
-        self.setattr_argument('dds_profile',        NumberValue(default=7, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument('dds_profile',        NumberValue(default=7, precision=0, step=1, min=0, max=7))
         self.setattr_argument("is_profile_ram",     BooleanValue(default=False))
 
         # RAM data

@@ -28,7 +28,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                     CenterScan(0, 5, 0.5, randomize=True)
                                                                                 ],
                                                                                 global_min=-8000, global_max=8000, global_step=10,
-                                                                                unit="kHz", scale=1, ndecimals=3
+                                                                                unit="kHz", scale=1, precision=3
                                                                             ), group='EGGS_Heating.frequencies')
         # ISA - CH1 turns
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",          Scannable(
@@ -37,31 +37,31 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
                                                                                     RangeScan(0, 1.0, 9, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
-                                                                                unit="turns", scale=1, ndecimals=3
+                                                                                unit="turns", scale=1, precision=3
                                                                             ), group='EGGS_Heating.waveform.time_phase')
 
         # ISA - antisqueezing
         self.setattr_argument("enable_ISA_antisqueezing",                   BooleanValue(default=False), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_rsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_bsb_pct",             NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_rsb_pct",             NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_bsb_pct",             NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_rsb_turns",          NumberValue(default=0.5, precision=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_bsb_turns",          NumberValue(default=0.5, precision=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         self.setattr_argument("enable_ISA_antisqueezing_dipole",            BooleanValue(default=False), group='ISA.antisqueezing')
-        self.setattr_argument("ampl_ISA_antisqueezing_dipole_pct",          NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
-        self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
+        self.setattr_argument("ampl_ISA_antisqueezing_dipole_pct",          NumberValue(default=20., precision=2, step=10, min=0.0, max=99), group='ISA.antisqueezing')
+        self.setattr_argument("phase_ISA_antisqueezing_dipole_turns",       NumberValue(default=0.5, precision=3, step=0.1, min=-1., max=1.), group='ISA.antisqueezing')
 
         # ISA - extrinsic squeezing (parametric)
-        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=100000.2, ndecimals=3, step=10, min=1, max=400000), group='squeeze_configurable')
+        self.setattr_argument("freq_squeeze_khz",                           NumberValue(default=100000.2, precision=3, step=10, min=1, max=400000), group='squeeze_configurable')
         self.setattr_argument("phase_antisqueeze_turns_list",               Scannable(
                                                                                     default=[
                                                                                         ExplicitScan([0.]),
                                                                                         RangeScan(0, 1.0, 6, randomize=True)
                                                                                     ],
                                                                                     global_min=0.0, global_max=1.0, global_step=1,
-                                                                                    unit="turns", scale=1, ndecimals=3
+                                                                                    unit="turns", scale=1, precision=3
                                                                                 ), group='squeeze_configurable')
-        self.setattr_argument("time_squeeze_us",                            NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group='squeeze_configurable')
+        self.setattr_argument("time_squeeze_us",                            NumberValue(default=10., precision=3, step=100, min=1, max=1000000), group='squeeze_configurable')
         self.squeeze_subsequence =                                          SqueezeConfigurable(self)
 
         # get relevant devices

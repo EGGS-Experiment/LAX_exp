@@ -35,12 +35,12 @@ class LaserPowerCalibration(EnvExperiment):
         self.setattr_argument("dds_channel_num",            NumberValue(default=1, precision=0, step=1, min=0, max=3), group='DDS')
         self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=1, precision=2, step=1, min=1, max=40), group='DDS')
         self.setattr_argument("dds_ampl_max_pct",           NumberValue(default=50, precision=2, step=1, min=5, max=50), group='DDS')
-        self.setattr_argument("dds_attenuation_db",         NumberValue(default=14, ndecimals=1, step=0.5, min=14, max=31.5), group='DDS')
+        self.setattr_argument("dds_attenuation_db",         NumberValue(default=14, precision=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup
-        self.setattr_argument("adc_channel_num",            NumberValue(default=2, ndecimals=0, step=1, min=0, max=7), group='ADC')
+        self.setattr_argument("adc_channel_num",            NumberValue(default=2, precision=0, step=1, min=0, max=7), group='ADC')
         self.setattr_argument("adc_gain_num",               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
-        self.setattr_argument("adc_sample_num",             NumberValue(default=250, ndecimals=0, step=1, min=1, max=5000), group='ADC')
+        self.setattr_argument("adc_sample_num",             NumberValue(default=250, precision=0, step=1, min=1, max=5000), group='ADC')
 
         # result storage
         self.setattr_argument("save_to_dataset_manager",    BooleanValue(default=True), group='dataset')

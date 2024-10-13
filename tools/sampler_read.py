@@ -23,8 +23,8 @@ class SamplerRead(EnvExperiment):
         self.setattr_argument("channel_gain_dict",              PYONValue({2: 100}))
 
         # timing
-        self.setattr_argument("sample_rate_hz",                 NumberValue(default=5000, ndecimals=3, step=1, min=1, max=5100))
-        self.setattr_argument("time_total_s",                   NumberValue(default=1, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("sample_rate_hz",                 NumberValue(default=5000, precision=3, step=1, min=1, max=5100))
+        self.setattr_argument("time_total_s",                   NumberValue(default=1, precision=0, step=1, min=1, max=100000))
 
 
     def prepare(self):

@@ -37,7 +37,7 @@ class ReadoutCalibration(LAXExperiment, Experiment):
                                                                                     ExplicitScan([105])
                                                                                 ],
                                                                                 global_min=70, global_max=140, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                                unit="MHz", scale=1, precision=5
                                                                             ), group='Readout')
         self.setattr_argument("ampl_readout_pct_list",                      Scannable(
                                                                                 default=[
@@ -45,7 +45,7 @@ class ReadoutCalibration(LAXExperiment, Experiment):
                                                                                     ExplicitScan([45])
                                                                                 ],
                                                                                 global_min=1, global_max=50, global_step=1,
-                                                                                unit="pct", scale=1, ndecimals=1
+                                                                                unit="pct", scale=1, precision=1
                                                                             ), group='Readout')
 
         # relevant devices

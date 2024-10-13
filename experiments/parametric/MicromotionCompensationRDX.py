@@ -46,19 +46,19 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                 NumberValue(default=2, ndecimals=0, step=1, min=1, max=10))
+        self.setattr_argument("iterations",                 NumberValue(default=2, precision=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='configuration')
-        self.setattr_argument("num_steps",                  NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='configuration')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, precision=0, step=1, min=1, max=100), group='configuration')
+        self.setattr_argument("num_steps",                  NumberValue(default=8, precision=0, step=1, min=5, max=100), group='configuration')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_0_db",              NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mode_0_db",              NumberValue(default=20, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_1_db",              NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mode_1_db",              NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
@@ -67,8 +67,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')

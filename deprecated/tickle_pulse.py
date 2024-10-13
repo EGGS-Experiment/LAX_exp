@@ -21,10 +21,10 @@ class TicklePulse(EnvExperiment):
         self.setattr_device("urukul1_ch3")
 
         # tickle arguments
-        self.setattr_argument('freq_tickle_khz',    NumberValue(default=1372., ndecimals=3, step=10, min=1, max=400000))
-        self.setattr_argument('ampl_tickle_pct',    NumberValue(default=99., ndecimals=2, step=10, min=0., max=100.))
-        self.setattr_argument('att_tickle_db',      NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5))
-        self.setattr_argument('time_tickle_ms',     NumberValue(default=100., ndecimals=3, step=10, min=0.01, max=100000))
+        self.setattr_argument('freq_tickle_khz',    NumberValue(default=1372., precision=3, step=10, min=1, max=400000))
+        self.setattr_argument('ampl_tickle_pct',    NumberValue(default=99., precision=2, step=10, min=0., max=100.))
+        self.setattr_argument('att_tickle_db',      NumberValue(default=0., precision=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument('time_tickle_ms',     NumberValue(default=100., precision=3, step=10, min=0.01, max=100000))
 
     def prepare(self):
         # alias devices

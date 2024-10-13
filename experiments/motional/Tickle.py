@@ -29,7 +29,7 @@ class Tickle(LAXExperiment, Experiment):
                                                                             ExplicitScan([1500]),
                                                                         ],
                                                                         global_min=10, global_max=400000, global_step=100,
-                                                                        unit="kHz", scale=1, ndecimals=3
+                                                                        unit="kHz", scale=1, precision=3
                                                                     ), group=self.name)
         self.setattr_argument("ampl_tickle_pct_list",           Scannable(
                                                                         default=[
@@ -37,7 +37,7 @@ class Tickle(LAXExperiment, Experiment):
                                                                             RangeScan(0, 100, 10, randomize=True),
                                                                         ],
                                                                         global_min=0.1, global_max=100.0, global_step=10,
-                                                                        unit="pct", scale=1, ndecimals=2
+                                                                        unit="pct", scale=1, precision=2
                                                                     ), group=self.name)
         self.setattr_argument("time_tickle_us_list",            Scannable(
                                                                         default=[
@@ -45,9 +45,9 @@ class Tickle(LAXExperiment, Experiment):
                                                                             RangeScan(1000, 2000, 11, randomize=True),
                                                                         ],
                                                                         global_min=100, global_max=1000000, global_step=100,
-                                                                        unit="us", scale=1, ndecimals=0
+                                                                        unit="us", scale=1, precision=0
                                                                     ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, ndecimals=1, step=0.5, min=0., max=31.5), group=self.name)
+        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, precision=1, step=0.5, min=0., max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')

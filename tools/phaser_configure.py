@@ -54,8 +54,8 @@ class PhaserConfigure(EnvExperiment):
         self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
-        # self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., ndecimals=6, step=100, min=-300., max=300.))
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, precision=6, step=100, min=-400., max=400.))
+        # self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-300., max=300.))
         # # todo: add support for basic freq - i.e. 2.4 something GHz
         self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
 

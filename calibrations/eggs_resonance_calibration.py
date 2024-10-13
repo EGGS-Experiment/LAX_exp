@@ -32,8 +32,8 @@ class EGGSResonanceCalibration(EnvExperiment):
                                                                                     ))
         # spectrum analyzer
         self.setattr_argument("spectrum_analyzer_bandwidth_khz",                NumberValue(default=10, precision=5, step=1, min=0.00001, max=10000))
-        self.setattr_argument("spectrum_analyzer_attenuation_internal_db",      NumberValue(default=10, ndecimals=5, step=1, min=0.00001, max=10000))
-        self.setattr_argument("spectrum_analyzer_attenuation_external_db",      NumberValue(default=0, ndecimals=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("spectrum_analyzer_attenuation_internal_db",      NumberValue(default=10, precision=5, step=1, min=0.00001, max=10000))
+        self.setattr_argument("spectrum_analyzer_attenuation_external_db",      NumberValue(default=0, precision=5, step=1, min=0.00001, max=10000))
 
 
     def prepare(self):

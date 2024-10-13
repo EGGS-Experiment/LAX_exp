@@ -14,7 +14,7 @@ class PhaserInitialize(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("phaser0")
 
-        self.setattr_argument("freq_nco_mhz", NumberValue(default=-217.083495, ndecimals=6, step=100, min=-400., max=400.))
+        self.setattr_argument("freq_nco_mhz", NumberValue(default=-217.083495, precision=6, step=100, min=-400., max=400.))
 
     def prepare(self):
         # ensure NCO frequency is valid

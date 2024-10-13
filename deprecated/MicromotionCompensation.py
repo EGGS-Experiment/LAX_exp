@@ -29,29 +29,29 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                         NumberValue(default=5, ndecimals=0, step=1, min=1, max=100))
+        self.setattr_argument("iterations",                         NumberValue(default=5, precision=0, step=1, min=1, max=100))
 
         # modulation - general
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='modulation_general')
-        self.setattr_argument("num_steps",                  NumberValue(default=10, ndecimals=0, step=1, min=5, max=100), group='modulation_general')
-        # self.setattr_argument("max_att_mod_db",                   NumberValue(default=10, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_general')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, precision=0, step=1, min=1, max=100), group='modulation_general')
+        self.setattr_argument("num_steps",                  NumberValue(default=10, precision=0, step=1, min=5, max=100), group='modulation_general')
+        # self.setattr_argument("max_att_mod_db",                   NumberValue(default=10, precision=1, step=0.5, min=0, max=31.5), group='modulation_general')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='modulation_general')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1394.3, ndecimals=3, step=10, min=1, max=10000), group='modulation_0')
-        self.setattr_argument("att_mod0_db",                NumberValue(default=25, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_0')
+        self.setattr_argument("freq_mod0_khz",              NumberValue(default=1394.3, precision=3, step=10, min=1, max=10000), group='modulation_0')
+        self.setattr_argument("att_mod0_db",                NumberValue(default=25, precision=1, step=0.5, min=0, max=31.5), group='modulation_0')
         self.setattr_argument("dc_channel_mod0",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='modulation_0')
         self.setattr_argument("dc_scan_range_volts_mod0",   PYONValue([55, 75]), group='modulation_0')
 
         # modulation - mode #2
-        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1634., ndecimals=3, step=10, min=1, max=10000), group='modulation_1')
-        self.setattr_argument("att_mod1_db",                NumberValue(default=19, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation_1')
+        self.setattr_argument("freq_mod1_khz",              NumberValue(default=1634., precision=3, step=10, min=1, max=10000), group='modulation_1')
+        self.setattr_argument("att_mod1_db",                NumberValue(default=19, precision=1, step=0.5, min=0, max=31.5), group='modulation_1')
         self.setattr_argument("dc_channel_mod1",            EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='modulation_1')
         self.setattr_argument("dc_scan_range_volts_mod1",   PYONValue([30, 55]), group='modulation_1')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')

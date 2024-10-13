@@ -30,11 +30,11 @@ class LaserScanMulti(LAXExperiment, Experiment):
                                                             global_min=60, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("freq_sideband_1",    NumberValue(default=0.76, min=0, max=20, step=1, unit="MHz", scale=1, ndecimals=6), group=self.name)
-        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.07, min=0, max=20, step=1, unit="MHz", scale=1, ndecimals=6), group=self.name)
-        self.setattr_argument("time_qubit_us",      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50, ndecimals=3, step=10, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",       NumberValue(default=28, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("freq_sideband_1",    NumberValue(default=0.76, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.07, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("time_qubit_us",      NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
+        self.setattr_argument("att_qubit_db",       NumberValue(default=28, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')

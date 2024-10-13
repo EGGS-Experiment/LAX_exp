@@ -72,7 +72,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                                         RangeScan(3, 20, 100, randomize=True)
                                                                     ],
                                                                     global_min=1, global_max=100000, global_step=1,
-                                                                    unit="us", scale=1, ndecimals=3
+                                                                    unit="us", scale=1, precision=3
                                                                 ), group=self.name)
 
         # set up squeezing
