@@ -22,13 +22,13 @@ class CheckIon(LAXExperiment, Experiment):
 
 
         # grab arguements for laser scan to check if it's still HCL
-        self.setattr_arguement("repetitions", NumberValue(default=30, min=1, precision=0, step=1), group='CheckIon.LaserScan')
+        self.setattr_argument("repetitions", NumberValue(default=30, min=1, precision=0, step=1), group='CheckIon.LaserScan')
 
-        self.setattr_arguement("time_qubit_us", NumberValue(default=5000., min=0, step=1,
+        self.setattr_argument("time_qubit_us", NumberValue(default=5000., min=0, step=1,
                                                             precision=0, unit="us"), group='CheckIon.LaserScan')
 
 
-        self.setattr_arguement("att_qubit_db", NumberValue(default =31.5, min =8., max =31.5,
+        self.setattr_argument("att_qubit_db", NumberValue(default =31.5, min =8., max =31.5,
                                                            step=0.1, precision=1, unit="dB"), group='CheckIon.LaserScan')
 
         self.setattr_argument("freq_span_mhz", NumberValue(default=0.15, min=0., step=0.01,unit="MHz",
