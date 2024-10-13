@@ -1,5 +1,5 @@
 """
-Base classes for building PyQt5 GUI clients for LabRAD.
+Wrappers for ARTIQ's device and dataset manager to customize behavior for LAX.
 """
 import logging
 from importlib import import_module
@@ -17,12 +17,27 @@ def _write_to_group(group, k, v):
     """
     try:
         if type(v) is not dict:
-            _write(group, k, v)
+            # _write(group, k, v)
+            # tmp remove - workaround/quick fix
+            _write(group, k, v, {})
         else:
             # convert any dicts to text
-            _write(group, k, str(v))
+            # _write(group, k, str(v))
+            # tmp remove - workaround/quick fix
+            _write(group, k, str(v), {})
     except Exception as e:
         logger.warning("Error: unable to write key {} to group {}: {}".format(k, group, e))
+
+# def _write(group, k, v, m):
+#     # Add context to exception message when the user writes a dataset that is
+#     # not representable in HDF5.
+#     try:
+#         group[k] = v
+#         for key, val in m.items():
+#             group[k].attrs[key] = val
+#     except TypeError as e:
+#         raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
+#             k, type(v), e))
 
 
 class LAXDatasetManager:
@@ -33,15 +48,23 @@ class LAXDatasetManager:
     # WRAPPERS
     def __init__(self, base, parent):
         # set base (wrapped) object
-        self.__dict__['base'] =                 base
+        self.__dict__['base'] = base
 
         # get parent (i.e. object which owns the HasEnvironment object, typically an EnvExperiment)
-        self.__dict__['parent'] =               parent
+        self.__dict__['parent'] = parent
 
         # add parameter and argument management
-        self.__dict__['parameters'] =           dict()
-        self.__dict__['arguments'] =            dict()
+        self.__dict__['parameters'] =   dict()
+        self.__dict__['arguments'] =    dict()
 
+
+    '''
+    MODIFIERS:
+    Redirects calls to non-defined attributes (e.g. mutate_dataset) to the
+    base class.
+    This works since __getattr__ is only called when a python attribute is not
+    defined.
+    '''
     def __getattr__(self, attr):
         return getattr(self.base, attr)
 
@@ -49,17 +72,26 @@ class LAXDatasetManager:
         setattr(self.base, attr, value)
 
 
-    # MODIFIED
-    def set(self, key, value, broadcast=False, persist=False, archive=True, parameter=False, argument=False):
+    '''
+    MODIFIED FUNCTIONS:
+    These are called instead of those of the base class.
+    LAXDatasetManager does NOT inherit from artiq.worker_db.DatasetManager, so
+    any references to the base class need to be explicit (e.g. "self.base ...").
+    '''
+    def set(self, key, value, metadata,
+            broadcast=False, persist=False, archive=True,
+            parameter=False, argument=False):
         """
         Added handling for arguments.
         """
+        # todo: ensure metadata handled correctly
+        # todo: should we store metadata here as well?
         if argument:
             self.arguments[key] = value
         elif parameter:
             self.parameters[key] = value
         else:
-            self.base.set(key, value, broadcast, persist, archive)
+            self.base.set(key, value, metadata, broadcast, persist, archive)
 
     def get(self, key, archive=False, parameter=False):
         """
@@ -88,7 +120,8 @@ class LAXDatasetManager:
 
     def write_hdf5(self, f):
         """
-        Add handling for stored parameters.
+        Add handling for stored parameters and arguments.
+        Uses custom _write_to_group instead of artiq.worker_db._write.
         """
         # store datasets in a separate group
         datasets_group = f.create_group("datasets")
@@ -128,6 +161,12 @@ class LAXDeviceManager:
         self.__dict__['ddb_lax'] =              device_db_ext
         self.__dict__['active_lax_devices'] =   list()
 
+    '''
+    MODIFIED FUNCTIONS:
+    These are called instead of those of the base class.
+    LAXDeviceManager does NOT inherit from artiq.worker_db.DeviceManager, so
+    any references to the base class need to be explicit (e.g. "self.base ...").
+    '''
     def __getattr__(self, attr):
         return getattr(self.base, attr)
 
