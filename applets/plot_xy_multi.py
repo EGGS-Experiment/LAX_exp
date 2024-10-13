@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-
 """
 Forked from CampbellGroup @ UCLA: https://github.com/CampbellGroup/Yaax
 """
-
-import numpy as np
 import pyqtgraph
+import numpy as np
 
-import artiq.applets.simple
-
+from artiq.tools import scale_from_metadata
+from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import PlotWidget
 
 
 class MultiXYPlot(PlotWidget):
     """Plot XY applet for multiple graphs."""
 
-    def __init__(self, args, **kwargs):
+    def __init__(self, args, req, **kwargs):
         # Call super
-        super().__init__(args, **kwargs)
+        super().__init__(args, req, **kwargs)
 
         # Set plot name format
         self._name_format = args.plot_names
@@ -170,7 +168,7 @@ class MultiXYPlot(PlotWidget):
 
 def main():
     # Create applet object
-    applet = artiq.applets.simple.TitleApplet(MultiXYPlot, default_update_delay=0.1)
+    applet = TitleApplet(MultiXYPlot, default_update_delay=0.1)
 
     # Add custom arguments
     applet.argparser.add_argument("--x-label", default=None, type=str, help="The X label")

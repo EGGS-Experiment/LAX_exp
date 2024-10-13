@@ -33,17 +33,17 @@ class PlotWidget(pyqtgraph.PlotWidget):
     For direct access to the plot item, use `self.plotItem` or call `self.getPlotItem()`.
     """
 
-    def __init__(self, args: typing.Any, **kwargs: typing.Any):
+    def __init__(self, args: typing.Any, req: typing.Any, **kwargs: typing.Any):
         """The init function as it is called by ARTIQ.
 
         :param args: The arguments from argparse
         :param kwargs: Keyword arguments forwarded to the superclass
         """
-
         # Call super
         pyqtgraph.PlotWidget.__init__(self, **kwargs)
         # Store arguments
         self.__args = args  # type: typing.Any
+        self.__req = req
         # Title, acts as a buffer
         self.__title = None  # type: typing.Optional[str]
         # Flag to indicate the title was set
@@ -83,7 +83,7 @@ class PlotWidget(pyqtgraph.PlotWidget):
         """
         try:
             # Try to return the data
-            return self.__data_buffer[key][1]  # Extra index required
+            return self.__data_buffer[key]
         except KeyError:
             if default is NoDefault:
                 # Raise if no default was set
@@ -91,23 +91,28 @@ class PlotWidget(pyqtgraph.PlotWidget):
             else:
                 return default
 
-    def data_changed(self, data: typing.Dict[str, typing.Any], mods: typing.List[typing.Any],
-                     title: typing.Optional[str] = None) -> None:
+    # todo: get types for metadata and persist
+    def data_changed(self, value: typing.Dict[str, typing.Any], metadata: typing.Any, persist: typing.Any,
+                     mods: typing.List[typing.Any], title: typing.Optional[str] = None) -> None:
         """This function is called when a subscribed dataset changes.
 
         It now provides some standard functionality and custom applets should override
         the :func:`update_applet` function.
 
-        :param data: Raw data in the form of a dict
+        :param value: Raw data in the form of a dict
+        :param metadata: todo document
+        :param persist: todo document
         :param mods: A list of unknown objects
         :param title: The title, if this is a TitleApplet and the title was set
         """
-        assert isinstance(data, dict)
+        # todo: make not assert
+        assert isinstance(value, dict)
         assert isinstance(mods, list)
+        # todo: add checks for metadata an persist
         assert isinstance(title, str) or title is None
 
         # Store data in the buffer
-        self.__data_buffer = data
+        self.__data_buffer = value
         # Store the formatted title
         self.__title = title
         # Set the title flag to false
