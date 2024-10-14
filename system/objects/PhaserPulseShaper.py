@@ -45,7 +45,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0)), False] * self._max_waveforms
+        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * self._max_waveforms
 
         # store number of waveforms recorded
         self._num_waveforms = 0

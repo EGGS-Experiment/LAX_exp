@@ -31,14 +31,14 @@ class PhaserEGGS(LAXDevice):
 
     def build_device(self):
         # set phaser sample/frame timings
-        self.t_sample_mu =                  int64(40)
-        self.t_frame_mu =                   int64(320)
-        self.t_output_delay_mu =            int64(1953)
+        self.t_sample_mu =          int64(40)
+        self.t_frame_mu =           int64(320)
+        self.t_output_delay_mu =    int64(1953)
         # todo: max phaser sample rate
 
         # conversion factors
         # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        self.ftw_per_hz =                   (1 << 32) / 1e9
+        self.ftw_per_hz =           (1 << 32) / 1e9
 
     def prepare_device(self):
         # alias both phaser output channels
