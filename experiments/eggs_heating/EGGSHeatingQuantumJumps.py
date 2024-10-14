@@ -16,6 +16,22 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
     then apply bichromatic heating tones, and try to read out the fluorescence.
     """
     name = 'EGGS Heating Quantum Jumps'
+    kernel_invariants = {
+        # config-related
+        'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
+        'phase_eggs_heating_rsb_turns_list',
+        'time_eggs_heating_mu', 'time_rf_servo_holdoff_mu',
+        'config_eggs_heating_list', 'num_configs',
+        # pulse shaping
+        'time_pulse_shape_rolloff_mu', 't_max_phaser_update_rate_mu', 'time_pulse_shape_sample_mu', 'time_pulse_shape_delay_mu',
+        'num_pulse_shape_samples', 'ampl_pulse_shape_frac_list', 'ampl_window_frac_list', 'ampl_pulse_shape_frac_list', 'ampl_pulse_shape_reverse_frac_list',
+        # PSK
+        'config_dynamical_decoupling_psk_list', 'time_psk_delay_mu', 'phaser_run'
+        # Quantum Jumps
+        'freq_sideband_readout_mean_ftw', '_quantum_jump_monitor_rsb', '_quantum_jump_monitor_bsb',
+        'config_quantum_jumps', '_results_quantum_jumps_idx', '_dataset_quantum_jumps_idx',
+        'max_num_quantum_jumps', 'peak_sb_threshold_min_frac', 'peak_sb_threshold_max_frac'
+    }
 
     def build_experiment(self):
         # core arguments

@@ -95,7 +95,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
         self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
         self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='Carrier'), group='EGGS_Heating.ramsey')
-        self.setattr_argument("phase_ramsey_anti_turns_list",          Scannable(
+        self.setattr_argument("phase_ramsey_anti_turns_list",               Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0., 0.5]),
                                                                                     RangeScan(0, 1.0, 11, randomize=True),

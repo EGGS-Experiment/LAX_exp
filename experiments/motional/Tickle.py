@@ -13,6 +13,10 @@ class Tickle(LAXExperiment, Experiment):
     # todo: document
     """
     name = 'Tickle'
+    kernel_invariants = {
+        "att_tickle_mu", "freq_tickle_ftw_list", "ampl_tickle_asf_list", "time_tickle_mu_list",
+        "config_tickle_list"
+    }
 
     def build_experiment(self):
         # core arguments
@@ -85,7 +89,8 @@ class Tickle(LAXExperiment, Experiment):
         # tmp remove
         if self.readout_type == 'Timestamped':
             self.readout_subsequence = self.readout_timestamped_subsequence
-            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list), self.readout_subsequence.num_counts), dtype=np.int64))
+            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list),
+                                                             self.readout_subsequence.num_counts), dtype=np.int64))
             self.setattr_dataset('timestamped_counts')
         # tmp remove
 
