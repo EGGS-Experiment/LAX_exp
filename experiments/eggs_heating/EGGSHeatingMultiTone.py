@@ -459,7 +459,8 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
                 self.core.break_realtime()
                 # configure EGGS tones and set readout frequency
-                self.phaser_configure(center_freq, diff_freq_1, diff_freq_2, diff_freq_3, diff_freq_4, phase_turns)
+                self.phaser_configure(center_freq, sideband_freq_hz, diff_freq_1,
+                                      diff_freq_2, diff_freq_3, diff_freq_4, phase_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=0)
@@ -577,9 +578,11 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         diff_freq_2 = self.config_eggs_heating_list[0, 2]
         diff_freq_3 = self.config_eggs_heating_list[0, 3]
         diff_freq_4 = self.config_eggs_heating_list[0, 4]
+        sideband_freq_hz = self.config_eggs_heating_list[0, 10]
         self.core.break_realtime()
         # configure EGGS tones and set readout frequency
-        self.phaser_configure(center_freq, diff_freq_1, diff_freq_2, diff_freq_3, diff_freq_4, phase_turns)
+        self.phaser_configure(center_freq, sideband_freq_hz, diff_freq_1, diff_freq_2,
+                              diff_freq_3, diff_freq_4, phase_turns)
 
         # record phaser rising pulse shape DMA sequence
         self.core.break_realtime()
@@ -608,7 +611,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 pass
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, center_freq_hz: TFloat, diff_freq_hz_1: TFloat, diff_freq_hz_2: TFloat,
+    def phaser_configure(self, center_freq_hz: TFloat, sideband_freq_hz: TFloat, diff_freq_hz_1: TFloat, diff_freq_hz_2: TFloat,
                          diff_freq_hz_3: TFloat, diff_freq_hz_4: TFloat, phase_turns: TFloat) -> TNone:
         """
         Configure the tones on phaser for EGGS.
@@ -669,24 +672,24 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         # synchronize to frame
         at_mu(self.phaser_eggs.get_next_frame_mu())
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_frequency(0.)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(0.)
+            self.phaser_eggs.channel[0].oscillator[0].set_frequency(sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[0].set_frequency(sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_frequency(diff_freq_hz_1)
-            self.phaser_eggs.channel[1].oscillator[1].set_frequency(diff_freq_hz_1)
+            self.phaser_eggs.channel[0].oscillator[1].set_frequency(diff_freq_hz_1 + sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[1].set_frequency(diff_freq_hz_1 + sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_frequency(diff_freq_hz_2)
-            self.phaser_eggs.channel[1].oscillator[2].set_frequency(diff_freq_hz_2)
+            self.phaser_eggs.channel[0].oscillator[2].set_frequency(diff_freq_hz_2 + sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[2].set_frequency(diff_freq_hz_2 + sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[3].set_frequency(diff_freq_hz_3)
-            self.phaser_eggs.channel[1].oscillator[3].set_frequency(diff_freq_hz_3)
+            self.phaser_eggs.channel[0].oscillator[3].set_frequency(diff_freq_hz_3 + sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[3].set_frequency(diff_freq_hz_3 + sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
-            self.phaser_eggs.channel[0].oscillator[4].set_frequency(diff_freq_hz_4)
-            self.phaser_eggs.channel[1].oscillator[4].set_frequency(diff_freq_hz_4)
+            self.phaser_eggs.channel[0].oscillator[4].set_frequency(diff_freq_hz_4 + sideband_freq_hz)
+            self.phaser_eggs.channel[1].oscillator[4].set_frequency(diff_freq_hz_4 + sideband_freq_hz)
             delay_mu(self.phaser_eggs.t_sample_mu)
 
     @kernel(flags={"fast-math"})
