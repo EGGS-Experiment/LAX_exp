@@ -26,7 +26,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         'time_pulse_shape_rolloff_mu', 't_max_phaser_update_rate_mu', 'time_pulse_shape_sample_mu', 'time_pulse_shape_delay_mu',
         'num_pulse_shape_samples', 'ampl_pulse_shape_frac_list', 'ampl_window_frac_list', 'ampl_pulse_shape_frac_list', 'ampl_pulse_shape_reverse_frac_list',
         # PSK
-        'config_dynamical_decoupling_psk_list', 'time_psk_delay_mu', 'phaser_run'
+        'config_dynamical_decoupling_psk_list', 'time_psk_delay_mu', 'phaser_run',
         # Quantum Jumps
         'freq_sideband_readout_mean_ftw', '_quantum_jump_monitor_rsb', '_quantum_jump_monitor_bsb',
         'config_quantum_jumps', '_results_quantum_jumps_idx', '_dataset_quantum_jumps_idx',
