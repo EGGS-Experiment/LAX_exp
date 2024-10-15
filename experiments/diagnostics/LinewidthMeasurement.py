@@ -19,7 +19,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
     """
     name = 'Linewidth Measurement'
     kernel_invariants = {
-        'freq_probe_scan_mhz', 'freq_probe_scan_ftw', 'ampl_probe_scan_asf'
+        'freq_probe_scan_mhz', 'freq_probe_scan_ftw', 'ampl_probe_scan_asf',
         'time_adc_holdoff_mu', 'adc_channel_gain_mu',
         'config_linewidth_measurement_list'
     }
