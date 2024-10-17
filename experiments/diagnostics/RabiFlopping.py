@@ -15,7 +15,9 @@ class RabiFlopping(LAXExperiment, Experiment):
     """
     name = 'Rabi Flopping'
     kernel_invariants = {
-        'freq_rabiflop_ftw', 'att_readout_mu', 'time_rabiflop_mu_list'
+        'freq_rabiflop_ftw', 'att_readout_mu', 'time_rabiflop_mu_list',
+        'initialize_subsequence', 'doppler_subsequence', 'sidebandcool_pulsed_subsequence',
+        'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

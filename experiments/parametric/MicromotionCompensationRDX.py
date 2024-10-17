@@ -38,7 +38,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # magic numbers
         "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE",
         # labrad
-        "cxn", "dc"
+        "cxn", "dc",
+        # subsequences
+        "parametric_subsequence", "rescue_subsequence"
     }
 
     def build_experiment(self):
@@ -77,8 +79,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_device('dds_parametric')
 
         # get relevant subsequences
-        self.parametric_subsequence =                           ParametricExcite(self)
-        self.rescue_subsequence =                               RescueIon(self)
+        self.parametric_subsequence =   ParametricExcite(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         """

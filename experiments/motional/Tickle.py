@@ -15,7 +15,9 @@ class Tickle(LAXExperiment, Experiment):
     name = 'Tickle'
     kernel_invariants = {
         "att_tickle_mu", "freq_tickle_ftw_list", "ampl_tickle_asf_list", "time_tickle_mu_list",
-        "config_tickle_list"
+        "config_tickle_list",
+        # subsequences
+        'initialize_subsequence', 'readout_counts_subsequence', 'readout_timestamped_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

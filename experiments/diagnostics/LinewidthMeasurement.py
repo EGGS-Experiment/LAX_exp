@@ -21,7 +21,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_probe_scan_mhz', 'freq_probe_scan_ftw', 'ampl_probe_scan_asf',
         'time_adc_holdoff_mu', 'adc_channel_gain_mu',
-        'config_linewidth_measurement_list'
+        'config_linewidth_measurement_list',
+        'probe_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):
@@ -48,7 +49,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # subsequences
         self.probe_subsequence =    AbsorptionProbe(self)
         self.rescue_subsequence =   RescueIon(self)
-
 
     def prepare_experiment(self):
         """

@@ -16,9 +16,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
     """
     name = 'Linewidth Measurement 2'
     kernel_invariants = {
-        'freq_probe_scan_mhz', 'freq_probe_scan_ftw',
-        'ampl_probe_scan_asf', 'waveform_probe_scan',
-        'time_adc_holdoff_mu', 'adc_channel_gain_mu'
+        'freq_probe_scan_mhz', 'freq_probe_scan_ftw', 'ampl_probe_scan_asf', 'waveform_probe_scan',
+        'time_adc_holdoff_mu', 'adc_channel_gain_mu',
+        'dopplercool_subsequence', 'probe_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):
@@ -46,7 +46,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.dopplercool_subsequence =  DopplerCool(self)
         self.probe_subsequence =        AbsorptionProbe2(self)
         self.rescue_subsequence =       RescueIon(self)
-
 
     def prepare_experiment(self):
         """

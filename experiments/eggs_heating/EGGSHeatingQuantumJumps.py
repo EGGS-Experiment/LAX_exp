@@ -30,7 +30,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # Quantum Jumps
         'freq_sideband_readout_mean_ftw', '_quantum_jump_monitor_rsb', '_quantum_jump_monitor_bsb',
         'config_quantum_jumps', '_results_quantum_jumps_idx', '_dataset_quantum_jumps_idx',
-        'max_num_quantum_jumps', 'peak_sb_threshold_min_frac', 'peak_sb_threshold_max_frac'
+        'max_num_quantum_jumps', 'peak_sb_threshold_min_frac', 'peak_sb_threshold_max_frac',
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):
