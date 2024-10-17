@@ -22,9 +22,9 @@ class LAXDevice(LAXEnvironment, ABC):
                                                             and the value is the actual device name (e.g. "urukul1_ch3").
     """
     # Class attributes
-    name =                  None
-    core_device =           None
-    devices =               dict()
+    name =          None
+    core_device =   None
+    devices =       dict()
 
 
     '''
@@ -117,7 +117,21 @@ class LAXDevice(LAXEnvironment, ABC):
     '''
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
+        """
+        To be subclassed.
+
+        todo: document
+        """
+        pass
+
+
+    '''
+    CLEANUP
+    '''
+
+    @kernel(flags={"fast-math"})
+    def cleanup_device(self) -> TNone:
         """
         To be subclassed.
 
