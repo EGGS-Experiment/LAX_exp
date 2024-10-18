@@ -30,29 +30,29 @@ class Displace(LAXSubsequence):
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
-        self.att_displace_mu =                              att_to_mu(self.att_displace_db * dB)
+        self.att_displace_mu =      att_to_mu(self.att_displace_db * dB)
 
         # create empty holder variables to support later configuration
-        self.freq_displace_ftw =                            np.int32(0)
-        self.phase_displace_pow =                           np.int32(0)
-        self.time_displace_mu =                             np.int64(0)
+        self.freq_displace_ftw =    np.int32(0)
+        self.phase_displace_pow =   np.int32(0)
+        self.time_displace_mu =     np.int64(0)
 
         # configure displacement on/off
-        self.displace_func =                                self.dds_dipole.on
+        self.displace_func = self.dds_dipole.on
         if not self.enable_displacement:
-            self.displace_func =                            self.dds_dipole.off
+            self.displace_func = self.dds_dipole.off
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_dipole.set_att_mu(self.att_displace_mu)
 
     @kernel(flags={"fast-math"})
-    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64):
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64) -> TNone:
         # store parameters as instance attribute
         self.time_displace_mu = time_mu
-        print(self.time_displace_mu)
+        # print(self.time_displace_mu)
         self.core.break_realtime()
 
         # set waveforms for profiles
@@ -64,7 +64,7 @@ class Displace(LAXSubsequence):
                                pow_=phase_pow, phase_mode=PHASE_MODE_CONTINUOUS)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # set blank output waveform
         self.dds_dipole.set_profile(2)
         self.dds_dipole.write32(_AD9910_REG_CFR1,

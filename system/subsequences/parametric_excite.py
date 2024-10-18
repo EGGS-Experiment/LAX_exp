@@ -13,9 +13,7 @@ class ParametricExcite(LAXSubsequence):
     """
     name = 'parametric_excite'
     kernel_invariants = {
-        "time_pmt_gating_mu",
-        "time_rf_gating_mu",
-        "time_rf_holdoff_mu"
+        "time_pmt_gating_mu", "time_rf_gating_mu", "time_rf_holdoff_mu"
     }
 
     def build_subsequence(self):

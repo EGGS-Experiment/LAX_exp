@@ -22,7 +22,7 @@ class SpinPolarization(LAXSubsequence):
         self.time_spinpol_mu = self.get_parameter('time_spinpol_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # probe pulse
         self.probe.on()
         delay_mu(self.time_spinpol_mu)

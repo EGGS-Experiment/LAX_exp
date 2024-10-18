@@ -62,7 +62,7 @@ class TickleFastDDS(LAXSubsequence):
         self.time_system_cleanup_delay_mu = np.int64(420)
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set up DDSs for output
         with parallel:
             self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
@@ -81,9 +81,8 @@ class TickleFastDDS(LAXSubsequence):
             self.dds_ch0.set_cfr2(matched_latency_enable=1)
             self.dds_ch1.set_cfr2(matched_latency_enable=1)
 
-
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         time_start_mu = now_mu() & ~0x7
 
         # enable output switches and set initial profile
@@ -109,7 +108,7 @@ class TickleFastDDS(LAXSubsequence):
         self._set_cpld_profile_switch_off()
 
     @kernel(flags={"fast-math"})
-    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64):
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64) -> TNone:
         # store timings
         time_delay_tmp_mu =                 time_delay_mu & ~0x7
         self.time_delay_mu =                time_delay_mu
@@ -139,7 +138,7 @@ class TickleFastDDS(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel
-    def _set_cpld_profile_switch_on(self):
+    def _set_cpld_profile_switch_on(self) -> TNone:
         with parallel:
             with sequential:
                 cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~(7 << CFG_PROFILE)) | ((1 << 3) | (0 << CFG_PROFILE))
@@ -150,7 +149,7 @@ class TickleFastDDS(LAXSubsequence):
                 self.dds_ch1.cpld.cfg_write(cfg1)
 
     @kernel
-    def _set_cpld_profile_switch_off(self):
+    def _set_cpld_profile_switch_off(self) -> TNone:
         with parallel:
             with sequential:
                 cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~((7 << CFG_PROFILE) | (1 << 3))) | (0 << CFG_PROFILE)

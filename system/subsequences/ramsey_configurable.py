@@ -15,13 +15,14 @@ class SqueezeConfigurable(LAXSubsequence):
     """
     name = 'squeeze_configurable'
     kernel_invariants = {
-        "att_squeeze_mu"
+        "att_squeeze_mu",
+        "squeeze_func", "antisqueeze_func"
     }
 
     def build_subsequence(self):
-        self.setattr_argument("enable_squeezing",           BooleanValue(default=False), group=self.name)
-        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=False), group=self.name)
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument("enable_squeezing",       BooleanValue(default=False), group=self.name)
+        self.setattr_argument("enable_antisqueezing",   BooleanValue(default=False), group=self.name)
+        self.setattr_argument('att_squeeze_db',         NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')
@@ -30,29 +31,29 @@ class SqueezeConfigurable(LAXSubsequence):
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
-        self.att_squeeze_mu =                               att_to_mu(self.att_squeeze_db * dB)
+        self.att_squeeze_mu =           att_to_mu(self.att_squeeze_db * dB)
 
         # create empty holder variables to support later configuration
-        self.freq_squeeze_ftw =                             np.int32(0)
-        self.phase_squeeze_pow =                            np.int32(0)
-        self.phase_antisqueeze_pow =                        np.int32(0)
-        self.time_squeeze_mu =                              np.int64(0)
+        self.freq_squeeze_ftw =         np.int32(0)
+        self.phase_squeeze_pow =        np.int32(0)
+        self.phase_antisqueeze_pow =    np.int32(0)
+        self.time_squeeze_mu =          np.int64(0)
 
         # configure squeezing & antisqueezing on/off
-        self.squeeze_func =                                 self.dds_parametric.on
-        self.antisqueeze_func =                             self.dds_parametric.on
-        if not self.enable_squeezing:                       self.squeeze_func = self.dds_parametric.off
-        if not self.enable_antisqueezing:                   self.antisqueeze_func = self.dds_parametric.off
+        self.squeeze_func =     self.dds_parametric.on
+        self.antisqueeze_func = self.dds_parametric.on
+        if not self.enable_squeezing:       self.squeeze_func = self.dds_parametric.off
+        if not self.enable_antisqueezing:   self.antisqueeze_func = self.dds_parametric.off
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_parametric.set_att_mu(self.att_squeeze_mu)
 
 
     @kernel(flags={"fast-math"})
-    def squeeze(self):
+    def squeeze(self) -> TNone:
         # set blank output waveform
         self.dds_parametric.set_profile(2)
 
@@ -93,9 +94,8 @@ class SqueezeConfigurable(LAXSubsequence):
         # unset phase_autoclear to keep output coherent
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
 
-
     @kernel(flags={"fast-math"})
-    def antisqueeze(self):
+    def antisqueeze(self) -> TNone:
         # unset phase_autoclear to keep output coherent
         # and ensure set_sine_output flag remains set
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
@@ -133,18 +133,18 @@ class SqueezeConfigurable(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64) -> TInt64:
         # calculate squeezing frequency half-period
-        time_half_period_ns =                               1. / (2. * ns * self.dds_parametric.ftw_to_frequency(freq_ftw))
+        time_half_period_ns = 1. / (2. * ns * self.dds_parametric.ftw_to_frequency(freq_ftw))
 
         # ensure squeezing period is close to a multiple of the frequency half-period
-        self.time_squeeze_mu =                              time_mu
+        self.time_squeeze_mu = time_mu
         if self.time_squeeze_mu % time_half_period_ns:
             # round squeezing time up to the nearest multiple of the frequency half-period
-            num_half_period_multiples =                     round(self.time_squeeze_mu / time_half_period_ns + 0.5)
-            self.time_squeeze_mu =                          np.int64(round(time_half_period_ns * num_half_period_multiples))
+            num_half_period_multiples = round(self.time_squeeze_mu / time_half_period_ns + 0.5)
+            self.time_squeeze_mu =      np.int64(round(time_half_period_ns * num_half_period_multiples))
 
         # calculate antisqueeze phase value
-        phase_antisqueeze_turns =                           0.5 + self.dds_parametric.pow_to_turns(phase_pow)
-        phase_antisqueeze_pow =                             self.dds_parametric.turns_to_pow(phase_antisqueeze_turns)
+        phase_antisqueeze_turns =   0.5 + self.dds_parametric.pow_to_turns(phase_pow)
+        phase_antisqueeze_pow =     self.dds_parametric.turns_to_pow(phase_antisqueeze_turns)
         # print(time_half_period_ns)
         # print(self.time_squeeze_mu)
         # print(phase_antisqueeze_turns)
@@ -167,5 +167,5 @@ class SqueezeConfigurable(LAXSubsequence):
         return self.time_squeeze_mu
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         pass

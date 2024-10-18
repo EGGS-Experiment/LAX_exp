@@ -52,7 +52,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def squeeze(self):
+    def squeeze(self) -> TNone:
         # set blank output waveform
         self.dds_parametric.set_profile(2)
 
@@ -93,9 +93,8 @@ class SqueezeConfigurable(LAXSubsequence):
         # unset phase_autoclear to keep output coherent
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
 
-
     @kernel(flags={"fast-math"})
-    def antisqueeze(self):
+    def antisqueeze(self) -> TNone:
         # unset phase_autoclear to keep output coherent
         # and ensure set_sine_output flag remains set
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
@@ -167,5 +166,5 @@ class SqueezeConfigurable(LAXSubsequence):
         return self.time_squeeze_mu
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         pass

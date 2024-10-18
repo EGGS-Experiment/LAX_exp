@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-# todo: aggressive optimization
+# todo: burst counts and burst read
 
 
 class PMTCounter(LAXDevice):
@@ -18,22 +18,21 @@ class PMTCounter(LAXDevice):
         'input':    'ttl0'
     }
     kernel_invariants = {
-        "gating_edge",
-        "counting_method"
+        "gating_edge", "counting_method"
     }
 
     def prepare_device(self):
-        self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
-        # self.time_pmt_gating_mu =                       self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu)
+        self.gating_edge = self.get_parameter('gating_edge', group='pmt', override=False)
+        # self.time_pmt_gating_mu = self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu)
 
         # get default gating edge for counting
-        self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
+        self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
 
         # create counter variable for list timestamping
-        self.counter = np.int64(0)
+        self._counter = np.int64(0)
 
     @kernel(flags={"fast-math"})
-    def count(self, time_mu: TInt64):
+    def count(self, time_mu: TInt64) -> TNone:
         """
         Counts the specified gating edges for a given time.
         Arguments:
@@ -42,10 +41,10 @@ class PMTCounter(LAXDevice):
         self.counting_method(time_mu)
 
     @kernel(flags={"fast-math"})
-    def timestamp_counts(self, timestamp_mu_list: TArray(TInt64, 1), time_gating_mu: TInt64):
+    def timestamp_counts(self, timestamp_mu_list: TArray(TInt64, 1), time_gating_mu: TInt64) -> TNone:
         """
-        Timestamp the incoming counts.
-        Does not time out until we read finish reading the given number of counts.
+        Record timestamps of incoming counts.
+        Does not time out until the passed list (i.e. timestamp_mu_list) is completely filled.
         The passed-in array timestamp_mu_list will be directly modified.
 
         Arguments:
@@ -56,14 +55,14 @@ class PMTCounter(LAXDevice):
         time_start_mu = now_mu()
         self.input._set_sensitivity(1)
 
-        while self.counter < len(timestamp_mu_list):
+        while self._counter < len(timestamp_mu_list):
             # get count timestamp
             time_photon_mu = self.input.timestamp_mu(now_mu() + time_gating_mu)
 
             # move timestamped photon into buffer if valid
             if time_photon_mu >= 0:
-                timestamp_mu_list[self.counter] = time_photon_mu
-                self.counter += 1
+                timestamp_mu_list[self._counter] = time_photon_mu
+                self._counter += 1
 
         # add slack and stop counting
         self.core.break_realtime()
@@ -74,4 +73,4 @@ class PMTCounter(LAXDevice):
 
         # reset loop counter
         # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical
-        self.counter = 0
+        self._counter = 0

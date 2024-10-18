@@ -36,7 +36,7 @@ class Beam397Pump(LAXDevice):
         self.ampl_rescue_asf =      self.get_parameter('ampl_pump_rescue_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         # set waveforms for cooling, readout, and rescue
         self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
@@ -50,7 +50,7 @@ class Beam397Pump(LAXDevice):
 
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
             self.beam.sw.on()
@@ -61,7 +61,7 @@ class Beam397Pump(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
             self.beam.sw.off()
@@ -72,7 +72,7 @@ class Beam397Pump(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def cooling(self):
+    def cooling(self) -> TNone:
         """
         Set cooling profile
         todo: document
@@ -81,7 +81,7 @@ class Beam397Pump(LAXDevice):
         self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def readout(self):
+    def readout(self) -> TNone:
         """
         Set readout profile
         todo: document
@@ -90,7 +90,7 @@ class Beam397Pump(LAXDevice):
         self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def rescue(self):
+    def rescue(self) -> TNone:
         """
         Set rescue profile
         todo: document
@@ -99,6 +99,6 @@ class Beam397Pump(LAXDevice):
         self.beam.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num: TInt32):
+    def set_profile(self, profile_num: TInt32) -> TNone:
         self.beam.cpld.set_profile(profile_num)
         self.beam.cpld.io_update.pulse_mu(8)

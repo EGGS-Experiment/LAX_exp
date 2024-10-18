@@ -29,7 +29,7 @@ class DDSParametric(LAXDevice):
         self.cpld = self.dds.cpld
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         # close rf switches to kill any modulation signal leakage
         self.mod_switch.off()
         self.dds.sw.off()
@@ -37,9 +37,8 @@ class DDSParametric(LAXDevice):
         # ensure output has matched latency
         self.dds.set_cfr2(matched_latency_enable=1)
 
-
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
             self.dds.sw.on()
@@ -49,7 +48,7 @@ class DDSParametric(LAXDevice):
             # self.servo_hold.on()
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
             self.dds.sw.off()
@@ -59,12 +58,12 @@ class DDSParametric(LAXDevice):
             # self.servo_hold.off()
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num: TInt32):
+    def set_profile(self, profile_num: TInt32) -> TNone:
         self.dds.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def set_phase_absolute(self):
+    def set_phase_absolute(self) -> TNone:
         """
         todo: document
         """
@@ -77,10 +76,9 @@ class DDSParametric(LAXDevice):
                          (1 << 13))     # phase_autoclear
 
     @kernel(flags={"fast-math"})
-    def reset_phase(self):
+    def reset_phase(self) -> TNone:
         """
         todo: document
-        :return:
         """
         # ensure signal is output as a sine with 0 phase
         self.dds.write32(_AD9910_REG_CFR1,
@@ -92,7 +90,7 @@ class DDSParametric(LAXDevice):
         delay_mu(TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def io_update(self):
+    def io_update(self) -> TNone:
         """
         Pulse the CPLDs IO_UPDATE pin.
         Can be used to clear the phase accumulator if the phase_autoclear

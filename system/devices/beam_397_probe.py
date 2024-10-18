@@ -32,9 +32,8 @@ class Beam397Probe(LAXDevice):
         self.ampl_rescue_asf =      self.get_parameter('ampl_probe_rescue_pct', group='beams.ampl_pct',
                                                        override=False, conversion_function=pct_to_asf)
 
-
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         # set cooling and readout profiles
         self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
@@ -47,11 +46,11 @@ class Beam397Probe(LAXDevice):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         self.beam.sw.on()
         delay_mu(8)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         self.beam.sw.off()
         delay_mu(8)

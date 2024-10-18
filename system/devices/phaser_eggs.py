@@ -52,7 +52,7 @@ class PhaserEGGS(LAXDevice):
         self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='eggs', override=False)
 
     @kernel(flags={'fast-math'})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         """
         Clear the DUC phase accumulators and sync the DAC.
         """

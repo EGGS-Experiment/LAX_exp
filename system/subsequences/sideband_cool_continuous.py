@@ -125,7 +125,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # # tmp remove
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set quench waveform
         self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
 
@@ -141,7 +141,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def _calibrate_quench_power(self):
+    def _calibrate_quench_power(self) -> TNone:
         """
         Calibrate qubit repump (854nm) power for quenching SBC.
         Reads in the red/IR photodiode via the sampler.
@@ -169,7 +169,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling profiles for regular beams

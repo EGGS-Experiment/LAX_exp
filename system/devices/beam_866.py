@@ -22,7 +22,7 @@ class Beam866(LAXDevice):
         self.ampl_repump_cooling_asf = self.get_parameter('ampl_repump_cooling_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
         self.core.break_realtime()
@@ -34,11 +34,11 @@ class Beam866(LAXDevice):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         self.beam.sw.on()
         delay_mu(8)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         self.beam.sw.off()
         delay_mu(8)
