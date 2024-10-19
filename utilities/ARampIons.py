@@ -38,9 +38,9 @@ class ARampEjection(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
         self.setattr_argument('west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('v_shim_voltage',          NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('v_shim_voltage',          NumberValue(default=70.8, precision=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('h_shim_voltage',          NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('h_shim_voltage',          NumberValue(default=50.5, precision=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
         self.setattr_argument('final_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50.),
                                                                 group='Ending Trap Parameters')
@@ -54,7 +54,7 @@ class ARampEjection(LAXExperiment, Experiment):
         # aramping parameters
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
-                                                                        ExplicitScan([14.5, 15, 16, 16.5, 17, 17.5, 18]),
+                                                                        ExplicitScan([14, 14.5, 15, 15.5, 16]),
                                                                         RangeScan(18, 24, 20, randomize=True),
                                                                     ],
                                                                     global_min=0.0, global_max=30.0, global_step=1,
@@ -72,6 +72,7 @@ class ARampEjection(LAXExperiment, Experiment):
         self.setattr_device('trap_dc')
         self.setattr_device('camera')
         self.setattr_device('flipper')
+        self.setattr_device('aperture')
 
     def prepare_experiment(self):
         """
@@ -191,8 +192,11 @@ class ARampEjection(LAXExperiment, Experiment):
             print(f"ARAMPING AT VOLTAGE {np.round(aramp_voltage,2)}")
             self.trap_dc.set_aramp_voltage(aramp_voltage)
             time.sleep(self.time_aramp_pulse_s)
+            self.aperture.open_aperture()
             self.trap_dc.set_aramp_voltage(self.final_aramp_voltage)
+            self.aperture.open_aperture()
             time.sleep(self.time_aramp_pulse_s)
+            self.aperture.close_aperture()
 
             # check termination
             self.check_termination()
@@ -221,7 +225,7 @@ class ARampEjection(LAXExperiment, Experiment):
         plt.savefig(os.path.join(self.data_path, filepath1))
 
         # conduct binary thresholding on camera image
-        upper_percentile = np.percentile(data, 99.97)
+        upper_percentile = np.percentile(data, 99.98)
         data[data < upper_percentile] =     0
         data[data >= upper_percentile] =    1
 
@@ -230,6 +234,7 @@ class ARampEjection(LAXExperiment, Experiment):
         data = ndimage.binary_erosion(data, kernel1, iterations=2)
         data[data > 0] = 1
         labels = skimage.measure.label(data)
+        print(len(np.unique(labels)) - 1)
 
         # create camera image (processed)
         plt.figure(2)
