@@ -23,7 +23,9 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     kernel_invariants = {
         'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'time_rf_servo_holdoff_mu', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
-        'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns'
+        'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns',
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

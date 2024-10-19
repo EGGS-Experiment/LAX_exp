@@ -15,7 +15,10 @@ class SidebandCooling(LAXExperiment, Experiment):
     Measure ion temperature via sideband ratio following sideband cooling.
     """
     name = 'Sideband Cooling'
-    kernel_invariants = set()
+    kernel_invariants = {
+        'initialize_subsequence', 'sidebandcool_pulsed_subsequence', 'sidebandcool_continuous_subsequence',
+        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+    }
 
     def build_experiment(self):
         # core arguments

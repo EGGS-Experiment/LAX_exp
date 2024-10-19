@@ -30,7 +30,7 @@ class AbsorptionProbe(LAXSubsequence):
         self.time_probe_mu =                self.get_parameter('time_probe_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # set cooling waveform
         self.pump.cooling()
         # enable 854nm during sequence to evacuate D-5/2 population

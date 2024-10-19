@@ -30,7 +30,7 @@ class Cleanup(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # reset core device, RTIOs, and FIFOs
         self.core.break_realtime()
 

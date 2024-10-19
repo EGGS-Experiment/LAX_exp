@@ -19,7 +19,9 @@ class Squeezing(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'freq_squeeze_ftw_list', 'phase_antisqueeze_pow_list', 'time_squeeze_mu_list', 'time_delay_mu_list',
-        'config_squeeze_list'
+        'config_squeeze_list',
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

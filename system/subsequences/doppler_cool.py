@@ -26,7 +26,7 @@ class DopplerCool(LAXSubsequence):
                                                           override=False, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # set cooling waveform
         self.pump.cooling()
 

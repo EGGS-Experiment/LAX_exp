@@ -14,7 +14,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     """
     name = 'Ramsey Spectroscopy'
     kernel_invariants = {
-        'freq_ramsey_ftw_list'
+        'freq_ramsey_ftw_list',
+        'initialize_subsequence', 'readout_subsequence', 'ramsey_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

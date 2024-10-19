@@ -16,6 +16,10 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
     Optimize
     """
     name = 'Sideband Cooling Optimization'
+    kernel_invariants = {
+        'initialize_subsequence', 'sidebandcool_pulsed_subsequence', 'sidebandcool_continuous_subsequence',
+        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+    }
 
 
     def build_experiment(self):

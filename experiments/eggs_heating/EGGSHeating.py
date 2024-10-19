@@ -26,7 +26,9 @@ class EGGSHeating(LAXExperiment, Experiment):
         'time_pulse_shape_rolloff_mu', 't_max_phaser_update_rate_mu', 'time_pulse_shape_sample_mu', 'time_pulse_shape_delay_mu',
         'num_pulse_shape_samples', 'ampl_pulse_shape_frac_list', 'ampl_window_frac_list', 'ampl_pulse_shape_frac_list', 'ampl_pulse_shape_reverse_frac_list',
         # PSK
-        'config_dynamical_decoupling_psk_list', 'time_psk_delay_mu', 'phaser_run'
+        'config_dynamical_decoupling_psk_list', 'time_psk_delay_mu', 'phaser_run',
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

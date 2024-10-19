@@ -33,7 +33,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         "dc_channel_num", "dc_voltages_v_list", "time_dc_synchronize_delay_mu",
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu", "att_modulation_mu", "freq_modulation_list_mu",
         "cxn", "dc",
-        "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts"
+        "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts",
+        # subsequences
+        "parametric_subsequence", "rescue_subsequence"
     }
 
     def build_experiment(self):

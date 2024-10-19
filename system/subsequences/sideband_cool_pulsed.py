@@ -121,7 +121,7 @@ class SidebandCoolPulsed(LAXSubsequence):
         self.iter_sideband_cooling_modes_list =                         np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set sideband cooling profiles for 729nm qubit laser
         # profile 0: reserved for readout
         # profile 1 & greater: sideband cooling
@@ -130,7 +130,7 @@ class SidebandCoolPulsed(LAXSubsequence):
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # set sideband cooling attenuation
         self.qubit.set_att_mu(self.att_sidebandcooling_mu)
 

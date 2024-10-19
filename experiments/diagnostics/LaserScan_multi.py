@@ -16,7 +16,8 @@ class LaserScanMulti(LAXExperiment, Experiment):
     name = 'Laser Scan Multi'
     kernel_invariants = {
         'all_scans_ftw', 'freq_rsb1_scan_ftw', 'freq_rsb2_scan_ftw', 'freq_qubit_scan_ftw',
-        'ampl_qubit_asf', 'att_qubit_mu'
+        'ampl_qubit_asf', 'att_qubit_mu',
+        'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):

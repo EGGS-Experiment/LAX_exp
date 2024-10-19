@@ -25,7 +25,7 @@ class Beam729(LAXDevice):
         self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
             self.beam.sw.on()
@@ -36,7 +36,7 @@ class Beam729(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
             self.beam.sw.off()
@@ -47,12 +47,12 @@ class Beam729(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num: TInt32):
+    def set_profile(self, profile_num: TInt32) -> TNone:
         self.beam.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def io_update(self):
+    def io_update(self) -> TNone:
         """
         Pulse the CPLDs IO_UPDATE pin.
         Can be used to clear the phase accumulator if the phase_autoclear

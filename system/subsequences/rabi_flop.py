@@ -25,7 +25,7 @@ class RabiFlop(LAXSubsequence):
                                                    override=True, conversion_function=seconds_to_mu, units=us)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # population transfer pulse
         self.qubit.on()
         delay_mu(self.time_rabiflop_mu)
