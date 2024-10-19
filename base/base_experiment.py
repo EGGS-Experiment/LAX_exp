@@ -120,15 +120,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         # to ensure that any attributes instantiated here will be accessible by prepare_experiment
         self.call_child_method("prepare_device")
         self.call_child_method("prepare_subsequence")
-        # todo: should I be calling "prepare_sequence" as well?
+        self.call_child_method("prepare_sequence")
 
         # call user-defined prepare function
         self.prepare_experiment()
 
-
-        '''FINISH PREPARE'''
-        # todo: does this HAVE to be here? could we put it before the compilation of initialize???
-        #       check that putting this here is OK and workable before proceeding
         # todo: somehow call prepare method for everything not devices
         # todo: maybe - we could make LAX classes NOT put prepare_<class> under prepare?
         #       there's no reason they need to have a "prepare" method since they're not an EnvExp
@@ -188,12 +184,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         for i, obj in enumerate(_compile_device_list):
             if isinstance(obj, LAXDevice):
                 setattr(self, '_LAXDevice_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXDevice_{}".format(i))
                 _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
 
         # create code to initialize subsequences
         for i, obj in enumerate(_compile_subsequence_list):
             if isinstance(obj, LAXSubsequence):
                 setattr(self, '_LAXSubsequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSubsequence_{}".format(i))
                 _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
                 # for LAXSubsequences only: get DMA handle for sequences recorded onto DMA
                 _initialize_load_DMA_code += "self._LAXSubsequence_{}._load_dma()\n".format(i)
@@ -202,13 +200,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         for i, obj in enumerate(_compile_sequence_list):
             if isinstance(obj, LAXSequence):
                 setattr(self, '_LAXSequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSequence_{}".format(i))
                 _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
 
         # call user-defined initialize function for the experiment
         _initialize_code += "self.initialize_experiment()\n"
-        _initialize_code += "self.core.break_realtime()"
+        _initialize_code += "self.core.break_realtime()\n"
         # record DMA sequences and get DMA handles to play subsequences
         _initialize_code += _initialize_load_DMA_code
+        _initialize_code += "self.core.break_realtime()"
 
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
@@ -224,7 +224,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # call user-defined cleanup function for the experiment
         _cleanup_code += "self.cleanup_experiment()\n"
-        _cleanup_code += "self.core.break_realtime()"
+        _cleanup_code += "self.core.break_realtime()\n"
 
         # code to cleanup sequences
         for i, obj in enumerate(_compile_sequence_list):
@@ -280,6 +280,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
         # note: this also calls the experiment's "initialize_experiment" function
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
         self._initialize_experiment(self)
 
         # record initialization time
@@ -300,7 +301,8 @@ class LAXExperiment(LAXEnvironment, ABC):
             pass
 
         # clean up system/hardware to ensure system is left in a safe state
-        self._cleanup_experiment()
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
+        self._cleanup_experiment(self)
 
         # record total runtime
         time_run_stop = datetime.timestamp(datetime.now())
