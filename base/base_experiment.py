@@ -7,7 +7,6 @@ import socket
 import logging
 import traceback
 
-from sipyco import pyon
 from datetime import datetime
 from numpy import array, zeros, int32, nan
 from abc import ABC, abstractmethod
@@ -469,6 +468,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
 
+    # @rpc(flags={"async"})
     @rpc
     def check_termination(self) -> TNone:
         """

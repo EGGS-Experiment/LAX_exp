@@ -26,7 +26,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(102.2128, 0.01, 0.0001, randomize=True),
+                                                                CenterScan(101.6187, 0.01, 0.0001, randomize=True),
                                                                 ExplicitScan([6.05]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
@@ -34,7 +34,7 @@ class LaserScan(LAXExperiment, Experiment):
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=40, precision=3, step=10, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices

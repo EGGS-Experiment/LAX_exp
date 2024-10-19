@@ -342,17 +342,16 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        phase_rsb_turns,
-                        phase_ch1_turns,
-                        time_readout_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_rsb_turns,
+                    phase_ch1_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
                 # resuscitate ion
