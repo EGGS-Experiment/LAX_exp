@@ -136,9 +136,11 @@ class LAXSubsequence(LAXEnvironment, ABC):
     def initialize_subsequence(self) -> TNone:
         """
         To be subclassed.
+        Cannot return any values.
 
-        todo: document
-        note: don't initialize devices here, otherwise lots of redundancy and overhead
+        Used to initialize relevant ARTIQ hardware before an experiment.
+        An "initialize" block is necessary since hardware functions cannot be called in "prepare" methods.
+        Note: don't call initialize_device on LAXDevices here, since an LAXExperiment will call initialize_device by itself.
         """
         pass
 
@@ -150,5 +152,17 @@ class LAXSubsequence(LAXEnvironment, ABC):
         Runs a fixed, unchangeable pulse sequence from core DMA.
         Must have the kernel decorator.
         Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def cleanup_subsequence(self) -> TNone:
+        """
+        To be subclassed.
+        Cannot return any values.
+
+        Used to clean up relevant ARTIQ hardware after an experiment.
+        This allows the system to return to a safe state following an experiment.
+        Note: don't cleanup devices here, since an LAXExperiment will call cleanup_device by itself.
         """
         pass

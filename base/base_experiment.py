@@ -29,8 +29,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
-    name =                  None
-    _dma_count =            0
+    name =          None
+    _dma_count =    0
 
 
     '''
@@ -105,7 +105,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         General construction of the experiment object.
         Called right before run (unlike build, which is called upon instantiation).
         ***todo*** prepare_device is called before prepare_experiment to ensure that any values in prepare_device
+        # todo: consider synchronization - is it necessary? where should it be?
+        # todo: maybe we should move the compilation part to its own function?
         """
+        '''BEGIN PREPARE'''
+        # get kernel invariants (if any)
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants
+
         # store arguments in dataset manager
         self._save_arguments()
 
@@ -113,51 +120,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         # to ensure that any attributes instantiated here will be accessible by prepare_experiment
         self.call_child_method("prepare_device")
         self.call_child_method("prepare_subsequence")
+        self.call_child_method("prepare_sequence")
 
         # call user-defined prepare function
         self.prepare_experiment()
 
-        # collate initialize functions to speed up initialization
-        # note: devices should be initialized first
-        _initialize_device_list =               [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXDevice)]
-        _initialize_subsequence_list =          [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXSubsequence)]
-        _initialize_sequence_list =             [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXSequence)]
-
-
-        # write code which initializes the relevant modules entirely on the kernel, without any RPCs
-        _initialize_code =                      "self.core.reset()\n"
-
-        # code to initialize devices
-        for i, obj in enumerate(_initialize_device_list):
-            if isinstance(obj, LAXDevice):
-                setattr(self, '_LAXDevice_{}'.format(i), obj)
-                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
-
-        # code to initialize subsequences
-        for i, obj in enumerate(_initialize_subsequence_list):
-            if isinstance(obj, LAXSubsequence):
-                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
-                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
-
-        # code to initialize sequences
-        for i, obj in enumerate(_initialize_sequence_list):
-            if isinstance(obj, LAXSequence):
-                setattr(self, '_LAXSequence_{}'.format(i), obj)
-                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
-        _initialize_code += "self.core.break_realtime()"
-
-        # create kernel from code string and set as _initialize_experiment
-        initialize_func = kernel_from_string(["self"], _initialize_code)
-        setattr(self, '_initialize_experiment', initialize_func)
-
         # todo: somehow call prepare method for everything not devices
         # todo: maybe - we could make LAX classes NOT put prepare_<class> under prepare?
+        #       there's no reason they need to have a "prepare" method since they're not an EnvExp
+        #       and they're not being run by themselves
         # call prepare methods of all child objects
         # note: this will call the prepare_<class> methods AGAIN, i.e. any preparation
         # that happens in prepare_experiment will get reset
@@ -173,6 +144,107 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.kernel_invariants.add("_dynamic_reduction_factor")
         # preprocess values for completion monitoring
         self._completion_iter_to_pct = 100. / len(self.results)
+        self.kernel_invariants.add("_completion_iter_to_pct")
+
+        # get list of directories that result files should be saved to
+        save_dir_list = {
+            'Z:\\Motion\\Data',     # save to motion drive
+            'D:\\Results'           # save to local backup drive
+        }
+        try:
+            save_dir_list = save_dir_list | set(self.get_dataset('management.dataset_save_locations'))
+        except Exception as e:
+            print(repr(e))
+        # set save_dir_list as an instance attribute
+        self.save_dir_list = save_dir_list
+        self.kernel_invariants.add("save_dir_list")
+
+
+        '''COMPILE INITIALIZATION SEQUENCE'''
+        # collate LAX objects to speed up experiment compilation and execution
+        # note: objects should be initialized in the following order: devices, subsequences, sequences, then experiment
+        _compile_device_list =              [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXDevice)]
+        _compile_subsequence_list =         [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXSubsequence)]
+        _compile_sequence_list =            [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXSequence)]
+
+        # write code which initializes the relevant modules entirely on the kernel, without any RPCs
+        _initialize_code =          "self.core.reset()\n"
+        # write code to get DMA handles for LAXSubsequences
+        _initialize_load_DMA_code = "self.core.break_realtime()\n"
+
+        # todo: should we set e.g. "_LAX<Object>_{}" as a kernel_invariant? or otherwise get their names?
+        # todo: convert all of these for loops into list comprehensions
+        # create code to initialize devices
+        for i, obj in enumerate(_compile_device_list):
+            if isinstance(obj, LAXDevice):
+                setattr(self, '_LAXDevice_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXDevice_{}".format(i))
+                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
+
+        # create code to initialize subsequences
+        for i, obj in enumerate(_compile_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSubsequence_{}".format(i))
+                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
+                # for LAXSubsequences only: get DMA handle for sequences recorded onto DMA
+                _initialize_load_DMA_code += "self._LAXSubsequence_{}._load_dma()\n".format(i)
+
+        # create code to initialize sequences
+        for i, obj in enumerate(_compile_sequence_list):
+            if isinstance(obj, LAXSequence):
+                setattr(self, '_LAXSequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSequence_{}".format(i))
+                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
+
+        # call user-defined initialize function for the experiment
+        _initialize_code += "self.initialize_experiment()\n"
+        _initialize_code += "self.core.break_realtime()\n"
+        # record DMA sequences and get DMA handles to play subsequences
+        _initialize_code += _initialize_load_DMA_code
+        _initialize_code += "self.core.break_realtime()"
+
+        # create kernel from code string and set as _initialize_experiment
+        initialize_func = kernel_from_string(["self"], _initialize_code)
+        setattr(self, '_initialize_experiment', initialize_func)
+
+
+        '''COMPILE CLEANUP SEQUENCE'''
+        # collate cleanup functions to speed up experiment compilation and execution
+        # note: objects should be cleaned up in the following order: experiments, sequences, subsequences, then devices
+        # i.e. reverse order of initialization
+        # write code which cleans up the relevant modules
+        _cleanup_code = "self.core.break_realtime()\n"
+
+        # call user-defined cleanup function for the experiment
+        _cleanup_code += "self.cleanup_experiment()\n"
+        _cleanup_code += "self.core.break_realtime()\n"
+
+        # code to cleanup sequences
+        for i, obj in enumerate(_compile_sequence_list):
+            if isinstance(obj, LAXSequence):
+                _cleanup_code += "self._LAXSequence_{}.cleanup_sequence()\n".format(i)
+
+        # code to cleanup subsequences
+        for i, obj in enumerate(_compile_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                _cleanup_code += "self._LAXSubsequence_{}.cleanup_subsequence()\n".format(i)
+
+        # code to cleanup devices
+        for i, obj in enumerate(_compile_device_list):
+            if isinstance(obj, LAXDevice):
+                _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
+
+        # create kernel from code string and set as _cleanup_experiment
+        _cleanup_code += "self.core.break_realtime()"
+        cleanup_func = kernel_from_string(["self"], _cleanup_code)
+        setattr(self, '_cleanup_experiment', cleanup_func)
 
     def prepare_experiment(self):
         """
@@ -207,6 +279,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         time_global_start = datetime.timestamp(datetime.now())
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
+        # note: this also calls the experiment's "initialize_experiment" function
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
         self._initialize_experiment(self)
 
         # record initialization time
@@ -215,25 +289,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('time_init', time_expinit)
         print('\tInitialize Time:\t{:.2f}'.format(time_expinit))
 
-        # call user-defined initialize function
-        # todo: see if we can move this into _initialize_experiment for speed
-        self.initialize_experiment()
-
-        # get DMA handles for subsequences recorded onto DMA
-        # todo: move _load_dma onto initialize for speed
-        self.call_child_method('_load_dma')
-
+        # run the main part of the experiment
         try:
-            # run the main part of the experiment
             self.run_main()
         except TerminationRequested:
             print('\tExperiment successfully terminated.')
         except Exception as e:
             print('\tError during experiment: {}'.format(repr(e)))
             print(traceback.format_exc())
+        finally:
+            pass
 
-        # set devices back to their default state
-        self._run_cleanup()
+        # clean up system/hardware to ensure system is left in a safe state
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
+        self._cleanup_experiment(self)
 
         # record total runtime
         time_run_stop = datetime.timestamp(datetime.now())
@@ -248,10 +317,51 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
-    @kernel(flags={"fast-math"})
-    def _run_cleanup(self) -> TNone:
+    def initialize_experiment(self) -> TNone:
         """
-        Set all devices back to their original state.
+        To be subclassed.
+
+        todo: document
+        """
+        pass
+
+    def run_main(self) -> TNone:
+        """
+        Can be subclassed.
+
+        todo: document
+        """
+        # repeat the experiment a given number of times
+        # todo: repetitions sort out - who sets the argument for the exp?
+        for trial_num in range(self.repetitions):
+            # run the trial
+            self.run_loop()
+
+            # check if user requests experiment termination
+            self.check_termination()
+
+    def run_loop(self):
+        """
+        To be subclassed.
+
+        todo: document
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def _cleanup_experiment(self) -> TNone:
+        """
+        Call the cleanup functions of sequences, subsequence, and devices and (in that order).
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def cleanup_experiment(self) -> TNone:
+        """
+        To be subclassed.
+
+        todo: get rid of this stuff and move to a dedicated function
+        todo: document
         """
         self.core.break_realtime()
         # todo: set attenuations for parametric and modulation DDSs
@@ -359,37 +469,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
 
-    def initialize_experiment(self) -> TNone:
-        """
-        To be subclassed.
-
-        todo: document
-        """
-        pass
-
-    def run_main(self) -> TNone:
-        """
-        Can be subclassed.
-
-        todo: document
-        """
-        # repeat the experiment a given number of times
-        # todo: repetitions sort out - who sets the argument for the exp?
-        for trial_num in range(self.repetitions):
-            # run the trial
-            self.run_loop()
-
-            # check if user requests experiment termination
-            self.check_termination()
-
-    def run_loop(self):
-        """
-        To be subclassed.
-
-        todo: document
-        """
-        pass
-
     @rpc
     def check_termination(self) -> TNone:
         """
@@ -441,12 +520,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         To be subclassed.
 
         Used to process/analyze experiment results.
+        # todo: document what happens to any returns
         """
-        pass
+        return None
 
 
     '''
-    Results
+    RESULTS & DATASETS
     '''
 
     @rpc(flags={"async"})
@@ -482,7 +562,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
-
     def write_results(self, exp_params):
         """
         Write arguments, datasets, and parameters in a well-structured format
@@ -493,22 +572,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         start_time =    time.localtime(exp_params["start_time"])
         expid =         exp_params["expid"]
 
-        # todo: try to get default save dir list
-        # todo: why don't we get them during build/prepare? then access them here?
-        # problem: we don't have access to dataset managers in this stage
-        # try:
-        #     th0 = self.get_dataset('management.dataset_save_locations')
-        #     print(th0)
-        # except Exception as e:
-        #     print(e)
-        #     print('whoops')
-        save_dir_list = [
-            'Z:\\Motion\\Data',     # save to motion drive
-            'D:\\Results'           # save to local backup drive
-        ]
-
-        # save to all relevant directories
-        for save_dir in save_dir_list:
+        # save to all relevant directories - these are retrieved & stored in "prepare"
+        for save_dir in self.save_dir_list:
 
             try:
                 # format file name and save directory
