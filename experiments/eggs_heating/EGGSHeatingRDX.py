@@ -387,6 +387,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
+        delay_mu(1000000)
         self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
 
