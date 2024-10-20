@@ -366,40 +366,32 @@ class LAXExperiment(LAXEnvironment, ABC):
         # todo: set attenuations for parametric and modulation DDSs
 
         # reset hardware to allow use by users
-        with parallel:
-            # reset qubit board
-            with sequential:
-                self.urukul0_cpld.set_profile(0)
-                self.urukul0_cpld.cfg_switches(0b0000)
+        # reset qubit board
+        self.urukul0_cpld.set_profile(0)
+        self.urukul0_cpld.cfg_switches(0b0000)
 
-            # reset motional board to rescue parameters
-            with sequential:
-                self.urukul1_cpld.set_profile(0)
-                self.urukul1_cpld.cfg_switches(0b0000)
+        # reset motional board to rescue parameters
+        self.urukul1_cpld.set_profile(0)
+        self.urukul1_cpld.cfg_switches(0b0000)
 
-            # reset main board to rescue parameters
-            with sequential:
-                # set to readout values
-                self.urukul2_cpld.set_profile(1)
-                self.urukul2_cpld.cfg_switches(0b1110)
+        # reset main board to rescue parameters
+        # set to readout values
+        self.urukul2_cpld.set_profile(1)
+        self.urukul2_cpld.cfg_switches(0b1110)
 
         delay_mu(100)
-        with sequential:
-            # enable all external RF switches
-            with parallel:
-                self.ttl12.off()
-                self.ttl13.off()
-                self.ttl14.off()
+        # enable all external RF switches
+        self.ttl12.off()
+        self.ttl13.off()
+        self.ttl14.off()
 
-            # set urukul ttl switches to allow front-end access
-            # since output is logical OR of the TTL state as well as the urukul configuration register state
-            delay_mu(10)
-            with parallel:
-                self.urukul0_ch0.sw.off()  # 729nm
-                self.urukul1_ch1.sw.off()  # parametric
-                self.urukul1_ch3.sw.off()  # dipole
-                self.urukul2_ch2.sw.off()  # 866nm
-                self.urukul2_ch3.sw.off()  # 854nm
+        # set urukul ttl switches to allow front-end access
+        # since output is logical OR of the TTL state as well as the urukul configuration register state
+        self.urukul0_ch0.sw.off()  # 729nm
+        self.urukul1_ch1.sw.off()  # parametric
+        self.urukul1_ch3.sw.off()  # dipole
+        self.urukul2_ch2.sw.off()  # 866nm
+        self.urukul2_ch3.sw.off()  # 854nm
 
         # open parametric switch to prevent feedthrough of parametric signal
         self.ttl11.off()
@@ -411,6 +403,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         ### PHASER0 ###
         # reset phaser attenuators
+        self.core.break_realtime()
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)
         delay_mu(40)
@@ -438,6 +431,7 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         ### PHASER1 ###
         # reset phaser attenuators
+        self.core.break_realtime()
         at_mu(self.phaser1.get_next_frame_mu())
         self.phaser1.channel[0].set_att(31.5 * dB)
         delay_mu(40)
