@@ -378,12 +378,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set to readout values
         self.urukul2_cpld.set_profile(1)
         self.urukul2_cpld.cfg_switches(0b1110)
+        self.core.break_realtime()
 
-        delay_mu(100)
         # enable all external RF switches
         self.ttl12.off()
         self.ttl13.off()
         self.ttl14.off()
+        self.core.break_realtime()
 
         # set urukul ttl switches to allow front-end access
         # since output is logical OR of the TTL state as well as the urukul configuration register state
@@ -392,22 +393,22 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.urukul1_ch3.sw.off()  # dipole
         self.urukul2_ch2.sw.off()  # 866nm
         self.urukul2_ch3.sw.off()  # 854nm
+        self.core.break_realtime()
 
         # open parametric switch to prevent feedthrough of parametric signal
         self.ttl11.off()
-        delay_mu(8)
-
         # ensure integrator hold is off
         self.ttl10.off()
-        delay_mu(8)
+        self.core.break_realtime()
 
         ### PHASER0 ###
         # reset phaser attenuators
         self.core.break_realtime()
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.channel[0].set_att(31.5 * dB)
-        delay_mu(40)
+        at_mu(self.phaser1.get_next_frame_mu())
         self.phaser0.channel[1].set_att(31.5 * dB)
+        self.core.break_realtime()
 
         # reset phaser oscillators
         for i in range(5):
@@ -415,16 +416,16 @@ class LAXExperiment(LAXEnvironment, ABC):
             at_mu(self.phaser0.get_next_frame_mu())
 
             # clear oscillator frequencies
-            with parallel:
-                self.phaser0.channel[0].oscillator[i].set_frequency(0.)
-                self.phaser0.channel[1].oscillator[i].set_frequency(0.)
-                delay_mu(40)
+            self.phaser0.channel[0].oscillator[i].set_frequency(0.)
+            delay_mu(40)
+            self.phaser0.channel[1].oscillator[i].set_frequency(0.)
+            delay_mu(40)
 
             # clear oscillator amplitudes
-            with parallel:
-                self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
-                delay_mu(40)
+            self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+            delay_mu(40)
+            self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+            delay_mu(40)
 
             # add slack
             self.core.break_realtime()
@@ -434,8 +435,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.core.break_realtime()
         at_mu(self.phaser1.get_next_frame_mu())
         self.phaser1.channel[0].set_att(31.5 * dB)
-        delay_mu(40)
+        at_mu(self.phaser1.get_next_frame_mu())
         self.phaser1.channel[1].set_att(31.5 * dB)
+        self.core.break_realtime()
 
         # reset phaser oscillators
         for i in range(5):
@@ -443,16 +445,16 @@ class LAXExperiment(LAXEnvironment, ABC):
             at_mu(self.phaser1.get_next_frame_mu())
 
             # clear oscillator frequencies
-            with parallel:
-                self.phaser1.channel[0].oscillator[i].set_frequency(0.)
-                self.phaser1.channel[1].oscillator[i].set_frequency(0.)
-                delay_mu(40)
+            self.phaser1.channel[0].oscillator[i].set_frequency(0.)
+            delay_mu(40)
+            self.phaser1.channel[1].oscillator[i].set_frequency(0.)
+            delay_mu(40)
 
             # clear oscillator amplitudes
-            with parallel:
-                self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
-                delay_mu(40)
+            self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
+            delay_mu(40)
+            self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
+            delay_mu(40)
 
             # add slack
             self.core.break_realtime()
@@ -461,8 +463,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         # we exit the kernel
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
-    # @rpc(flags={"async"})
     @rpc
     def check_termination(self) -> TNone:
         """
