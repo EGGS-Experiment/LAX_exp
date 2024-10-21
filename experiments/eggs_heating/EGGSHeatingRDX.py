@@ -363,8 +363,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
                 # check termination more frequently in case reps are low
                 if (_loop_iter % 50) == 0:
-                    self.check_termination()
-                    self.core.break_realtime()
+                    with parallel:
+                        self.check_termination()
+                        self.core.break_realtime()
                 _loop_iter += 1
 
                 # handle sub-repetition logic
