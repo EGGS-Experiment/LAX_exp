@@ -18,8 +18,8 @@ device_db = {
     },
     "core_log": {
         "type": "controller",
-        # "host": "::1",
-        "host": master_addr,
+        "host": "::1",
+        # "host": master_addr,
         "port": 1068,
         "command": "aqctl_corelog -p {port} --bind {bind} " + core_addr
     },
