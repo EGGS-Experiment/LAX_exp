@@ -71,6 +71,18 @@ class PhaserEGGS(LAXDevice):
         self.phaser.dac_sync()
         # todo: set carrier frequency via DAC NCO frequency for both channels
 
+    @kernel(flags={'fast-math'})
+    def cleanup_device(self) -> TNone:
+        """
+        Stop any residual output from the phaser.
+        """
+        self.core.break_realtime()
+        delay_mu(1000000)
+        print("debug: cleanup phaser")
+        self.core.break_realtime()
+
+        self.reset_oscillators()
+
 
     '''
     DUC Methods
@@ -159,39 +171,3 @@ class PhaserEGGS(LAXDevice):
         # self.phaser.channel[0].set_att(31.5 * dB)
         # delay_mu(self.t_sample_mu)
         # self.phaser.channel[1].set_att(31.5 * dB)
-
-
-    '''
-    HELPER METHODS
-    '''
-    @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
-        """
-        todo: document
-        """
-        code = int32(round(amplitude * 0x7FFF))
-        if code < 0 or code > 0x7FFF:
-            raise ValueError("Error: Invalid fractional amplitude")
-        return code
-
-    @portable(flags={"fast-math"})
-    def asf_to_amplitude(self, asf: TInt32) -> TFloat:
-        """
-        todo: document
-        """
-        return asf / float(0x7FFF)
-
-    @portable(flags={"fast-math"})
-    def turns_to_pow(self, turns: TFloat) -> TInt32:
-        """
-        todo: document
-        """
-        return int32(round(turns * 0x10000)) & int32(0xFFFF)
-
-    @portable(flags={"fast-math"})
-    def pow_to_turns(self, pow_: TInt32) -> TFloat:
-        """
-        todo: document
-        """
-        return pow_ / 0x10000
-

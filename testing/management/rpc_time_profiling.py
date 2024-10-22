@@ -78,6 +78,6 @@ class RPCTimeProfiler(EnvExperiment):
 
         # print statistics to log
         print("Results:")
-        print("\tRPC Time (ms): {:.3f} +/- {:.3f}".format(res_mean / ms, res_stderr / ms))
-        print("\tRPC stdev (ms): {:.3f}".format(res_stdev / ms))
+        print("\tRPC Time (ms):\t{:.3f} +/- {:.3f}".format(res_mean / ms, res_stderr / ms))
+        print("\tRPC stdev (ms):\t{:.3f}".format(res_stdev / ms))
 

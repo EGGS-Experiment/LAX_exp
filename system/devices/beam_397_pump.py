@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.urukul import DEFAULT_PROFILE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
@@ -16,15 +17,16 @@ class Beam397Pump(LAXDevice):
         'rf_switch':    'ttl12'
     }
     kernel_invariants = {
-        "freq_cooling_ftw",
-        "freq_readout_ftw",
-        "freq_rescue_ftw",
-        "ampl_cooling_asf",
-        "ampl_readout_asf",
-        "ampl_rescue_asf"
+        "sw", "cpld",
+        "freq_cooling_ftw", "freq_readout_ftw", "freq_rescue_ftw",
+        "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf"
     }
 
     def prepare_device(self):
+        # re-alias relevant base devices
+        self.sw =   self.beam.sw
+        self.cpld = self.beam.cpld
+
         # get frequency parameters
         self.freq_cooling_ftw =     self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
         self.freq_readout_ftw =     self.get_parameter('freq_pump_readout_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
@@ -48,12 +50,19 @@ class Beam397Pump(LAXDevice):
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3)
         self.core.break_realtime()
 
+    @kernel(flags={"fast-math"})
+    def cleanup_device(self) -> TNone:
+        # set default profile on CPLD
+        self.core.break_realtime()
+        self.set_profile(DEFAULT_PROFILE)
+        self.on()
+
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
-            self.beam.sw.on()
+            self.sw.on()
 
             # enable external RF switch
             with sequential:
@@ -64,7 +73,7 @@ class Beam397Pump(LAXDevice):
     def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
-            self.beam.sw.off()
+            self.sw.off()
 
             # disable external RF switch
             with sequential:
@@ -74,31 +83,31 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def cooling(self) -> TNone:
         """
-        Set cooling profile
+        Set cooling profile.
         todo: document
         """
-        self.beam.cpld.set_profile(0)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(0)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def readout(self) -> TNone:
         """
-        Set readout profile
+        Set readout profile.
         todo: document
         """
-        self.beam.cpld.set_profile(1)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(1)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def rescue(self) -> TNone:
         """
-        Set rescue profile
+        Set rescue profile.
         todo: document
         """
-        self.beam.cpld.set_profile(2)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(2)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
-        self.beam.cpld.set_profile(profile_num)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(profile_num)
+        self.cpld.io_update.pulse_mu(8)

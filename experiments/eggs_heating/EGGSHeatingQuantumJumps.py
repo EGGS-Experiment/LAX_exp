@@ -481,11 +481,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
-        # tmp remove
-
 
     @kernel(flags={"fast-math"})
     def run_loop(self, freq_readout_ftw: TInt32, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
