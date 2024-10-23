@@ -57,6 +57,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
+        self.setattr_argument("enable_aramp", BooleanValue(default=False), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
                                                                         RangeScan(18, 24, 20, randomize=True),
@@ -65,6 +66,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                     global_min=0.0, global_max=30.0, global_step=1,
                                                                     unit="V", scale=1, precision=2
                                                                 ), group='A-Ramp Ejection')
+
+        #oven setting
+        self.setattr_argument("oven_voltage", NumberValue(default=1.25, max = 2., ndecimals=2, step=0.01, unit="V"),
+                              group='Oven Settings')
+        self.setattr_argument("oven_current", NumberValue(default=3.25, max=4., ndecimals=2, step=0.01, unit="A"),
+                              group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
@@ -116,9 +123,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.att_854_mu = att_to_mu(14 * dB)
         self.att_866_mu = att_to_mu(14 * dB)
 
-        '''OVEN SETUP'''
-        self.oven_voltage = 1.
-        self.oven_current = 3.25
+        # '''OVEN SETUP'''
+        # self.oven_voltage = 1.
+        # self.oven_current = 3.25
 
         '''A-RAMP SETUP'''
         self.time_aramp_pulse_s = 2.
@@ -193,6 +200,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         '''START OVEN'''
         # turn on the oven
         self.oven.set_oven_voltage(self.oven_voltage)
+        self.oven.set_oven_current(self.oven_current)
         self.oven.toggle(True)
 
     @rpc
@@ -214,7 +222,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 num_ions = self.load_ion()
 
             # eject excess ions via A-ramping
-            elif num_ions > self.desired_num_of_ions:
+            elif num_ions > self.desired_num_of_ions and self.enable_aramp:
                 self.cleanup_devices()
                 num_ions = self.aramp_ions()
 
@@ -294,6 +302,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         # turn off oven
         self.oven.set_oven_voltage(0)
+        self.oven.set_oven_current(0)
         self.oven.toggle(False)
 
         # close shutters
