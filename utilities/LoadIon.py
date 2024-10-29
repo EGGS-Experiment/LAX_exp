@@ -21,7 +21,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     """
     Utility: Ion Load and Aramp
 
-    Gets the number of counts as a function of frequency for a fixed time.
+    Automatically load ions via resistive oven and eject excess via A-ramp.
     """
     name = 'Ion Load and Aramp'
     BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
@@ -31,7 +31,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         "att_397_mu", "att_866_mu", "att_854_mu",
         "time_runtime_max_s", "start_time_s",
         "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
-        "time_aramp_pulse_s", "oven_voltage", "oven_current"
+        "time_aramp_pulse_s"
     }
 
     def build_experiment(self):
@@ -57,7 +57,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp", BooleanValue(default=False), group='A-Ramp Ejection')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
                                                                         RangeScan(18, 24, 20, randomize=True),
@@ -67,11 +67,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                     unit="V", scale=1, precision=2
                                                                 ), group='A-Ramp Ejection')
 
-        #oven setting
-        self.setattr_argument("oven_voltage", NumberValue(default=1.25, max = 2., ndecimals=2, step=0.01, unit="V"),
-                              group='Oven Settings')
-        self.setattr_argument("oven_current", NumberValue(default=3.25, max=4., ndecimals=2, step=0.01, unit="A"),
-                              group='Oven Settings')
+        # oven configuration
+        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
+                                                        group='Oven Settings')
+        self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A"),
+                                                        group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
@@ -122,10 +122,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.att_397_mu = att_to_mu(14 * dB)
         self.att_854_mu = att_to_mu(14 * dB)
         self.att_866_mu = att_to_mu(14 * dB)
-
-        # '''OVEN SETUP'''
-        # self.oven_voltage = 1.
-        # self.oven_current = 3.25
 
         '''A-RAMP SETUP'''
         self.time_aramp_pulse_s = 2.
@@ -221,12 +217,18 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 self.initialize_labrad_devices()
                 num_ions = self.load_ion()
 
-            # eject excess ions via A-ramping
-            elif num_ions > self.desired_num_of_ions and self.enable_aramp:
+            # eject excess ions via A-ramping (if enabled)
+            elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
                 self.cleanup_devices()
                 num_ions = self.aramp_ions()
 
+            # otherwise, simply stop execution
+            elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
+                print("\tTOO MANY IONS LOADED - STOPPING HERE.")
+                break
+
         '''CLEAN UP'''
+        print("\tLOADING COMPLETE - CLEANING UP.")
         self.cleanup_devices()
 
     @rpc
@@ -236,6 +238,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Returns:
             TInt32: number of ions in trap
         """
+        print("\tLOAD ION - BEGIN:")
+
         # define some variables for later use
         idx = 0
         ion_spottings = 0
@@ -249,7 +253,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             # i.e. max_time reached or termination_requested
             if idx % 5 == 0:
                 if (time.time() - self.start_time_s) > self.time_runtime_max_s:
-                    print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD --- ENDING PROGRAM")
+                    print("\t\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
                     return -1
                 else:
                     self.check_termination()
@@ -259,7 +263,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 ion_spottings += 1
                 # ensure camera sees ion in 3 consecutive images to prevent singular false positive
                 if ion_spottings >= 3:
-                    print(num_ions, "ION(s) LOADED")
+                    print("\t\t{:d} ION(s) LOADED".format(num_ions))
                     return num_ions
             else:
                 ion_spottings = 0  # reset if image analysis shows no ions in trap
@@ -275,12 +279,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             TInt32: Number of ions.
         """
         # todo: allow for some error conditions
-        print("STARTING ARAMP PROCEDURE")
+        print("\tARAMP EJECTION - START:")
         for aramp_voltage in self.aramp_ions_voltage_list:
-
-            print(f"ARAMPING AT VOLTAGE {aramp_voltage}")
+            self.check_termination()
 
             # pulse A-ramp for given period
+            print("\t\tARAMPING @ VOLTAGE: {:.1f} V".format(aramp_voltage))
             self.trap_dc.set_aramp_voltage(aramp_voltage)
             time.sleep(self.time_aramp_pulse_s)
             self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
@@ -288,10 +292,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
+            print("\t\tIONS REMAINING: {:d}".format(num_ions))
             if num_ions <= self.desired_num_of_ions:
                 return num_ions
 
-            self.check_termination()
         return 0
 
     @rpc
@@ -301,8 +305,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         All but trap electrodes set to original state --- trap electrodes set to final trapping potential.
         """
         # turn off oven
-        self.oven.set_oven_voltage(0)
-        self.oven.set_oven_current(0)
+        self.oven.set_oven_voltage(0.)
+        self.oven.set_oven_current(0.)
         self.oven.toggle(False)
 
         # close shutters
