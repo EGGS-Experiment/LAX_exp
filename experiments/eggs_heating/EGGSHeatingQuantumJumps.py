@@ -115,12 +115,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-
-        # tmp remove
-        # self.setattr_device('ttl8')
-        # self.setattr_device('ttl9')
+        self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         self.setattr_device('ttl10')
-        # tmp remove
 
     def prepare_experiment(self):
         """
@@ -357,10 +354,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
-        # reset debug triggers
-        # self.ttl8.off()
-        # self.ttl9.off()
-        # tmp remove
+        # deactivate integrator hold & stop phaser amp switches
+        self.ttl8.off()
+        self.ttl9.off()
         self.ttl10.off()
 
     @kernel(flags={"fast-math"})
@@ -482,10 +478,10 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
-        # tmp remove
-
+        delay_mu(8)
+        self.ttl8.off()
+        self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run_loop(self, freq_readout_ftw: TInt32, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
@@ -516,6 +512,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
+        delay_mu(8)
+        self.ttl8.on()
+        self.ttl9.on()
         # # set phaser attenuators
         # at_mu(self.phaser_eggs.get_next_frame_mu())
         # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
@@ -533,7 +532,11 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_fall)
         self.phaser_eggs.phaser_stop()
         # deactivate integrator hold
+        delay_mu(5000)
         self.ttl10.off()
+        delay_mu(8)
+        self.ttl8.off()
+        self.ttl9.off()
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_rf_servo_holdoff_mu)
 
@@ -796,7 +799,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            # self.ttl8.on()
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
@@ -812,7 +814,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
-        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:

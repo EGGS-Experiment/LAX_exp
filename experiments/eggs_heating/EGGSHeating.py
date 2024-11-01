@@ -479,12 +479,10 @@ class EGGSHeating(LAXExperiment, Experiment):
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
         delay_mu(8)
         self.ttl8.off()
         self.ttl9.off()
-        # tmp remove
 
 
     '''
