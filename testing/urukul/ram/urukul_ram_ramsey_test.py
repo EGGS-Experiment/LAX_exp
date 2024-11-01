@@ -40,8 +40,8 @@ class UrukulRAMRamsey(EnvExperiment):
         self.setattr_argument("time_body_us",           NumberValue(default=100, precision=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
 
     def prepare(self):
@@ -170,8 +170,8 @@ class UrukulRAMRamsey(EnvExperiment):
 
         '''TTL SETUP'''
         # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
 
         '''DDS INITIALIZE'''
@@ -321,12 +321,12 @@ class UrukulRAMRamsey(EnvExperiment):
 
             # send debug TTL trigger to signal start of ramp-up
             at_mu(time_start_mu + 95)
-            self.ttl8.on()
+            # self.ttl8.on()
 
             # wait for ramp-up to finish
             delay_mu(self.time_ramp_mu)
             self.dds.sw.off()
-            self.ttl8.off()
+            # self.ttl8.off()
 
 
             '''DELAY - MAIN PULSE BODY'''
@@ -355,7 +355,7 @@ class UrukulRAMRamsey(EnvExperiment):
 
             # send debug TTL trigger to signal start of ramp-down
             at_mu(time_stop_mu + 101)
-            self.ttl9.on()
+            # self.ttl9.on()
 
             # wait for ramp-down to finish
             delay_mu(self.time_ramp_mu)
@@ -365,7 +365,7 @@ class UrukulRAMRamsey(EnvExperiment):
                 self.dds.sw.off()
                 self.dds_fiducial.sw.off()
             delay_mu(8)
-            self.ttl9.off()
+            # self.ttl9.off()
 
 
             '''LOOP CLEANUP'''

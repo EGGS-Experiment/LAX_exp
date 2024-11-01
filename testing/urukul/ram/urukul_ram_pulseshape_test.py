@@ -34,8 +34,8 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.setattr_argument("time_body_us",           NumberValue(default=2, precision=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
 
     def prepare(self):
@@ -150,8 +150,8 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.dds.cpld.io_update.pulse_mu(8)
 
         # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
         self.core.break_realtime()
 
 
@@ -193,7 +193,7 @@ class UrukulRAMAmplitude(EnvExperiment):
             delay_mu(self.time_holdoff_mu)
 
             # tmp remove
-            self.ttl9.on()
+            # self.ttl9.on()
             # tmp remove
 
             # initialize as profile 0 (necessary for bidirectional ramp mode)
@@ -231,12 +231,12 @@ class UrukulRAMAmplitude(EnvExperiment):
             # todo: actually do this
             # at_mu(time_start_mu + 416 + 63 - 140)
             at_mu(time_start_mu + 416 + 63 - 140 - 244)
-            self.ttl8.on()
+            # self.ttl8.on()
             self.dds.sw.on()
 
             # wait for ramp-up to finish
             delay_mu(self.time_ramp_mu)
-            self.ttl8.off()
+            # self.ttl8.off()
 
 
             '''PULSE DELAY'''
@@ -271,7 +271,7 @@ class UrukulRAMAmplitude(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
 
             # tmp remove
-            self.ttl9.off()
+            # self.ttl9.off()
             # tmp remove
 
             # check termination periodically

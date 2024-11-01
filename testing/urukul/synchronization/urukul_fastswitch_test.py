@@ -32,8 +32,8 @@ class UrukulFastSwitchTest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # TTLs
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         # urukul CPLDs
         self.setattr_device("urukul0_cpld")
@@ -106,8 +106,8 @@ class UrukulFastSwitchTest(EnvExperiment):
         # prepare asynchronous/timing-agnostic stuff
         with parallel:
             # prepare - TTLs
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
 
             # prepare - DDSs
             self.urukul0_ch2.set_phase_mode(PHASE_MODE_ABSOLUTE)
@@ -207,7 +207,7 @@ class UrukulFastSwitchTest(EnvExperiment):
             self.urukul1_cpld.set_profile(1)
 
         at_mu(time_start_mu + (416 + 63))
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # at_mu((time_start_mu + (416 + 63)
         #       + self.time_delay_mu - 416))
@@ -266,8 +266,8 @@ class UrukulFastSwitchTest(EnvExperiment):
             self.urukul1_cpld.set_profile(0)
             # self.urukul0_cpld.cfg_switches(0b0000)
             # self.urukul1_cpld.cfg_switches(0b0000)
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
         self.core.reset()
 
 

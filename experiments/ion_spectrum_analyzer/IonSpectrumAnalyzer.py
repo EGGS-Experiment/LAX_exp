@@ -466,7 +466,7 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
         '''
         # adjust oscillator 0 (BSB) phase for antisqueezing
         with parallel:
-            self.ttl8.on()
+            # self.ttl8.on()
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac,
                                                                           phase=self.phase_phaser_turns_arr[0, 0] + self.phase_ISA_antisqueezing_rsb_turns, clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=self.ampl_ISA_antisqueezing_rsb_frac,
@@ -488,5 +488,5 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
 
         # heat for second half
         delay_mu(self.time_ISA_antisqueeze_mu)
-        self.ttl8.off()
+        # self.ttl8.off()
 

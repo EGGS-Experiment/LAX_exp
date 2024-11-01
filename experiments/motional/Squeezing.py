@@ -81,8 +81,8 @@ class Squeezing(LAXExperiment, Experiment):
         self.squeeze_subsequence = SqueezeConfigurable(self)
         self.setattr_device('dds_parametric')
         self.setattr_device("qubit")
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
 
     def prepare_experiment(self):
         # ensure delay time is above minimum value

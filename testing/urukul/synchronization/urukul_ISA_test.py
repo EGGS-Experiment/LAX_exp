@@ -55,8 +55,8 @@ class UrukulISATest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # TTLs
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         # urukul devices
         self.setattr_device("urukul0_cpld")
@@ -146,8 +146,8 @@ class UrukulISATest(EnvExperiment):
         Prepare asynchronous/timing-agnostic stuff.
         """
         '''PREPARE - TTLs'''
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
         delay_mu(100)
         with parallel:
             self.urukul0_ch1.sw.off()
@@ -288,7 +288,7 @@ class UrukulISATest(EnvExperiment):
 
         # send trigger when waveform begins
         at_mu(time_start_mu + (416 + 63))
-        self.ttl8.on()
+        # self.ttl8.on()
         delay_mu(self.time_pulse_mu)
 
 
@@ -303,7 +303,7 @@ class UrukulISATest(EnvExperiment):
             self.urukul1_ch2.sw.off()
             self.urukul1_ch3.sw.off()
 
-        self.ttl8.off()
+        # self.ttl8.off()
 
 
     def analyze(self):

@@ -15,8 +15,8 @@ class PhaserTesting(EnvExperiment):
         self.setattr_device('core')
         self.setattr_device('core_dma')
         self.setattr_device('phaser0')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
 
         # hardware values
         self.t_sample_mu =                          np.int64(40)
@@ -175,7 +175,7 @@ class PhaserTesting(EnvExperiment):
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl8.on()
+                # self.ttl8.on()
 
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
@@ -185,7 +185,7 @@ class PhaserTesting(EnvExperiment):
 
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl9.on()
+                # self.ttl9.on()
 
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
@@ -198,8 +198,8 @@ class PhaserTesting(EnvExperiment):
 
         # wait for heating time
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
             delay_mu(self.time_pulse_mu)
 
     @kernel(flags={"fast-math"})

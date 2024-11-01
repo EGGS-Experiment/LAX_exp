@@ -93,8 +93,8 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         self.setattr_device('ttl10')
 
     def prepare_experiment(self):
@@ -324,8 +324,8 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
         # reset debug triggers
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
         # tmp remove
         self.ttl10.off()
 
@@ -637,7 +637,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            self.ttl8.on()
+            # self.ttl8.on()
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
@@ -653,7 +653,7 @@ class EGGSHeatingPhasePulseshape(LAXExperiment, Experiment):
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
-        self.ttl8.off()
+        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:

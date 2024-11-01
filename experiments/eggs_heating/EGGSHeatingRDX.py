@@ -107,8 +107,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         self.setattr_device('ttl10')
 
         # instantiate helper objects
@@ -272,8 +272,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.ttl10.off()
 
         # reset debug triggers
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -419,7 +419,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.phaser_eggs.reset_duc_phase()
         with parallel:
             # activate debug TTLs
-            self.ttl8.on()
+            # self.ttl8.on()
 
             # play recorded waveform
             self.pulse_shaper.waveform_playback(waveform_id)
@@ -430,7 +430,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # deactivate integrator hold
         self.ttl10.off()
         # stop debug TTLs
-        self.ttl8.off()
+        # self.ttl8.off()
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_rf_servo_holdoff_mu)
 

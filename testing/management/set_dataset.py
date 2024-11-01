@@ -16,8 +16,8 @@ class SetDataset(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         self.setattr_device("ttl0_counter")
         self.setattr_device('urukul2_ch2')

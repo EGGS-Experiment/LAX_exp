@@ -46,8 +46,8 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_argument("time_body_us",           NumberValue(default=100, precision=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
 
     def prepare(self):
@@ -215,8 +215,8 @@ class UrukulRAMARP(EnvExperiment):
 
         '''TTL SETUP'''
         # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
 
         '''DDS INITIALIZE'''
@@ -390,12 +390,12 @@ class UrukulRAMARP(EnvExperiment):
 
             # send debug TTL trigger to signal start of sequence
             at_mu(time_start_mu + 95)
-            self.ttl8.on()
+            # self.ttl8.on()
 
             # wait for pulse to finish
             delay_mu(self.time_ramp_mu)
             self.dds.sw.off()
-            self.ttl8.off()
+            # self.ttl8.off()
 
 
             '''LOOP CLEANUP'''

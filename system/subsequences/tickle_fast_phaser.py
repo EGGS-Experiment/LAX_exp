@@ -106,9 +106,9 @@ class TickleFastPhaser(LAXSubsequence):
             # tmp remove
             with sequential:
                 delay_mu(self.time_system_prepare_delay_mu)
-                self.ttl8.on()
-                delay_mu(40)
-                self.ttl8.off()
+                # self.ttl8.on()
+                # delay_mu(40)
+                # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64) -> TNone:

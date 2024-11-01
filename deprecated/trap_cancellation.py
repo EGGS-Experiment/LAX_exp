@@ -45,7 +45,7 @@ class TrapRFCancellation(EnvExperiment):
         self.counter_rf =                                           self.get_device('ttl7')
         self.ttl_sw_main =                                          self.get_device('ttl12')
         self.ttl_sw_cancel =                                        self.get_device('ttl13')
-        self.ttl_trig_cancel =                                      self.get_device('ttl8')
+        # self.ttl_trig_cancel =                                      self.get_device('ttl8')
 
         # experiment runs
         self._iter_loop =                                           np.arange(int(self.time_run_s * (self.freq_trig_hz * 1)))

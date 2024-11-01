@@ -22,7 +22,7 @@ class TickleDDS(LAXSubsequence):
 
         # get relevant devices
         self.setattr_device('dds_dipole')
-        self.setattr_device('ttl8')
+        # self.setattr_device('ttl8')
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
@@ -43,7 +43,7 @@ class TickleDDS(LAXSubsequence):
     def run(self) -> TNone:
         # reset DDS phase
         self.dds_dipole.reset_phase()
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # tickle for given time
         self.dds_dipole.on()

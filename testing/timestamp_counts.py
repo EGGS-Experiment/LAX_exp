@@ -58,7 +58,7 @@ class TimestampCounts(EnvExperiment):
         self.freq_mod_mhz_list =                                    np.array([1.7])
 
         # modulation control and synchronization
-        self.mod_toggle =                                           self.get_device("ttl8")
+        # self.mod_toggle =                                           self.get_device("ttl8")
         self.mod_clock =                                            self.get_device("urukul0_ch3")
         self.mod_clock_freq_ftw =                                   self.mod_clock.frequency_to_ftw(10. * MHz)
         self.mod_clock_ampl_pct =                                   self.mod_clock.amplitude_to_asf(0.5)

@@ -28,8 +28,8 @@ class UrukulMultiswitchTest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # TTLs
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         # urukul devices
         self.setattr_device("urukul1_cpld")
@@ -82,8 +82,8 @@ class UrukulMultiswitchTest(EnvExperiment):
         # prepare asynchronous/timing-agnostic stuff
         # with parallel:
         # prepare - TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
         # prepare - DDSs
         self.urukul1_ch1.set_phase_mode(PHASE_MODE_CONTINUOUS)
@@ -149,13 +149,13 @@ class UrukulMultiswitchTest(EnvExperiment):
 
         # send sync ttl for start
         at_mu(time_start_mu + (416 + 63))
-        self.ttl8.on()
-        self.ttl9.on()
+        # self.ttl8.on()
+        # self.ttl9.on()
 
         # idk 0
         time_stop = (time_start_mu + (416 + 63) + self.time_delay_mu) & ~0x7
         at_mu(time_stop)
-        self.ttl8.off()
+        # self.ttl8.off()
         self.urukul1_cpld.set_profile(2)
 
 
@@ -179,8 +179,8 @@ class UrukulMultiswitchTest(EnvExperiment):
         '''CLEANUP'''
         delay_mu(100)
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
             self.urukul1_ch1.sw.off()
             self.urukul1_ch2.sw.off()
         self.core.reset()

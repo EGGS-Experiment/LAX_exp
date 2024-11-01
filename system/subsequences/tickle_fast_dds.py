@@ -34,8 +34,8 @@ class TickleFastDDS(LAXSubsequence):
         self.dds_ch1 = self.get_device('urukul1_ch3')
 
         # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_subsequence(self):
@@ -72,8 +72,8 @@ class TickleFastDDS(LAXSubsequence):
             self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
             # tmp remove
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
             # tmp remove
         self.core.break_realtime()
 
@@ -98,7 +98,7 @@ class TickleFastDDS(LAXSubsequence):
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
-        self.ttl8.on()
+        # self.ttl8.on()
         # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + 475)
         # tmp remove
         # self.ttl9.on()
@@ -162,8 +162,8 @@ class TickleFastDDS(LAXSubsequence):
             # tmp remove
             with sequential:
                 delay_mu(100)
-                self.ttl8.off()
-                self.ttl9.off()
+                # self.ttl8.off()
+                # self.ttl9.off()
             # tmp remove
 
     def analyze(self):

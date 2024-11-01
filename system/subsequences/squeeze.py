@@ -31,8 +31,8 @@ class Squeeze(LAXSubsequence):
         # get relevant devices
         self.setattr_device('dds_parametric')
         # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_subsequence(self):
@@ -89,12 +89,12 @@ class Squeeze(LAXSubsequence):
 
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # squeeze for given time
         delay_mu(self.time_squeeze_mu)
         self.dds_parametric.off()
-        self.ttl8.off()
+        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self) -> TNone:
@@ -119,12 +119,12 @@ class Squeeze(LAXSubsequence):
 
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
-        self.ttl9.on()
+        # self.ttl9.on()
 
         # antisqueeze for given time
         delay_mu(self.time_squeeze_mu)
         self.dds_parametric.off()
-        self.ttl9.off()
+        # self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

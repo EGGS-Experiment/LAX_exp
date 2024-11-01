@@ -15,24 +15,24 @@ class testarg34(EnvExperiment):
 
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("core_dma")
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
-
-        self.setattr_device("ttl0_counter")
-        self.setattr_device('urukul2_ch2')
-        self.setattr_device('urukul2_cpld')
+        # self.setattr_device("core_dma")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
+        #
+        # self.setattr_device("ttl0_counter")
+        # self.setattr_device('urukul2_ch2')
+        # self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser0')
 
-        self.setattr_argument("thkim2", Scannable(
-            default=[
-                CenterScan(777.5, 4, 0.1, randomize=True),
-                ExplicitScan([777.5]),
-                ExplicitScan([767.2, 319.2, 1582, 3182]),
-            ],
-            global_min=0, global_max=10000, global_step=1,
-            unit="kHz", scale=1, precision=3
-        ), group='EGGS_Heating.frequencies')
+        # self.setattr_argument("thkim2", Scannable(
+        #     default=[
+        #         CenterScan(777.5, 4, 0.1, randomize=True),
+        #         ExplicitScan([777.5]),
+        #         ExplicitScan([767.2, 319.2, 1582, 3182]),
+        #     ],
+        #     global_min=0, global_max=10000, global_step=1,
+        #     unit="kHz", scale=1, precision=3
+        # ), group='EGGS_Heating.frequencies')
 
         # print(self.get_device_db())
 
@@ -56,19 +56,18 @@ class testarg34(EnvExperiment):
         # self.voltage_set(24, 0.)
         # self.dc.toggle(24,1)
 
-    @rpc
-    def voltage_set(self, channel: TInt32, voltage_v: TFloat) -> TNone:
-        """
-        Set the channel to the desired voltage.
-        """
-        # set desired voltage
-        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
-        # print('\tvoltage set: {}'.format(voltage_set_v))
 
-    # def run(self):
-    #     pass
+    @kernel
     def run(self):
-        print(list(self.thkim2))
+        self.core.break_realtime()
+        self.phaser0.init()
+        self.core.break_realtime()
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_att_mu(0xFF)
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[1].set_att_mu(0xFF)
+        self.core.break_realtime()
 
     # @kernel
     # def run_tmp(self):

@@ -40,8 +40,8 @@ class QubitPulseShape(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         # prepare sequences
         self.initialize_subsequence =                               InitializeQubit(self)
