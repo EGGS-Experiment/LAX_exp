@@ -107,8 +107,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-        # self.setattr_device('ttl8')
-        # self.setattr_device('ttl9')
+        self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         self.setattr_device('ttl10')
 
         # instantiate helper objects
@@ -270,10 +270,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # ensure INT HOLD on RF servo is deactivated
         self.ttl10.off()
-
-        # reset debug triggers
-        # self.ttl8.off()
-        # self.ttl9.off()
+        delay_mu(8)
+        self.ttl8.off()
+        self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -391,6 +390,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         delay_mu(1000000)
         self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
+        delay_mu(8)
+        self.ttl8.off()
+        self.ttl9.off()
 
 
     '''
@@ -406,6 +408,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
+        delay_mu(8)
+        self.ttl8.on()
+        self.ttl9.on()
 
         # # set phaser attenuators
         # # WARNING: creates turn on glitch
@@ -417,20 +422,18 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
-        with parallel:
-            # activate debug TTLs
-            # self.ttl8.on()
-
-            # play recorded waveform
-            self.pulse_shaper.waveform_playback(waveform_id)
+        self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
         # stop all oscillators (doesn't unset attenuators)
         self.phaser_eggs.phaser_stop()
         # deactivate integrator hold
+        delay_mu(5000)
         self.ttl10.off()
-        # stop debug TTLs
-        # self.ttl8.off()
+        delay_mu(8)
+        # stop phaser amp switches
+        self.ttl8.off()
+        self.ttl9.off()
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_rf_servo_holdoff_mu)
 

@@ -331,15 +331,11 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
         # reset debug triggers
-        # self.ttl8.off()
-        # self.ttl9.off()
         # tmp remove
         self.ttl10.off()
         delay_mu(8)
         self.ttl8.off()
-        delay_mu(8)
         self.ttl9.off()
-        delay_mu(8)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -405,9 +401,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.ttl10.on()
                 delay_mu(8)
                 self.ttl8.on()
-                delay_mu(8)
                 self.ttl9.on()
-                delay_mu(8)
                 # # set phaser attenuators
                 # at_mu(self.phaser_eggs.get_next_frame_mu())
                 # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
@@ -425,12 +419,11 @@ class EGGSHeating(LAXExperiment, Experiment):
                 self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
                 # deactivate integrator hold
+                delay_mu(5000)
                 self.ttl10.off()
                 delay_mu(8)
                 self.ttl8.off()
-                delay_mu(8)
                 self.ttl9.off()
-                delay_mu(8)
                 # add delay time after EGGS pulse to allow RF servo to re-lock
                 delay_mu(self.time_rf_servo_holdoff_mu)
 
@@ -490,9 +483,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.ttl10.off()
         delay_mu(8)
         self.ttl8.off()
-        delay_mu(8)
         self.ttl9.off()
-        delay_mu(8)
         # tmp remove
 
 
@@ -649,7 +640,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            # self.ttl8.on()
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
@@ -665,7 +655,6 @@ class EGGSHeating(LAXExperiment, Experiment):
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
-        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:
