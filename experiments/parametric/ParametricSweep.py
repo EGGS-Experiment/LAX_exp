@@ -232,12 +232,12 @@ class ParametricSweep(LAXExperiment, Experiment):
         # tmp remove
         self.core.break_realtime()
         delay_mu(1000000)
-        self.cpld.set_profile(DEFAULT_PROFILE)
-        self.cpld.io_update.pulse_mu(8)
+        self.dds_parametric.cpld.set_profile(DEFAULT_PROFILE)
+        self.dds_parametric.cpld.io_update.pulse_mu(8)
         #
         # delay_mu(1000000)
-        # self.cpld.set_profile(0)
-        # self.cpld.io_update.pulse_mu(8)
+        # self.dds_parametric.cpld.set_profile(0)
+        # self.dds_parametric.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
         # tmp remove
 
