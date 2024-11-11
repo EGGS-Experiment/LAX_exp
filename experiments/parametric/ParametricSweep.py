@@ -11,6 +11,10 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import ParametricExcite, RescueIon
 
+# tmp remove
+from artiq.coredevice.urukul import DEFAULT_PROFILE
+# tmp remove
+
 
 class InsufficientCounts(Exception):
     """
