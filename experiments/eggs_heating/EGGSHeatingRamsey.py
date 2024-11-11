@@ -123,14 +123,14 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         """
         '''SUBSEQUENCE PARAMETERS'''
         # get readout values
-        self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-        self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
-                                                                          for time_us in self.time_readout_us_list])
+        self.freq_sideband_readout_ftw_list =   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+        self.time_readout_mu_list =             np.array([self.core.seconds_to_mu(time_us * us)
+                                                          for time_us in self.time_readout_us_list])
 
         '''EGGS HEATING - TIMING'''
         # add delay time after EGGS pulse to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
-                                                                                   conversion_function=us_to_mu)
+        self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
+                                                           conversion_function=us_to_mu)
 
         '''EGGS HEATING - CONFIG'''
         # convert build arguments to appropriate values and format as numpy arrays
@@ -161,14 +161,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                          -1).reshape(-1, 6)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
-        if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
-
+        if self.randomize_config: np.random.shuffle(self.config_eggs_heating_list)
         # precalculate length of configuration list here to reduce run-time overhead
         self.num_configs = len(self.config_eggs_heating_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -296,7 +294,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.core.break_realtime()
         # tmp remove
 
-
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
@@ -389,9 +386,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
-        delay_mu(8)
         # stop phaser amp switches
         self.ttl8.off()
         self.ttl9.off()
@@ -436,7 +431,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # deactivate integrator hold
         delay_mu(5000)
         self.ttl10.off()
-        delay_mu(8)
         # stop phaser amp switches
         self.ttl8.off()
         self.ttl9.off()

@@ -175,7 +175,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
 
-
     def _prepare_waveform(self) -> TNone:
         """
         Calculate waveforms and timings for the EGGS pulse.
@@ -388,9 +387,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         '''CLEANUP'''
         self.core.break_realtime()
         delay_mu(1000000)
-        self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
-        delay_mu(8)
         self.ttl8.off()
         self.ttl9.off()
 
@@ -408,7 +405,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
-        delay_mu(8)
         self.ttl8.on()
         self.ttl9.on()
 
@@ -430,7 +426,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # deactivate integrator hold
         delay_mu(5000)
         self.ttl10.off()
-        delay_mu(8)
         # stop phaser amp switches
         self.ttl8.off()
         self.ttl9.off()

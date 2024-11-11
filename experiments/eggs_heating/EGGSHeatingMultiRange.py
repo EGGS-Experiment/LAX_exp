@@ -21,7 +21,6 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
     """
     name = 'EGGS Heating Multi Range'
 
-
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",                                NumberValue(default=40, precision=0, step=1, min=1, max=100000))
@@ -560,10 +559,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
-        # tmp remove
 
 
     '''

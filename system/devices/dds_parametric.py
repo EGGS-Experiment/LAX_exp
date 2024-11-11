@@ -1,8 +1,9 @@
 from artiq.experiment import *
+from artiq.coredevice.urukul import DEFAULT_PROFILE
+from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-from artiq.coredevice.ad9910 import PHASE_MODE_ABSOLUTE, _AD9910_REG_CFR1
 
 
 class DDSParametric(LAXDevice):
@@ -18,30 +19,50 @@ class DDSParametric(LAXDevice):
         'servo_hold': 'ttl10'
     }
     kernel_invariants = {
-        "ampl_modulation_asf",
-        "sw"
+        "cpld", "sw",
+        "ampl_modulation_asf", "freq_cleanup_ftw"
     }
 
     def prepare_device(self):
-        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
         # break out AD9910 attributes/devices
-        self.sw = self.dds.sw
+        self.sw =   self.dds.sw
         self.cpld = self.dds.cpld
+
+        # get relevant parameters
+        self.ampl_modulation_asf =  self.get_parameter('ampl_parametric_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
+        self.freq_cleanup_ftw =     self.dds.frequency_to_ftw(100 * MHz)
 
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # close rf switches to kill any modulation signal leakage
         self.mod_switch.off()
-        self.dds.sw.off()
+        self.sw.off()
 
         # ensure output has matched latency
         self.dds.set_cfr2(matched_latency_enable=1)
 
     @kernel(flags={"fast-math"})
+    def cleanup_device(self) -> TNone:
+        self.core.break_realtime()
+
+        # set default profile
+        self.set_profile(DEFAULT_PROFILE)
+        self.cpld.io_update.pulse_mu(8)
+
+        # clear any possible output
+        self.dds.set_att_mu(0)
+        self.core.break_realtime()
+        self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
+        self.core.break_realtime()
+
+        # make sure switches are closed
+        self.off()
+
+    @kernel(flags={"fast-math"})
     def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
-            self.dds.sw.on()
+            self.sw.on()
             # enable modulation RF switch to DDS
             self.mod_switch.on()
             # enable integrator hold for the trap RF servo
@@ -51,7 +72,7 @@ class DDSParametric(LAXDevice):
     def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
-            self.dds.sw.off()
+            self.sw.off()
             # disable modulation RF switch for DDS
             self.mod_switch.off()
             # resume trap RF servo
@@ -59,7 +80,7 @@ class DDSParametric(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
-        self.dds.cpld.set_profile(profile_num)
+        self.cpld.set_profile(profile_num)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
@@ -86,7 +107,7 @@ class DDSParametric(LAXDevice):
                          (1 << 13))     # phase_autoclear
         # pulse io_update to clear phase
         at_mu(now_mu() & ~0x7)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU)
 
     @kernel(flags={"fast-math"})
@@ -96,4 +117,4 @@ class DDSParametric(LAXDevice):
         Can be used to clear the phase accumulator if the phase_autoclear
             flag is set in CFR1.
         """
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.cpld.io_update.pulse_mu(8)

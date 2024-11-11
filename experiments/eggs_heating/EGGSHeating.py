@@ -330,12 +330,10 @@ class EGGSHeating(LAXExperiment, Experiment):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
-        # reset debug triggers
-        # tmp remove
-        self.ttl10.off()
-        delay_mu(8)
+        # reset amp TTLs and servo int hold
         self.ttl8.off()
         self.ttl9.off()
+        self.ttl10.off()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -421,7 +419,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # deactivate integrator hold
                 delay_mu(5000)
                 self.ttl10.off()
-                delay_mu(8)
                 self.ttl8.off()
                 self.ttl9.off()
                 # add delay time after EGGS pulse to allow RF servo to re-lock
@@ -480,7 +477,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
-        delay_mu(8)
         self.ttl8.off()
         self.ttl9.off()
 

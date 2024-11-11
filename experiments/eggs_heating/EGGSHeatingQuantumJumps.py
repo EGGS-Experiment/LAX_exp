@@ -479,7 +479,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
         self.ttl10.off()
-        delay_mu(8)
         self.ttl8.off()
         self.ttl9.off()
 
@@ -512,7 +511,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # EGGS - START/SETUP
         # activate integrator hold
         self.ttl10.on()
-        delay_mu(8)
         self.ttl8.on()
         self.ttl9.on()
         # # set phaser attenuators
@@ -534,7 +532,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # deactivate integrator hold
         delay_mu(5000)
         self.ttl10.off()
-        delay_mu(8)
         self.ttl8.off()
         self.ttl9.off()
         # add delay time after EGGS pulse to allow RF servo to re-lock
