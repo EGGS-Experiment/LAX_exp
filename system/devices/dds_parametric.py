@@ -15,8 +15,7 @@ class DDSParametric(LAXDevice):
     name = "dds_parametric"
     core_device = ('dds', 'urukul1_ch1')
     devices = {
-        'mod_switch': 'ttl11',
-        'servo_hold': 'ttl10'
+        'mod_switch': 'ttl11'
     }
     kernel_invariants = {
         "cpld", "sw",
@@ -45,18 +44,18 @@ class DDSParametric(LAXDevice):
     def cleanup_device(self) -> TNone:
         self.core.break_realtime()
 
-        # set default profile
-        self.set_profile(DEFAULT_PROFILE)
-        self.cpld.io_update.pulse_mu(8)
-
-        # clear any possible output
-        self.dds.set_att_mu(0)
-        self.core.break_realtime()
-        self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
-        self.core.break_realtime()
-
-        # make sure switches are closed
-        self.off()
+        # # set default profile
+        # self.set_profile(DEFAULT_PROFILE)
+        # self.cpld.io_update.pulse_mu(8)
+        #
+        # # clear any possible output
+        # self.dds.set_att_mu(0)
+        # self.core.break_realtime()
+        # self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
+        # self.core.break_realtime()
+        #
+        # # make sure switches are closed
+        # self.off()
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
@@ -65,8 +64,6 @@ class DDSParametric(LAXDevice):
             self.sw.on()
             # enable modulation RF switch to DDS
             self.mod_switch.on()
-            # enable integrator hold for the trap RF servo
-            # self.servo_hold.on()
 
     @kernel(flags={"fast-math"})
     def off(self) -> TNone:
@@ -75,8 +72,6 @@ class DDSParametric(LAXDevice):
             self.sw.off()
             # disable modulation RF switch for DDS
             self.mod_switch.off()
-            # resume trap RF servo
-            # self.servo_hold.off()
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
