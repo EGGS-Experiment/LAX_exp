@@ -166,6 +166,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dds_parametric.set_att_mu(self.att_modulation_mu)
         self.dds_parametric.set_phase_absolute()
         self.core.break_realtime()
+        # note: use profile 0 for modulation waveform
+        self.dds_parametric.set_profile(0)
 
         # do check to verify that mirror is flipped to mirror
         # tmp remove: fix
