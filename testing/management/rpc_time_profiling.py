@@ -28,15 +28,22 @@ class RPCTimeProfiler(EnvExperiment):
         # create dataset for storing results
         self.set_dataset("results", np.zeros(self.repetitions, dtype=np.int64))
         self.setattr_dataset("results")
-        self.idx_results = 0
+        self._idx_results = 0
 
     @rpc(flags={"async"})
     def update_results(self, time_mu: TInt64) -> TNone:
-        self.mutate_dataset('results', self.idx_results, time_mu)
-        self.idx_results += 1
+        """
+        Update the result dataset.
+        :param time_mu: the response time, in machine units.
+        """
+        self.mutate_dataset('results', self._idx_results, time_mu)
+        self.set_dataset('management.dynamic.completion_pct',
+                         round(self._idx_results / self.repetitions * 100., 3),
+                         broadcast=True, persist=True, archive=False)
+        self._idx_results += 1
 
-    @kernel
-    def run(self):
+    @kernel(flags={"fast-math"})
+    def run(self) -> TNone:
         # prepare system
         self.core.reset()
         self.led1.off()
@@ -80,4 +87,3 @@ class RPCTimeProfiler(EnvExperiment):
         print("Results:")
         print("\tRPC Time (ms): {:.3f} +/- {:.3f}".format(res_mean / ms, res_stderr / ms))
         print("\tRPC stdev (ms): {:.3f}".format(res_stdev / ms))
-
