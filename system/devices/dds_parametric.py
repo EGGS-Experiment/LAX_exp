@@ -44,18 +44,17 @@ class DDSParametric(LAXDevice):
     def cleanup_device(self) -> TNone:
         self.core.break_realtime()
 
-        # # set default profile
-        # self.set_profile(DEFAULT_PROFILE)
-        # self.cpld.io_update.pulse_mu(8)
-        #
-        # # clear any possible output
-        # self.dds.set_att_mu(0)
-        # self.core.break_realtime()
-        # self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
-        # self.core.break_realtime()
-        #
-        # # make sure switches are closed
-        # self.off()
+        # set default profile
+        self.set_profile(DEFAULT_PROFILE)
+
+        # clear any possible output
+        self.dds.set_att_mu(0)
+        self.core.break_realtime()
+        self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
+        self.core.break_realtime()
+
+        # make sure switches are closed
+        self.off()
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
@@ -76,6 +75,7 @@ class DDSParametric(LAXDevice):
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
         self.cpld.set_profile(profile_num)
+        self.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
