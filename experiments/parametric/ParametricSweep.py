@@ -11,10 +11,6 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import ParametricExcite, RescueIon
 
-# tmp remove
-from artiq.coredevice.urukul import DEFAULT_PROFILE
-# tmp remove
-
 
 class InsufficientCounts(Exception):
     """
@@ -105,10 +101,10 @@ class ParametricSweep(LAXExperiment, Experiment):
                                         ])
 
         # connect to labrad
-        self.cxn =                                          labrad.connect(environ['LABRADHOST'],
-                                                                           port=7682, tls_mode='off',
-                                                                           username='', password='lab')
-        self.dc =                                           self.cxn.dc_server
+        self.cxn = labrad.connect(environ['LABRADHOST'],
+                                  port=7682, tls_mode='off',
+                                  username='', password='lab')
+        self.dc = self.cxn.dc_server
 
         # set up variables for ensuring PMT counts are above some threshold
         self.fluorescence_calibration_time_mu =             np.int64(30000000)  # 30ms
@@ -230,18 +226,6 @@ class ParametricSweep(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
-
-        # tmp remove
-        self.core.break_realtime()
-        delay_mu(1000000)
-        self.dds_parametric.cpld.set_profile(DEFAULT_PROFILE)
-        self.dds_parametric.cpld.io_update.pulse_mu(8)
-        #
-        # delay_mu(1000000)
-        # self.dds_parametric.cpld.set_profile(0)
-        # self.dds_parametric.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
-        # tmp remove
 
 
     @rpc(flags={"async"})
