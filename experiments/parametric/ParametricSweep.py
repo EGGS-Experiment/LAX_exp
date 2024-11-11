@@ -213,19 +213,29 @@ class ParametricSweep(LAXExperiment, Experiment):
                     pmt_timestamp_list = self.parametric_subsequence.run()
 
                     # process results (stores them in our results dataset for us)
-                    with parallel:
-                        self._process_results(freq_mu,
-                                              voltage_v,
-                                              pmt_timestamp_list)
-                        self.core.reset()
+                    self._process_results(freq_mu,
+                                          voltage_v,
+                                          pmt_timestamp_list)
+                    self.core.reset()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
+
+        # tmp remove
+        self.core.break_realtime()
+        delay_mu(1000000)
+        self.cpld.set_profile(DEFAULT_PROFILE)
+        self.cpld.io_update.pulse_mu(8)
+        #
+        # delay_mu(1000000)
+        # self.cpld.set_profile(0)
+        # self.cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
+        # tmp remove
 
 
     @rpc(flags={"async"})
