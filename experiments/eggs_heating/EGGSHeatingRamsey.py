@@ -113,10 +113,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_device('ttl9')
         self.setattr_device('ttl10')
 
-        # tmp remove
-        self.setattr_device('ttl15')
-        # tmp remove
-
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
         self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
@@ -402,10 +398,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         Arguments:
             waveform_id     (TInt32)    : the ID of the waveform to run.
         """
-        # tmp remove
-        self.ttl15.on()
-        # tmp remove
-
         # EGGS - START/SETUP
         # set phaser attenuators - warning: creates turn on glitch
         at_mu(self.phaser_eggs.get_next_frame_mu())
@@ -439,10 +431,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # deactivate integrator hold - add delay time after EGGS pulse to allow RF servo to re-lock
         # self.ttl10.off()
         # delay_mu(self.time_rf_servo_holdoff_mu)
-
-        # tmp remove
-        self.ttl15.off()
-        # tmp remove
 
     @kernel(flags={"fast-math"})
     def phaser_record(self) -> TNone:
