@@ -285,15 +285,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # used to check_termination more frequently
         _loop_iter = 0
 
-        # tmp remove
-        # set phaser attenuators here to prevent turn on glitch (problematic when cables direct to trap)
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-        self.core.break_realtime()
-        # tmp remove
-
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
@@ -340,19 +331,24 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        phase_ramsey_turns,
-                        phase_ch1_turns,
-                        time_readout_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_ramsey_turns,
+                    phase_ch1_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
+                # tmp remove
+                delay_mu(100)
+                self.ttl10.off()
+                delay_mu(100)
+                # tmp remove
+
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
@@ -403,22 +399,20 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             waveform_id     (TInt32)    : the ID of the waveform to run.
         """
         # EGGS - START/SETUP
-        # activate integrator hold
+        # set phaser attenuators - warning: creates turn on glitch
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+
+        # activate integrator hold - add delay time after integrator hold to reduce effect of turn-on glitches
         self.ttl10.on()
-        delay_mu(8)
+        delay_mu(self.time_rf_servo_holdoff_mu)
+
+        # open phaser amp switches (with added delay for switches to fully open)
         self.ttl8.on()
         self.ttl9.on()
-
-        # # set phaser attenuators - warning creates turn on glitch
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-
-        # tmp remove
-        # add delay time after integrator hold to reduce effect of turn-on glitches
-        delay_mu(self.time_rf_servo_holdoff_mu)
-        # tmp remove
+        delay_mu(2000)
 
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
@@ -426,16 +420,17 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
-        # stop all oscillators (doesn't unset attenuators)
-        self.phaser_eggs.phaser_stop()
-        # deactivate integrator hold
+        # stop phaser amp switches - add extra delay b/c phaser pipeline pipeline latency
         delay_mu(5000)
-        self.ttl10.off()
-        # stop phaser amp switches
         self.ttl8.off()
         self.ttl9.off()
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_rf_servo_holdoff_mu)
+
+        # stop all oscillators (doesn't unset attenuators)
+        self.phaser_eggs.phaser_stop()
+
+        # deactivate integrator hold - add delay time after EGGS pulse to allow RF servo to re-lock
+        # self.ttl10.off()
+        # delay_mu(self.time_rf_servo_holdoff_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_record(self) -> TNone:

@@ -16,7 +16,7 @@ class PhaserEGGS(LAXDevice):
     Use the Phaser AWG to create the EGGS RF
     """
     name = "phaser_eggs"
-    core_device = ('phaser', 'phaser0')
+    core_device = ('phaser', 'phaser1')
     devices = {}
     kernel_invariants = {
         "t_sample_mu", "t_frame_mu", "t_output_delay_mu",
@@ -162,7 +162,7 @@ class PhaserEGGS(LAXDevice):
             delay_mu(self.t_sample_mu)
 
         # switch off EGGS attenuators to prevent leakage
-        # delay_mu(self.t_sample_mu)
-        # self.phaser.channel[0].set_att(31.5 * dB)
-        # delay_mu(self.t_sample_mu)
-        # self.phaser.channel[1].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[0].set_att(31.5 * dB)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[1].set_att(31.5 * dB)
