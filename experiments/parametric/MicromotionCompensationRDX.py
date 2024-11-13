@@ -204,6 +204,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # set up DDS for modulation
         self.dds_parametric.set_phase_absolute()
+        self.core.break_realtime()
+        # note: use profile 0 for modulation waveform
+        self.dds_parametric.set_profile(0)
+        self.core.break_realtime()
+
 
 
     @kernel(flags={"fast-math"})

@@ -16,7 +16,7 @@ class PhaserEGGS(LAXDevice):
     Use the Phaser AWG to create the EGGS RF
     """
     name = "phaser_eggs"
-    core_device = ('phaser', 'phaser1')
+    core_device = ('phaser', 'phaser0')
     devices = {}
     kernel_invariants = {
         "t_sample_mu", "t_frame_mu", "t_output_delay_mu",
@@ -72,8 +72,10 @@ class PhaserEGGS(LAXDevice):
         Stop any residual output from the phaser.
         """
         self.core.break_realtime()
+        delay_mu(10000000)
         self.reset_oscillators()
-        delay_mu(1000000)
+        self.core.break_realtime()
+        delay_mu(10000000)
         self.core.break_realtime()
 
 
