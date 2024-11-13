@@ -94,11 +94,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         for voltage_arr in [self.dc_scan_range_volts_axis_0, self.dc_scan_range_volts_axis_1]:
             # check voltage scan ranges have correct format
             if (type(voltage_arr) is not list) or (len(voltage_arr) != 2):
-                raise Exception("InputError: voltage scan ranges have incorrect type.")
+                raise ValueError("InputError: voltage scan ranges have incorrect type.")
 
             # check voltages are all in valid range
             if any([(voltage < 0) or (voltage > 110) for voltage in voltage_arr]):
-                raise Exception("InputError: voltage range is out of bounds.")
+                raise ValueError("InputError: voltage range is out of bounds.")
 
         # get DC channel numbers & names
         self.dc_channel_axis_0_num =    self.dc_config_channeldict[self.dc_channel_axis_0]['num']
@@ -321,7 +321,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # ensure voltages are within bounds before we set them
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
                 or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1, 1]):
-            raise Exception("Error: global optimum predicted to be outside valid scan range.")
+            raise ValueError("Error: predicted global optimum outside valid scan range.")
         # set voltages to optimum
         self.voltage_set(self.dc_channel_axis_0_num, opt_v_axis_0)
         self.voltage_set(self.dc_channel_axis_1_num, opt_v_axis_1)
@@ -542,9 +542,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # check optima for errors
             if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
                     (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis, 1])):
-                raise Exception("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
+                raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:
-                raise Exception("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
+                raise ValueError("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
 
             # get full optima vector
             if voltage_axis == 0:
