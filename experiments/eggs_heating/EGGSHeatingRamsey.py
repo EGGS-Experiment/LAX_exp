@@ -343,11 +343,11 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
-                # tmp remove
-                delay_mu(100)
-                self.ttl10.off()
-                delay_mu(100)
-                # tmp remove
+                # # tmp remove
+                # delay_mu(100)
+                # self.ttl10.off()
+                # delay_mu(100)
+                # # tmp remove
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -407,7 +407,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # activate integrator hold - add delay time after integrator hold to reduce effect of turn-on glitches
         self.ttl10.on()
-        delay_mu(self.time_rf_servo_holdoff_mu)
 
         # open phaser amp switches (with added delay for switches to fully open)
         self.ttl8.on()
@@ -429,8 +428,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.phaser_eggs.phaser_stop()
 
         # deactivate integrator hold - add delay time after EGGS pulse to allow RF servo to re-lock
-        # self.ttl10.off()
-        # delay_mu(self.time_rf_servo_holdoff_mu)
+        self.ttl10.off()
+        delay_mu(self.time_rf_servo_holdoff_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_record(self) -> TNone:
