@@ -27,7 +27,6 @@ class LaserPowerCalibration(EnvExperiment):
         Set devices and arguments for the experiment.
         """
         self.setattr_device("core")
-        self.setattr_device("core_dma")
 
         # search parameters
         self.setattr_argument("target_voltage_mv",          NumberValue(default=55.1, precision=3, step=1, min=-10000, max=10000))
@@ -139,7 +138,7 @@ class LaserPowerCalibration(EnvExperiment):
         for freq_ftw in self.dds_freq_ftw_list:
 
             # add slack
-            at_mu(now_mu() + 250000)
+            at_mu(now_mu() + self.time_slack_mu)
 
             # search recursively for target amplitude
             ampl_calib_asf = self._recursion_search(freq_ftw, self.dds_ampl_min_asf, self.dds_ampl_max_asf)
