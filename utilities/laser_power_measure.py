@@ -6,7 +6,7 @@ from artiq.coredevice.sampler import adc_mu_to_volt
 
 class LaserPowerMeasure(EnvExperiment):
     """
-    Calibration: Laser Power Measure
+    Utility: Laser Power Measure
 
     Get the power of a given beam by measuring the photodiode voltage.
     """
