@@ -13,7 +13,14 @@ class LaserPowerCalibration(EnvExperiment):
 
     Get amplitude scaling factors to compensate for frequency dependence.
     """
-    # kernel_invariants = set()
+    kernel_invariants = {
+        "adc", "dds",
+        "time_slack_mu", "dds_response_holdoff_mu",
+        "dds_freq_mhz_list", "dds_freq_ftw_list", "dds_ampl_min_asf", "dds_ampl_max_asf",
+        "adc_gain_num", "adc_v_to_mu", "adc_mu_to_v", "adc_gain_mu", "adc_poll_delay_mu",
+        "target_voltage_mu", "target_tolerance_mu",
+        "time_start"
+    }
 
     def build(self):
         """
@@ -45,7 +52,6 @@ class LaserPowerCalibration(EnvExperiment):
         # result storage
         self.setattr_argument("save_to_dataset_manager",    BooleanValue(default=True), group='dataset')
         self.setattr_argument("dataset_name",               StringValue(default='pump_beam'), group='dataset')
-
 
     def prepare(self):
         """
@@ -84,8 +90,6 @@ class LaserPowerCalibration(EnvExperiment):
         self.target_voltage_mu =    np.int32((self.target_voltage_mv / 1000) * self.adc_v_to_mu)
         self.target_tolerance_mu =  np.int32((self.target_tolerance_mv / 1000) * self.adc_v_to_mu)
 
-        # todo: add values to kernel invariants
-
 
         '''PREPARE DATASETS'''
         # set up local datasets
@@ -94,7 +98,7 @@ class LaserPowerCalibration(EnvExperiment):
         self.setattr_dataset("results")
 
         # record start time
-        self.time_start =               datetime.timestamp(datetime.now())
+        self.time_start = datetime.timestamp(datetime.now())
 
 
     """
@@ -125,7 +129,7 @@ class LaserPowerCalibration(EnvExperiment):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         """
         Run the experimental sequence.
         """
@@ -135,8 +139,6 @@ class LaserPowerCalibration(EnvExperiment):
         for freq_ftw in self.dds_freq_ftw_list:
 
             # add slack
-            # self.core.break_realtime()
-            # at_mu(now_mu() + self.time_slack_mu)
             at_mu(now_mu() + 250000)
 
             # search recursively for target amplitude
@@ -155,9 +157,14 @@ class LaserPowerCalibration(EnvExperiment):
     def _recursion_search(self, freq_ftw: TInt32, ampl_min_asf: TInt32, ampl_max_asf: TInt32) -> TInt32:
         """
         Use recursion to conduct a binary search.
+        Arguments:
+            freq_ftw        (TInt32): the frequency to set the DDS (in ftw).
+            ampl_min_asf    (TInt32): the lower bound on amplitude (in asf).
+            ampl_max_asf    (TInt32): the upper bound on amplitude (in asf).
+        Returns:
+            TInt32: the center amplitude (in asf).
         """
         # recursion: get mid-range value
-        # ampl_tmp_asf = np.int32((ampl_min_asf + ampl_max_asf) / 2)
         # note: use bit-shift for fast divide by two & ensuring int
         ampl_center_asf = (ampl_min_asf + ampl_max_asf) >> 1
 
@@ -204,12 +211,13 @@ class LaserPowerCalibration(EnvExperiment):
         return sampler_running_avg_mu
 
     @rpc(flags={"async"})
-    def update_dataset(self, freq_ftw, ampl_asf) -> TNone:
+    def update_dataset(self, freq_ftw: TInt32, ampl_asf: TInt32) -> TNone:
         """
         Records values via rpc to minimize kernel overhead.
         """
         # save data to dataset
         self.mutate_dataset('results', self._iter_dataset, np.array([freq_ftw, ampl_asf]))
+        # update progress bar
         self.set_dataset('management.dynamic.completion_pct',
                          round(100. * self._iter_dataset / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
