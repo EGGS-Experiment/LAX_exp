@@ -6,7 +6,7 @@ from EGGS_labrad.config.dc_config import dc_config
 
 class DCSet(EnvExperiment):
     """
-    Utility: DC Set
+    Tool: DC Set
 
     Set a voltage on the AMO8 HV DC box.
     For use when chaining a series of experiments.

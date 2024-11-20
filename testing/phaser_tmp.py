@@ -22,17 +22,21 @@ class phasertesttmp(EnvExperiment):
         self.core.reset()
         self.core.break_realtime()
         delay_mu(1000000)
-        
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(31.5 * dB)
+
+        self.phaser0.init()
+        self.core.break_realtime()
         delay_mu(1000000)
 
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.0, clr=1)
+        self.phaser0.channel[0].set_att(0. * dB)
         delay_mu(1000000)
 
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_duc_frequency(0. * MHz)
+        self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, clr=0)
+        delay_mu(1000000)
+
+        at_mu(self.phaser0.get_next_frame_mu())
+        self.phaser0.channel[0].set_duc_frequency(1. * MHz)
         delay_mu(1000000)
 
         at_mu(self.phaser0.get_next_frame_mu())
@@ -44,7 +48,7 @@ class phasertesttmp(EnvExperiment):
         delay_mu(1000000)
 
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].oscillator[0].set_frequency(0. * MHz)
+        self.phaser0.channel[0].oscillator[0].set_frequency(1. * MHz)
         delay_mu(1000000)
 
 

@@ -3,7 +3,7 @@ from artiq.experiment import *
 
 class FastinoSet(EnvExperiment):
     """
-    Utility: Fastino Set
+    Tool: Fastino Set
 
     Set a value on the Fastino.
     Useful for directly accessing the Fastino or when chaining a series of experiments.

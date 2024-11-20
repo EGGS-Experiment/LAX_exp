@@ -5,7 +5,7 @@ from artiq.coredevice.sampler import adc_mu_to_volt
 
 class SamplerRead(EnvExperiment):
     """
-    Utility: Sampler Read
+    Tool: Sampler Read
 
     Read Sampler values over time.
     """

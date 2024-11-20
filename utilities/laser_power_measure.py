@@ -27,7 +27,7 @@ class LaserPowerMeasure(EnvExperiment):
         dds_device_list = self._get_dds_devices()
         self.setattr_argument("dds_name",           EnumerationValue(list(dds_device_list), default='urukul2_ch1'))
         self.setattr_argument("dds_freq_mhz",       NumberValue(default=110., precision=4, step=5, min=0.1, max=400.), group='DDS')
-        self.setattr_argument("dds_ampl_pct",       NumberValue(default=15., precision=2, step=1, min=1, max=40), group='DDS')
+        self.setattr_argument("dds_ampl_pct",       NumberValue(default=15., precision=2, step=5., min=0.1, max=50.), group='DDS')
         self.setattr_argument("dds_attenuation_db", NumberValue(default=14, precision=1, step=0.5, min=14, max=31.5), group='DDS')
 
         # sampler setup

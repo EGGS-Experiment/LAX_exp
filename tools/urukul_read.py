@@ -29,7 +29,7 @@ class RAM_MODE(Enum):
 
 class UrukulRead(EnvExperiment):
     """
-    Utility: Urukul Read
+    Tool: Urukul Read
 
     Read values from an Urukul channel.
     """
