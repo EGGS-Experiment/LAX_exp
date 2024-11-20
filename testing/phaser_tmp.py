@@ -23,7 +23,7 @@ class phasertesttmp(EnvExperiment):
         self.core.break_realtime()
         delay_mu(1000000)
 
-        self.phaser0.init()
+        # self.phaser0.init()
         self.core.break_realtime()
         delay_mu(1000000)
 

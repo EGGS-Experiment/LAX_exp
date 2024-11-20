@@ -2,10 +2,6 @@ from numpy import int64
 from artiq.experiment import *
 from artiq.coredevice.trf372017 import TRF372017
 
-# tmp remove
-from artiq.coredevice.phaser import PHASER_STA_TRF0_LD
-# tmp remove
-
 TRF_CONFIG_302_MHZ = {
     'pll_div_sel':          0b01,
     'rdiv':                 3,
@@ -258,6 +254,17 @@ class PhaserConfigure(EnvExperiment):
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.duc_stb()
 
-        # add slack
-        self.core.break_realtime()
-
+        '''
+        *************TRF (UPCONVERTER)*******************
+        '''
+        # enable outputs for both channels here
+        # note: want to do this at end instead of beginning since output may be nonzero and
+        #   will be cycling through frequencies as we initialize components
+        # note: want to leave trf outputs persistently enabled since phase relation
+        #   between channels can change after adjusting the TRF
+        if self.configure_trf:
+            self.core.break_realtime()
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[0].en_trf_out(rf=1, lo=0)
+            delay_mu(self.time_phaser_sample_mu)
+            self.phaser.channel[1].en_trf_out(rf=1, lo=0)
