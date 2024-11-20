@@ -682,51 +682,78 @@ _phaser_dac_config = {
 }
 
 # TRF @ ~302.083853 MHz
-_phaser_trf_config = {
+TRF_CONFIG_302_MHZ = {
     'pll_div_sel':          0b01,
     'rdiv':                 3,
     'nint':                 29,
     'prsc_sel':             0,
     'cal_clk_sel':          0b1101,
 
+    'icp':                  0b00000,
+    'icp_double':           0,
+
     'lo_div_sel':           0b11,
     'lo_div_bias':          0b00,
     'bufout_bias':          0b00,
 
     'tx_div_sel':           0b11,
-    'tx_div_bias':          0b00
+    'tx_div_bias':          0b00,
+
+    'ioff':                 0x00,
+    'qoff':                 0x84,
+    'dcoffset_i':           0b01,
+
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+    'vref_sel':             0b100,
+
+    'pllbias_rtrim':        0b10
 }
 
+# TRF @ 781.2512395 MHz
+TRF_CONFIG_781_MHZ = {
+    'pll_div_sel':          0b01,
+    'rdiv':                 2,
+    'nint':                 25,
+    'prsc_sel':             0,
+    'cal_clk_sel':          0b1110,
 
-# # TRF @ 781.2512395 MHz
-# _phaser_trf_config = {
-#     'rdiv':                 2,
-#     'nint':                 25,
-#     'pll_div_sel':          0b01,
-#     'prsc_sel':             0,
-#
-#     'icp':                  0b00000,
-#     'icp_double':           0,
-#
-#     'cal_clk_sel':          0b1110,
-#
-#     'lo_div_sel':           0b11,
-#     'lo_div_bias':          0b00,
-#     'bufout_bias':          0b00,
-#
-#     'tx_div_sel':           0b10,
-#     'tx_div_bias':          0b00
-# }
+    'icp':                  0b00000,
+    'icp_double':           0,
 
+    'lo_div_sel':           0b11,
+    'lo_div_bias':          0b00,
+    'bufout_bias':          0b00,
+
+    'tx_div_sel':           0b10,
+    'tx_div_bias':          0b11,
+
+    'ioff':                 0x02,
+    'qoff':                 0x81,
+    'dcoffset_i':           0b01,
+
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+
+    'pllbias_rtrim':        0b10
+}
 
 # update phaser0 config options
 device_db["phaser0"]["arguments"]["dac"] =      _phaser_dac_config
-device_db["phaser0"]["arguments"]["trf0"] =     _phaser_trf_config
-device_db["phaser0"]["arguments"]["trf1"] =     _phaser_trf_config
+device_db["phaser0"]["arguments"]["trf0"] =     TRF_CONFIG_781_MHZ
+device_db["phaser0"]["arguments"]["trf1"] =     TRF_CONFIG_781_MHZ
 
 # update phaser1 config options
 device_db["phaser1"]["arguments"]["dac"] =      _phaser_dac_config
-device_db["phaser1"]["arguments"]["trf0"] =     _phaser_trf_config
-device_db["phaser1"]["arguments"]["trf1"] =     _phaser_trf_config
-
-
+device_db["phaser1"]["arguments"]["trf0"] =     TRF_CONFIG_781_MHZ
+device_db["phaser1"]["arguments"]["trf1"] =     TRF_CONFIG_781_MHZ

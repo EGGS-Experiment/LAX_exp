@@ -19,6 +19,8 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('urukul2_cpld')
         self.setattr_device('phaser0')
         self.setattr_device('phaser1')
+        self.setattr_device('ttl8')
+        self.setattr_device('ttl9')
         self.setattr_device('ttl10')
         self.setattr_device('ttl11')
         self.setattr_device('ttl12')
@@ -28,13 +30,15 @@ class Cleanup(LAXSubsequence):
         # specific device cases
         self.setattr_device('urukul1_ch3')      # tickle DDS
 
-
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
+        """
+        Reset all ARTIQ hardware to ensure experiment is in a safe state.
+        """
         # reset core device, RTIOs, and FIFOs
+        self.core.reset()
         self.core.break_realtime()
 
-        # reset general hardware to allow use
         '''
         DDS HARDWARE
         '''
@@ -48,6 +52,7 @@ class Cleanup(LAXSubsequence):
         self.urukul0_cpld.io_update.pulse_mu(8)
         self.urukul0_cpld.cfg_switches(0b0000)
         self.core.break_realtime()
+        # todo: ensure urukul0 TTL switches are also closed
 
         # reset motional board to rescue parameters
         self.urukul1_cpld.set_profile(0)
@@ -58,6 +63,7 @@ class Cleanup(LAXSubsequence):
         # set clean waveform for tickle DDS to prevent leakage
         self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
         self.core.break_realtime()
+        # todo: ensure urukul1 TTL switches are also closed
 
         # reset main board to rescue parameters
         self.urukul2_cpld.set_profile(0)
@@ -76,15 +82,19 @@ class Cleanup(LAXSubsequence):
         '''
         PHASER HARDWARE
         '''
-        # ensure integrator hold is off to prevent
+        # ensure INT HOLD on RF servo is deactivated
         self.ttl10.off()
+        # ensure EGGS amp switches are closed
+        self.ttl8.off()
+        self.ttl9.off()
+        self.core.break_realtime()
 
         ### PHASER0 ###
         # reset phaser attenuators
         at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(31.5 * dB)
+        self.phaser0.channel[0].set_att_mu(0x00)
         delay_mu(40)
-        self.phaser0.channel[1].set_att(31.5 * dB)
+        self.phaser0.channel[1].set_att_mu(0x00)
         self.core.break_realtime()
 
         # reset phaser oscillators
@@ -108,10 +118,11 @@ class Cleanup(LAXSubsequence):
 
         ### PHASER1 ###
         # reset phaser attenuators
+        self.core.break_realtime()
         at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_att(31.5 * dB)
+        self.phaser1.channel[0].set_att_mu(0x00)
         delay_mu(40)
-        self.phaser1.channel[1].set_att(31.5 * dB)
+        self.phaser1.channel[1].set_att_mu(0x00)
         self.core.break_realtime()
 
         # reset phaser oscillators
@@ -131,7 +142,6 @@ class Cleanup(LAXSubsequence):
                 self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
                 self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
                 delay_mu(40)
-
 
         # add slack, then synchronize timeline to ensure events submit before resetting
         self.core.break_realtime()

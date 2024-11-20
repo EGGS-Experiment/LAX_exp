@@ -68,7 +68,6 @@ TRF_CONFIG_781_MHZ = {
 }
 
 
-
 class PhaserConfigure(EnvExperiment):
     """
     Tool: Phaser Configure
@@ -86,14 +85,8 @@ class PhaserConfigure(EnvExperiment):
 
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, precision=6, step=100, min=-400., max=400.))
-        # self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-300., max=300.))
         # todo: add support for basic freq - i.e. 2.4 something GHz
-        # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="781.251239"))
         self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
-
-        # dataset management
-        # todo: dataset updating - boolean: freq_center
-        # self.setattr_argument("calibration",        BooleanValue(default=False))
 
     def _get_phaser_devices(self):
         """
@@ -113,10 +106,8 @@ class PhaserConfigure(EnvExperiment):
             # get relevant phaser device and add to kernel invariants
             self.phaser = self.get_device(self.phaser_target)
             self.kernel_invariants = self.kernel_invariants | {"phaser"}
-
         except Exception as e:
-            print("Error: unable to instantiate target phaser device.")
-            raise e
+            raise Exception("Unable to instantiate target phaser device: {:s}.".format(self.phaser_target))
 
         # set relevant values for phaser initialization
         self.time_phaser_sample_mu = int64(40)
@@ -143,13 +134,9 @@ class PhaserConfigure(EnvExperiment):
 
             # create a TRF object and get mmap
             self.configure_trf_mmap = TRF372017(trf_config_update).get_mmap()
+            # override phaser object's trf_mmap for correct operation later on
             self.phaser.channel[0].trf_mmap = self.configure_trf_mmap
             self.phaser.channel[1].trf_mmap = self.configure_trf_mmap
-
-            # self.th0 = TRF372017(trf_config_update)
-            # self.yzde = TRF372017(TRF_CONFIG_781_MHZ).get_mmap()
-            # self.yzde = TRF372017().get_mmap()
-
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -268,3 +255,10 @@ class PhaserConfigure(EnvExperiment):
             self.phaser.channel[0].en_trf_out(rf=1, lo=0)
             delay_mu(self.time_phaser_sample_mu)
             self.phaser.channel[1].en_trf_out(rf=1, lo=0)
+
+    def analyze(self):
+        """
+        Show phaser output center frequency.
+        """
+        if self.configure_trf:
+            print("Phaser center frequency: {:.6f} MHz".format(float(self.freq_trf_mhz) + self.freq_nco_mhz))
