@@ -2,6 +2,10 @@ from numpy import int64
 from artiq.experiment import *
 from artiq.coredevice.trf372017 import TRF372017
 
+# tmp remove
+from artiq.coredevice.phaser import PHASER_STA_TRF0_LD
+# tmp remove
+
 TRF_CONFIG_302_MHZ = {
     'pll_div_sel':          0b01,
     'rdiv':                 3,
@@ -9,38 +13,69 @@ TRF_CONFIG_302_MHZ = {
     'prsc_sel':             0,
     'cal_clk_sel':          0b1101,
 
+    'icp':                  0b00000,
+    'icp_double':           0,
+
     'lo_div_sel':           0b11,
     'lo_div_bias':          0b00,
     'bufout_bias':          0b00,
 
     'tx_div_sel':           0b11,
-    'tx_div_bias':          0b00
+    'tx_div_bias':          0b00,
+
+    'ioff':                 0x00,
+    'qoff':                 0x84,
+    'dcoffset_i':           0b01,
+
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+    'vref_sel':             0b100,
+
+    'pllbias_rtrim':        0b10
 }
 
-
 TRF_CONFIG_781_MHZ = {
+    'pll_div_sel':          0b01,
     'rdiv':                 2,
     'nint':                 25,
-    'pll_div_sel':          0b01,
     'prsc_sel':             0,
+    'cal_clk_sel':          0b1110,
 
     'icp':                  0b00000,
     'icp_double':           0,
-
-    'cal_clk_sel':          0b1110,
 
     'lo_div_sel':           0b11,
     'lo_div_bias':          0b00,
     'bufout_bias':          0b00,
 
     'tx_div_sel':           0b10,
-    'tx_div_bias':          0b00
+    'tx_div_bias':          0b11,
+
+    'ioff':                 0x02,
+    'qoff':                 0x81,
+    'dcoffset_i':           0b01,
+
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+
+    'pllbias_rtrim':        0b10
 }
+
 
 
 class PhaserConfigure(EnvExperiment):
     """
-    Utility: Phaser Configure
+    Tool: Phaser Configure
 
     Initialize and configure the selected phaser device.
     """
@@ -56,7 +91,8 @@ class PhaserConfigure(EnvExperiment):
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=-217.083495, precision=6, step=100, min=-400., max=400.))
         # self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-300., max=300.))
-        # # todo: add support for basic freq - i.e. 2.4 something GHz
+        # todo: add support for basic freq - i.e. 2.4 something GHz
+        # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="781.251239"))
         self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
 
         # dataset management
@@ -110,16 +146,20 @@ class PhaserConfigure(EnvExperiment):
                 raise Exception("Invalid TRF frequency.")
 
             # create a TRF object and get mmap
-            trf_object = TRF372017(trf_config_update)
-            # trf_object = TRF372017()
-            self.configure_trf_mmap = trf_object.get_mmap()
+            self.configure_trf_mmap = TRF372017(trf_config_update).get_mmap()
+            self.phaser.channel[0].trf_mmap = self.configure_trf_mmap
+            self.phaser.channel[1].trf_mmap = self.configure_trf_mmap
+
+            # self.th0 = TRF372017(trf_config_update)
+            # self.yzde = TRF372017(TRF_CONFIG_781_MHZ).get_mmap()
+            # self.yzde = TRF372017().get_mmap()
+
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         """
         Initialize and configure hardware elements on the phaser.
         """
-        self.core.wait_until_mu(now_mu())
         self.core.reset()
 
         '''
@@ -136,20 +176,42 @@ class PhaserConfigure(EnvExperiment):
 
 
         '''
-        *************PHASER*******************
+        *************OSCILLATORS*******************
         '''
-        # initialize phaser
-        delay_mu(1000000)
-        self.phaser.init(debug=True)
+        # reset oscillator frequency and amplitude, and keep phase accumulator persistently cleared
+        # note: this has to happen before TRF or attenuator adjustment to ensure channel outputs are 0
+        for i in range(5):
+            # clear channel 0 oscillator
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[0].oscillator[i].set_frequency(0. * MHz)
+            delay_mu(self.time_phaser_sample_mu)
+            self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+
+            # clear channel 1 oscillator
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[1].oscillator[i].set_frequency(0. * MHz)
+            delay_mu(self.time_phaser_sample_mu)
+            self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
 
         # add slack
         self.core.break_realtime()
 
-        # ensure TRF outputs are disabled while we configure things
-        at_mu(self.phaser.get_next_frame_mu())
-        self.phaser.channel[0].en_trf_out(rf=0, lo=0)
-        delay_mu(self.time_phaser_sample_mu)
-        self.phaser.channel[1].en_trf_out(rf=0, lo=0)
+
+        '''
+        *************PHASER/TRF*******************
+        '''
+        # configure TRF via phaser initialization (this is the easiest way!)
+        if self.configure_trf:
+            delay_mu(100000)
+            self.phaser.init(debug=True)
+
+            # ensure TRF outputs are disabled while we finish configurating
+            self.core.break_realtime()
+            delay_mu(100000)
+            at_mu(self.phaser.get_next_frame_mu())
+            self.phaser.channel[0].en_trf_out(rf=0, lo=0)
+            delay_mu(self.time_phaser_sample_mu)
+            self.phaser.channel[1].en_trf_out(rf=0, lo=0)
 
 
         '''
@@ -198,55 +260,4 @@ class PhaserConfigure(EnvExperiment):
 
         # add slack
         self.core.break_realtime()
-
-
-        '''
-        *************OSCILLATORS*******************
-        '''
-        # reset oscillator frequency and amplitude, and keep phase accumulator persistently cleared
-        # note: this has to happen before TRF or attenuator adjustment to ensure channel outputs are 0
-        for i in range(5):
-            # clear channel 0 oscillator
-            at_mu(self.phaser.get_next_frame_mu())
-            self.phaser.channel[0].oscillator[i].set_frequency(0. * MHz)
-            delay_mu(self.time_phaser_sample_mu)
-            self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-
-            # clear channel 1 oscillator
-            at_mu(self.phaser.get_next_frame_mu())
-            self.phaser.channel[1].oscillator[i].set_frequency(0. * MHz)
-            delay_mu(self.time_phaser_sample_mu)
-            self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-
-        # add slack
-        self.core.break_realtime()
-
-
-        '''
-        *************TRF (UPCONVERTER)*******************
-        '''
-        # update TRFs on both channels with mmap to set output freq center
-        if self.configure_trf is True:
-            delay_mu(1000000)
-            for i in range(2):
-                for data in self.configure_trf_mmap:
-                    self.core.break_realtime()
-                    at_mu(self.phaser.get_next_frame_mu())
-                    self.phaser.channel[i].trf_write(data)
-
-        # enable outputs for both channels here
-        # note: want to do this at end instead of beginning since output may be nonzero and
-        #   will be cycling through frequencies as we initialize components
-        # note: want to leave trf outputs persistently enabled since phase relation
-        #   between channels can change after adjusting the TRF
-        at_mu(self.phaser.get_next_frame_mu())
-        self.phaser.channel[0].en_trf_out(rf=1, lo=0)
-        delay_mu(self.time_phaser_sample_mu)
-        self.phaser.channel[1].en_trf_out(rf=1, lo=0)
-
-        # add slack
-        self.core.break_realtime()
-
-        # ensure completion
-        self.core.wait_until_mu(now_mu())
 
