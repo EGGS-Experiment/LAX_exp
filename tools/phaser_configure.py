@@ -1,5 +1,6 @@
 from numpy import int64
 from artiq.experiment import *
+from artiq.coredevice.dac34h84 import DAC34H84
 from artiq.coredevice.trf372017 import TRF372017
 
 TRF_CONFIG_302_MHZ = {
@@ -67,6 +68,11 @@ TRF_CONFIG_781_MHZ = {
     'pllbias_rtrim':        0b10
 }
 
+DAC_CONFIG = {
+    'mixer_ena':            1,
+    'nco_ena':              1,
+    'fifo_offset':          5
+}
 
 
 class PhaserConfigure(EnvExperiment):
@@ -127,6 +133,10 @@ class PhaserConfigure(EnvExperiment):
             raise Exception("Invalid phaser NCO frequency. Must be in range [-400, 400].")
         elif (self.freq_nco_mhz > 300.) or (self.freq_nco_mhz < -300.):
             print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
+
+        # create DAC configuration & override
+        self.configure_dac_mmap = DAC34H84(DAC_CONFIG).get_mmap()
+        self.phaser.dac_mmap = self.configure_dac_mmap
 
         # set up TRF configuration
         if self.freq_trf_mhz == "N/A":
@@ -268,3 +278,31 @@ class PhaserConfigure(EnvExperiment):
             self.phaser.channel[0].en_trf_out(rf=1, lo=0)
             delay_mu(self.time_phaser_sample_mu)
             self.phaser.channel[1].en_trf_out(rf=1, lo=0)
+
+
+        '''
+        **** testing ***
+        '''
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_att(0. * dB)
+        delay_mu(10000)
+
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, clr=0)
+        delay_mu(10000)
+
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_frequency(1. * MHz)
+        delay_mu(10000)
+
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_cfg()
+        delay_mu(10000)
+
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.duc_stb()
+        delay_mu(10000)
+
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].oscillator[0].set_frequency(1. * MHz)
+        self.core.break_realtime()
