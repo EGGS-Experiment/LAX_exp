@@ -20,7 +20,7 @@ class EGGSHeating(LAXExperiment, Experiment):
         # config-related
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_eggs_heating_rsb_turns_list',
-        'time_eggs_heating_mu', 'time_rf_servo_holdoff_mu',
+        'time_eggs_heating_mu',
         'config_eggs_heating_list', 'num_configs',
         # pulse shaping
         'time_pulse_shape_rolloff_mu', 't_max_phaser_update_rate_mu', 'time_pulse_shape_sample_mu', 'time_pulse_shape_delay_mu',
@@ -108,12 +108,6 @@ class EGGSHeating(LAXExperiment, Experiment):
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
 
-        # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
-        self.setattr_device('ttl10')
-        # tmp remove
-
     def prepare_experiment(self):
         """
         Prepare experimental values.
@@ -137,10 +131,6 @@ class EGGSHeating(LAXExperiment, Experiment):
             t_sample_multiples =        round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
             self.time_eggs_heating_mu = np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
-                                                           conversion_function=us_to_mu)
-
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
         self.phase_ch1_turns =          float(0)
@@ -148,6 +138,9 @@ class EGGSHeating(LAXExperiment, Experiment):
 
 
         '''EGGS HEATING - CONFIG'''
+        # convert attenuation from dB to machine units
+        self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
+
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_eggs_carrier_hz_list =            np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =            np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
@@ -326,14 +319,9 @@ class EGGSHeating(LAXExperiment, Experiment):
 
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
+        self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-
-        # reset amp TTLs and servo int hold
-        self.ttl8.off()
-        self.ttl9.off()
-        self.ttl10.off()
+        self.phaser_eggs.channel[1].set_att_mu(0x00)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -346,16 +334,6 @@ class EGGSHeating(LAXExperiment, Experiment):
 
         # used to check_termination more frequently
         _loop_iter = 0
-
-        # set phaser attenuators
-        # note: this is done here instead of during sequence
-        # since attenuator setting glitches cause heating if there is no
-        # high-pass to filter them
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-        self.core.break_realtime()
 
 
         # MAIN LOOP
@@ -395,16 +373,7 @@ class EGGSHeating(LAXExperiment, Experiment):
 
                 '''EGGS HEATING'''
                 # EGGS - START/SETUP
-                # activate integrator hold
-                self.ttl10.on()
-                delay_mu(8)
-                self.ttl8.on()
-                self.ttl9.on()
-                # # set phaser attenuators
-                # at_mu(self.phaser_eggs.get_next_frame_mu())
-                # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-                # delay_mu(self.phaser_eggs.t_sample_mu)
-                # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+                self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu)
 
                 # reset DUC phase to start DUC deterministically
                 self.phaser_eggs.reset_duc_phase()
@@ -416,13 +385,6 @@ class EGGSHeating(LAXExperiment, Experiment):
                 # EGGS - STOP
                 self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_fall)
                 self.phaser_eggs.phaser_stop()
-                # deactivate integrator hold
-                delay_mu(5000)
-                self.ttl10.off()
-                self.ttl8.off()
-                self.ttl9.off()
-                # add delay time after EGGS pulse to allow RF servo to re-lock
-                delay_mu(self.time_rf_servo_holdoff_mu)
 
                 '''READOUT'''
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
@@ -472,13 +434,9 @@ class EGGSHeating(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
-        self.ttl10.off()
-        self.ttl8.off()
-        self.ttl9.off()
 
 
     '''
@@ -694,7 +652,7 @@ class EGGSHeating(LAXExperiment, Experiment):
     '''
     ANALYSIS
     '''
-    def analyze(self):
+    def analyze_experiment(self):
         # should be backward-compatible with experiment which had no sub-repetitions
         try:
             sub_reps = self.sub_repetitions
@@ -709,11 +667,12 @@ class EGGSHeating(LAXExperiment, Experiment):
             dataset = np.array(self.results)
 
             ## determine scan type
-            # carrier sweep
-            if len(np.unique(dataset[:, 2])) > 1:       sorting_col_num = 2
-            # secular frequency
-            elif len(np.unique(dataset[:, 3])) > 1:     sorting_col_num = 3
-            else:                                       sorting_col_num = 0
+            col_unique_vals = np.array([len(set(col)) for col in dataset.transpose()])
+            # convert unique count to dataset index and order in decreasing value (excluding PMT counts)
+            if np.argsort(-col_unique_vals)[0] != 1:
+                sorting_col_num = np.argsort(-col_unique_vals)[0]
+            else:
+                sorting_col_num = np.argsort(-col_unique_vals)[1]
 
             ## convert results to sideband ratio
             ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num, 1, 0,
@@ -738,7 +697,7 @@ class EGGSHeating(LAXExperiment, Experiment):
                 print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
 
             ## process sideband readout sweep
-            else:
+            elif sorting_col_num == 0:
                 rsb_freqs_MHz, bsb_freqs_MHz, _ =       extract_sidebands_freqs(scanning_freq_MHz)
                 fit_params_rsb, fit_err_rsb, fit_rsb =  fitSincGeneric(rsb_freqs_MHz, ave_rsb)
                 fit_params_bsb, fit_err_bsb, fit_bsb =  fitSincGeneric(bsb_freqs_MHz, ave_bsb)
@@ -759,7 +718,11 @@ class EGGSHeating(LAXExperiment, Experiment):
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
+            ## process carrier sweep
+            elif sorting_col_num == 2:
+                # todo: get RSB, BSB, and phonon means
+                pass
+
         except Exception as e:
             print("Warning: unable to process data.")
             print(repr(e))
-

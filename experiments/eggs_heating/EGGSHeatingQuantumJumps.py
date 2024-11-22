@@ -19,8 +19,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
     kernel_invariants = {
         # config-related
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
-        'phase_eggs_heating_rsb_turns_list',
-        'time_eggs_heating_mu', 'time_rf_servo_holdoff_mu',
+        'phase_eggs_heating_rsb_turns_list', 'time_eggs_heating_mu',
         'config_eggs_heating_list', 'num_configs',
         # pulse shaping
         'time_pulse_shape_rolloff_mu', 't_max_phaser_update_rate_mu', 'time_pulse_shape_sample_mu', 'time_pulse_shape_delay_mu',
@@ -115,9 +114,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
-        self.setattr_device('ttl10')
 
     def prepare_experiment(self):
         """
@@ -140,10 +136,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
             t_sample_multiples =            round(self.time_eggs_heating_mu / self.phaser_eggs.t_sample_mu + 0.5)
             self.time_eggs_heating_mu =     np.int64(self.phaser_eggs.t_sample_mu * t_sample_multiples)
 
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
-                                                           conversion_function=us_to_mu)
-
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
         self.phase_ch1_turns =          float(0)
@@ -151,6 +143,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
 
         '''EGGS HEATING - CONFIG'''
+        # convert attenuation from dB to machine units
+        self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
+
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_eggs_carrier_hz_list =            np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =            np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
@@ -350,14 +345,9 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
+        self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-
-        # deactivate integrator hold & stop phaser amp switches
-        self.ttl8.off()
-        self.ttl9.off()
-        self.ttl10.off()
+        self.phaser_eggs.channel[1].set_att_mu(0x00)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -372,17 +362,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # set relevant kernel variables
-        _loop_iter = 0                      # used to check_termination more frequently
-
-        # set phaser attenuators
-        # note: this is done here instead of during sequence
-        # since attenuator setting glitches cause heating if there is no
-        # high-pass to filter them
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-        self.core.break_realtime()
+        _loop_iter = 0  # used to check_termination more frequently
 
 
         '''MAIN LOOP'''
@@ -478,9 +458,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         '''CLEANUP'''
         self.core.break_realtime()
         self.phaser_eggs.reset_oscillators()
-        self.ttl10.off()
-        self.ttl8.off()
-        self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run_loop(self, freq_readout_ftw: TInt32, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
@@ -509,15 +486,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         '''EGGS HEATING'''
         # EGGS - START/SETUP
-        # activate integrator hold
-        self.ttl10.on()
-        self.ttl8.on()
-        self.ttl9.on()
-        # # set phaser attenuators
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
+        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu)
 
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
@@ -529,13 +498,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         # EGGS - STOP
         self.core_dma.playback_handle(self.phaser_dma_handle_pulseshape_fall)
         self.phaser_eggs.phaser_stop()
-        # deactivate integrator hold
-        delay_mu(5000)
-        self.ttl10.off()
-        self.ttl8.off()
-        self.ttl9.off()
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_rf_servo_holdoff_mu)
 
         '''READOUT'''
         self.sidebandreadout_subsequence.run_time(time_readout_mu)
