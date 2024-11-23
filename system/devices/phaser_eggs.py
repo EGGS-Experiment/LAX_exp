@@ -20,7 +20,7 @@ class PhaserEGGS(LAXDevice):
     }
     kernel_invariants = {
         "t_sample_mu", "t_frame_mu", "t_output_delay_mu",
-        "ftw_per_hz", "channel",
+        "channel",
         "freq_center_hz", "phase_inherent_ch1_turns", "time_latency_ch1_system_ns",
         "time_rf_servo_holdoff_mu"
     }
@@ -152,7 +152,7 @@ class PhaserEGGS(LAXDevice):
         # set phaser attenuators - warning: creates turn on glitch
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att_mu(att_mu)
-        delay_mu(self.phaser.t_sample_mu)
+        delay_mu(self.t_sample_mu)
         self.phaser.channel[1].set_att_mu(att_mu)
 
         # activate integrator hold
