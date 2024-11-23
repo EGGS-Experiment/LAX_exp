@@ -129,7 +129,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         phaser_output_freqs_hz = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
         phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
-        if (phaser_carrier_upper_dev_hz >= 200.) or (phaser_carrier_lower_dev_hz >= 200.):
+        if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
         '''SUBSEQUENCE PARAMETERS'''
