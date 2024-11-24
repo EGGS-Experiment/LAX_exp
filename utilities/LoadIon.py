@@ -171,33 +171,38 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Initialize labrad devices via RPC.
         """
-        '''SET UP CAMERA'''
-        # set camera region of interest and exposure time
-        self.camera.set_image_region(self.image_region)
+        try:
+            '''SET UP CAMERA'''
+            # set camera region of interest and exposure time
+            self.camera.set_image_region(self.image_region)
 
-        '''SET UP TRAP'''
-        # set endcaps to loading voltages
-        self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
-        self.trap_dc.set_west_endcap_voltage(self.start_west_endcap_voltage)
-        # turn on endcap channels and ensure others are off
-        self.trap_dc.east_endcap_toggle(True)
-        self.trap_dc.west_endcap_toggle(True)
-        self.trap_dc.h_shim_toggle(False)
-        self.trap_dc.v_shim_toggle(False)
-        self.trap_dc.aramp_toggle(False)
+            '''SET UP TRAP'''
+            # set endcaps to loading voltages
+            self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
+            self.trap_dc.set_west_endcap_voltage(self.start_west_endcap_voltage)
+            # turn on endcap channels and ensure others are off
+            self.trap_dc.east_endcap_toggle(True)
+            self.trap_dc.west_endcap_toggle(True)
+            self.trap_dc.h_shim_toggle(False)
+            self.trap_dc.v_shim_toggle(False)
+            self.trap_dc.aramp_toggle(False)
 
-        '''SET UP LOADING LASERS'''
-        # open 397nm aperture
-        self.aperture.open_aperture()
-        # open shutters
-        self.shutters.toggle_377_shutter(True)
-        self.shutters.toggle_423_shutter(True)
+            '''SET UP LOADING LASERS'''
+            # open 397nm aperture
+            self.aperture.open_aperture()
+            # open shutters
+            self.shutters.toggle_377_shutter(True)
+            self.shutters.toggle_423_shutter(True)
 
-        '''START OVEN'''
-        # turn on the oven
-        self.oven.set_oven_voltage(self.oven_voltage)
-        self.oven.set_oven_current(self.oven_current)
-        self.oven.toggle(True)
+            '''START OVEN'''
+            # turn on the oven
+            self.oven.set_oven_voltage(self.oven_voltage)
+            self.oven.set_oven_current(self.oven_current)
+            self.oven.toggle(True)
+
+        except Exception as e:
+            print(repr(e))
+            self.cleanup_devices()
 
     @rpc
     def run_main(self) -> TNone:
@@ -209,26 +214,33 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # run loading loop until we load desired_num_of_ions
         num_ions = 0
-        while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
-            self.check_termination()
 
-            # load ions if below desired count
-            if num_ions < self.desired_num_of_ions:
-                self.initialize_labrad_devices()
-                num_ions = self.load_ion()
+        try:
+            while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
+                self.check_termination()
 
-            # eject excess ions via A-ramping (if enabled)
-            elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
-                self.cleanup_devices()
-                num_ions = self.aramp_ions()
+                # load ions if below desired count
+                if num_ions < self.desired_num_of_ions:
+                    self.initialize_labrad_devices()
+                    num_ions = self.load_ion()
 
-            # otherwise, simply stop execution
-            elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
-                print("\tTOO MANY IONS LOADED - STOPPING HERE.")
-                break
+                # eject excess ions via A-ramping (if enabled)
+                elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
+                    self.cleanup_devices()
+                    num_ions = self.aramp_ions()
+
+                # otherwise, simply stop execution
+                elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
+                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
+                    break
+
+            print("\tLOADING COMPLETE - CLEANING UP.")
+
+        except Exception as e:
+            print("Error - stopping execution; cleaning up.")
+            print(repr(e))
 
         '''CLEAN UP'''
-        print("\tLOADING COMPLETE - CLEANING UP.")
         self.cleanup_devices()
 
     @rpc
@@ -409,4 +421,3 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
-

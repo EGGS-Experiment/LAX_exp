@@ -1,11 +1,6 @@
 from artiq.experiment import *
-
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-
-# tmp remove
-import numpy as np
-# tmp remove
 
 
 class AbsorptionProbe(LAXSubsequence):
