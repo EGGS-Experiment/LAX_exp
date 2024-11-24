@@ -186,7 +186,6 @@ DAC_CONFIG_302_MHZ = {
     # QMC offset compensation
     # note: QMC offset compensation useless here since DAC34H84 is AC-coupled to TRF
     'qmc_offset_ena':       0b00,   # MSB is channel AB
-
     'qmc_offseta':          0x000,  # 12b
     'qmc_offsetb':          0x000,  # 12b
     'qmc_offsetc':          0x000,  # 12b
@@ -206,27 +205,31 @@ DAC_CONFIG_781_MHZ = {
 
     # quadrature modulation compensation (QMC) config
     # QMC gain & phase compensation
-    'qmc_corr_ena':         0b11,   # MSB is channel AB
+    'qmc_corr_ena':         0b00,   # MSB is channel AB
 
     # note: qmc_gain is [0, 1.9990]; 0x00 = 0, 0x400 = 1.0, 0x7FF = 1.9990
     'qmc_gaina':            0x400,  # 11b (0x7FF max)
     'qmc_gainb':            0x400,  # 11b (0x7FF max)
     # 'qmc_gainc':            0x40D,  # 11b (0x7FF max)
     # 'qmc_gaind':            0x400,  # 11b (0x7FF max)
-    'qmc_gainc':            0x400,  # 11b (0x7FF max)
-    'qmc_gaind':            0x400,  # 11b (0x7FF max)
+    'qmc_gainc':            0x3E4,  # 11b (0x7FF max)
+    'qmc_gaind':            0x3F4,  # 11b (0x7FF max)
 
-    # note: qmc_phase is [-0.5, 0.49975]; two's complement formatted
+    # note: qmc_phase is [-0.5, 0.49975]; two's complement formatted, max = 0x7FF, min = 0x800, zero = 0x000
     # 'qmc_phaseab':          0x000,  # 12b (default 0x000)
     # 'qmc_phasecd':          0xFDD,  # 12b (default 0x000)
     'qmc_phaseab':          0x000,  # 12b (default 0x000)
-    'qmc_phasecd':          0x02C,  # 12b (default 0x000)
+    'qmc_phasecd':          0x004,  # 12b (default 0x000)
 
+    # note: grp_delay is [0, t_max]; max = 0xFF, min = zero = 0x00
+    'grp_delaya':           0x00,   # 8b (default 0x00)
+    'grp_delayb':           0x00,   # 8b (default 0x00)
+    'grp_delayc':           0x00,   # 8b (default 0x00)
+    'grp_delayd':           0x00,   # 8b (default 0x00)
 
     # QMC offset compensation
     # note: QMC offset compensation useless here since DAC34H84 is AC-coupled to TRF
     'qmc_offset_ena':       0b00,   # MSB is channel AB
-
     'qmc_offseta':          0x000,  # 12b
     'qmc_offsetb':          0x000,  # 12b
     'qmc_offsetc':          0x000,  # 12b
@@ -250,10 +253,8 @@ class PhaserConfigure(EnvExperiment):
         self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=-167.083495, precision=6, step=100, min=-400., max=400.))
-        # todo: add support for basic freq - i.e. 2.4 something GHz
-        # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="781.251239"))
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=100., precision=6, step=100, min=-400., max=400.))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
 
     def _get_phaser_devices(self):
         """
@@ -287,8 +288,8 @@ class PhaserConfigure(EnvExperiment):
             print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
 
         # create DAC configuration & override
-        self.configure_dac_mmap = DAC34H84(DAC_CONFIG_302_MHZ).get_mmap()
-        # self.configure_dac_mmap = DAC34H84(DAC_CONFIG_781_MHZ).get_mmap()
+        # self.configure_dac_mmap = DAC34H84(DAC_CONFIG_302_MHZ).get_mmap()
+        self.configure_dac_mmap = DAC34H84(DAC_CONFIG_781_MHZ).get_mmap()
         self.phaser.dac_mmap = self.configure_dac_mmap
 
         # set up TRF configuration
@@ -429,19 +430,19 @@ class PhaserConfigure(EnvExperiment):
         self.core.break_realtime()
 
 
-        # '''
-        # **** testing ***
-        # '''
+        '''
+        **** testing ***
+        '''
         # at_mu(self.phaser.get_next_frame_mu())
         # self.phaser.channel[0].set_att_mu(0x00)
         # # self.phaser.channel[0].set_att(0. * dB)
         # at_mu(self.phaser.get_next_frame_mu())
         # # self.phaser.channel[1].set_att_mu(0xFF)
-        # self.phaser.channel[1].set_att(0. * dB)
+        # self.phaser.channel[1].set_att_mu(0xFF)
         # delay_mu(10000)
         #
         # at_mu(self.phaser.get_next_frame_mu())
-        # self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.0, clr=0)
+        # self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.00, clr=0)
         # at_mu(self.phaser.get_next_frame_mu())
         # self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0.2, clr=0)
         #
@@ -452,9 +453,9 @@ class PhaserConfigure(EnvExperiment):
         # self.core.break_realtime()
         #
         # at_mu(self.phaser.get_next_frame_mu())
-        # self.phaser.channel[0].set_duc_frequency(10. * MHz)
+        # self.phaser.channel[0].set_duc_frequency(0. * MHz)
         # at_mu(self.phaser.get_next_frame_mu())
-        # self.phaser.channel[1].set_duc_frequency(10. * MHz)
+        # self.phaser.channel[1].set_duc_frequency(0. * MHz)
         # delay_mu(10000)
         #
         # at_mu(self.phaser.get_next_frame_mu())
