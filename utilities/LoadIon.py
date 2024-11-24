@@ -131,6 +131,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         year_month =        datetime.today().strftime('%Y-%m')
         year_month_day =    datetime.today().strftime('%Y-%m-%d')
         self.data_path = os.path.join(self.BASE_PATH, year_month, year_month_day)
+        # ensure data folder exists; create it if it doesn't exist
+        os.makedirs(self.data_path, exist_ok=True)
 
     @property
     def results_shape(self):
