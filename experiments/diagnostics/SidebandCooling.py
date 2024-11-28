@@ -44,7 +44,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         elif self.cooling_type == "Pulsed":     self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
         # shuffle sideband readout frequencies
-        np.shuffle(self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list)
+        np.random.shuffle(self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list)
 
     @property
     def results_shape(self):
