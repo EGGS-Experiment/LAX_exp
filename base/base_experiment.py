@@ -375,18 +375,21 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         self.call_child_method('analyze')
 
-        # add error handling for experiment analysis
-        try:
-            # get return from analyze_experiment method
-            res_processed = self.analyze_experiment()
+        # only run analyze_experiment if exp ran to completion
+        if self._result_iter == len(self.results):
+            try:
+                # get return from analyze_experiment method
+                res_processed = self.analyze_experiment()
 
-            # if we get a valid return, assume it is the processed result
-            # of the experiment, and try to save it in the hdf5 file
-            if res_processed is not None:
-                self.set_dataset('results_processed', res_processed)
-        except Exception as e:
-            print('\tWarning: encountered error during analyze_experiment.')
-            print('\t\t:{:}'.format(repr(e)))
+                # if we get a valid return, assume it is the processed result
+                # of the experiment, and try to save it in the hdf5 file
+                if res_processed is not None:
+                    self.set_dataset('results_processed', res_processed)
+            except Exception as e:
+                print('\tWarning: encountered error during analyze_experiment.')
+                print('\t\t:{:}'.format(repr(e)))
+        else:
+            print("Experiment results dataset not filled. Skipping analyze_experiment.")
 
     def analyze_experiment(self):
         """

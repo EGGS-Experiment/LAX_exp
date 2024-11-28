@@ -24,16 +24,16 @@ class SidebandReadout(LAXSubsequence):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        ExplicitScan([100.981]),
-                                                                        CenterScan(100.981, 0.01, 0.0005, randomize=True),
+                                                                        ExplicitScan([100.8587]),
+                                                                        CenterScan(100.8587, 0.01, 0.0005, randomize=True),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, precision=5
                                                                 ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        ExplicitScan([102.2569]),
-                                                                        CenterScan(102.2569, 0.01, 0.0005, randomize=True),
+                                                                        ExplicitScan([102.1481]),
+                                                                        CenterScan(102.1481, 0.01, 0.0005, randomize=True),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, precision=5

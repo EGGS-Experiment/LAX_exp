@@ -132,7 +132,6 @@ def findThresholdPeaks(counts_arr):
 Dataset Processing
 '''
 
-
 def groupBy(dataset, column_num=0, reduce_func=lambda x: x):
     """
     Groups a 2-D array by a given column.
@@ -156,7 +155,6 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x: x):
     }
 
     return dataset_processed
-
 
 def groupBy2(dataset, column_nums=0, reduce_func=lambda x: x):
     """
@@ -195,7 +193,6 @@ def groupBy2(dataset, column_nums=0, reduce_func=lambda x: x):
     ]
 
     return dataset_processed
-
 
 def processFluorescence2D(dataset):
     """
@@ -259,14 +256,12 @@ def extract_ratios(dataset: np.array,
 
     if np.array_equal(scanning_freqs, readout_freqs_sorted):
         scanning_freqs_MHz_unique = scanning_freqs_unique * (2 * 2.32830644e-7)
-
     else:
-        scanning_freqs_MHz_unique = scanning_freqs_unique* 1e-6
+        scanning_freqs_MHz_unique = scanning_freqs_unique * 1e-6
 
     readout_freqs_MHz_sorted = readout_freqs_sorted* (2 * 2.32830644e-7)
     probs = np.zeros(len(counts))
     guess_Ca_carrier_MHz = np.mean(np.unique(readout_freqs_MHz_sorted))
-
 
     # determine thresholds
     threshold_list = findThresholdScikit(counts)
@@ -274,7 +269,6 @@ def extract_ratios(dataset: np.array,
         probs[np.where(counts > threshold_val)] += 1.
 
     normalized_probs = 1. - probs / len(threshold_list)
-
     normalized_probs_rsb = normalized_probs[guess_Ca_carrier_MHz > readout_freqs_MHz_sorted]
     probs_rsb = np.mean(normalized_probs_rsb.reshape(-1, sub_reps * reps), 1)
     std_rsb = np.std(normalized_probs_rsb.reshape(-1, sub_reps * reps, 1) / np.sqrt(reps * sub_reps))
@@ -283,7 +277,7 @@ def extract_ratios(dataset: np.array,
     probs_bsb = np.mean(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1)
     std_bsb = np.std(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1) / np.sqrt(reps * sub_reps)
 
-    ratios = np.divide(probs_rsb, probs_bsb)
+    ratios = np.divide(probs_rsb, probs_bsb + 1e-7)
     return ratios, probs_rsb, probs_bsb, std_rsb, std_bsb, scanning_freqs_MHz_unique
 
 def extract_sidebands_freqs(readout_freqs_MHz):
@@ -304,7 +298,10 @@ def extract_sidebands_freqs(readout_freqs_MHz):
     return rsb_freqs, bsb_freqs, guess_Ca_carrier_MHz
 
 
-"""Functions for Coherent States"""
+"""
+Functions for Coherent States
+"""
+
 def convert_ratios_to_coherent_phonons(ratios: np.array) -> np.array:
     """
     Convert rsb/bsb ratios to number of phonons for a coherent state
@@ -340,7 +337,6 @@ def coherent_state_amp(nbar, n):
     """
     return np.multiply(np.exp(-np.abs(nbar) / 2), np.power(np.sqrt(nbar), n) / np.sqrt(factorial(n)))
 
-
 def prob_bsb_coherent(nbar):
     """
     Determine blue sideband excitation probability for a coherent state
@@ -369,7 +365,9 @@ def prob_rsb_coherent(nbar):
         (1 + np.cos(np.pi * np.sqrt(n))) * np.abs(coherent_state_amp(nbar, n)) ** 2)
 
 
-"""Functions for Squeezed States"""
+"""
+Functions for Squeezed States
+"""
 def convert_ratios_to_squeezed_phonons(ratios: np.array) -> np.array:
     """
     Convert rsb/bsb ratios to number of phonons for a squeeze state

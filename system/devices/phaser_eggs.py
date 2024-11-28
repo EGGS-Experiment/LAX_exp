@@ -158,7 +158,7 @@ class PhaserEGGS(LAXDevice):
         # activate integrator hold
         self.int_hold.on()
         # add delay time after integrator hold to reduce effect of turn-on glitches
-        # delay_mu(self.time_rf_servo_holdoff_mu)
+        delay_mu(self.time_rf_servo_holdoff_mu)
 
         # open phaser amp switches (add 2us delay for switches to fully open to prevent damage)
         with parallel:
