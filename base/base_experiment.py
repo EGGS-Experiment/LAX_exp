@@ -16,6 +16,10 @@ logger = logging.getLogger("artiq.master.experiments")
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 from LAX_exp.base.manager_wrappers import _write_to_group
 
+from labrad.thread import startReactor
+from labrad.wrappers import connectAsync
+from twisted.internet.defer import inlineCallbacks, Deferred
+
 
 class LAXExperiment(LAXEnvironment, ABC):
     """
@@ -64,6 +68,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
         setattr(self, '_counts_iter', 0)
+
+        # labrad termination checking
+        self._termination_status_labrad = False
 
     def build_experiment(self):
         """
@@ -137,6 +144,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         # set save_dir_list as an instance attribute
         self.save_dir_list = save_dir_list
         self.kernel_invariants.add("save_dir_list")
+
+
+        '''SUBSCRIBE TO LABRAD FOR WARNINGS'''
+        # get monitoring status from dataset manager
+        monitor_status = self.get_dataset('management.safe_mode', default=False)
+        if monitor_status:
+            self.labrad_subscribe()
 
 
         '''COMPILE INITIALIZATION SEQUENCE'''
@@ -274,7 +288,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         except TerminationRequested:
             print('\tExperiment successfully terminated.')
         except Exception as e:
-            print('\tError during experiment: {}'.format(repr(e)))
+            print('\tError during experiment: {}'.format(e))
             print(traceback.format_exc())
         finally:
             pass
@@ -328,6 +342,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         pass
 
     @kernel(flags={"fast-math"})
+    def noop(self) -> TNone:
+        """
+        A hardware no-op function to allow for customizable pulse sequence configuration.
+        Provided for convenience.
+        """
+        delay_mu(0)
+
+    @kernel(flags={"fast-math"})
     def _cleanup_experiment(self) -> TNone:
         """
         Call the cleanup functions of sequences, subsequence, and devices and (in that order).
@@ -342,20 +364,80 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
+
+    '''
+    STATUS MONITORING
+    '''
+
     @rpc
     def check_termination(self) -> TNone:
         """
         Check whether termination of the experiment has been requested.
         """
-        if self.scheduler.check_termination():
+        if self.scheduler.check_termination() or self._termination_status_labrad:
+            if self._termination_status_labrad:
+                print("Critical experiment failure. Stopping experiment & cancelling all experiments.")
+                self.cancel_all_experiments()
             raise TerminationRequested
 
-    @kernel(flags={"fast-math"})
-    def noop(self) -> TNone:
+    @rpc
+    def labrad_subscribe(self) -> TNone:
         """
-        A hardware no-op function to allow for customizable pulse sequence configuration.
+        Subscribe to local labrad warning server to get notifications
+        when critical errors occur.
         """
-        delay_mu(0)
+        try:
+            # start labrad's twisted reactor
+            startReactor()
+            d = Deferred()
+
+            @inlineCallbacks
+            def create_connection(msg):
+                self.cxn_async = yield connectAsync(
+                    os.environ["LABRADHOST"], port=7682, name="{:s} ({:s})".format("ARTIQ_EXP", socket.gethostname()),
+                    username="", password=os.environ["LABRADPASSWORD"]
+                )
+                self.ws_async = self.cxn_async.warning_server
+                self.ws_async.signal__wavemeter_unlock(959781)
+                self.ws_async.addListener(listener=self._update_labrad_warnings, source=None, ID=959781)
+
+            # fire deferred to create connection
+            d.addCallback(create_connection)
+            d.callback("\tDEFERRED: FIRED")
+
+        except Exception as e:
+            print("Unable to connect to labrad for warnings: {}".format(e))
+
+    def _update_labrad_warnings(self, c, signal) -> TNone:
+        """
+        Automatically process warning updates from LabRAD,
+        :param c: labrad context
+        :param signal: the warning message/data.
+        """
+        # print("\n\t\tWARNING - CH{:d} UNLOCKED: {:s}".format(*signal))
+        self._termination_status_labrad = True
+
+    @rpc
+    def cancel_all_experiments(self):
+        """
+        Terminate all experiments in our pipeline.
+        To be used in emergency situations (e.g. wavemeter unlocked) where we need to halt all activity.
+        """
+        # get scheduler itinerary
+        sched = self.scheduler.get_status()
+
+        # get all experiments in our pipeline
+        rid_list = [
+            rid
+            for rid, exp_dict in sched.items()
+            if (rid != self.scheduler.rid) and (exp_dict['pipeline'] == self.scheduler.pipeline_name)
+               and (exp_dict['status'] != "running")
+        ]
+        rid_list.reverse()
+
+        # delete remaining experiments
+        for rid in rid_list:
+            self.scheduler.delete(rid)
 
 
     '''
