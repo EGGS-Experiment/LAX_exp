@@ -16,10 +16,6 @@ logger = logging.getLogger("artiq.master.experiments")
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 from LAX_exp.base.manager_wrappers import _write_to_group
 
-from labrad.thread import startReactor
-from labrad.wrappers import connectAsync
-from twisted.internet.defer import inlineCallbacks, Deferred
-
 
 class LAXExperiment(LAXEnvironment, ABC):
     """
@@ -387,6 +383,11 @@ class LAXExperiment(LAXEnvironment, ABC):
         when critical errors occur.
         """
         try:
+            # import here to prevent repository scan issues
+            from labrad.thread import startReactor
+            from labrad.wrappers import connectAsync
+            from twisted.internet.defer import inlineCallbacks, Deferred
+
             # start labrad's twisted reactor
             startReactor()
             d = Deferred()
