@@ -405,7 +405,6 @@ class LAXExperiment(LAXEnvironment, ABC):
             # fire deferred to create connection
             d.addCallback(create_connection)
             d.callback("\tDEFERRED: FIRED")
-
         except Exception as e:
             print("Unable to connect to labrad for warnings: {}".format(e))
 
@@ -416,6 +415,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         :param signal: the warning message/data.
         """
         # print("\n\t\tWARNING - CH{:d} UNLOCKED: {:s}".format(*signal))
+        self.set_dataset('management.dynamic.ion_status',
+                         "ERROR: {:s} UNLOCKED".format(signal[1]),
+                         broadcast=True)
         self._termination_status_labrad = True
 
     @rpc
