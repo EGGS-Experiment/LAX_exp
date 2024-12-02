@@ -4,7 +4,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, Ramsey, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous
 
 
@@ -20,11 +20,13 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
         'profile_ramsey', 'config_ramsey_list', 'cooling_subsequence',
         'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'trigger_func'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
 
         # cooling type
         self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
@@ -61,6 +63,13 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                                                         ), group="ramsey.sweep")
         # get devices
         self.setattr_device('qubit')
+        self.setattr_device('trigger_line')
+
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
 
         # prepare sequences
         self.initialize_subsequence =               InitializeQubit(self)
@@ -79,6 +88,14 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # choose correct cooling subsequence
         if self.cooling_type == "Doppler":              self.cooling_subsequence =  self.doppler_subsequence
         elif self.cooling_type == "SBC - Continuous":   self.cooling_subsequence =  self.sidebandcool_continuous_subsequence
+
+        '''
+        SET UP LINETRIGGER
+        '''
+        if self.enable_linetrigger:
+            self.trigger_func = self.trigger_line.trigger
+        else:
+            self.trigger_func = self.th0
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -126,12 +143,25 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
         for trial_num in range(self.repetitions):
 
+            # sweep exp config
             for config_vals in self.config_ramsey_list:
+
+                # tmp remove
+                self.core.break_realtime()
+                self.pump.rescue()
+                self.repump_cooling.on()
+                self.repump_qubit.on()
+                self.pump.on()
+                # tmp remove
+
                 # extract values from config list
                 time_delay_mu =     config_vals[0]
                 freq_ramsey_ftw =   np.int32(config_vals[1])
                 phase_ramsey_pow =  np.int32(config_vals[2])
                 self.core.break_realtime()
+
+                # wait for linetrigger
+                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
