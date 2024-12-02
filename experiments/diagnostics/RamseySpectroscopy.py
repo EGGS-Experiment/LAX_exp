@@ -19,7 +19,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         'time_pulse_mu', 'ampl_ramsey_asf', 'att_ramsey_mu',
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
         'profile_ramsey', 'config_ramsey_list', 'cooling_subsequence',
-        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'trigger_func'
     }
 
