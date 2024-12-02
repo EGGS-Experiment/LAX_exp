@@ -2,32 +2,29 @@
 
 device_db_ext = {
 
+    #########################
     # LABRAD Devices
+    #########################
     "aperture": {
         "type": "local",
         "module": "LAX_exp.system.devices_labrad.aperture",
         "class": "Aperture"
     },
-
-
     "camera": {
         "type": "local",
         "module": "LAX_exp.system.devices_labrad.andor_camera",
         "class": "AndorCamera"
     },
-
     "shutters": {
         "type": "local",
         "module": "LAX_exp.system.devices_labrad.shutters",
         "class": "Shutters"
     },
-
     "oven": {
         "type": "local",
         "module": "LAX_exp.system.devices_labrad.oven",
         "class": "Oven"
     },
-
     "trap_dc": {
         "type": "local",
         "module": "LAX_exp.system.devices_labrad.trap_dc",
@@ -35,6 +32,10 @@ device_db_ext = {
 
     },
 
+
+    #########################
+    # Sinara Hardware Devices
+    #########################
     # BEAMS
     "probe": {
         "type": "local",
@@ -62,7 +63,8 @@ device_db_ext = {
         "class": "Beam729"
     },
 
-    # Flipper
+
+    # flipper
     "flipper": {
         "type": "local",
         "module": "LAX_exp.system.devices.flipper",
@@ -87,14 +89,13 @@ device_db_ext = {
         "class": "PhaserEGGS"
     },
 
-    # PMT
+
+    # TTL inputs
     "pmt": {
         "type": "local",
         "module": "LAX_exp.system.devices.pmt",
         "class": "PMTCounter"
     },
-
-    # TTL
     "trigger_line": {
         "type": "local",
         "module": "LAX_exp.system.devices.trigger_line",

@@ -5,8 +5,8 @@ from artiq.experiment import *
 
 class TTLClock(EnvExperiment):
     """
-    TTL Clock
-    Use the DIO-BNC TTLs to create a clock pulse.
+    Tool: TTL Clock
+    Use the DIO-BNC TTLs to create a square-wave clock signal.
     """
 
     def build(self):

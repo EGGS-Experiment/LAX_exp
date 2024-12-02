@@ -435,8 +435,7 @@ class PhaserSet(EnvExperiment):
 
         # send debug triggers
         with parallel:
-            # self.ttl8.off()
-            # self.ttl9.off()
+            pass
 
     @kernel(flags={"fast-math"})
     def phaser_reset(self):

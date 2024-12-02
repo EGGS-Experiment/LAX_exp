@@ -15,8 +15,8 @@ class RPCTimeProfiler(EnvExperiment):
         self.setattr_device("led1")
 
         # get user arguments
-        self.setattr_argument("repetitions",    NumberValue(default=10000, ndecimals=0, step=1000, min=10, max=10000000))
-        self.setattr_argument("time_delay_ms",  NumberValue(default=3, ndecimals=6, step=1, min=1, max=100))
+        self.setattr_argument("repetitions",    NumberValue(default=10000, precision=0, step=1000, min=10, max=10000000))
+        self.setattr_argument("time_delay_ms",  NumberValue(default=3, precision=6, step=1, min=1, max=100))
 
     def prepare(self):
         # convert relevant arguments to machine units
