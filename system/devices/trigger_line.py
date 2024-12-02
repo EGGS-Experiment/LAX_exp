@@ -12,7 +12,7 @@ class TriggerLine(LAXDevice):
     Requires the AC line to already be converted into a TTL signal.
     """
     name = "trigger_line"
-    core_device = ('ttl_input', 'ttl5')
+    core_device = ('ttl_input', 'ttl4')
     kernel_invariants = {
         "time_timeout_mu",
         "time_holdoff_mu"
@@ -20,8 +20,10 @@ class TriggerLine(LAXDevice):
 
     def prepare_device(self):
         # get triggering parameters
-        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=ms)
-        self.time_holdoff_mu = self.get_parameter('time_holdoff_us', group='linetrigger', override=False, conversion_function=seconds_to_mu, units=us)
+        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger',
+                                                  override=False, conversion_function=seconds_to_mu, units=ms)
+        self.time_holdoff_mu = self.get_parameter('time_holdoff_ms', group='linetrigger',
+                                                  override=False, conversion_function=seconds_to_mu, units=ms)
 
     @kernel(flags={"fast-math"})
     def trigger(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
@@ -35,13 +37,17 @@ class TriggerLine(LAXDevice):
                             (int64) : the input time of the trigger signal.
         """
         # wait for line trigger input
-        time_trigger_mu = self.ttl_input.timestamp_mu(self.ttl_input.gate_rising_mu(time_gating_mu))
+        # note: need to do it this way (i.e. manually _set_sensitivity) since gate MUST BE CLOSED before
+        # any edge_counters (i.e. PMT) can do counting - otherwise counts will be silly (nonzero but unrealistic)
+        self.ttl_input._set_sensitivity(1)
+        time_trigger_mu = self.ttl_input.timestamp_mu(now_mu() + time_gating_mu)
 
         # ensure input timestamp is valid
-        if time_trigger_mu > 0:
+        if time_trigger_mu >= 0:
             # set rtio hardware time to input trigger time
             at_mu(time_trigger_mu + time_holdoff_mu)
-            return time_trigger_mu
+            self.ttl_input._set_sensitivity(0)
+            return now_mu()
 
         # reset RTIO if we don't get receive trigger signal for some reason
         else:
