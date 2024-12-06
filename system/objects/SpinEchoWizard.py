@@ -6,6 +6,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
 import matplotlib.pyplot as plt
+# todo: build using a config dict instead of having to set instance attrs directly
 
 
 class SpinEchoWizard(LAXEnvironment):
@@ -14,6 +15,7 @@ class SpinEchoWizard(LAXEnvironment):
 
     Design a spin-echo type pulse sequence for phaser based on user input.
     Output format is designed for Phaser Pulse Shaper object.
+    Does not interact with the core device.
     """
     name = 'Spin Echo Wizard'
     # todo: kernel_invariants
@@ -22,10 +24,9 @@ class SpinEchoWizard(LAXEnvironment):
     #     "_dma_names", "_dma_handles"
     # }
 
-
     def build(self):
         """
-        todo: document
+        Build SpinEchoWizard and create configuration variables.
         """
         # get relevant devices
         self.setattr_device('core')
@@ -40,7 +41,9 @@ class SpinEchoWizard(LAXEnvironment):
 
         '''WAVEFORM CONFIGURATION ARGUMENTS'''
         # waveform block sequence
-        self.time_pulse_us =                200
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
+        self.time_pulse_us = 200
         # self.sequence_blocks = np.array([
         #     [[40., -0.2], [40., 0.2], [20., 0.]],
         #     [[20., -0.2], [20., 0.7], [20., -0.25]],
@@ -67,7 +70,7 @@ class SpinEchoWizard(LAXEnvironment):
 
     def calculate_pulseshape(self) -> TNone:
         """
-        todo: document
+        Calculate desired pulseshape based on configured options.
         """
         '''precalculate timings'''
         # convert pulse times to mu and ensure they are multiples of the phaser sample period (40ns)
@@ -122,17 +125,18 @@ class SpinEchoWizard(LAXEnvironment):
             # calculate erf window
             self.ampl_window_rising = np.array([(1. + erf(x_val)) / 2. for x_val in x_vals_readjusted])
 
+        elif self.type_pulse_shape == 'slepian':
+            pass
+
         else:
             raise Exception('Error: idk, some window problem')
 
         # falling pulse shape should be simple reverse of rising window
         self.ampl_window_falling = self.ampl_window_rising[::-1]
 
-
     def compile_waveform(self):
         """
-        todo: document
-        record waveform as DMA sequence
+        Compile configured waveform for use with PhaserPulseShaper.
         """
         # get shapes of blocks
         num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
@@ -295,8 +299,8 @@ class SpinEchoWizard(LAXEnvironment):
 
     def get_waveform(self):
         """
+        Retrieve the designed waveform.
         todo: annotate return types
-        todo: document
         """
         # note: need to convert ampls from pct to frac
         wav_data_ampl = self._ampl_tmp_arr.transpose() / 100.
@@ -306,7 +310,7 @@ class SpinEchoWizard(LAXEnvironment):
 
     def display_waveform(self):
         """
-        todo: document
+        Display waveform phase and amplitude of each oscillator.
         """
         try:
             # get sequence shape

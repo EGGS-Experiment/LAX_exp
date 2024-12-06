@@ -89,7 +89,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
@@ -188,6 +188,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         _sequence_blocks = np.zeros((2, 3, 2), dtype=float)
 
         # set oscillator amplitudes
@@ -403,7 +405,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1 ms)
+            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()

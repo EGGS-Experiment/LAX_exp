@@ -19,8 +19,7 @@ class PhaserPulseShaper(LAXEnvironment):
         "_dma_names"
     }
 
-
-    def build(self, phase_offsets_turns=np.array([0.,0.,0.,0.,0.])):
+    def build(self, phase_offsets_turns=np.array([0., 0., 0., 0., 0.])):
         # get relevant devices
         self.setattr_device('core')
         self.setattr_device('core_dma')
@@ -38,7 +37,7 @@ class PhaserPulseShaper(LAXEnvironment):
         Prepare relevant values for waveform compilation.
         """
         # set global variables
-        self._max_waveforms =               64
+        self._max_waveforms = 64
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
         # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
@@ -118,7 +117,6 @@ class PhaserPulseShaper(LAXEnvironment):
         # loop over input array (guided by ampl_frac_list)
         for osc_num in range(len(ampl_frac_list)):
             # set outputs for both phaser channels in parallel
-            # todo: account for field geometry & offsets - use phase offset addition
             with parallel:
                 self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(
                     amplitude=ampl_frac_list[osc_num],

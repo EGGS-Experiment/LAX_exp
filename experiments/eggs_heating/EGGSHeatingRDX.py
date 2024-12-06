@@ -21,9 +21,12 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
     """
     name = 'EGGS Heating RDX'
     kernel_invariants = {
-        'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
+        'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_eggs_heating_rsb_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns',
+        'num_configs',
+        # EGGS/phaser related
+        'waveform_index_to_pulseshaper_vals',
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
@@ -96,7 +99,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
@@ -111,6 +114,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
 
     def prepare_experiment(self):
@@ -409,7 +414,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(100000)  # add slack for recording DMA sequences (100 us)
+            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()
