@@ -47,7 +47,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([82.]),
+                                                                                    ExplicitScan([150.]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -83,7 +83,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                             ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",          Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([0.]),
+                                                                                    ExplicitScan([0.372]),
                                                                                     RangeScan(0, 1.0, 21, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
@@ -92,7 +92,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
@@ -224,14 +224,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # set PSK phases on the carrier
         if self.enable_phase_shift_keying:
-            _sequence_blocks[::2, 2, 1] =   0.
-            _sequence_blocks[1::2, 2, 1] =  0.5
+            _sequence_blocks[::2, 2, 1] +=  0.
+            _sequence_blocks[1::2, 2, 1] += 0.5
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
             # update sequence block with rsb phase
-            phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[i]
-            _sequence_blocks[:, 0, 1] = phase_rsb_turns
+            _sequence_blocks[:, 0, 1] += self.phase_eggs_heating_rsb_turns_list[i]
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks

@@ -78,13 +78,12 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
         phase_bsb_update_delay_turns = np.mean(self.freq_eggs_secular_hz_list) * (self.phaser_eggs.t_sample_mu * ns)
-        _sequence_blocks[:, 1, 1] = self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
+        _sequence_blocks[:, 1, 1] += self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
             # update sequence block with rsb phase
-            phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[i]
-            _sequence_blocks[:, 0, 1] = phase_rsb_turns
+            _sequence_blocks[:, 0, 1] += self.phase_eggs_heating_rsb_turns_list[i]
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks
@@ -103,8 +102,8 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # set PSK phases on the carrier
         if self.enable_phase_shift_keying:
-            _sequence_blocks[::2, 0, 1] =   0.
-            _sequence_blocks[1::2, 0, 1] =  0.5
+            _sequence_blocks[::2, 0, 1] +=  0.
+            _sequence_blocks[1::2, 0, 1] += 0.5
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
@@ -120,7 +119,6 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
     '''
     HELPER FUNCTIONS - PHASER
     '''
-
     @kernel(flags={"fast-math"})
     def phaser_record(self) -> TNone:
         """
@@ -186,7 +184,7 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
         # set oscillator 0 (RSB/CH0, Carrier/CH1)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(0)
+            self.phaser_eggs.channel[1].oscillator[0].set_frequency(0.)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # set oscillator 1 (BSB/CH0)
         with parallel:

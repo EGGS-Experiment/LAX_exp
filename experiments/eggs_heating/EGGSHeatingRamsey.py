@@ -200,8 +200,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # set rsb & bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
         phase_bsb_update_delay_turns = np.mean(self.freq_eggs_secular_hz_list) * (self.phaser_eggs.t_sample_mu * ns)
-        _sequence_blocks[:, 0, 1] = self.phase_eggs_heating_rsb_turns
-        _sequence_blocks[:, 1, 1] = self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
+        _sequence_blocks[:, 0, 1] += self.phase_eggs_heating_rsb_turns
+        _sequence_blocks[:, 1, 1] += self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
         # get ramsey phase target so we can Ramsey on different oscillators
         ramsey_osc_target = 0
@@ -216,12 +216,14 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         for i in range(len(self.phase_ramsey_anti_turns_list)):
             # update sequence block with ramsey phase
             phase_ramsey_turns = self.phase_ramsey_anti_turns_list[i]
-            _sequence_blocks[1, ramsey_osc_target, 1] = phase_ramsey_turns
 
             # set phase shift for RSB+BSB case
             if self.target_ramsey_phase == 'RSB+BSB':
-                _sequence_blocks[1, 0, 1] = phase_ramsey_turns
-                _sequence_blocks[1, 1, 1] = phase_ramsey_turns
+                _sequence_blocks[1, 0, 1] += phase_ramsey_turns
+                _sequence_blocks[1, 1, 1] += phase_ramsey_turns
+            # otherwise, set phase for given osc target
+            else:
+                _sequence_blocks[1, ramsey_osc_target, 1] += phase_ramsey_turns
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks

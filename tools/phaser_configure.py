@@ -250,11 +250,12 @@ class PhaserConfigure(EnvExperiment):
 
         # get list of valid phaser devices and set them as arguments
         phaser_device_list = self._get_phaser_devices()
-        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
+        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser1'))
 
         # frequency configuration
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=100., precision=6, step=100, min=-400., max=400.))
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-400., max=400.))
+        # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="N/A"))
 
     def _get_phaser_devices(self):
         """
@@ -287,24 +288,21 @@ class PhaserConfigure(EnvExperiment):
         elif (self.freq_nco_mhz > 300.) or (self.freq_nco_mhz < -300.):
             print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
 
-        # create DAC configuration & override
-        # self.configure_dac_mmap = DAC34H84(DAC_CONFIG_302_MHZ).get_mmap()
-        self.configure_dac_mmap = DAC34H84(DAC_CONFIG_781_MHZ).get_mmap()
-        self.phaser.dac_mmap = self.configure_dac_mmap
-
-        # set up TRF configuration
+        # set up TRF and DAC configuration
         if self.freq_trf_mhz == "N/A":
             self.configure_trf = False
+            self.phaser.dac_mmap = DAC34H84().get_mmap()
         else:
-            # create TRF configuration objects and get mmap
-            # override phaser object's trf_mmap for correct operation later on
+            # override phaser object's trf_mmap and dac_mmap for correct operation later on
             self.configure_trf = True
             if self.freq_trf_mhz == "781.251239":
                 self.phaser.channel[0].trf_mmap = TRF372017(TRF_CONFIG_781_MHZ_CH0).get_mmap()
                 self.phaser.channel[1].trf_mmap = TRF372017(TRF_CONFIG_781_MHZ_CH1).get_mmap()
+                self.phaser.dac_mmap = DAC34H84(DAC_CONFIG_781_MHZ).get_mmap()
             elif self.freq_trf_mhz == "302.083853":
                 self.phaser.channel[0].trf_mmap = TRF372017(TRF_CONFIG_302_MHZ_CH0).get_mmap()
                 self.phaser.channel[1].trf_mmap = TRF372017(TRF_CONFIG_302_MHZ_CH1).get_mmap()
+                self.phaser.dac_mmap = DAC34H84(DAC_CONFIG_302_MHZ).get_mmap()
             else:
                 raise Exception("Invalid TRF frequency.")
 
