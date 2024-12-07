@@ -32,7 +32,6 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
-
     def prepare_experiment(self):
         # convert relevant timings to machine units
         self.time_slack_us =        2
