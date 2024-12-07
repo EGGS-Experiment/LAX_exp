@@ -7,6 +7,9 @@ import skimage
 from artiq.language.units import *
 
 from matplotlib import pyplot as plt
+from PIL import Image
+import PIL
+import pandas as pd
 
 class CameraTest(LAXExperiment, Experiment):
     """
@@ -64,68 +67,48 @@ class CameraTest(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
 
-
         self.core.break_realtime()
         self.camera.set_image_region(self.image_region)
         self.core.break_realtime()
 
-
-    @kernel(flags={"fast-math"})
     def run_main(self):
 
-        self.core.break_realtime()
-        self.camera.continually_acquire_images()
-        delay(5*s)
-        self.core.break_realtime()
-        data = self.camera.get_all_acquired_images()
-        self.reshape_image(data)
-
-
-
-        # self.camera.acquire_single_image()
-        # image = self.camera.get_most_recent_image()
-        # num_ions = self.show_ions(image)
-        # print(num_ions)
-
-
-
+        for i in range(50):
+            image_arr = self.camera.get_most_recent_image()
+            self.show_ions(data, i)
 
     # ANALYSIS
     def analyze_experiment(self):
         pass
 
     @rpc
-    def reshape_image(self, image):
-        print(np.shape(np.reshape(image, (-1, self.image_width_pixels, self.image_width_pixels))))
-
-    @rpc
-    def show_ions(self, data) -> TInt32:
+    def show_ions(self, data, i) -> TInt32:
 
         data = np.reshape(data, (self.image_width_pixels, self.image_height_pixels))
 
         plt.figure(1)
-        plt.title("Original Image")
-        plt.imshow(data)
-        plt.savefig("Z:\motion\Pictures\original.png")
 
-        upper_percentile = np.percentile(data, 99)
-        data[data < upper_percentile] = 0
-        data[data >= upper_percentile] = 1
+        data = pd.DataFrame(data)
+        data.to_csv(f"Z:\motion\Pictures\original_{i}.csv")
+        # image = Image.fromarray(data)
+        # image.save("Z:\motion\Pictures\original.png")
 
-        kernel = np.ones((2, 2), np.uint8)
-        for i in range(3):
-            data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
+        # upper_percentile = np.percentile(data, 99)
+        # data[data < upper_percentile] = 0
+        # data[data >= upper_percentile] = 1
+        #
+        # kernel = np.ones((2, 2), np.uint8)
+        # for i in range(3):
+        #     data = np.uint8(skimage.morphology.binary_erosion(data, kernel))
+        #
+        # for i in range(3):
+        #     data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
 
-        for i in range(3):
-            data = np.uint8(skimage.morphology.binary_dilation(data, kernel))
-
-        data[data > 0] = 1
-        labels = measure.label(data)
-        plt.figure(2)
-        plt.imshow(data)
-        plt.title("Manipulated Image")
-        plt.savefig("Z:\motion\Pictures\manipulated.png")
-        return len(np.unique(labels)) - 1
+        # data[data > 0] = 1
+        # labels = measure.label(data)
+        # image = Image.fromarray(data)
+        # image.save("Z:\motion\Pictures\manipulated.png")
+        # return len(np.unique(labels)) - 1
 
 
 
