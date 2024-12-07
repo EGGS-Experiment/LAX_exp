@@ -19,9 +19,9 @@ class ReadoutBackgroundSubtract(LAXSubsequence):
 
     def build_subsequence(self):
         # sampling
-        self.setattr_argument('time_sample_us',                 NumberValue(default=3000, ndecimals=1, step=500, min=100, max=100000), group='sampling')
-        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, ndecimals=0, step=10, min=1, max=100), group='sampling')
-        self.setattr_argument('background_samples_per_point',   NumberValue(default=5, ndecimals=0, step=2, min=1, max=100), group='sampling')
+        self.setattr_argument('time_sample_us',                 NumberValue(default=3000, precision=1, step=500, min=100, max=100000), group='sampling')
+        self.setattr_argument('signal_samples_per_point',       NumberValue(default=20, precision=0, step=10, min=1, max=100), group='sampling')
+        self.setattr_argument('background_samples_per_point',   NumberValue(default=5, precision=0, step=2, min=1, max=100), group='sampling')
 
         # relevant devices
         self.setattr_device('pump')

@@ -27,15 +27,15 @@ class TickleFastDDS(LAXSubsequence):
     }
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
+        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='ticklefast')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
         self.dds_ch1 = self.get_device('urukul1_ch3')
 
         # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_subsequence(self):
@@ -53,8 +53,8 @@ class TickleFastDDS(LAXSubsequence):
 
         # set empty variables for phase to compensate for ch0 & ch1 delays
         self.phase_ch1_inherent_turns =     0.
-        self.phase_ch1_latency_turns =      np.float(0)
-        self.phase_ch1_delay_turns =        np.float(0)
+        self.phase_ch1_latency_turns =      float(0)
+        self.phase_ch1_delay_turns =        float(0)
         self.phase_ch1_final_pow =          np.int32(0)
 
         # set parameter for DDS preparation latency before we can
@@ -62,7 +62,7 @@ class TickleFastDDS(LAXSubsequence):
         self.time_system_cleanup_delay_mu = np.int64(420)
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set up DDSs for output
         with parallel:
             self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
@@ -72,8 +72,8 @@ class TickleFastDDS(LAXSubsequence):
             self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
 
             # tmp remove
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
             # tmp remove
         self.core.break_realtime()
 
@@ -81,9 +81,8 @@ class TickleFastDDS(LAXSubsequence):
             self.dds_ch0.set_cfr2(matched_latency_enable=1)
             self.dds_ch1.set_cfr2(matched_latency_enable=1)
 
-
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         time_start_mu = now_mu() & ~0x7
 
         # enable output switches and set initial profile
@@ -99,7 +98,7 @@ class TickleFastDDS(LAXSubsequence):
 
         # tmp remove
         at_mu(time_start_mu + self.time_system_prepare_delay_mu + 475)
-        self.ttl8.on()
+        # self.ttl8.on()
         # at_mu(time_start_mu + self.time_system_prepare_delay_mu + self.time_delay_mu + 475)
         # tmp remove
         # self.ttl9.on()
@@ -109,7 +108,7 @@ class TickleFastDDS(LAXSubsequence):
         self._set_cpld_profile_switch_off()
 
     @kernel(flags={"fast-math"})
-    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64):
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64) -> TNone:
         # store timings
         time_delay_tmp_mu =                 time_delay_mu & ~0x7
         self.time_delay_mu =                time_delay_mu
@@ -139,7 +138,7 @@ class TickleFastDDS(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel
-    def _set_cpld_profile_switch_on(self):
+    def _set_cpld_profile_switch_on(self) -> TNone:
         with parallel:
             with sequential:
                 cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~(7 << CFG_PROFILE)) | ((1 << 3) | (0 << CFG_PROFILE))
@@ -150,7 +149,7 @@ class TickleFastDDS(LAXSubsequence):
                 self.dds_ch1.cpld.cfg_write(cfg1)
 
     @kernel
-    def _set_cpld_profile_switch_off(self):
+    def _set_cpld_profile_switch_off(self) -> TNone:
         with parallel:
             with sequential:
                 cfg0 = ((self.dds_ch0.cpld.cfg_reg) & ~((7 << CFG_PROFILE) | (1 << 3))) | (0 << CFG_PROFILE)
@@ -163,8 +162,8 @@ class TickleFastDDS(LAXSubsequence):
             # tmp remove
             with sequential:
                 delay_mu(100)
-                self.ttl8.off()
-                self.ttl9.off()
+                # self.ttl8.off()
+                # self.ttl9.off()
             # tmp remove
 
     def analyze(self):

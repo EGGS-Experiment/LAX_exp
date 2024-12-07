@@ -15,7 +15,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
     Assumes that the relevant devices have already been initialized.
 
     Attributes:
-        name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
+        name    str: the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
     name = None
@@ -53,9 +53,9 @@ class LAXSubsequence(LAXEnvironment, ABC):
         self._build_arguments = kwargs
 
         # set instance variables
-        setattr(self,   'dma_name',                 '{:s}_{:d}'.format(self.name, self._dma_count))
-        setattr(self,   'dma_handle',               (0, int64(0), int32(0)))
-        setattr(self,   '_dma_record_flag',         False)
+        setattr(self,   'dma_name',         '{:s}_{:d}'.format(self.name, self._dma_count))
+        setattr(self,   'dma_handle',       (0, int64(0), int32(0), False))
+        setattr(self,   '_dma_record_flag', False)
 
         # call user-defined build function
         self.build_subsequence()
@@ -102,7 +102,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
     '''
 
     @kernel(flags={"fast-math"})
-    def record_dma(self):
+    def record_dma(self) -> TNone:
         """
         Records the run subsequence onto core DMA and sets the trace name as an instance attribute.
         """
@@ -115,12 +115,12 @@ class LAXSubsequence(LAXEnvironment, ABC):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def _load_dma(self):
+    def _load_dma(self) -> TNone:
         if self._dma_record_flag is True:
             self.dma_handle = self.core_dma.get_handle(self.dma_name)
 
     @kernel(flags={"fast-math"})
-    def run_dma(self):
+    def run_dma(self) -> TNone:
         """
         Runs the core sequence from DMA.
         Requires record_dma to have been previously run.
@@ -133,12 +133,14 @@ class LAXSubsequence(LAXEnvironment, ABC):
     '''
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         """
         To be subclassed.
+        Cannot return any values.
 
-        todo: document
-        note: don't initialize devices here, otherwise lots of redundancy and overhead
+        Used to initialize relevant ARTIQ hardware before an experiment.
+        An "initialize" block is necessary since hardware functions cannot be called in "prepare" methods.
+        Note: don't call initialize_device on LAXDevices here, since an LAXExperiment will call initialize_device by itself.
         """
         pass
 
@@ -150,5 +152,17 @@ class LAXSubsequence(LAXEnvironment, ABC):
         Runs a fixed, unchangeable pulse sequence from core DMA.
         Must have the kernel decorator.
         Since subsequences use core DMA, it cannot contain any methods involving RTIO input.
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def cleanup_subsequence(self) -> TNone:
+        """
+        To be subclassed.
+        Cannot return any values.
+
+        Used to clean up relevant ARTIQ hardware after an experiment.
+        This allows the system to return to a safe state following an experiment.
+        Note: don't cleanup devices here, since an LAXExperiment will call cleanup_device by itself.
         """
         pass

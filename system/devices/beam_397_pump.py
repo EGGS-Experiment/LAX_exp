@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.urukul import DEFAULT_PROFILE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
@@ -16,15 +17,16 @@ class Beam397Pump(LAXDevice):
         'rf_switch':    'ttl12'
     }
     kernel_invariants = {
-        "freq_cooling_ftw",
-        "freq_readout_ftw",
-        "freq_rescue_ftw",
-        "ampl_cooling_asf",
-        "ampl_readout_asf",
-        "ampl_rescue_asf"
+        "sw", "cpld",
+        "freq_cooling_ftw", "freq_readout_ftw", "freq_rescue_ftw",
+        "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf"
     }
 
     def prepare_device(self):
+        # re-alias relevant base devices
+        self.sw =   self.beam.sw
+        self.cpld = self.beam.cpld
+
         # get frequency parameters
         self.freq_cooling_ftw =     self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
         self.freq_readout_ftw =     self.get_parameter('freq_pump_readout_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
@@ -36,7 +38,7 @@ class Beam397Pump(LAXDevice):
         self.ampl_rescue_asf =      self.get_parameter('ampl_pump_rescue_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         # set waveforms for cooling, readout, and rescue
         self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
@@ -48,12 +50,19 @@ class Beam397Pump(LAXDevice):
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3)
         self.core.break_realtime()
 
+    @kernel(flags={"fast-math"})
+    def cleanup_device(self) -> TNone:
+        # set default profile on CPLD
+        self.core.break_realtime()
+        self.set_profile(DEFAULT_PROFILE)
+        self.on()
+
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
-            self.beam.sw.on()
+            self.sw.on()
 
             # enable external RF switch
             with sequential:
@@ -61,10 +70,10 @@ class Beam397Pump(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
-            self.beam.sw.off()
+            self.sw.off()
 
             # disable external RF switch
             with sequential:
@@ -72,33 +81,33 @@ class Beam397Pump(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def cooling(self):
+    def cooling(self) -> TNone:
         """
-        Set cooling profile
+        Set cooling profile.
         todo: document
         """
-        self.beam.cpld.set_profile(0)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(0)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def readout(self):
+    def readout(self) -> TNone:
         """
-        Set readout profile
+        Set readout profile.
         todo: document
         """
-        self.beam.cpld.set_profile(1)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(1)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def rescue(self):
+    def rescue(self) -> TNone:
         """
-        Set rescue profile
+        Set rescue profile.
         todo: document
         """
-        self.beam.cpld.set_profile(2)
-        self.beam.cpld.io_update.pulse_mu(8)
+        self.cpld.set_profile(2)
+        self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num: TInt32):
-        self.beam.cpld.set_profile(profile_num)
-        self.beam.cpld.io_update.pulse_mu(8)
+    def set_profile(self, profile_num: TInt32) -> TNone:
+        self.cpld.set_profile(profile_num)
+        self.cpld.io_update.pulse_mu(8)

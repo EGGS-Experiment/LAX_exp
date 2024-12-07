@@ -25,14 +25,14 @@ class QubitAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s',           NumberValue(default=500, ndecimals=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=20, ndecimals=0, step=10, min=15, max=500), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=500, precision=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('samples_per_point',      NumberValue(default=20, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
-        self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, ndecimals=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.0069, ndecimals=5, step=1, min=1, max=10000), group='qubit')
-        self.setattr_argument("att_qubit_db",           NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='qubit')
-        self.setattr_argument('counts_threshold',       NumberValue(default=80, ndecimals=0, step=10, min=1, max=1000), group='qubit')
+        self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, precision=3, step=10, min=0.1, max=100000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.0069, precision=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument("att_qubit_db",           NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
+        self.setattr_argument('counts_threshold',       NumberValue(default=80, precision=0, step=10, min=1, max=1000), group='qubit')
 
 
         # instantiate subsequences

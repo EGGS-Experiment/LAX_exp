@@ -21,12 +21,12 @@ class SqueezeConfigurable(LAXSubsequence):
     def build_subsequence(self):
         self.setattr_argument("enable_squeezing",           BooleanValue(default=False), group=self.name)
         self.setattr_argument("enable_antisqueezing",       BooleanValue(default=False), group=self.name)
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=31.5, ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('att_squeeze_db',             NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
@@ -52,7 +52,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def squeeze(self):
+    def squeeze(self) -> TNone:
         # set blank output waveform
         self.dds_parametric.set_profile(2)
 
@@ -79,7 +79,7 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               + 20)
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # squeeze for given time
         # note: turn off switch early to account for switch rise time
@@ -88,14 +88,13 @@ class SqueezeConfigurable(LAXSubsequence):
 
         # send debug trigger after switch has fully closed
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
-        self.ttl8.off()
+        # self.ttl8.off()
 
         # unset phase_autoclear to keep output coherent
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
 
-
     @kernel(flags={"fast-math"})
-    def antisqueeze(self):
+    def antisqueeze(self) -> TNone:
         # unset phase_autoclear to keep output coherent
         # and ensure set_sine_output flag remains set
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
@@ -119,7 +118,7 @@ class SqueezeConfigurable(LAXSubsequence):
         at_mu(time_start_mu
               + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU)
               + 20)
-        self.ttl9.on()
+        # self.ttl9.on()
 
         # squeeze for given time
         # note: turn off switch early to account for switch rise time
@@ -128,7 +127,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
         # send debug trigger after switch has fully closed
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
-        self.ttl9.off()
+        # self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_mu: TInt64) -> TInt64:
@@ -167,5 +166,5 @@ class SqueezeConfigurable(LAXSubsequence):
         return self.time_squeeze_mu
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         pass

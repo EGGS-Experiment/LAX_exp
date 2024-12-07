@@ -42,16 +42,16 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
-        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, ndecimals=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=7000, ndecimals=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
-        self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=35.4, ndecimals=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
+        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, precision=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=7000, precision=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
+        self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=35.4, precision=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({101.1350: 100}), group='sideband_cooling.continuous')
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({100.8548: 100}), group='sideband_cooling.continuous')
 
         # sideband cooling powers
-        self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, ndecimals=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=2.4, ndecimals=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
+        self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
+        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=2.4, precision=2, step=1, min=0.1, max=50),    group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
@@ -125,7 +125,7 @@ class SidebandCoolContinuous(LAXSubsequence):
         # # tmp remove
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # set quench waveform
         self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
 
@@ -141,7 +141,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def _calibrate_quench_power(self):
+    def _calibrate_quench_power(self) -> TNone:
         """
         Calibrate qubit repump (854nm) power for quenching SBC.
         Reads in the red/IR photodiode via the sampler.
@@ -169,7 +169,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling profiles for regular beams

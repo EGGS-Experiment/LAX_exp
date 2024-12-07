@@ -16,16 +16,21 @@ class Beam854(LAXDevice):
         'rf_switch':    'ttl13'
     }
     kernel_invariants = {
-        "freq_repump_qubit_ftw",
-        "ampl_repump_qubit_asf"
+        "cpld", "sw",
+        "freq_repump_qubit_ftw", "ampl_repump_qubit_asf"
     }
 
     def prepare_device(self):
+        # re-alias relevant base devices
+        self.sw =   self.beam.sw
+        self.cpld = self.beam.cpld
+
+        # get beam parameters
         self.freq_repump_qubit_ftw = self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
         self.ampl_repump_qubit_asf = self.get_parameter('ampl_repump_qubit_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0)
         self.core.break_realtime()
@@ -35,10 +40,15 @@ class Beam854(LAXDevice):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def on(self):
+    def cleanup_device(self) -> TNone:
+        self.core.break_realtime()
+        self.on()
+
+    @kernel(flags={"fast-math"})
+    def on(self) -> TNone:
         with parallel:
             # enable RF switch onboard Urukul
-            self.beam.sw.on()
+            self.sw.on()
 
             # enable external RF switch
             with sequential:
@@ -46,10 +56,10 @@ class Beam854(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def off(self):
+    def off(self) -> TNone:
         with parallel:
             # disable RF switch onboard Urukul
-            self.beam.sw.off()
+            self.sw.off()
 
             # disable external RF switch
             with sequential:
@@ -57,7 +67,7 @@ class Beam854(LAXDevice):
                 delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
-    def set_profile(self, profile_num: TInt32):
-        self.beam.cpld.set_profile(profile_num)
-        self.beam.cpld.io_update.pulse_mu(8)
+    def set_profile(self, profile_num: TInt32) -> TNone:
+        self.cpld.set_profile(profile_num)
+        self.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_AD9910_PROFILE_SWITCH_DELAY_MU)

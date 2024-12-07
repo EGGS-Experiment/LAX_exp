@@ -15,12 +15,12 @@ class FastinoTMP1(EnvExperiment):
         self.setattr_device("fastino0")
 
         # arguments
-        self.setattr_argument("channel", NumberValue(default=0, ndecimals=0, step=1, min=0, max=32))
-        self.setattr_argument("voltage", NumberValue(default=0, ndecimals=3, step=1, min=-10, max=10))
+        self.setattr_argument("channel", NumberValue(default=0, precision=0, step=1, min=0, max=32))
+        self.setattr_argument("voltage", NumberValue(default=0, precision=3, step=1, min=-10, max=10))
 
     def prepare(self):
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         self.setattr_device('phaser0')
 
         self.time_pulse_ms =            1000
@@ -40,8 +40,8 @@ class FastinoTMP1(EnvExperiment):
 
         # set up devices
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
             self.fastino0.set_continuous(0x00)
         self.core.break_realtime()
 
@@ -56,7 +56,7 @@ class FastinoTMP1(EnvExperiment):
         with parallel:
             with sequential:
                 delay_mu(2700)
-                self.ttl8.on()
+                # self.ttl8.on()
             self.core_dma.playback_handle(handle_rise_dma)
 
         delay_mu(self.time_pulse_mu)
@@ -67,8 +67,9 @@ class FastinoTMP1(EnvExperiment):
         self.core.break_realtime()
         self.fastino0.set_dac(self.channel, 0.)
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
+            delay_mu(8)
 
     @kernel(flags={"fast-math"})
     def record_dma(self):

@@ -22,16 +22,17 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     name = 'EGGS Heating Ramsey'
     kernel_invariants = {
         'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
-        'time_rf_servo_holdoff_mu', 'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
-        'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns'
+        'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
+        'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns',
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
-
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=100, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
         # get subsequences
         self.initialize_subsequence =                                       InitializeQubit(self)
@@ -47,7 +48,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                                unit="MHz", scale=1, precision=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
@@ -56,7 +57,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
-                                                                                unit="kHz", scale=1, ndecimals=3
+                                                                                unit="kHz", scale=1, precision=3
                                                                             ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
@@ -66,51 +67,48 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                                     RangeScan(0, 1500, 100, randomize=True),
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
+                                                                                unit="us", scale=1, precision=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=100, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
+        self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),
                                                                                     RangeScan(0, 1.0, 21, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
-                                                                                unit="turns", scale=1, ndecimals=3
+                                                                                unit="turns", scale=1, precision=3
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=5., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - Ramsey
         self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
-        self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, ndecimals=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
+        self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
         self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='Carrier'), group='EGGS_Heating.ramsey')
-        self.setattr_argument("phase_ramsey_anti_turns_list",          Scannable(
+        self.setattr_argument("phase_ramsey_anti_turns_list",               Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0., 0.5]),
                                                                                     RangeScan(0, 1.0, 11, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
-                                                                                unit="turns", scale=1, ndecimals=3
+                                                                                unit="turns", scale=1, precision=3
                                                                             ), group='EGGS_Heating.ramsey')
 
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
-        self.setattr_device('ttl10')
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
@@ -122,16 +120,14 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         """
         '''SUBSEQUENCE PARAMETERS'''
         # get readout values
-        self.freq_sideband_readout_ftw_list =                   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-        self.time_readout_mu_list =                             np.array([self.core.seconds_to_mu(time_us * us)
-                                                                          for time_us in self.time_readout_us_list])
-
-        '''EGGS HEATING - TIMING'''
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu =                         self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
-                                                                                   conversion_function=us_to_mu)
+        self.freq_sideband_readout_ftw_list =   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+        self.time_readout_mu_list =             np.array([self.core.seconds_to_mu(time_us * us)
+                                                          for time_us in self.time_readout_us_list])
 
         '''EGGS HEATING - CONFIG'''
+        # convert attenuation from dB to machine units
+        self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
+
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_eggs_carrier_hz_list =                        np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list =                        np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
@@ -160,14 +156,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                          -1).reshape(-1, 6)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
-        if self.randomize_config:                               np.random.shuffle(self.config_eggs_heating_list)
-
+        if self.randomize_config: np.random.shuffle(self.config_eggs_heating_list)
         # precalculate length of configuration list here to reduce run-time overhead
         self.num_configs = len(self.config_eggs_heating_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -194,6 +188,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         _sequence_blocks = np.zeros((2, 3, 2), dtype=float)
 
         # set oscillator amplitudes
@@ -204,8 +200,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # set rsb & bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
         phase_bsb_update_delay_turns = np.mean(self.freq_eggs_secular_hz_list) * (self.phaser_eggs.t_sample_mu * ns)
-        _sequence_blocks[:, 0, 1] = self.phase_eggs_heating_rsb_turns
-        _sequence_blocks[:, 1, 1] = self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
+        _sequence_blocks[:, 0, 1] += self.phase_eggs_heating_rsb_turns
+        _sequence_blocks[:, 1, 1] += self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
         # get ramsey phase target so we can Ramsey on different oscillators
         ramsey_osc_target = 0
@@ -216,17 +212,18 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         elif self.target_ramsey_phase == 'Carrier':
             ramsey_osc_target = 2
 
-
         # record EGGS pulse waveforms
         for i in range(len(self.phase_ramsey_anti_turns_list)):
             # update sequence block with ramsey phase
             phase_ramsey_turns = self.phase_ramsey_anti_turns_list[i]
-            _sequence_blocks[1, ramsey_osc_target, 1] = phase_ramsey_turns
 
             # set phase shift for RSB+BSB case
             if self.target_ramsey_phase == 'RSB+BSB':
-                _sequence_blocks[1, 0, 1] = phase_ramsey_turns
-                _sequence_blocks[1, 1, 1] = phase_ramsey_turns
+                _sequence_blocks[1, 0, 1] += phase_ramsey_turns
+                _sequence_blocks[1, 1, 1] += phase_ramsey_turns
+            # otherwise, set phase for given osc target
+            else:
+                _sequence_blocks[1, ramsey_osc_target, 1] += phase_ramsey_turns
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks
@@ -265,20 +262,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(31.5 * dB)
+        self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(31.5 * dB)
-
-        # ensure INT HOLD on RF servo is deactivated
-        self.ttl10.off()
-
-        # reset debug triggers
-        self.ttl8.off()
-        self.ttl9.off()
-
+        self.phaser_eggs.channel[1].set_att_mu(0x00)
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # load waveform DMA handles
@@ -287,16 +276,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # used to check_termination more frequently
         _loop_iter = 0
-
-        # tmp remove
-        # set phaser attenuators here to prevent turn on glitch (problematic when cables direct to trap)
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-        self.core.break_realtime()
-        # tmp remove
-
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -344,17 +323,16 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 counts = self.readout_subsequence.fetch_count()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_readout_ftw,
-                        counts,
-                        carrier_freq_hz,
-                        sideband_freq_hz,
-                        phase_ramsey_turns,
-                        phase_ch1_turns,
-                        time_readout_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_ramsey_turns,
+                    phase_ch1_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
                 # resuscitate ion
@@ -390,8 +368,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        self.ttl10.off()
 
 
     '''
@@ -405,39 +381,17 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             waveform_id     (TInt32)    : the ID of the waveform to run.
         """
         # EGGS - START/SETUP
-        # activate integrator hold
-        self.ttl10.on()
-
-        # # set phaser attenuators - warning creates turn on glitch
-        # at_mu(self.phaser_eggs.get_next_frame_mu())
-        # self.phaser_eggs.channel[0].set_att(self.att_eggs_heating_db * dB)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # self.phaser_eggs.channel[1].set_att(self.att_eggs_heating_db * dB)
-
-        # tmp remove
-        # add delay time after integrator hold to reduce effect of turn-on glitches
-        delay_mu(self.time_rf_servo_holdoff_mu)
-        # tmp remove
+        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu)
 
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
-        with parallel:
-            # activate debug TTLs
-            self.ttl8.on()
-
-            # play recorded waveform
-            self.pulse_shaper.waveform_playback(waveform_id)
+        self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
-        # stop all oscillators (doesn't unset attenuators)
+        # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
+        # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
-        # deactivate integrator hold
-        self.ttl10.off()
-        # stop debug TTLs
-        self.ttl8.off()
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_rf_servo_holdoff_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_record(self) -> TNone:
@@ -453,7 +407,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1 ms)
+            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()
@@ -517,7 +471,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     '''
     ANALYSIS
     '''
-    def analyze(self):
+    def analyze_experiment(self):
         # should be backward-compatible with experiment which had no sub-repetitions
         try:
             sub_reps = self.sub_repetitions
@@ -533,11 +487,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             dataset = np.array(self.results)
 
             ## determine scan type
-            # carrier sweep
-            if len(np.unique(dataset[:, 2])) > 1:       sorting_col_num = 2
-            # secular frequency
-            elif len(np.unique(dataset[:, 3])) > 1:     sorting_col_num = 3
-            else:                                       sorting_col_num = 0
+            col_unique_vals = np.array([len(set(col)) for col in dataset.transpose()])
+            # convert unique count to dataset index and order in decreasing value (excluding PMT counts)
+            if np.argsort(-col_unique_vals)[0] != 1:
+                sorting_col_num = np.argsort(-col_unique_vals)[0]
+            else:
+                sorting_col_num = np.argsort(-col_unique_vals)[1]
 
             ## convert results to sideband ratio
             ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
@@ -564,9 +519,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 # print results to log
                 print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
 
-
             ## process sideband readout sweep
-            else:
+            elif sorting_col_num == 0:
                 rsb_freqs_MHz, bsb_freqs_MHz, _ =       extract_sidebands_freqs(scanning_freq_MHz)
                 fit_params_rsb, fit_err_rsb, fit_rsb =  fitSincGeneric(rsb_freqs_MHz, ave_rsb)
                 fit_params_bsb, fit_err_bsb, fit_bsb =  fitSincGeneric(bsb_freqs_MHz, ave_bsb)
@@ -588,6 +542,11 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 # print results to log
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+
+            ## process carrier sweep
+            elif sorting_col_num == 2:
+                # todo: get RSB, BSB, and phonon means
+                pass
 
         except Exception as e:
             print("Warning: unable to process data.")

@@ -23,9 +23,9 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=2, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=40, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config", BooleanValue(default=False))
-        self.setattr_argument("sub_repetitions", NumberValue(default=2, ndecimals=0, step=1, min=1, max=500))
+        self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
         # # get subsequences
         self.initialize_subsequence = InitializeQubit(self)
@@ -39,108 +39,109 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                               group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_mhz_list_0", Scannable(
             default=[
-                RangeScan(81, 82, 25, randomize=False),
-                ExplicitScan([3.]),
-                ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),],
-            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, ndecimals=6
+                # RangeScan(81, 82, 25, randomize=False),
+                # RangeScan(81, 82, 25, randomize=False),
+                # ExplicitScan([77.79]),
+                # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                CenterScan(77.79, 0.01, 0.0005, randomize=True),],
+            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_mhz_list_1", Scannable(
             default=[
-                RangeScan(83, 84, 12, randomize=False),
-                ExplicitScan([3.]),
-                ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),],
-            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, ndecimals=6
+                # RangeScan(83, 84, 12, randomize=False),
+                # ExplicitScan([82.19]),
+                # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                CenterScan(82.19, 0.01, 0.0005, randomize=True), ],
+            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_mhz_list_2", Scannable(
             default=[
-                RangeScan(85, 86, 10, randomize=False),
-                ExplicitScan([3.]),
-                ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),],
-            global_min=0.005, global_max=4800, global_step=1,unit="MHz", scale=1, ndecimals=6
+                # RangeScan(85, 86, 10, randomize=False),
+                # ExplicitScan([86.75]),
+                # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                CenterScan(86.75, 0.01, 0.0005, randomize=True), ],
+            global_min=0.005, global_max=4800, global_step=1,unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
 
         self.setattr_argument("freq_eggs_heating_mhz_list_3", Scannable(
             default=[
-                RangeScan(87, 88, 10, randomize=False),
-                ExplicitScan([3.]),
-                ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),],
-            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, ndecimals=6
+                # RangeScan(87, 88, 10, randomize=False),
+                # ExplicitScan([83.08]),
+                # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                CenterScan(83.08, 0.01, 0.0005, randomize=True), ],
+            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
 
         self.setattr_argument("freq_eggs_heating_mhz_list_4", Scannable(
             default=[
-                RangeScan(89, 90, 10, randomize=False),
-                ExplicitScan([3.]),
-                ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),],
-            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, ndecimals=6
+                # RangeScan(89, 90, 10, randomize=False),
+                # ExplicitScan([83.58]),
+                # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
+                CenterScan(83.58, 0.01, 0.0005, randomize=True), ],
+            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
 
         self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
             default=[
-                ExplicitScan([777.5]),
+                ExplicitScan([1280.]),
                 CenterScan(777.5, 4, 0.1, randomize=True),
                 ExplicitScan([767.2, 319.2, 1582, 3182]),],
-            global_min=0, global_max=10000, global_step=1, unit="kHz", scale=1, ndecimals=3
+            global_min=0, global_max=10000, global_step=1, unit="kHz", scale=1, precision=3
         ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list", Scannable(
             default=[
-                ExplicitScan([98.8]),
+                ExplicitScan([132.289]),
                 RangeScan(0, 1500, 100, randomize=True), ],
-            global_min=1, global_max=100000, global_step=1, unit="us", scale=1, ndecimals=5
+            global_min=1, global_max=100000, global_step=1, unit="us", scale=1, precision=5
         ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("time_eggs_heating_ms",
-                              NumberValue(default=100.0, ndecimals=5, step=1, min=0.000001, max=100000),
+                              NumberValue(default=1000.0, precision=5, step=1, min=0.000001, max=100000),
                               group='EGGS_Heating.waveform.time_phase')
 
         self.setattr_argument("phase_eggs_heating_turns_list", Scannable(
             default=[
                 ExplicitScan([0.]),
                 RangeScan(0, 1.0, 9, randomize=True),],
-            global_min=0.0, global_max=1.0, global_step=1, unit="turns", scale=1, ndecimals=3
+            global_min=0.0, global_max=1.0, global_step=1, unit="turns", scale=1, precision=3
         ), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("enable_amplitude_calibration", BooleanValue(default=True),
+        self.setattr_argument("enable_amplitude_calibration", BooleanValue(default=False),
                               group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db", NumberValue(default=16., ndecimals=1, step=0.5, min=0, max=31.5),
+        self.setattr_argument("att_eggs_heating_db", NumberValue(default=6., precision=1, step=0.5, min=0, max=31.5),
                               group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_tone_pct_0",
-                              NumberValue(default=12., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=15., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
 
         self.setattr_argument("ampl_eggs_heating_tone_pct_1",
-                              NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=15., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
 
         self.setattr_argument("ampl_eggs_heating_tone_pct_2",
-                              NumberValue(default=24., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=15., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
 
         self.setattr_argument("ampl_eggs_heating_tone_pct_3",
-                              NumberValue(default=16., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=15., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
 
         self.setattr_argument("ampl_eggs_heating_tone_pct_4",
-                              NumberValue(default=18., ndecimals=2, step=10, min=0.0, max=99),
+                              NumberValue(default=15., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",
                               EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'),
                               group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",
-                              NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000),
+                              NumberValue(default=200, precision=1, step=100, min=10, max=100000),
                               group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",
-                              NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000),
+                              NumberValue(default=500, precision=0, step=100, min=100, max=2000),
                               group='EGGS_Heating.pulse_shaping')
 
         # get relevant devices
@@ -162,7 +163,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             self.ampl_eggs_heating_tone_pct_3 + self.ampl_eggs_heating_tone_pct_4) > 99.:
             raise Exception("Total Amplitude Should not Exceed 99%")
 
-        # find the frequency scan with the most number of ponints
+        # find the frequency scan with the most number of points
         max_freq_length = np.max((len(self.freq_eggs_heating_mhz_list_0), len(self.freq_eggs_heating_mhz_list_1),
                                   len(self.freq_eggs_heating_mhz_list_2),
                                   len(self.freq_eggs_heating_mhz_list_3), len(self.freq_eggs_heating_mhz_list_4)))
@@ -214,6 +215,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                                                   len(self.phase_eggs_heating_turns_list) *
                                                   len(self.time_readout_mu_list),
                                                   14), dtype=float)
+
 
         # pad frequency ranges that are shorter than the longest frequency range with zeros to ensure equal length
         self.freq_eggs_heating_mhz_list_0_padded = np.append(freq_eggs_heating_mhz_list_0,

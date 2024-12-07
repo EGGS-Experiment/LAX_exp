@@ -13,13 +13,12 @@ class DopplerRecooling(LAXSubsequence):
     """
     name = 'doppler_recooling'
     kernel_invariants = {
-        "time_readout_mu",
-        "time_pmt_gating_mu"
+        "time_readout_mu", "time_pmt_gating_mu"
     }
 
     def build_subsequence(self):
         # number of input counts to listen for
-        self.setattr_argument("num_counts",     NumberValue(default=200, ndecimals=0, step=1, min=10, max=10000000), group=self.name)
+        self.setattr_argument("num_counts", NumberValue(default=200, precision=0, step=1, min=10, max=10000000), group=self.name)
 
         # get relevant devices
         self.setattr_device('pump')
@@ -35,7 +34,7 @@ class DopplerRecooling(LAXSubsequence):
         self.timestamp_mu_list =    np.zeros(self.num_counts, dtype=np.int64)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # set readout waveform
         self.pump.readout()
         self.pump.on()

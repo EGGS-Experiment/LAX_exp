@@ -21,18 +21,18 @@ class Squeeze(LAXSubsequence):
     }
 
     def build_subsequence(self):
-        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, ndecimals=3, step=10, min=1, max=400000), group=self.name)
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=10., ndecimals=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, precision=3, step=10, min=1, max=400000), group=self.name)
+        self.setattr_argument('att_squeeze_db',             NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group=self.name)
 
-        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., ndecimals=3, step=100, min=1, max=1000000), group=self.name)
-        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
-        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., ndecimals=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., precision=3, step=100, min=1, max=1000000), group=self.name)
+        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')
         # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         # tmp remove
 
     def prepare_subsequence(self):
@@ -66,7 +66,7 @@ class Squeeze(LAXSubsequence):
 
 
     @kernel(flags={"fast-math"})
-    def squeeze(self):
+    def squeeze(self) -> TNone:
         # set blank output waveform
         self.dds_parametric.set_profile(2)
 
@@ -89,16 +89,15 @@ class Squeeze(LAXSubsequence):
 
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
-        self.ttl8.on()
+        # self.ttl8.on()
 
         # squeeze for given time
         delay_mu(self.time_squeeze_mu)
         self.dds_parametric.off()
-        self.ttl8.off()
-
+        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
-    def antisqueeze(self):
+    def antisqueeze(self) -> TNone:
         # unset phase_autoclear flag to ensure phase remains tracked,
         # and ensure set_sine_output flag remains set
         self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
@@ -120,13 +119,13 @@ class Squeeze(LAXSubsequence):
 
         # send debug trigger when waveform begins
         at_mu(time_start_mu + (TIME_URUKUL_BUS_WRITE_DELAY_MU + TIME_AD9910_PROFILE_SWITCH_DELAY_MU))
-        self.ttl9.on()
+        # self.ttl9.on()
 
         # antisqueeze for given time
         delay_mu(self.time_squeeze_mu)
         self.dds_parametric.off()
-        self.ttl9.off()
+        # self.ttl9.off()
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         pass

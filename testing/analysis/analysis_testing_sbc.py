@@ -21,8 +21,8 @@ from LAX_exp.extensions import *
 from LAX_exp.experiments.diagnostics.SidebandCooling import SidebandCooling
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Sideband Cooling/Datasets'
-datafile_key =              '31229'
+directory_path =    '/Users/claytonho/Documents/Research/Data & Analysis/Sideband Cooling/Datasets'
+datafile_key =      '31229'
 
 
 '''

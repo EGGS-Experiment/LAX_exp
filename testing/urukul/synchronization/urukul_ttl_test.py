@@ -27,8 +27,8 @@ class UrukulTTLTest(EnvExperiment):
         self.setattr_device("core_dma")
 
         # TTLs
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
         # urukul devices
         self.setattr_device("urukul0_cpld")
@@ -50,8 +50,8 @@ class UrukulTTLTest(EnvExperiment):
         # prepare asynchronous/timing-agnostic stuff
         # with parallel:
         # prepare - TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
         # prepare - DDSs
         self.urukul0_ch3.set_phase_mode(PHASE_MODE_CONTINUOUS)
@@ -82,13 +82,14 @@ class UrukulTTLTest(EnvExperiment):
 
         delay_mu(1000)
         with parallel:
-            self.ttl8.on()
-            self.ttl9.on()
+            # self.ttl8.on()
+            # self.ttl9.on()
 
         delay_mu(8)
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            # self.ttl8.off()
+            # self.ttl9.off()
+            delay_mu(8)
 
         delay_mu(500)
         self.urukul0_ch3.sw.off()

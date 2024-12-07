@@ -27,17 +27,17 @@ class ReadoutCalibration(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # search parameters
-        self.setattr_argument("repetitions",                                NumberValue(default=100, ndecimals=0, step=10, min=1, max=10000))
+        self.setattr_argument("repetitions",                                NumberValue(default=100, precision=0, step=10, min=1, max=10000))
 
         # readout scan parameters
-        self.setattr_argument("time_readout_us",                            NumberValue(default=3000, ndecimals=3, step=100, min=1, max=100000), group='Readout')
+        self.setattr_argument("time_readout_us",                            NumberValue(default=3000, precision=3, step=100, min=1, max=100000), group='Readout')
         self.setattr_argument("freq_readout_mhz_list",                      Scannable(
                                                                                 default=[
                                                                                     RangeScan(100, 110, 21, randomize=True),
                                                                                     ExplicitScan([105])
                                                                                 ],
                                                                                 global_min=70, global_max=140, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=5
+                                                                                unit="MHz", scale=1, precision=5
                                                                             ), group='Readout')
         self.setattr_argument("ampl_readout_pct_list",                      Scannable(
                                                                                 default=[
@@ -45,7 +45,7 @@ class ReadoutCalibration(LAXExperiment, Experiment):
                                                                                     ExplicitScan([45])
                                                                                 ],
                                                                                 global_min=1, global_max=50, global_step=1,
-                                                                                unit="pct", scale=1, ndecimals=1
+                                                                                unit="pct", scale=1, precision=1
                                                                             ), group='Readout')
 
         # relevant devices

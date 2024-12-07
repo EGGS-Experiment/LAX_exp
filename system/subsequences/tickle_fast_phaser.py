@@ -22,7 +22,7 @@ class TickleFastPhaser(LAXSubsequence):
     }
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_phaser_db', NumberValue(default=0, ndecimals=1, step=0.5, min=0, max=31.5), group='ticklefast')
+        self.setattr_argument('att_ticklefast_phaser_db', NumberValue(default=0, precision=1, step=0.5, min=0, max=31.5), group='ticklefast')
 
         # get relevant devices
         self.setattr_device('phaser_eggs')
@@ -54,7 +54,7 @@ class TickleFastPhaser(LAXSubsequence):
         # tmp remove
 
     @kernel(flags={"fast-math"})
-    def initialize_subsequence(self):
+    def initialize_subsequence(self) -> TNone:
         # get starting time
         time_start_mu = self.phaser_eggs.get_next_frame_mu()
 
@@ -75,9 +75,8 @@ class TickleFastPhaser(LAXSubsequence):
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.duc_stb()
 
-
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # get fiduciary start time
         # time_start_mu = self.phaser_eggs.get_next_frame_mu()
 
@@ -107,13 +106,12 @@ class TickleFastPhaser(LAXSubsequence):
             # tmp remove
             with sequential:
                 delay_mu(self.time_system_prepare_delay_mu)
-                self.ttl8.on()
-                delay_mu(40)
-                self.ttl8.off()
+                # self.ttl8.on()
+                # delay_mu(40)
+                # self.ttl8.off()
 
-
-    @kernel
-    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64):
+    @kernel(flags={"fast-math"})
+    def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64) -> TNone:
         # ensure timing is a multiple of 40ns (phaser sample period)
         self.time_delay_mu =                time_delay_mu
         if time_delay_mu % self.phaser_eggs.t_sample_mu:

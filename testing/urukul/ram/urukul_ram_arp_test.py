@@ -26,28 +26,28 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_device("scheduler")
 
         # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=100000, precision=0, step=1, min=1, max=10000))
 
         # DDS parameters
         self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
         self.setattr_argument("dds_name_fiducial",      StringValue(default='urukul1_ch3'), group='dds')
 
-        self.setattr_argument("att_dds_db",             NumberValue(default=3., ndecimals=1, step=0.5, min=0., max=31.5), group='dds')
-        self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., ndecimals=3, step=5., min=0., max=100.), group='dds')
-        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
+        self.setattr_argument("att_dds_db",             NumberValue(default=3., precision=1, step=0.5, min=0., max=31.5), group='dds')
+        self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., precision=3, step=5., min=0., max=100.), group='dds')
+        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, precision=3, step=0.1, min=-1., max=1.), group='dds')
 
         # DRG parameters
-        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=10., ndecimals=6, step=0.5, min=0., max=400), group='drg')
-        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=1., ndecimals=6, step=0.5, min=0., max=400), group='drg')
+        self.setattr_argument("freq_dds_start_mhz",     NumberValue(default=10., precision=6, step=0.5, min=0., max=400), group='drg')
+        self.setattr_argument("freq_dds_stop_mhz",      NumberValue(default=1., precision=6, step=0.5, min=0., max=400), group='drg')
 
         # modulation parameters
-        self.setattr_argument("sample_rate_khz",        NumberValue(default=500, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_body_us",           NumberValue(default=100, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("sample_rate_khz",        NumberValue(default=500, precision=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=1000, precision=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_body_us",           NumberValue(default=100, precision=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
 
     def prepare(self):
@@ -215,8 +215,8 @@ class UrukulRAMARP(EnvExperiment):
 
         '''TTL SETUP'''
         # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
 
         '''DDS INITIALIZE'''
@@ -390,12 +390,12 @@ class UrukulRAMARP(EnvExperiment):
 
             # send debug TTL trigger to signal start of sequence
             at_mu(time_start_mu + 95)
-            self.ttl8.on()
+            # self.ttl8.on()
 
             # wait for pulse to finish
             delay_mu(self.time_ramp_mu)
             self.dds.sw.off()
-            self.ttl8.off()
+            # self.ttl8.off()
 
 
             '''LOOP CLEANUP'''

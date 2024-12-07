@@ -14,5 +14,5 @@ class NoOperation(LAXSubsequence):
         pass
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         pass

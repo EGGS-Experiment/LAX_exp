@@ -21,8 +21,8 @@ from LAX_exp.extensions import *
 from LAX_exp.experiments.diagnostics.LaserScan import LaserScan
 
 # datafile parameters
-directory_path =            '/Users/claytonho/Documents/Research/Data & Analysis/Laser Scan/Datasets'
-datafile_key =              '37774'
+directory_path =    '/Users/claytonho/Documents/Research/Data & Analysis/Laser Scan/Datasets'
+datafile_key =      '37774'
 
 
 '''

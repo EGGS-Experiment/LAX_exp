@@ -16,14 +16,16 @@ class ADC(LAXDevice):
     }
 
     def prepare_device(self):
-        self.gating_edge =                              self.get_parameter('gating_edge', group='pmt', override=False)
+        self.gating_edge = self.get_parameter('gating_edge', group='pmt', override=False)
 
         # get default gating edge for counting
-        self.counting_method =                          getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
+        self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))
 
     @kernel(flags={"fast-math"})
-    def count(self, time_mu):
+    def count(self, time_mu: TInt64) -> TNone:
         """
         Counts the specified gating edges for a given time.
+        Arguments:
+            time_mu (TInt64): the time to count for.
         """
         self.counting_method(time_mu)

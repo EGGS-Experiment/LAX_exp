@@ -14,37 +14,62 @@ class LaserScan(LAXExperiment, Experiment):
     Gets the number of counts as a function of frequency for a fixed time.
     """
     name = 'Laser Scan'
-
+    kernel_invariants = {
+        'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
+        'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'trigger_func'
+    }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=20, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
 
         # scan parameters
-        self.setattr_argument("freq_qubit_scan_mhz",                Scannable(
-                                                                        default=CenterScan(102.2128, 0.01, 0.0001, randomize=True),
-                                                                        global_min=60, global_max=200, global_step=1,
-                                                                        unit="MHz", scale=1, ndecimals=6
-                                                                    ), group=self.name)
-        self.setattr_argument("time_qubit_us",                      NumberValue(default=5000, ndecimals=5, step=1, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct",                     NumberValue(default=50, ndecimals=3, step=10, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",                       NumberValue(default=31.5, ndecimals=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
+                                                            default=[
+                                                                CenterScan(101.4667, 0.002, 0.00002, randomize=True),
+                                                                ExplicitScan([6.05]),
+                                                                RangeScan(1, 50, 200, randomize=True),
+                                                            ],
+                                                            global_min=60, global_max=200, global_step=0.1,
+                                                            unit="MHz", scale=1, precision=6
+                                                        ), group=self.name)
+        self.setattr_argument("time_qubit_us",  NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=10, min=1, max=50), group=self.name)
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
+        self.setattr_device('trigger_line')
+
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
 
         # subsequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.rabiflop_subsequence =                                 RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.readout_subsequence =                                  Readout(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         # convert waveform values to machine units
-        self.freq_qubit_scan_ftw =                                  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
-        self.ampl_qubit_asf =                                       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_qubit_mu =                                         att_to_mu(self.att_qubit_db * dB)
+        self.freq_qubit_scan_ftw =  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
+        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
+        # configure linetriggering
+        if self.enable_linetrigger:
+            self.trigger_func = self.trigger_line.trigger
+        else:
+            self.trigger_func = self.th0
+
+    @kernel(flags={"fast-math"})
+    def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
+        return now_mu()
 
     @property
     def results_shape(self):
@@ -54,7 +79,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # ensure DMA sequences use profile 0
@@ -69,33 +94,40 @@ class LaserScan(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
-        self.core.reset()
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
-
             self.core.break_realtime()
 
             # sweep frequency
             for freq_ftw in self.freq_qubit_scan_ftw:
 
+                # tmp remove
+                self.core.break_realtime()
+                self.pump.rescue()
+                self.repump_cooling.on()
+                self.repump_qubit.on()
+                self.pump.on()
+                # tmp remove
+
                 # set frequency
                 self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
                 self.core.break_realtime()
 
+                # wait for linetrigger
+                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
+
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # rabi flop
+                # rabi flop & read out
                 self.rabiflop_subsequence.run_dma()
-
-                # read out
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                with parallel:
-                    self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
-                    self.core.break_realtime()
+                self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
+                self.core.reset()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -104,9 +136,8 @@ class LaserScan(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
 
     # ANALYSIS

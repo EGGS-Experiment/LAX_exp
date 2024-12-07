@@ -16,8 +16,8 @@ class SpinEchoWizardTest(LAXEnvironment, Experiment):
         # core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
         self.setattr_device('phaser0')
         self.setattr_device('phaser_eggs')
 

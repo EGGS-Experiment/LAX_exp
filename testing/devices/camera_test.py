@@ -81,7 +81,7 @@ class CameraTest(LAXExperiment, Experiment):
     def analyze_experiment(self):
         pass
 
-    @rpc
+
     def show_ions(self, data, i) -> TInt32:
 
         data = np.reshape(data, (self.image_width_pixels, self.image_height_pixels))

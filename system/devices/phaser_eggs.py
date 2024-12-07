@@ -3,10 +3,6 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
-# todo: prepare - sample time, frame time
-# todo: on/off func
-# todo: att func
-# todo: add conversion functions since artiq doesn't have them
 
 
 class PhaserEGGS(LAXDevice):
@@ -17,45 +13,51 @@ class PhaserEGGS(LAXDevice):
     """
     name = "phaser_eggs"
     core_device = ('phaser', 'phaser1')
-    devices = {}
+    devices = {
+        'ch0_amp_sw':   'ttl8',     # switch AFTER EGGS CH0 amp
+        'ch1_amp_sw':   'ttl9',     # switch AFTER EGGS CH1 amp
+        'int_hold':     'ttl10'     # activate integrator hold on RF servo
+    }
     kernel_invariants = {
-        "t_sample_mu",
-        "t_frame_mu",
-        "t_output_delay_mu",
-        "ftw_per_hz",
+        "t_sample_mu", "t_frame_mu", "t_output_delay_mu",
         "channel",
-        "freq_center_hz",
-        "phase_inherent_ch1_turns",
-        "time_latency_ch1_system_ns"
+        "freq_center_hz", "phase_inherent_ch1_turns", "time_latency_ch1_system_ns",
+        "time_rf_servo_holdoff_mu"
     }
 
     def build_device(self):
         # set phaser sample/frame timings
-        self.t_sample_mu =                  int64(40)
-        self.t_frame_mu =                   int64(320)
-        self.t_output_delay_mu =            int64(1953)
+        self.t_sample_mu =          int64(40)
+        self.t_frame_mu =           int64(320)
+        self.t_output_delay_mu =    int64(1953)
         # todo: max phaser sample rate
-
-        # conversion factors
-        # todo: fix - this is wrong-ish since everyone has a different ftw to hz conversion
-        self.ftw_per_hz =                   (1 << 32) / 1e9
 
     def prepare_device(self):
         # alias both phaser output channels
-        self.channel =                      self.phaser.channel
+        self.channel = self.phaser.channel
 
         # get frequency parameters
-        self.freq_center_hz =               self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
+        self.freq_center_hz = self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
 
         # get phase delay parameters
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
         self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='eggs', override=False)
 
+        # get holdoff delay after phaser pulses to allow RF servo to re-lock
+        self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
+                                                           conversion_function=us_to_mu)
+
     @kernel(flags={'fast-math'})
-    def initialize_device(self):
+    def initialize_device(self) -> TNone:
         """
         Clear the DUC phase accumulators and sync the DAC.
         """
+        # ensure INT HOLD on RF servo is deactivated
+        self.int_hold.off()
+        # ensure EGGS amp switches are closed
+        self.ch0_amp_sw.off()
+        self.ch1_amp_sw.off()
+
         # clear channel DUC phase accumulators
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_duc_cfg(clr_once=1)
@@ -69,7 +71,16 @@ class PhaserEGGS(LAXDevice):
 
         # sync DAC for both channels
         self.phaser.dac_sync()
-        # todo: set carrier frequency via DAC NCO frequency for both channels
+
+    @kernel(flags={'fast-math'})
+    def cleanup_device(self) -> TNone:
+        """
+        Stop any residual output from the phaser.
+        """
+        self.core.break_realtime()
+        self.phaser_stop()
+        self.core.break_realtime()
+        delay_mu(1000000)
 
 
     '''
@@ -122,9 +133,38 @@ class PhaserEGGS(LAXDevice):
 
         # set max attenuations for phaser outputs to reduce effect of internal noise
         at_mu(self.phaser.get_next_frame_mu())
-        self.phaser.channel[0].set_att(31.5 * dB)
+        self.phaser.channel[0].set_att_mu(0x00)
         delay_mu(self.t_sample_mu)
-        self.phaser.channel[1].set_att(31.5 * dB)
+        self.phaser.channel[1].set_att_mu(0x00)
+
+
+    '''
+    Setup/Prepare/Cleanup Methods
+    '''
+    @kernel(flags={"fast-math"})
+    def phaser_setup(self, att_mu: TInt32) -> TNone:
+        """
+        Set up hardware to in preparation for an output pulse.
+        Arguments:
+            :param att_mu: attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
+        """
+        # EGGS - START/SETUP
+        # set phaser attenuators - warning: creates turn on glitch
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_att_mu(att_mu)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[1].set_att_mu(att_mu)
+
+        # activate integrator hold
+        self.int_hold.on()
+        # add delay time after integrator hold to reduce effect of turn-on glitches
+        delay_mu(self.time_rf_servo_holdoff_mu)
+
+        # open phaser amp switches (add 2us delay for switches to fully open to prevent damage)
+        with parallel:
+            self.ch0_amp_sw.on()
+            self.ch1_amp_sw.on()
+        delay_mu(2000)
 
     @kernel(flags={"fast-math"})
     def phaser_stop(self) -> TNone:
@@ -154,44 +194,18 @@ class PhaserEGGS(LAXDevice):
             self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             delay_mu(self.t_sample_mu)
 
-        # switch off EGGS attenuators to prevent leakage
-        # delay_mu(self.t_sample_mu)
-        # self.phaser.channel[0].set_att(31.5 * dB)
-        # delay_mu(self.t_sample_mu)
-        # self.phaser.channel[1].set_att(31.5 * dB)
+        # stop phaser amp switches - add extra delay b/c phaser pipeline pipeline latency
+        delay_mu(5000)
+        with parallel:
+            self.ch0_amp_sw.off()
+            self.ch1_amp_sw.off()
 
+        # switch off EGGS attenuators to prevent phaser leakage
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[0].set_att_mu(0x00)
+        delay_mu(self.t_sample_mu)
+        self.phaser.channel[1].set_att_mu(0x00)
 
-    '''
-    HELPER METHODS
-    '''
-    @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
-        """
-        todo: document
-        """
-        code = int32(round(amplitude * 0x7FFF))
-        if code < 0 or code > 0x7FFF:
-            raise ValueError("Error: Invalid fractional amplitude")
-        return code
-
-    @portable(flags={"fast-math"})
-    def asf_to_amplitude(self, asf: TInt32) -> TFloat:
-        """
-        todo: document
-        """
-        return asf / float(0x7FFF)
-
-    @portable(flags={"fast-math"})
-    def turns_to_pow(self, turns: TFloat) -> TInt32:
-        """
-        todo: document
-        """
-        return int32(round(turns * 0x10000)) & int32(0xFFFF)
-
-    @portable(flags={"fast-math"})
-    def pow_to_turns(self, pow_: TInt32) -> TFloat:
-        """
-        todo: document
-        """
-        return pow_ / 0x10000
-
+        # deactivate integrator hold - add delay time after EGGS pulse to allow RF servo to re-lock
+        self.int_hold.off()
+        delay_mu(self.time_rf_servo_holdoff_mu)

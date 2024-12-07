@@ -7,7 +7,6 @@ import socket
 import logging
 import traceback
 
-from sipyco import pyon
 from datetime import datetime
 from numpy import array, zeros, int32, nan
 from abc import ABC, abstractmethod
@@ -29,8 +28,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
-    name =                  None
-    _dma_count =            0
+    name =          None
+    _dma_count =    0
 
 
     '''
@@ -62,27 +61,12 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device("scheduler")
         self.setattr_device("ccb")
 
-        # science-related hardware devices
-        self.setattr_device('urukul0_cpld')
-        self.setattr_device('urukul1_cpld')
-        self.setattr_device('urukul2_cpld')
-
-        self.setattr_device('urukul0_ch0')
-        self.setattr_device('urukul1_ch1')
-        self.setattr_device('urukul1_ch3')
-        self.setattr_device('urukul2_ch2')
-        self.setattr_device('urukul2_ch3')
-
-        self.setattr_device('ttl12')
-        self.setattr_device('ttl13')
-        self.setattr_device('ttl14')
-
-        self.setattr_device('phaser0')
-        self.setattr_device('phaser1')
-
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
         setattr(self, '_counts_iter', 0)
+
+        # labrad termination checking
+        self._termination_status_labrad = False
 
     def build_experiment(self):
         """
@@ -103,7 +87,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         General construction of the experiment object.
         Called right before run (unlike build, which is called upon instantiation).
         ***todo*** prepare_device is called before prepare_experiment to ensure that any values in prepare_device
+        # todo: consider synchronization - is it necessary? where should it be?
+        # todo: maybe we should move the compilation part to its own function?
         """
+        '''BEGIN PREPARE'''
+        # get kernel invariants (if any)
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants
+
         # store arguments in dataset manager
         self._save_arguments()
 
@@ -111,51 +102,15 @@ class LAXExperiment(LAXEnvironment, ABC):
         # to ensure that any attributes instantiated here will be accessible by prepare_experiment
         self.call_child_method("prepare_device")
         self.call_child_method("prepare_subsequence")
+        self.call_child_method("prepare_sequence")
 
         # call user-defined prepare function
         self.prepare_experiment()
 
-        # collate initialize functions to speed up initialization
-        # note: devices should be initialized first
-        _initialize_device_list =               [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXDevice)]
-        _initialize_subsequence_list =          [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXSubsequence)]
-        _initialize_sequence_list =             [obj
-                                                for obj in self.children
-                                                if isinstance(obj, LAXSequence)]
-
-
-        # write code which initializes the relevant modules entirely on the kernel, without any RPCs
-        _initialize_code =                      "self.core.reset()\n"
-
-        # code to initialize devices
-        for i, obj in enumerate(_initialize_device_list):
-            if isinstance(obj, LAXDevice):
-                setattr(self, '_LAXDevice_{}'.format(i), obj)
-                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
-
-        # code to initialize subsequences
-        for i, obj in enumerate(_initialize_subsequence_list):
-            if isinstance(obj, LAXSubsequence):
-                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
-                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
-
-        # code to initialize sequences
-        for i, obj in enumerate(_initialize_sequence_list):
-            if isinstance(obj, LAXSequence):
-                setattr(self, '_LAXSequence_{}'.format(i), obj)
-                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
-        _initialize_code += "self.core.break_realtime()"
-
-        # create kernel from code string and set as _initialize_experiment
-        initialize_func = kernel_from_string(["self"], _initialize_code)
-        setattr(self, '_initialize_experiment', initialize_func)
-
         # todo: somehow call prepare method for everything not devices
         # todo: maybe - we could make LAX classes NOT put prepare_<class> under prepare?
+        #       there's no reason they need to have a "prepare" method since they're not an EnvExp
+        #       and they're not being run by themselves
         # call prepare methods of all child objects
         # note: this will call the prepare_<class> methods AGAIN, i.e. any preparation
         # that happens in prepare_experiment will get reset
@@ -171,6 +126,114 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.kernel_invariants.add("_dynamic_reduction_factor")
         # preprocess values for completion monitoring
         self._completion_iter_to_pct = 100. / len(self.results)
+        self.kernel_invariants.add("_completion_iter_to_pct")
+
+        # get list of directories that result files should be saved to
+        save_dir_list = {
+            'Z:\\Motion\\Data',     # save to motion drive
+            'D:\\Results'           # save to local backup drive
+        }
+        try:
+            save_dir_list = save_dir_list | set(self.get_dataset('management.dataset_save_locations'))
+        except Exception as e:
+            print(repr(e))
+        # set save_dir_list as an instance attribute
+        self.save_dir_list = save_dir_list
+        self.kernel_invariants.add("save_dir_list")
+
+
+        '''SUBSCRIBE TO LABRAD FOR WARNINGS'''
+        # get monitoring status from dataset manager
+        monitor_status = self.get_dataset('management.safe_mode', default=False)
+        if monitor_status:
+            self.labrad_subscribe()
+
+
+        '''COMPILE INITIALIZATION SEQUENCE'''
+        # collate LAX objects to speed up experiment compilation and execution
+        # note: objects should be initialized in the following order: devices, subsequences, sequences, then experiment
+        _compile_device_list =              [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXDevice)]
+        _compile_subsequence_list =         [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXSubsequence)]
+        _compile_sequence_list =            [obj
+                                            for obj in self.children
+                                            if isinstance(obj, LAXSequence)]
+
+        # write code which initializes the relevant modules entirely on the kernel, without any RPCs
+        _initialize_code =          "self.core.reset()\n"
+        # write code to get DMA handles for LAXSubsequences
+        _initialize_load_DMA_code = "self.core.break_realtime()\n"
+
+        # todo: should we set e.g. "_LAX<Object>_{}" as a kernel_invariant? or otherwise get their names?
+        # todo: convert all of these for loops into list comprehensions
+        # create code to initialize devices
+        for i, obj in enumerate(_compile_device_list):
+            if isinstance(obj, LAXDevice):
+                setattr(self, '_LAXDevice_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXDevice_{}".format(i))
+                _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
+
+        # create code to initialize subsequences
+        for i, obj in enumerate(_compile_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                setattr(self, '_LAXSubsequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSubsequence_{}".format(i))
+                _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
+                # for LAXSubsequences only: get DMA handle for sequences recorded onto DMA
+                _initialize_load_DMA_code += "self._LAXSubsequence_{}._load_dma()\n".format(i)
+
+        # create code to initialize sequences
+        for i, obj in enumerate(_compile_sequence_list):
+            if isinstance(obj, LAXSequence):
+                setattr(self, '_LAXSequence_{}'.format(i), obj)
+                self.kernel_invariants.add("_LAXSequence_{}".format(i))
+                _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
+
+        # call user-defined initialize function for the experiment
+        _initialize_code += "self.initialize_experiment()\n"
+        _initialize_code += "self.core.break_realtime()\n"
+        # record DMA sequences and get DMA handles to play subsequences
+        _initialize_code += _initialize_load_DMA_code
+        _initialize_code += "self.core.break_realtime()"
+
+        # create kernel from code string and set as _initialize_experiment
+        initialize_func = kernel_from_string(["self"], _initialize_code)
+        setattr(self, '_initialize_experiment', initialize_func)
+
+
+        '''COMPILE CLEANUP SEQUENCE'''
+        # collate cleanup functions to speed up experiment compilation and execution
+        # note: objects should be cleaned up in the following order: experiments, sequences, subsequences, then devices
+        # i.e. reverse order of initialization
+        # write code which cleans up the relevant modules
+        _cleanup_code = "self.core.break_realtime()\n"
+
+        # call user-defined cleanup function for the experiment
+        _cleanup_code += "self.cleanup_experiment()\n"
+        _cleanup_code += "self.core.break_realtime()\n"
+
+        # code to cleanup sequences
+        for i, obj in enumerate(_compile_sequence_list):
+            if isinstance(obj, LAXSequence):
+                _cleanup_code += "self._LAXSequence_{}.cleanup_sequence()\n".format(i)
+
+        # code to cleanup subsequences
+        for i, obj in enumerate(_compile_subsequence_list):
+            if isinstance(obj, LAXSubsequence):
+                _cleanup_code += "self._LAXSubsequence_{}.cleanup_subsequence()\n".format(i)
+
+        # code to cleanup devices
+        for i, obj in enumerate(_compile_device_list):
+            if isinstance(obj, LAXDevice):
+                _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
+
+        # create kernel from code string and set as _cleanup_experiment
+        _cleanup_code += "self.core.break_realtime()"
+        cleanup_func = kernel_from_string(["self"], _cleanup_code)
+        setattr(self, '_cleanup_experiment', cleanup_func)
 
     def prepare_experiment(self):
         """
@@ -205,6 +268,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         time_global_start = datetime.timestamp(datetime.now())
 
         # call initialize_* functions for all children in order of abstraction level (lowest first)
+        # note: this also calls the experiment's "initialize_experiment" function
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
         self._initialize_experiment(self)
 
         # record initialization time
@@ -213,25 +278,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('time_init', time_expinit)
         print('\tInitialize Time:\t{:.2f}'.format(time_expinit))
 
-        # call user-defined initialize function
-        # todo: see if we can move this into _initialize_experiment for speed
-        self.initialize_experiment()
-
-        # get DMA handles for subsequences recorded onto DMA
-        # todo: move _load_dma onto initialize for speed
-        self.call_child_method('_load_dma')
-
+        # run the main part of the experiment
         try:
-            # run the main part of the experiment
             self.run_main()
         except TerminationRequested:
             print('\tExperiment successfully terminated.')
         except Exception as e:
-            print('\tError during experiment: {}'.format(repr(e)))
+            print('\tError during experiment: {}'.format(e))
             print(traceback.format_exc())
+        finally:
+            pass
 
-        # set devices back to their default state
-        self._run_cleanup()
+        # clean up system/hardware to ensure system is left in a safe state
+        # note: needs to be passed "self" as an argument since it's a kernel_from_string
+        self._cleanup_experiment(self)
 
         # record total runtime
         time_run_stop = datetime.timestamp(datetime.now())
@@ -240,115 +300,13 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.set_dataset('time_run', time_exprun)
 
     @kernel(flags={"fast-math"})
-    def _initialize_experiment(self):
+    def _initialize_experiment(self) -> TNone:
         """
         Call the initialize functions of devices and sub/sequences (in that order).
         """
         pass
 
-    @kernel(flags={"fast-math"})
-    def _run_cleanup(self):
-        """
-        Set all devices back to their original state.
-        """
-        self.core.break_realtime()
-        # todo: set attenuations for parametric and modulation DDSs
-
-        # reset hardware to allow use by users
-        with parallel:
-            # reset qubit board
-            with sequential:
-                self.urukul0_cpld.set_profile(0)
-                self.urukul0_cpld.cfg_switches(0b0000)
-
-            # reset motional board to rescue parameters
-            with sequential:
-                self.urukul1_cpld.set_profile(0)
-                self.urukul1_cpld.cfg_switches(0b0000)
-
-            # reset main board to rescue parameters
-            with sequential:
-                # set to readout values
-                self.urukul2_cpld.set_profile(1)
-                self.urukul2_cpld.cfg_switches(0b1110)
-
-        delay_mu(100)
-        with sequential:
-            # enable all external RF switches
-            with parallel:
-                self.ttl12.off()
-                self.ttl13.off()
-                self.ttl14.off()
-
-            # set urukul ttl switches to allow front-end access
-            # since output is logical OR of the TTL state as well as the urukul configuration register state
-            delay_mu(10)
-            with parallel:
-                self.urukul0_ch0.sw.off()  # 729nm
-                self.urukul1_ch1.sw.off()  # parametric
-                self.urukul1_ch3.sw.off()  # dipole
-                self.urukul2_ch2.sw.off()  # 866nm
-                self.urukul2_ch3.sw.off()  # 854nm
-
-        # reset phaser attenuators
-        at_mu(self.phaser0.get_next_frame_mu())
-        self.phaser0.channel[0].set_att(31.5 * dB)
-        delay_mu(40)
-        self.phaser0.channel[1].set_att(31.5 * dB)
-
-        # reset phaser oscillators
-        for i in range(5):
-            # synchronize to frame
-            at_mu(self.phaser0.get_next_frame_mu())
-
-            # clear oscillator frequencies
-            with parallel:
-                self.phaser0.channel[0].oscillator[i].set_frequency(0.)
-                self.phaser0.channel[1].oscillator[i].set_frequency(0.)
-                delay_mu(40)
-
-            # clear oscillator amplitudes
-            with parallel:
-                self.phaser0.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser0.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
-                delay_mu(40)
-
-            # add slack
-            self.core.break_realtime()
-
-        ### PHASER1 ###
-        # reset phaser attenuators
-        at_mu(self.phaser1.get_next_frame_mu())
-        self.phaser1.channel[0].set_att(31.5 * dB)
-        delay_mu(40)
-        self.phaser1.channel[1].set_att(31.5 * dB)
-
-        # reset phaser oscillators
-        for i in range(5):
-            # synchronize to frame
-            at_mu(self.phaser1.get_next_frame_mu())
-
-            # clear oscillator frequencies
-            with parallel:
-                self.phaser1.channel[0].oscillator[i].set_frequency(0.)
-                self.phaser1.channel[1].oscillator[i].set_frequency(0.)
-                delay_mu(40)
-
-            # clear oscillator amplitudes
-            with parallel:
-                self.phaser1.channel[0].oscillator[i].set_amplitude_phase(amplitude=0.)
-                self.phaser1.channel[1].oscillator[i].set_amplitude_phase(amplitude=0.)
-                delay_mu(40)
-
-            # add slack
-            self.core.break_realtime()
-
-        # ensure all events in the FIFOs are completed before
-        # we exit the kernel
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         """
         To be subclassed.
 
@@ -356,7 +314,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
-    def run_main(self):
+    def run_main(self) -> TNone:
         """
         Can be subclassed.
 
@@ -379,20 +337,110 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
+    @kernel(flags={"fast-math"})
+    def noop(self) -> TNone:
+        """
+        A hardware no-op function to allow for customizable pulse sequence configuration.
+        Provided for convenience.
+        """
+        delay_mu(0)
+
+    @kernel(flags={"fast-math"})
+    def _cleanup_experiment(self) -> TNone:
+        """
+        Call the cleanup functions of sequences, subsequence, and devices and (in that order).
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def cleanup_experiment(self) -> TNone:
+        """
+        To be subclassed.
+        todo: document
+        """
+        pass
+
+
+    '''
+    STATUS MONITORING
+    '''
+
     @rpc
-    def check_termination(self):
+    def check_termination(self) -> TNone:
         """
         Check whether termination of the experiment has been requested.
         """
-        if self.scheduler.check_termination():
+        if self.scheduler.check_termination() or self._termination_status_labrad:
+            if self._termination_status_labrad:
+                print("Critical experiment failure. Stopping experiment & cancelling all experiments.")
+                self.cancel_all_experiments()
             raise TerminationRequested
 
-    @kernel(flags={"fast-math"})
-    def noop(self):
+    @rpc
+    def labrad_subscribe(self) -> TNone:
         """
-        A hardware no-op function to allow for customizable pulse sequence configuration.
+        Subscribe to local labrad warning server to get notifications
+        when critical errors occur.
         """
-        delay_mu(0)
+        try:
+            # import here to prevent repository scan issues
+            from labrad.thread import startReactor
+            from labrad.wrappers import connectAsync
+            from twisted.internet.defer import inlineCallbacks, Deferred
+
+            # start labrad's twisted reactor
+            startReactor()
+            d = Deferred()
+
+            @inlineCallbacks
+            def create_connection(msg):
+                self.cxn_async = yield connectAsync(
+                    os.environ["LABRADHOST"], port=7682, name="{:s} ({:s})".format("ARTIQ_EXP", socket.gethostname()),
+                    username="", password=os.environ["LABRADPASSWORD"]
+                )
+                self.ws_async = self.cxn_async.warning_server
+                self.ws_async.signal__wavemeter_unlock(959781)
+                self.ws_async.addListener(listener=self._update_labrad_warnings, source=None, ID=959781)
+
+            # fire deferred to create connection
+            d.addCallback(create_connection)
+            d.callback("\tDEFERRED: FIRED")
+        except Exception as e:
+            print("Unable to connect to labrad for warnings: {}".format(e))
+
+    def _update_labrad_warnings(self, c, signal) -> TNone:
+        """
+        Automatically process warning updates from LabRAD,
+        :param c: labrad context
+        :param signal: the warning message/data.
+        """
+        # print("\n\t\tWARNING - CH{:d} UNLOCKED: {:s}".format(*signal))
+        self.set_dataset('management.dynamic.ion_status',
+                         "ERROR: {:s} UNLOCKED".format(signal[1]),
+                         broadcast=True)
+        self._termination_status_labrad = True
+
+    @rpc
+    def cancel_all_experiments(self):
+        """
+        Terminate all experiments in our pipeline.
+        To be used in emergency situations (e.g. wavemeter unlocked) where we need to halt all activity.
+        """
+        # get scheduler itinerary
+        sched = self.scheduler.get_status()
+
+        # get all experiments in our pipeline
+        rid_list = [
+            rid
+            for rid, exp_dict in sched.items()
+            if (rid != self.scheduler.rid) and (exp_dict['pipeline'] == self.scheduler.pipeline_name)
+               and (exp_dict['status'] != "running")
+        ]
+        rid_list.reverse()
+
+        # delete remaining experiments
+        for rid in rid_list:
+            self.scheduler.delete(rid)
 
 
     '''
@@ -412,30 +460,34 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         self.call_child_method('analyze')
 
-        # add error handling for experiment analysis
-        try:
-            # get return from analyze_experiment method
-            res_processed = self.analyze_experiment()
+        # only run analyze_experiment if exp ran to completion
+        if self._result_iter == len(self.results):
+            try:
+                # get return from analyze_experiment method
+                res_processed = self.analyze_experiment()
 
-            # if we get a valid return, assume it is the processed result
-            # of the experiment, and try to save it in the hdf5 file
-            if res_processed is not None:
-                self.set_dataset('results_processed', res_processed)
-        except Exception as e:
-            print('\tWarning: encountered error during analyze_experiment.')
-            print('\t\t:{:}'.format(repr(e)))
+                # if we get a valid return, assume it is the processed result
+                # of the experiment, and try to save it in the hdf5 file
+                if res_processed is not None:
+                    self.set_dataset('results_processed', res_processed)
+            except Exception as e:
+                print('\tWarning: encountered error during analyze_experiment.')
+                print('\t\t:{:}'.format(repr(e)))
+        else:
+            print("Experiment results dataset not filled. Skipping analyze_experiment.")
 
     def analyze_experiment(self):
         """
         To be subclassed.
 
         Used to process/analyze experiment results.
+        # todo: document what happens to any returns
         """
-        pass
+        return None
 
 
     '''
-    Results
+    RESULTS & DATASETS
     '''
 
     @rpc(flags={"async"})
@@ -471,7 +523,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         pass
 
-
     def write_results(self, exp_params):
         """
         Write arguments, datasets, and parameters in a well-structured format
@@ -482,22 +533,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         start_time =    time.localtime(exp_params["start_time"])
         expid =         exp_params["expid"]
 
-        # todo: try to get default save dir list
-        # todo: why don't we get them during build/prepare? then access them here?
-        # problem: we don't have access to dataset managers in this stage
-        # try:
-        #     th0 = self.get_dataset('management.dataset_save_locations')
-        #     print(th0)
-        # except Exception as e:
-        #     print(e)
-        #     print('whoops')
-        save_dir_list = [
-            'Z:\\Motion\\Data',     # save to motion drive
-            'D:\\Results'           # save to local backup drive
-        ]
-
-        # save to all relevant directories
-        for save_dir in save_dir_list:
+        # save to all relevant directories - these are retrieved & stored in "prepare"
+        for save_dir in self.save_dir_list:
 
             try:
                 # format file name and save directory
@@ -604,7 +641,8 @@ class LAXExperiment(LAXEnvironment, ABC):
                 "rf_ampl_dbm": rf_ampl_dbm
             }
         except Exception as e:
-            print("Warning: unable to retrieve and store trap RF values in dataset.")
+            pass
+            # print("Warning: unable to retrieve and store trap RF values in dataset.")
 
         return sys_vals_rf
 

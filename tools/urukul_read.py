@@ -29,7 +29,7 @@ class RAM_MODE(Enum):
 
 class UrukulRead(EnvExperiment):
     """
-    Utility: Urukul Read
+    Tool: Urukul Read
 
     Read values from an Urukul channel.
     """
@@ -43,7 +43,7 @@ class UrukulRead(EnvExperiment):
         self.setattr_argument("dds_target",         EnumerationValue(list(dds_device_list), default='urukul2_ch1'))
 
         # profile parameters
-        self.setattr_argument('dds_profile',        NumberValue(default=7, ndecimals=0, step=1, min=0, max=7))
+        self.setattr_argument('dds_profile',        NumberValue(default=7, precision=0, step=1, min=0, max=7))
         self.setattr_argument("is_profile_ram",     BooleanValue(default=False))
 
         # RAM data
@@ -53,11 +53,11 @@ class UrukulRead(EnvExperiment):
         """
         Get all valid DDS (AD9910) devices from the device_db.
         """
-        def is_local_phaser_device(v):
+        def is_local_dds_device(v):
             return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
 
-        # get only local phaser devices from device_db
-        return set([k for k, v in self.get_device_db().items() if is_local_phaser_device(v)])
+        # get only local DDS devices from device_db
+        return set([k for k, v in self.get_device_db().items() if is_local_dds_device(v)])
 
     def prepare(self):
         """
@@ -75,7 +75,6 @@ class UrukulRead(EnvExperiment):
 
         '''GET DEVICES'''
         try:
-            # todo: support arb. access
             self.dds = self.get_device(self.dds_target)
             self.dds_cpld = self.dds.cpld
 
@@ -126,7 +125,6 @@ class UrukulRead(EnvExperiment):
         # self.dds.init()
         self.core.break_realtime()
         delay_mu(100000)
-
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

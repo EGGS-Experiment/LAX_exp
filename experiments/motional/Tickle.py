@@ -13,11 +13,16 @@ class Tickle(LAXExperiment, Experiment):
     # todo: document
     """
     name = 'Tickle'
-
+    kernel_invariants = {
+        "att_tickle_mu", "freq_tickle_ftw_list", "ampl_tickle_asf_list", "time_tickle_mu_list",
+        "config_tickle_list",
+        # subsequences
+        'initialize_subsequence', 'readout_counts_subsequence', 'readout_timestamped_subsequence', 'rescue_subsequence'
+    }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=50, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
         # readout configuration
         self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)
@@ -30,7 +35,7 @@ class Tickle(LAXExperiment, Experiment):
                                                                             ExplicitScan([1500]),
                                                                         ],
                                                                         global_min=10, global_max=400000, global_step=100,
-                                                                        unit="kHz", scale=1, ndecimals=3
+                                                                        unit="kHz", scale=1, precision=3
                                                                     ), group=self.name)
         self.setattr_argument("ampl_tickle_pct_list",           Scannable(
                                                                         default=[
@@ -38,7 +43,7 @@ class Tickle(LAXExperiment, Experiment):
                                                                             RangeScan(0, 100, 10, randomize=True),
                                                                         ],
                                                                         global_min=0.1, global_max=100.0, global_step=10,
-                                                                        unit="pct", scale=1, ndecimals=2
+                                                                        unit="pct", scale=1, precision=2
                                                                     ), group=self.name)
         self.setattr_argument("time_tickle_us_list",            Scannable(
                                                                         default=[
@@ -46,9 +51,9 @@ class Tickle(LAXExperiment, Experiment):
                                                                             RangeScan(1000, 2000, 11, randomize=True),
                                                                         ],
                                                                         global_min=100, global_max=1000000, global_step=100,
-                                                                        unit="us", scale=1, ndecimals=0
+                                                                        unit="us", scale=1, precision=0
                                                                     ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, ndecimals=1, step=0.5, min=0., max=31.5), group=self.name)
+        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, precision=1, step=0.5, min=0., max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')
@@ -70,23 +75,24 @@ class Tickle(LAXExperiment, Experiment):
         elif self.tickle_source == 'Dipole':        self.dds_tickle = self.dds_dipole
 
         # convert tickle parameters to machine units
-        self.att_tickle_mu =                        att_to_mu(self.att_tickle_db * dB)
-        self.freq_tickle_ftw_list =                 np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_tickle_khz_list])
-        self.ampl_tickle_asf_list =                 np.array([pct_to_asf(ampl_pct) for ampl_pct in self.ampl_tickle_pct_list])
-        self.time_tickle_mu_list =                  np.array([self.core.seconds_to_mu(time_us * us) for time_us in self.time_tickle_us_list])
+        self.att_tickle_mu =        att_to_mu(self.att_tickle_db * dB)
+        self.freq_tickle_ftw_list = np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_tickle_khz_list])
+        self.ampl_tickle_asf_list = np.array([pct_to_asf(ampl_pct) for ampl_pct in self.ampl_tickle_pct_list])
+        self.time_tickle_mu_list =  np.array([self.core.seconds_to_mu(time_us * us) for time_us in self.time_tickle_us_list])
 
         # create an array of values for the experiment to sweep
         # (i.e. tickle frequency, tickle time, readout FTW)
-        self.config_tickle_list =                   np.stack(np.meshgrid(self.freq_tickle_ftw_list,
-                                                                         self.ampl_tickle_asf_list,
-                                                                         self.time_tickle_mu_list),
-                                                             -1).reshape(-1, 3)
+        self.config_tickle_list = np.stack(np.meshgrid(self.freq_tickle_ftw_list,
+                                                       self.ampl_tickle_asf_list,
+                                                       self.time_tickle_mu_list),
+                                           -1).reshape(-1, 3)
         np.random.shuffle(self.config_tickle_list)
 
         # tmp remove
         if self.readout_type == 'Timestamped':
             self.readout_subsequence = self.readout_timestamped_subsequence
-            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list), self.readout_subsequence.num_counts), dtype=np.int64))
+            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list),
+                                                             self.readout_subsequence.num_counts), dtype=np.int64))
             self.setattr_dataset('timestamped_counts')
         # tmp remove
 
@@ -98,7 +104,7 @@ class Tickle(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # ensure DMA sequences use profile 0
@@ -110,8 +116,8 @@ class Tickle(LAXExperiment, Experiment):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
-        self.core.reset()
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
             for config_vals in self.config_tickle_list:
@@ -138,14 +144,13 @@ class Tickle(LAXExperiment, Experiment):
                 self.readout_subsequence.run()
 
                 # update dataset
-                with parallel:
-                    self.update_results(
-                        freq_tickle_ftw,
-                        self.readout_subsequence.fetch_count(),
-                        ampl_tickle_asf,
-                        time_tickle_mu
-                    )
-                    self.core.break_realtime()
+                self.update_results(
+                    freq_tickle_ftw,
+                    self.readout_subsequence.fetch_count(),
+                    ampl_tickle_asf,
+                    time_tickle_mu
+                )
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -154,18 +159,16 @@ class Tickle(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
         # todo: cleanup
 
     @rpc(flags={"async"})
-    def update_results(self, *args):
+    def update_results(self, *args) -> TNone:
         # tmp remove
-        res_tmp = np.array([])
-        counts_tmp = 0
-
+        counts_tmp =    0
+        res_tmp =       np.array([])
         if self.readout_type == "Timestamped":
             counts_tmp = args[1][-1]
             self.mutate_dataset('timestamped_counts', self._result_iter, args[1])
@@ -174,7 +177,6 @@ class Tickle(LAXExperiment, Experiment):
             res_tmp = np.array([args])
             counts_tmp = args[1]
         # tmp remove
-
 
         # store results in main dataset
         self.mutate_dataset('results', self._result_iter, res_tmp)

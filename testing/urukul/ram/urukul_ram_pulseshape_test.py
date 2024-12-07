@@ -19,23 +19,23 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.setattr_device("scheduler")
 
         # experiment arguments
-        self.setattr_argument("repetitions",            NumberValue(default=100000, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=100000, precision=0, step=1, min=1, max=10000))
 
         # DDS parameters
         self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
-        self.setattr_argument("att_dds_db",             NumberValue(default=3., ndecimals=1, step=0.5, min=0., max=31.5), group='dds')
-        self.setattr_argument("freq_dds_mhz",           NumberValue(default=100., ndecimals=6, step=0.5, min=0., max=400), group='dds')
-        self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., ndecimals=3, step=5., min=0., max=100.), group='dds')
-        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.0, ndecimals=3, step=0.1, min=-1., max=1.), group='dds')
+        self.setattr_argument("att_dds_db",             NumberValue(default=3., precision=1, step=0.5, min=0., max=31.5), group='dds')
+        self.setattr_argument("freq_dds_mhz",           NumberValue(default=100., precision=6, step=0.5, min=0., max=400), group='dds')
+        self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., precision=3, step=5., min=0., max=100.), group='dds')
+        self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.0, precision=3, step=0.1, min=-1., max=1.), group='dds')
 
         # modulation parameters
-        self.setattr_argument("sample_rate_khz",        NumberValue(default=10000, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_pulse_us",          NumberValue(default=2, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
-        self.setattr_argument("time_body_us",           NumberValue(default=2, ndecimals=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("sample_rate_khz",        NumberValue(default=10000, precision=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_pulse_us",          NumberValue(default=2, precision=1, step=1000, min=1., max=150000), group='modulation')
+        self.setattr_argument("time_body_us",           NumberValue(default=2, precision=1, step=1000, min=1., max=150000), group='modulation')
 
         # debug triggers
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
 
 
     def prepare(self):
@@ -150,8 +150,8 @@ class UrukulRAMAmplitude(EnvExperiment):
         self.dds.cpld.io_update.pulse_mu(8)
 
         # set up debug TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
         self.core.break_realtime()
 
 
@@ -193,7 +193,7 @@ class UrukulRAMAmplitude(EnvExperiment):
             delay_mu(self.time_holdoff_mu)
 
             # tmp remove
-            self.ttl9.on()
+            # self.ttl9.on()
             # tmp remove
 
             # initialize as profile 0 (necessary for bidirectional ramp mode)
@@ -231,12 +231,12 @@ class UrukulRAMAmplitude(EnvExperiment):
             # todo: actually do this
             # at_mu(time_start_mu + 416 + 63 - 140)
             at_mu(time_start_mu + 416 + 63 - 140 - 244)
-            self.ttl8.on()
+            # self.ttl8.on()
             self.dds.sw.on()
 
             # wait for ramp-up to finish
             delay_mu(self.time_ramp_mu)
-            self.ttl8.off()
+            # self.ttl8.off()
 
 
             '''PULSE DELAY'''
@@ -271,7 +271,7 @@ class UrukulRAMAmplitude(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
 
             # tmp remove
-            self.ttl9.off()
+            # self.ttl9.off()
             # tmp remove
 
             # check termination periodically

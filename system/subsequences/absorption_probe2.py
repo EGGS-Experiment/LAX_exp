@@ -24,9 +24,9 @@ class AbsorptionProbe2(LAXSubsequence):
 
     def build_subsequence(self):
         # subsequence arguments
-        self.setattr_argument("repetitions_per_point",                      NumberValue(default=50, ndecimals=0, step=1, min=1, max=1000), group='absorption_probe')
-        self.setattr_argument("time_probe_us",                              NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000), group='absorption_probe')
-        self.setattr_argument("time_reset_us",                              NumberValue(default=10, ndecimals=0, step=1, min=1, max=10000), group='absorption_probe')
+        self.setattr_argument("repetitions_per_point",  NumberValue(default=50, precision=0, step=1, min=1, max=1000), group='absorption_probe')
+        self.setattr_argument("time_probe_us",          NumberValue(default=2, precision=0, step=1, min=1, max=10000), group='absorption_probe')
+        self.setattr_argument("time_reset_us",          NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='absorption_probe')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -35,22 +35,22 @@ class AbsorptionProbe2(LAXSubsequence):
 
     def prepare_subsequence(self):
         # get doppler cooling time
-        self.time_doppler_cooling_mu =                                      self.get_parameter('time_doppler_cooling_us',
-                                                                                               group='timing',
-                                                                                               override=False,
-                                                                                               conversion_function=seconds_to_mu, units=us)
+        self.time_doppler_cooling_mu =  self.get_parameter('time_doppler_cooling_us',
+                                                           group='timing',
+                                                           override=False,
+                                                           conversion_function=seconds_to_mu, units=us)
 
         # convert pulse times to mu
-        self.time_probe_mu =                                                self.core.seconds_to_mu(self.time_probe_us * us)
-        self.time_reset_mu =                                                self.core.seconds_to_mu(self.time_reset_us * us)
+        self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
+        self.time_reset_mu = self.core.seconds_to_mu(self.time_reset_us * us)
 
         # initialize loop variables
-        self.counts_store =                                                 np.int32(0)
-        self._loop_iter =                                                   np.arange(self.repetitions_per_point)
+        self.counts_store = np.int32(0)
+        self._loop_iter =   np.arange(self.repetitions_per_point)
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # prepare probe beam
         self.pump.set_profile(1)
 
@@ -73,7 +73,7 @@ class AbsorptionProbe2(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def get_counts(self) -> TInt32:
         """
-        todo: document
+        Retrieve stored counts from memory.
         """
         # reset counts store
         self.counts_store = np.int32(0)

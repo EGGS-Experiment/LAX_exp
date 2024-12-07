@@ -15,20 +15,20 @@ class PhaserSet(EnvExperiment):
         self.setattr_device("scheduler")
 
         # global arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=5, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",                    NumberValue(default=5, precision=0, step=1, min=1, max=10000))
         self.setattr_argument("cleanup",                        BooleanValue(default=False), group='global')
-        self.setattr_argument("freq_carrier_mhz",               NumberValue(default=82, ndecimals=5, step=1, min=1, max=10000), group='global')
-        self.setattr_argument("time_pulse_ms",                  NumberValue(default=10000., ndecimals=5, step=1, min=0.000001, max=100000), group='global')
-        self.setattr_argument("time_reset_ms",                  NumberValue(default=2., ndecimals=5, step=1, min=0.000001, max=100000), group='global')
+        self.setattr_argument("freq_carrier_mhz",               NumberValue(default=82, precision=5, step=1, min=1, max=10000), group='global')
+        self.setattr_argument("time_pulse_ms",                  NumberValue(default=10000., precision=5, step=1, min=0.000001, max=100000), group='global')
+        self.setattr_argument("time_reset_ms",                  NumberValue(default=2., precision=5, step=1, min=0.000001, max=100000), group='global')
         # self.setattr_argument("clear_dac_phase_accumulator", BooleanValue(default=False), group='global')
         self.setattr_argument("synchronize_oscillator_updates", BooleanValue(default=True), group='global')
 
         # channel-specific arguments
-        self.setattr_argument("att_ch0_db",                     NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
-        self.setattr_argument("att_ch1_db",                     NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='channels')
-        self.setattr_argument("time_latency_ch1_system_ns",     NumberValue(default=0.17, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
+        self.setattr_argument("att_ch0_db",                     NumberValue(default=0., precision=1, step=0.5, min=0, max=31.5), group='channels')
+        self.setattr_argument("att_ch1_db",                     NumberValue(default=0., precision=1, step=0.5, min=0, max=31.5), group='channels')
+        self.setattr_argument("time_latency_ch1_system_ns",     NumberValue(default=0.17, precision=3, step=0.1, min=-1.0, max=1.0), group='channels')
         self.setattr_argument("apply_ch1_latency_on_oscillators", BooleanValue(default=True), group='channels')
-        self.setattr_argument("phase_inherent_ch1_turns",       NumberValue(default=0.07, ndecimals=3, step=0.1, min=-1.0, max=1.0), group='channels')
+        self.setattr_argument("phase_inherent_ch1_turns",       NumberValue(default=0.07, precision=3, step=0.1, min=-1.0, max=1.0), group='channels')
 
         # oscillators - channel 0
         # note: oscillator waveforms are in the format [freq_khz, ampl_pct, phas_turns]
@@ -57,8 +57,8 @@ class PhaserSet(EnvExperiment):
         self.setattr_device('core')
         self.setattr_device('core_dma')
         self.setattr_device('phaser0')
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
 
         # hardware values
         self.t_sample_mu =          np.int64(40)
@@ -70,19 +70,19 @@ class PhaserSet(EnvExperiment):
         self.dac_register_1f =      np.int32(0)
 
         # preallocate phase holders
-        self.phase_ch1_turns =      np.float(0)
+        self.phase_ch1_turns =      float(0)
 
-        self.phase_ch0_osc0 =       np.float(0)
-        self.phase_ch0_osc1 =       np.float(0)
-        self.phase_ch0_osc2 =       np.float(0)
-        self.phase_ch0_osc3 =       np.float(0)
-        self.phase_ch0_osc4 =       np.float(0)
+        self.phase_ch0_osc0 =       float(0)
+        self.phase_ch0_osc1 =       float(0)
+        self.phase_ch0_osc2 =       float(0)
+        self.phase_ch0_osc3 =       float(0)
+        self.phase_ch0_osc4 =       float(0)
 
-        self.phase_ch1_osc0 =       np.float(0)
-        self.phase_ch1_osc1 =       np.float(0)
-        self.phase_ch1_osc2 =       np.float(0)
-        self.phase_ch1_osc3 =       np.float(0)
-        self.phase_ch1_osc4 =       np.float(0)
+        self.phase_ch1_osc0 =       float(0)
+        self.phase_ch1_osc1 =       float(0)
+        self.phase_ch1_osc2 =       float(0)
+        self.phase_ch1_osc3 =       float(0)
+        self.phase_ch1_osc4 =       float(0)
 
 
     def prepare(self):
@@ -174,8 +174,8 @@ class PhaserSet(EnvExperiment):
         self.core.break_realtime()
 
         # set debug triggers
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -361,7 +361,7 @@ class PhaserSet(EnvExperiment):
             # set debug TTL
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl8.on()
+                # self.ttl8.on()
 
         # set oscillator 1
         at_mu(time_start_mu + self.t_sample_mu)
@@ -372,7 +372,7 @@ class PhaserSet(EnvExperiment):
             # set debug TTL
             with sequential:
                 delay_mu(self.time_output_delay_mu)
-                self.ttl9.on()
+                # self.ttl9.on()
 
         # set oscillator 2
         at_mu(time_start_mu + 2 * self.t_sample_mu)
@@ -435,8 +435,7 @@ class PhaserSet(EnvExperiment):
 
         # send debug triggers
         with parallel:
-            self.ttl8.off()
-            self.ttl9.off()
+            pass
 
     @kernel(flags={"fast-math"})
     def phaser_reset(self):

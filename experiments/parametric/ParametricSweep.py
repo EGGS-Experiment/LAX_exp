@@ -29,14 +29,21 @@ class ParametricSweep(LAXExperiment, Experiment):
     to measure micromotion.
     """
     name = 'Parametric Sweep'
-
+    kernel_invariants = {
+        "dc_channel_num", "dc_voltages_v_list", "time_dc_synchronize_delay_mu",
+        "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu", "att_modulation_mu", "freq_modulation_list_mu",
+        "cxn", "dc",
+        "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts",
+        # subsequences
+        "parametric_subsequence", "rescue_subsequence"
+    }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=2, ndecimals=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=2, precision=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",             NumberValue(default=17, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",             NumberValue(default=17, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         self.setattr_argument("mod_freq_khz_list",      Scannable(
                                                             default= [
                                                                 CenterScan(1390.76, 3, 0.5, randomize=True),
@@ -44,7 +51,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                 # CenterScan(1566.5, 6, 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=200000, global_step=1,
-                                                            unit="kHz", scale=1, ndecimals=4
+                                                            unit="kHz", scale=1, precision=4
                                                         ), group='modulation')
 
         # shimming voltages
@@ -56,12 +63,12 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                                 ExplicitScan([75.5]),
                                                             ],
                                                             global_min=0, global_max=400, global_step=1,
-                                                            unit="V", scale=1, ndecimals=1
+                                                            unit="V", scale=1, precision=1
                                                         ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, precision=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -77,32 +84,31 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # get voltage parameters
-        self.dc_channel_num =                               self.dc_channeldict[self.dc_channel]['num']
-        self.dc_voltages_v_list =                           np.array(list(self.dc_voltages_v_list))
-        self.time_dc_synchronize_delay_mu =                 self.core.seconds_to_mu(888 * ms)
+        self.dc_channel_num =               self.dc_channeldict[self.dc_channel]['num']
+        self.dc_voltages_v_list =           np.array(list(self.dc_voltages_v_list))
+        self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(888 * ms)
 
         # convert cooling parameters to machine units
-        self.ampl_cooling_asf =                             self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
-        self.freq_cooling_ftw =                             self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
-        self.time_cooling_holdoff_mu =                      self.core.seconds_to_mu(3 * ms)
+        self.ampl_cooling_asf =         self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
+        self.freq_cooling_ftw =         self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
+        self.time_cooling_holdoff_mu =  self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
-        self.att_modulation_mu =                            att_to_mu(self.mod_att_db * dB)
-        self.freq_modulation_list_mu =                      np.array([
-                                                                self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
-                                                                for freq_mhz in self.mod_freq_khz_list
-                                                            ])
+        self.att_modulation_mu =        att_to_mu(self.mod_att_db * dB)
+        self.freq_modulation_list_mu =  np.array([
+                                            self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
+                                            for freq_mhz in self.mod_freq_khz_list
+                                        ])
 
         # connect to labrad
-        self.cxn =                                          labrad.connect(environ['LABRADHOST'],
-                                                                           port=7682, tls_mode='off',
-                                                                           username='', password='lab')
-        self.dc =                                           self.cxn.dc_server
+        self.cxn = labrad.connect(environ['LABRADHOST'],
+                                  port=7682, tls_mode='off',
+                                  username='', password='lab')
+        self.dc = self.cxn.dc_server
 
         # set up variables for ensuring PMT counts are above some threshold
         self.fluorescence_calibration_time_mu =             np.int64(30000000)  # 30ms
         self.fluorescence_calibration_threshold_counts =    400
-
 
     @property
     def results_shape(self):
@@ -156,6 +162,8 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.dds_parametric.set_att_mu(self.att_modulation_mu)
         self.dds_parametric.set_phase_absolute()
         self.core.break_realtime()
+        # note: use profile 0 for modulation waveform
+        self.dds_parametric.set_profile(0)
 
         # do check to verify that mirror is flipped to mirror
         # tmp remove: fix
@@ -177,10 +185,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         if counts_calibration < self.fluorescence_calibration_threshold_counts:
             raise InsufficientCounts("Error: PMT not receiving sufficient counts.")
 
-
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.reset()
+        self.core.break_realtime()
 
         # run given number of repetitions
         for trial_num in range(self.repetitions):
@@ -208,19 +215,17 @@ class ParametricSweep(LAXExperiment, Experiment):
                     pmt_timestamp_list = self.parametric_subsequence.run()
 
                     # process results (stores them in our results dataset for us)
-                    with parallel:
-                        self._process_results(freq_mu,
-                                              voltage_v,
-                                              pmt_timestamp_list)
-                        self.core.reset()
+                    self._process_results(freq_mu,
+                                          voltage_v,
+                                          pmt_timestamp_list)
+                    self.core.reset()
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
 
     @rpc(flags={"async"})

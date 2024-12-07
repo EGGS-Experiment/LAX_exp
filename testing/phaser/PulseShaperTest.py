@@ -21,22 +21,22 @@ class PulseShaperTest(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # general
-        self.setattr_argument("repetitions",            NumberValue(default=100000, ndecimals=0, step=1, min=1, max=1000))
+        self.setattr_argument("repetitions",            NumberValue(default=100000, precision=0, step=1, min=1, max=1000))
 
         # timing
-        self.setattr_argument("time_reset_us",          NumberValue(default=2000, ndecimals=3, step=500, min=0.001, max=100000))
+        self.setattr_argument("time_reset_us",          NumberValue(default=2000, precision=3, step=500, min=0.001, max=100000))
 
         # waveform
-        self.setattr_argument("freq_carrier_mhz",       NumberValue(default=50., ndecimals=6, step=1., min=0., max=200.))
-        self.setattr_argument("freq_sideband_khz",      NumberValue(default=1400, ndecimals=3, step=100, min=-10000, max=10000))
-        self.setattr_argument("phase_ch1_turns",        NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0))
-        self.setattr_argument("att_phaser_db",          NumberValue(default=5., ndecimals=1, step=0.5, min=0, max=31.5))
+        self.setattr_argument("freq_carrier_mhz",       NumberValue(default=50., precision=6, step=1., min=0., max=200.))
+        self.setattr_argument("freq_sideband_khz",      NumberValue(default=1400, precision=3, step=100, min=-10000, max=10000))
+        self.setattr_argument("phase_ch1_turns",        NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0))
+        self.setattr_argument("att_phaser_db",          NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5))
 
         # core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr_device("ttl8")
-        self.setattr_device("ttl9")
+        # self.setattr_device("ttl8")
+        # self.setattr_device("ttl9")
         self.setattr_device('phaser_eggs')
 
         # objects
@@ -72,11 +72,11 @@ class PulseShaperTest(LAXExperiment, Experiment):
             # play waveform
             at_mu(self.phaser_eggs.get_next_frame_mu())
             with parallel:
-                self.ttl8.on()
+                # self.ttl8.on()
                 with sequential:
                     self.phaser_eggs.reset_duc_phase()
                     self.pulse_shaper.waveform_playback(self._wav_idx)
-            self.ttl8.off()
+            # self.ttl8.off()
 
             # add delay for reset
             with parallel:
@@ -95,8 +95,8 @@ class PulseShaperTest(LAXExperiment, Experiment):
         self.core.reset()
 
         # prepare TTLs
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
 
         # prepare phaser - attenuators
         at_mu(self.phaser_eggs.get_next_frame_mu())

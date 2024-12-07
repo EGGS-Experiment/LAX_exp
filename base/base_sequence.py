@@ -81,7 +81,7 @@ class LAXSequence(LAXEnvironment, ABC):
     '''
 
     @kernel(flags={"fast-math"})
-    def initialize_sequence(self):
+    def initialize_sequence(self) -> TNone:
         """
         To be subclassed.
 
@@ -98,5 +98,15 @@ class LAXSequence(LAXEnvironment, ABC):
         Runs a fixed, unchangeable pulse sequence from core DMA.
         Must have the kernel decorator.
         Since sequences use core DMA, it cannot contain any methods involving RTIO input.
+        """
+        pass
+
+    @kernel(flags={"fast-math"})
+    def initialize_sequence(self) -> TNone:
+        """
+        To be subclassed.
+
+        todo: document
+        note: don't initialize devices here, otherwise lots of redundancy and overhead
         """
         pass

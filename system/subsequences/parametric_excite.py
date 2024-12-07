@@ -13,14 +13,12 @@ class ParametricExcite(LAXSubsequence):
     """
     name = 'parametric_excite'
     kernel_invariants = {
-        "time_pmt_gating_mu",
-        "time_rf_gating_mu",
-        "time_rf_holdoff_mu"
+        "time_pmt_gating_mu", "time_rf_gating_mu", "time_rf_holdoff_mu"
     }
 
     def build_subsequence(self):
         # number of input counts to listen for
-        self.setattr_argument("num_counts",     NumberValue(default=5000, ndecimals=0, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("num_counts",     NumberValue(default=5000, precision=0, step=1, min=1, max=10000000), group=self.name)
 
         # get relevant devices
         self.setattr_device('pmt')

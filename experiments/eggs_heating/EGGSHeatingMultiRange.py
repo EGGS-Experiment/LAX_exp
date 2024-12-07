@@ -19,14 +19,13 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
     then apply bichromatic heating tones, and try to read out the fluorescence.
     Scans multiple ranges in a silly way and allows user choice of amplitudes.
     """
-    name = 'EGGS Heating'
-
+    name = 'EGGS Heating Multi Range'
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=40, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",                                NumberValue(default=40, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",                           BooleanValue(default=True))
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, ndecimals=0, step=1, min=1, max=500))
+        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
         # get subsequences
         self.initialize_subsequence =                                       InitializeQubit(self)
@@ -45,7 +44,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                                unit="MHz", scale=1, precision=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list_1",         Scannable(
                                                                                 default=[
@@ -54,7 +53,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                                unit="MHz", scale=1, precision=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list_2",         Scannable(
                                                                                 default=[
@@ -63,7 +62,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
-                                                                                unit="MHz", scale=1, ndecimals=6
+                                                                                unit="MHz", scale=1, precision=6
                                                                             ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list",         Scannable(
                                                                                 default=[
@@ -72,7 +71,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                                 ],
                                                                                 global_min=0, global_max=10000, global_step=1,
-                                                                                unit="kHz", scale=1, ndecimals=3
+                                                                                unit="kHz", scale=1, precision=3
                                                                             ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
@@ -82,54 +81,54 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
                                                                                     RangeScan(0, 1500, 100, randomize=True),
                                                                                 ],
                                                                                 global_min=1, global_max=100000, global_step=1,
-                                                                                unit="us", scale=1, ndecimals=5
+                                                                                unit="us", scale=1, precision=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, ndecimals=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_ms",                       NumberValue(default=1.0, precision=5, step=1, min=0.000001, max=100000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),
                                                                                     RangeScan(0, 1.0, 9, randomize=True),
                                                                                 ],
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
-                                                                                unit="turns", scale=1, ndecimals=3
+                                                                                unit="turns", scale=1, precision=3
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., ndecimals=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("enable_amplitude_calibration",               BooleanValue(default=False), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., ndecimals=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_0",                NumberValue(default=10., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_0",                NumberValue(default=12., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=0., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_0",                NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_0",                NumberValue(default=12., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_1",                NumberValue(default=20., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_1",                NumberValue(default=22., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_1",                NumberValue(default=20., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_1",                NumberValue(default=22., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
-        self.setattr_argument("ampl_eggs_heating_rsb_pct_2",                NumberValue(default=30., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct_2",                NumberValue(default=32., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct_2",                NumberValue(default=30., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct_2",                NumberValue(default=32., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - amplitude - dynamical decoupling - configuration
         self.setattr_argument("enable_dynamical_decoupling",                BooleanValue(default=True), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_0",       NumberValue(default=1., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_1",       NumberValue(default=2., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_2",       NumberValue(default=3., ndecimals=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_0",       NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_1",       NumberValue(default=2., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_dynamical_decoupling_pct_2",       NumberValue(default=3., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, ndecimals=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, ndecimals=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_dd_phase_shift_keying",               BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, ndecimals=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_dynamical_decoupling_phase_shifts",      NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
 
         # tmp remove
-        self.setattr_device('ttl8')
-        self.setattr_device('ttl9')
+        # self.setattr_device('ttl8')
+        # self.setattr_device('ttl9')
         self.setattr_device('ttl10')
         # tmp remove
 
@@ -166,7 +165,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         '''EGGS HEATING - PHASES'''
         # preallocate variables for phase
-        self.phase_ch1_turns =                                  np.float(0)
+        self.phase_ch1_turns =                                  float(0)
         self.phase_phaser_turns_arr =                           np.zeros((2, 3), dtype=float)
 
 
@@ -404,7 +403,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -422,14 +421,14 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         self.phaser_eggs.channel[1].set_att(31.5 * dB)
 
         # reset debug triggers
-        self.ttl8.off()
-        self.ttl9.off()
+        # self.ttl8.off()
+        # self.ttl9.off()
         # tmp remove
         self.ttl10.off()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
-        self.core.reset()
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
         # get custom sequence handles
         _handle_eggs_pulseshape_rise =      self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
@@ -560,10 +559,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         '''CLEANUP'''
         self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        # tmp remove
         self.ttl10.off()
-        # tmp remove
 
 
     '''
@@ -719,7 +715,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
         """
         # set oscillator 0 (RSB)
         with parallel:
-            self.ttl8.on()
+            # self.ttl8.on()
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[0, 0], clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_rsb_frac, phase=self.phase_phaser_turns_arr[1, 0], clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
@@ -735,7 +731,7 @@ class EGGSHeatingMultiRange(LAXExperiment, Experiment):
 
         # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
-        self.ttl8.off()
+        # self.ttl8.off()
 
     @kernel(flags={"fast-math"})
     def phaser_run_psk(self, ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat) -> TNone:

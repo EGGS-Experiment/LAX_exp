@@ -16,6 +16,7 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: retrieve initial mode vector guesses from dataset_db so we don't waste two sweeps
 # todo: actually make adaptive option usable
 
+
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     """
     Experiment: Micromotion Compensation
@@ -26,34 +27,40 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     name = 'Micromotion Compensation'
 
     kernel_invariants = {
+        # modulation & modes
         "freq_mode_0_ftw", "freq_mode_1_ftw", "freq_mode_ftw_list", "mode_list_idx",
         "att_mode_0_mu", "att_mode_1_mu", "att_db_bounds_list",
+        # voltages
         "dc_channel_axis_0_num", "dc_channel_axis_1_num", "dc_scan_range_volts_list", "time_dc_synchronize_delay_mu",
         "dc_channel_axes_names",
+        # beam values
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu",
+        # magic numbers
         "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE",
-        "cxn", "dc"
+        # labrad
+        "cxn", "dc",
+        # subsequences
+        "parametric_subsequence", "rescue_subsequence"
     }
-
 
     def build_experiment(self):
         # get DC channel configuration dictionary
         self.dc_config_channeldict =                                dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                 NumberValue(default=2, ndecimals=0, step=1, min=1, max=10))
+        self.setattr_argument("iterations",                 NumberValue(default=2, precision=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, ndecimals=0, step=1, min=1, max=100), group='configuration')
-        self.setattr_argument("num_steps",                  NumberValue(default=8, ndecimals=0, step=1, min=5, max=100), group='configuration')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, precision=0, step=1, min=1, max=100), group='configuration')
+        self.setattr_argument("num_steps",                  NumberValue(default=8, precision=0, step=1, min=5, max=100), group='configuration')
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_0_db",              NumberValue(default=20, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mode_0_db",              NumberValue(default=20, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, ndecimals=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_1_db",              NumberValue(default=24, ndecimals=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("att_mode_1_db",              NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
@@ -62,8 +69,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, ndecimals=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, ndecimals=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling')
+        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -72,8 +79,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_device('dds_parametric')
 
         # get relevant subsequences
-        self.parametric_subsequence =                           ParametricExcite(self)
-        self.rescue_subsequence =                               RescueIon(self)
+        self.parametric_subsequence =   ParametricExcite(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         """
@@ -87,11 +94,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         for voltage_arr in [self.dc_scan_range_volts_axis_0, self.dc_scan_range_volts_axis_1]:
             # check voltage scan ranges have correct format
             if (type(voltage_arr) is not list) or (len(voltage_arr) != 2):
-                raise Exception("InputError: voltage scan ranges have incorrect type.")
+                raise ValueError("InputError: voltage scan ranges have incorrect type.")
 
             # check voltages are all in valid range
             if any([(voltage < 0) or (voltage > 110) for voltage in voltage_arr]):
-                raise Exception("InputError: voltage range is out of bounds.")
+                raise ValueError("InputError: voltage range is out of bounds.")
 
         # get DC channel numbers & names
         self.dc_channel_axis_0_num =    self.dc_config_channeldict[self.dc_channel_axis_0]['num']
@@ -197,10 +204,15 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # set up DDS for modulation
         self.dds_parametric.set_phase_absolute()
+        self.core.break_realtime()
+        # note: use profile 0 for modulation waveform
+        self.dds_parametric.set_profile(0)
+        self.core.break_realtime()
+
 
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         """
         Main sequence of experiment.
         """
@@ -309,7 +321,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # ensure voltages are within bounds before we set them
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
                 or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1, 1]):
-            raise Exception("Error: global optimum predicted to be outside valid scan range.")
+            raise ValueError("Error: predicted global optimum outside valid scan range.")
         # set voltages to optimum
         self.voltage_set(self.dc_channel_axis_0_num, opt_v_axis_0)
         self.voltage_set(self.dc_channel_axis_1_num, opt_v_axis_1)
@@ -530,9 +542,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # check optima for errors
             if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
                     (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis, 1])):
-                raise Exception("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
+                raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:
-                raise Exception("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
+                raise ValueError("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
 
             # get full optima vector
             if voltage_axis == 0:

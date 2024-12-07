@@ -21,8 +21,7 @@ class LAXEnvironment(HasEnvironment, ABC):
         devices                     list(LAXDevice)         : list of devices used by the subsequence.
     """
     # Class attributes
-    kernel_invariants =         set()
-
+    kernel_invariants = set()
 
     def __init__(self, managers_or_parent, *args, **kwargs):
         # define instance variables
@@ -98,7 +97,7 @@ class LAXEnvironment(HasEnvironment, ABC):
                     arg_val = array(list(arg_val))
 
                 # store in dataset manager
-                self.__dataset_mgr.set(arg_key, arg_val, archive=False, parameter=False, argument=True)
+                self.__dataset_mgr.set(arg_key, arg_val, {}, archive=False, parameter=False, argument=True)
             except KeyError:
                 logger.warning("Argument unavailable: {:s}".format(arg_val))
 
@@ -124,7 +123,7 @@ class LAXEnvironment(HasEnvironment, ABC):
             # get parameter from _build_arguments only if override is True
             if (override is True) and (key in self._build_arguments):
                 parameter_value = self._build_arguments[key]
-                self.__dataset_mgr.set(key, parameter_value, archive=False, parameter=True, argument=False)
+                self.__dataset_mgr.set(key, parameter_value, {}, archive=False, parameter=True, argument=False)
 
             # convert parameter as necessary
             if conversion_function is not None:

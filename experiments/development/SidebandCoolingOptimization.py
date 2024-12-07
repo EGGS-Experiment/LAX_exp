@@ -16,11 +16,15 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
     Optimize
     """
     name = 'Sideband Cooling Optimization'
+    kernel_invariants = {
+        'initialize_subsequence', 'sidebandcool_pulsed_subsequence', 'sidebandcool_continuous_subsequence',
+        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+    }
 
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, ndecimals=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",       EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -49,7 +53,7 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -58,10 +62,9 @@ class SidebandCoolingOptimization(LAXExperiment, Experiment):
         self.sidebandreadout_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-
     @kernel(flags={"fast-math"})
-    def run_main(self):
-        self.core.reset()
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
 
