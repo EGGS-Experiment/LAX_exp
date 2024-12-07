@@ -51,8 +51,8 @@ class Wavemeter(LAXDevice):
             freq_thz: frequency in THz to set wavemeter PID to
         """
 
-        if channel == 5:
-            assert 755.21 freq_thz < 755.23, "Check Set Frequency of 397 Channel for Wavemeter"
+        # if channel == 5:
+        #     assert 755.21 freq_thz < 755.23, "Check Set Frequency of 397 Channel for Wavemeter"
 
 
         self.wavemeter.set_pid_course(channel, freq_thz)

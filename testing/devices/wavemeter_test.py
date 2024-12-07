@@ -33,6 +33,8 @@ class WavemeterTest(LAXExperiment, Experiment):
     def run_main(self):
         print(self.wavemeter.channels["397nm"][0])
         print(self.wavemeter.read_channel_frequency(self.wavemeter.channels["397nm"][0]))
+        self.wavemeter.set_channel_frequency(self.wavemeter.channels["423nm"][0],709.077646)
+        print(self.wavemeter.read_channel_frequency(self.wavemeter.channels["423nm"][0]))
 
     # ANALYSIS
     def analyze_experiment(self):
