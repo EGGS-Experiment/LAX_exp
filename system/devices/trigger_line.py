@@ -58,3 +58,16 @@ class TriggerLine(LAXDevice):
 
         # return -1 if we time out
         return -1
+
+    @kernel(flags={"fast-math"})
+    def trigger_dummy(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
+        """
+        Dummy trigger procedure to support configurable linetriggering.
+        Immediately returns regardless of parameters.
+        Arguments:
+            time_gating_mu  (int)   : the maximum waiting time (in machine units) for the trigger signal.
+            time_holdoff_mu (int64) : the holdoff time (in machine units)
+        Returns:
+                            (int64) : the current timeline cursor (i.e. now_mu()).
+        """
+        return now_mu()

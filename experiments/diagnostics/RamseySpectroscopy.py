@@ -103,7 +103,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         if self.enable_linetrigger:
             self.trigger_func = self.trigger_line.trigger
         else:
-            self.trigger_func = self.th0
+            self.trigger_func = self.trigger_line.trigger_dummy
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -135,10 +135,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.config_ramsey_list = np.array(self.config_ramsey_list, dtype=np.int64)
         np.random.shuffle(self.config_ramsey_list)
 
-    @kernel(flags={"fast-math"})
-    def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
-        return now_mu()
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_ramsey_list),
@@ -165,7 +161,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
             for config_vals in self.config_ramsey_list:
 
                 # tmp remove
-                self.core.break_realtime()
+                self.core.reset()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()

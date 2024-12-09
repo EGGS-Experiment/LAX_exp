@@ -88,7 +88,7 @@ class LaserScan(LAXExperiment, Experiment):
         if self.enable_linetrigger:
             self.trigger_func = self.trigger_line.trigger
         else:
-            self.trigger_func = self.th0
+            self.trigger_func = self.trigger_line.trigger_dummy
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -100,13 +100,6 @@ class LaserScan(LAXExperiment, Experiment):
                                                  -1).reshape(-1, 2)
         self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
         np.random.shuffle(self.config_laserscan_list)
-
-    @kernel(flags={"fast-math"})
-    def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
-        """
-        Dummy function for line triggering.
-        """
-        return now_mu()
 
     @property
     def results_shape(self):
@@ -142,7 +135,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # tmp remove
                 # turn on rescue beams while waiting
-                self.core.break_realtime()
+                self.core.reset()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
