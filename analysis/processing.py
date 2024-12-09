@@ -452,7 +452,7 @@ def process_laser_scan_results(results, time_us):
     # fit sinc profile to results (only in the case of one peak)
     if len(peaks) == 1:
         # get index step size in frequency (mhz)
-        step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:1, 0])
+        step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
         freq_sinc_mhz = 1. / time_us
 
         # get points +/- 6x the 1/f time for sinc fitting
