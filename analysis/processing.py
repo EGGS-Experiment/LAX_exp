@@ -417,7 +417,7 @@ Laser Scan Functionality
 def process_laser_scan_results(results, time_us):
     # todo: move to use processFluorescence2D
     # create data structures for processing
-    results_tmp =           np.array(results)
+    results_tmp =           np.array(results)[:, :2]
     probability_vals =      np.zeros(len(results_tmp))
     counts_arr =            np.array(results_tmp[:, 1])
 
@@ -434,7 +434,6 @@ def process_laser_scan_results(results, time_us):
     # process dataset into x, y, with y being averaged probability
     results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
     results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
 
     # calculate peak criteria from data
     # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))

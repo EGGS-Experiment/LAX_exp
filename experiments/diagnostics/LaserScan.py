@@ -23,14 +23,14 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=2, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=True), group='linetrigger')
+        self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
         self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
                                                                 default=[
-                                                                    RangeScan(1, 3, 3, randomize=True),
                                                                     ExplicitScan([0.1]),
+                                                                    RangeScan(1, 3, 3, randomize=True),
                                                                 ],
                                                                 global_min=0.01, global_max=1000, global_step=1,
                                                                 unit="ms", scale=1, precision=3
@@ -39,15 +39,15 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(101.4459, 0.02, 0.0002, randomize=True),
+                                                                CenterScan(101.4459, 0.001, 0.0002, randomize=True),
                                                                 ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
                                                             global_min=60, global_max=200, global_step=0.1,
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=10, min=1, max=50), group=self.name)
+        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=5, step=500, min=1, max=10000000), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices
@@ -189,9 +189,9 @@ class LaserScan(LAXExperiment, Experiment):
         Fit data and guess potential spectral peaks.
         """
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
+
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
-
         # save results to dataset manager for dynamic experiments
         self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
