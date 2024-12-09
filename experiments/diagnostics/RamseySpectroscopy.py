@@ -20,13 +20,23 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
         'profile_ramsey', 'config_ramsey_list', 'cooling_subsequence',
         'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'trigger_func'
+        'trigger_func', 'time_linetrig_holdoff_mu_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=40, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
+        self.setattr_argument("repetitions",        NumberValue(default=1, precision=0, step=1, min=1, max=100000))
+
+        # linetrigger
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=True), group='linetrigger')
+        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
+                                                                default=[
+                                                                    RangeScan(1, 3, 3, randomize=True),
+                                                                    ExplicitScan([0.1]),
+                                                                ],
+                                                                global_min=0.01, global_max=1000, global_step=1,
+                                                                unit="ms", scale=1, precision=3
+                                                            ), group='linetrigger')
 
         # cooling type
         self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
@@ -100,6 +110,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         '''
         CONVERT VALUES TO MACHINE UNITS
         '''
+        # ramsey pulse parameters
         self.profile_ramsey = 7
         self.time_pulse_mu =    self.core.seconds_to_mu(self.time_pulse_us * us)
         self.ampl_ramsey_asf =  self.qubit.amplitude_to_asf(self.ampl_ramsey_pct / 100.)
@@ -109,6 +120,10 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.freq_ramsey_ftw_list =     np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in list(self.freq_ramsey_mhz_list)])
         self.phase_ramsey_pow_list =    np.array([self.qubit.turns_to_pow(phas_turn) for phas_turn in list(self.phase_ramsey_turns_list)])
 
+        # linetrigger parameters
+        self.time_linetrig_holdoff_mu_list =    np.array([self.core.seconds_to_mu(time_ms * ms)
+                                                          for time_ms in self.time_linetrig_holdoff_ms_list])
+
         '''
         CREATE EXPERIMENT CONFIG
         '''
@@ -116,8 +131,9 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # (i.e. heating time & readout FTW)
         self.config_ramsey_list = np.stack(np.meshgrid(self.time_delay_mu_list,
                                                        self.freq_ramsey_ftw_list,
-                                                       self.phase_ramsey_pow_list,),
-                                                 -1).reshape(-1, 3)
+                                                       self.phase_ramsey_pow_list,
+                                                       self.time_linetrig_holdoff_mu_list),
+                                                 -1).reshape(-1, 4)
         self.config_ramsey_list = np.array(self.config_ramsey_list, dtype=np.int64)
         np.random.shuffle(self.config_ramsey_list)
 
@@ -128,7 +144,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_ramsey_list),
-                4)
+                5)
 
 
     # MAIN SEQUENCE
@@ -162,10 +178,11 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                 time_delay_mu =     config_vals[0]
                 freq_ramsey_ftw =   np.int32(config_vals[1])
                 phase_ramsey_pow =  np.int32(config_vals[2])
+                time_holdoff_mu =   config_vals[3]
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
+                self.trigger_func(time_holdoff_mu, self.trigger_line.time_holdoff_mu)
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
@@ -182,7 +199,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                     freq_ramsey_ftw,
                     self.readout_subsequence.fetch_count(),
                     time_delay_mu,
-                    phase_ramsey_pow
+                    phase_ramsey_pow,
+                    time_holdoff_mu
                 )
                 self.core.break_realtime()
 

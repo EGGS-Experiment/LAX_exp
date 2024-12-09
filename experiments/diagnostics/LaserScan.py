@@ -17,19 +17,30 @@ class LaserScan(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'trigger_func'
+        'trigger_func', 'time_linetrig_holdoff_mu_list',
+        'config_laserscan_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=20, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
+        self.setattr_argument("repetitions",        NumberValue(default=2, precision=0, step=1, min=1, max=100000))
+
+        # linetrigger
+        self.setattr_argument("enable_linetrigger",     BooleanValue(default=True), group='linetrigger')
+        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
+                                                                default=[
+                                                                    RangeScan(1, 3, 3, randomize=True),
+                                                                    ExplicitScan([0.1]),
+                                                                ],
+                                                                global_min=0.01, global_max=1000, global_step=1,
+                                                                unit="ms", scale=1, precision=3
+                                                            ), group='linetrigger')
 
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(101.4667, 0.002, 0.00002, randomize=True),
-                                                                ExplicitScan([6.05]),
+                                                                CenterScan(101.4459, 0.02, 0.0002, randomize=True),
+                                                                ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
                                                             global_min=60, global_max=200, global_step=0.1,
@@ -56,16 +67,39 @@ class LaserScan(LAXExperiment, Experiment):
         self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
-        # convert waveform values to machine units
+        """
+        Prepare & precompute experimental values.
+        """
+        '''
+        CONVERT VALUES TO MACHINE UNITS
+        '''
+        # laser parameters
         self.freq_qubit_scan_ftw =  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
-        # configure linetriggering
+        # linetrigger parameters
+        self.time_linetrig_holdoff_mu_list =    np.array([self.core.seconds_to_mu(time_ms * ms)
+                                                          for time_ms in self.time_linetrig_holdoff_ms_list])
+
+        '''
+        SET UP LINETRIGGER
+        '''
         if self.enable_linetrigger:
             self.trigger_func = self.trigger_line.trigger
         else:
             self.trigger_func = self.th0
+
+        '''
+        CREATE EXPERIMENT CONFIG
+        '''
+        # create an array of values for the experiment to sweep
+        # (i.e. heating time & readout FTW)
+        self.config_laserscan_list =    np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
+                                                             self.time_linetrig_holdoff_mu_list),
+                                                 -1).reshape(-1, 2)
+        self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
+        np.random.shuffle(self.config_laserscan_list)
 
     @kernel(flags={"fast-math"})
     def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
@@ -76,8 +110,8 @@ class LaserScan(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_qubit_scan_mhz),
-                2)
+        return (self.repetitions * len(self.config_laserscan_list),
+                3)
 
 
     # MAIN SEQUENCE
@@ -103,8 +137,8 @@ class LaserScan(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
-            # sweep frequency
-            for freq_ftw in self.freq_qubit_scan_ftw:
+            # sweep exp config
+            for config_vals in self.config_laserscan_list:
 
                 # tmp remove
                 # turn on rescue beams while waiting
@@ -115,12 +149,17 @@ class LaserScan(LAXExperiment, Experiment):
                 self.pump.on()
                 # tmp remove
 
+                # extract values from config list
+                freq_ftw =          np.int32(config_vals[0])
+                time_holdoff_mu =   config_vals[1]
+                self.core.break_realtime()
+
                 # set frequency
                 self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
+                self.trigger_func(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
@@ -130,7 +169,7 @@ class LaserScan(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
+                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_holdoff_mu)
                 self.core.reset()
 
                 # resuscitate ion
@@ -149,60 +188,6 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
-        # # todo: move to use processFluorescence2D
-        # # create data structures for processing
-        # results_tmp =           np.array(self.results)
-        # probability_vals =      np.zeros(len(results_tmp))
-        # counts_arr =            np.array(results_tmp[:, 1])
-        #
-        # # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
-        # results_tmp[:, 0] *=    1.e3 / 0xFFFFFFFF
-        #
-        #
-        # # calculate fluorescence detection threshold
-        # threshold_list =        findThresholdScikit(results_tmp[:, 1])
-        # for threshold_val in threshold_list:
-        #     probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # # normalize probabilities and convert from D-state probability to S-state probability
-        # results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
-        #
-        # # process dataset into x, y, with y being averaged probability
-        # results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        # results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        #
-        #
-        # # calculate peak criteria from data
-        # # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
-        # # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
-        # # _peak_height =          np.power(self.repetitions, -0.5)
-        # _peak_height =          0.2
-        # _peak_thresh =          0.05
-        # # peak distance criteria is set as ~8 kHz between points
-        # _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
-        #
-        # # calculate peaks from data and extract values
-        # from scipy.signal import find_peaks
-        # peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
-        # peak_vals =             results_tmp[peaks]
-        #
-        # # fit sinc profile to results (only in the case of one peak)
-        # if len(peaks) == 1:
-        #     # get index step size in frequency (mhz)
-        #     step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
-        #     freq_sinc_mhz = 1. / self.time_qubit_us
-        #
-        #     # get points +/- 6x the 1/f time for sinc fitting
-        #     num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
-        #     index_peak_center = peaks[0]
-        #     index_min = max(0, index_peak_center - num_points_sinc)
-        #     index_max = min(index_peak_center + num_points_sinc, len(results_tmp))
-        #     points_tmp = results_tmp[index_min: index_max]
-        #
-        #     # fit sinc profile and replace spectrum peak with fitted value
-        #     # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
-        #     fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
-        #     peak_vals[0, 0] = fit_sinc_params[1]
-
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
         # save results to hdf5 as a dataset
         self.set_dataset('spectrum_peaks',  peak_vals)
