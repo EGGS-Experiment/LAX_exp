@@ -25,21 +25,19 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=1, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
 
         # linetrigger
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=True), group='linetrigger')
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
         self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
                                                                 default=[
-                                                                    RangeScan(1, 3, 3, randomize=True),
                                                                     ExplicitScan([0.1]),
+                                                                    RangeScan(1, 3, 3, randomize=True),
                                                                 ],
                                                                 global_min=0.01, global_max=1000, global_step=1,
                                                                 unit="ms", scale=1, precision=3
                                                             ), group='linetrigger')
-
-        # cooling type
-        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
 
         # ramsey pulse parameters
         self.setattr_argument('time_pulse_us',      NumberValue(default=10., precision=2, step=0.5, min=1., max=10000.), group="ramsey.pulse")
