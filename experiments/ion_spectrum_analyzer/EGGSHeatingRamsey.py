@@ -92,7 +92,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",                           EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",                NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",                NumberValue(default=500, precision=0, step=100, min=100, max=5000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - Ramsey
         self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
