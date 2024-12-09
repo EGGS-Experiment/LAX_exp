@@ -176,7 +176,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(time_holdoff_mu, self.trigger_line.time_holdoff_mu)
+                self.trigger_func(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
