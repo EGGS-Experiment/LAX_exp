@@ -1,4 +1,5 @@
 import numpy as np
+from artiq.language.environment import NumberValue
 from artiq.experiment import *
 
 import os
@@ -8,9 +9,10 @@ from scipy import ndimage
 from datetime import datetime
 from matplotlib import pyplot as plt
 
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
+from LAX_exp.extensions import *
+from scipy.constants import precision
 
 
 # todo: finish kernel_invariants
@@ -39,9 +41,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument('desired_num_of_ions', NumberValue(default=2, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=18.8, precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=21, precision=1, step=0.1, min=0., max=300.),
                                                             group='Starting Trap Parameters')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=24., precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300.),
                                                             group='Starting Trap Parameters')
 
         # ending trap arguments
@@ -49,9 +51,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
         self.setattr_argument('end_west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=71.7, precision=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=47.1, precision=1, step=0.1, min=0., max=150.),
                                                                 group='Ending Trap Parameters')
         self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50.),
                                                                 group='Ending Trap Parameters')
@@ -78,6 +80,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
         self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
+
+        self.setattr_argument('time_readout_us', NumberValue(default=3000, min=1000, max=6000, step=1,
+                                                             scale = 1, precision=0, unit='us'), group='PMT')
 
         # relevant devices - sinara
         self.setattr_device('pump')
@@ -134,6 +139,17 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # ensure data folder exists; create it if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
 
+        self.pmt_sample_time = us_to_mu(3000)
+
+
+
+        print(self.readout_subsequence.time_readout_mu)
+
+        self.readout_subsequence.time_readout_mu = us_to_mu(3000)
+        print(self.readout_subsequence.time_readout_mu)
+
+
+
     @property
     def results_shape(self):
         return (2, 2)
@@ -160,9 +176,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.repump_qubit.on()
         self.repump_cooling.on()
         self.core.break_realtime()
-
-        # deterministically set flipper to camera
-        self.set_flipper_to_camera()
 
         # synchronize timeline
         self.core.wait_until_mu(now_mu())
@@ -216,6 +229,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # run loading loop until we load desired_num_of_ions
         num_ions = 0
+
+        self.readout_subsequence.time_readout_mu = us_to_mu(3000)
+        # deterministically set flipper to camera
+        self.set_flipper_to_camera()
 
         try:
             while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
@@ -397,6 +414,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Set the flipper to send light to the camera.
         """
+        self.core.break_realtime()
+
         # store PMT count events
         for i in range(self.pmt_sample_num):
             self.readout_subsequence.run()
@@ -408,6 +427,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         for i in range(self.pmt_sample_num):
             counts += self.readout_subsequence.fetch_count()
             delay_mu(100)
+
+        self.core.break_realtime()
+        print(counts/self.pmt_sample_num)
+        self.core.break_realtime()
 
         # if PMT counts are below the dark count threshold flip again
         if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
