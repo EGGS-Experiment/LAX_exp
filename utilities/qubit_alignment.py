@@ -26,13 +26,13 @@ class QubitAlignment(LAXExperiment, Experiment):
         """
         # general
         self.setattr_argument('time_total_s',           NumberValue(default=500, precision=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('samples_per_point',      NumberValue(default=20, precision=0, step=10, min=15, max=500), group='timing')
+        self.setattr_argument('samples_per_point',      NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
         self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, precision=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=102.0069, precision=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.4518, precision=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
-        self.setattr_argument('counts_threshold',       NumberValue(default=80, precision=0, step=10, min=1, max=1000), group='qubit')
+        self.setattr_argument('counts_threshold',       NumberValue(default=46, precision=0, step=10, min=1, max=1000), group='qubit')
 
 
         # instantiate subsequences
@@ -60,25 +60,36 @@ class QubitAlignment(LAXExperiment, Experiment):
         self._iter_loop =                       np.arange(self.samples_per_point)
         self._state_array =                     np.zeros(self.samples_per_point, dtype=np.int32)
 
-        # todo: move to prepare/run somehow to prevent overriding
-        # prepare datasets for storing counts
-        self.set_dataset('temp.qubit_align.counts_x', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.qubit_align.counts_y', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
-
         # convert qubit parameters
         self.freq_qubit_ftw =                   hz_to_ftw(self.freq_qubit_mhz * MHz)
         self.att_qubit_mu =                     att_to_mu(self.att_qubit_db * dB)
-
-        # initialize plotting applet
-        self.ccb.issue("create_applet", "qubit_alignment",
-                       '${artiq_applet}plot_xy temp.qubit_align.counts_y'
-                       ' --x temp.qubit_align.counts_x --title "Qubit Alignment"')
 
         # tmp remove
         # todo: set the filter up properly
         self._th_wind = 100
         self._th0 = deque(maxlen=self._th_wind)
         # tmp remove
+
+    @rpc
+    def initialize_plotting(self) -> TNone:
+        """
+        Configure datasets and applets for plotting.
+        """
+        # prepare datasets for storing counts
+        # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
+        counts_x_arr = np.zeros(self.repetitions) * np.nan
+        counts_x_arr[0] = 0
+        counts_y_arr = np.zeros(self.repetitions) * np.nan
+        counts_y_arr[0] = 0
+
+        # prepare datasets for storing counts
+        self.set_dataset('temp.qubit_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+
+        # initialize plotting applet
+        self.ccb.issue("create_applet", "qubit_alignment",
+                       '${artiq_applet}plot_xy temp.qubit_align.counts_y'
+                       ' --x temp.qubit_align.counts_x --title "Qubit Alignment"')
 
     @property
     def results_shape(self):
@@ -88,6 +99,11 @@ class QubitAlignment(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+        self.core.break_realtime()
+
+        # prepare plotting
+        # note: do it here instead of prepare to prevent overriding other experiments
+        self.initialize_plotting()
         self.core.break_realtime()
 
         # prepare qubit beam for readout

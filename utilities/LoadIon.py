@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
+import cv2 as cv
 
 
 # todo: finish kernel_invariants
@@ -68,6 +69,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 ), group='A-Ramp Ejection')
 
         # oven configuration
+        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
         self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
                                                         group='Oven Settings')
         self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A"),
@@ -368,29 +370,50 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
 
+
+
         # create camera image (raw)
         plt.figure(1)
         plt.title("Original Image")
         plt.imshow(data)
         plt.savefig(os.path.join(self.data_path, filepath1))
 
-        # conduct binary thresholding on camera image
-        upper_percentile = np.percentile(data, 99.97)
-        data[data < upper_percentile] =     0
-        data[data >= upper_percentile] =    1
+        # # conduct binary thresholding on camera image
+        # upper_percentile = np.percentile(data, 99.97)
+        # data[data < upper_percentile] =     0
+        # data[data >= upper_percentile] =    1
+        #
+        # # extract number of ions in image
+        # kernel1 = np.ones((2, 2))
+        # data = ndimage.binary_erosion(data, kernel1, iterations=2)
+        # data[data > 0] = 1
+        # labels = skimage.measure.label(data)
 
-        # extract number of ions in image
-        kernel1 = np.ones((2, 2))
-        data = ndimage.binary_erosion(data, kernel1, iterations=2)
-        data[data > 0] = 1
-        labels = skimage.measure.label(data)
+        data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
+        data = np.uint8(data)
+        data = data * (data > np.quantile(data, 0.99))
+        data = cv.medianBlur(data, 5)
+
+        circles = cv.HoughCircles(data, cv.HOUGH_GRADIENT, 1, 5,
+                                  param1=10, param2=5, minRadius=2, maxRadius=5)
+
+        if circles is not None:
+            num_circles = len(circles[0])
+            circles = np.uint16(np.around(circles))
+            for i in circles[0, :]:
+                # draw the outer circle
+                cv.circle(data, (i[0], i[1]), i[2], (255, 255, 255), 1)
+                # draw the center of the circle
+                cv.circle(data, (i[0], i[1]), 2, (255, 255, 255), 1)
+        else:
+            num_ions = 0
 
         # create camera image (processed)
         plt.figure(2)
         plt.imshow(data)
         plt.title("Manipulated Image")
         plt.savefig(os.path.join(self.data_path, filepath2))
-        return len(np.unique(labels)) - 1
+        return num_ions
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:

@@ -53,10 +53,22 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self._iter_signal =         np.arange(self.signal_samples_per_point)
         self._iter_background =     np.arange(self.background_samples_per_point)
 
-        # todo: move to prepare/run somehow to prevent overriding
+    @rpc
+    def initialize_plotting(self) -> TNone:
+        """
+        Configure datasets and applets for plotting.
+        """
         # prepare datasets for storing counts
         self.set_dataset('temp.imag_align.counts_x', np.zeros(self.repetitions) * np.nan, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', np.zeros((self.repetitions, 3)) * np.nan, broadcast=True, persist=False, archive=False)
+        # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
+        counts_x_arr = np.zeros(self.repetitions) * np.nan
+        counts_x_arr[0] = 0
+        counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
+        counts_y_arr[0, :] = 0
+
+        self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
 
 
     @property
@@ -66,7 +78,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
+        self.core.break_realtime()
+
+        # prepare plotting
+        # note: do it here instead of prepare to prevent overriding other experiments
+        self.initialize_plotting()
         self.core.break_realtime()
 
         # configure beams
@@ -96,7 +113,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
                 delay_mu(self.time_slack_mu)
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
+    def run_main(self) -> TNone:
         self.core.break_realtime()
 
         # retrieve DMA handles for PMT alignment

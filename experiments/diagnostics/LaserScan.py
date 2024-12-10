@@ -69,6 +69,9 @@ class LaserScan(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
+        """
+        Dummy function for line triggering.
+        """
         return now_mu()
 
     @property
@@ -104,6 +107,7 @@ class LaserScan(LAXExperiment, Experiment):
             for freq_ftw in self.freq_qubit_scan_ftw:
 
                 # tmp remove
+                # turn on rescue beams while waiting
                 self.core.break_realtime()
                 self.pump.rescue()
                 self.repump_cooling.on()
