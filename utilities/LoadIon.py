@@ -4,14 +4,16 @@ from artiq.experiment import *
 
 import os
 import time
-import skimage
-from scipy import ndimage
 from datetime import datetime
 from matplotlib import pyplot as plt
 
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
-import cv2 as cv
+import skimage
+from skimage import color
+from skimage.transform import hough_circle, hough_circle_peaks
+from LAX_exp.extensions import *
+
 
 
 # todo: finish kernel_invariants
@@ -37,7 +39,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # general arguments
-        self.setattr_argument('desired_num_of_ions', NumberValue(default=2, min=1, max=10, precision=0, step=1))
+        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
         self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=21, precision=1, step=0.1, min=0., max=300.),
@@ -58,10 +60,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=True), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
-                                                                        RangeScan(18, 24, 20, randomize=True),
+                                                                        RangeScan(14, 17, 20, randomize=False),
                                                                         ExplicitScan([19, 20, 21, 22, 23, 24]),
                                                                     ],
                                                                     global_min=0.0, global_max=30.0, global_step=1,
@@ -69,7 +71,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 ), group='A-Ramp Ejection')
 
         # oven configuration
-        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
         self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
                                                         group='Oven Settings')
         self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A"),
@@ -311,6 +312,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         # todo: allow for some error conditions
         print("\tARAMP EJECTION - START:")
+        self.aperture.open_aperture()
         for aramp_voltage in self.aramp_ions_voltage_list:
             self.check_termination()
 
@@ -319,13 +321,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.trap_dc.set_aramp_voltage(aramp_voltage)
             time.sleep(self.time_aramp_pulse_s)
             self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-            time.sleep(self.time_aramp_pulse_s)
+            time.sleep(self.time_aramp_pulse_s+1)
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
             print("\t\tIONS REMAINING: {:d}".format(num_ions))
             if num_ions <= self.desired_num_of_ions:
                 return num_ions
+
+        self.aperture.close_aperture()
 
         return 0
 
@@ -404,24 +408,36 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # data[data > 0] = 1
         # labels = skimage.measure.label(data)
 
-        data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
+        data = data * (data > 1000)
+        if np.max(data) > 0:
+            data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
         data = np.uint8(data)
         data = data * (data > np.quantile(data, 0.99))
-        data = cv.medianBlur(data, 5)
+        # data = cv.medianBlur(data, 5)
 
-        circles = cv.HoughCircles(data, cv.HOUGH_GRADIENT, 1, 5,
-                                  param1=10, param2=5, minRadius=2, maxRadius=5)
+        # circles = cv.HoughCircles(data, cv.HOUGH_GRADIENT, 1, 5,
+        #                           param1=10, param2=5, minRadius=2, maxRadius=5)
+        #
+        # if circles is not None:
+        #     num_ions = len(circles[0])
+        #     circles = np.uint16(np.around(circles))
+        #     for i in circles[0, :]:
+        #         # draw the outer circle
+        #         cv.circle(data, (i[0], i[1]), i[2], (255, 255, 255), 1)
+        #         # draw the center of the circle
+        #         cv.circle(data, (i[0], i[1]), 2, (255, 255, 255), 1)
+        # else:
+        #     num_ions = 0
 
-        if circles is not None:
-            num_circles = len(circles[0])
-            circles = np.uint16(np.around(circles))
-            for i in circles[0, :]:
-                # draw the outer circle
-                cv.circle(data, (i[0], i[1]), i[2], (255, 255, 255), 1)
-                # draw the center of the circle
-                cv.circle(data, (i[0], i[1]), 2, (255, 255, 255), 1)
-        else:
-            num_ions = 0
+        guess_radii = np.arange(1,8)
+        circles = hough_circle(data, guess_radii)
+        accums, cx, cy, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
+        num_ions = len(cx)
+
+        data = color.gray2rgb(data)
+        for center_x, center_y, radius in zip(cx, cy, radii):
+            circy, circx = skimage.draw.circle_perimeter(center_x, center_y, radius, shape = data.shape)
+            data[circx, circy] = (220,20,20)
 
         # create camera image (processed)
         plt.figure(2)
