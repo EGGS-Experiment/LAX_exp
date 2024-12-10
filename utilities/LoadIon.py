@@ -397,37 +397,13 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.imshow(data)
         plt.savefig(os.path.join(self.data_path, filepath1))
 
-        # # conduct binary thresholding on camera image
-        # upper_percentile = np.percentile(data, 99.97)
-        # data[data < upper_percentile] =     0
-        # data[data >= upper_percentile] =    1
-        #
-        # # extract number of ions in image
-        # kernel1 = np.ones((2, 2))
-        # data = ndimage.binary_erosion(data, kernel1, iterations=2)
-        # data[data > 0] = 1
-        # labels = skimage.measure.label(data)
-
+        # todo: set 1000 as some parameter for min scattering value
         data = data * (data > 1000)
         if np.max(data) > 0:
             data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
         data = np.uint8(data)
         data = data * (data > np.quantile(data, 0.99))
-        # data = cv.medianBlur(data, 5)
 
-        # circles = cv.HoughCircles(data, cv.HOUGH_GRADIENT, 1, 5,
-        #                           param1=10, param2=5, minRadius=2, maxRadius=5)
-        #
-        # if circles is not None:
-        #     num_ions = len(circles[0])
-        #     circles = np.uint16(np.around(circles))
-        #     for i in circles[0, :]:
-        #         # draw the outer circle
-        #         cv.circle(data, (i[0], i[1]), i[2], (255, 255, 255), 1)
-        #         # draw the center of the circle
-        #         cv.circle(data, (i[0], i[1]), 2, (255, 255, 255), 1)
-        # else:
-        #     num_ions = 0
 
         guess_radii = np.arange(1,8)
         circles = hough_circle(data, guess_radii)
