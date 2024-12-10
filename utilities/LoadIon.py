@@ -39,9 +39,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument('desired_num_of_ions', NumberValue(default=2, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=18.8, precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300.),
                                                             group='Starting Trap Parameters')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=24., precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300.),
                                                             group='Starting Trap Parameters')
 
         # ending trap arguments
@@ -84,7 +84,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('scheduler')
-        self.readout_subsequence = Readout(self)
+        self.readout_subsequence = Readout(self, time_readout_us = 3000)
 
         # relevant devices - labrad
         self.setattr_device('shutters')
@@ -397,6 +397,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Set the flipper to send light to the camera.
         """
+        self.core.break_realtime()
         # store PMT count events
         for i in range(self.pmt_sample_num):
             self.readout_subsequence.run()
