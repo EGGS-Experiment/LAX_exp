@@ -30,9 +30,10 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                                NumberValue(default=100, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("randomize_config",                           BooleanValue(default=True))
-        self.setattr_argument("sub_repetitions",                            NumberValue(default=1, precision=0, step=1, min=1, max=500))
+        self.setattr_argument("repetitions",        NumberValue(default=100, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config",   BooleanValue(default=True))
+        self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
 
         # get subsequences
         self.initialize_subsequence =                                       InitializeQubit(self)
@@ -44,7 +45,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([83.2028]),
+                                                                                    ExplicitScan([520.2028]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -82,10 +83,10 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",              NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",                       BooleanValue(default=True), group='EGGS_Heating.pulse_shaping')
@@ -109,6 +110,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
+        self.setattr_device('trigger_line')
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
@@ -123,6 +130,13 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.freq_sideband_readout_ftw_list =   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
         self.time_readout_mu_list =             np.array([self.core.seconds_to_mu(time_us * us)
                                                           for time_us in self.time_readout_us_list])
+
+        '''CONFIGURE LINETRIGGER'''
+        # configure linetriggering
+        if self.enable_linetrigger:
+            self.trigger_func = self.trigger_line.trigger
+        else:
+            self.trigger_func = self.th0
 
         '''EGGS HEATING - CONFIG'''
         # convert attenuation from dB to machine units
@@ -162,6 +176,15 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
+
+    # tmp remove
+    @kernel(flags={"fast-math"})
+    def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
+        """
+        Dummy function for line triggering.
+        """
+        return now_mu()
+    # tmp remove
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -287,6 +310,15 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
             # sweep experiment configurations
             while _config_iter < self.num_configs:
 
+                # tmp remove
+                # turn on rescue beams while waiting
+                self.core.break_realtime()
+                self.pump.rescue()
+                self.repump_cooling.on()
+                self.repump_qubit.on()
+                self.pump.on()
+                # tmp remove
+
                 '''CONFIGURE'''
                 config_vals = self.config_eggs_heating_list[_config_iter]
                 # extract values from config list
@@ -307,6 +339,9 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
+
+                # wait for linetrigger
+                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state
