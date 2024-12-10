@@ -29,11 +29,12 @@ class WavemeterTest(LAXExperiment, Experiment):
     def initialize_experiment(self):
         pass
 
-    @kernel(flags={"fast-math"})
+
     def run_main(self):
-        delay(4*s)
         print(self.wavemeter.channels["397nm"][0])
-        # self.wavemeter.read_channel_frequency(self.wavemeter.channels["397nm"][0])
+        print(self.wavemeter.read_channel_frequency(self.wavemeter.channels["397nm"][0]))
+        self.wavemeter.set_channel_frequency(self.wavemeter.channels["423nm"][0],709.077647)
+        print(self.wavemeter.read_channel_frequency(self.wavemeter.channels["423nm"][0]))
 
     # ANALYSIS
     def analyze_experiment(self):
