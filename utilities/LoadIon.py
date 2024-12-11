@@ -3,8 +3,6 @@ from artiq.experiment import *
 
 import os
 import time
-import skimage
-from scipy import ndimage
 from datetime import datetime
 from matplotlib import pyplot as plt
 
@@ -12,6 +10,9 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
 
+import skimage
+from skimage import color
+from skimage.transform import hough_circle, hough_circle_peaks
 
 # todo: finish kernel_invariants
 # todo: speed things up here and there
@@ -293,6 +294,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             TInt32: Number of ions.
         """
         # todo: allow for some error conditions
+
+        self.aperture.open_aperture()
+
         print("\tARAMP EJECTION - START:")
         for aramp_voltage in self.aramp_ions_voltage_list:
             self.check_termination()
@@ -309,6 +313,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("\t\tIONS REMAINING: {:d}".format(num_ions))
             if num_ions <= self.desired_num_of_ions:
                 return num_ions
+
+        self.aperture.close_aperture()
 
         return 0
 
@@ -374,16 +380,23 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.imshow(data)
         plt.savefig(os.path.join(self.data_path, filepath1))
 
-        # conduct binary thresholding on camera image
-        upper_percentile = np.percentile(data, 99.97)
-        data[data < upper_percentile] =     0
-        data[data >= upper_percentile] =    1
+        # todo: set 1000 as some parameter for min scattering value
+        data = data * (data > 1000)
+        if np.max(data) > 0:
+            data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
+        data = np.uint8(data)
+        data = data * (data > np.quantile(data, 0.99))
 
-        # extract number of ions in image
-        kernel1 = np.ones((2, 2))
-        data = ndimage.binary_erosion(data, kernel1, iterations=2)
-        data[data > 0] = 1
-        labels = skimage.measure.label(data)
+        guess_radii = np.arange(1, 8)
+        circles = hough_circle(data, guess_radii)
+        accums, cx, cy, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
+                                                   threshold=0.95)
+        num_ions = len(cx)
+
+        data = color.gray2rgb(data)
+        for center_x, center_y, radius in zip(cx, cy, radii):
+            circy, circx = skimage.draw.circle_perimeter(center_x, center_y, radius, shape=data.shape)
+            data[circx, circy] = (220, 20, 20)
 
         # create camera image (processed)
         plt.figure(2)
