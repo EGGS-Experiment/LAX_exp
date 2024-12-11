@@ -22,15 +22,17 @@ class CompletionMonitor(LayoutWidget):
         # create widgets
         self.progress_bar = ProgressWidget(args, req)
         self.progress_bar.setTextVisible(True)
-        self.progress_bar.setAlignment(QtCore.Qt.AlignCenter)
-        self.addWidget(self.progress_bar, 0, 0)
+        self.progress_bar.setAlignment(QtCore.Qt.AlignRight)
+        self.addWidget(self.progress_bar, 0, 0, 1, 1)
+        self.layout.setRowStretch(0, 2)
 
         self.eta_display = QtWidgets.QLabel("Time Remaining:\t00:00.00")
         self.eta_display.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignCenter)
         font = QtGui.QFont()
         font.setPointSize(19)
         self.eta_display.setFont(font)
-        self.addWidget(self.eta_display, 1, 0)
+        self.addWidget(self.eta_display, 1, 0, 1, 1)
+        self.layout.setRowStretch(1, 6)
 
         # set up timer
         self.prev_pct = 0
@@ -62,7 +64,7 @@ class CompletionMonitor(LayoutWidget):
                 # calculate remaining time
                 time_remaining_s = (100. - val) / self.mbar
                 # print("\n\tpct: {:2.2f}\t time_remaining_s: {:2.2f} => {:02d}:{:04.2f}\n".format(val, time_remaining_s, int(time_remaining_s//60), time_remaining_s % 60))
-                self.eta_display.setText("Time Remaining:\t{:02d}:{:04.2f}".format(int(time_remaining_s // 60), time_remaining_s % 60))
+                self.eta_display.setText("Time Remaining:\t{:02d}:{:05.2f}".format(int(time_remaining_s // 60), time_remaining_s % 60))
 
             # update values
             self.prev_pct = val
