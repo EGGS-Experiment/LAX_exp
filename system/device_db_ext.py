@@ -32,8 +32,14 @@ device_db_ext = {
 
     },
 
+    "wavemeter": {
+    "type": "local",
+    "module": "LAX_exp.system.devices_labrad.wavemeter",
+    "class": "Wavemeter"
 
-    #########################
+    },
+
+#########################
     # Sinara Hardware Devices
     #########################
     # BEAMS
