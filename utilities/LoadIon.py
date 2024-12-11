@@ -403,7 +403,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         plt.imshow(data)
         plt.title("Manipulated Image")
         plt.savefig(os.path.join(self.data_path, filepath2))
-        return len(np.unique(labels)) - 1
+        return num_ions
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
