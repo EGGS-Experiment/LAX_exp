@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.exceptions import CoreException, RTIOOverflow, RTIOUnderflow
 
 import os
 import time
@@ -201,6 +202,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         )
         # record DMA sequences and get DMA handles to play subsequences
         _initialize_code += _initialize_load_DMA_code
+        # note: final line of kernel_from_string MUST NOT have a "\n" character
         _initialize_code += "self.core.break_realtime()"
 
         # create kernel from code string and set as _initialize_experiment
@@ -233,8 +235,10 @@ class LAXExperiment(LAXEnvironment, ABC):
             if isinstance(obj, LAXDevice):
                 _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
 
-        # create kernel from code string and set as _cleanup_experiment
+        # note: final line of kernel_from_string MUST NOT have a "\n" character
         _cleanup_code += "self.core.break_realtime()"
+
+        # create kernel from code string and set as _cleanup_experiment
         cleanup_func = kernel_from_string(["self"], _cleanup_code)
         setattr(self, '_cleanup_experiment', cleanup_func)
 
@@ -250,24 +254,25 @@ class LAXExperiment(LAXEnvironment, ABC):
             
             # run sequence with error handling
             "try:\n"
-            "\tself._run_main(self)\n"
+            "\tself.run_main()\n"
             "except TerminationRequested:\n"
             "\tself.core.break_realtime()\n"
             "\tprint('\tExperiment successfully terminated.')\n"
             "\tself.core.break_realtime()\n"
             "\tdelay_mu(1000000)\n"
-            "except Exception as e:\n"
-            "\tself.core.break_realtime()\n"
-            "\tprint('\tError during experiment: {}'.format(e))\n"
-            "\tself.core.break_realtime()\n"
-            "\tdelay_mu(1000000)\n"
+            # "except Exception as e:\n"
+            # "\tself.core.break_realtime()\n"
+            # "\tprint('\tError during experiment:', e)\n"
+            # "\tself.core.break_realtime()\n"
+            # "\tdelay_mu(1000000)\n"
             "finally:\n"
             "\tself.core.break_realtime()\n"
             
             # cleanup sequence
             "self.core.break_realtime()\n"
             "self._cleanup_experiment(self)\n"
-            "self.core.break_realtime()\n"
+            # note: final line of kernel_from_string MUST NOT have a "\n" character
+            "self.core.break_realtime()"
         )
 
         # create kernel from code string and set as _cleanup_experiment
@@ -287,64 +292,12 @@ class LAXExperiment(LAXEnvironment, ABC):
     RUN
     '''
 
-    # def run(self):
-    #     """
-    #     Main sequence of the experiment.
-    #     """
-    #     # set up dynamic datasets
-    #     # note: this has to happen during run, otherwise we will overwrite other count plotters
-    #     self.set_dataset('management.dynamic.completion_pct', 0., broadcast=True, persist=True, archive=False)
-    #     # downsample counts for dynamic plotting
-    #     dynamic_counts_len = (self.results_shape[0] // self._dynamic_reduction_factor) + 1
-    #     dynamic_counts_arr = zeros(dynamic_counts_len, dtype=int32) * nan
-    #     # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
-    #     dynamic_counts_arr[0] = 0
-    #     self.set_dataset('temp.counts.trace', dynamic_counts_arr,
-    #                      broadcast=True, persist=False, archive=False)
-    #
-    #     # start counting initialization time
-    #     time_global_start = datetime.timestamp(datetime.now())
-    #
-    #     # call initialize_* functions for all children in order of abstraction level (lowest first)
-    #     # note: this also calls the experiment's "initialize_experiment" function
-    #     # note: needs to be passed "self" as an argument since it's a kernel_from_string
-    #     self._initialize_experiment(self)
-    #
-    #     # record initialization time
-    #     time_init_stop = datetime.timestamp(datetime.now())
-    #     time_expinit = time_init_stop - time_global_start
-    #     self.set_dataset('time_init', time_expinit)
-    #     print('\tInitialize Time:\t{:.2f}'.format(time_expinit))
-    #
-    #     # run the main part of the experiment
-    #     try:
-    #         self._run_main(self)
-    #     except TerminationRequested:
-    #         print('\tExperiment successfully terminated.')
-    #     except Exception as e:
-    #         print('\tError during experiment: {}'.format(e))
-    #         # print(traceback.format_exc())
-    #     finally:
-    #         pass
-    #
-    #     # clean up system/hardware to ensure system is left in a safe state
-    #     # note: needs to be passed "self" as an argument since it's a kernel_from_string
-    #     self._cleanup_experiment(self)
-    #
-    #     # record total runtime
-    #     time_run_stop = datetime.timestamp(datetime.now())
-    #     time_exprun = time_run_stop - time_init_stop
-    #     print('\tRun Time:\t\t{:.2f}'.format(time_exprun))
-    #     self.set_dataset('time_run', time_exprun)
-
     @kernel
     def run(self):
         """
         Main sequence of the experiment.
         """
-        self.core.break_realtime()
         self._run_main(self)
-        self.core.break_realtime()
 
     @rpc
     def _initialize_datasets(self) -> TNone:
@@ -533,7 +486,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         # record overall runtime
         # note: time_global_stop is set in self._initialize_datasets
         time_global_stop = datetime.timestamp(datetime.now())
-        time_exprun = self.time_global_start - time_global_stop
+        time_exprun = time_global_stop - self.time_global_start
         self.set_dataset('time_run', time_exprun)
         print('\tRun Time:\t{:.2f}'.format(time_exprun))
 
