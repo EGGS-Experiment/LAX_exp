@@ -500,6 +500,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             else:
                 sorting_col_num = np.argsort(-col_unique_vals)[1]
 
+            # ensure we actually have a scan, and not some rubbish
+            if col_unique_vals[sorting_col_num] <= 1:
+                return
+
             ## convert results to sideband ratio
             ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
                                                                                            1, 0,
@@ -510,7 +514,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             if sorting_col_num == 3:
                 fit_params_secular, fit_err_secular, _ = fitSincGeneric(scanning_freq_MHz, phonons)
                 phonon_n = fit_params_secular[0]
-                # todo: implement
+                # todo: implement phonon err
                 phonon_err = 0
 
                 # save results to hdf5 as a dataset

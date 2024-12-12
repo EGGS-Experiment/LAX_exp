@@ -114,7 +114,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("ampl_subharmonic_carrier_1_pct",         NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group=self.name)
         self.setattr_argument("phase_subharmonic_carrier_0_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
         self.setattr_argument("phase_subharmonic_carrier_1_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
-        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group=self.name)
+        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.115, 0.]), group=self.name)
 
         # get relevant devices
         self.setattr_device("qubit")

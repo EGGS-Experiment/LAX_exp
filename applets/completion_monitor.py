@@ -62,7 +62,8 @@ class CompletionMonitor(LayoutWidget):
                 # print("{}\t{}\t{:.5g}\t{:.5g}".format(self._idx_update, self._idx_update//self.subsample, d_mbar, self.mbar))
 
                 # calculate remaining time
-                time_remaining_s = (100. - val) / self.mbar
+                # hack bugfix: made it max(self.mbar, 1) to get around divide-by-zero errors lol
+                time_remaining_s = (100. - val) / max(self.mbar, 1)
                 # print("\n\tpct: {:2.2f}\t time_remaining_s: {:2.2f} => {:02d}:{:04.2f}\n".format(val, time_remaining_s, int(time_remaining_s//60), time_remaining_s % 60))
                 self.eta_display.setText("Time Remaining:\t{:02d}:{:05.2f}".format(int(time_remaining_s // 60), time_remaining_s % 60))
 
