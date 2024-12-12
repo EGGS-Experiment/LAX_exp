@@ -33,9 +33,9 @@ class SpinEchoWizard(LAXEnvironment):
         self.setattr_device('phaser_eggs')
 
         # set max hardware sample rate
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
-        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
-        self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+        # note: max update rate should be a multiple of 5x the sample period
+        # such that each oscillator is deterministically updated
+        self.t_max_phaser_update_rate_mu =  5 * self.phaser_eggs.t_sample_mu
         self.num_max_phaser_samples =       190
 
 
@@ -83,8 +83,8 @@ class SpinEchoWizard(LAXEnvironment):
 
         '''calculate num samples (i.e. x-axis)'''
         # convert build variables to units of choice
-        self.time_pulse_shape_rolloff_mu =          self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
-        self.time_pulse_shape_sample_mu =           self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
+        self.time_pulse_shape_rolloff_mu =  self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
+        self.time_pulse_shape_sample_mu =   self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
 
         # ensure pulse shaping sample interval is valid (greater than min val)
         # if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:

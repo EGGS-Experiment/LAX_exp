@@ -10,7 +10,7 @@ class PhaserPulseShaper(LAXEnvironment):
     """
     Helper: Phaser Pulse Shaper
 
-    todo: document
+    Simplifies complex waveform programming on phaser via DMA and manages related DMA handles.
     """
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
@@ -38,9 +38,9 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         # set global variables
         self._max_waveforms = 64
-        # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
-        # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
-        self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
+        # note: max update rate should be a multiple of 5x the sample period
+        # such that each oscillator is deterministically updated
+        self.t_max_phaser_update_rate_mu = 5 * self.phaser_eggs.t_sample_mu
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
@@ -51,18 +51,24 @@ class PhaserPulseShaper(LAXEnvironment):
 
 
     '''
-    MAIN SEQUENCE
+    MAIN FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
     def waveform_record(self, ampl_frac_list: TArray(TFloat, 2), phas_turns_list: TArray(TFloat, 2),
                         sample_interval_mu_list: TArray(TInt64, 1)) -> TInt32:
         """
         Record waveform as DMA sequence.
-        todo: finish documenting
+        ampl_frac_list, phas_turns_list, and sample_interval_mu_list must have the same overall length (i.e. axis 0 length).
+        ampl_frac_list and phas_turns_list must also be specified for the same number of oscillators (i.e. axis 1 length).
+        Can specify updates for anywhere between [1, 5] oscillators, but the oscillator numbers must be contiguous.
         Arguments:
-            todo
+            ampl_frac_list: 2D array of amplitudes (fractional) for each oscillator.
+                Axis 0 is list of updates for each timestamp, axis 1 is ampl for each osc.
+            phas_turns_list: 2D array of phases (in turns) for each oscillator.
+                Axis 0 is list of updates for each timestamp, axis 1 is phase for each osc.
+            sample_interval_mu_list: 1D array of timestamps (in machine units) for each ampl/phase update.
         Returns:
-                (TInt32)    : the index of the recorded waveform (for later playback).
+                the index of the recorded waveform (for later playback).
         """
         '''PREPARE INPUTS'''
         # get total lengths of arrays
@@ -109,10 +115,12 @@ class PhaserPulseShaper(LAXEnvironment):
         return self._num_waveforms - 1
 
     @kernel(flags={"fast-math"})
-    def _waveform_point(self, ampl_frac_list: TArray(TFloat, 1), phase_turns_list: TArray(TFloat, 1)) -> TNone:
+    def _waveform_point(self, ampl_frac_list: TArray(TFloat, 1), phas_turns_list: TArray(TFloat, 1)) -> TNone:
         """
-        todo: document
-        todo: note that this function can do fewer than 5 oscs
+        Records update for all oscillators for a single "update" event.
+        Arguments:
+            ampl_frac_list: 1D array of amplitudes (fractional) for each oscillator.
+            phas_turns_list: 1D array of phases (in turns) for each oscillator.
         """
         # loop over input array (guided by ampl_frac_list)
         for osc_num in range(len(ampl_frac_list)):
@@ -120,12 +128,12 @@ class PhaserPulseShaper(LAXEnvironment):
             with parallel:
                 self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(
                     amplitude=ampl_frac_list[osc_num],
-                    phase=phase_turns_list[osc_num],
+                    phase=phas_turns_list[osc_num],
                     clr=0
                 )
                 self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(
                     amplitude=ampl_frac_list[osc_num],
-                    phase=phase_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
+                    phase=phas_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
                     clr=0
                 )
                 delay_mu(self.phaser_eggs.t_sample_mu)
