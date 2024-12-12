@@ -17,7 +17,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
     todo: document
     """
-    name = 'SubharmonicSpectrumAnalyzer'
+    name = 'Subharmonic Spectrum Analyzer'
     kernel_invariants = {
         'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
@@ -33,7 +33,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=100, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
@@ -47,7 +47,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([82.]),
+                                                                                    ExplicitScan([550.]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -62,9 +62,6 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
                                                                                 global_min=0, global_max=10000, global_step=1,
                                                                                 unit="kHz", scale=1, precision=3
                                                                             ), group='EGGS_Heating.frequencies')
-        self.setattr_argument("freq_global_offset_mhz",         NumberValue(default=4., precision=6, step=1., min=-10., max=10.), group='EGGS_Heating.frequencies')
-        self.setattr_argument("freq_carrier_0_offset_khz",      NumberValue(default=0.1, precision=3, step=1., min=-10000., max=10000.), group='EGGS_Heating.frequencies')
-        self.setattr_argument("freq_carrier_1_offset_khz",      NumberValue(default=-0.1, precision=3, step=1., min=-10000., max=10000.), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list",                       Scannable(
@@ -75,7 +72,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
                                                                                 global_min=1, global_max=100000, global_step=1,
                                                                                 unit="us", scale=1, precision=5
                                                                             ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=1000000, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_us",                       NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list",          Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0.]),
@@ -95,21 +92,29 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",                NumberValue(default=0., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",          NumberValue(default=5., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",          NumberValue(default=5., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_0_pct",    NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_1_pct",    NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",          NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",          NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=10, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=100, max=2000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_phase_shift_keying",      BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
         self.setattr_argument("num_psk_phase_shifts",           NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
+
+        # subharmonic spectrum analyzer - extras
+        self.setattr_argument("freq_global_offset_mhz",                 NumberValue(default=0., precision=6, step=1., min=-10., max=10.), group=self.name)
+        self.setattr_argument("freq_subharmonic_carrier_0_offset_khz",  NumberValue(default=0.1, precision=3, step=1., min=-10000., max=10000.), group=self.name)
+        self.setattr_argument("freq_subharmonic_carrier_1_offset_khz",  NumberValue(default=-0.1, precision=3, step=1., min=-10000., max=10000.), group=self.name)
+        self.setattr_argument("ampl_subharmonic_carrier_0_pct",         NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group=self.name)
+        self.setattr_argument("ampl_subharmonic_carrier_1_pct",         NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group=self.name)
+        self.setattr_argument("phase_subharmonic_carrier_0_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
+        self.setattr_argument("phase_subharmonic_carrier_1_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
+        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group=self.name)
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -120,7 +125,9 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0.5, 0.]))
+        # todo: test if we can update CH1 offsets here
+        # self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0.5, 0.]))
+        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
 
     def prepare_experiment(self):
         """
@@ -128,8 +135,8 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         """
         # convert freqs to Hz
         self.freq_global_offset_hz =    self.freq_global_offset_mhz * MHz
-        self.freq_carrier_0_offset_hz = self.freq_carrier_0_offset_khz * kHz
-        self.freq_carrier_1_offset_hz = self.freq_carrier_1_offset_khz * kHz
+        self.freq_carrier_0_offset_hz = self.freq_subharmonic_carrier_0_offset_khz * kHz
+        self.freq_carrier_1_offset_hz = self.freq_subharmonic_carrier_1_offset_khz * kHz
 
         # check that phaser oscillator frequencies are valid
         # ensure phaser amplitudes sum to less than 100%
@@ -183,8 +190,8 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # set oscillator amplitudes
         _sequence_blocks[:, 0, 0] = self.ampl_eggs_heating_rsb_pct
         _sequence_blocks[:, 1, 0] = self.ampl_eggs_heating_bsb_pct
-        _sequence_blocks[:, 2, 0] = self.ampl_eggs_heating_carrier_0_pct
-        _sequence_blocks[:, 3, 0] = self.ampl_eggs_heating_carrier_1_pct
+        _sequence_blocks[:, 2, 0] = self.ampl_subharmonic_carrier_0_pct
+        _sequence_blocks[:, 3, 0] = self.ampl_subharmonic_carrier_1_pct
 
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
@@ -193,14 +200,16 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         phase_carrier_1_update_delay_turns = (self.freq_global_offset_hz + self.freq_carrier_1_offset_hz) * (3 * self.phaser_eggs.t_sample_mu * ns)
 
         _sequence_blocks[:, 1, 1] += phase_bsb_update_delay_turns + self.phase_eggs_heating_bsb_turns
-        _sequence_blocks[:, 2, 1] += phase_carrier_0_update_delay_turns
-        _sequence_blocks[:, 3, 1] += phase_carrier_1_update_delay_turns
+        _sequence_blocks[:, 2, 1] += phase_carrier_0_update_delay_turns + self.phase_subharmonic_carrier_0_turns
+        _sequence_blocks[:, 3, 1] += phase_carrier_1_update_delay_turns + self.phase_subharmonic_carrier_1_turns
 
         # set PSK phases on BOTH carriers
         if self.enable_phase_shift_keying:
+            # PSK on carrier 0
             _sequence_blocks[::2, 2, 1] +=  0.
             _sequence_blocks[1::2, 2, 1] += 0.5
 
+            # PSK on carrier 1
             _sequence_blocks[::2, 3, 1] +=  0.
             _sequence_blocks[1::2, 3, 1] += 0.5
 
