@@ -127,12 +127,16 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # todo: test if we can update CH1 offsets here
         # self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0.5, 0.]))
-        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
+        # self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
 
     def prepare_experiment(self):
         """
         Prepare experimental values.
         """
+        # tmp remove
+        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
+        # tmp remove
+
         # convert freqs to Hz
         self.freq_global_offset_hz =    self.freq_global_offset_mhz * MHz
         self.freq_carrier_0_offset_hz = self.freq_subharmonic_carrier_0_offset_khz * kHz
