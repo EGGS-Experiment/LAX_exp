@@ -4,7 +4,7 @@ from artiq.experiment import *
 
 class PhaserSet(EnvExperiment):
     """
-    Utility: Phaser Set
+    Tool: Phaser Set
 
     Set the phaser output for fast user testing.
     """
