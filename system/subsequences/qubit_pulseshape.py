@@ -78,12 +78,12 @@ class QubitPulseShape(LAXSubsequence):
         # calculate pulse shape, then normalize and rescale to max amplitude
         wav_y_vals = np.array([self._waveform_calc(x_val)
                                for x_val in np.linspace(0., 1., self.num_samples)])
-        wav_y_vals *= (self.ampl_dds_max_pct / 100) / np.max(wav_y_vals)
+        wav_y_vals *= (self.ampl_max_pct / 100) / np.max(wav_y_vals)
 
         # create empty array to store values
         self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
         # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in ampl_asf_pulseshape_list
-        self.dds.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
+        self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
 
@@ -109,20 +109,20 @@ class QubitPulseShape(LAXSubsequence):
         Prepare the subsequence immediately before run.
         """
         # disable RAM mode
-        self.dds.set_cfr1(ram_enable=0)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.set_cfr1(ram_enable=0)
+        self.qubit.cpld.io_update.pulse_mu(8)
 
         # set matched latencies
-        self.dds.set_cfr2(matched_latency_enable=1)
+        self.qubit.set_cfr2(matched_latency_enable=1)
         self.core.break_realtime()
 
         # set target RAM profile
-        self.dds.cpld.set_profile(self.ram_profile)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.cpld.set_profile(self.ram_profile)
+        self.qubit.cpld.io_update.pulse_mu(8)
 
         # write waveform to RAM profile
         delay_mu(5000000)   # 5 ms
-        self.dds.write_ram(self.ampl_asf_pulseshape_list)
+        self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -133,15 +133,15 @@ class QubitPulseShape(LAXSubsequence):
         self.core.break_realtime()
 
         # stop & clear output
-        self.dds.sw.off()
-        self.dds.set_asf(0x00)
-        self.dds.set_pow(0x00)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.off()
+        self.qubit.set_asf(0x00)
+        self.qubit.set_pow(0x00)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
         # disable RAM mode
-        self.dds.set_cfr1(ram_enable=0)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.set_cfr1(ram_enable=0)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -164,7 +164,7 @@ class QubitPulseShape(LAXSubsequence):
 
         # set RAM profile parameters for pulse shaping
         # note: using RAM rampup mode for simplicity
-        self.dds.set_profile_ram(
+        self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
             step=time_step_size,
             profile=self.ram_profile, mode=RAM_MODE_RAMPUP
@@ -180,11 +180,11 @@ class QubitPulseShape(LAXSubsequence):
         """
         '''PRIME RAM PROFILE'''
         # set target DDS profile
-        self.dds.cpld.set_profile(self.ram_profile)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.cpld.set_profile(self.ram_profile)
+        self.qubit.cpld.io_update.pulse_mu(8)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.dds.write32(_AD9910_REG_CFR1,
+        self.qubit.write32(_AD9910_REG_CFR1,
                            (1 << 31) |              # ram_enable
                            (RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 16) |              # select_sine_output
@@ -196,7 +196,7 @@ class QubitPulseShape(LAXSubsequence):
 
         # start ramp-up when coarse aligned to SYNC_CLK for determinacy
         at_mu(time_start_mu)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.cpld.io_update.pulse_mu(8)
 
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
@@ -206,5 +206,5 @@ class QubitPulseShape(LAXSubsequence):
 
         '''CLEANUP'''
         # disable ram
-        self.dds.set_cfr1(ram_enable=0)
-        self.dds.cpld.io_update.pulse_mu(8)
+        self.qubit.set_cfr1(ram_enable=0)
+        self.qubit.cpld.io_update.pulse_mu(8)
