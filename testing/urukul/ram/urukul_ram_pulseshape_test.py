@@ -12,7 +12,6 @@ class UrukulRAMAmplitude(EnvExperiment):
     Test amplitude modulation via RAM on the AD9910.
     """
 
-
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -36,7 +35,6 @@ class UrukulRAMAmplitude(EnvExperiment):
         # debug triggers
         # self.setattr_device("ttl8")
         # self.setattr_device("ttl9")
-
 
     def prepare(self):
         """

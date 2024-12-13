@@ -30,6 +30,7 @@ class Squeeze(LAXSubsequence):
 
         # get relevant devices
         self.setattr_device('dds_parametric')
+        # todo: debug mode
         # tmp remove
         # self.setattr_device('ttl8')
         # self.setattr_device('ttl9')
@@ -37,12 +38,12 @@ class Squeeze(LAXSubsequence):
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
-        self.freq_squeeze_ftw =                             self.dds_parametric.frequency_to_ftw(self.freq_squeeze_khz * kHz)
-        self.att_squeeze_mu =                               att_to_mu(self.att_squeeze_db * dB)
+        self.freq_squeeze_ftw = self.dds_parametric.frequency_to_ftw(self.freq_squeeze_khz * kHz)
+        self.att_squeeze_mu =   att_to_mu(self.att_squeeze_db * dB)
 
-        self.time_squeeze_mu =                              self.core.seconds_to_mu(self.time_squeeze_us * us)
-        self.phase_squeeze_pow =                            self.dds_parametric.turns_to_pow(self.phase_squeeze_turns + 0.)
-        self.phase_antisqueeze_pow =                        self.dds_parametric.turns_to_pow(self.phase_antisqueeze_turns + 0.5)
+        self.time_squeeze_mu =          self.core.seconds_to_mu(self.time_squeeze_us * us)
+        self.phase_squeeze_pow =        self.dds_parametric.turns_to_pow(self.phase_squeeze_turns + 0.)
+        self.phase_antisqueeze_pow =    self.dds_parametric.turns_to_pow(self.phase_antisqueeze_turns + 0.5)
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
