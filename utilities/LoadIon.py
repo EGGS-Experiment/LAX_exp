@@ -4,14 +4,11 @@ from artiq.experiment import *
 import os
 import time
 from datetime import datetime
-from matplotlib import pyplot as plt
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
 
-import skimage
-from skimage import color
 from skimage.transform import hough_circle, hough_circle_peaks
 
 # todo: finish kernel_invariants
@@ -37,7 +34,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # general arguments
-        self.setattr_argument('desired_num_of_ions', NumberValue(default=2, min=1, max=10, precision=0, step=1))
+        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
         self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300.),
@@ -61,7 +58,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
-                                                                        RangeScan(18, 24, 20, randomize=True),
+                                                                        RangeScan(16, 17.5, 20, randomize=True),
                                                                         ExplicitScan([19, 20, 21, 22, 23, 24]),
                                                                     ],
                                                                     global_min=0.0, global_max=30.0, global_step=1,
@@ -374,12 +371,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
 
-        # create camera image (raw)
-        plt.figure(1)
-        plt.title("Original Image")
-        plt.imshow(data)
-        plt.savefig(os.path.join(self.data_path, filepath1))
-
         # todo: set 1000 as some parameter for min scattering value
         data = data * (data > 1000)
         if np.max(data) > 0:
@@ -393,16 +384,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                    threshold=0.95)
         num_ions = len(cx)
 
-        data = color.gray2rgb(data)
-        for center_x, center_y, radius in zip(cx, cy, radii):
-            circy, circx = skimage.draw.circle_perimeter(center_x, center_y, radius, shape=data.shape)
-            data[circx, circy] = (220, 20, 20)
-
-        # create camera image (processed)
-        plt.figure(2)
-        plt.imshow(data)
-        plt.title("Manipulated Image")
-        plt.savefig(os.path.join(self.data_path, filepath2))
         return num_ions
 
     @kernel(flags={"fast-math"})
