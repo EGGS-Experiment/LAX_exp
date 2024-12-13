@@ -4,7 +4,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
 
 
 class LaserScan(LAXExperiment, Experiment):
@@ -63,6 +63,7 @@ class LaserScan(LAXExperiment, Experiment):
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)
         self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
+        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -83,12 +84,22 @@ class LaserScan(LAXExperiment, Experiment):
                                                        for time_ms in self.time_linetrig_holdoff_ms_list])
 
         '''
-        SET UP LINETRIGGER
+        CONFIGURE LINETRIGGERING
         '''
         if self.enable_linetrigger:
             self.trigger_func = self.trigger_line.trigger
         else:
             self.trigger_func = self.trigger_line.trigger_dummy
+
+        '''
+        CONFIGURE PULSESHAPING
+        '''
+        if self.enable_pulseshaping:
+            self.pulse_setup_func = self.pulseshaping_subsequence.set_pulse_time_us
+            self.pulse_run_func =   self.pulseshaping_subsequence.run
+        else:
+            self.pulse_setup_func = self.th0
+            self.pulse_run_func =   self.rabiflop_subsequence.run
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -100,6 +111,10 @@ class LaserScan(LAXExperiment, Experiment):
                                                  -1).reshape(-1, 2)
         self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
         np.random.shuffle(self.config_laserscan_list)
+
+    @kernel(flags={"fast-math"})
+    def th0(self, time_mu: TInt64) -> TNone:
+        pass
 
     @property
     def results_shape(self):
@@ -120,8 +135,12 @@ class LaserScan(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.rabiflop_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+        self.core.break_realtime()
+
+        # set up qubit pulse
+        self.pulse_setup_func(self.time_qubit_us)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -158,7 +177,7 @@ class LaserScan(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
 
                 # rabi flop & read out
-                self.rabiflop_subsequence.run_dma()
+                self.pulse_run_func()
                 self.readout_subsequence.run_dma()
 
                 # update dataset
