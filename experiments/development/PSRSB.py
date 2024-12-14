@@ -23,21 +23,19 @@ class PSRSB(LAXExperiment, Experiment):
         # config/sweep
         'config_experiment_list', 'freq_psrsb_rsb_ftw_list', 'freq_psrsb_carrier_ftw_list',
         'phas_psrsb_carrier_pow_list',
-        # QVSA
-        'freq_qvsa_carrier_hz', 'freq_eggs_secular_hz_list', 'att_qvsa_mu', 'time_qvsa_mu',
+        # QVSA/phaser related
+        'freq_qvsa_carrier_hz', 'freq_qvsa_secular_hz', 'att_qvsa_mu', 'waveform_qvsa_pulseshape_vals',
         # PSRSB
         'profile_psrsb', 'att_qubit_mu', 'ampl_psrsb_rsb_asf', 'ampl_psrsb_carrier_asf', 'time_psrsb_rsb_mu',
         'time_psrsb_carrier_mu',
-        # EGGS/phaser related
-        'waveform_index_to_pulseshaper_vals',
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
         'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=100000))
 
         # get subsequences
         self.initialize_subsequence =       InitializeQubit(self)
@@ -65,8 +63,8 @@ class PSRSB(LAXExperiment, Experiment):
         self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000), group=self.name)
         self.setattr_argument("freq_psrsb_rsb_mhz_list",    Scannable(
                                                                 default=[
-                                                                    ExplicitScan([100.7947]),
                                                                     CenterScan(100.7947, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([100.7947]),
                                                                 ],
                                                                 global_min=60., global_max=200., global_step=1,
                                                                 unit="MHz", scale=1, precision=6
@@ -84,8 +82,8 @@ class PSRSB(LAXExperiment, Experiment):
                                                                 ), group=self.name)
         self.setattr_argument("phas_psrsb_carrier_turns_list",  Scannable(
                                                                     default=[
-                                                                        ExplicitScan([0.372]),
                                                                         RangeScan(0, 1.0, 21, randomize=True),
+                                                                        ExplicitScan([0.372]),
                                                                     ],
                                                                     global_min=-1.0, global_max=1.0, global_step=0.1,
                                                                     unit="turns", scale=1, precision=3
@@ -120,7 +118,7 @@ class PSRSB(LAXExperiment, Experiment):
                              "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_carrier_dev_hz = abs(self.self.freq_qvsa_carrier_hz - self.phaser_eggs.freq_center_hz)
+        phaser_carrier_dev_hz = abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz)
         if (phaser_carrier_dev_hz >= 200. * MHz) or (phaser_carrier_dev_hz >= 200. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
@@ -132,17 +130,14 @@ class PSRSB(LAXExperiment, Experiment):
         # convert attenuation from dB to machine units
         self.att_qvsa_mu = att_to_mu(self.att_qvsa_db * dB)
 
-        # convert time to machine units
-        self.time_qvsa_mu = self.core.seconds_to_mu(self.time_qvsa_us * us)
-
         '''CONVERT VALUES TO MACHINE UNITS - PSRSB PULSES'''
         # convert attenuation from dB to machine units
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
         # convert qubit DDS waveform values to machine units
         self.profile_psrsb = 6
-        self.ampl_psrsb_rsb_asf =       self.qubit.ampl_to_asf(self.ampl_psrsb_rsb_pct / 100.)
-        self.ampl_psrsb_carrier_asf =   self.qubit.ampl_to_asf(self.ampl_psrsb_carrier_pct / 100.)
+        self.ampl_psrsb_rsb_asf =       self.qubit.amplitude_to_asf(self.ampl_psrsb_rsb_pct / 100.)
+        self.ampl_psrsb_carrier_asf =   self.qubit.amplitude_to_asf(self.ampl_psrsb_carrier_pct / 100.)
 
         self.freq_psrsb_rsb_ftw_list =      np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                       for freq_mhz in list(self.freq_psrsb_carrier_mhz_list)])
@@ -172,11 +167,11 @@ class PSRSB(LAXExperiment, Experiment):
         """
         '''PREPARE WAVEFORM COMPILATION'''
         # create holding structures for EGGS pulse waveforms
-        self.waveform_index_to_pulseshaper_id = np.zeros(1, dtype=np.int32)   # store pulseshaper waveform ID
+        self.waveform_qvsa_pulseshape_id = 0
 
         # set up the spin echo wizard generally
         # note: time_pulse_us divided by num_blocks to split it equally
-        self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us
+        self.spinecho_wizard.time_pulse_us =                self.time_qvsa_us
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           False
         self.spinecho_wizard.type_pulse_shape =             self.type_pulse_shape
@@ -206,12 +201,12 @@ class PSRSB(LAXExperiment, Experiment):
         self.spinecho_wizard.compile_waveform()
 
         # get waveform data and store in holding structure
-        self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
+        self.waveform_qvsa_pulseshape_vals = self.spinecho_wizard.get_waveform()
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                3)
+                4)
 
 
     '''
@@ -226,8 +221,18 @@ class PSRSB(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         ### PHASER INITIALIZATION ###
-        # record phaser oscillator waveforms
-        self.phaser_record()
+        # record phaser oscillator waveform
+        # note: normally this would be encapsulated in phaser_record
+        # e.g. in EGGSHeatingRDX-type exps
+        self.core.break_realtime()
+        delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
+        self.waveform_qvsa_pulseshape_id = self.pulse_shaper.waveform_record(
+            self.waveform_qvsa_pulseshape_vals[0],
+            self.waveform_qvsa_pulseshape_vals[1],
+            self.waveform_qvsa_pulseshape_vals[2]
+        )
+        self.core.break_realtime()
+
         # configure phaser carrier frequencies
         self.phaser_configure(self.freq_qvsa_carrier_hz, self.freq_qvsa_secular_hz, self.phaser_eggs.phase_inherent_ch1_turns)
         self.core.break_realtime()
@@ -270,7 +275,7 @@ class PSRSB(LAXExperiment, Experiment):
 
                 '''PHASE-SENSITIVE RED SIDEBAND SEQUENCE'''
                 # create qvsa displacement
-                self.phaser_run(self.waveform_index_to_pulseshaper_id[0])
+                self.phaser_run(self.waveform_qvsa_pulseshape_id)
                 # run PSRSB detection
                 self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw, phas_carrier_pow)
 
@@ -329,7 +334,7 @@ class PSRSB(LAXExperiment, Experiment):
         time_start = now_mu() & ~0x7
 
         # run RSB pulse
-        self.qubit.set_mu(freq_rsb_ftw, pow_=0, ampl=self.ampl_psrsb_rsb_asf,
+        self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
                           profile=self.profile_psrsb,
                           phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start)
         self.qubit.on()
@@ -337,7 +342,7 @@ class PSRSB(LAXExperiment, Experiment):
         self.qubit.off()
 
         # run carrier pulse
-        self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, ampl=self.ampl_psrsb_carrier_asf,
+        self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
                           profile=self.profile_psrsb,
                           phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start)
         self.qubit.on()
