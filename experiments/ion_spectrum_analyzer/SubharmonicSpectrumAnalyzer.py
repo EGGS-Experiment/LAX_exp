@@ -33,7 +33,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=100, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
@@ -103,11 +103,11 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying",      BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_psk_phase_shifts",           NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("enable_phase_shift_keying",      BooleanValue(default=True), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_psk_phase_shifts",           NumberValue(default=51, precision=0, step=10, min=1, max=200), group='EGGS_Heating.waveform.psk')
 
         # subharmonic spectrum analyzer - extras
-        self.setattr_argument("freq_global_offset_mhz",                 NumberValue(default=0., precision=6, step=1., min=-10., max=10.), group=self.name)
+        self.setattr_argument("freq_global_offset_mhz",                 NumberValue(default=2., precision=6, step=1., min=-10., max=10.), group=self.name)
         self.setattr_argument("freq_subharmonic_carrier_0_offset_khz",  NumberValue(default=0.1, precision=3, step=1., min=-10000., max=10000.), group=self.name)
         self.setattr_argument("freq_subharmonic_carrier_1_offset_khz",  NumberValue(default=-0.1, precision=3, step=1., min=-10000., max=10000.), group=self.name)
         self.setattr_argument("ampl_subharmonic_carrier_0_pct",         NumberValue(default=0.625, precision=2, step=10, min=0.0, max=99), group=self.name)
@@ -116,26 +116,27 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("phase_subharmonic_carrier_1_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
         self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.115, 0.]), group=self.name)
 
+        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",      NumberValue(default=0.5, precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
+        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",      NumberValue(default=0.5, precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
+
+
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
-        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
-        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        # todo: test if we can update CH1 offsets here
-        # self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0.5, 0.]))
-        # self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
+
 
     def prepare_experiment(self):
         """
         Prepare experimental values.
         """
-        # tmp remove
+        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
+        # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
         self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
-        # tmp remove
 
         # convert freqs to Hz
         self.freq_global_offset_hz =    self.freq_global_offset_mhz * MHz
@@ -211,11 +212,11 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         if self.enable_phase_shift_keying:
             # PSK on carrier 0
             _sequence_blocks[::2, 2, 1] +=  0.
-            _sequence_blocks[1::2, 2, 1] += 0.5
+            _sequence_blocks[1::2, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns
 
             # PSK on carrier 1
             _sequence_blocks[::2, 3, 1] +=  0.
-            _sequence_blocks[1::2, 3, 1] += 0.5
+            _sequence_blocks[1::2, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):

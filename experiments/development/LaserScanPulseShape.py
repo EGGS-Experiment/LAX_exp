@@ -23,7 +23,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=8, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
@@ -39,7 +39,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(100.6502, 0.01, 0.0001, randomize=True),
+                                                                CenterScan(101.4218, 0.01, 0.0001, randomize=True),
                                                                 ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
@@ -47,8 +47,9 @@ class LaserScan(LAXExperiment, Experiment):
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=5, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -95,8 +96,8 @@ class LaserScan(LAXExperiment, Experiment):
         CONFIGURE PULSESHAPING
         '''
         if self.enable_pulseshaping:
-            self.pulse_setup_func = self.pulseshaping_subsequence.set_pulse_time_us
-            self.pulse_run_func =   self.pulseshaping_subsequence.run
+            self.pulse_setup_func = self.pulseshape_subsequence.set_pulse_time_us
+            self.pulse_run_func =   self.pulseshape_subsequence.run
         else:
             self.pulse_setup_func = self.th0
             self.pulse_run_func =   self.rabiflop_subsequence.run
@@ -113,7 +114,7 @@ class LaserScan(LAXExperiment, Experiment):
         np.random.shuffle(self.config_laserscan_list)
 
     @kernel(flags={"fast-math"})
-    def th0(self, time_mu: TInt64) -> TNone:
+    def th0(self, time_us: TFloat) -> TNone:
         pass
 
     @property
