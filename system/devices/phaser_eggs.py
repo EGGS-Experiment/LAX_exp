@@ -142,18 +142,19 @@ class PhaserEGGS(LAXDevice):
     Setup/Prepare/Cleanup Methods
     '''
     @kernel(flags={"fast-math"})
-    def phaser_setup(self, att_mu: TInt32) -> TNone:
+    def phaser_setup(self, att_mu_ch0: TInt32, att_mu_ch1: TInt32) -> TNone:
         """
         Set up hardware to in preparation for an output pulse.
         Arguments:
-            :param att_mu: attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
+            :param att_mu_ch0: phaser CH0 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
+            :param att_mu_ch1: phaser CH1 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
         """
         # EGGS - START/SETUP
         # set phaser attenuators - warning: creates turn on glitch
         at_mu(self.phaser.get_next_frame_mu())
-        self.phaser.channel[0].set_att_mu(att_mu)
+        self.phaser.channel[0].set_att_mu(att_mu_ch0)
         delay_mu(self.t_sample_mu)
-        self.phaser.channel[1].set_att_mu(att_mu)
+        self.phaser.channel[1].set_att_mu(att_mu_ch1)
 
         # activate integrator hold
         self.int_hold.on()

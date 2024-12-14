@@ -486,7 +486,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
 
         '''EGGS HEATING'''
         # EGGS - START/SETUP
-        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu)
+        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu, self.att_eggs_heating_mu)
 
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()

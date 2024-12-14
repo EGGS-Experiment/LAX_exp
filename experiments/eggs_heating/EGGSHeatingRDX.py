@@ -387,7 +387,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             waveform_id     (TInt32)    : the ID of the waveform to run.
         """
         # EGGS - START/SETUP
-        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu)
+        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu, self.att_eggs_heating_mu)
 
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
