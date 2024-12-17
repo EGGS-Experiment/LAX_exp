@@ -51,6 +51,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.probe_subsequence =    AbsorptionProbe(self)
         self.rescue_subsequence =   RescueIon(self)
 
+
     def prepare_experiment(self):
         """
         Prepare experimental values to reduce runtime overhead.
@@ -90,6 +91,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         '''CREATE EXPERIMENT CONFIG'''
         # set up probe waveform config
         self.config_linewidth_measurement_list = np.stack(np.array([self.freq_probe_scan_ftw, self.ampl_probe_scan_asf])).transpose()
+        self.ideal_linecenter_loc_mhz = 250
 
     @property
     def results_shape(self):
@@ -241,10 +243,17 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         if np.max(res_signal) < 0.4:
             raise ValueError("\t Counts are low - check alignment and AOM frequencies")
 
-        method_list = [func for func in dir(self.wavemeter) if callable(getattr(self.wavemeter, func))]
-        print(method_list)
         channel_397 = self.wavemeter.channels['397nm'][0]
-        print(self.wavemeter.get_channel_frequency(channel_397))
+        current_wavemeter_lock_thz = self.wavemeter.get_channel_frequency(channel_397)
+        freq_drift_mhz = linecenter_mhz - self.ideal_linecenter_loc_mhz
+
+        
+
+
+
+
+
+
 
         '''PRINT RESULTS'''
         # print out fitted parameters
