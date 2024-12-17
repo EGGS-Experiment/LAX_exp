@@ -5,6 +5,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 # todo: unify temperature measurement
+from matplotlib import pyplot as plt
 
 # tmp testing
 from LAX_exp.analysis import *
@@ -31,7 +32,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(
-                                                            default=RangeScan(85, 129, 45, randomize=True),
+                                                            default=RangeScan(85, 135, 60, randomize=True),
                                                             global_min=80, global_max=140, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ))
@@ -45,7 +46,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
         self.setattr_device('sampler0')
-
+        self.setattr_device('wavemeter')
         # subsequences
         self.probe_subsequence =    AbsorptionProbe(self)
         self.rescue_subsequence =   RescueIon(self)
@@ -229,6 +230,21 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.set_dataset('fit_lorentzian_err',      fit_lorentzian_err)
         # self.set_dataset('fit_voigt_params',            fit_voigt_params)
         # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
+
+        linecenter_mhz = fit_gaussian_params[2]
+        fwhm_mhz = fit_gaussian_fwmh_mhz
+        print(fwhm_mhz)
+
+        if fwhm_mhz < 10 or fwhm_mhz > 25:
+            raise ValueError("\tLinewidth is outside normal bounds - fitted as {:.2f}".format(fwhm_mhz))
+
+        if np.max(res_signal) < 0.4:
+            raise ValueError("\t Counts are low - check alignment and AOM frequencies")
+
+        method_list = [func for func in dir(self.wavemeter) if callable(getattr(self.wavemeter, func))]
+        print(method_list)
+        channel_397 = self.wavemeter.channels['397nm'][0]
+        print(self.wavemeter.get_channel_frequency(channel_397))
 
         '''PRINT RESULTS'''
         # print out fitted parameters
