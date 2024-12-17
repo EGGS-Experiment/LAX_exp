@@ -47,7 +47,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
                                                                                 default=[
-                                                                                    ExplicitScan([550.]),
+                                                                                    ExplicitScan([86.]),
                                                                                     CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
@@ -93,8 +93,8 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # EGGS RF - waveform - amplitude - general
         self.setattr_argument("att_eggs_heating_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",          NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",          NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",          NumberValue(default=2., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",          NumberValue(default=2., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -104,7 +104,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_phase_shift_keying",      BooleanValue(default=True), group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_psk_phase_shifts",           NumberValue(default=51, precision=0, step=10, min=1, max=200), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_psk_phase_shifts",           NumberValue(default=4, precision=0, step=10, min=1, max=200), group='EGGS_Heating.waveform.psk')
 
         # subharmonic spectrum analyzer - extras
         self.setattr_argument("freq_global_offset_mhz",                 NumberValue(default=2., precision=6, step=1., min=-10., max=10.), group=self.name)
@@ -116,8 +116,8 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("phase_subharmonic_carrier_1_turns",      NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
         self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.115, 0.]), group=self.name)
 
-        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",      NumberValue(default=0.5, precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
-        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",      NumberValue(default=0.5, precision=3, step=0.1, min=-1.0, max=1.0), group=self.name)
+        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.5, 0., 0.5, 0.]), group=self.name)
+        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.5, 0., 0.5, 0.]), group=self.name)
 
 
         # get relevant devices
@@ -210,13 +210,25 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # set PSK phases on BOTH carriers
         if self.enable_phase_shift_keying:
+            # check that phase shifting schedule is valid
+            if (
+                    (type(self.phase_subharmonic_carrier_0_psk_turns) is not list) or
+                    (type(self.phase_subharmonic_carrier_1_psk_turns) is not list) or
+                    (len(self.phase_subharmonic_carrier_0_psk_turns) != num_blocks) or
+                    (len(self.phase_subharmonic_carrier_1_psk_turns) != num_blocks)
+            ):
+                raise ValueError("Invalid PSK schedule. Must be list with same length as num_psk_phase_shifts+1.")
+
             # PSK on carrier 0
-            _sequence_blocks[::2, 2, 1] +=  0.
-            _sequence_blocks[1::2, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns
+            # _sequence_blocks[::2, 2, 1] +=  0.
+            # _sequence_blocks[1::2, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns
+            _sequence_blocks[:, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns
 
             # PSK on carrier 1
-            _sequence_blocks[::2, 3, 1] +=  0.
-            _sequence_blocks[1::2, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns
+            # _sequence_blocks[::2, 3, 1] +=  0.
+            # _sequence_blocks[1::2, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns
+            _sequence_blocks[:, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns
+
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
