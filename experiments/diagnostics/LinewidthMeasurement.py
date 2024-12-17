@@ -6,6 +6,8 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 # todo: unify temperature measurement
 from matplotlib import pyplot as plt
+from artiq.language import units
+from artiq.language.units import *
 
 # tmp testing
 from LAX_exp.analysis import *
@@ -247,13 +249,13 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         current_wavemeter_lock_thz = self.wavemeter.get_channel_frequency(channel_397)
         freq_drift_mhz = linecenter_mhz - self.ideal_linecenter_loc_mhz
 
-        
+        if freq_drift_mhz > 10:
+            print("\tAnalysis Code suggests large adjustment to wavemeter - check manually")
 
-
-
-
-
-
+        else:
+            new_wavemeter_lock_thz = current_wavemeter_lock_thz + (freq_drift_mhz * (MHz/THz))
+            print(new_wavemeter_lock_thz)
+            # self.wavemeter.set_channel_lock_frequency(new_wavemeter_lock_thz)
 
         '''PRINT RESULTS'''
         # print out fitted parameters
