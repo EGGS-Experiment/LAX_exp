@@ -213,7 +213,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.break_realtime()
         num_ions = self.load()
         self.core.break_realtime()
-        if num_ions ==  self.desired_num_of_ions:
+        if num_ions ==  self.desired_num_of_ions and self.set_to_pmt_after_loading:
             self.flipper.flip()
 
 
