@@ -72,7 +72,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                         group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
-        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(False))
+        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(False), group = 'Camera')
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
