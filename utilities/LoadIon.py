@@ -356,7 +356,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.aperture.close_aperture()
 
         if self.set_to_pmt_after_loading:
-            self.fipper.flip()
+            self.flipper.flip()
 
 
     @rpc
