@@ -1,4 +1,6 @@
 import numpy as np
+from artiq.artiq.language.core import kernel
+from artiq.build.lib.artiq.compiler.builtins import TNone
 from artiq.experiment import *
 
 import os
@@ -356,7 +358,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.aperture.close_aperture()
 
         if self.set_to_pmt_after_loading:
-            self.flipper.flip()
+            self.flip_flipper()
 
 
     @rpc
@@ -423,3 +425,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
+
+    @kernel(flags={"fast-math"})
+    def flip_flipper(self) -> TNone:
+        self.core.break_realtime()
+        self.flipper.flip()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
