@@ -1,6 +1,4 @@
 import numpy as np
-from artiq.artiq.language.core import kernel
-from artiq.build.lib.artiq.compiler.builtins import TNone
 from artiq.experiment import *
 
 import os
