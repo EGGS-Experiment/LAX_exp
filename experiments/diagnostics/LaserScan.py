@@ -23,7 +23,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=8, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
@@ -39,7 +39,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(100.6502, 0.01, 0.0001, randomize=True),
+                                                                CenterScan(101.4109, 0.01, 0.00025, randomize=True),
                                                                 ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
@@ -200,17 +200,18 @@ class LaserScan(LAXExperiment, Experiment):
 
         results_plotting = np.array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
-        # self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
-        #
-        # # self.ccb.issue("disable_applet", "first_matplotlib")
-        # self.ccb.issue("create_applet", f"Laser Scan RID: {self.scheduler.rid}",
-        #                '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
-        #                ' temp.plotting.laserscan.x '
-        #                '--subplot-x-labels temp.plotting.laserscan.xlabels'
-        #                '--subplot-y-labels temp.plotting.laserscan.ylabels'
-        #                ' --num-subplots 1')
+        results_plotting_y = 1 - results_plotting_y
+        self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
+        self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
+        self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
+        self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
+
+        # self.ccb.issue("disable_applet", "first_matplotlib")
+        self.ccb.issue("create_applet", "Laser Scan",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
+                       ' temp.plotting.laserscan.y'
+                       ' --subplot-x-labels temp.plotting.laserscan.xlabels'
+                       ' --subplot-y-labels temp.plotting.laserscan.ylabels'
+                       ' --num-subplots 1')
 
         return results_tmp

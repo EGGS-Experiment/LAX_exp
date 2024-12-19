@@ -24,8 +24,8 @@ class MatplotlibPlot(QMainWindow):
         # Call super
         super().__init__(args, req, **kwargs)
         self.sc = MplCanvas(self, nsubplots=args.num_subplots)
-        if args.x_label is not None:
-            self.sc.fig.supxlabel(args.x_label)
+        # if args.x_label is not None:
+        #     self.sc.fig.supxlabel(args.x_label)
     def update_applet(self, args):
 
         # grab dataset values
@@ -51,24 +51,36 @@ class MatplotlibPlot(QMainWindow):
         if num_datasets == 1:
 
             # ensure all variables are the same size as x or are NoneType
-            if xs is not None:
+            if xs is not None and len(xs.shape) != 0:
                 if len(xs) != len(ys):
                     raise ValueError("x must have the same length as y")
 
-            if errors is not None:
+            if errors is not None and len(errors.shape) != 0:
                 if len(errors) != len(ys):
                     raise ValueError("error must have the same length as y")
 
-            if fit_ys is not None:
+            if fit_ys is not None and len(fit_ys.shape) != 0:
                 if len(fit_ys) != len(ys):
                     raise ValueError("fit_y must have the same length as y")
             else:
                 fit_xs = None
 
-            if fit_xs is not None:
+            if fit_xs is not None and len(fit_xs.shape) != 0:
                 if len(fit_xs) != len(fit_ys):
                     raise ValueError("fit_x must have the same length as fit_y")
-            self.plot(xs, ys, errors, fit_xs, fit_ys)
+
+            if x_labels is not None and len(x_labels.shape) != 0:
+                if np.max(x_labels.shape) > 1:
+                    raise ValueError("There can only be a single x label for a single subplot")
+            if y_labels is not None and len(y_labels.shape) != 0:
+                if np.max(y_labels.shape) > 1:
+                    raise ValueError("There can only be a single y label for a single subplot")
+
+            if titles is not None and len(titles.shape) != 0:
+                if np.max(titles.shape) > 1:
+                    raise ValueError("There can only be a single title for a single subplot")
+
+            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item())
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
