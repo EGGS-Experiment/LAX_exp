@@ -6,8 +6,11 @@ import logging
 
 import PyQt5  # noqa: F401
 import pyqtgraph
+from PyQt5 import QtWidgets
 
-__all__ = ['PlotWidget']
+__all__ = ['PlotWidget', 'QMainWindow']
+
+from PyQt5.QtWidgets import QMainWindow
 
 # Initialize logging infrastructure
 logging.basicConfig(level=logging.WARNING)
@@ -149,3 +152,80 @@ class PlotWidget(pyqtgraph.PlotWidget):
         self.plotItem.setTitle(title, **kwargs)
         # Set title flag
         self.__title_flag = True
+
+
+class QMainWindow(QMainWindow):
+
+    def __init__(self, args: typing.Any, req: typing.Any, **kwargs: typing.Any):
+        QtWidgets.QMainWindow.__init__(self, **kwargs)
+        # Store arguments
+        self.__args = args  # type: typing.Any
+        self.__req = req
+        # Dict with data, acts as a buffer
+        self.__data_buffer = {}  # type: typing.Dict[str, typing.Any]
+        # Logger
+        self.__logger = logging.getLogger(self.__class__.__name__)
+
+    def data_changed(self, value: typing.Dict[str, typing.Any], metadata: typing.Any, persist: typing.Any,
+                     mods: typing.List[typing.Any], title: typing.Optional[str] = None) -> None:
+        """This function is called when a subscribed dataset changes.
+
+        It now provides some standard functionality and custom applets should override
+        the :func:`update_applet` function.
+
+        :param value: Raw data in the form of a dict
+        :param metadata: todo document
+        :param persist: todo document
+        :param mods: A list of unknown objects
+        :param title: The title, if this is a TitleApplet and the title was set
+        """
+        # todo: make not assert
+        assert isinstance(value, dict)
+        assert isinstance(mods, list)
+        # Store data in the buffer
+        self.__data_buffer = value
+
+        try:
+                # Call the update function
+                self.update_applet(self.__args)
+        except SkipUpdateException:
+            pass
+
+    @property
+    def logger(self) -> logging.Logger:
+        """Logger object."""
+        return self.__logger
+
+    def update_applet(self, args):
+        """This function replaces the :func:`data_changed` function and will be called whenever data changes.
+
+        Originally the :func:`data_changed` function would be implemented for custom applets.
+        Now the :func:`data_changed` function provides generic functionality and instead
+        custom applets should overwrite this method.
+
+        The signature of this method changed and data can now be
+        accessed using the :func:`get_data` function and the title is already set.
+
+        :param args: The arguments object returned by argparse
+        """
+        raise NotImplementedError  # Not using abc to prevent metaclass conflict
+
+    def get_dataset(self, key: str, default: typing.Any = NoDefault) -> typing.Any:
+        """Get data from the latest buffer.
+
+        If the data is not available and no default was set, the update function will gracefully return.
+
+        :param key: The key
+        :param default: A default value if desired
+        :return: The requested value or the default if given
+        """
+        try:
+            # Try to return the data
+            return self.__data_buffer[key]
+        except KeyError:
+            if default is NoDefault:
+                # Raise if no default was set
+                raise SkipUpdateException
+            else:
+                return default
+

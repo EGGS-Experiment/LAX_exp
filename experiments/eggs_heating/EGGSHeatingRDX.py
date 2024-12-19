@@ -483,6 +483,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         except Exception as e:
             sub_reps = 1
 
+        # prepare ccb_command for plotting
+        ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.eggs_heating.x' \
+            ' temp.plotting.laserscan.x ' \
+            '--subplot-x-labels temp.plotting.eggs_heating.xlabels' \
+            '--subplot-y-labels temp.plotting.eggs_heating.ylabels' \
+            '--x-label "Freqs (MHz)"'
+
         # handle errors from data processing
         try:
             # print results
@@ -528,6 +535,11 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 # print results to log
                 print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
 
+                results_plotting_x = np.array([scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz])
+                results_plotting_y = np.array([ave_bsb, ave_rsb, phonons])
+                ylabels = np.array(['D State Population', 'D State Population', 'Phonons'])
+                ccb_command += ' --num-subplots 2'
+
             ## process sideband readout sweep
             elif sorting_col_num == 0:
                 rsb_freqs_MHz, bsb_freqs_MHz, _ =       extract_sidebands_freqs(scanning_freq_MHz)
@@ -552,11 +564,26 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
+                results_plotting_x = np.array([ave_bsb, ave_rsb])
+                results_plotting_x = np.array([bsb_freqs_MHz, rsb_freqs_MHz])
+                ylabels = np.array(['D State Population', 'D State Population'])
+                ccb_command += ' --num-subplots 2'
+
             ## process carrier sweep
             elif sorting_col_num == 2:
-                # todo: get RSB, BSB, and phonon means
-                pass
+                results_plotting_x = np.array([ave_bsb, ave_rsb, phonons])
+                results_plotting_x = np.array(scanning_freq_MHz)
+                ylabels = np.array(['D State Population', 'D State Population', 'Phonons'])
+                ccb_command += ' --num-subplots 3'
 
         except Exception as e:
             print("Warning: unable to process data.")
             print(repr(e))
+
+        # self.set_dataset('temp.plotting.eggs_heating.x', results_plotting_x, broadcast=True)
+        # self.set_dataset('temp.plotting.eggs_heating.y', results_plotting_y, broadcast=True)
+        # self.set_dataset('temp.plotting.eggs_heating.xlabels', xlabels, broadcast=True)e)
+
+        # self.ccb.issue("create_applet", f"EGGS Heating RID: {self.scheduler.rid}",
+        #         ccb_command)
+

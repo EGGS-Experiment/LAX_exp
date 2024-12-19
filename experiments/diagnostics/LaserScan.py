@@ -197,4 +197,20 @@ class LaserScan(LAXExperiment, Experiment):
                 print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
         else:
             print("\tWarning: too many peaks detected.")
+
+        results_plotting = np.array(results_tmp)
+        results_plotting_x, results_plotting_y = results_plotting.transpose()
+        # self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
+        #
+        # # self.ccb.issue("disable_applet", "first_matplotlib")
+        # self.ccb.issue("create_applet", f"Laser Scan RID: {self.scheduler.rid}",
+        #                '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
+        #                ' temp.plotting.laserscan.x '
+        #                '--subplot-x-labels temp.plotting.laserscan.xlabels'
+        #                '--subplot-y-labels temp.plotting.laserscan.ylabels'
+        #                ' --num-subplots 1')
+
         return results_tmp

@@ -435,6 +435,8 @@ def process_laser_scan_results(results, time_us):
     results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
     results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
+
+
     # calculate peak criteria from data
     # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
     # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
