@@ -9,6 +9,8 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
+import artiq.master.worker_db as worker
+from matplotlib.legend_handler import HandlerTuple
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -151,10 +153,15 @@ class MatplotlibPlot(QMainWindow):
 
         if not isinstance(self.sc.axes, numpy.ndarray):
             self.sc.axes = np.array([self.sc.axes])
-        self.points.append(self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label = rid))
+
+        # only plot if a new rid is update (prevents legend from becoming flooded)
+        handles, labels = self.sc.axes[ind].get_legend_handles_labels()
+        global_handles, global_labels = [ax.get_legend_handles_labels() for ax in self.sc.fig.axes][0]
+        if labels == [] or (rid not in np.int32(np.array(labels))):
+            line = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid)
+            self.points.append(line)
         if fit_y is not None and fit_x is not None:
             self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-")
-
         if title is not None:
             self.sc.axes[ind].set_title(title)
         if x_label is not None:
@@ -165,7 +172,8 @@ class MatplotlibPlot(QMainWindow):
         self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
         self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
 
-        self.sc.fig.legend()
+        self.sc.axes[ind].legend()
+
 
     """VERIFICATION AND HELPER FUNCTIONS"""
 
