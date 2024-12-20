@@ -28,8 +28,12 @@ class MatplotlibPlot(QMainWindow):
         self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
         self.boxes = []
         self.box_clicked = None
-        # if args.x_label is not None:
-        #     self.sc.fig.supxlabel(args.x_label)
+        if args.x_label is not None:
+            self.sc.fig.supxlabel(args.x_label, fontsize=16)
+        if args.y_label is not None:
+            self.sc.fig.supylabel(args.y_label, fontsize=16)
+        if args.title is not None:
+            self.sc.fig.suptitle(args.title, fontsize=20)
 
     def update_applet(self, args):
 
@@ -224,17 +228,18 @@ class MatplotlibPlot(QMainWindow):
         if not event.inaxes:
             return
 
-        artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
-        if len(artist_clicked) > 0:
-            artist = artist_clicked[0]
-            axis = artist.axes
-            self.boxes.append(axis.text(event.xdata, event.ydata, f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
-                                        fontsize=12,
-                                        bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
-
         box_clicked = [box_clicked for box_clicked in self.boxes if box_clicked.contains(event)[0]]
         if len(box_clicked) > 0:
             self.box_clicked = box_clicked[0]
+        else:
+            self.box_clicked = None
+            artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
+            if len(artist_clicked) > 0:
+                artist = artist_clicked[0]
+                axis = artist.axes
+                self.boxes.append(axis.text(event.xdata, event.ydata, f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
+                                            fontsize=12,
+                                            bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Backspace or event.key() == Qt.Key_Delete:
