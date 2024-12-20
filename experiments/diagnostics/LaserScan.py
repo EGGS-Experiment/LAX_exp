@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
+import artiq.dashboard.applets_ccb as applets_ccb
 
 
 class LaserScan(LAXExperiment, Experiment):
@@ -23,7 +24,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
@@ -39,7 +40,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(101.4109, 0.01, 0.00025, randomize=True),
+                                                                CenterScan(101.407, 0.0025, 0.0001, randomize=True),
                                                                 ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
@@ -187,7 +188,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('spectrum_peaks',  peak_vals)
         # save results to dataset manager for dynamic experiments
         self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True)
 
         # print peaks to log for user convenience
         # ensure we don't have too many peaks before printing to log
@@ -201,17 +202,23 @@ class LaserScan(LAXExperiment, Experiment):
         results_plotting = np.array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
         results_plotting_y = 1 - results_plotting_y
+
         self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
         self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
         self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
         self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
 
-        # self.ccb.issue("disable_applet", "first_matplotlib")
-        self.ccb.issue("create_applet", "Laser Scan",
+        import time
+        time.sleep(2)
+
+        self.ccb.issue("create_applet", f"Laser Scan",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
                        ' temp.plotting.laserscan.y'
                        ' --subplot-x-labels temp.plotting.laserscan.xlabels'
                        ' --subplot-y-labels temp.plotting.laserscan.ylabels'
-                       ' --num-subplots 1')
+                       ' --rid temp.laserscan.rid'
+                       ' --title "Laser Scan"'
+                       ' --num-subplots 1',
+                       group = "plotting")
 
-        return results_tmp
+        # return results_tmp

@@ -28,12 +28,12 @@ class MatplotlibPlot(QMainWindow):
         self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
         self.boxes = []
         self.box_clicked = None
-        if args.x_label is not None:
-            self.sc.fig.supxlabel(args.x_label, fontsize=16)
-        if args.y_label is not None:
-            self.sc.fig.supylabel(args.y_label, fontsize=16)
+        # if args.x_label is not None:
+        #     self.sc.fig.supxlabel(args.x_label, fontsize=14)
+        # if args.y_label is not None:
+        #     self.sc.fig.supylabel(args.y_label, fontsize=14)
         if args.title is not None:
-            self.sc.fig.suptitle(args.title, fontsize=20)
+            self.sc.fig.suptitle(args.title, fontsize=18)
 
     def update_applet(self, args):
 
@@ -46,6 +46,7 @@ class MatplotlibPlot(QMainWindow):
         x_labels = numpy.array(self.get_dataset(args.subplot_x_labels, None))
         y_labels = numpy.array(self.get_dataset(args.subplot_y_labels, None))
         titles = np.array(self.get_dataset(args.subplot_titles, None))
+        rid = self.get_dataset(args.rid, False)
 
         # determine number of datasets there are
         if len(ys.shape) == 1:
@@ -89,7 +90,7 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(titles.shape) > 1:
                     raise ValueError("There can only be a single title for a single subplot")
 
-            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item())
+            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item(), rid = rid)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -105,7 +106,8 @@ class MatplotlibPlot(QMainWindow):
                 y_label = self.get_plot_label(y_labels, ind)
                 title = self.get_plot_label(titles, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind)
+                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind, rid = rid)
+
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.setCentralWidget(self.sc)
@@ -113,7 +115,7 @@ class MatplotlibPlot(QMainWindow):
 
     """PLOTTING FUNCTIONS"""
 
-    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0):
+    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0, rid=False):
 
         """
         Plot the data in a matplotlib subplots
@@ -149,9 +151,9 @@ class MatplotlibPlot(QMainWindow):
 
         if not isinstance(self.sc.axes, numpy.ndarray):
             self.sc.axes = np.array([self.sc.axes])
-        self.points.append(self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", picker=True))
+        self.points.append(self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label = rid))
         if fit_y is not None and fit_x is not None:
-            self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-", picker=True)
+            self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-")
 
         if title is not None:
             self.sc.axes[ind].set_title(title)
@@ -162,6 +164,8 @@ class MatplotlibPlot(QMainWindow):
 
         self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
         self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
+
+        self.sc.fig.legend()
 
     """VERIFICATION AND HELPER FUNCTIONS"""
 
@@ -259,12 +263,14 @@ def main():
 
     applet.add_dataset("x", "X values")
     applet.add_dataset("y", "Y values")
+    applet.add_dataset("subplot-x-labels", "x labels for subplots",  required=False)
+    applet.add_dataset("subplot-y-labels", "y labels for subplots", required=False)
+    applet.add_dataset("subplot-titles", "title data for subplots", required=False)
+    applet.add_dataset("rid", "rid for experiment", required=False)
     applet.add_dataset("error", "Error data (multiple graphs)", required=False)
     applet.add_dataset("fit-x", "X values for fit data", required=False)
     applet.add_dataset("fit-y", "Fit for Y data", required=False)
-    applet.add_dataset("subplot-x-labels", "x labels for subplots", required=False)
-    applet.add_dataset("subplot-y-labels", "y labels for subplots ", required=False)
-    applet.add_dataset("subplot-titles", "title data for subplots", required=False)
+
 
     applet.run()
 
