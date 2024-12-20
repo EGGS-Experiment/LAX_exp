@@ -24,7 +24,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=25, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
@@ -203,17 +203,14 @@ class LaserScan(LAXExperiment, Experiment):
         results_plotting_x, results_plotting_y = results_plotting.transpose()
         results_plotting_y = 1 - results_plotting_y
 
-        self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
         self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
+        self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
         self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
         self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
 
-        import time
-        time.sleep(2)
-
         self.ccb.issue("create_applet", f"Laser Scan",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
-                       ' temp.plotting.laserscan.y'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.y'
+                       ' --x temp.plotting.laserscan.x'
                        ' --subplot-x-labels temp.plotting.laserscan.xlabels'
                        ' --subplot-y-labels temp.plotting.laserscan.ylabels'
                        ' --rid temp.laserscan.rid'
