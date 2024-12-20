@@ -4,6 +4,8 @@ import numpy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from PyQt5.QtCore import Qt
+from matplotlib.artist import Artist
 
 matplotlib.use('Qt5Agg')
 
@@ -16,6 +18,7 @@ class MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, nsubplots=1):
         self.fig, self.axes = plt.subplots(nsubplots)
+        plt.ion()
         super().__init__(self.fig)
 
 
@@ -24,8 +27,13 @@ class MatplotlibPlot(QMainWindow):
         # Call super
         super().__init__(args, req, **kwargs)
         self.sc = MplCanvas(self, nsubplots=args.num_subplots)
+        self.points = []
+        self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
+        self.boxes = []
+        self.box_clicked = None
         # if args.x_label is not None:
         #     self.sc.fig.supxlabel(args.x_label)
+
     def update_applet(self, args):
 
         # grab dataset values
@@ -102,6 +110,8 @@ class MatplotlibPlot(QMainWindow):
         self.setCentralWidget(self.sc)
         self.show()
 
+    """PLOTTING FUNCTIONS"""
+
     def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0):
 
         """
@@ -138,10 +148,9 @@ class MatplotlibPlot(QMainWindow):
 
         if not isinstance(self.sc.axes, numpy.ndarray):
             self.sc.axes = np.array([self.sc.axes])
-
-        self.sc.axes[ind].errorbar(x, y, error)
+        self.points.append(self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", picker=True))
         if fit_y is not None and fit_x is not None:
-            self.sc.axes[ind].plot(fit_x, fit_y)
+            self.points.append(self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-", picker=True))
 
         if title is not None:
             self.sc.axes[ind].set_title(title)
@@ -149,6 +158,11 @@ class MatplotlibPlot(QMainWindow):
             self.sc.axes[ind].set_xlabel(x_label)
         if y_label is not None:
             self.sc.axes[ind].set_ylabel(y_label)
+
+        self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
+        self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
+
+    """VERIFICATION AND HELPER FUNCTIONS"""
 
     def get_plot_data(self, plot_data, ind):
         """
@@ -206,6 +220,32 @@ class MatplotlibPlot(QMainWindow):
 
         return aux_arg
 
+    """EVENT HANDLING"""
+
+    def mouse_event(self, event):
+        axes = self.sc.axes.tolist()
+        if not event.inaxes:
+            return
+
+        artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
+        if len(artist_clicked) > 0:
+            artist = artist_clicked[0]
+            axis = artist.axes
+            self.boxes.append(axis.text(event.xdata, event.ydata, f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
+                      fontsize = 12,
+                      bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
+
+        box_clicked = [box_clicked for box_clicked in self.boxes if box_clicked.contains(event)[0]]
+        if len(box_clicked) > 0:
+            self.box_clicked = box_clicked[0]
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Backspace or event.key() == Qt.Key_Delete:
+            self.boxes = [box for box in self.boxes if box != self.box_clicked]
+            if self.box_clicked is not None:
+                self.box_clicked.remove()
+                self.box_clicked = None
+
 
 def main():
     # Create applet object
@@ -225,6 +265,7 @@ def main():
     applet.add_dataset("subplot-titles", "title data for subplots", required=False)
 
     applet.run()
+
 
 if __name__ == "__main__":
     main()
