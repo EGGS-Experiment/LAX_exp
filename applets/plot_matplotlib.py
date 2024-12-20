@@ -2,7 +2,10 @@ import numpy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from EGGS_labrad.servers.data_vault.test.test_datavault_package import DatasetTest
+from LAX_exp.experiments.eggs_heating.EGGSHeatingRDX import EGGSHeatingRDX
 from PyQt5.QtCore import Qt
+from artiq.build.lib.artiq.master.databases import DatasetDB
 
 matplotlib.use('Qt5Agg')
 
@@ -11,6 +14,10 @@ from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
 import artiq.master.worker_db as worker
 from matplotlib.legend_handler import HandlerTuple
+from sipyco.pc_rpc import Client
+from sipyco.sync_struct import Subscriber
+import time
+import asyncio
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -37,6 +44,8 @@ class MatplotlibPlot(QMainWindow):
         if args.title is not None:
             self.sc.fig.suptitle(args.title, fontsize=18)
 
+        dataset_db = DatasetDB('dataset_db.mdb')
+        print(dataset_db).data
     def update_applet(self, args):
 
         # grab dataset values
@@ -269,8 +278,8 @@ def main():
     applet.argparser.add_argument("--y-label", type=str, default="", required=False)
     applet.argparser.add_argument("--num-subplots", type=int, default=1, required=False)
 
-    applet.add_dataset("x", "X values")
     applet.add_dataset("y", "Y values")
+    applet.add_dataset("x", "X values", required=False)
     applet.add_dataset("subplot-x-labels", "x labels for subplots",  required=False)
     applet.add_dataset("subplot-y-labels", "y labels for subplots", required=False)
     applet.add_dataset("subplot-titles", "title data for subplots", required=False)
