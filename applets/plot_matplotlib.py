@@ -1,11 +1,8 @@
-import typing
-
 import numpy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from PyQt5.QtCore import Qt
-from matplotlib.artist import Artist
 
 matplotlib.use('Qt5Agg')
 
@@ -150,7 +147,7 @@ class MatplotlibPlot(QMainWindow):
             self.sc.axes = np.array([self.sc.axes])
         self.points.append(self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", picker=True))
         if fit_y is not None and fit_x is not None:
-            self.points.append(self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-", picker=True))
+            self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-", picker=True)
 
         if title is not None:
             self.sc.axes[ind].set_title(title)
@@ -232,8 +229,8 @@ class MatplotlibPlot(QMainWindow):
             artist = artist_clicked[0]
             axis = artist.axes
             self.boxes.append(axis.text(event.xdata, event.ydata, f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
-                      fontsize = 12,
-                      bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
+                                        fontsize=12,
+                                        bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
 
         box_clicked = [box_clicked for box_clicked in self.boxes if box_clicked.contains(event)[0]]
         if len(box_clicked) > 0:
