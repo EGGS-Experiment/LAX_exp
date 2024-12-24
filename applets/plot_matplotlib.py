@@ -2,23 +2,45 @@ import numpy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from EGGS_labrad.servers.data_vault.test.test_datavault_package import DatasetTest
-from LAX_exp.experiments.eggs_heating.EGGSHeatingRDX import EGGSHeatingRDX
 from PyQt5.QtCore import Qt
-from artiq.build.lib.artiq.master.databases import DatasetDB
+from sipyco.sync_struct import Subscriber
+import asyncio
+from asyncio import set_event_loop, Event
+from threading import Thread
 
 matplotlib.use('Qt5Agg')
+from sipyco import pyon
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
-import artiq.master.worker_db as worker
-from matplotlib.legend_handler import HandlerTuple
-from sipyco.pc_rpc import Client
-from sipyco.sync_struct import Subscriber
-import time
-import asyncio
 
+
+# class DatasetCollector:
+#     def __init__(self, server='::1', port_notify=3250):
+#         self.server = server
+#         self.port_notify = port_notify
+#         self.data = dict()
+#         self.loop = asyncio.new_event_loop()
+#         asyncio.set_event_loop(self.loop)
+#         self.stop_event = Event()
+#
+#     def sub_init(self, data):
+#         self.data = data
+#         return self.data
+#
+#     def sub_mod(self, mod):
+#         self.data = mod['struct']
+#         self.stop_event.set()
+#
+#     def subscribe(self):
+#         self.subscriber = Subscriber("datasets",
+#                                      self.sub_init, self.sub_mod)
+#         self.loop.run_until_complete(self.subscriber.connect(
+#             self.server, self.port_notify))
+#
+#     def get_data(self):
+#         self.loop.run_until_complete(self.stop_event.wait())
 
 class MplCanvas(FigureCanvasQTAgg):
 
@@ -43,21 +65,45 @@ class MatplotlibPlot(QMainWindow):
         #     self.sc.fig.supylabel(args.y_label, fontsize=14)
         if args.title is not None:
             self.sc.fig.suptitle(args.title, fontsize=18)
+        self.default_keys = ['x', 'y', 'errors', 'fit_x',  'fit_y',  'subplot_x_labels', 'subplot_y_labels',
+                             'subplot_titles', 'rid']
 
-        dataset_db = DatasetDB('dataset_db.mdb')
-        print(dataset_db).data
     def update_applet(self, args):
 
-        # grab dataset values
-        xs = np.array(self.get_dataset(args.x), None)
-        ys = np.array(self.get_dataset(args.y))
-        errors = np.array(self.get_dataset(args.error, None))
-        fit_xs = np.array(self.get_dataset(args.fit_x, None))
-        fit_ys = np.array(self.get_dataset(args.fit_y, None))
-        x_labels = numpy.array(self.get_dataset(args.subplot_x_labels, None))
-        y_labels = numpy.array(self.get_dataset(args.subplot_y_labels, None))
-        titles = np.array(self.get_dataset(args.subplot_titles, None))
-        rid = self.get_dataset(args.rid, False)
+        results = pyon.decode(self.get_dataset(args.results))
+
+        ys = np.array(self.get_from_dict(results, 'y', None))
+        xs = np.array(self.get_from_dict(results, 'x', None))
+        errors = np.array(self.get_from_dict(results, 'errors', None))
+        fit_xs = np.array(self.get_from_dict(results, 'fit_x', None))
+        fit_ys = np.array(self.get_from_dict(results, 'fit_y', None))
+        x_labels = numpy.array(self.get_from_dict(results, 'x_label', None))
+        y_labels = numpy.array(self.get_from_dict(results, 'y_label', None))
+        titles = numpy.array(self.get_from_dict(results, 'title', None))
+        rid = numpy.array(self.get_from_dict(results, 'rid', None))
+        # data = np.array(self.get_dataset(args.data))
+        # if len(data) == 2:
+        #     xs, ys = data
+        #     errors = np.array(None)
+        # elif len(data) == 3:
+        #     xs, ys, errors = data
+        # else:
+        #     raise ValueError("data should be (2,N,M) or (3,N,M) array contain x,y, and errors (optional)")
+
+        # ys = np.array(self.get_dataset(args.y))
+        # xs = np.array(self.get_dataset(args.x, None))
+        # errors = np.array(self.get_dataset(args.error, None))
+        # fit_xs = np.array(self.get_dataset(args.fit_x, None))
+        # fit_ys = np.array(self.get_dataset(args.fit_y, None))
+        # x_labels = numpy.array(self.get_dataset(args.subplot_x_labels, None))
+        # y_labels = numpy.array(self.get_dataset(args.subplot_y_labels, None))
+        # titles = np.array(self.get_dataset(args.subplot_titles, None))
+        # rid = np.array(self.get_dataset(args.rid, None))
+
+        unused_keys = [key for key in results.keys() if key not in self.default_keys]
+        for key in unused_keys:
+            self.logger.warning(f'Key {key} is listed in results dictionary for plotting, but is unused')
+            self.logger.warning(f'The keys used are: {self.default_keys}')
 
         # determine number of datasets there are
         if len(ys.shape) == 1:
@@ -101,7 +147,7 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(titles.shape) > 1:
                     raise ValueError("There can only be a single title for a single subplot")
 
-            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item(), rid = rid)
+            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item(), rid=rid)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -117,8 +163,7 @@ class MatplotlibPlot(QMainWindow):
                 y_label = self.get_plot_label(y_labels, ind)
                 title = self.get_plot_label(titles, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind, rid = rid)
-
+                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind, rid=rid)
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.setCentralWidget(self.sc)
@@ -165,12 +210,11 @@ class MatplotlibPlot(QMainWindow):
 
         # only plot if a new rid is update (prevents legend from becoming flooded)
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()
-        global_handles, global_labels = [ax.get_legend_handles_labels() for ax in self.sc.fig.axes][0]
         if labels == [] or (rid not in np.int32(np.array(labels))):
             line = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid)
             self.points.append(line)
         if fit_y is not None and fit_x is not None:
-            self.sc.axes[ind].plot(fit_x, fit_y, marker="o", linestyle="-")
+            self.sc.axes[ind].plot(fit_x, fit_y)
         if title is not None:
             self.sc.axes[ind].set_title(title)
         if x_label is not None:
@@ -183,8 +227,13 @@ class MatplotlibPlot(QMainWindow):
 
         self.sc.axes[ind].legend()
 
-
     """VERIFICATION AND HELPER FUNCTIONS"""
+
+    def get_from_dict(self, d, key, default=None):
+        if key in list(d.keys()):
+            return d[key]
+        else:
+            return default
 
     def get_plot_data(self, plot_data, ind):
         """
@@ -274,20 +323,34 @@ def main():
     # Create applet object
 
     applet = TitleApplet(MatplotlibPlot)
+
+    # applet.argparser.add_argument("--x", type=str, default=None, help="X values", required=False)
     applet.argparser.add_argument("--x-label", type=str, default="", required=False)
     applet.argparser.add_argument("--y-label", type=str, default="", required=False)
     applet.argparser.add_argument("--num-subplots", type=int, default=1, required=False)
+    # applet.argparser.add_argument("--subplot-x-labels", type=str, default=None, help="x labels for subplots",
+    #                               required=False)
+    # applet.argparser.add_argument("--subplot-y-labels", type=str, default=None, help="y labels for subplots",
+    #                               required=False)
+    # applet.argparser.add_argument("--subplot-titles", type=str, default=None, help="title data for subplots",
+    #                               required=False)
+    # applet.argparser.add_argument("--rid", type=str, default=None, help="rid for experiment", required=False)
+    # applet.argparser.add_argument("--error", type=str, default=None, help="Error data (multiple graphs)",
+    #                               required=False)
+    # applet.argparser.add_argument("--fit-x", type=str, default=None, help="X values for fit data", required=False)
+    # applet.argparser.add_argument("--fit-y", type=str, default=None, help="Fit for Y data", required=False)
 
-    applet.add_dataset("y", "Y values")
-    applet.add_dataset("x", "X values", required=False)
-    applet.add_dataset("subplot-x-labels", "x labels for subplots",  required=False)
-    applet.add_dataset("subplot-y-labels", "y labels for subplots", required=False)
-    applet.add_dataset("subplot-titles", "title data for subplots", required=False)
-    applet.add_dataset("rid", "rid for experiment", required=False)
-    applet.add_dataset("error", "Error data (multiple graphs)", required=False)
-    applet.add_dataset("fit-x", "X values for fit data", required=False)
-    applet.add_dataset("fit-y", "Fit for Y data", required=False)
-
+    applet.add_dataset("results", "experimental results")
+    # applet.add_dataset("y", "Y values")
+    # applet.add_dataset("x", "X values")
+    # applet.add_dataset('data', 'data values')
+    # applet.add_dataset("subplot-x-labels", "x labels for subplots",  required=False)
+    # applet.add_dataset("subplot-y-labels", "y labels for subplots", required=False)
+    # applet.add_dataset("subplot-titles", "title data for subplots", required=False)
+    # # applet.add_dataset("error", "Error data (multiple graphs)", required=False)
+    # applet.add_dataset("fit-x", "X values for fit data", required=False)
+    # applet.add_dataset("fit-y", "Fit for Y data", required=False)
+    # applet.add_dataset("rid", "Experiment RID", required=False)
 
     applet.run()
 
