@@ -6,6 +6,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 import artiq.dashboard.applets_ccb as applets_ccb
+from sipyco import pyon
 
 
 class LaserScan(LAXExperiment, Experiment):
@@ -24,36 +25,40 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=25, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=25, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
-        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
-                                                                default=[
-                                                                    ExplicitScan([0.1]),
-                                                                    RangeScan(1, 3, 3, randomize=True),
-                                                                ],
-                                                                global_min=0.01, global_max=1000, global_step=1,
-                                                                unit="ms", scale=1, precision=3
-                                                            ), group='linetrigger')
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
+        self.setattr_argument("time_linetrig_holdoff_ms_list", Scannable(
+            default=[
+                ExplicitScan([0.1]),
+                RangeScan(1, 3, 3, randomize=True),
+            ],
+            global_min=0.01, global_max=1000, global_step=1,
+            unit="ms", scale=1, precision=3
+        ), group='linetrigger')
 
         # scan parameters
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=[
-                                                                CenterScan(101.407, 0.0025, 0.0001, randomize=True),
-                                                                ExplicitScan([101.4459]),
-                                                                RangeScan(1, 50, 200, randomize=True),
-                                                            ],
-                                                            global_min=60, global_max=200, global_step=0.01,
-                                                            unit="MHz", scale=1, precision=6
-                                                        ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("freq_qubit_scan_mhz", Scannable(
+            default=[
+                CenterScan(101.407, 0.0025, 0.0001, randomize=True),
+                ExplicitScan([101.4459]),
+                RangeScan(1, 50, 200, randomize=True),
+            ],
+            global_min=60, global_max=200, global_step=0.01,
+            unit="MHz", scale=1, precision=6
+        ), group=self.name)
+        self.setattr_argument("time_qubit_us", NumberValue(default=3500, precision=3, step=500, min=1, max=10000000),
+                              group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50),
+                              group=self.name)
+        self.setattr_argument("att_qubit_db", NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5),
+                              group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
         self.setattr_device('trigger_line')
+        self.setattr_device('ccb')
 
         # tmp remove
         self.setattr_device('pump')
@@ -62,10 +67,10 @@ class LaserScan(LAXExperiment, Experiment):
         # tmp remove
 
         # subsequences
-        self.initialize_subsequence =   InitializeQubit(self)
-        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.readout_subsequence =      Readout(self)
-        self.rescue_subsequence =       RescueIon(self)
+        self.initialize_subsequence = InitializeQubit(self)
+        self.rabiflop_subsequence = RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
+        self.readout_subsequence = Readout(self)
+        self.rescue_subsequence = RescueIon(self)
 
     def prepare_experiment(self):
         """
@@ -75,9 +80,9 @@ class LaserScan(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # laser parameters
-        self.freq_qubit_scan_ftw =  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
-        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
+        self.freq_qubit_scan_ftw = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
+        self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
         # linetrigger parameters
         self.time_linetrig_holdoff_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
@@ -96,9 +101,9 @@ class LaserScan(LAXExperiment, Experiment):
         '''
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_laserscan_list =    np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
-                                                             self.time_linetrig_holdoff_mu_list),
-                                                 -1).reshape(-1, 2)
+        self.config_laserscan_list = np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
+                                                          self.time_linetrig_holdoff_mu_list),
+                                              -1).reshape(-1, 2)
         self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
         np.random.shuffle(self.config_laserscan_list)
 
@@ -106,7 +111,6 @@ class LaserScan(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.repetitions * len(self.config_laserscan_list),
                 3)
-
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
@@ -133,7 +137,6 @@ class LaserScan(LAXExperiment, Experiment):
 
             # sweep exp config
             for config_vals in self.config_laserscan_list:
-
                 # tmp remove
                 # turn on rescue beams while waiting
                 self.core.reset()
@@ -144,8 +147,8 @@ class LaserScan(LAXExperiment, Experiment):
                 # tmp remove
 
                 # extract values from config list
-                freq_ftw =          np.int32(config_vals[0])
-                time_holdoff_mu =   config_vals[1]
+                freq_ftw = np.int32(config_vals[0])
+                time_holdoff_mu = config_vals[1]
                 self.core.break_realtime()
 
                 # set frequency
@@ -176,7 +179,6 @@ class LaserScan(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-
     # ANALYSIS
     def analyze_experiment(self):
         """
@@ -185,7 +187,7 @@ class LaserScan(LAXExperiment, Experiment):
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
 
         # save results to hdf5 as a dataset
-        self.set_dataset('spectrum_peaks',  peak_vals)
+        self.set_dataset('spectrum_peaks', peak_vals)
         # save results to dataset manager for dynamic experiments
         self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True)
@@ -203,19 +205,28 @@ class LaserScan(LAXExperiment, Experiment):
         results_plotting_x, results_plotting_y = results_plotting.transpose()
         results_plotting_y = 1 - results_plotting_y
 
-        self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
-        self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
-        self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
-        self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
+        plotting_results = {'x': results_plotting_x,
+                            'y': 1 - results_plotting_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'Abs. Freq (MHz)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+        # #
+        # ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results' \
+        #               ' --x-label "x labels"' \
+        #               ' --y-label "y labels"'
+
+        # self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
+        # self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
 
         self.ccb.issue("create_applet", f"Laser Scan",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.y'
-                       ' --x temp.plotting.laserscan.x'
-                       ' --subplot-x-labels temp.plotting.laserscan.xlabels'
-                       ' --subplot-y-labels temp.plotting.laserscan.ylabels'
-                       ' --rid temp.laserscan.rid'
-                       ' --title "Laser Scan"'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
                        ' --num-subplots 1',
-                       group = "plotting")
+                       group="plotting")
 
-        # return results_tmp
+        return results_tmp

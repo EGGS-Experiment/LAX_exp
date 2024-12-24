@@ -178,8 +178,10 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
         # fit gaussian, lorentzian, and voigt profiles
         # todo: fit voigt profile
-        fit_gaussian_params, fit_gaussian_err =     fitGaussian(res_final[:, :2])
-        fit_lorentzian_params, fit_lorentzian_err = fitLorentzian(res_final[:, :2])
+        fitter_gauss = fitGaussian()
+        fitter_lorentzian = fitLorentzian()
+        fit_gaussian_params, fit_gaussian_err =     fitter_gauss.fit(res_final[:, :2])
+        fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
         fit_gaussian_fwmh_mhz =     2 * (2. * fit_gaussian_params[1]) ** -0.5
         fit_gaussian_fwmh_mhz_err = fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])

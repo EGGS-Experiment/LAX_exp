@@ -5,6 +5,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 # todo: unify temperature measurement
+from sipyco import pyon
 
 # tmp testing
 from LAX_exp.analysis import *
@@ -45,6 +46,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
         self.setattr_device('sampler0')
+        self.setattr_device('ccb')
 
         # subsequences
         self.probe_subsequence =    AbsorptionProbe(self)
@@ -211,8 +213,10 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         '''FIT DATA'''
         # fit gaussian, lorentzian, and voigt profiles
         # todo: fit voigt profile
-        fit_gaussian_params, fit_gaussian_err =     fitGaussian(res_final[:, :2])
-        fit_lorentzian_params, fit_lorentzian_err = fitLorentzian(res_final[:, :2])
+        fitter_gauss = fitGaussian()
+        fitter_lorentzian = fitLorentzian()
+        fit_gaussian_params, fit_gaussian_err =     fitter_gauss.fit(res_final[:, :2])
+        fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
         fit_gaussian_fwmh_mhz =     np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
         fit_gaussian_fwmh_mhz_err = np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))

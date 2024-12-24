@@ -6,6 +6,8 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
 from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
+from sipyco import pyon
+
 
 
 class RabiFlopping(LAXExperiment, Experiment):
@@ -40,6 +42,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
+        self.setattr_device('ccb')
 
         # prepare sequences
         self.initialize_subsequence =               InitializeQubit(self)
@@ -156,9 +159,11 @@ class RabiFlopping(LAXExperiment, Experiment):
 
 
         # fit rabi flopping using damped harmonic oscillator
-        fit_params, fit_err = fitDampedOscillator(results_tmp)
-        results_plotting = np.array(results_tmp)
-        results_plotting_x, results_plotting_y = results_plotting.transpose()
+        fitter = fitDampedOscillator()
+        fit_params, fit_err = fitter.fit(results_tmp)
+        results_plotting_x, results_plotting_y = np.array(results_tmp).transpose()
+        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
+        fit_y = fitter.fit_func(fit_x, *fit_params)
         # todo: use fit parameters to attempt to fit roos eqn(A.5)
         # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
@@ -180,17 +185,26 @@ class RabiFlopping(LAXExperiment, Experiment):
         print("\tResults - Rabi Flopping:")
         print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
 
+        plotting_results = {'x': results_plotting_x/1e6,
+                            'y': 1 - results_plotting_y,
+                            'fit_x': fit_x,
+                            'fit_y': fit_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'Time (us)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+
         # self.set_dataset('temp.plotting.rabi_flopping.x', results_plotting_x /1e6, broadcast=True)
         # self.set_dataset('temp.plotting.rabi_flopping.y', results_plotting_y, broadcast=True)
         # self.set_dataset('temp.plotting.rabi_flopping.xlabels', 'Time (us)', broadcast=True)
         # self.set_dataset('temp.plotting.rabi_flopping.ylabels', 'D State Population', broadcast=True)
         #
         #
-        # self.ccb.issue("create_applet", f"Rabi Flopping RID: {self.scheduler.rid}",
-        #                '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.rabi_flopping.x'
-        #                ' temp.plotting.rabi_flopping.x '
-        #                '--subplot-x-labels temp.plotting.rabi_flopping.xlabels'
-        #                '--subplot-y-labels temp.plotting.rabi_flopping.ylabels'
-        #                ' --num-subplots 1')
+        self.ccb.issue("create_applet", f"Rabi Flopping",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       ' --num-subplots 1')
 
         return results_tmp

@@ -831,7 +831,8 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
             ## process secular frequency sweep
             if sorting_col_num == 3:
-                fit_params_secular, fit_err_secular, _ = fitSincGeneric(scanning_freq_MHz, phonons)
+                fitter = fitSincGeneric()
+                fit_params_secular, fit_err_secular, _ = fitter.fit(scanning_freq_MHz, phonons)
                 phonon_n = fit_params_secular[0]
                 # todo: implement
                 phonon_err = 0
@@ -854,8 +855,9 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             ## process sideband readout sweep
             else:
                 rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
-                fit_params_rsb, fit_err_rsb, fit_rsb = fitSincGeneric(rsb_freqs_MHz, ave_rsb)
-                fit_params_bsb, fit_err_bsb, fit_bsb = fitSincGeneric(bsb_freqs_MHz, ave_bsb)
+                fitter = fitSincGeneric()
+                fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
+                fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
                 phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
                 # todo: implement
                 phonon_err = 0

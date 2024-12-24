@@ -126,7 +126,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         heating_rate_data = np.array([[heat_time, *(self._extract_phonon(dataset, time_readout_us))]
                                       for heat_time, dataset in results_tmp.items()])
         # fit line to results
-        fit_params_heating_rate = np.array(fitLine(heating_rate_data[:, :2], bounds=((0., -np.inf), (1., np.inf))))
+        fitter = fitLine()
+        fit_params_heating_rate = np.array(fitter.fit(heating_rate_data[:, :2], bounds=((0., -np.inf), (1., np.inf))))
 
         # save results to hdf5 as a dataset
         self.set_dataset('processed_heating_rate_data', heating_rate_data)

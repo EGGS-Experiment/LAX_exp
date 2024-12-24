@@ -6,6 +6,8 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandCoolPulsed, SidebandReadout)
+from sipyco import pyon
+
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -29,6 +31,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # get relevant devices
         self.setattr_device('qubit')
+        self.setattr_device('ccb')
 
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
@@ -130,8 +133,9 @@ class SidebandCooling(LAXExperiment, Experiment):
         split = lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb = fitSinc(results_rsb, time_readout_us)
-        fit_params_bsb, fit_err_bsb = fitSinc(results_bsb, time_readout_us)
+        fitter = fitSinc()
+        fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_readout_us)
+        fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_readout_us)
 
         # process fit parameters to give values of interest
         sinc_max =  lambda a, t: np.sin(np.pi * t * a)**2.
@@ -141,6 +145,28 @@ class SidebandCooling(LAXExperiment, Experiment):
         phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
                                     )**0.5
+
+        results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
+        results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
+        fit_x_rsb = np.linspace(np.min(results_plotting_x_rsb), np.max(results_plotting_x_rsb), 1000)
+        fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
+        fit_x_bsb = np.linspace(np.min(results_plotting_x_bsb), np.max(results_plotting_x_bsb), 1000)
+        fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
+
+        plotting_results = {'x': [results_plotting_x_rsb, results_plotting_x_bsb],
+                            'y': [results_plotting_y_rsb, results_plotting_y_bsb],
+                            'fit_x': [fit_x_rsb, fit_x_bsb],
+                            'fit_y': [fit_y_rsb, fit_y_bsb],
+                            'subplot_x_labels': 'Abs Freq (MHz)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+
+        self.ccb.issue("create_applet", f"Sideband Cooling",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       ' --num-subplots 2')
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
@@ -181,8 +207,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb =   fitSinc(results_rsb, time_fit_us)
-        fit_params_bsb, fit_err_bsb =   fitSinc(results_bsb, time_fit_us)
+        fit_params_rsb, fit_err_rsb =   fitter.fit(results_rsb, time_fit_us)
+        fit_params_bsb, fit_err_bsb =   fitter.fit(results_bsb, time_fit_us)
 
         # process fit parameters to give values of interest
         sinc_max = lambda a, t: np.sin(np.pi*t*a)**2.
