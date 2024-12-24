@@ -467,7 +467,8 @@ def process_laser_scan_results(results, time_us):
         # fit sinc profile and replace spectrum peak with fitted value
         # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
         from LAX_exp.analysis.fitting import fitSinc
-        fit_sinc_params, _ = fitSinc(points_tmp, time_us / 2.)
+        fitter = fitSinc()
+        fit_sinc_params, _ = fitter.fit(points_tmp, time_us / 2.)
         peak_vals[0, 0] = fit_sinc_params[1]
 
     return peak_vals, results_tmp
