@@ -214,15 +214,6 @@ class LaserScan(LAXExperiment, Experiment):
                             }
 
         self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
-        # #
-        # ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results' \
-        #               ' --x-label "x labels"' \
-        #               ' --y-label "y labels"'
-
-        # self.set_dataset('temp.plotting.laserscan.y', results_plotting_y, broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.x', results_plotting_x, broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
 
         self.ccb.issue("create_applet", f"Laser Scan",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'

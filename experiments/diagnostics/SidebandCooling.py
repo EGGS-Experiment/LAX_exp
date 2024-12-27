@@ -194,6 +194,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         Returns:
             ***todo
         """
+        fitter = fitSinc()
         # process dataset into x, y, with y being averaged probability
         results_tmp =       groupBy(dataset, column_num=0, reduce_func=np.mean)
         results_tmp =       np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()

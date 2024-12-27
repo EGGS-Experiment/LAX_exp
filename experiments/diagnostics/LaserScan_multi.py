@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
+from sipyco import pyon
 
 
 class LaserScanMulti(LAXExperiment, Experiment):
@@ -204,17 +205,23 @@ class LaserScanMulti(LAXExperiment, Experiment):
         else:
             print("\tWarning: too many peaks detected.")
 
-        # self.set_dataset('temp.plotting.laserscan.x', results_tmp[0, :], broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.y', results_tmp[1, :], broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.xlabels', 'Abs. Freq (MHz)', broadcast=True)
-        # self.set_dataset('temp.plotting.laserscan.ylabels', 'D State Population', broadcast=True)
-        #
-        # # self.ccb.issue("disable_applet", "first_matplotlib")
-        # self.ccb.issue("create_applet", f"Laser Scan RID: {self.scheduler.rid}",
-        #                '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.laserscan.x'
-        #                ' temp.plotting.laserscan.x '
-        #                '--subplot-x-labels temp.plotting.laserscan.xlabels'
-        #                '--subplot-y-labels temp.plotting.laserscan.ylabels'
-        #                ' --num-subplots 1')
+        results_plotting = np.array(results_tmp)
+        results_plotting_x, results_plotting_y = results_plotting.transpose()
+        results_plotting_y = 1 - results_plotting_y
+
+        plotting_results = {'x': results_plotting_x,
+                            'y': 1 - results_plotting_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'Abs. Freq (MHz)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+
+        self.ccb.issue("create_applet", f"Laser Scan (Multi)",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       ' --num-subplots 1',
+                       group="plotting")
 
         return results_tmp

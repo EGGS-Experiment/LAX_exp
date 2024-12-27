@@ -246,4 +246,25 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # print("\t\tVoigt Fit:")
         # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
         # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+
+        results_plotting_x = res_final[:,0]
+        results_plotting_y = res_final[:,1]
+        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
+        fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
+        plotting_results = {'x': results_plotting_x,
+                            'y': 1 - results_plotting_y,
+                            'fit_x': fit_x,
+                            'fit_y': fit_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'Time (us)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+
+        self.ccb.issue("create_applet", f"Linewidth Measurement",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       ' --num-subplots 1')
+
         return res_final

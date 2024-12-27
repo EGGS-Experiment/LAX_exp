@@ -197,12 +197,6 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
 
-        # self.set_dataset('temp.plotting.rabi_flopping.x', results_plotting_x /1e6, broadcast=True)
-        # self.set_dataset('temp.plotting.rabi_flopping.y', results_plotting_y, broadcast=True)
-        # self.set_dataset('temp.plotting.rabi_flopping.xlabels', 'Time (us)', broadcast=True)
-        # self.set_dataset('temp.plotting.rabi_flopping.ylabels', 'D State Population', broadcast=True)
-        #
-        #
         self.ccb.issue("create_applet", f"Rabi Flopping",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
                        ' --num-subplots 1')
