@@ -3,44 +3,14 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from PyQt5.QtCore import Qt
-from sipyco.sync_struct import Subscriber
-import asyncio
-from asyncio import set_event_loop, Event
-from threading import Thread
 
-matplotlib.use('Qt5Agg')
 from sipyco import pyon
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
 
+matplotlib.use('Qt5Agg')
 
-# class DatasetCollector:
-#     def __init__(self, server='::1', port_notify=3250):
-#         self.server = server
-#         self.port_notify = port_notify
-#         self.data = dict()
-#         self.loop = asyncio.new_event_loop()
-#         asyncio.set_event_loop(self.loop)
-#         self.stop_event = Event()
-#
-#     def sub_init(self, data):
-#         self.data = data
-#         return self.data
-#
-#     def sub_mod(self, mod):
-#         self.data = mod['struct']
-#         self.stop_event.set()
-#
-#     def subscribe(self):
-#         self.subscriber = Subscriber("datasets",
-#                                      self.sub_init, self.sub_mod)
-#         self.loop.run_until_complete(self.subscriber.connect(
-#             self.server, self.port_notify))
-#
-#     def get_data(self):
-#         self.loop.run_until_complete(self.stop_event.wait())
 
 class MplCanvas(FigureCanvasQTAgg):
 
@@ -51,27 +21,53 @@ class MplCanvas(FigureCanvasQTAgg):
 
 
 class MatplotlibPlot(QMainWindow):
+    """
+    Class for creating an interactive Matplotlib plot in an applet
+
+    Attributes:
+        sc (MatplotlibCanvas): a matplotlib canvas to hold the plots
+        points (list): list of data points clicked
+        boxes (list): list of text boxes on figure
+        box_clicked (ax.text): latest text box clicked
+        default_keys (list): keys that will be used in the results dictionary passed to this class
+    """
+
     def __init__(self, args, req, **kwargs):
         # Call super
         super().__init__(args, req, **kwargs)
+        # create matplotlib canvas to insert plots into
         self.sc = MplCanvas(self, nsubplots=args.num_subplots)
+
+        # instantiate lists of boxes and points for later events
         self.points = []
-        self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
         self.boxes = []
         self.box_clicked = None
+
+        # connect canvas to button press events
+        self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
         # if args.x_label is not None:
         #     self.sc.fig.supxlabel(args.x_label, fontsize=14)
         # if args.y_label is not None:
         #     self.sc.fig.supylabel(args.y_label, fontsize=14)
         if args.title is not None:
             self.sc.fig.suptitle(args.title, fontsize=18)
-        self.default_keys = ['x', 'y', 'errors', 'fit_x',  'fit_y',  'subplot_x_labels', 'subplot_y_labels',
+
+        # default keys for dictionary passed to applet
+        self.default_keys = ['x', 'y', 'errors', 'fit_x', 'fit_y', 'subplot_x_labels', 'subplot_y_labels',
                              'subplot_titles', 'rid']
 
     def update_applet(self, args):
+        """
+        Process run everytime dataset is modified and produces and updates the plot
 
+        Args:
+            args (dict): Dictionary of arguments
+        """
+
+        # extract data from dictionary
         results = pyon.decode(self.get_dataset(args.results))
 
+        # parse dictionary
         ys = np.array(self.get_from_dict(results, 'y', None))
         xs = np.array(self.get_from_dict(results, 'x', None))
         errors = np.array(self.get_from_dict(results, 'errors', None))
@@ -81,25 +77,8 @@ class MatplotlibPlot(QMainWindow):
         y_labels = numpy.array(self.get_from_dict(results, 'y_label', None))
         titles = numpy.array(self.get_from_dict(results, 'title', None))
         rid = numpy.array(self.get_from_dict(results, 'rid', None))
-        # data = np.array(self.get_dataset(args.data))
-        # if len(data) == 2:
-        #     xs, ys = data
-        #     errors = np.array(None)
-        # elif len(data) == 3:
-        #     xs, ys, errors = data
-        # else:
-        #     raise ValueError("data should be (2,N,M) or (3,N,M) array contain x,y, and errors (optional)")
 
-        # ys = np.array(self.get_dataset(args.y))
-        # xs = np.array(self.get_dataset(args.x, None))
-        # errors = np.array(self.get_dataset(args.error, None))
-        # fit_xs = np.array(self.get_dataset(args.fit_x, None))
-        # fit_ys = np.array(self.get_dataset(args.fit_y, None))
-        # x_labels = numpy.array(self.get_dataset(args.subplot_x_labels, None))
-        # y_labels = numpy.array(self.get_dataset(args.subplot_y_labels, None))
-        # titles = np.array(self.get_dataset(args.subplot_titles, None))
-        # rid = np.array(self.get_dataset(args.rid, None))
-
+        # inform user of unused keys and data
         unused_keys = [key for key in results.keys() if key not in self.default_keys]
         for key in unused_keys:
             self.logger.warning(f'Key {key} is listed in results dictionary for plotting, but is unused')
@@ -116,7 +95,6 @@ class MatplotlibPlot(QMainWindow):
             raise ValueError("Number of datasets does not match number of subplots")
 
         if num_datasets == 1:
-
             # ensure all variables are the same size as x or are NoneType
             if xs is not None and len(xs.shape) != 0:
                 if len(xs) != len(ys):
@@ -125,12 +103,6 @@ class MatplotlibPlot(QMainWindow):
             if errors is not None and len(errors.shape) != 0:
                 if len(errors) != len(ys):
                     raise ValueError("error must have the same length as y")
-
-            if fit_ys is not None and len(fit_ys.shape) != 0:
-                if len(fit_ys) != len(ys):
-                    raise ValueError("fit_y must have the same length as y")
-            else:
-                fit_xs = None
 
             if fit_xs is not None and len(fit_xs.shape) != 0:
                 if len(fit_xs) != len(fit_ys):
@@ -155,13 +127,13 @@ class MatplotlibPlot(QMainWindow):
             # enumerate through the datasets in y
             for ind, y in enumerate(ys):
                 # if a multidimensional array grab the necessary dataset or if one-dimensional just return the variable
-                x = self.get_plot_data(xs, ind)
-                error = self.get_plot_data(errors, ind)
-                fit_x = self.get_plot_data(fit_xs, ind)
-                fit_y = self.get_plot_data(fit_ys, ind)
-                x_label = self.get_plot_label(x_labels, ind)
-                y_label = self.get_plot_label(y_labels, ind)
-                title = self.get_plot_label(titles, ind)
+                x = self.get_plot_element(xs, ind)
+                error = self.get_plot_element(errors, ind)
+                fit_x = self.get_plot_element(fit_xs, ind)
+                fit_y = self.get_plot_element(fit_ys, ind)
+                x_label = self.get_plot_element(x_labels, ind)
+                y_label = self.get_plot_element(y_labels, ind)
+                title = self.get_plot_element(titles, ind)
 
                 self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind, rid=rid)
 
@@ -171,8 +143,7 @@ class MatplotlibPlot(QMainWindow):
 
     """PLOTTING FUNCTIONS"""
 
-    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0, rid=False):
-
+    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0, rid=None):
         """
         Plot the data in a matplotlib subplots
 
@@ -186,13 +157,13 @@ class MatplotlibPlot(QMainWindow):
             y_label : label for the y-axis of the subplot
             title : title for the subplot
             ind: index (location) of the subplot in the matplotlib figure
+            rid: run number of experiment
         """
 
         # verify the variables are of the correct type
         x = self.verify_aux_arg_type(y, x, "X")
         error = self.verify_aux_arg_type(y, error, "Error")
-        fit_y = self.verify_aux_arg_type(y, fit_y, "Fit Y")
-        fit_x = self.verify_aux_arg_type(y, fit_x, "Fit X")
+        fit_y = self.verify_aux_arg_type(fit_y, fit_y, "Fit Y")
 
         if fit_y is not None and fit_x is not None:
             if len(fit_y) > len(fit_x):
@@ -208,11 +179,15 @@ class MatplotlibPlot(QMainWindow):
         if not isinstance(self.sc.axes, numpy.ndarray):
             self.sc.axes = np.array([self.sc.axes])
 
-        # only plot if a new rid is update (prevents legend from becoming flooded)
+        # get features of the plot legend
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()
+
+        # only plot if a new experiment is run
         if labels == [] or (rid not in np.int32(np.array(labels))):
             line = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid)
             self.points.append(line)
+
+        # plot fit to data and set titles and labels
         if fit_y is not None and fit_x is not None:
             self.sc.axes[ind].plot(fit_x, fit_y)
         if title is not None:
@@ -222,9 +197,9 @@ class MatplotlibPlot(QMainWindow):
         if y_label is not None:
             self.sc.axes[ind].set_ylabel(y_label)
 
+        # style plot
         self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
         self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
-
         self.sc.axes[ind].legend()
 
     """VERIFICATION AND HELPER FUNCTIONS"""
@@ -237,7 +212,7 @@ class MatplotlibPlot(QMainWindow):
 
     def get_plot_data(self, plot_data, ind):
         """
-        Get a dataset from a mutltidimensional list or return the variable
+        Get a dataset from a multidimensional list or return the variable
 
         Args:
             plot_data : multidimensional list of datasets
@@ -247,36 +222,37 @@ class MatplotlibPlot(QMainWindow):
             plot_data = plot_data[ind]
         return plot_data
 
-    def get_plot_label(self, plot_label, ind):
+    def get_plot_element(self, plot_element, ind):
         """
-        Get a label (title, xlabel, etc.) from a list or returns the label
+        Get an element (title, xlabel, data, etc.) from a list or returns the element
 
         Args:
-            plot_label : list of labels
+            plot_element : list of element (data or label)
             ind: index of the label in the list
         """
 
         # see if plot label comes in array
-        if isinstance(plot_label, np.ndarray):
+        if isinstance(plot_element, np.ndarray):
             # check if array is filled with any Nones
-            if (plot_label == None).any():
-                plot_label = None
-            elif len(plot_label.shape) < 1:
-                plot_label = plot_label
+            if (plot_element == None).any():
+                plot_element = None
+            elif len(plot_element.shape) < 1:
+                plot_element = plot_element
             # otherwise just grab the label
             else:
-                plot_label = plot_label[ind]
-        if isinstance(plot_label, list):
-            plot_label = plot_label[ind]
-        return plot_label
+                plot_element = plot_element[ind]
+        elif isinstance(plot_element, list):
+            plot_element = plot_element[ind]
+        return plot_element
 
     def verify_aux_arg_type(self, y, aux_arg, aux_arg_name=""):
         """
         Verify the type of the not required datasets
 
-        y: the required dataset
-        aux_arg: the not required dataset
-        aux_arg_name: the name of the not required dataset
+        Args:
+            y: the required dataset
+            aux_arg: the not required dataset
+            aux_arg_name: the name of the not required dataset
         """
         if aux_arg is not None:
             if (aux_arg == None).any():
@@ -294,26 +270,39 @@ class MatplotlibPlot(QMainWindow):
     """EVENT HANDLING"""
 
     def mouse_event(self, event):
-        axes = self.sc.axes.tolist()
-        if not event.inaxes:
-            return
+        """
+        Record a mouse click on data point or text box
 
+        Args:
+            event (Event): event recording a mouse click
+        """
+        # if click was on a text box already created then record and don't create new text box
         box_clicked = [box_clicked for box_clicked in self.boxes if box_clicked.contains(event)[0]]
         if len(box_clicked) > 0:
             self.box_clicked = box_clicked[0]
+
+        # if data point was clicked create text box and record
         else:
             self.box_clicked = None
             artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
             if len(artist_clicked) > 0:
-                artist = artist_clicked[0]
-                axis = artist.axes
-                self.boxes.append(axis.text(event.xdata, event.ydata, f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
-                                            fontsize=12,
-                                            bbox={'facecolor': 'white', 'pad': 4, 'edgecolor': 'black'}))
+                self.boxes.append(artist_clicked[0].axes.text(event.xdata, event.ydata,
+                                                              f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
+                                                              fontsize=12,
+                                                              bbox={'facecolor': 'white', 'pad': 4,
+                                                                    'edgecolor': 'black'}))
 
     def keyPressEvent(self, event):
+        """
+        If a text box was clicked and then the delete or backspace key is pressed, remove the text box
+
+        Args:
+            event (Event): An event object recording a key press
+        """
         if event.key() == Qt.Key_Backspace or event.key() == Qt.Key_Delete:
+            # remove clicked box from list of boxes after key event
             self.boxes = [box for box in self.boxes if box != self.box_clicked]
+            # if box was clicked prior to key event remove it
             if self.box_clicked is not None:
                 self.box_clicked.remove()
                 self.box_clicked = None
@@ -321,37 +310,17 @@ class MatplotlibPlot(QMainWindow):
 
 def main():
     # Create applet object
-
     applet = TitleApplet(MatplotlibPlot)
 
-    # applet.argparser.add_argument("--x", type=str, default=None, help="X values", required=False)
+    # get arguments
     applet.argparser.add_argument("--x-label", type=str, default="", required=False)
     applet.argparser.add_argument("--y-label", type=str, default="", required=False)
     applet.argparser.add_argument("--num-subplots", type=int, default=1, required=False)
-    # applet.argparser.add_argument("--subplot-x-labels", type=str, default=None, help="x labels for subplots",
-    #                               required=False)
-    # applet.argparser.add_argument("--subplot-y-labels", type=str, default=None, help="y labels for subplots",
-    #                               required=False)
-    # applet.argparser.add_argument("--subplot-titles", type=str, default=None, help="title data for subplots",
-    #                               required=False)
-    # applet.argparser.add_argument("--rid", type=str, default=None, help="rid for experiment", required=False)
-    # applet.argparser.add_argument("--error", type=str, default=None, help="Error data (multiple graphs)",
-    #                               required=False)
-    # applet.argparser.add_argument("--fit-x", type=str, default=None, help="X values for fit data", required=False)
-    # applet.argparser.add_argument("--fit-y", type=str, default=None, help="Fit for Y data", required=False)
 
-    applet.add_dataset("results", "experimental results")
-    # applet.add_dataset("y", "Y values")
-    # applet.add_dataset("x", "X values")
-    # applet.add_dataset('data', 'data values')
-    # applet.add_dataset("subplot-x-labels", "x labels for subplots",  required=False)
-    # applet.add_dataset("subplot-y-labels", "y labels for subplots", required=False)
-    # applet.add_dataset("subplot-titles", "title data for subplots", required=False)
-    # # applet.add_dataset("error", "Error data (multiple graphs)", required=False)
-    # applet.add_dataset("fit-x", "X values for fit data", required=False)
-    # applet.add_dataset("fit-y", "Fit for Y data", required=False)
-    # applet.add_dataset("rid", "Experiment RID", required=False)
+    # get datasets
+    applet.add_dataset("results", "dictionary of experimental results")
 
+    # run applet
     applet.run()
 
 

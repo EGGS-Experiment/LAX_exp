@@ -1,14 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
-from collections import OrderedDict
-from itertools import product, chain, zip_longest
-
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
                                          SidebandCoolContinuous, SidebandReadout)
+from sipyco import pyon
 
 
 class EGGSHeatingMultiTone(LAXExperiment, Experiment):
@@ -43,7 +41,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 # RangeScan(81, 82, 25, randomize=False),
                 # ExplicitScan([77.79]),
                 # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
-                CenterScan(77.79, 0.01, 0.0005, randomize=True),],
+                CenterScan(77.79, 0.01, 0.0005, randomize=True), ],
             global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_mhz_list_1", Scannable(
@@ -60,7 +58,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 # ExplicitScan([86.75]),
                 # ExplicitScan([83.2028, 83.2028, 83.2028, 83.2028, 83.2097]),
                 CenterScan(86.75, 0.01, 0.0005, randomize=True), ],
-            global_min=0.005, global_max=4800, global_step=1,unit="MHz", scale=1, precision=6
+            global_min=0.005, global_max=4800, global_step=1, unit="MHz", scale=1, precision=6
         ), group='EGGS_Heating.frequencies')
 
         self.setattr_argument("freq_eggs_heating_mhz_list_3", Scannable(
@@ -85,7 +83,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             default=[
                 ExplicitScan([1280.]),
                 CenterScan(777.5, 4, 0.1, randomize=True),
-                ExplicitScan([767.2, 319.2, 1582, 3182]),],
+                ExplicitScan([767.2, 319.2, 1582, 3182]), ],
             global_min=0, global_max=10000, global_step=1, unit="kHz", scale=1, precision=3
         ), group='EGGS_Heating.frequencies')
 
@@ -103,7 +101,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_turns_list", Scannable(
             default=[
                 ExplicitScan([0.]),
-                RangeScan(0, 1.0, 9, randomize=True),],
+                RangeScan(0, 1.0, 9, randomize=True), ],
             global_min=0.0, global_max=1.0, global_step=1, unit="turns", scale=1, precision=3
         ), group='EGGS_Heating.waveform.time_phase')
 
@@ -215,7 +213,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                                                   len(self.phase_eggs_heating_turns_list) *
                                                   len(self.time_readout_mu_list),
                                                   14), dtype=float)
-
 
         # pad frequency ranges that are shorter than the longest frequency range with zeros to ensure equal length
         self.freq_eggs_heating_mhz_list_0_padded = np.append(freq_eggs_heating_mhz_list_0,
@@ -613,7 +610,8 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 pass
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, center_freq_hz: TFloat, sideband_freq_hz: TFloat, diff_freq_hz_1: TFloat, diff_freq_hz_2: TFloat,
+    def phaser_configure(self, center_freq_hz: TFloat, sideband_freq_hz: TFloat, diff_freq_hz_1: TFloat,
+                         diff_freq_hz_2: TFloat,
                          diff_freq_hz_3: TFloat, diff_freq_hz_4: TFloat, phase_turns: TFloat) -> TNone:
         """
         Configure the tones on phaser for EGGS.
@@ -710,35 +708,44 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         """
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 0], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 0],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 0], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 0],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 1], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 1],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 1], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 1],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 2], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 2],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 2], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 2],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 3], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 3],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 3], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 3],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 4], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 4],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 4], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 4],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
-
 
     '''
     HELPER FUNCTIONS - PSK
@@ -762,33 +769,43 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
         self.ttl8.on()
         with parallel:
             self.phaser_eggs.channel[0].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 0], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 0],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[0].set_amplitude_phase(amplitude=ampl_tone_0_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 0], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 0],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 1], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 1],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[1].set_amplitude_phase(amplitude=ampl_tone_1_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 1], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 1],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 2], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 2],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[2].set_amplitude_phase(amplitude=ampl_tone_2_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 2], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 2],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 3], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 3],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[3].set_amplitude_phase(amplitude=ampl_tone_3_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 3], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 3],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         with parallel:
             self.phaser_eggs.channel[0].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
-                                                                     phase=self.phase_phaser_turns_arr[0, 4], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[0, 4],
+                                                                          clr=0)
             self.phaser_eggs.channel[1].oscillator[4].set_amplitude_phase(amplitude=ampl_tone_4_pct,
-                                                                     phase=self.phase_phaser_turns_arr[1, 4], clr=0)
+                                                                          phase=self.phase_phaser_turns_arr[1, 4],
+                                                                          clr=0)
             delay_mu(self.phaser_eggs.t_sample_mu)
         # # main eggs pulse
         delay_mu(self.time_eggs_heating_mu)
@@ -828,36 +845,58 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                                                                                            1, 0,
                                                                                            self.repetitions, sub_reps)
             phonons = convert_ratios_to_coherent_phonons(ratios)
+            fitter = fitSincGeneric()
+            rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+            fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
+            fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
+            fit_x_rsb = np.linspace(np.min(rsb_freqs_MHz), np.max(rsb_freqs_MHz), 1000)
+            fit_x_bsb = np.linspace(np.min(bsb_freqs_MHz), np.max(bsb_freqs_MHz), 1000)
+            fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
+            fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
 
-            ## process secular frequency sweep
-            if sorting_col_num == 3:
-                fitter = fitSincGeneric()
-                fit_params_secular, fit_err_secular, _ = fitter.fit(scanning_freq_MHz, phonons)
+            ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_multi_tone'
+
+            ## process secular frequency sweep or carrier sweep
+            if sorting_col_num == 3 or sorting_col_num == 2:
+                fit_params_sweep, fit_err_sweep, _ = fitter.fit(scanning_freq_MHz, phonons)
                 phonon_n = fit_params_secular[0]
                 # todo: implement
                 phonon_err = 0
 
                 # save results to hdf5 as a dataset
-                self.set_dataset('fit_params_secular', fit_params_secular)
-                self.set_dataset('fit_err_secular', fit_err_secular)
+                # save results to hdf5 as a dataset
+                if sorting_col_num == 3:
+                    self.set_dataset('fit_params_secular', fit_params_sweep)
+                    self.set_dataset('fit_err_secular', fit_err_sweep)
+                else:
+                    self.set_dataset('fit_params_carrier', fit_params_sweep)
+                    self.set_dataset('fit_err_carrier', fit_err_sweep)
 
                 # save results to dataset manager for dynamic experiments
-                res_dj = [[phonon_n, phonon_err], [fit_params_secular, fit_err_secular]]
+                res_dj = [[phonon_n, phonon_err], [fit_params_sweep, fit_err_sweep]]
                 self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False,
                                  archive=False)
 
                 # print results to log
                 print(
-                    "\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_secular[1] * 1e3, fit_err_secular[1] * 1e3))
+                    "\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_sweep[1] * 1e3, fit_err_sweep[1] * 1e3))
 
+                fit_x_phonons = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 1000)
+                fit_y_phonons = fitter.fit_func(fit_x_phonons, *fit_params_sweep)
+                ccb_command += ' --num-subplots 3'
+                plotting_results = {'x': [scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz],
+                                    'y': [ave_rsb, ave_bsb, phonons],
+                                    'errors': [std_rsb, std_bsb, None],
+                                    'fit_x': [fit_x_rsb, fit_x_bsb, fit_x_phonons],
+                                    'fit_y': [fit_y_rsb, fit_y_bsb, fit_y_phonons],
+                                    'subplot_x_labels': ['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)'],
+                                    'subplot_y_labels': ['D State Population', 'D State Population', 'Phonons'],
+                                    'rid': self.scheduler.rid,
+                                    }
 
             ## process sideband readout sweep
             else:
-                rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
-                fitter = fitSincGeneric()
-                fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
-                fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
                 phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
                 # todo: implement
                 phonon_err = 0
@@ -877,6 +916,23 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 # print results to log
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+
+                ccb_command += ' --num-subplots 2'
+                plotting_results = {'x': [rsb_freqs_MHz, bsb_freqs_MHz],
+                                    'y': [ave_rsb, ave_bsb],
+                                    'errors': [std_rsb, std_bsb],
+                                    'fit_x': [fit_x_rsb, fit_x_bsb],
+                                    'fit_y': [fit_y_rsb, fit_y_bsb],
+                                    'subplot_x_labels': ['Frequency (MHz)', 'Frequency (MHz)'],
+                                    'subplot_y_labels': ['D State Population', 'D State Population'],
+                                    'rid': self.scheduler.rid,
+                                    }
+
+            self.set_dataset('temp.plotting.results_eggs_heating_multi_tone', pyon.encode(plotting_results),
+                             broadcast=True)
+
+            self.ccb.issue("create_applet", f"EGGS Heating - Multi Tone",
+                           ccb_command)
 
         except Exception as e:
             print("Warning: unable to process data.")

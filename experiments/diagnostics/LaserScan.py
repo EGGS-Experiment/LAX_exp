@@ -5,7 +5,6 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
-import artiq.dashboard.applets_ccb as applets_ccb
 from sipyco import pyon
 
 
@@ -213,10 +212,10 @@ class LaserScan(LAXExperiment, Experiment):
                             'rid': self.scheduler.rid,
                             }
 
-        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+        self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
 
         self.ccb.issue("create_applet", f"Laser Scan",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
                        ' --num-subplots 1',
                        group="plotting")
 

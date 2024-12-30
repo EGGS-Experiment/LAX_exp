@@ -40,6 +40,7 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
         # relevant devices
         self.setattr_device('qubit')
+        self.setattr_device('ccb')
 
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)
@@ -217,10 +218,10 @@ class LaserScanMulti(LAXExperiment, Experiment):
                             'rid': self.scheduler.rid,
                             }
 
-        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+        self.set_dataset('temp.plotting.results_laserscan_multi', pyon.encode(plotting_results), broadcast=True)
 
         self.ccb.issue("create_applet", f"Laser Scan (Multi)",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan_multi'
                        ' --num-subplots 1',
                        group="plotting")
 

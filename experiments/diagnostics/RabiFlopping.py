@@ -9,7 +9,6 @@ from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, Sid
 from sipyco import pyon
 
 
-
 class RabiFlopping(LAXExperiment, Experiment):
     """
     Experiment: Rabi Flopping
@@ -24,43 +23,49 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=30, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=30, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
-        self.setattr_argument("time_rabi_us_list",      Scannable(
-                                                            default=[
-                                                                ExplicitScan([6.05]),
-                                                                RangeScan(1, 50, 200, randomize=True),
-                                                            ],
-                                                            global_min=1, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5
-                                                        ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000), group=self.name)
-        self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
+        self.setattr_argument("cooling_type",
+                              EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
+        self.setattr_argument("time_rabi_us_list", Scannable(
+            default=[
+                ExplicitScan([6.05]),
+                RangeScan(1, 50, 200, randomize=True),
+            ],
+            global_min=1, global_max=100000, global_step=1,
+            unit="us", scale=1, precision=5
+        ), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000),
+                              group=self.name)
+        self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5),
+                              group=self.name)
+        self.setattr_argument("equalize_delays", BooleanValue(default=True), group=self.name)
 
         # get devices
         self.setattr_device('qubit')
         self.setattr_device('ccb')
 
         # prepare sequences
-        self.initialize_subsequence =               InitializeQubit(self)
-        self.doppler_subsequence =                  NoOperation(self)
-        self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
-        self.readout_subsequence =                  Readout(self)
-        self.rescue_subsequence =                   RescueIon(self)
+        self.initialize_subsequence = InitializeQubit(self)
+        self.doppler_subsequence = NoOperation(self)
+        self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
+        self.sidebandcool_continuous_subsequence = SidebandCoolContinuous(self)
+        self.readout_subsequence = Readout(self)
+        self.rescue_subsequence = RescueIon(self)
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":              self.cooling_subsequence =  self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":   self.cooling_subsequence =  self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "SBC - Pulsed":       self.cooling_subsequence =  self.sidebandcool_pulsed_subsequence
+        if self.cooling_type == "Doppler":
+            self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC - Continuous":
+            self.cooling_subsequence = self.sidebandcool_continuous_subsequence
+        elif self.cooling_type == "SBC - Pulsed":
+            self.cooling_subsequence = self.sidebandcool_pulsed_subsequence
 
         # convert input arguments to machine units
-        self.freq_rabiflop_ftw =    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
-        self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
+        self.freq_rabiflop_ftw = hz_to_ftw(self.freq_rabiflop_mhz * MHz)
+        self.att_readout_mu = att_to_mu(self.att_readout_db * dB)
 
         # convert time to machine units
         max_time_us = np.max(list(self.time_rabi_us_list))
@@ -76,7 +81,6 @@ class RabiFlopping(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.repetitions * len(self.time_rabiflop_mu_list),
                 2)
-
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
@@ -133,16 +137,15 @@ class RabiFlopping(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-
     # ANALYSIS
     def analyze_experiment(self):
         """
         Fit rabi flopping data with an exponentially damped sine curve
         """
         # create data structures for processing
-        results_tmp =       np.array(self.results)
-        probability_vals =  np.zeros(len(results_tmp))
-        counts_arr =        np.array(results_tmp[:, 1])
+        results_tmp = np.array(self.results)
+        probability_vals = np.zeros(len(results_tmp))
+        counts_arr = np.array(results_tmp[:, 1])
         # convert x-axis (time) from machine units to seconds
         results_tmp[:, 0] = np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
 
@@ -154,9 +157,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
 
         # process dataset into x, y, with y being averaged probability
-        results_tmp =   groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp =   np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
+        results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
+        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
         # fit rabi flopping using damped harmonic oscillator
         fitter = fitDampedOscillator()
@@ -168,13 +170,13 @@ class RabiFlopping(LAXExperiment, Experiment):
         # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
         # process fit parameters to give values of interest
-        fit_period_us =     (2 * np.pi * 1.e6) / fit_params[2]
+        fit_period_us = (2 * np.pi * 1.e6) / fit_params[2]
         fit_period_err_us = fit_period_us * (fit_err[2] / fit_params[2])
         # todo: extract phonon number from fit
 
         # save results to hdf5 as a dataset
-        self.set_dataset('fit_params',  fit_params)
-        self.set_dataset('fit_err',     fit_err)
+        self.set_dataset('fit_params', fit_params)
+        self.set_dataset('fit_err', fit_err)
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
@@ -185,7 +187,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         print("\tResults - Rabi Flopping:")
         print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
 
-        plotting_results = {'x': results_plotting_x/1e6,
+        plotting_results = {'x': results_plotting_x / 1e6,
                             'y': 1 - results_plotting_y,
                             'fit_x': fit_x,
                             'fit_y': fit_y,
@@ -195,10 +197,10 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'rid': self.scheduler.rid,
                             }
 
-        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+        self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
         self.ccb.issue("create_applet", f"Rabi Flopping",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
                        ' --num-subplots 1')
 
         return results_tmp

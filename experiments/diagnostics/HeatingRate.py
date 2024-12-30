@@ -104,10 +104,12 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         probability_vals =  np.zeros(len(results_tmp))
         counts_arr =        np.array(results_tmp[:, 1])
         time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
+        num_subplots = len(self.time_heating_rate_list) + 1
         # tmp remove
         results_yzde =      groupBy(results_tmp, column_num=2)
         self._tmp_data =    results_yzde.copy()
         # tmp remove
+
 
         # convert column 0 (frequency) from frequency tuning word (FTW) to MHz (in absolute units),
         # and convert column 2 (time) from machine units to seconds
@@ -141,3 +143,4 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         print("\t---------------------")
         print("\t\tSlope:\t\t{:.3f} quanta/s".format(fit_params_heating_rate[1]))
         print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[0]))
+

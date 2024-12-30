@@ -162,10 +162,10 @@ class SidebandCooling(LAXExperiment, Experiment):
                             'rid': self.scheduler.rid,
                             }
 
-        self.set_dataset('temp.plotting.results', pyon.encode(plotting_results), broadcast=True)
+        self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)
 
         self.ccb.issue("create_applet", f"Sideband Cooling",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results'
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
                        ' --num-subplots 2')
 
         # save results to dataset manager for dynamic experiments
