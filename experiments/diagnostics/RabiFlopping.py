@@ -30,13 +30,13 @@ class RabiFlopping(LAXExperiment, Experiment):
                               EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
         self.setattr_argument("time_rabi_us_list", Scannable(
             default=[
-                ExplicitScan([6.05]),
+                # ExplicitScan([6.05]),
                 RangeScan(1, 50, 200, randomize=True),
             ],
             global_min=1, global_max=100000, global_step=1,
             unit="us", scale=1, precision=5
         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000),
+        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.3625, precision=5, step=1, min=1, max=10000),
                               group=self.name)
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5),
                               group=self.name)
@@ -187,9 +187,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         print("\tResults - Rabi Flopping:")
         print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
 
-        plotting_results = {'x': results_plotting_x / 1e6,
-                            'y': 1 - results_plotting_y,
-                            'fit_x': fit_x,
+        plotting_results = {'x': results_plotting_x * 1e6,
+                            'y': results_plotting_y,
+                            'fit_x': fit_x * 1e6,
                             'fit_y': fit_y,
                             'subplot_titles': f'Laser Scan',
                             'subplot_x_labels': 'Time (us)',
@@ -201,6 +201,6 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         self.ccb.issue("create_applet", f"Rabi Flopping",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
-                       ' --num-subplots 1')
+                       ' --num-subplots 1', group = 'plotting.diagnostics')
 
         return results_tmp

@@ -40,7 +40,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
             default=[
-                CenterScan(101.407, 0.0025, 0.0001, randomize=True),
+                CenterScan(100.7145, 0.005, 0.0001, randomize=True),
                 ExplicitScan([101.4459]),
                 RangeScan(1, 50, 200, randomize=True),
             ],
@@ -205,18 +205,19 @@ class LaserScan(LAXExperiment, Experiment):
         results_plotting_y = 1 - results_plotting_y
 
         plotting_results = {'x': results_plotting_x,
-                            'y': 1 - results_plotting_y,
+                            'y': results_plotting_y,
                             'subplot_titles': f'Laser Scan',
                             'subplot_x_labels': 'Abs. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
                             }
 
+
         self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
 
         self.ccb.issue("create_applet", f"Laser Scan",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
                        ' --num-subplots 1',
-                       group="plotting")
+                       group="plotting.diagnostics")
 
         return results_tmp

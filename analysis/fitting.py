@@ -178,7 +178,7 @@ class fitSinc:
     """
 
     def __init__(self):
-        self.time_s = None
+        self.time_fit_s = None
 
     # use sinc profile with lorentzian amplitude per optical bloch equations
     def fit_func(self, x, a, b, c):
@@ -191,7 +191,7 @@ class fitSinc:
     def fit(self, data, time_fit_s):
 
         # assign time_s
-        self.time_s = time_s
+        self.time_fit_s = time_fit_s
 
         # separate data into x and y
         try:

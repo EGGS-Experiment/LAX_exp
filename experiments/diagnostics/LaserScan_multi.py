@@ -25,15 +25,15 @@ class LaserScanMulti(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("scan_type",      EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2",
-                                                                  "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan"))
+                                                                  "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan+Both"))
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=CenterScan(102.410, 0.02, 0.0001, randomize=True),
+                                                            default=CenterScan(101.3626, 0.01, 0.0001, randomize=True),
                                                             global_min=60, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("freq_sideband_1",    NumberValue(default=0.76, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
-        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.07, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_1",    NumberValue(default=1.586, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.296, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
         self.setattr_argument("time_qubit_us",      NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",       NumberValue(default=28, precision=1, step=0.5, min=8, max=31.5), group=self.name)
@@ -211,7 +211,7 @@ class LaserScanMulti(LAXExperiment, Experiment):
         results_plotting_y = 1 - results_plotting_y
 
         plotting_results = {'x': results_plotting_x,
-                            'y': 1 - results_plotting_y,
+                            'y': results_plotting_y,
                             'subplot_titles': f'Laser Scan',
                             'subplot_x_labels': 'Abs. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
@@ -223,6 +223,6 @@ class LaserScanMulti(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Laser Scan (Multi)",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan_multi'
                        ' --num-subplots 1',
-                       group="plotting")
+                       group="plotting.diagnostics")
 
         return results_tmp

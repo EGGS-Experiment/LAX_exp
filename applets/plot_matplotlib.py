@@ -73,8 +73,8 @@ class MatplotlibPlot(QMainWindow):
         errors = np.array(self.get_from_dict(results, 'errors', None))
         fit_xs = np.array(self.get_from_dict(results, 'fit_x', None))
         fit_ys = np.array(self.get_from_dict(results, 'fit_y', None))
-        x_labels = numpy.array(self.get_from_dict(results, 'x_label', None))
-        y_labels = numpy.array(self.get_from_dict(results, 'y_label', None))
+        x_labels = numpy.array(self.get_from_dict(results, 'subplot_x_labels', None))
+        y_labels = numpy.array(self.get_from_dict(results, 'subplot_y_labels', None))
         titles = numpy.array(self.get_from_dict(results, 'title', None))
         rid = numpy.array(self.get_from_dict(results, 'rid', None))
 

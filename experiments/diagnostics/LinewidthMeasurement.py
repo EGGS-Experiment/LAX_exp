@@ -251,7 +251,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
         fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
         plotting_results = {'x': results_plotting_x,
-                            'y': 1 - results_plotting_y,
+                            'y': results_plotting_y,
                             'fit_x': fit_x,
                             'fit_y': fit_y,
                             'subplot_titles': f'Laser Scan',
@@ -264,6 +264,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         self.ccb.issue("create_applet", f"Linewidth Measurement",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
-                       ' --num-subplots 1')
+                       ' --num-subplots 1',
+                       group='plotting.diagnostics')
 
         return res_final
