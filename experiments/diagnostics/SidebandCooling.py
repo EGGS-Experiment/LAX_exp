@@ -194,22 +194,29 @@ class SidebandCooling(LAXExperiment, Experiment):
         Returns:
             ***todo
         """
-        fitter = fitSinc()
-        # process dataset into x, y, with y being averaged probability
-        results_tmp =       groupBy(dataset, column_num=0, reduce_func=np.mean)
-        results_tmp =       np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
+        # fitter = fitSinc()
+        # # process dataset into x, y, with y being averaged probability
+        # results_tmp =       groupBy(dataset, column_num=0, reduce_func=np.mean)
+        # results_tmp =       np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        # time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
+        #
+        # # separate spectrum into RSB & BSB and fit using sinc profile
+        # # guess carrier as mean of highest and lowest frequencies
+        # guess_carrier_mhz = (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
+        # # split data into RSB and BSB
+        # split = lambda arr, cond: [arr[cond], arr[~cond]]
+        # results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
+        #
+        # # fit sinc profile
+        # fit_params_rsb, fit_err_rsb =   fitter.fit(results_rsb, time_fit_us)
+        # fit_params_bsb, fit_err_bsb =   fitter.fit(results_bsb, time_fit_us)
 
-        # separate spectrum into RSB & BSB and fit using sinc profile
-        # guess carrier as mean of highest and lowest frequencies
-        guess_carrier_mhz = (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
-        # split data into RSB and BSB
-        split = lambda arr, cond: [arr[cond], arr[~cond]]
-        results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
-
+        time_readout_us = self.sidebandreadout_subsequence.time_sideband_readout_us
+        results_rsb, results_bsb = self._extract_populations(dataset, time_fit_us)
         # fit sinc profile
-        fit_params_rsb, fit_err_rsb =   fitter.fit(results_rsb, time_fit_us)
-        fit_params_bsb, fit_err_bsb =   fitter.fit(results_bsb, time_fit_us)
+        fitter = fitSinc()
+        fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_fit_us)
+        fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_fit_us)
 
         # process fit parameters to give values of interest
         sinc_max = lambda a, t: np.sin(np.pi*t*a)**2.
@@ -220,4 +227,19 @@ class SidebandCooling(LAXExperiment, Experiment):
                                     (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
                                     )**0.5
         return np.array([abs(phonon_n), abs(phonon_err)])
+
+    def _extract_populations(self, dataset, time_fit_us):
+        # process dataset into x, y, with y being averaged probability
+        results_tmp = groupBy(dataset, column_num=0, reduce_func=np.mean)
+        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+
+        # separate spectrum into RSB & BSB and fit using sinc profile
+        # guess carrier as mean of highest and lowest frequencies
+        guess_carrier_mhz = (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
+        # split data into RSB and BSB
+        split = lambda arr, cond: [arr[cond], arr[~cond]]
+        results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
+
+        return results_rsb, results_bsb
+
 

@@ -248,7 +248,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         results_plotting_x = res_final[:, 0]
         results_plotting_y = res_final[:, 1]
-        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
+        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), len(results_plotting_x)*10)
         fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
