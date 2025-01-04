@@ -15,7 +15,24 @@ matplotlib.use('Qt5Agg')
 class MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, nsubplots=1):
-        self.fig, self.axes = plt.subplots(nsubplots)
+        # self.fig, self.axes = plt.subplots(nsubplots)
+        self.axes = []
+        self.fig = plt.figure()
+        rows = nsubplots // 2 + 1
+        if rows - 1:
+            cols = 2
+        else:
+            cols = 1
+
+        for axis in range(nsubplots):
+            if nsubplots % 2 != 0 and axis == nsubplots - 1:
+                self.axes.append(plt.subplot2grid(shape=(rows, cols), loc=(axis // 2, axis % 2), colspan=2))
+            else:
+                self.axes.append(plt.subplot2grid(shape=(rows, cols), loc=(axis//2, axis%2), colspan=1))
+
+
+        self.axes = np.array(self.axes)
+
         plt.ion()
         super().__init__(self.fig)
 
@@ -180,6 +197,7 @@ class MatplotlibPlot(QMainWindow):
             self.sc.axes = np.array([self.sc.axes])
 
         # get features of the plot legend
+        print(self.sc.axes[ind])
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()
 
         # only plot if a new experiment is run
