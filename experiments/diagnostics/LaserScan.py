@@ -202,12 +202,11 @@ class LaserScan(LAXExperiment, Experiment):
 
         results_plotting = np.array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
-        results_plotting_y = 1 - results_plotting_y
 
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'subplot_titles': f'Laser Scan',
-                            'subplot_x_labels': 'Abs. Freq (MHz)',
+                            'subplot_x_labels': 'AOM. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
                             }

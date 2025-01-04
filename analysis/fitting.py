@@ -366,7 +366,7 @@ class fitLine:
         b_guess = np.median(data[:, 1] - m_guess * data[:, 0])
 
         # do a linear least squares fit to the data
-        res = least_squares(func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]), bounds=bounds)
+        res = least_squares(self.func_norm, [b_guess, m_guess], args=(data[:, 0], data[:, 1]), bounds=bounds)
         res_intercept, res_slope = res.x
         # todo: make it follow param_fit, param_err return style
         return res_intercept, res_slope

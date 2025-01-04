@@ -24,7 +24,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=25, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -153,12 +153,14 @@ class SidebandCooling(LAXExperiment, Experiment):
         fit_x_bsb = np.linspace(np.min(results_plotting_x_bsb), np.max(results_plotting_x_bsb), 1000)
         fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
 
-        plotting_results = {'x': [results_plotting_x_rsb, results_plotting_x_bsb],
+        # divide by 2 to move everything to AOM units
+        plotting_results = {'x': [results_plotting_x_rsb/2, results_plotting_x_bsb/2],
                             'y': [results_plotting_y_rsb, results_plotting_y_bsb],
-                            'fit_x': [fit_x_rsb, fit_x_bsb],
+                            'fit_x': [fit_x_rsb/2, fit_x_bsb/2],
                             'fit_y': [fit_y_rsb, fit_y_bsb],
-                            'subplot_x_labels': 'Abs Freq (MHz)',
+                            'subplot_x_labels': 'AOM Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
+                            'subplot_titles': ['RSB', 'BSB'],
                             'rid': self.scheduler.rid,
                             }
 
@@ -166,7 +168,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         self.ccb.issue("create_applet", f"Sideband Cooling",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
-                       ' --num-subplots 2')
+                       ' --num-subplots 2',
+                       group='plotting.diagnostics')
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]

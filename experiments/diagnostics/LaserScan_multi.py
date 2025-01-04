@@ -152,7 +152,8 @@ class LaserScanMulti(LAXExperiment, Experiment):
         threshold_list =        findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities and convert from D-state probability to S-state probability
+        #todo: talk to Clayton about this
+        # normalize probabilities and convert from S-state probability to D-state probability
         results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
         # process dataset into x, y, with y being averaged probability
         results_tmp =   groupBy(results_tmp, column_num=0, reduce_func=np.mean)
@@ -208,12 +209,11 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
         results_plotting = np.array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
-        results_plotting_y = 1 - results_plotting_y
 
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'subplot_titles': f'Laser Scan',
-                            'subplot_x_labels': 'Abs. Freq (MHz)',
+                            'subplot_x_labels': 'AOM. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
                             }

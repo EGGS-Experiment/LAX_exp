@@ -22,7 +22,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate wait times
-        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 2, 5, 10, 50]))
+        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1,2,3]))
         self.setattr_device('ccb')
 
         # run regular sideband cooling build
@@ -105,7 +105,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         probability_vals = np.zeros(len(results_tmp))
         counts_arr = np.array(results_tmp[:, 1])
         time_readout_us = self.sidebandreadout_subsequence.time_sideband_readout_us
-        num_subplots = len(self.time_heating_rate_list) + 1
+        num_subplots = len(self.time_heating_rate_ms_list) + 1
         # tmp remove
         results_yzde = groupBy(results_tmp, column_num=2)
         self._tmp_data = results_yzde.copy()
@@ -128,14 +128,11 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         heating_rate_data = np.array([[heat_time, *(self._extract_phonon(dataset, time_readout_us))]
                                       for heat_time, dataset in results_tmp.items()])
 
-        populations_data = np.array([[heat_time, *(self._extract_populations(dataset, time_readout_us))]
-                                     for heat_time, dataset in results_tmp.items()])
-
 
         # fit line to results
         line_fitter = fitLine()
-        fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2], bounds=((0., -np.inf), (1., np.inf))))
-
+        # fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2], bounds=((0., -np.inf), (1., np.inf))))
+        fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2]))
         # save results to hdf5 as a dataset
         self.set_dataset('processed_heating_rate_data', heating_rate_data)
         self.set_dataset('fit_params_heating_rate', fit_params_heating_rate)
@@ -154,26 +151,33 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         fit_x = []
         fit_y = []
 
-        for populations in populations_data:
-            pass
 
-        plotting_results_x.append(heating_rate_data[:, 0])
-        plotting_results_y.append(heating_rate_data[:, 1])
+        dataset_length = 0
+        for heat_time, dataset in results_tmp.items():
+            data_rsb, data_bsb = np.array(self._extract_populations(dataset, time_readout_us))
+            data_rsb_x, data_rsb_y = data_rsb.transpose()
+            data_bsb_x, data_bsb_y = data_bsb.transpose()
+            plotting_results_x.append(data_rsb_x/2)
+            plotting_results_y.append(data_rsb_y)
+            plotting_results_x.append(data_bsb_x / 2)
+            plotting_results_y.append(data_bsb_y)
+        # plotting_results_x.append(list(heating_rate_data[:, 0]))
+        # plotting_results_y.append(list(heating_rate_data[:, 1]))
         heating_rate_fit_x = np.linspace(np.min(heating_rate_data[:, 0]), np.max(heating_rate_data[:, 0]),
                                          len(heating_rate_data[:, 0])*10)
-        fit_x.append(heating_rate_fit_x)
-        fit_y.append(fit_params_heating_rate[0]*heating_rate_fit_x + fit_params_heating_rate[1])
+        fit_y.append(fit_params_heating_rate[0]*heating_rate_fit_x + fit_params_heating_rate[1])\
 
         plotting_results = {'x': plotting_results_x,
                             'y': plotting_results_y,
-                            'fit_x': fit_x,
-                            'fit_y': fit_y,
                             'rid': self.scheduler.rid,
                             }
 
         self.set_dataset('temp.plotting.results_heating_rate', pyon.encode(plotting_results), broadcast=True)
 
+        num_subplots = 6
+        ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_heating_rate'
+        ccb_command += f' --num-subplots {num_subplots}'
         self.ccb.issue("create_applet", f"Heating Rate",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_heating_rate'
-                       ' --num-subplots 1')
+                       ccb_command,
+                       group = 'plotting.diagnostics')
 

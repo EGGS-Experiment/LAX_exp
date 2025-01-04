@@ -256,7 +256,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                             'fit_y': fit_y,
                             'subplot_titles': f'Laser Scan',
                             'subplot_x_labels': 'Time (us)',
-                            'subplot_y_labels': 'D State Population',
+                            'subplot_y_labels': 'Counts',
                             'rid': self.scheduler.rid,
                             }
 

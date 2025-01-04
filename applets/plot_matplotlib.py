@@ -92,7 +92,7 @@ class MatplotlibPlot(QMainWindow):
         fit_ys = np.array(self.get_from_dict(results, 'fit_y', None))
         x_labels = numpy.array(self.get_from_dict(results, 'subplot_x_labels', None))
         y_labels = numpy.array(self.get_from_dict(results, 'subplot_y_labels', None))
-        titles = numpy.array(self.get_from_dict(results, 'title', None))
+        titles = numpy.array(self.get_from_dict(results, 'subplot_titles', None))
         rid = numpy.array(self.get_from_dict(results, 'rid', None))
 
         # inform user of unused keys and data
@@ -102,6 +102,7 @@ class MatplotlibPlot(QMainWindow):
             self.logger.warning(f'The keys used are: {self.default_keys}')
 
         # determine number of datasets there are
+
         if len(ys.shape) == 1:
             num_datasets = 1
         else:
@@ -197,7 +198,6 @@ class MatplotlibPlot(QMainWindow):
             self.sc.axes = np.array([self.sc.axes])
 
         # get features of the plot legend
-        print(self.sc.axes[ind])
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()
 
         # only plot if a new experiment is run
@@ -305,7 +305,7 @@ class MatplotlibPlot(QMainWindow):
             artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
             if len(artist_clicked) > 0:
                 self.boxes.append(artist_clicked[0].axes.text(event.xdata, event.ydata,
-                                                              f"x: {event.xdata:.2f} \ny: {event.ydata:.2f}",
+                                                              f"x: {event.xdata:.3f} \ny: {event.ydata:.3f}",
                                                               fontsize=12,
                                                               bbox={'facecolor': 'white', 'pad': 4,
                                                                     'edgecolor': 'black'}))
