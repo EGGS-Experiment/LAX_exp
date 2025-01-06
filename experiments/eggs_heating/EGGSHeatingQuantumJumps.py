@@ -918,13 +918,13 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
                 ccb_command += ' --num-subplots 2'
-                plotting_results = {'x': [rsb_freqs_MHz, bsb_freqs_MHz],
-                                    'y': [ave_rsb, ave_bsb],
-                                    'errors': [std_rsb, std_bsb],
-                                    'fit_x': [fit_x_rsb, fit_x_bsb],
-                                    'fit_y': [fit_y_rsb, fit_y_bsb],
-                                    'subplot_x_labels': ['Frequency (MHz)', 'Frequency (MHz)'],
-                                    'subplot_y_labels': ['D State Population', 'D State Population'],
+                plotting_results = {'x': np.array([rsb_freqs_MHz, bsb_freqs_MHz]),
+                                    'y': np.array([ave_rsb, ave_bsb]),
+                                    'errors': np.array([std_rsb, std_bsb]),
+                                    'fit_x': np.array([fit_x_rsb, fit_x_bsb]),
+                                    'fit_y': np.array([fit_y_rsb, fit_y_bsb]),
+                                    'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)']),
+                                    'subplot_y_labels': np.array(['D State Population', 'D State Population']),
                                     'rid': self.scheduler.rid,
                                     }
 

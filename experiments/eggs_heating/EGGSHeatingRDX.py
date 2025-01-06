@@ -552,13 +552,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 fit_x_phonons = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 1000)
                 fit_y_phonons = fitter.fit_func(fit_x_phonons, *fit_params_sweep)
                 ccb_command += ' --num-subplots 3'
-                plotting_results = {'x': [scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz],
-                                    'y': [ave_rsb, ave_bsb, phonons],
-                                    'errors': [std_rsb, std_bsb, None],
-                                    'fit_x': [fit_x_rsb, fit_x_bsb, fit_x_phonons],
-                                    'fit_y': [fit_y_rsb, fit_y_bsb, fit_y_phonons],
-                                    'subplot_x_labels': ['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)'],
-                                    'subplot_y_labels': ['D State Population', 'D State Population', 'Phonons'],
+                plotting_results = {'x': np.array([scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz]),
+                                    'y': np.array([ave_rsb, ave_bsb, phonons]),
+                                    'errors': np.array([std_rsb, std_bsb, None]),
+                                    'fit_x': np.array([fit_x_rsb, fit_x_bsb, fit_x_phonons]),
+                                    'fit_y': np.array([fit_y_rsb, fit_y_bsb, fit_y_phonons]),
+                                    'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)']),
+                                    'subplot_y_labels': np.array(['D State Population', 'D State Population', 'Phonons']),
                                     'rid': self.scheduler.rid,
                                     }
 
@@ -584,20 +584,20 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
                 ccb_command += ' --num-subplots 2'
-                plotting_results = {'x': [rsb_freqs_MHz, bsb_freqs_MHz],
-                                    'y': [ave_rsb, ave_bsb],
-                                    'errors': [std_rsb, std_bsb],
-                                    'fit_x': [fit_x_rsb, fit_x_bsb],
-                                    'fit_y': [fit_y_rsb, fit_y_bsb],
-                                    'subplot_x_labels': ['Frequency (MHz)', 'Frequency (MHz)'],
-                                    'subplot_y_labels': ['D State Population', 'D State Population'],
+                plotting_results = {'x': np.array([rsb_freqs_MHz, bsb_freqs_MHz]),
+                                    'y': np.array([ave_rsb, ave_bsb]),
+                                    'errors': np.array([std_rsb, std_bsb]),
+                                    'fit_x': np.array([fit_x_rsb, fit_x_bsb]),
+                                    'fit_y': np.array([fit_y_rsb, fit_y_bsb]),
+                                    'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)']),
+                                    'subplot_y_labels': np.array(['D State Population', 'D State Population']),
                                     'rid': self.scheduler.rid,
                                     }
 
             else:
                 plotting_results = {}
 
-            self.set_dataset('temp.plotting.results_eggs_heating_rdxx', pyon.encode(plotting_results),
+            self.set_dataset('temp.plotting.results_eggs_heating_RDX', pyon.encode(plotting_results),
                              broadcast=True)
 
             self.ccb.issue("create_applet", f"EGGS Heating - RDX",
