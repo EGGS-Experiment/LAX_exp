@@ -85,7 +85,7 @@ class MatplotlibPlot(QMainWindow):
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary
-        ys = np.array(self.get_from_dict(results, 'y', None))
+        ys = np.array(self.get_from_dict(results, 'y', None), dtype=object)
         xs = np.array(self.get_from_dict(results, 'x', None))
         errors = np.array(self.get_from_dict(results, 'errors', None))
         fit_xs = np.array(self.get_from_dict(results, 'fit_x', None))
@@ -251,8 +251,8 @@ class MatplotlibPlot(QMainWindow):
 
         # see if plot label comes in array
         if isinstance(plot_element, np.ndarray):
-            # check if array is filled with any Nones
-            if (plot_element == None).any():
+            # check if array is filled with all Nones
+            if (plot_element == None).all():
                 plot_element = None
             elif len(plot_element.shape) < 1:
                 plot_element = plot_element
@@ -273,7 +273,7 @@ class MatplotlibPlot(QMainWindow):
             aux_arg_name: the name of the not required dataset
         """
         if aux_arg is not None:
-            if (aux_arg == None).any():
+            if (aux_arg == None).all():
                 aux_arg = None
 
             elif not len(aux_arg):
