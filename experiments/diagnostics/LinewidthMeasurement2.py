@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2, RescueIon
+from sipyco import pyon
 
 
 class LinewidthMeasurement2(LAXExperiment, Experiment):
@@ -221,7 +222,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                             'fit_x': fit_x,
                             'fit_y': fit_y,
                             'subplot_titles': f'Laser Scan',
-                            'subplot_x_labels': 'Time (us)',
+                            'subplot_x_labels': 'AOM Frequency (MHz)',
                             'subplot_y_labels': 'Counts',
                             'rid': self.scheduler.rid,
                             }

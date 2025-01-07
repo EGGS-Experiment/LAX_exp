@@ -169,7 +169,7 @@ class MultiXYPlot(PlotWidget):
 def main():
     # Create applet object
     applet = TitleApplet(MultiXYPlot, default_update_delay=0.1)
-    applet.main_widget.resize(800, 600)
+    # applet.main_widget.resize(800, 600)
 
     # Add custom arguments
     applet.argparser.add_argument("--x-label", default=None, type=str, help="The X label")

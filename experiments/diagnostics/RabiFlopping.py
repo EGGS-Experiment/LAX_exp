@@ -27,16 +27,16 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type",
-                              EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
+                              EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="SBC - Continuous"))
         self.setattr_argument("time_rabi_us_list", Scannable(
             default=[
                 # ExplicitScan([6.05]),
-                RangeScan(1, 50, 200, randomize=True),
+                RangeScan(1, 300, 200, randomize=True),
             ],
             global_min=1, global_max=100000, global_step=1,
             unit="us", scale=1, precision=5
         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.3625, precision=5, step=1, min=1, max=10000),
+        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=102.003, precision=5, step=1, min=1, max=10000),
                               group=self.name)
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5),
                               group=self.name)
@@ -142,7 +142,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         """
         Fit rabi flopping data with an exponentially damped sine curve
         """
-        # create data structures for processing
+
         results_tmp = np.array(self.results)
         probability_vals = np.zeros(len(results_tmp))
         counts_arr = np.array(results_tmp[:, 1])
@@ -155,7 +155,6 @@ class RabiFlopping(LAXExperiment, Experiment):
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
         # normalize probabilities and convert from D-state probability to S-state probability
         results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
-
         # process dataset into x, y, with y being averaged probability
         results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
         results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()

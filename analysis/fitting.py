@@ -48,8 +48,12 @@ class fitDampedOscillator:
         t0, a0 = data[max_ind0]
         # get position of next peak and use to find decay constant
         points_margin = int(np.round(max_ind0 * 1.5))
-        max_ind1 = np.argmax(data_y[points_margin])
-        t1, a1 = data[points_margin + max_ind1]
+        if points_margin < len(data):
+            max_ind1 = np.argmax(data_y[points_margin])
+            t1, a1 = data[points_margin + max_ind1]
+        else:
+            t1 = t0 * 3
+            a1 = a0
 
         # create array of initial guess parameters
         a_guess = np.abs(1. - 2. * a0)

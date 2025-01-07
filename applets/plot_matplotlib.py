@@ -34,6 +34,8 @@ class MplCanvas(FigureCanvasQTAgg):
         self.axes = np.array(self.axes)
 
         plt.ion()
+        plt.tight_layout()
+        self.fig.tight_layout()
         super().__init__(self.fig)
 
 
@@ -43,7 +45,7 @@ class MatplotlibPlot(QMainWindow):
 
     Attributes:
         sc (MatplotlibCanvas): a matplotlib canvas to hold the plots
-        points (list): list of data points clicked
+        data_points_list (list): list of data points clicked
         boxes (list): list of text boxes on figure
         box_clicked (ax.text): latest text box clicked
         default_keys (list): keys that will be used in the results dictionary passed to this class
@@ -56,7 +58,8 @@ class MatplotlibPlot(QMainWindow):
         self.sc = MplCanvas(self, nsubplots=args.num_subplots)
 
         # instantiate lists of boxes and points for later events
-        self.points = []
+        self.data_points_list = []
+        self.fit_lines = []
         self.boxes = []
         self.box_clicked = None
 
@@ -71,7 +74,7 @@ class MatplotlibPlot(QMainWindow):
 
         # default keys for dictionary passed to applet
         self.default_keys = ['x', 'y', 'errors', 'fit_x', 'fit_y', 'subplot_x_labels', 'subplot_y_labels',
-                             'subplot_titles', 'rid']
+                             'subplot_titles', 'ylims', 'rid']
 
     def update_applet(self, args):
         """
@@ -93,6 +96,7 @@ class MatplotlibPlot(QMainWindow):
         x_labels = numpy.array(self.get_from_dict(results, 'subplot_x_labels', None))
         y_labels = numpy.array(self.get_from_dict(results, 'subplot_y_labels', None))
         titles = numpy.array(self.get_from_dict(results, 'subplot_titles', None))
+        ylims = numpy.array(self.get_from_dict(results, 'ylims', None))
         rid = numpy.array(self.get_from_dict(results, 'rid', None))
 
         # inform user of unused keys and data
@@ -102,7 +106,6 @@ class MatplotlibPlot(QMainWindow):
             self.logger.warning(f'The keys used are: {self.default_keys}')
 
         # determine number of datasets there are
-
         if len(ys.shape) == 1:
             num_datasets = 1
         else:
@@ -137,7 +140,12 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(titles.shape) > 1:
                     raise ValueError("There can only be a single title for a single subplot")
 
-            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), titles.item(), rid=rid)
+            if ylims is not None and len(ylims.shape) != 0:
+                if np.max(ylims.shape) > 1:
+                    raise ValueError("There can only be a single y limit for a single subplot")
+
+            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(),
+                      titles.item(), ylim = ylims, rid=rid)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -152,8 +160,9 @@ class MatplotlibPlot(QMainWindow):
                 x_label = self.get_plot_element(x_labels, ind)
                 y_label = self.get_plot_element(y_labels, ind)
                 title = self.get_plot_element(titles, ind)
+                ylim = self.get_plot_element(ylims, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ind, rid=rid)
+                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim, ind, rid=rid)
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.setCentralWidget(self.sc)
@@ -161,7 +170,7 @@ class MatplotlibPlot(QMainWindow):
 
     """PLOTTING FUNCTIONS"""
 
-    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ind=0, rid=None):
+    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ylim = None, ind=0, rid=None):
         """
         Plot the data in a matplotlib subplots
 
@@ -176,6 +185,7 @@ class MatplotlibPlot(QMainWindow):
             title : title for the subplot
             ind: index (location) of the subplot in the matplotlib figure
             rid: run number of experiment
+            ylim: y limits
         """
 
         # verify the variables are of the correct type
@@ -202,22 +212,29 @@ class MatplotlibPlot(QMainWindow):
 
         # only plot if a new experiment is run
         if labels == [] or (rid not in np.int32(np.array(labels))):
-            line = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid)
-            self.points.append(line)
+            data_points = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
+                                              markersize = 2)
+            self.data_points_list.append(data_points)
 
         # plot fit to data and set titles and labels
         if fit_y is not None and fit_x is not None:
-            self.sc.axes[ind].plot(fit_x, fit_y)
+            fit_lines = self.sc.axes[ind].plot(fit_x, fit_y)
+            self.fit_lines.append(fit_lines)
         if title is not None:
             self.sc.axes[ind].set_title(title)
         if x_label is not None:
             self.sc.axes[ind].set_xlabel(x_label)
         if y_label is not None:
             self.sc.axes[ind].set_ylabel(y_label)
+        if ylim is not None:
+            self.sc.axes[ind].set_ylim(np.min(ylim), np.max(ylim))
 
         # style plot
         self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
         self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
+        # set xticks by removing Nones from list
+        x_filtered = [x_ele for x_ele in x if x_ele is not None]
+        self.sc.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 5),4))
         self.sc.axes[ind].legend()
 
     """VERIFICATION AND HELPER FUNCTIONS"""
@@ -227,18 +244,6 @@ class MatplotlibPlot(QMainWindow):
             return d[key]
         else:
             return default
-
-    def get_plot_data(self, plot_data, ind):
-        """
-        Get a dataset from a multidimensional list or return the variable
-
-        Args:
-            plot_data : multidimensional list of datasets
-            ind: index of the dataset in the multidimensional list
-        """
-        if len(plot_data.shape) > 1:
-            plot_data = plot_data[ind]
-        return plot_data
 
     def get_plot_element(self, plot_element, ind):
         """
@@ -257,10 +262,13 @@ class MatplotlibPlot(QMainWindow):
             elif len(plot_element.shape) < 1:
                 plot_element = plot_element
             # otherwise just grab the label
+            elif ind > len(plot_element)-1:
+                plot_element = None
             else:
                 plot_element = plot_element[ind]
-        elif isinstance(plot_element, list):
+        elif isinstance(plot_element, list) and ind < len(plot_element)-1:
             plot_element = plot_element[ind]
+
         return plot_element
 
     def verify_aux_arg_type(self, y, aux_arg, aux_arg_name=""):
@@ -302,13 +310,25 @@ class MatplotlibPlot(QMainWindow):
         # if data point was clicked create text box and record
         else:
             self.box_clicked = None
-            artist_clicked = [picked.lines[0] for picked in self.points if picked.lines[0].contains(event)[0]]
+            artist_clicked = [picked.lines[0] for picked in self.data_points_list if picked.lines[0].contains(event)[0]]
             if len(artist_clicked) > 0:
                 self.boxes.append(artist_clicked[0].axes.text(event.xdata, event.ydata,
-                                                              f"x: {event.xdata:.3f} \ny: {event.ydata:.3f}",
+                                                              f"x: {event.xdata:.4f} \ny: {event.ydata:.4f}",
                                                               fontsize=12,
                                                               bbox={'facecolor': 'white', 'pad': 4,
                                                                     'edgecolor': 'black'}))
+
+            # check fit lines
+            else:
+                self.box_clicked = None
+                artist_clicked = [line for lines in self.fit_lines for line in lines if line.contains(event)[0]]
+
+                if len(artist_clicked) > 0:
+                    self.boxes.append(artist_clicked[0].axes.text(event.xdata, event.ydata,
+                                                                  f"x: {event.xdata:.4f} \ny: {event.ydata:.4f}",
+                                                                  fontsize=12,
+                                                                  bbox={'facecolor': 'white', 'pad': 4,
+                                                                        'edgecolor': 'black'}))
 
     def keyPressEvent(self, event):
         """
