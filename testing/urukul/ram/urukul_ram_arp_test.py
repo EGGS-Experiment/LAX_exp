@@ -19,7 +19,6 @@ class UrukulRAMARP(EnvExperiment):
     Test adiabatic rapid passage via AD9910 RAM.
     """
 
-
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")

@@ -7,13 +7,14 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
 
 
-class LaserScan(LAXExperiment, Experiment):
+class LaserScanPulseShape(LAXExperiment, Experiment):
     """
-    Experiment: Laser Scan
+    Experiment: Laser Scan Pulse Shape
 
     Gets the number of counts as a function of frequency for a fixed time.
+    Supports sine-squared pulse shaping.
     """
-    name = 'Laser Scan'
+    name = 'Laser Scan Pulse Shape'
     kernel_invariants = {
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
