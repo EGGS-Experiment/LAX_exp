@@ -209,47 +209,52 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.set_dataset('res_bgr', res_bgr)
 
         '''FIT DATA'''
-        # fit gaussian, lorentzian, and voigt profiles
-        # todo: fit voigt profile
-        fitter_gauss = fitGaussian()
-        fitter_lorentzian = fitLorentzian()
-        fit_gaussian_params, fit_gaussian_err = fitter_gauss.fit(res_final[:, :2])
-        fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
-        # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
-        fit_gaussian_fwmh_mhz = np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
-        fit_gaussian_fwmh_mhz_err = np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
-
-        # save results to dataset manager for dynamic experiments
-        res_dj = [fit_gaussian_params, fit_gaussian_err]
-        self.set_dataset('temp.linewidthmeasurement.results', res_dj, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.linewidthmeasurement.rid', self.scheduler.rid, broadcast=True, persist=False,
-                         archive=False)
-
-        # save fitted results to hdf5 as a dataset
-        self.set_dataset('fit_gaussian_params', fit_gaussian_params)
-        self.set_dataset('fit_gaussian_err', fit_gaussian_err)
-        self.set_dataset('fit_lorentzian_params', fit_lorentzian_params)
-        self.set_dataset('fit_lorentzian_err', fit_lorentzian_err)
-        # self.set_dataset('fit_voigt_params',            fit_voigt_params)
-        # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
-
-        '''PRINT RESULTS'''
-        # print out fitted parameters
-        print("\tResults - Linewidth Measurement:")
-        print("\t\tGaussian Fit:")
-        print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
-        print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
-        print("\t\tLorentzian Fit:")
-        print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
-        print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
-        # print("\t\tVoigt Fit:")
-        # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
-        # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
-
         results_plotting_x = res_final[:, 0]
         results_plotting_y = res_final[:, 1]
         fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), len(results_plotting_x)*10)
-        fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
+        try:
+            # fit gaussian, lorentzian, and voigt profiles
+            # todo: fit voigt profile
+            fitter_gauss = fitGaussian()
+            fitter_lorentzian = fitLorentzian()
+            fit_gaussian_params, fit_gaussian_err = fitter_gauss.fit(res_final[:, :2])
+            fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
+            # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
+            fit_gaussian_fwmh_mhz = np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
+            fit_gaussian_fwmh_mhz_err = np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
+
+            # save results to dataset manager for dynamic experiments
+            res_dj = [fit_gaussian_params, fit_gaussian_err]
+            self.set_dataset('temp.linewidthmeasurement.results', res_dj, broadcast=True, persist=False, archive=False)
+            self.set_dataset('temp.linewidthmeasurement.rid', self.scheduler.rid, broadcast=True, persist=False,
+                             archive=False)
+
+            # save fitted results to hdf5 as a dataset
+            self.set_dataset('fit_gaussian_params', fit_gaussian_params)
+            self.set_dataset('fit_gaussian_err', fit_gaussian_err)
+            self.set_dataset('fit_lorentzian_params', fit_lorentzian_params)
+            self.set_dataset('fit_lorentzian_err', fit_lorentzian_err)
+            # self.set_dataset('fit_voigt_params',            fit_voigt_params)
+            # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
+
+            '''PRINT RESULTS'''
+            # print out fitted parameters
+            print("\tResults - Linewidth Measurement:")
+            print("\t\tGaussian Fit:")
+            print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
+            print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+            print("\t\tLorentzian Fit:")
+            print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
+            print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
+            # print("\t\tVoigt Fit:")
+            # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
+            # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+            fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
+
+        except Exception as e:
+            print("Unable to find optimal fit")
+            fit_y = [None]*len(fit_x)
+
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'fit_x': fit_x,

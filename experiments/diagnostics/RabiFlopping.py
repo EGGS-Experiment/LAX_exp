@@ -161,31 +161,36 @@ class RabiFlopping(LAXExperiment, Experiment):
         results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
         # fit rabi flopping using damped harmonic oscillator
-        fitter = fitDampedOscillator()
-        fit_params, fit_err = fitter.fit(results_tmp)
         results_plotting_x, results_plotting_y = np.array(results_tmp).transpose()
         fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
-        fit_y = fitter.fit_func(fit_x, *fit_params)
-        # todo: use fit parameters to attempt to fit roos eqn(A.5)
-        # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
+        try:
+            fitter = fitDampedOscillator()
+            fit_params, fit_err = fitter.fit(results_tmp)
+            fit_y = fitter.fit_func(fit_x, *fit_params)
+            # todo: use fit parameters to attempt to fit roos eqn(A.5)
+            # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
-        # process fit parameters to give values of interest
-        fit_period_us = (2 * np.pi * 1.e6) / fit_params[2]
-        fit_period_err_us = fit_period_us * (fit_err[2] / fit_params[2])
-        # todo: extract phonon number from fit
+            # process fit parameters to give values of interest
+            fit_period_us = (2 * np.pi * 1.e6) / fit_params[2]
+            fit_period_err_us = fit_period_us * (fit_err[2] / fit_params[2])
+            # todo: extract phonon number from fit
 
-        # save results to hdf5 as a dataset
-        self.set_dataset('fit_params', fit_params)
-        self.set_dataset('fit_err', fit_err)
+            # save results to hdf5 as a dataset
+            self.set_dataset('fit_params', fit_params)
+            self.set_dataset('fit_err', fit_err)
 
-        # save results to dataset manager for dynamic experiments
-        res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
-        self.set_dataset('temp.rabiflopping.results', res_dj, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.rabiflopping.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+            # save results to dataset manager for dynamic experiments
+            res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
+            self.set_dataset('temp.rabiflopping.results', res_dj, broadcast=True, persist=False, archive=False)
+            self.set_dataset('temp.rabiflopping.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
-        # print out fitted parameters
-        print("\tResults - Rabi Flopping:")
-        print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
+            # print out fitted parameters
+            print("\tResults - Rabi Flopping:")
+            print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
+
+        except Exception as e:
+            print("Unable to find ")
+            fit_y = [None]*len(fit_x)
 
         plotting_results = {'x': results_plotting_x * 1e6,
                             'y': results_plotting_y,
