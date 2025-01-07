@@ -24,7 +24,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=25, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
         self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
@@ -162,6 +162,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                             'subplot_y_labels': 'D State Population',
                             'subplot_titles': ['RSB', 'BSB'],
                             'rid': self.scheduler.rid,
+                            'ylims': [[0,1], [0,1]]
                             }
 
         self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)

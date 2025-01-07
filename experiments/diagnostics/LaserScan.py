@@ -40,7 +40,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
             default=[
-                CenterScan(100.7145, 0.005, 0.0001, randomize=True),
+                CenterScan(101.3548, 0.01, 0.0001, randomize=True),
                 ExplicitScan([101.4459]),
                 RangeScan(1, 50, 200, randomize=True),
             ],

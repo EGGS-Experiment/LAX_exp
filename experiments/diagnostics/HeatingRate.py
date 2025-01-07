@@ -109,6 +109,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         results_yzde = groupBy(results_tmp, column_num=2)
         self._tmp_data = results_yzde.copy()
         # tmp remove
+        num_subplots = 2 * len(self.time_heating_rate_ms_list) + 1
 
         # convert column 0 (frequency) from frequency tuning word (FTW) to MHz (in absolute units),
         # and convert column 2 (time) from machine units to seconds
@@ -149,29 +150,57 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         fit_x = []
         fit_y = []
 
-        pad_length = len(self.freq_sideband_readout_ftw_list) - len(heating_rate_data[:, 0])
+        pad_length = int(len(self.freq_sideband_readout_ftw_list)/2 - len(heating_rate_data[:, 0]))
         for heat_time, dataset in results_tmp.items():
             data_rsb, data_bsb = np.array(self._extract_populations(dataset, time_readout_us))
             data_rsb_x, data_rsb_y = data_rsb.transpose()
             data_bsb_x, data_bsb_y = data_bsb.transpose()
-            plotting_results_x.append(data_rsb_x / 2)
+            # convert to AOM units
+            data_rsb_x /= 2
+            data_bsb_x /= 2
+
+            plotting_results_x.append(data_rsb_x)
             plotting_results_y.append(data_rsb_y)
-            plotting_results_x.append(data_bsb_x / 2)
+            plotting_results_x.append(data_bsb_x)
             plotting_results_y.append(data_bsb_y)
+
+            ### fit data
+            fitter_gauss = fitGaussian()
+            fit_rsb_params, _ = fitter_gauss.fit(data_rsb)
+            fit_bsb_params, _ = fitter_gauss.fit(data_bsb)
+            fit_x_rsb = np.linspace(np.min(data_rsb_x), np.max(data_rsb_x), len(data_rsb_x)*10)
+            fit_x_bsb = np.linspace(np.min(data_bsb_x), np.max(data_bsb_x), len(data_bsb_x)*10)
+            fit_y_rsb = fitter_gauss.fit_func(fit_x_rsb, *fit_rsb_params)
+            fit_y_bsb = fitter_gauss.fit_func(fit_x_bsb, *fit_bsb_params)
+            fit_x.append(fit_x_rsb)
+            fit_x.append(fit_x_bsb)
+            fit_y.append(fit_y_rsb)
+            fit_y.append(fit_y_bsb)
+
         plotting_results_x.append(list(heating_rate_data[:, 0]) + [None] * pad_length)
         plotting_results_y.append(list(heating_rate_data[:, 1]) + [None] * pad_length)
         heating_rate_fit_x = np.linspace(np.min(heating_rate_data[:, 0]), np.max(heating_rate_data[:, 0]),
                                          len(heating_rate_data[:, 0]) * 10)
-        fit_y.append(fit_params_heating_rate[0] * heating_rate_fit_x + fit_params_heating_rate[1]) \
- \
+        fit_x.append(heating_rate_fit_x)
+        fit_y.append(fit_params_heating_rate[0] * heating_rate_fit_x + fit_params_heating_rate[1])
+        ### pad linear fit with Nones
+        fit_x[-1] = list(fit_x[-1]) + [None] * (len(fit_x[0])-len(fit_x[-1]))
+        fit_y[-1] = list(fit_y[-1]) + [None] * (len(fit_y[0]) - len(fit_y[-1]))
+
+        subplot_titles = np.repeat([f'Wait Time: {round(wait_time,1)}' for wait_time in heating_rate_data[:,0]/ms],2)
+        subplot_titles = [str(subplot_title) for subplot_title in subplot_titles]
         plotting_results = {'x': plotting_results_x,
                             'y': plotting_results_y,
+                            'fit_x': fit_x,
+                            'fit_y': fit_y,
+                            'subplot_x_labels': ['AOM Freq (MHz)']*(num_subplots-1)+['Waiting Time (ms)'],
+                            'subplot_y_labels': ['D State Population']*(num_subplots-1) + ['Phonon'],
+                            'subplot_titles': subplot_titles + ['Summary'],
                             'rid': self.scheduler.rid,
+                            'ylims': [[0, 1]]*(num_subplots-1)
                             }
 
         self.set_dataset('temp.plotting.results_heating_rate', pyon.encode(plotting_results), broadcast=True)
-
-        num_subplots = 2 * len(self.time_heating_rate_ms_list) + 1
         ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_heating_rate'
         ccb_command += f' --num-subplots {num_subplots}'
         self.ccb.issue("create_applet", f"Heating Rate",

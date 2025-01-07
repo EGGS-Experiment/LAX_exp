@@ -32,7 +32,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz", Scannable(
-            default=RangeScan(85, 129, 45, randomize=True),
+            default=RangeScan(85, 139, 60, randomize=True),
             global_min=80, global_max=140, global_step=1,
             unit="MHz", scale=1, precision=6
         ))
@@ -255,7 +255,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                             'fit_x': fit_x,
                             'fit_y': fit_y,
                             'subplot_titles': f'Laser Scan',
-                            'subplot_x_labels': 'Time (us)',
+                            'subplot_x_labels': 'AOM Frequency (MHz)',
                             'subplot_y_labels': 'Counts',
                             'rid': self.scheduler.rid,
                             }
