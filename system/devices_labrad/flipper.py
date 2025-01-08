@@ -38,7 +38,7 @@ class Flipper(LAXDevice):
         try:
             # ensure labjack is off before sending pulse
             self.labjack.write_name(self.flipper_port_name, 0)
-            time.sleep(self.time_flipper_trigger_mu)
+            time.sleep(self.time_flipper_trigger)
 
             # pulse labjack to flip flipper
             self.labjack.write_name(self.flipper_port_name, 1)
@@ -47,7 +47,7 @@ class Flipper(LAXDevice):
         except Exception as e:
             if self.reconnect_to_labjack():
                 self.labjack.write_name(self.flipper_port_name, 0)
-                time.sleep(self.time_flipper_trigger_mu)
+                time.sleep(self.time_flipper_trigger)
                 self.labjack.write_name(self.flipper_port_name, 1)
                 time.sleep(self.wait_time)
                 self.labjack.write_name(self.flipper_port_name, 0)

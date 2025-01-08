@@ -77,7 +77,7 @@ device_db_ext = {
     },
 
 
-    # # flipper
+    # # artiq flipper - moved to labjack
     # "flipper": {
     #     "type": "local",
     #     "module": "LAX_exp.system.devices.flipper",
