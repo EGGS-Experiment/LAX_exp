@@ -33,10 +33,17 @@ device_db_ext = {
     },
 
     "wavemeter": {
-    "type": "local",
-    "module": "LAX_exp.system.devices_labrad.wavemeter",
-    "class": "Wavemeter"
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.wavemeter",
+        "class": "Wavemeter"
 
+    },
+
+    # flipper
+    "flipper": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.flipper",
+        "class": "Flipper"
     },
 
 #########################
@@ -70,12 +77,12 @@ device_db_ext = {
     },
 
 
-    # flipper
-    "flipper": {
-        "type": "local",
-        "module": "LAX_exp.system.devices.flipper",
-        "class": "Flipper"
-    },
+    # # flipper
+    # "flipper": {
+    #     "type": "local",
+    #     "module": "LAX_exp.system.devices.flipper",
+    #     "class": "Flipper"
+    # },
 
 
     # DDS
