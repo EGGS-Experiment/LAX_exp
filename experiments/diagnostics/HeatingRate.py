@@ -22,7 +22,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate wait times
-        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 2, 3]))
+        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 100, 500]))
         self.setattr_device('ccb')
 
         # run regular sideband cooling build
@@ -131,19 +131,21 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # fit line to results
         line_fitter = fitLine()
         # fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2], bounds=((0., -np.inf), (1., np.inf))))
-        fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2]))
+        try:
+            fit_params_heating_rate = np.array(line_fitter.fit(heating_rate_data[:, :2]))
+            # print out fitted parameters
+            print("\tResults - Heating Rate:")
+            print("\t---------------------")
+            for heat_time_s, phonon_num, phonon_err in heating_rate_data:
+                print("\t\t{:.1f}\tms:\t{:.2f} +/- {:.2f}".format(heat_time_s * 1.e3, phonon_num, phonon_err))
+            print("\t---------------------")
+            print("\t\tSlope:\t\t{:.3f} quanta/s".format(fit_params_heating_rate[1]))
+            print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[0]))
+            self.set_dataset('fit_params_heating_rate', fit_params_heating_rate)
+        except Exception as e:
+            fit_params_heating_rate = [None, None]
         # save results to hdf5 as a dataset
         self.set_dataset('processed_heating_rate_data', heating_rate_data)
-        self.set_dataset('fit_params_heating_rate', fit_params_heating_rate)
-
-        # print out fitted parameters
-        print("\tResults - Heating Rate:")
-        print("\t---------------------")
-        for heat_time_s, phonon_num, phonon_err in heating_rate_data:
-            print("\t\t{:.1f}\tms:\t{:.2f} +/- {:.2f}".format(heat_time_s * 1.e3, phonon_num, phonon_err))
-        print("\t---------------------")
-        print("\t\tSlope:\t\t{:.3f} quanta/s".format(fit_params_heating_rate[1]))
-        print("\t\tIntercept:\t{:.3f} quanta".format(fit_params_heating_rate[0]))
 
         plotting_results_x = []
         plotting_results_y = []
@@ -166,23 +168,31 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
             ### fit data
             fitter_gauss = fitGaussian()
-            fit_rsb_params, _ = fitter_gauss.fit(data_rsb)
-            fit_bsb_params, _ = fitter_gauss.fit(data_bsb)
             fit_x_rsb = np.linspace(np.min(data_rsb_x), np.max(data_rsb_x), len(data_rsb_x)*10)
             fit_x_bsb = np.linspace(np.min(data_bsb_x), np.max(data_bsb_x), len(data_bsb_x)*10)
-            fit_y_rsb = fitter_gauss.fit_func(fit_x_rsb, *fit_rsb_params)
-            fit_y_bsb = fitter_gauss.fit_func(fit_x_bsb, *fit_bsb_params)
-            fit_x.append(fit_x_rsb)
-            fit_x.append(fit_x_bsb)
-            fit_y.append(fit_y_rsb)
-            fit_y.append(fit_y_bsb)
+            try:
+                fit_rsb_params, _ = fitter_gauss.fit(data_rsb)
+                fit_bsb_params, _ = fitter_gauss.fit(data_bsb)
+                fit_y_rsb = fitter_gauss.fit_func(fit_x_rsb, *fit_rsb_params)
+                fit_y_bsb = fitter_gauss.fit_func(fit_x_bsb, *fit_bsb_params)
+                fit_x.append(fit_x_rsb)
+                fit_x.append(fit_x_bsb)
+                fit_y.append(fit_y_rsb)
+                fit_y.append(fit_y_bsb)
+            except Exception as e:
+                print("Could not find fit parameters for Sideband")
+                fit_x.append([None]*len(fit_x_rsb))
+                fit_x.append([None]*len(fit_x_bsb))
+                fit_y.append([None]*len(fit_x_rsb))
+                fit_y.append([None]*len(fit_x_bsb))
+
 
         plotting_results_x.append(list(heating_rate_data[:, 0]) + [None] * pad_length)
         plotting_results_y.append(list(heating_rate_data[:, 1]) + [None] * pad_length)
         heating_rate_fit_x = np.linspace(np.min(heating_rate_data[:, 0]), np.max(heating_rate_data[:, 0]),
                                          len(heating_rate_data[:, 0]) * 10)
         fit_x.append(heating_rate_fit_x)
-        fit_y.append(fit_params_heating_rate[0] * heating_rate_fit_x + fit_params_heating_rate[1])
+        fit_y.append(fit_params_heating_rate[1] * heating_rate_fit_x + fit_params_heating_rate[0])
         ### pad linear fit with Nones
         fit_x[-1] = list(fit_x[-1]) + [None] * (len(fit_x[0])-len(fit_x[-1]))
         fit_y[-1] = list(fit_y[-1]) + [None] * (len(fit_y[0]) - len(fit_y[-1]))

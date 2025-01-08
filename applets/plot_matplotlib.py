@@ -35,6 +35,7 @@ class MplCanvas(FigureCanvasQTAgg):
 
         plt.ion()
         plt.tight_layout()
+        self.fig.tight_layout()
         super().__init__(self.fig)
 
 
