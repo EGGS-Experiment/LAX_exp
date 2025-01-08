@@ -55,7 +55,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=True), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
                                                                         RangeScan(16, 17.5, 20, randomize=True),
@@ -385,11 +385,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
-        accums, cx, cy, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
+        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
                                                    threshold=0.95)
-        num_ions = len(cx)
 
-        return num_ions
+        # create list of cx, cy coordinates
+        cxs_cys_list = []
+        for idx, cx in enumerate(cxs):
+            cxs_cys_list.append([cx, cys[idx]])
+
+        # gather unique locations of ions
+        unique_locs = []
+        for coords in cxs_cys_list:
+            if coords not in unique_locs:
+                unique_locs.append(coords)
+
+        return len(unique_locs)
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
@@ -414,6 +424,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.flipper.flip()
         self.core.break_realtime()
 
+    # @kernel(flags={"fast-math"})
+    # def flip_flipper (self) -> TNone:
+    #     self.core.break_realtime()
+    #     self.flipper.flip()
+    #
+    #     # synchronize timeline
+    #     self.core.wait_until_mu(now_mu())
+    #     self.core.break_realtime()
+
     @rpc
     def check_termination(self) -> TNone:
         """
@@ -423,3 +442,4 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
+
