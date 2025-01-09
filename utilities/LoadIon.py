@@ -205,17 +205,44 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print(repr(e))
             self.cleanup_devices()
 
-    @kernel(flags={"fast-math"})
+    @rpc
     def run_main(self) -> TNone:
         """
         Run till ion is loaded or timeout.
         """
-        self.core.break_realtime()
-        num_ions = self.load()
-        self.core.break_realtime()
-        if num_ions ==  self.desired_num_of_ions and self.set_to_pmt_after_loading:
-            self.flipper.flip()
+        # get start time to check if we exceed max time
+        self.start_time_s = time.time()
 
+        # run loading loop until we load desired_num_of_ions
+        num_ions = 0
+
+        try:
+            while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
+                self.check_termination()
+
+                # load ions if below desired count
+                if num_ions < self.desired_num_of_ions:
+                    self.initialize_labrad_devices()
+                    num_ions = self.load_ion()
+
+                # eject excess ions via A-ramping (if enabled)
+                elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
+                    self.cleanup_devices()
+                    num_ions = self.aramp_ions()
+
+                # otherwise, simply stop execution
+                elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
+                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
+                    break
+
+            print("\tLOADING COMPLETE - CLEANING UP.")
+
+        except Exception as e:
+            print("Error - stopping execution; cleaning up.")
+            print(repr(e))
+
+        '''CLEAN UP'''
+        self.cleanup_devices()
 
     @rpc
     def load_ion(self) -> TInt32:
@@ -328,6 +355,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # note: do this last to keep ion happy during voltage adjustments
         self.aperture.close_aperture()
 
+        if self.set_to_pmt_after_loading:
+            self.flipper.flip()
+
 
     @rpc
     def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
@@ -355,11 +385,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
-        accums, cx, cy, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
+        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
                                                    threshold=0.95)
-        num_ions = len(cx)
 
-        return num_ions
+        # create list of cx, cy coordinates
+        cxs_cys_list = []
+        for idx, cx in enumerate(cxs):
+            cxs_cys_list.append([cx, cys[idx]])
+
+        # gather unique locations of ions
+        unique_locs = []
+        for coords in cxs_cys_list:
+            if coords not in unique_locs:
+                unique_locs.append(coords)
+
+        return len(unique_locs)
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
@@ -393,41 +433,3 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
-
-    @rpc
-    def load(self) -> TInt32:
-        # get start time to check if we exceed max time
-        self.start_time_s = time.time()
-
-        # run loading loop until we load desired_num_of_ions
-        num_ions = 0
-
-        try:
-            while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
-                self.check_termination()
-
-                # load ions if below desired count
-                if num_ions < self.desired_num_of_ions:
-                    self.initialize_labrad_devices()
-                    num_ions = self.load_ion()
-
-                # eject excess ions via A-ramping (if enabled)
-                elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
-                    self.cleanup_devices()
-                    num_ions = self.aramp_ions()
-
-                # otherwise, simply stop execution
-                elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
-                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
-                    break
-
-            print("\tLOADING COMPLETE - CLEANING UP.")
-
-        except Exception as e:
-            print("Error - stopping execution; cleaning up.")
-            print(repr(e))
-
-        '''CLEAN UP'''
-        self.cleanup_devices()
-
-        return num_ions
