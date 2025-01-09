@@ -55,7 +55,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp",               BooleanValue(default=True), group='A-Ramp Ejection')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
                                                                         RangeScan(16, 17.5, 20, randomize=True),
@@ -72,7 +72,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                         group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
-        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(False), group = 'Camera')
+        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True), group = 'Camera')
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
@@ -424,15 +424,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.flipper.flip()
         self.core.break_realtime()
 
-    # @kernel(flags={"fast-math"})
-    # def flip_flipper (self) -> TNone:
-    #     self.core.break_realtime()
-    #     self.flipper.flip()
-    #
-    #     # synchronize timeline
-    #     self.core.wait_until_mu(now_mu())
-    #     self.core.break_realtime()
-
     @rpc
     def check_termination(self) -> TNone:
         """
@@ -442,4 +433,3 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
-
