@@ -23,17 +23,17 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=30, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("scan_type",      EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2",
                                                                   "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan+Both"))
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=CenterScan(101.3548, 0.02, 0.0001, randomize=True),
+                                                            default=CenterScan(101.3492, 0.02, 0.00025, randomize=True),
                                                             global_min=60, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("freq_sideband_1",    NumberValue(default=1.589, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
-        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.300, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_1",    NumberValue(default=1.592, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.303, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
         self.setattr_argument("time_qubit_us",      NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",       NumberValue(default=28, precision=1, step=0.5, min=8, max=31.5), group=self.name)

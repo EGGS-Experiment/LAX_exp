@@ -34,7 +34,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=40, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
@@ -48,17 +48,17 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
                                                                         default=[
-                                                                            ExplicitScan([150.]),
-                                                                            CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                                                                            ExplicitScan([80.]),
+                                                                            # CenterScan(83.20175, 0.05, 0.0005, randomize=True),
                                                                         ],
                                                                         global_min=0.005, global_max=4800, global_step=1,
                                                                         unit="MHz", scale=1, precision=6
                                                                     ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
                                                                         default=[
-                                                                            ExplicitScan([1276.15]),
-                                                                            CenterScan(777.5, 4, 0.5, randomize=True),
-                                                                            ExplicitScan([767.2, 319.2, 1582, 3182]),
+                                                                            ExplicitScan([1307.8]),
+                                                                            CenterScan(1307.8, 8, 0.25, randomize=True),
+                                                                            # ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                         ],
                                                                         global_min=0, global_max=10000, global_step=1,
                                                                         unit="kHz", scale=1, precision=3
@@ -67,7 +67,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_readout_us_list",               Scannable(
                                                                         default=[
-                                                                            ExplicitScan([120.5]),
+                                                                            ExplicitScan([122.9]),
                                                                             RangeScan(0, 1500, 100, randomize=True),
                                                                         ],
                                                                         global_min=1, global_max=100000, global_step=1,
@@ -93,10 +93,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",       NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=10., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=5., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -517,19 +517,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                                            self.repetitions, sub_reps)
             phonons = convert_ratios_to_coherent_phonons(ratios)
             fitter = fitSincGeneric()
-            rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
-            fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
-            fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
-            fit_x_rsb = np.linspace(np.min(rsb_freqs_MHz), np.max(rsb_freqs_MHz), 1000)
-            fit_x_bsb = np.linspace(np.min(bsb_freqs_MHz), np.max(bsb_freqs_MHz), 1000)
-            fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
-            fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
 
             ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_RDX'
 
-            ## process secular frequency sweep
+            ## process secular or carrier frequency sweep
             if sorting_col_num == 3 or sorting_col_num == 2:
                 fit_params_sweep, fit_err_sweep, _ = fitter.fit(scanning_freq_MHz, phonons)
+                fit_params_rsb, fit_err_rsb, _ = fitter.fit(scanning_freq_MHz, ave_rsb)
+                fit_params_bsb, fit_err_bsb, _ = fitter.fit(scanning_freq_MHz, ave_bsb)
+
                 phonon_n = fit_params_sweep[0]
                 # todo: implement phonon err
                 phonon_err = 0
@@ -548,15 +544,18 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
                 # print results to log
+                print()
                 print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_sweep[1] * 1e3, fit_err_sweep[1] * 1e3))
-                fit_x_phonons = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 1000)
-                fit_y_phonons = fitter.fit_func(fit_x_phonons, *fit_params_sweep)
+                fit_x = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 10*len(scanning_freq_MHz))
+                fit_y_phonons = fitter.fit_func(fit_x, *fit_params_sweep)
+                fit_y_rsb = fitter.fit_func(fit_x, *fit_params_rsb)
+                fit_y_bsb = fitter.fit_func(fit_x, *fit_params_bsb)
                 ccb_command += ' --num-subplots 3'
-                plotting_results = {'x': np.array([scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz]),
-                                    'y': np.array([ave_rsb, ave_bsb, phonons]),
-                                    'errors': np.array([std_rsb, std_bsb, None]),
-                                    'fit_x': np.array([fit_x_rsb, fit_x_bsb, fit_x_phonons]),
-                                    'fit_y': np.array([fit_y_rsb, fit_y_bsb, fit_y_phonons]),
+                plotting_results = {'x': [scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz],
+                                    'y': [ave_rsb, ave_bsb, phonons],
+                                    'errors': [std_rsb, std_bsb, [None]*len(std_rsb)],
+                                    'fit_x': [fit_x, fit_x, fit_x],
+                                    'fit_y': [fit_y_rsb, fit_y_bsb, fit_y_phonons],
                                     'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)']),
                                     'subplot_y_labels': np.array(['D State Population', 'D State Population', 'Phonons']),
                                     'rid': self.scheduler.rid,
@@ -564,9 +563,17 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
             ## process sideband readout sweep
             elif sorting_col_num == 0:
-                phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
                 # todo: implement
                 phonon_err = 0
+                rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+                fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
+                fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
+                fit_x_rsb = np.linspace(np.min(rsb_freqs_MHz), np.max(rsb_freqs_MHz), 1000)
+                fit_x_bsb = np.linspace(np.min(bsb_freqs_MHz), np.max(bsb_freqs_MHz), 1000)
+                fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
+                fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
+
+                phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
 
                 # save results to hdf5 as a dataset
                 self.set_dataset('fit_params_rsb',  fit_params_rsb)
@@ -583,13 +590,14 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
+
                 ccb_command += ' --num-subplots 2'
-                plotting_results = {'x': np.array([rsb_freqs_MHz, bsb_freqs_MHz]),
-                                    'y': np.array([ave_rsb, ave_bsb]),
-                                    'errors': np.array([std_rsb, std_bsb]),
-                                    'fit_x': np.array([fit_x_rsb, fit_x_bsb]),
-                                    'fit_y': np.array([fit_y_rsb, fit_y_bsb]),
-                                    'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)']),
+                plotting_results = {'x': [rsb_freqs_MHz/2, bsb_freqs_MHz/2],
+                                    'y': [ave_rsb, ave_bsb],
+                                    'errors': [std_rsb, std_bsb],
+                                    'fit_x': [fit_x_rsb/2, fit_x_bsb/2],
+                                    'fit_y': [fit_y_rsb, fit_y_bsb],
+                                    'subplot_x_labels': np.array(['AOM Frequency (MHz)', 'AOM Frequency (MHz)']),
                                     'subplot_y_labels': np.array(['D State Population', 'D State Population']),
                                     'rid': self.scheduler.rid,
                                     }
@@ -601,7 +609,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                              broadcast=True)
 
             self.ccb.issue("create_applet", f"EGGS Heating - RDX",
-                           ccb_command)
+                           ccb_command, group = 'plotting.eggs_heating')
 
 
         except Exception as e:

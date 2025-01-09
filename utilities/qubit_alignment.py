@@ -29,7 +29,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.setattr_argument('samples_per_point',      NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
-        self.setattr_argument('time_qubit_us',          NumberValue(default=3.5, precision=3, step=10, min=0.1, max=100000), group='qubit')
+        self.setattr_argument('time_qubit_us',          NumberValue(default=6., precision=3, step=10, min=0.1, max=100000), group='qubit')
         self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.4518, precision=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
         self.setattr_argument('counts_threshold',       NumberValue(default=46, precision=0, step=10, min=1, max=1000), group='qubit')

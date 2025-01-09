@@ -271,7 +271,8 @@ def extract_ratios(dataset: np.array,
     normalized_probs = 1. - probs / len(threshold_list)
     normalized_probs_rsb = normalized_probs[guess_Ca_carrier_MHz > readout_freqs_MHz_sorted]
     probs_rsb = np.mean(normalized_probs_rsb.reshape(-1, sub_reps * reps), 1)
-    std_rsb = np.std(normalized_probs_rsb.reshape(-1, sub_reps * reps, 1) / np.sqrt(reps * sub_reps))
+
+    std_rsb = np.std(np.reshape(normalized_probs_rsb, (-1, reps * sub_reps)), 1)  / np.sqrt(reps * sub_reps)
 
     normalized_probs_bsb = normalized_probs[guess_Ca_carrier_MHz < readout_freqs_MHz_sorted]
     probs_bsb = np.mean(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1)

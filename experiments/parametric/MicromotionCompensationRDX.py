@@ -56,10 +56,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1596.2, precision=3, step=10, min=1, max=10000), group='modulation')
         self.setattr_argument("att_mode_0_db",              NumberValue(default=20, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1307.8, precision=3, step=10, min=1, max=10000), group='modulation')
         self.setattr_argument("att_mode_1_db",              NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
