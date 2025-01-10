@@ -430,7 +430,7 @@ class fitSincGeneric:
         """
         return a * np.sinc(c * (x - b)) ** 2. + d
 
-    def fit(self, x: np.array, y: np.array):
+    def fit(self, x: np.array, y: np.array, amplitude_factor = 1):
         ## extract starting parameter guesses
         # get indices of max y-values
         indices_max_y = np.argwhere(y == np.max(y))
@@ -439,7 +439,7 @@ class fitSincGeneric:
         # get offset as min of data
         d0 = np.min(y)
         # guess amplitude using max y-value with offset subtracted
-        a0 = np.max(y) - d0
+        a0 = amplitude_factor * (np.max(y) - d0)
         # numerically guess FWHM for a sinc function
         c0 = 0.69578 / np.abs(x[np.argmin(np.abs(y - 0.5 * np.max(y)))] - b0)
 
