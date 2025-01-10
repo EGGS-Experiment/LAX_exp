@@ -557,13 +557,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                 self.check_termination()
                 self.core.break_realtime()
 
-        '''CLEANUP'''
-        self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        # tmp remove
-        self.ttl10.off()
-        # tmp remove
-
     '''
     HELPER FUNCTIONS - PHASER
     '''

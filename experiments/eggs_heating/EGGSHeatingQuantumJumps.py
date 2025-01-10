@@ -455,10 +455,6 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-        '''CLEANUP'''
-        self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-
     @kernel(flags={"fast-math"})
     def run_loop(self, freq_readout_ftw: TInt32, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
                  ampl_rsb_frac: TFloat, ampl_bsb_frac: TFloat, ampl_dd_frac: TFloat,

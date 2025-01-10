@@ -1,4 +1,4 @@
-from numpy import int32, int64
+from numpy import int64
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
@@ -9,7 +9,7 @@ class PhaserEGGS(LAXDevice):
     """
     Device: Phaser (EGGS)
 
-    Use the Phaser AWG to create the EGGS RF
+    Use the Phaser AWG to create the EGGS RF.
     """
     name = "phaser_eggs"
     core_device = ('phaser', 'phaser1')
@@ -105,42 +105,70 @@ class PhaserEGGS(LAXDevice):
 
 
     '''
-    Oscillator Methods
-    '''
-    @kernel(flags={"fast-math"})
-    def reset_oscillators(self) -> TNone:
-        """
-        Reset frequency, amplitude, and phase accumulators for all oscillators on both channels of the phaser.
-        Maximum attenuation is set to minimize leakage of downstream phaser components.
-        This function synchronizes to the frame for each oscillator reset.
-        """
-        # clear oscillators
-        for i in range(5):
-            # synchronize to frame
-            at_mu(self.phaser.get_next_frame_mu())
-
-            # clear oscillator frequencies
-            with parallel:
-                self.phaser.channel[0].oscillator[i].set_frequency(0.)
-                self.phaser.channel[1].oscillator[i].set_frequency(0.)
-                delay_mu(self.t_sample_mu)
-
-            # clear oscillator amplitudes
-            with parallel:
-                self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
-                delay_mu(self.t_sample_mu)
-
-        # set max attenuations for phaser outputs to reduce effect of internal noise
-        at_mu(self.phaser.get_next_frame_mu())
-        self.phaser.channel[0].set_att_mu(0x00)
-        delay_mu(self.t_sample_mu)
-        self.phaser.channel[1].set_att_mu(0x00)
-
-
-    '''
     Setup/Prepare/Cleanup Methods
     '''
+    @kernel(flags={"fast-math"})
+    def frequency_configure(self, carrier_freq_hz: TFloat, osc_freq_hz_list: TList(TFloat),
+                            phase_ch1_offset_turns: TFloat) -> TNone:
+        """
+        Configure oscillator frequencies on phaser for EGGS.
+        Arguments:
+            carrier_freq_hz: the output center frequency (in Hz).
+                center frequency is set identically on CH0 and CH1.
+            osc_freq_hz_list: list of frequencies to set each oscillator.
+                oscillators are set identically on CH0 and CH1.
+            phase_ch1_offset_turns: the phase offset for CH1 relative to CH0 (in turns).
+        """
+        '''
+        CALCULATE PHASE DELAYS
+        '''
+        # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
+        phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.time_latency_ch1_system_ns * ns)
+        delay_mu(100000) # add slack
+
+        '''
+        SET CARRIER FREQUENCY
+        '''
+        # set carrier offset frequency via the DUC
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[0].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
+        delay_mu(self.t_frame_mu)
+        self.phaser.channel[1].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
+        delay_mu(self.t_frame_mu)
+        # strobe updates for both channels
+        self.phaser.duc_stb()
+
+        # set DUC phase delay to compensate for inter-channel latency
+        at_mu(self.phaser.get_next_frame_mu())
+        self.phaser.channel[1].set_duc_phase(phase_ch1_turns)
+        self.phaser.duc_stb()
+
+        '''
+        SET OSCILLATOR (i.e. sideband) FREQUENCIES
+        '''
+        # synchronize to frame, then set oscillator frequencies
+        at_mu(self.phaser.get_next_frame_mu())
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_frequency(osc_freq_hz_list[0])
+            self.phaser.channel[1].oscillator[0].set_frequency(osc_freq_hz_list[0])
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_frequency(osc_freq_hz_list[1])
+            self.phaser.channel[1].oscillator[1].set_frequency(osc_freq_hz_list[1])
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_frequency(osc_freq_hz_list[2])
+            self.phaser.channel[1].oscillator[2].set_frequency(osc_freq_hz_list[2])
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_frequency(osc_freq_hz_list[3])
+            self.phaser.channel[1].oscillator[1].set_frequency(osc_freq_hz_list[3])
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_frequency(osc_freq_hz_list[4])
+            self.phaser.channel[1].oscillator[2].set_frequency(osc_freq_hz_list[4])
+            delay_mu(self.t_sample_mu)
+
     @kernel(flags={"fast-math"})
     def phaser_setup(self, att_mu_ch0: TInt32, att_mu_ch1: TInt32) -> TNone:
         """
@@ -172,6 +200,7 @@ class PhaserEGGS(LAXDevice):
         """
         Stop the phaser quickly.
         Set maximum attenuation to prevent output leakage.
+        Can be used following an EGGS pulse to stop the phaser.
         """
         # disable eggs phaser output
         with parallel:
