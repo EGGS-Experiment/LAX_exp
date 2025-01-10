@@ -34,7 +34,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=50, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
@@ -56,8 +56,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                     ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
                                                                         default=[
-                                                                            ExplicitScan([1307.8]),
-                                                                            CenterScan(1307.8, 8, 0.25, randomize=True),
+                                                                            # ExplicitScan([1303]),
+                                                                            CenterScan(1303, 4, 0.1, randomize=True),
                                                                             # ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                         ],
                                                                         global_min=0, global_max=10000, global_step=1,
@@ -84,8 +84,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                     ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",  Scannable(
                                                                         default=[
-                                                                            ExplicitScan([0.372]),
-                                                                            RangeScan(0, 1.0, 21, randomize=True),
+                                                                            ExplicitScan([0.4668]),
+                                                                            RangeScan(0, 1.0, 2, randomize=True),
                                                                         ],
                                                                         global_min=-1.0, global_max=1.0, global_step=0.1,
                                                                         unit="turns", scale=1, precision=3
@@ -93,10 +93,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_eggs_heating_bsb_turns",       NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",            NumberValue(default=22., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",      NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=5., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=.2, precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
@@ -484,133 +484,202 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         except Exception as e:
             sub_reps = 1
 
-        # prepare ccb_command for plotting
-        ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.eggs_heating.x' \
-            ' temp.plotting.laserscan.x ' \
-            '--subplot-x-labels temp.plotting.eggs_heating.xlabels' \
-            '--subplot-y-labels temp.plotting.eggs_heating.ylabels' \
-            '--x-label "Freqs (MHz)"'
+        ch1_turns_sweep = []
+        phonons_ch1_sweep = []
+        ch1_sweep = len(self.phase_eggs_heating_ch1_turns_list) > 1
+        for ch1_turns in self.phase_eggs_heating_ch1_turns_list:
 
-        # handle errors from data processing
-        try:
-            # print results
-            print("\tResults - EGGS Heating:")
+            # handle errors from data processing
+            try:
+                # print results
+                print("\tResults - EGGS Heating:")
 
-            # convert dataset to array
-            dataset = np.array(self.results)
+                # convert dataset to array
+                dataset_tmp = np.array(self.results)
+                dataset = np.reshape(dataset_tmp[np.where(dataset_tmp[:,5] == ch1_turns), :], (-1, dataset_tmp.shape[1]))
 
-            ## determine scan type
-            col_unique_vals = np.array([len(set(col)) for col in dataset.transpose()])
-            # convert unique count to dataset index and order in decreasing value (excluding PMT counts)
-            if np.argsort(-col_unique_vals)[0] != 1:
-                sorting_col_num = np.argsort(-col_unique_vals)[0]
-            else:
-                sorting_col_num = np.argsort(-col_unique_vals)[1]
 
-            # ensure we actually have a scan, and not some rubbish
-            if col_unique_vals[sorting_col_num] <= 1:
-                return
-
-            ## convert results to sideband ratio
-            ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
-                                                                                           1, 0,
-                                                                                           self.repetitions, sub_reps)
-            phonons = convert_ratios_to_coherent_phonons(ratios)
-            fitter = fitSincGeneric()
-
-            ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_RDX'
-
-            ## process secular or carrier frequency sweep
-            if sorting_col_num == 3 or sorting_col_num == 2:
-                fit_params_sweep, fit_err_sweep, _ = fitter.fit(scanning_freq_MHz, phonons)
-                fit_params_rsb, fit_err_rsb, _ = fitter.fit(scanning_freq_MHz, ave_rsb)
-                fit_params_bsb, fit_err_bsb, _ = fitter.fit(scanning_freq_MHz, ave_bsb)
-
-                phonon_n = fit_params_sweep[0]
-                # todo: implement phonon err
-                phonon_err = 0
-
-                # save results to hdf5 as a dataset
-                if sorting_col_num == 3:
-                    self.set_dataset('fit_params_secular',  fit_params_sweep)
-                    self.set_dataset('fit_err_secular',     fit_err_sweep)
+                ## determine scan type
+                col_unique_vals = np.array([len(set(col)) for col in dataset.transpose()])
+                # convert unique count to dataset index and order in decreasing value (excluding PMT counts)
+                if np.argsort(-col_unique_vals)[0] != 1:
+                    sorting_col_num = np.argsort(-col_unique_vals)[0]
                 else:
-                    self.set_dataset('fit_params_carrier', fit_params_sweep)
-                    self.set_dataset('fit_err_carrier', fit_err_sweep)
+                    sorting_col_num = np.argsort(-col_unique_vals)[1]
 
-                # save results to dataset manager for dynamic experiments
-                res_dj = [[phonon_n, phonon_err], [fit_params_sweep, fit_err_sweep]]
-                self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
-                self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+                # ensure we actually have a scan, and not some rubbish
+                if col_unique_vals[sorting_col_num] <= 1:
+                    return
 
-                # print results to log
-                print()
-                print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_sweep[1] * 1e3, fit_err_sweep[1] * 1e3))
-                fit_x = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 10*len(scanning_freq_MHz))
-                fit_y_phonons = fitter.fit_func(fit_x, *fit_params_sweep)
-                fit_y_rsb = fitter.fit_func(fit_x, *fit_params_rsb)
-                fit_y_bsb = fitter.fit_func(fit_x, *fit_params_bsb)
-                ccb_command += ' --num-subplots 3'
-                plotting_results = {'x': [scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz],
-                                    'y': [ave_rsb, ave_bsb, phonons],
-                                    'errors': [std_rsb, std_bsb, [None]*len(std_rsb)],
-                                    'fit_x': [fit_x, fit_x, fit_x],
-                                    'fit_y': [fit_y_rsb, fit_y_bsb, fit_y_phonons],
-                                    'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)']),
-                                    'subplot_y_labels': np.array(['D State Population', 'D State Population', 'Phonons']),
-                                    'rid': self.scheduler.rid,
-                                    }
+                ## convert results to sideband ratio
+                ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
+                                                                                               1, 0,
+                                                                                               self.repetitions, sub_reps)
+                phonons = convert_ratios_to_coherent_phonons(ratios)
+                fitter = fitSincGeneric()
 
-            ## process sideband readout sweep
-            elif sorting_col_num == 0:
-                # todo: implement
-                phonon_err = 0
-                rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
-                fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
-                fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
-                fit_x_rsb = np.linspace(np.min(rsb_freqs_MHz), np.max(rsb_freqs_MHz), 1000)
-                fit_x_bsb = np.linspace(np.min(bsb_freqs_MHz), np.max(bsb_freqs_MHz), 1000)
-                fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
-                fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
+                if ch1_sweep:
+                    ccb_command = f'$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_RDX_{ch1_turns}'
+                else:
+                    ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_RDX'
 
-                phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+                ## process secular or carrier frequency sweep
+                if sorting_col_num == 3 or sorting_col_num == 2:
 
-                # save results to hdf5 as a dataset
-                self.set_dataset('fit_params_rsb',  fit_params_rsb)
-                self.set_dataset('fit_params_bsb',  fit_params_bsb)
-                self.set_dataset('fit_err_rsb',     fit_err_rsb)
-                self.set_dataset('fit_err_bsb',     fit_err_bsb)
+                    try:
+                        fit_params_sweep, fit_err_sweep, _ = fitter.fit(scanning_freq_MHz, phonons)
+                        fit_params_rsb, fit_err_rsb, _ = fitter.fit(scanning_freq_MHz, ave_rsb)
+                        fit_params_bsb, fit_err_bsb, _ = fitter.fit(scanning_freq_MHz, ave_bsb)
 
-                # save results to dataset manager for dynamic experiments
-                res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
-                self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
-                self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+                        phonon_n = fit_params_sweep[0]
+                        # todo: implement phonon err
+                        phonon_err = 0
 
-                # print results to log
-                print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
-                print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+                        fit_x = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 10*len(scanning_freq_MHz))
+                        fit_y_phonons = fitter.fit_func(fit_x, *fit_params_sweep)
+                        fit_y_rsb = fitter.fit_func(fit_x, *fit_params_rsb)
+                        fit_y_bsb = fitter.fit_func(fit_x, *fit_params_bsb)
+                        # print results to log
+                        print()
+                        print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_sweep[1] * 1e3, fit_err_sweep[1] * 1e3))
+
+                        # save results to dataset manager for dynamic experiments
+                        res_dj = [[phonon_n, phonon_err], [fit_params_sweep, fit_err_sweep]]
+                        ch1_turns_sweep.append(ch1_turns)
+                        phonons_ch1_sweep.append(phonon_n)
+                        self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False,
+                                         archive=False)
+
+                        # save results to hdf5 as a dataset
+                        if sorting_col_num == 3:
+                            self.set_dataset('fit_params_secular',  fit_params_sweep)
+                            self.set_dataset('fit_err_secular',     fit_err_sweep)
+                        else:
+                            self.set_dataset('fit_params_carrier', fit_params_sweep)
+                            self.set_dataset('fit_err_carrier', fit_err_sweep)
+
+                    except Exception as e:
+                        fit_x = np.linspace(np.min(scanning_freq_MHz), np.max(scanning_freq_MHz), 10*len(scanning_freq_MHz))
+                        fit_y_phonons = [None] * len(fit_x)
+                        fit_y_rsb = [None] * len(fit_x)
+                        fit_y_bsb = [None] * len(fit_x)
 
 
-                ccb_command += ' --num-subplots 2'
-                plotting_results = {'x': [rsb_freqs_MHz/2, bsb_freqs_MHz/2],
-                                    'y': [ave_rsb, ave_bsb],
-                                    'errors': [std_rsb, std_bsb],
-                                    'fit_x': [fit_x_rsb/2, fit_x_bsb/2],
-                                    'fit_y': [fit_y_rsb, fit_y_bsb],
-                                    'subplot_x_labels': np.array(['AOM Frequency (MHz)', 'AOM Frequency (MHz)']),
-                                    'subplot_y_labels': np.array(['D State Population', 'D State Population']),
-                                    'rid': self.scheduler.rid,
-                                    }
+                    self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
 
-            else:
-                plotting_results = {}
+                    ccb_command += ' --num-subplots 3'
+                    plotting_results = {'x': [scanning_freq_MHz, scanning_freq_MHz, scanning_freq_MHz],
+                                        'y': [ave_rsb, ave_bsb, phonons],
+                                        'errors': [std_rsb, std_bsb, [None]*len(std_rsb)],
+                                        'fit_x': [fit_x, fit_x, fit_x],
+                                        'fit_y': [fit_y_rsb, fit_y_bsb, fit_y_phonons],
+                                        'subplot_x_labels': np.array(['Frequency (MHz)', 'Frequency (MHz)', 'Frequency (MHz)']),
+                                        'subplot_y_labels': np.array(['D State Population', 'D State Population', 'Phonons']),
+                                        'rid': self.scheduler.rid,
+                                        }
+                    if ch1_sweep:
+                        group = 'plotting.eggs_heating.ch1_sweep'
+                    elif sorting_col_num == 3:
+                        group = 'plotting.eggs_heating.secular'
+                    else:
+                        group = 'plotting.eggs_heating.carrier'
 
-            self.set_dataset('temp.plotting.results_eggs_heating_RDX', pyon.encode(plotting_results),
-                             broadcast=True)
+                ## process sideband readout sweep
+                elif sorting_col_num == 0:
+                    # todo: implement
+                    phonon_err = 0
+                    rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+                    fit_x_rsb = np.linspace(np.min(rsb_freqs_MHz), np.max(rsb_freqs_MHz), 1000)
+                    fit_x_bsb = np.linspace(np.min(bsb_freqs_MHz), np.max(bsb_freqs_MHz), 1000)
 
-            self.ccb.issue("create_applet", f"EGGS Heating - RDX",
-                           ccb_command, group = 'plotting.eggs_heating')
+                    try:
+                        fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
+                        fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
+                        fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
+                        fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
 
+                        phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+                        ch1_turns_sweep.append(ch1_turns)
+                        phonons_ch1_sweep.append(phonon_n)
+
+                        # save results to hdf5 as a dataset
+                        self.set_dataset('fit_params_rsb',  fit_params_rsb)
+                        self.set_dataset('fit_params_bsb',  fit_params_bsb)
+                        self.set_dataset('fit_err_rsb',     fit_err_rsb)
+                        self.set_dataset('fit_err_bsb',     fit_err_bsb)
+
+                        # save results to dataset manager for dynamic experiments
+                        res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
+                        self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
+
+                        # print results to log
+                        print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
+                        print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+
+                    except Exception as e:
+                        print("Could not find fit for sidebands")
+                        fit_y_rsb = [None] * len(fit_x_rsb)
+                        fit_y_bsb = [None] * len(fit_x_bsb)
+
+
+                    self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+
+                    ccb_command += ' --num-subplots 2'
+                    plotting_results = {'x': [rsb_freqs_MHz/2, bsb_freqs_MHz/2],
+                                        'y': [ave_rsb, ave_bsb],
+                                        'errors': [std_rsb, std_bsb],
+                                        'fit_x': [fit_x_rsb/2, fit_x_bsb/2],
+                                        'fit_y': [fit_y_rsb, fit_y_bsb],
+                                        'subplot_x_labels': np.array(['AOM Frequency (MHz)', 'AOM Frequency (MHz)']),
+                                        'subplot_y_labels': np.array(['D State Population', 'D State Population']),
+                                        'rid': self.scheduler.rid,
+                                        }
+
+                    if ch1_sweep:
+                        group = 'plotting.eggs_heating.ch1_sweep'
+                    else:
+                        group = 'plotting.eggs_heating.sidebands'
+
+                else:
+                    plotting_results = {}
+                    group = None
+
+                if ch1_sweep:
+                    self.set_dataset(f'temp.plotting.results_eggs_heating_RDX_{ch1_turns}', pyon.encode(plotting_results),
+                                     broadcast=True)
+                    self.ccb.issue("create_applet", f"EGGS Heating - RDX - ch1_turns: {ch1_turns}",
+                               ccb_command, group = group)
+                else:
+                    self.set_dataset(f'temp.plotting.results_eggs_heating_RDX', pyon.encode(plotting_results),
+                                     broadcast=True)
+
+                    self.ccb.issue("create_applet", f"EGGS Heating - RDX",
+                               ccb_command, group = group)
+
+            except Exception as e:
+                print("Warning here: unable to process data.")
+                print(repr(e))
+
+        try:
+            if ch1_sweep:
+                ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_eggs_heating_RDX_ch1_sweep'
+                ccb_command += ' --num-subplots 1'
+
+                sort_idx = np.argsort(ch1_turns_sweep)
+                plotting_results = {'x': np.array(ch1_turns_sweep)[sort_idx],
+                                        'y': np.array(phonons_ch1_sweep)[sort_idx],
+                                        'subplot_x_labels': "Channel 1 Phase",
+                                        'subplot_y_labels': 'Phonons',
+                                        'rid': self.scheduler.rid
+                                        }
+
+                self.set_dataset('temp.plotting.results_eggs_heating_RDX_ch1_sweep',
+                                     pyon.encode(plotting_results),
+                                     broadcast=True)
+
+                group = 'plotting.eggs_heating.ch1_sweep'
+                self.ccb.issue("create_applet", f"EGGS Heating - RDX",
+                                   ccb_command, group = group)
 
         except Exception as e:
             print("Warning: unable to process data.")
