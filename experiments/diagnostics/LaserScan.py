@@ -200,9 +200,11 @@ class LaserScan(LAXExperiment, Experiment):
         else:
             print("\tWarning: too many peaks detected.")
 
+        # get results
         results_plotting = np.array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
 
+        # format dictionary for applet plotting
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'subplot_titles': f'Laser Scan',
@@ -214,6 +216,7 @@ class LaserScan(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
 
+        # create applet
         self.ccb.issue("create_applet", f"Laser Scan",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
                        ' --num-subplots 1',

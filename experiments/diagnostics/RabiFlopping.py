@@ -143,6 +143,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         Fit rabi flopping data with an exponentially damped sine curve
         """
 
+        # get results
         results_tmp = np.array(self.results)
         probability_vals = np.zeros(len(results_tmp))
         counts_arr = np.array(results_tmp[:, 1])
@@ -163,6 +164,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         results_plotting_x, results_plotting_y = np.array(results_tmp).transpose()
         fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
         try:
+            # fit rabi flopping data
             fitter = fitDampedOscillator()
             fit_params, fit_err = fitter.fit(results_tmp)
             fit_y = fitter.fit_func(fit_x, *fit_params)
@@ -188,9 +190,10 @@ class RabiFlopping(LAXExperiment, Experiment):
             print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
 
         except Exception as e:
-            print("Unable to find fit")
+            print("\tUnable to Find Fit for Rabi Flopping")
             fit_y = [None]*len(fit_x)
 
+        # format dictionary for applet plotting
         plotting_results = {'x': results_plotting_x * 1e6,
                             'y': results_plotting_y,
                             'fit_x': fit_x * 1e6,
@@ -203,6 +206,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
+        # create applet
         self.ccb.issue("create_applet", f"Rabi Flopping",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
                        ' --num-subplots 1', group = 'plotting.diagnostics')

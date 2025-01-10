@@ -252,9 +252,10 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
 
         except Exception as e:
-            print("Unable to find optimal fit")
+            print("\tUnable to Find Optimal Fit for Linewidth Measurement")
             fit_y = [None]*len(fit_x)
 
+        # format dictionary for applet plotting
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'fit_x': fit_x,
@@ -267,6 +268,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results_linewidth', pyon.encode(plotting_results), broadcast=True)
 
+        # create applet
         self.ccb.issue("create_applet", f"Linewidth Measurement",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
                        ' --num-subplots 1',
