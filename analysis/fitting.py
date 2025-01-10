@@ -430,7 +430,7 @@ class fitSincGeneric:
         """
         return a * np.sinc(c * (x - b)) ** 2. + d
 
-    def fit(self, x: np.array, y: np.array, amplitude_factor = 1):
+    def fit(self, x: np.array, y: np.array, amplitude_factor=1):
         ## extract starting parameter guesses
         # get indices of max y-values
         indices_max_y = np.argwhere(y == np.max(y))
