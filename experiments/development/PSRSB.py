@@ -233,7 +233,10 @@ class PSRSB(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # configure phaser carrier frequencies
-        self.phaser_configure(self.freq_qvsa_carrier_hz, self.freq_qvsa_secular_hz, self.phaser_eggs.phase_inherent_ch1_turns)
+        # self.phaser_configure(self.freq_qvsa_carrier_hz, self.freq_qvsa_secular_hz, self.phaser_eggs.phase_inherent_ch1_turns)
+        self.phaser_eggs.frequency_configure(self.freq_qvsa_carrier_hz,
+                                             [-self.freq_qvsa_secular_hz, self.freq_qvsa_secular_hz, 0., 0., 0.],
+                                             self.phaser_eggs.phase_inherent_ch1_turns)
         self.core.break_realtime()
 
         # set maximum attenuations for phaser outputs to prevent leakage
@@ -367,61 +370,6 @@ class PSRSB(LAXExperiment, Experiment):
         # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
         # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
-
-    @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, phase_ch1_offset_turns: TFloat) -> TNone:
-        """
-        Configure the tones on phaser for EGGS.
-        Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
-
-        Arguments:
-            carrier_freq_hz         (float)     : the carrier frequency (in Hz).
-            sideband_freq_hz        (float)     : the sideband frequency (in Hz).
-            phase_ch1_offset_turns  (float)     : the phase offset for CH1 (in turns).
-        """
-        '''
-        CALCULATE PHASE DELAYS
-        '''
-        # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
-        phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns)
-
-        '''
-        SET CARRIER FREQUENCY
-        '''
-        # set carrier offset frequency via the DUC
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        # strobe updates for both channels
-        self.phaser_eggs.duc_stb()
-
-        # set DUC phase delay to compensate for inter-channel latency
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_duc_phase(phase_ch1_turns)
-        self.phaser_eggs.duc_stb()
-
-        '''
-        SET OSCILLATOR (i.e. sideband) FREQUENCIES
-        '''
-        # synchronize to frame
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_frequency(-sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(-sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_frequency(sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[1].set_frequency(sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_frequency(0.)
-            self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
-            delay_mu(self.phaser_eggs.t_sample_mu)
 
 
     '''

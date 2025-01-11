@@ -161,12 +161,12 @@ class PhaserEGGS(LAXDevice):
             self.phaser.channel[1].oscillator[2].set_frequency(osc_freq_hz_list[2])
             delay_mu(self.t_sample_mu)
         with parallel:
-            self.phaser.channel[0].oscillator[1].set_frequency(osc_freq_hz_list[3])
-            self.phaser.channel[1].oscillator[1].set_frequency(osc_freq_hz_list[3])
+            self.phaser.channel[0].oscillator[3].set_frequency(osc_freq_hz_list[3])
+            self.phaser.channel[1].oscillator[3].set_frequency(osc_freq_hz_list[3])
             delay_mu(self.t_sample_mu)
         with parallel:
-            self.phaser.channel[0].oscillator[2].set_frequency(osc_freq_hz_list[4])
-            self.phaser.channel[1].oscillator[2].set_frequency(osc_freq_hz_list[4])
+            self.phaser.channel[0].oscillator[4].set_frequency(osc_freq_hz_list[4])
+            self.phaser.channel[1].oscillator[4].set_frequency(osc_freq_hz_list[4])
             delay_mu(self.t_sample_mu)
 
     @kernel(flags={"fast-math"})
