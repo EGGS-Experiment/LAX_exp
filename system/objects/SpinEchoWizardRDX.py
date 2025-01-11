@@ -1,8 +1,6 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
@@ -61,16 +59,16 @@ class SpinEchoWizardRDX(LAXEnvironment):
             }
         ]
 
-    def _calculate_pulseshape(self, pulse_shape: TStr, num_oscs: TInt32,
-                              time_rolloff_us: TFloat, sample_rate_khz: TFloat)\
+    def _calculate_pulseshape(self, num_oscs: TInt32, pulse_shape: TStr,
+                              sample_rate_khz: TFloat, time_rolloff_us: TFloat)\
             -> TTuple([TArray(TInt64, 1), TArray(TFloat, 1)]):
         """
         Calculate desired pulseshape per block based on configured options.
         Arguments:
             num_oscs: the number of oscillators used.
             pulse_shape: the desired pulse shape.
-            time_rolloff_us: the total pulse shaping time.
             sample_rate_khz: the pulse-shape update sample rate.
+            time_rolloff_us: the total pulse shaping time.
         Returns:
             a tuple of (time_update_arr_mu, amplitude_pulse_shape), where
                 time_update_arr_mu is the time to hold/delay after an amplitude update, and
@@ -161,10 +159,10 @@ class SpinEchoWizardRDX(LAXEnvironment):
             # get block configuration values
             block_vals =    _block["oscillator_parameters"]
             block_config =  _block["config"]
-            block_time_us = _block["time_us"]
+            block_time_us = block_config["time_us"]
 
             # set spin-echo/zero-update delay if block_vals is an empty list
-            if (block_vals is None) or (len(block_vals) != 0):
+            if (block_vals is None) or (len(block_vals) == 0):
                 # clear ampl and phase for each osc
                 for idx_osc in range(num_oscs):
                     _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], 0.)

@@ -1,10 +1,10 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, SidebandCoolContinuous
+from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
+                                         SidebandCoolContinuous, SidebandReadout)
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
@@ -28,23 +28,21 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         # antisqueezing
         'freq_antisqueeze_carrier_hz', 'att_antisqueeze_mu', 'phase_antisqueeze_offset_turns_list',
         'waveform_idx_to_phase_turns', 'waveform_idx_to_compiled',
-        # PSRSB
-        'profile_psrsb', 'att_qubit_mu', 'ampl_psrsb_rsb_asf', 'ampl_psrsb_carrier_asf', 'time_psrsb_rsb_mu',
-        'time_psrsb_carrier_mu',
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
+        'sidebandreadout_subsequence', 'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
 
         # get subsequences
-        self.initialize_subsequence =   InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.readout_subsequence =      Readout(self)
-        self.rescue_subsequence =       RescueIon(self)
+        self.initialize_subsequence =       InitializeQubit(self)
+        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
+        self.sidebandreadout_subsequence =  SidebandReadout(self)
+        self.readout_subsequence =          Readout(self)
+        self.rescue_subsequence =           RescueIon(self)
 
         # readout
         self.setattr_argument("time_readout_us_list",   Scannable(
@@ -59,33 +57,33 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         # general pulse configuration
         self.setattr_argument("freq_pulse_secular_khz_list",    Scannable(
                                                                     default=[
-                                                                        ExplicitScan([1276.15]),
                                                                         CenterScan(777.5, 4, 0.5, randomize=True),
+                                                                        ExplicitScan([1276.15]),
                                                                         ExplicitScan([767.2, 319.2, 1582, 3182]),
                                                                     ],
                                                                     global_min=0., global_max=10000, global_step=1,
                                                                     unit="kHz", scale=1, precision=3
                                                                 ), group='pulse.general')
-        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='pulse.general')
+        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=True), group='pulse.general')
         self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='pulse.general')
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='pulse.general')
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='pulse.general')
 
         # pulse 0 (squeezing) - configuration
-        self.setattr_argument("enable_squeezing",           BooleanValue(default=False), group='pulse.squeeze')
+        self.setattr_argument("enable_squeezing",           BooleanValue(default=True), group='pulse.squeeze')
         self.setattr_argument("freq_squeeze_carrier_mhz",   NumberValue(default=80., precision=6, step=10., min=0., max=1000.), group='pulse.squeeze')
-        self.setattr_argument("att_squeeze_db",             NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='pulse.squeeze')
-        self.setattr_argument("time_squeeze_us",            NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='pulse.squeeze')
-        self.setattr_argument("ampl_squeeze_pct_config",    PYONValue([25., 15.]), group='pulse.squeeze', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("phase_squeeze_turns_config", PYONValue([0., 0.]), group='pulse.squeeze', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("att_squeeze_db",             NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group='pulse.squeeze')
+        self.setattr_argument("time_squeeze_us",            NumberValue(default=200, precision=2, step=500, min=0.04, max=100000000), group='pulse.squeeze')
+        self.setattr_argument("ampl_squeeze_pct_config",    PYONValue([40., 40.]), group='pulse.squeeze', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("phase_squeeze_turns_config", PYONValue([0.0, 0.0]), group='pulse.squeeze', tooltip="[rsb_turns, bsb_turns]")
 
         # pulse 1 (antisqueezing) - configuration
-        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=False), group='pulse.antisqueeze')
-        self.setattr_argument("freq_antisqueeze_carrier_mhz",   NumberValue(default=80., precision=6, step=10., min=0., max=1000.), group='pulse.antisqueeze')
-        self.setattr_argument("att_antisqueeze_db",         NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='pulse.antisqueeze')
-        self.setattr_argument("time_antisqueeze_us",        NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='pulse.antisqueeze')
-        self.setattr_argument("ampl_antisqueeze_pct_config",    PYONValue([27.8, 19.7]), group='pulse.antisqueeze', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("phase_antisqueeze_turns_config", PYONValue([0., 0.]), group='pulse.antisqueeze', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("enable_antisqueezing",       BooleanValue(default=True), group='pulse.antisqueeze')
+        self.setattr_argument("freq_antisqueeze_carrier_mhz",   NumberValue(default=40., precision=6, step=10., min=0., max=1000.), group='pulse.antisqueeze')
+        self.setattr_argument("att_antisqueeze_db",         NumberValue(default=4., precision=1, step=0.5, min=0, max=31.5), group='pulse.antisqueeze')
+        self.setattr_argument("time_antisqueeze_us",        NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000), group='pulse.antisqueeze')
+        self.setattr_argument("ampl_antisqueeze_pct_config",    PYONValue([45., 45.]), group='pulse.antisqueeze', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("phase_antisqueeze_turns_config", PYONValue([0.0, 0.5]), group='pulse.antisqueeze', tooltip="[rsb_turns, bsb_turns]")
 
         # pulse 1 (antisqueezing) - sweep
         # self.setattr_argument("ampl_antisqueeze_scaling_frac_list", Scannable(
@@ -99,8 +97,8 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         self.setattr_argument("target_antisqueeze_phase",               EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB'), group='pulse.antisqueeze.sweep')
         self.setattr_argument("phase_antisqueeze_offset_turns_list",    Scannable(
                                                                             default=[
-                                                                                ExplicitScan([0.372]),
                                                                                 RangeScan(0, 1.0, 21, randomize=True),
+                                                                                ExplicitScan([0.372]),
                                                                             ],
                                                                             global_min=-1.0, global_max=1.0, global_step=0.1,
                                                                             unit="turns", scale=1, precision=3
@@ -241,8 +239,8 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
         # selectively disable by using 0 amplitude
         if not self.enable_squeezing:
-            _sequence_block_squeeze[0]["oscillator_parameters"][0, 0] = 0.
-            _sequence_block_squeeze[0]["oscillator_parameters"][1, 0] = 0.
+            _sequence_block_squeeze[0]["oscillator_parameters"][0][0] = 0.
+            _sequence_block_squeeze[0]["oscillator_parameters"][1][0] = 0.
 
         # create squeezing waveform
         self.spinecho_wizard.sequence_blocks = _sequence_block_squeeze
@@ -276,24 +274,24 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         '''DESIGN WAVEFORM SEQUENCE'''
         # selectively disable by using 0 amplitude
         if not self.enable_antisqueezing:
-            _sequence_block_antisqueeze[0]["oscillator_parameters"][0, 0] = 0.
-            _sequence_block_antisqueeze[0]["oscillator_parameters"][1, 0] = 0.
+            _sequence_block_antisqueeze[0]["oscillator_parameters"][0][0] = 0.
+            _sequence_block_antisqueeze[0]["oscillator_parameters"][1][0] = 0.
 
         # adjust oscillator phases based on user configuration
         if self.target_antisqueeze_phase == "RSB":
-            phas_update_arr = np.array([1., 0.])
+            phas_update_arr = [1., 0.]
         elif self.target_antisqueeze_phase == "BSB":
-            phas_update_arr = np.array([0., 1.])
+            phas_update_arr = [0., 1.]
         elif self.target_antisqueeze_phase == "RSB-BSB":
-            phas_update_arr = np.array([1., -1.])
+            phas_update_arr = [1., -1.]
         elif self.target_antisqueeze_phase == "RSB+BSB":
-            phas_update_arr = np.array([1., 1.])
+            phas_update_arr = [1., 1.]
 
         # record EGGS pulse waveforms
         for i, phas_turns in enumerate(self.phase_antisqueeze_offset_turns_list):
             # update sequence block with target phase
-            _sequence_block_antisqueeze[1]["oscillator_parameters"][0, 1] += phas_update_arr[0] * phas_turns
-            _sequence_block_antisqueeze[1]["oscillator_parameters"][1, 1] += phas_update_arr[1] * phas_turns
+            _sequence_block_antisqueeze[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
+            _sequence_block_antisqueeze[0]["oscillator_parameters"][1][1] += phas_update_arr[1] * phas_turns
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_block_antisqueeze
@@ -303,13 +301,13 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
             self.waveform_idx_to_compiled.append(self.spinecho_wizard.get_waveform())
 
         # tmp remove
-        # _wav_print_idk = self.waveform_index_to_pulseshaper_vals[0]
+        # _wav_print_idk = self.waveform_idx_to_compiled[-1]
         # print(_wav_print_idk[0])
         # print(_wav_print_idk[1])
         # print(_wav_print_idk[2])
         # print(_sequence_blocks)
-        self.spinecho_wizard.display_waveform()
-        # self.set_dataset("waveforms", self.waveform_index_to_pulseshaper_vals)
+        # self.spinecho_wizard.display_waveform()
+        # self.set_dataset("waveforms", self.waveform_idx_to_compiled)
         # tmp remove
 
     @property
@@ -425,7 +423,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def phaser_run(self, waveform_id: TInt32, carrier_freq_hz: TFloat) -> TNone:
+    def phaser_run(self, waveform_id: TInt32) -> TNone:
         """
         Run the main EGGS pulse together with supporting functionality.
         Arguments:
@@ -441,23 +439,23 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
         '''ANTISQUEEZE'''
         # reconfigure attenuation for antisqueezing
-        at_mu(self.phaser.get_next_frame_mu())
+        at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att_mu(self.att_antisqueeze_mu)
-        delay_mu(self.t_sample_mu)
+        delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att_mu(self.att_antisqueeze_mu)
 
         # reconfigure carrier freq for antisqueezing
-        at_mu(self.phaser.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(self.freq_antisqueeze_carrier_hz - self.freq_center_hz)
-        delay_mu(self.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(self.freq_antisqueeze_carrier_hz - self.freq_center_hz)
-        delay_mu(self.t_frame_mu)
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_duc_frequency(self.freq_antisqueeze_carrier_hz - self.phaser_eggs.freq_center_hz)
+        delay_mu(self.phaser_eggs.t_frame_mu)
+        self.phaser_eggs.channel[1].set_duc_frequency(self.freq_antisqueeze_carrier_hz - self.phaser_eggs.freq_center_hz)
+        delay_mu(self.phaser_eggs.t_frame_mu)
         self.phaser_eggs.duc_stb()
 
         # reconfigure CH1 phase for antisqueezing
-        at_mu(self.phaser.get_next_frame_mu())
+        at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[1].set_duc_phase(self.phaser_eggs.phase_inherent_ch1_turns +
-                                                  (self.freq_antisqueeze_carrier_hz * self.time_latency_ch1_system_ns * ns))
+                                                  (self.freq_antisqueeze_carrier_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns))
         self.phaser_eggs.duc_stb()
 
         # run antisqueezing pulse
