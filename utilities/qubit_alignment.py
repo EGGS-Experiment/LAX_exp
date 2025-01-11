@@ -87,9 +87,14 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
-        self.ccb.issue("create_applet", "qubit_alignment",
-                       '${artiq_applet}plot_xy temp.qubit_align.counts_y'
-                       ' --x temp.qubit_align.counts_x --title "Qubit Alignment"')
+        self.ccb.issue(
+            "create_applet",    # name of broadcast
+            "qubit_alignment",  # applet name
+            # command
+            '${artiq_applet}plot_xy temp.qubit_align.counts_y'
+            ' --x temp.qubit_align.counts_x --title "Qubit Alignment"',
+            group=["alignment"] # folder directory for applet
+        )
 
     @property
     def results_shape(self):

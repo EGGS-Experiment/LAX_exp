@@ -69,9 +69,14 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
-        self.ccb.issue("create_applet", "imaging_alignment",
-                       '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
-                       ' --x temp.imag_align.counts_x --title "Imaging Alignment"')
+        self.ccb.issue(
+            "create_applet",        # name of broadcast
+            "imaging_alignment",    # applet name
+            # command
+            '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
+            ' --x temp.imag_align.counts_x --title "Imaging Alignment"',
+            group=["alignment"] # folder directory for applet
+        )
 
     @property
     def results_shape(self):
