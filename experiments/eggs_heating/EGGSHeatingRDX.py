@@ -311,7 +311,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
+                # self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
+                self.phaser_eggs.frequency_configure(carrier_freq_hz,
+                                                     [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.], phase_ch1_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
                 self.core.break_realtime()
