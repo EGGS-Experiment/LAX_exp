@@ -110,7 +110,7 @@ class PSRSB(LAXExperiment, Experiment):
         elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
             raise ValueError("Invalid QVSA oscillator amplitude. Must be in range [0., 100.].")
         elif sum(self.ampl_qvsa_pct_config) >= 100.:
-            raise ValueError("Invalid QVSA oscillator amplitudes. Total must to <= 100.")
+            raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
 
         # ensure phaser oscillator phases are configured correctly
         if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
@@ -118,8 +118,7 @@ class PSRSB(LAXExperiment, Experiment):
                              "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_carrier_dev_hz = abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz)
-        if (phaser_carrier_dev_hz >= 200. * MHz) or (phaser_carrier_dev_hz >= 200. * MHz):
+        if abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz) >= 200. * MHz:
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
         '''CONVERT VALUES TO MACHINE UNITS - QVSA'''
