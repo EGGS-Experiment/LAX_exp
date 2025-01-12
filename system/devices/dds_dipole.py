@@ -14,6 +14,9 @@ class DDSDipole(LAXDevice):
     """
     name = "dds_dipole"
     core_device = ('dds', 'urukul1_ch3')
+    devices = {
+        'rf_switch': 'ttl15'
+    }
     kernel_invariants = {
         "cpld", "sw",
         "ampl_modulation_asf", "freq_cleanup_ftw"
@@ -61,13 +64,25 @@ class DDSDipole(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
+        # note: didn't bother parallel-ing this section since it's unimportant
+        # enable RF switch onboard Urukul
         self.sw.on()
         delay_mu(1)
 
+        # enable external RF switch
+        self.rf_switch.on()
+        delay_mu(20000)
+
     @kernel(flags={"fast-math"})
     def off(self) -> TNone:
+        # note: didn't bother parallel-ing this section since it's unimportant
+        # enable RF switch onboard Urukul
         self.sw.off()
         delay_mu(1)
+
+        # enable external RF switch
+        self.rf_switch.off()
+        delay_mu(20000)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:

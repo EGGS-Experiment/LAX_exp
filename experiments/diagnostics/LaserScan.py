@@ -17,16 +17,16 @@ class LaserScan(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'trigger_func', 'time_linetrig_holdoff_mu_list',
+        'time_linetrig_holdoff_mu_list',
         'config_laserscan_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=8, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
+        self.setattr_argument("enable_linetrigger",     BooleanValue(default=True), group='linetrigger')
         self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
                                                                 default=[
                                                                     ExplicitScan([0.1]),
@@ -39,7 +39,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
-                                                                CenterScan(100.6502, 0.01, 0.0001, randomize=True),
+                                                                CenterScan(101.3316, 0.01, 0.0001, randomize=True),
                                                                 ExplicitScan([101.4459]),
                                                                 RangeScan(1, 50, 200, randomize=True),
                                                             ],
@@ -47,7 +47,7 @@ class LaserScan(LAXExperiment, Experiment):
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
         # relevant devices
@@ -79,16 +79,11 @@ class LaserScan(LAXExperiment, Experiment):
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
         # linetrigger parameters
-        self.time_linetrig_holdoff_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
-                                                       for time_ms in self.time_linetrig_holdoff_ms_list])
-
-        '''
-        SET UP LINETRIGGER
-        '''
         if self.enable_linetrigger:
-            self.trigger_func = self.trigger_line.trigger
+            self.time_linetrig_holdoff_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
+                                                           for time_ms in self.time_linetrig_holdoff_ms_list])
         else:
-            self.trigger_func = self.trigger_line.trigger_dummy
+            self.time_linetrig_holdoff_mu_list = np.array([0])
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -135,7 +130,8 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # tmp remove
                 # turn on rescue beams while waiting
-                self.core.reset()
+                self.core.break_realtime()
+                delay_mu(125000)
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
@@ -152,7 +148,8 @@ class LaserScan(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, time_holdoff_mu)
+                if self.enable_linetrigger:
+                    self.trigger_line.trigger(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
@@ -162,8 +159,8 @@ class LaserScan(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_holdoff_mu)
-                self.core.reset()
+                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), 0)
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
