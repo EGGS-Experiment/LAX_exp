@@ -22,7 +22,7 @@ class QubitPulseShape(LAXSubsequence):
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.):
+                          num_samples: TInt32 = 500, ampl_max_pct: TFloat = 50.):
         """
         Defines the main interface for the subsequence.
         Arguments:
@@ -116,11 +116,19 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.core.break_realtime()
 
+        # prepare to write waveform to RAM profile
+        self.qubit.set_profile_ram(
+            start=self.ram_addr_start, end=self.ram_addr_stop,
+            step=0xFFF,
+            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
+        )
+
         # set target RAM profile
         self.qubit.cpld.set_profile(self.ram_profile)
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # write waveform to RAM profile
+        self.core.break_realtime()
         delay_mu(5000000)   # 5 ms
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
@@ -169,8 +177,6 @@ class QubitPulseShape(LAXSubsequence):
             step=time_step_size,
             profile=self.ram_profile, mode=RAM_MODE_RAMPUP
         )
-        self.core.break_realtime()
-
         return self.core.mu_to_seconds(self.time_pulse_mu) / us
 
     @kernel(flags={"fast-math"})

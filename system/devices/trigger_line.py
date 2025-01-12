@@ -40,7 +40,12 @@ class TriggerLine(LAXDevice):
         # note: need to do it this way (i.e. manually _set_sensitivity) since gate MUST BE CLOSED before
         # any edge_counters (i.e. PMT) can do counting - otherwise counts will be silly (nonzero but unrealistic)
         self.ttl_input._set_sensitivity(1)
-        time_trigger_mu = self.ttl_input.timestamp_mu(now_mu() + time_gating_mu)
+
+        # poll timestamps until we receive a valid one
+        time_end_mu = now_mu() + time_gating_mu
+        time_trigger_mu = self.ttl_input.timestamp_mu(time_end_mu)
+        while 0 < time_trigger_mu < now_mu():
+            time_trigger_mu = self.ttl_input.timestamp_mu(time_end_mu)
 
         # ensure input timestamp is valid
         if time_trigger_mu >= 0:

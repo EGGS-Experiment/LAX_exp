@@ -18,7 +18,7 @@ class LaserScan(LAXExperiment, Experiment):
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'time_linetrig_holdoff_mu_list',
-        'config_laserscan_list'
+        'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -90,15 +90,15 @@ class LaserScan(LAXExperiment, Experiment):
         '''
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_laserscan_list =    np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
+        self.config_experiment_list =    np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
                                                              self.time_linetrig_holdoff_mu_list),
                                                  -1).reshape(-1, 2)
-        self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
-        np.random.shuffle(self.config_laserscan_list)
+        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
+        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_laserscan_list),
+        return (self.repetitions * len(self.config_experiment_list),
                 3)
 
 
@@ -126,12 +126,11 @@ class LaserScan(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # sweep exp config
-            for config_vals in self.config_laserscan_list:
+            for config_vals in self.config_experiment_list:
 
                 # tmp remove
                 # turn on rescue beams while waiting
                 self.core.break_realtime()
-                delay_mu(125000)
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
@@ -149,6 +148,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # wait for linetrigger
                 if self.enable_linetrigger:
+                    delay_mu(125000)
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state
