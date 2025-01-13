@@ -154,6 +154,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                                                            self.waveform_idx_to_phase_turns,
                                                            self.time_readout_mu_list),
                                                -1, dtype=float).reshape(-1, 4)
+        np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()

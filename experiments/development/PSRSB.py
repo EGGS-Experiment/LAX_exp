@@ -59,7 +59,7 @@ class PSRSB(LAXExperiment, Experiment):
 
         # PSRSB - RSB pulse
         self.setattr_argument("att_qubit_db",               NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50), group=self.name)
         self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000), group=self.name)
         self.setattr_argument("freq_psrsb_rsb_mhz_list",    Scannable(
                                                                 default=[
@@ -70,7 +70,7 @@ class PSRSB(LAXExperiment, Experiment):
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group=self.name)
 
-        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50), group=self.name)
         self.setattr_argument("time_psrsb_carrier_us",          NumberValue(default=8.51, precision=3, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("freq_psrsb_carrier_mhz_list",    Scannable(
                                                                     default=[
@@ -139,7 +139,7 @@ class PSRSB(LAXExperiment, Experiment):
         self.ampl_psrsb_carrier_asf =   self.qubit.amplitude_to_asf(self.ampl_psrsb_carrier_pct / 100.)
 
         self.freq_psrsb_rsb_ftw_list =      np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in list(self.freq_psrsb_carrier_mhz_list)])
+                                                      for freq_mhz in list(self.freq_psrsb_rsb_mhz_list)])
         self.freq_psrsb_carrier_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                       for freq_mhz in list(self.freq_psrsb_carrier_mhz_list)])
 
@@ -155,6 +155,7 @@ class PSRSB(LAXExperiment, Experiment):
                                                            self.freq_psrsb_carrier_ftw_list,
                                                            self.phas_psrsb_carrier_pow_list),
                                                -1, dtype=np.int32).reshape(-1, 3)
+        np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -190,9 +191,9 @@ class PSRSB(LAXExperiment, Experiment):
 
         # set oscillator phases (accounting for oscillator delay time)
         phase_bsb_update_delay_turns = (self.freq_qvsa_secular_khz * kHz) * (self.phaser_eggs.t_sample_mu * ns)
-        _sequence_blocks[:, 0, 0] = self.phase_qvsa_turns_config[0]
-        _sequence_blocks[:, 1, 0] = self.phase_qvsa_turns_config[1] + phase_bsb_update_delay_turns
-        _sequence_blocks[:, 2, 0] = self.phase_qvsa_turns_config[2]
+        _sequence_blocks[:, 0, 1] = self.phase_qvsa_turns_config[0]
+        _sequence_blocks[:, 1, 1] = self.phase_qvsa_turns_config[1] + phase_bsb_update_delay_turns
+        _sequence_blocks[:, 2, 1] = self.phase_qvsa_turns_config[2]
 
         # create waveform
         self.spinecho_wizard.sequence_blocks = _sequence_blocks
@@ -328,9 +329,10 @@ class PSRSB(LAXExperiment, Experiment):
             freq_carrier_ftw: Carrier frequency in FTW.
             phas_carrier_pow: Carrier phase (relative) in POW.
         """
-        # set target profile
+        # set target profile and attenuation
         self.qubit.set_profile(self.profile_psrsb)
         self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.set_att_mu(self.att_qubit_mu)
 
         # synchronize start time to coarse RTIO clock
         time_start = now_mu() & ~0x7
