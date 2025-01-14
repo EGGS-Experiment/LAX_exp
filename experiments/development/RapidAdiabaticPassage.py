@@ -4,7 +4,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitRAP, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, QubitRAP, Readout, RescueIon
 
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
@@ -16,8 +16,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
     name = 'Rapid Adiabatic Passage'
     kernel_invariants = {
-        'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
-        'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'freq_rap_center_ftw_list', 'freq_rap_dev_ftw_list', 'time_rap_mu_list', 'time_cutoff_mu_list',
+        'ampl_qubit_asf', 'att_qubit_mu',
+        'initialize_subsequence', 'rap_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'config_experiment_list'
     }
 
@@ -46,7 +47,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                             ), group="{}.chirp".format(self.name))
         self.setattr_argument("time_rap_us_list",           Scannable(
                                                                 default=[
-                                                                    ExplicitScan([6.05]),
+                                                                    ExplicitScan([200.]),
                                                                     RangeScan(1, 50, 200, randomize=True),
                                                                     CenterScan(250., 100., 5., randomize=True),
                                                                 ],
@@ -55,7 +56,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                             ), group="{}.chirp".format(self.name))
         self.setattr_argument("time_cutoff_us_list",        Scannable(
                                                                 default=[
-                                                                    ExplicitScan([6.05]),
+                                                                    ExplicitScan([200.]),
                                                                     RangeScan(1, 50, 200, randomize=True),
                                                                     CenterScan(250., 100., 5., randomize=True),
                                                                 ],
@@ -81,9 +82,8 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)
-        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.rap_subsequence =          QubitRAP(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
-                                                        num_samples=1000)
+                                                        num_samples=500)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 

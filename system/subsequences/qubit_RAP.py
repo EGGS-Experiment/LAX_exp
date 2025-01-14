@@ -1,3 +1,4 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
@@ -5,7 +6,10 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
-import numpy as np
+# Digital Ramp Generator - Ramp Destination
+DRG_DEST_FTW =  0b00
+DRG_DEST_POW =  0b01
+DRG_DEST_ASF =  0b10
 
 
 class QubitRAP(LAXSubsequence):
@@ -17,13 +21,13 @@ class QubitRAP(LAXSubsequence):
     """
     name = 'qubit_RAP'
     kernel_invariants = {
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct",
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
         "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_s_to_time_step",
         "ampl_asf_pulseshape_list",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 500, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
@@ -69,9 +73,6 @@ class QubitRAP(LAXSubsequence):
             raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
 
         '''SPECIFY TIMING'''
-        # # preallocate delay time for later use
-        # self.time_pulse_mu = np.int64(0)
-
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
         # todo: get sync_clk from ad9910 device instead
         self.freq_dds_sync_clk_hz =         1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
@@ -82,6 +83,7 @@ class QubitRAP(LAXSubsequence):
         self.ram_addr_stop = self.ram_addr_start + (self.num_samples - 1)
 
         # calculate pulse shape, then normalize and rescale to max amplitude
+        # note: make sure max x_val is double the rolloff since PulseShaper does rising edge only
         wav_y_vals = np.array([available_pulse_shapes[self.pulse_shape](x_val, 100)
                                for x_val in np.linspace(0., 200., self.num_samples)])
         wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
@@ -102,13 +104,18 @@ class QubitRAP(LAXSubsequence):
         """
         Prepare the subsequence immediately before run.
         """
+        self.core.break_realtime()
+
         # disable RAM mode
         self.qubit.set_cfr1(ram_enable=0)
-        self.qubit.cpld.io_update.pulse_mu(8)
+        # note: probably don't need this IO_UPDATE pulse
+        # self.qubit.cpld.io_update.pulse_mu(8)
 
-        # set matched latencies
+        # disable DRG & set matched latencies
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.core.break_realtime()
+        # note: somehow this delay is critical
+        delay_mu(1000000)
 
         # prepare to write waveform to RAM profile
         self.qubit.set_profile_ram(
@@ -116,16 +123,28 @@ class QubitRAP(LAXSubsequence):
             step=0xFFF,
             profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
+        self.core.break_realtime()
+        delay_mu(1000000)
 
         # set target RAM profile
         self.qubit.cpld.set_profile(self.ram_profile)
         self.qubit.cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
 
         # write waveform to RAM profile
         self.core.break_realtime()
-        delay_mu(5000000)   # 5 ms
+        delay_mu(20000000)   # 20 ms
+        # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
+
+        # # note: seems like I have to put this here to prevent a
+        # # problematic RTIOunderflow during ram write? this is the only thing that's
+        # # different from qubit_pulseshape
+        # # set matched latencies
+        # self.qubit.set_cfr2(matched_latency_enable=1)
+        # self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def cleanup_subsequence(self) -> TNone:
@@ -150,7 +169,7 @@ class QubitRAP(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def configure(self, time_us: TFloat, freq_center_ftw: TInt32,
+    def configure(self, time_mu: TInt64, freq_center_ftw: TInt32,
                   freq_dev_ftw: TInt32) -> TFloat:
         """
         Set the overall pulse time for the shaped pulse.
@@ -164,7 +183,9 @@ class QubitRAP(LAXSubsequence):
         """
         '''CALCULATE VALUES'''
         # calculate step size/timing
-        time_ram_step = int((time_us * us) * self.time_pulse_s_to_time_step)
+        # time_ram_step = int((time_us * us) * self.time_pulse_s_to_time_step)
+        # todo: fix up this abomination
+        time_ram_step = int(self.core.mu_to_seconds(time_mu) * self.time_pulse_s_to_time_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
             raise ValueError("Invalid pulse time in set_pulse_time_us.")
 
@@ -208,7 +229,6 @@ class QubitRAP(LAXSubsequence):
         # return relevant values
         return self.core.mu_to_seconds(time_pulse_mu) / us
 
-
     @kernel(flags={"fast-math"})
     def run_rap(self, time_pulse_mu: TInt64) -> TNone:
         """
@@ -238,7 +258,7 @@ class QubitRAP(LAXSubsequence):
                          (1 << 24) |  # asf_profile_enable
                          (1 << 16) |  # effective_ftw
                          (1 << 7) |  # matched_latency_enable
-                         (ad9910.DRG_DEST_FTW << 20) |  # digital_ramp_destination
+                         (DRG_DEST_FTW << 20) |  # digital_ramp_destination
                          (1 << 19) |  # digital_ramp_enable
                          (1 << 17) |  # digital_ramp_nodwell_low
                          (1 << 18)  # digital_ramp_nodwell_high
@@ -264,3 +284,7 @@ class QubitRAP(LAXSubsequence):
         self.qubit.set_cfr2(matched_latency_enable=1)
         # tood: does set_cfr2 need its own io_update? or can I latch ALL with a single io_update?
         self.qubit.cpld.io_update.pulse_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def run(self) -> TNone:
+        pass
