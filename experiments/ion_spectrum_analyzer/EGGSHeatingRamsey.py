@@ -25,7 +25,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns',
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
+        'rescue_subsequence'
     }
 
     def build_experiment(self):
@@ -131,13 +132,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.time_readout_mu_list =             np.array([self.core.seconds_to_mu(time_us * us)
                                                           for time_us in self.time_readout_us_list])
 
-        '''CONFIGURE LINETRIGGER'''
-        # configure linetriggering
-        if self.enable_linetrigger:
-            self.trigger_func = self.trigger_line.trigger
-        else:
-            self.trigger_func = self.th0
-
         '''EGGS HEATING - CONFIG'''
         # convert attenuation from dB to machine units
         self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
@@ -176,15 +170,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
-    # tmp remove
-    @kernel(flags={"fast-math"})
-    def th0(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
-        """
-        Dummy function for line triggering.
-        """
-        return now_mu()
-    # tmp remove
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -312,7 +297,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
                 # tmp remove
                 # turn on rescue beams while waiting
-                self.core.reset()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
@@ -343,7 +327,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
+                if self.enable_linetrigger:
+                    self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state

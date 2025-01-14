@@ -4,7 +4,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitRAP, Readout, RescueIon
 
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
@@ -18,43 +18,60 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'trigger_func', 'time_linetrig_holdoff_mu_list',
-        'config_laserscan_list'
+        'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
-        # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=False), group='linetrigger')
-        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
+        # chirp parameters
+        self.setattr_argument("freq_rap_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([0.1]),
-                                                                    RangeScan(1, 3, 3, randomize=True),
+                                                                    CenterScan(101.3318, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([101.3318]),
+                                                                    RangeScan(101.2318, 101.4318, 200, randomize=True),
                                                                 ],
-                                                                global_min=0.01, global_max=1000, global_step=1,
-                                                                unit="ms", scale=1, precision=3
-                                                            ), group='linetrigger')
+                                                                global_min=60, global_max=200, global_step=0.01,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group="{}.chirp".format(self.name))
+        self.setattr_argument("freq_rap_dev_khz_list",      Scannable(
+                                                                default=[
+                                                                    ExplicitScan([100.]),
+                                                                    RangeScan(100, 500., 401, randomize=True),
+                                                                    CenterScan(250., 100., 5., randomize=True),
+                                                                ],
+                                                                global_min=0.1, global_max=100000, global_step=5.,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_rap_us_list",           Scannable(
+                                                                default=[
+                                                                    ExplicitScan([6.05]),
+                                                                    RangeScan(1, 50, 200, randomize=True),
+                                                                    CenterScan(250., 100., 5., randomize=True),
+                                                                ],
+                                                                global_min=1, global_max=100000, global_step=1,
+                                                                unit="us", scale=1, precision=5
+                                                            ), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_cutoff_us_list",        Scannable(
+                                                                default=[
+                                                                    ExplicitScan([6.05]),
+                                                                    RangeScan(1, 50, 200, randomize=True),
+                                                                    CenterScan(250., 100., 5., randomize=True),
+                                                                ],
+                                                                global_min=1, global_max=100000, global_step=1,
+                                                                unit="us", scale=1, precision=5
+                                                            ), group="{}.chirp".format(self.name))
 
-        # scan parameters
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=[
-                                                                CenterScan(101.4218, 0.01, 0.0001, randomize=True),
-                                                                ExplicitScan([101.4459]),
-                                                                RangeScan(1, 50, 200, randomize=True),
-                                                            ],
-                                                            global_min=60, global_max=200, global_step=0.01,
-                                                            unit="MHz", scale=1, precision=6
-                                                        ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=5, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group=self.name)
+        # pulse parameters
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
+        self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
+        # todo: actually implement the enable_pulseshaping/chirp stuff lol
 
         # relevant devices
         self.setattr_device('qubit')
-        self.setattr_device('trigger_line')
 
         # tmp remove
         self.setattr_device('pump')
@@ -65,7 +82,8 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)
         self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct)
+        self.rap_subsequence =          QubitRAP(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
+                                                        num_samples=1000)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -74,54 +92,45 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         Prepare & precompute experimental values.
         """
         '''
+        SANTIIZE & VERIFY INPUT
+        '''
+        # todo: verify freq dev values are valid
+        # todo: only sweep time OR cutoff; never both
+
+        '''
         CONVERT VALUES TO MACHINE UNITS
         '''
-        # laser parameters
-        self.freq_qubit_scan_ftw =  np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
-        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
+        # beam parameters
+        self.ampl_qubit_asf =   self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
-        # linetrigger parameters
-        self.time_linetrig_holdoff_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
-                                                       for time_ms in self.time_linetrig_holdoff_ms_list])
+        # frequency parameters
+        self.freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
+        self.freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * Hz) for freq_khz in self.freq_rap_dev_khz_list])
 
-        '''
-        CONFIGURE LINETRIGGERING
-        '''
-        if self.enable_linetrigger:
-            self.trigger_func = self.trigger_line.trigger
-        else:
-            self.trigger_func = self.trigger_line.trigger_dummy
-
-        '''
-        CONFIGURE PULSESHAPING
-        '''
-        if self.enable_pulseshaping:
-            self.pulse_setup_func = self.pulseshape_subsequence.set_pulse_time_us
-            self.pulse_run_func =   self.pulseshape_subsequence.run
-        else:
-            self.pulse_setup_func = self.th0
-            self.pulse_run_func =   self.rabiflop_subsequence.run
+        # timing parameters
+        self.time_rap_mu_list =     np.array([self.core.seconds_to_mu(time_us * us)
+                                              for time_us in self.time_rap_us_list])
+        self.time_cutoff_mu_list =  np.array([self.core.seconds_to_mu(time_us * us)
+                                              for time_us in self.time_cutoff_us_list])
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_laserscan_list =    np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
-                                                             self.time_linetrig_holdoff_mu_list),
-                                                 -1).reshape(-1, 2)
-        self.config_laserscan_list = np.array(self.config_laserscan_list, dtype=np.int64)
-        np.random.shuffle(self.config_laserscan_list)
-
-    @kernel(flags={"fast-math"})
-    def th0(self, time_us: TFloat) -> TNone:
-        pass
+        self.config_experiment_list = np.stack(np.meshgrid(self.freq_rap_center_ftw_list,
+                                                           self.freq_rap_dev_ftw_list,
+                                                           self.time_rap_mu_list,
+                                                           self.time_cutoff_mu_list),
+                                               -1).reshape(-1, 4)
+        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
+        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_laserscan_list),
-                3)
+        return (self.repetitions * len(self.config_experiment_list),
+                5)
 
 
     # MAIN SEQUENCE
@@ -140,10 +149,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
-        # set up qubit pulse
-        self.pulse_setup_func(self.time_qubit_us)
-        self.core.break_realtime()
-
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         self.core.break_realtime()
@@ -152,11 +157,11 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             self.core.break_realtime()
 
             # sweep exp config
-            for config_vals in self.config_laserscan_list:
+            for config_vals in self.config_experiment_list:
 
                 # tmp remove
                 # turn on rescue beams while waiting
-                self.core.reset()
+                self.core.break_realtime()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
@@ -164,27 +169,30 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 # tmp remove
 
                 # extract values from config list
-                freq_ftw =          np.int32(config_vals[0])
-                time_holdoff_mu =   config_vals[1]
+                freq_center_ftw =   np.int32(config_vals[0])
+                freq_dev_ftw =      np.int32(config_vals[1])
+                time_rap_mu =       config_vals[2]
+                time_cutoff_mu =    config_vals[3]
                 self.core.break_realtime()
 
-                # set frequency
-                self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                # configure RAP pulse
+                self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 self.core.break_realtime()
-
-                # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # rabi flop & read out
-                self.pulse_run_func()
+                # run RAP pulse
+                self.qubit.set_att_mu(self.att_qubit_mu)
+                self.rap_subsequence.run_rap(time_cutoff_mu)
+
+                # read out
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_holdoff_mu)
-                self.core.reset()
+                self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                    freq_dev_ftw, time_rap_mu, time_cutoff_mu)
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -196,26 +204,3 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-
-    # ANALYSIS
-    def analyze_experiment(self):
-        """
-        Fit data and guess potential spectral peaks.
-        """
-        peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
-
-        # save results to hdf5 as a dataset
-        self.set_dataset('spectrum_peaks',  peak_vals)
-        # save results to dataset manager for dynamic experiments
-        self.set_dataset('temp.laserscan.results', peak_vals, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.laserscan.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-
-        # print peaks to log for user convenience
-        # ensure we don't have too many peaks before printing to log
-        if len(peak_vals) < 5:
-            print("\tPeaks - Laser Scan:")
-            for peak_freq, peak_prob in peak_vals:
-                print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
-        else:
-            print("\tWarning: too many peaks detected.")
-        return results_tmp

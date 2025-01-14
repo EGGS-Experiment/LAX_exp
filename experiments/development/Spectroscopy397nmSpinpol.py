@@ -109,7 +109,7 @@ class Spectroscopy397nmSpinpol(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         # create buffer to hold sampler values
         buffer_sampler = [0] * 8

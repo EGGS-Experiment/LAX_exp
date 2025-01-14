@@ -312,7 +312,6 @@ class NoiseSpectrumAnalyzer(LAXExperiment, Experiment):
 
                 # tmp remove
                 # turn on rescue beams while waiting
-                self.core.reset()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()

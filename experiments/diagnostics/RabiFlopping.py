@@ -30,6 +30,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                             default=[
                                                                 ExplicitScan([6.05]),
                                                                 RangeScan(1, 50, 200, randomize=True),
+                                                                CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
