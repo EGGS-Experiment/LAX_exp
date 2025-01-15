@@ -35,7 +35,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=5, step=1, min=50., max=400.), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
 

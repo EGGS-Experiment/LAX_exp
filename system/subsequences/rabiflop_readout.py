@@ -49,7 +49,7 @@ class RabiflopReadout(LAXSubsequence):
                           profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
 
     @kernel(flags={"fast-math"})
-    def run(self, time_rabiflop_mu: TInt64) -> TNone:
+    def run_time(self, time_rabiflop_mu: TInt64) -> TNone:
         # set readout waveform for qubit
         self.qubit.set_profile(0)
         self.qubit.set_att_mu(self.att_rabiflop_readout_mu)
@@ -58,3 +58,7 @@ class RabiflopReadout(LAXSubsequence):
         self.qubit.on()
         delay_mu(time_rabiflop_mu)
         self.qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def run(self) -> TNone:
+        pass

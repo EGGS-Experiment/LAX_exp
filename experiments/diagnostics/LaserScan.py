@@ -49,7 +49,7 @@ class LaserScan(LAXExperiment, Experiment):
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=5, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=0.01, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group=self.name)
 
