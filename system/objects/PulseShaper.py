@@ -10,14 +10,14 @@ import math
 import numpy as np
 
 
-def square(time_arr, time_rolloff, kwargs):
+def square(time_arr, time_rolloff, kwargs={}):
     """
     Square pulse.
     For customizability.
     """
     return np.ones(len(time_arr))
 
-def sine_squared(time_arr, time_rolloff, kwargs):
+def sine_squared(time_arr, time_rolloff, kwargs={}):
     """
     Sine-squared pulse shape (rising edge only).
     Also known as the Hann or raised-cosine windows.
@@ -42,7 +42,7 @@ def blackman(time_arr, time_rolloff, *wargs):
             0.08 * np.cos(4. * x_vals_readjusted)
     )
 
-def gaussian(time_arr, time_rolloff, kwargs):
+def gaussian(time_arr, time_rolloff, kwargs={}):
     """
     Gaussian pulse shape (rising edge only).
     """
@@ -57,7 +57,7 @@ def gaussian(time_arr, time_rolloff, kwargs):
     # calculate gaussian window
     return np.exp(-0.5 * (x_vals_readjusted) ** 2.)
 
-def error_function(time_arr, time_rolloff, kwargs):
+def error_function(time_arr, time_rolloff, kwargs={}):
     """
     Error-function pulse shape (rising edge only).
     """

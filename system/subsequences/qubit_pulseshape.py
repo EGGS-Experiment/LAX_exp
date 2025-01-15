@@ -73,6 +73,7 @@ class QubitPulseShape(LAXSubsequence):
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
         # todo: get sync_clk from ad9910 device instead
         self.freq_dds_sync_clk_hz =         1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
+        # todo: make this machine units
         self.time_pulse_s_to_time_step =    self.freq_dds_sync_clk_hz / self.num_samples
 
         '''CALCULATE WAVEFORM'''
@@ -163,6 +164,7 @@ class QubitPulseShape(LAXSubsequence):
         Returns:
             actual pulse time (in us).
         """
+        # todo: make this entire function do timing in mu instead of us
         # calculate step size/timing
         time_step_size = int((time_us * us) * self.time_pulse_s_to_time_step)
         if (time_step_size > (1 << 16)) or (time_step_size < 1):

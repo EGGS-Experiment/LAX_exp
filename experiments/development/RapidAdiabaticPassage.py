@@ -36,7 +36,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                                 global_min=60, global_max=200, global_step=0.01,
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="{}.chirp".format(self.name))
-        self.setattr_argument("freq_rap_dev_khz_list",      Scannable(
+        self.setattr_argument("freq_rap_dev_khz_list",  Scannable(
                                                                 default=[
                                                                     ExplicitScan([100.]),
                                                                     RangeScan(100, 500., 401, randomize=True),
@@ -45,16 +45,17 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                                 global_min=0.1, global_max=100000, global_step=5.,
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="{}.chirp".format(self.name))
-        self.setattr_argument("time_rap_us_list",           Scannable(
-                                                                default=[
-                                                                    ExplicitScan([200.]),
-                                                                    RangeScan(1, 50, 200, randomize=True),
-                                                                    CenterScan(250., 100., 5., randomize=True),
-                                                                ],
-                                                                global_min=1, global_max=100000, global_step=1,
-                                                                unit="us", scale=1, precision=5
-                                                            ), group="{}.chirp".format(self.name))
-        self.setattr_argument("time_cutoff_us_list",        Scannable(
+        self.setattr_argument("time_rap_us_list",   Scannable(
+                                                            default=[
+                                                                ExplicitScan([200.]),
+                                                                RangeScan(1, 50, 200, randomize=True),
+                                                                CenterScan(250., 100., 5., randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, precision=5
+                                                        ), group="{}.chirp".format(self.name))
+        self.setattr_argument("enable_cutoff",      BooleanValue(default=True), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_cutoff_us_list",    Scannable(
                                                                 default=[
                                                                     ExplicitScan([200.]),
                                                                     RangeScan(1, 50, 200, randomize=True),
@@ -106,13 +107,16 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
         # frequency parameters
         self.freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
-        self.freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * Hz) for freq_khz in self.freq_rap_dev_khz_list])
+        self.freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
 
         # timing parameters
-        self.time_rap_mu_list =     np.array([self.core.seconds_to_mu(time_us * us)
-                                              for time_us in self.time_rap_us_list])
-        self.time_cutoff_mu_list =  np.array([self.core.seconds_to_mu(time_us * us)
-                                              for time_us in self.time_cutoff_us_list])
+        self.time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                          for time_us in self.time_rap_us_list])
+        if self.enable_cutoff:
+            self.time_cutoff_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                                 for time_us in self.time_cutoff_us_list])
+        else:
+            self.time_cutoff_mu_list = np.array([1])
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -184,14 +188,21 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
                 # run RAP pulse
                 self.qubit.set_att_mu(self.att_qubit_mu)
-                self.rap_subsequence.run_rap(time_cutoff_mu)
+                if self.enable_cutoff:
+                    self.rap_subsequence.run_rap(time_cutoff_mu)
+                else:
+                    self.rap_subsequence.run_rap(time_rap_mu)
 
                 # read out
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
-                                    freq_dev_ftw, time_rap_mu, time_cutoff_mu)
+                if self.enable_cutoff:
+                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                        freq_dev_ftw, time_rap_mu, time_cutoff_mu)
+                else:
+                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                        freq_dev_ftw, time_rap_mu, time_rap_mu)
                 self.core.break_realtime()
 
                 # resuscitate ion
