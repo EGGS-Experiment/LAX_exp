@@ -40,7 +40,12 @@ class TriggerLine(LAXDevice):
         # note: need to do it this way (i.e. manually _set_sensitivity) since gate MUST BE CLOSED before
         # any edge_counters (i.e. PMT) can do counting - otherwise counts will be silly (nonzero but unrealistic)
         self.ttl_input._set_sensitivity(1)
-        time_trigger_mu = self.ttl_input.timestamp_mu(now_mu() + time_gating_mu)
+
+        # poll timestamps until we receive a valid one
+        time_end_mu = now_mu() + time_gating_mu
+        time_trigger_mu = self.ttl_input.timestamp_mu(time_end_mu)
+        while 0 < time_trigger_mu < time_end_mu:
+            time_trigger_mu = self.ttl_input.timestamp_mu(time_end_mu)
 
         # ensure input timestamp is valid
         if time_trigger_mu >= 0:
@@ -60,14 +65,19 @@ class TriggerLine(LAXDevice):
         return -1
 
     @kernel(flags={"fast-math"})
-    def trigger_dummy(self, time_gating_mu: TInt64, time_holdoff_mu: TInt64) -> TInt64:
+    def clear(self) -> TNone:
         """
-        Dummy trigger procedure to support configurable linetriggering.
-        Immediately returns regardless of parameters.
-        Arguments:
-            time_gating_mu  (int)   : the maximum waiting time (in machine units) for the trigger signal.
-            time_holdoff_mu (int64) : the holdoff time (in machine units)
-        Returns:
-                            (int64) : the current timeline cursor (i.e. now_mu()).
+        Clear device input FIFO.
+        Consumes all slack, then adds a break_realtime's worth of slack.
         """
-        return now_mu()
+        # ensure input gate is closed
+        self.ttl_input._set_sensitivity(0)
+
+        # poll timestamps until we receive a valid one
+        time_start_mu = now_mu()
+        delay_mu(125000)
+        while 0 < self.ttl_input.timestamp_mu(time_start_mu) < time_start_mu:
+            delay_mu(1000)
+
+        # add slack
+        self.core.break_realtime()

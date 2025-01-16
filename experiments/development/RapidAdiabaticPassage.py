@@ -4,119 +4,206 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
-from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
+from LAX_exp.system.subsequences import InitializeQubit, QubitRAP, Readout, RescueIon
 
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
     Experiment: Rapid Adiabatic Passage
 
-    Measures ion fluorescence vs 729nm pulse time and frequency.
+    Applies a chirped and pulse-shaped 729nm qubit pulse to achieve Rapid Adiabatic Passage.
+    Demonstrated via rabi flopping/spectrum scanning.
     """
     name = 'Rapid Adiabatic Passage'
-
+    kernel_invariants = {
+        'freq_rap_center_ftw_list', 'freq_rap_dev_ftw_list', 'time_rap_mu_list', 'time_cutoff_mu_list',
+        'ampl_qubit_asf', 'att_qubit_mu',
+        'initialize_subsequence', 'rap_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'config_experiment_list'
+    }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                        NumberValue(default=30, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
-        # rabi flopping arguments
-        self.setattr_argument("cooling_type",                       EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
-        self.setattr_argument("time_rabi_us_list",                  Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([6.05]),
-                                                                            RangeScan(1, 50, 200, randomize=True),
-                                                                        ],
-                                                                        global_min=1, global_max=100000, global_step=1,
-                                                                        unit="us", scale=1, precision=5
-                                                                    ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",                  NumberValue(default=102.1020, precision=5, step=1, min=1, max=10000), group=self.name)
-        self.setattr_argument("att_readout_db",                     NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
+        # chirp parameters
+        self.setattr_argument("freq_rap_center_mhz_list",   Scannable(
+                                                                default=[
+                                                                    CenterScan(101.3318, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([101.3318]),
+                                                                    RangeScan(101.2318, 101.4318, 200, randomize=True),
+                                                                ],
+                                                                global_min=60, global_max=200, global_step=0.01,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group="{}.chirp".format(self.name))
+        self.setattr_argument("freq_rap_dev_khz_list",  Scannable(
+                                                                default=[
+                                                                    ExplicitScan([100.]),
+                                                                    RangeScan(100, 500., 401, randomize=True),
+                                                                    CenterScan(250., 100., 5., randomize=True),
+                                                                ],
+                                                                global_min=0.1, global_max=100000, global_step=5.,
+                                                                unit="kHz", scale=1, precision=6
+                                                            ), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_rap_us_list",   Scannable(
+                                                            default=[
+                                                                ExplicitScan([200.]),
+                                                                RangeScan(1, 50, 200, randomize=True),
+                                                                CenterScan(250., 100., 5., randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, precision=5
+                                                        ), group="{}.chirp".format(self.name))
+        self.setattr_argument("enable_cutoff",      BooleanValue(default=True), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_cutoff_us_list",    Scannable(
+                                                                default=[
+                                                                    ExplicitScan([200.]),
+                                                                    RangeScan(1, 50, 200, randomize=True),
+                                                                    CenterScan(250., 100., 5., randomize=True),
+                                                                ],
+                                                                global_min=1, global_max=100000, global_step=1,
+                                                                unit="us", scale=1, precision=5
+                                                            ), group="{}.chirp".format(self.name))
 
+        # pulse parameters
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
+        self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
+        # todo: actually implement the enable_pulseshaping/chirp stuff lol
 
-        # get devices
+        # relevant devices
         self.setattr_device('qubit')
 
-        # prepare sequences
-        self.initialize_subsequence =                               InitializeQubit(self)
-        self.doppler_subsequence =                                  NoOperation(self)
-        self.sidebandcool_pulsed_subsequence =                      SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence =                  SidebandCoolContinuous(self)
-        self.readout_subsequence =                                  Readout(self)
-        self.rescue_subsequence =                                   RescueIon(self)
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
+
+        # subsequences
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.rap_subsequence =          QubitRAP(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
+                                                 num_samples=500, pulse_shape="blackman")
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
-        # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence =                              self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence =                              self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "SBC - Pulsed":
-            self.cooling_subsequence =                              self.sidebandcool_pulsed_subsequence
+        """
+        Prepare & precompute experimental values.
+        """
+        '''
+        SANTIIZE & VERIFY INPUT
+        '''
+        # todo: verify freq dev values are valid
+        # todo: only sweep time OR cutoff; never both
 
+        '''
+        CONVERT VALUES TO MACHINE UNITS
+        '''
+        # beam parameters
+        self.ampl_qubit_asf =   self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
-        # convert rabi flopping arguments
-        max_time_us =                                               np.max(list(self.time_rabi_us_list))
-        self.time_rabiflop_mu_list =                                np.array([
-                                                                        [seconds_to_mu((max_time_us - time_us) * us), seconds_to_mu(time_us * us)]
-                                                                        for time_us in self.time_rabi_us_list
-                                                                    ])
-        self.freq_rabiflop_ftw =                                    hz_to_ftw(self.freq_rabiflop_mhz * MHz)
-        self.att_readout_mu =                                       att_to_mu(self.att_readout_db * dB)
+        # frequency parameters
+        self.freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
+        self.freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
+
+        # timing parameters
+        self.time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                          for time_us in self.time_rap_us_list])
+        if self.enable_cutoff:
+            self.time_cutoff_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                                 for time_us in self.time_cutoff_us_list])
+        else:
+            self.time_cutoff_mu_list = np.array([1])
+
+        '''
+        CREATE EXPERIMENT CONFIG
+        '''
+        # create an array of values for the experiment to sweep
+        # (i.e. heating time & readout FTW)
+        self.config_experiment_list = np.stack(np.meshgrid(self.freq_rap_center_ftw_list,
+                                                           self.freq_rap_dev_ftw_list,
+                                                           self.time_rap_mu_list,
+                                                           self.time_cutoff_mu_list),
+                                               -1).reshape(-1, 4)
+        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
+        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.time_rabiflop_mu_list),
-                2)
+        return (self.repetitions * len(self.config_experiment_list),
+                5)
 
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
+        self.core.break_realtime()
+
+        # ensure DMA sequences use profile 0
+        self.qubit.set_profile(0)
+        # reduce attenuation/power of qubit beam to resolve lines
+        self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.cooling_subsequence.record_dma()
         self.readout_subsequence.record_dma()
-
-        # set qubit readout waveform
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def run_main(self):
-        self.core.reset()
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
 
-            # sweep time
-            for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+            # sweep exp config
+            for config_vals in self.config_experiment_list:
+
+                # tmp remove
+                # turn on rescue beams while waiting
+                self.core.break_realtime()
+                self.pump.rescue()
+                self.repump_cooling.on()
+                self.repump_qubit.on()
+                self.pump.on()
+                # tmp remove
+
+                # extract values from config list
+                freq_center_ftw =   np.int32(config_vals[0])
+                freq_dev_ftw =      np.int32(config_vals[1])
+                time_rap_mu =       config_vals[2]
+                time_cutoff_mu =    config_vals[3]
+                self.core.break_realtime()
+
+                # configure RAP pulse
+                self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # run sideband cooling
-                self.cooling_subsequence.run_dma()
+                # run RAP pulse
+                self.qubit.set_att_mu(self.att_qubit_mu)
+                if self.enable_cutoff:
+                    self.rap_subsequence.run_rap(time_cutoff_mu)
+                else:
+                    self.rap_subsequence.run_rap(time_rap_mu)
 
-                # prepare qubit beam for readout
-                self.qubit.set_profile(0)
-                self.qubit.set_att_mu(self.att_readout_mu)
-                delay_mu(time_rabi_pair_mu[0])
-
-                # rabi flop
-                self.qubit.on()
-                delay_mu(time_rabi_pair_mu[1])
-                self.qubit.off()
-
-                # do readout
+                # read out
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                with parallel:
-                    self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
-                    self.core.break_realtime()
+                if self.enable_cutoff:
+                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                        freq_dev_ftw, time_rap_mu, time_cutoff_mu)
+                else:
+                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                        freq_dev_ftw, time_rap_mu, time_rap_mu)
+                self.core.break_realtime()
 
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
@@ -125,57 +212,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
 
             # support graceful termination
-            with parallel:
-                self.check_termination()
-                self.core.break_realtime()
+            self.check_termination()
+            self.core.break_realtime()
 
-
-    # ANALYSIS
-    def analyze_experiment(self):
-        """
-        Fit rabi flopping data with an exponentially damped sine curve
-        """
-        # create data structures for processing
-        results_tmp =           np.array(self.results)
-        probability_vals =      np.zeros(len(results_tmp))
-        counts_arr =            np.array(results_tmp[:, 1])
-
-        # convert x-axis (time) from machine units to seconds
-        results_tmp[:, 0] =     np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
-
-
-        # calculate fluorescence detection threshold
-        threshold_list =        findThresholdScikit(results_tmp[:, 1])
-        for threshold_val in threshold_list:
-            probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities and convert from D-state probability to S-state probability
-        results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
-
-        # process dataset into x, y, with y being averaged probability
-        results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
-
-        # fit rabi flopping using damped harmonic oscillator
-        fit_params, fit_err =   fitDampedOscillator(results_tmp)
-        # todo: use fit parameters to attempt to fit roos eqn(A.5)
-        # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
-
-        # process fit parameters to give values of interest
-        fit_period_us =         (2 * np.pi * 1.e6) / fit_params[2]
-        fit_period_err_us =     fit_period_us * (fit_err[2] / fit_params[2])
-        # todo: extract phonon number from fit
-
-        # save results to hdf5 as a dataset
-        self.set_dataset('fit_params',  fit_params)
-        self.set_dataset('fit_err',     fit_err)
-
-        # save results to dataset manager for dynamic experiments
-        res_dj = [[fit_period_us, fit_period_err_us], [fit_params, fit_err]]
-        self.set_dataset('temp.rabiflopping.results', res_dj, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.rabiflopping.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-
-        # print out fitted parameters
-        print("\tResults - Rabi Flopping:")
-        print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
-        return results_tmp

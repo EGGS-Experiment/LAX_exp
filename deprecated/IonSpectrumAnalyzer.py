@@ -306,10 +306,6 @@ class IonSpectrumAnalyzer(EGGSHeating.EGGSHeating):
             self.check_termination()
             self.core.break_realtime()
 
-        # CLEANUP
-        self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-
 
     '''
     HELPER FUNCTIONS - PHASER

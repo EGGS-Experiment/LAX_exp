@@ -127,7 +127,6 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
 
-
     def prepare_experiment(self):
         """
         Prepare experimental values.
@@ -178,7 +177,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         if self.enable_phase_shift_keying:  num_blocks = self.num_psk_phase_shifts + 1
 
         # set up the spin echo wizard generally
-        # note: time_pulse_us divided by num_blocks to split it equally
+        # note: time_pulse_us is amount of time for each block
         self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us / num_blocks
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           False
@@ -244,61 +243,111 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
             self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
 
     @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat, phase_ch1_offset_turns: TFloat) -> TNone:
-        """
-        Configure the tones on phaser for EGGS.
-        Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
+    def run_main(self) -> TNone:
+        self.core.break_realtime()
 
-        Arguments:
-            carrier_freq_hz         (float)     : the carrier frequency (in Hz).
-            sideband_freq_hz        (float)     : the sideband frequency (in Hz).
-            phase_ch1_offset_turns  (float)     : the phase offset for CH1 (in turns).
-        """
-        '''
-        CALCULATE PHASE DELAYS
-        '''
-        # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
-        phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns)
+        # load waveform DMA handles
+        self.pulse_shaper.waveform_load()
+        self.core.break_realtime()
 
-        '''
-        SET CARRIER FREQUENCY
-        '''
-        # set carrier offset frequency via the DUC
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        # strobe updates for both channels
-        self.phaser_eggs.duc_stb()
+        # used to check_termination more frequently
+        _loop_iter = 0
 
-        # set DUC phase delay to compensate for inter-channel latency
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_duc_phase(phase_ch1_turns)
-        self.phaser_eggs.duc_stb()
+        # MAIN LOOP
+        for trial_num in range(self.repetitions):
 
-        '''
-        SET OSCILLATOR (i.e. sideband) FREQUENCIES
-        '''
-        # synchronize to frame
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        # set oscillator 0 (RSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_frequency(self.freq_global_offset_hz - sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(self.freq_global_offset_hz - sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_frequency(self.freq_global_offset_hz + sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[1].set_frequency(self.freq_global_offset_hz + sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 2 (carrier 0)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[2].set_frequency(self.freq_global_offset_hz + self.freq_carrier_0_offset_hz)
-            self.phaser_eggs.channel[1].oscillator[2].set_frequency(self.freq_global_offset_hz + self.freq_carrier_0_offset_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 3 (carrier 1)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[3].set_frequency(self.freq_global_offset_hz + self.freq_carrier_1_offset_hz)
-            self.phaser_eggs.channel[1].oscillator[3].set_frequency(self.freq_global_offset_hz + self.freq_carrier_1_offset_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
+            # implement sub-repetitions here to avoid initial overhead
+            _subrep_iter = 0
+            _config_iter = 0
+
+            # sweep experiment configurations
+            while _config_iter < self.num_configs:
+
+                '''CONFIGURE'''
+                config_vals = self.config_eggs_heating_list[_config_iter]
+                # extract values from config list
+                freq_readout_ftw =      np.int32(config_vals[0])
+                carrier_freq_hz =       config_vals[1]
+                sideband_freq_hz =      config_vals[2]
+                phase_rsb_index =       np.int32(config_vals[3])
+                phase_ch1_turns =       config_vals[4]
+                time_readout_mu =       np.int64(config_vals[5])
+
+                # get corresponding RSB phase and waveform ID from the index
+                phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[phase_rsb_index]
+                waveform_id = self.waveform_index_to_pulseshaper_id[phase_rsb_index]
+                self.core.break_realtime()
+
+                # configure EGGS tones and set readout frequency
+                # self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
+                self.phaser_eggs.frequency_configure(carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
+                                                     [
+                                                         self.freq_global_offset_hz - sideband_freq_hz,
+                                                         self.freq_global_offset_hz + sideband_freq_hz,
+                                                         self.freq_global_offset_hz + self.freq_carrier_0_offset_hz,
+                                                         self.freq_global_offset_hz + self.freq_carrier_1_offset_hz,
+                                                         0.
+                                                     ],
+                                                     phase_ch1_turns)
+                self.core.break_realtime()
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.core.break_realtime()
+
+                '''STATE PREPARATION'''
+                # initialize ion in S-1/2 state
+                self.initialize_subsequence.run_dma()
+                # sideband cool
+                self.sidebandcool_subsequence.run_dma()
+
+                '''EGGS HEATING'''
+                self.phaser_run(waveform_id)
+
+                '''READOUT'''
+                self.sidebandreadout_subsequence.run_time(time_readout_mu)
+                self.readout_subsequence.run_dma()
+                counts = self.readout_subsequence.fetch_count()
+
+                # update dataset
+                self.update_results(
+                    freq_readout_ftw,
+                    counts,
+                    carrier_freq_hz,
+                    sideband_freq_hz,
+                    phase_rsb_turns,
+                    phase_ch1_turns,
+                    time_readout_mu
+                )
+                self.core.break_realtime()
+
+                '''LOOP CLEANUP'''
+                # resuscitate ion
+                self.rescue_subsequence.resuscitate()
+
+                # death detection
+                self.rescue_subsequence.detect_death(counts)
+                self.core.break_realtime()
+
+                # check termination more frequently in case reps are low
+                if _loop_iter % 50 == 0:
+                    self.check_termination()
+                    self.core.break_realtime()
+                _loop_iter += 1
+
+                # handle sub-repetition logic
+                if _config_iter % 2 == 1:
+                    _subrep_iter += 1
+                    if _subrep_iter < self.sub_repetitions:
+                        _config_iter -= 1
+                    else:
+                        _subrep_iter = 0
+                        _config_iter += 1
+                else:
+                    _config_iter += 1
+
+            # rescue ion as needed
+            self.rescue_subsequence.run(trial_num)
+
+            # support graceful termination
+            self.check_termination()
+            self.core.break_realtime()
+

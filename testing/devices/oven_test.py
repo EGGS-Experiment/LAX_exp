@@ -1,3 +1,4 @@
+
 from artiq.experiment import *
 
 import labrad
@@ -5,6 +6,8 @@ import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.base import LAXExperiment
+
+>>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
 class OvenTest(LAXExperiment, Experiment):
     """
     todo: document
@@ -13,18 +16,26 @@ class OvenTest(LAXExperiment, Experiment):
 
     def build_experiment(self):
 
+<<<<<<< HEAD
         # grab oven
+=======
+        # grab tickle device
+>>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
         self.setattr_device('oven')
 
 
     def prepare_experiment(self):
+<<<<<<< HEAD
 
+=======
+>>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
         pass
 
     @property
     def results_shape(self):
         return (2, 2)
 
+<<<<<<< HEAD
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
         self.core.break_realtime()
@@ -178,4 +189,19 @@ class OvenTest(LAXExperiment, Experiment):
         self.aperture.open()
         self.aperture.wait(self.aperture_wait_time)
         self.aperture.close()
+=======
+    def initialize_experiment(self):
+        pass
+
+    def run_main(self):
+        self.oven.set_oven_voltage(0.)
+        self.oven.set_oven_current(0.)
+        self.oven.toggle(False)
+        print(self.oven.get_oven_current())
+        print(self.oven.get_oven_voltage())
+
+    def analyze_experiment(self):
+        pass
+
+>>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
 

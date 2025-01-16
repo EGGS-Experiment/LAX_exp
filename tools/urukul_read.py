@@ -5,15 +5,12 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import *
 from artiq.coredevice.urukul import DEFAULT_PROFILE
 from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0
-from artiq.coredevice.urukul import urukul_sta_rf_sw, SPI_CONFIG
-
 
 RAM_MODE_DIRECTSWITCH = 0
 RAM_MODE_RAMPUP = 1
 RAM_MODE_BIDIR_RAMP = 2
 RAM_MODE_CONT_BIDIR_RAMP = 3
 RAM_MODE_CONT_RAMPUP = 4
-
 
 
 class RAM_MODE(Enum):
@@ -32,6 +29,7 @@ class UrukulRead(EnvExperiment):
     Tool: Urukul Read
 
     Read values from an Urukul channel.
+    Warning: urukul profile will be set to target value and left there.
     """
     name = 'Urukul Read'
 

@@ -72,7 +72,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                         group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
-        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(False))
+        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True), group = 'Camera')
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
         self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
@@ -358,7 +358,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.set_to_pmt_after_loading:
             self.flip_flipper()
 
-
     @rpc
     def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
         """
@@ -375,7 +374,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get camera data and format into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
-
         # todo: set 1000 as some parameter for min scattering value
         data = data * (data > 1000)
         if np.max(data) > 0:
@@ -385,11 +383,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
-        accums, cx, cy, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
+        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
                                                    threshold=0.95)
-        num_ions = len(cx)
 
-        return num_ions
+        # create list of cx, cy coordinates
+        cxs_cys_list = []
+        for idx, cx in enumerate(cxs):
+            cxs_cys_list.append([cx, cys[idx]])
+
+        # gather unique locations of ions
+        unique_locs = []
+        for coords in cxs_cys_list:
+            if coords not in unique_locs:
+                unique_locs.append(coords)
+
+        return len(unique_locs)
 
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:

@@ -218,15 +218,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         if self.enable_phase_shift_keying:  num_blocks = self.num_psk_phase_shifts + 1
 
         # set up the spin echo wizard generally
-        # note: time_pulse_us divided by num_blocks to split it equally
-        self.spinecho_wizard.time_pulse_us = self.time_eggs_heating_us / num_blocks
-        self.spinecho_wizard.enable_pulse_shaping = self.enable_pulse_shaping
-        self.spinecho_wizard.pulse_shape_blocks = False
-        self.spinecho_wizard.type_pulse_shape = self.type_pulse_shape
-        self.spinecho_wizard.time_pulse_shape_rolloff_us = self.time_pulse_shape_rolloff_us
-        self.spinecho_wizard.freq_pulse_shape_sample_khz = self.freq_pulse_shape_sample_khz
-        self.spinecho_wizard.enable_delay_spinecho = False
-        self.spinecho_wizard.time_delay_spinecho_us = 250
+        # note: time_pulse_us is amount of time for each block
+        self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us / num_blocks
+        self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
+        self.spinecho_wizard.pulse_shape_blocks =           False
+        self.spinecho_wizard.type_pulse_shape =             self.type_pulse_shape
+        self.spinecho_wizard.time_pulse_shape_rolloff_us =  self.time_pulse_shape_rolloff_us
+        self.spinecho_wizard.freq_pulse_shape_sample_khz =  self.freq_pulse_shape_sample_khz
+        self.spinecho_wizard.enable_delay_spinecho =        False
+        self.spinecho_wizard.time_delay_spinecho_us =       250
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence
@@ -250,9 +250,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             _sequence_blocks[1::2, 2, 1] += 0.5
 
         # record EGGS pulse waveforms
-        for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
+        for i, phase_rsb in enumerate(self.phase_eggs_heating_rsb_turns_list):
             # update sequence block with rsb phase
-            _sequence_blocks[:, 0, 1] += self.phase_eggs_heating_rsb_turns_list[i]
+            _sequence_blocks[:, 0, 1] += phase_rsb
 
             # create waveform
             self.spinecho_wizard.sequence_blocks = _sequence_blocks
@@ -332,7 +332,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # configure EGGS tones and set readout frequency
-                self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
+                self.phaser_eggs.frequency_configure(carrier_freq_hz,
+                                                     [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.],
+                                                     phase_ch1_turns)
                 self.core.break_realtime()
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=0)

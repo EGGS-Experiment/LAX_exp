@@ -19,7 +19,6 @@ class UrukulRAMARP(EnvExperiment):
     Test adiabatic rapid passage via AD9910 RAM.
     """
 
-
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -29,10 +28,10 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_argument("repetitions",            NumberValue(default=100000, precision=0, step=1, min=1, max=10000))
 
         # DDS parameters
-        self.setattr_argument("dds_name",               StringValue(default='urukul0_ch3'), group='dds')
+        self.setattr_argument("dds_name",               StringValue(default='urukul0_ch0'), group='dds')
         self.setattr_argument("dds_name_fiducial",      StringValue(default='urukul1_ch3'), group='dds')
 
-        self.setattr_argument("att_dds_db",             NumberValue(default=3., precision=1, step=0.5, min=0., max=31.5), group='dds')
+        self.setattr_argument("att_dds_db",             NumberValue(default=20., precision=1, step=0.5, min=0., max=31.5), group='dds')
         self.setattr_argument("ampl_dds_max_pct",       NumberValue(default=50., precision=3, step=5., min=0., max=100.), group='dds')
         self.setattr_argument("phas_dds_rev_turns",     NumberValue(default=0.5, precision=3, step=0.1, min=-1., max=1.), group='dds')
 
@@ -45,11 +44,6 @@ class UrukulRAMARP(EnvExperiment):
         self.setattr_argument("time_pulse_us",          NumberValue(default=1000, precision=1, step=1000, min=1., max=150000), group='modulation')
         self.setattr_argument("time_body_us",           NumberValue(default=100, precision=1, step=1000, min=1., max=150000), group='modulation')
 
-        # debug triggers
-        # self.setattr_device("ttl8")
-        # self.setattr_device("ttl9")
-
-
     def prepare(self):
         """
         Prepare values for speedy evaluation.
@@ -59,6 +53,7 @@ class UrukulRAMARP(EnvExperiment):
             # get DDSs
             self.dds =              self.get_device(self.dds_name)
             self.dds_fiducial =     self.get_device(self.dds_name_fiducial)
+            self.ttl_debug =        self.get_device('ttl14')
 
             # ensure DDSs are on different boards
             if self.dds.cpld == self.dds_fiducial.cpld:
@@ -69,7 +64,7 @@ class UrukulRAMARP(EnvExperiment):
 
             # add DDS name to kernel invariants
             kernel_invariants = getattr(self, "kernel_invariants", set())
-            self.kernel_invariants = kernel_invariants | {'dds', 'dds_fiducial'}
+            self.kernel_invariants = kernel_invariants | {'dds', 'dds_fiducial', 'ttl_debug'}
         except Exception as e:
             # print("Error: invalid DDS channel.")
             print(repr(e))
@@ -215,8 +210,7 @@ class UrukulRAMARP(EnvExperiment):
 
         '''TTL SETUP'''
         # set up debug TTLs
-        # self.ttl8.off()
-        # self.ttl9.off()
+        self.ttl_debug.off()
 
 
         '''DDS INITIALIZE'''
@@ -313,17 +307,28 @@ class UrukulRAMARP(EnvExperiment):
         PREPARE DRG
         """
         # set Digital Ramp Generator value limits
-        self.dds.write64(_AD9910_REG_RAMP_LIMIT, data_high=self.drg_limit_max_ftw, data_low=self.drg_limit_min_ftw)
+        self.dds.write64(_AD9910_REG_RAMP_LIMIT,
+                         data_high=self.drg_limit_max_ftw,
+                         data_low=self.drg_limit_min_ftw)
         self.dds.cpld.io_update.pulse_mu(8)
 
         # set Digital Ramp Generator ramp rate (i.e. period between steps)
         # note: upper 16b is for ramping down, lower 16b is for ramping up
-        self.dds.write32(_AD9910_REG_RAMP_RATE, (self.drg_slope_step_num_clks << 16) | (self.drg_slope_step_num_clks << 0))
+        self.dds.write32(_AD9910_REG_RAMP_RATE,
+                         (self.drg_slope_step_num_clks << 16) |
+                         (self.drg_slope_step_num_clks << 0))
         self.dds.cpld.io_update.pulse_mu(8)
 
         # set Digital Ramp Generator step size
         # note: upper 32b is for ramping down, lower 32b is for ramping up
-        self.dds.write64(_AD9910_REG_RAMP_STEP, data_high=self.drg_slope_step_size_ftw, data_low=-self.drg_slope_step_size_ftw)
+        # note: this is for ramp-up mode
+        self.dds.write64(_AD9910_REG_RAMP_STEP,
+                         data_high=-self.drg_slope_step_size_ftw,
+                         data_low=self.drg_slope_step_size_ftw)
+        # # note: this is for ramp-down mode
+        # self.dds.write64(_AD9910_REG_RAMP_STEP,
+        #                  data_high=self.drg_slope_step_size_ftw,
+        #                  data_low=-self.drg_slope_step_size_ftw)
         self.dds.cpld.io_update.pulse_mu(8)
 
 
@@ -390,12 +395,12 @@ class UrukulRAMARP(EnvExperiment):
 
             # send debug TTL trigger to signal start of sequence
             at_mu(time_start_mu + 95)
-            # self.ttl8.on()
+            self.ttl_debug.on()
 
             # wait for pulse to finish
             delay_mu(self.time_ramp_mu)
             self.dds.sw.off()
-            # self.ttl8.off()
+            self.ttl_debug.off()
 
 
             '''LOOP CLEANUP'''

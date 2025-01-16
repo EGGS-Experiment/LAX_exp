@@ -408,7 +408,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.reset()
+        self.core.break_realtime()
 
         # get custom sequence handles
         _handle_eggs_pulseshape_rise = self.core_dma.get_handle('_PHASER_PULSESHAPE_RISE')
@@ -553,13 +553,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
             with parallel:
                 self.check_termination()
                 self.core.break_realtime()
-
-        '''CLEANUP'''
-        self.core.break_realtime()
-        self.phaser_eggs.reset_oscillators()
-        # tmp remove
-        self.ttl10.off()
-        # tmp remove
 
     '''
     HELPER FUNCTIONS - PHASER

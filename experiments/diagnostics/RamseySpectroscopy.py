@@ -20,7 +20,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
         'profile_ramsey', 'config_ramsey_list', 'cooling_subsequence',
         'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'trigger_func', 'time_linetrig_holdoff_mu_list'
+        'time_linetrig_holdoff_mu_list'
     }
 
     def build_experiment(self):
@@ -98,14 +98,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         elif self.cooling_type == "SBC - Continuous":   self.cooling_subsequence =  self.sidebandcool_continuous_subsequence
 
         '''
-        SET UP LINETRIGGER
-        '''
-        if self.enable_linetrigger:
-            self.trigger_func = self.trigger_line.trigger
-        else:
-            self.trigger_func = self.trigger_line.trigger_dummy
-
-        '''
         CONVERT VALUES TO MACHINE UNITS
         '''
         # ramsey pulse parameters
@@ -161,7 +153,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
             for config_vals in self.config_ramsey_list:
 
                 # tmp remove
-                self.core.reset()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
@@ -176,7 +167,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # wait for linetrigger
-                self.trigger_func(self.trigger_line.time_timeout_mu, time_holdoff_mu)
+                if self.enable_linetrigger:
+                    self.trigger_line.trigger(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
