@@ -7,7 +7,7 @@ from artiq.experiment import *
 from LAX_exp.base import LAXExperiment
 class ApertureTest(LAXExperiment, Experiment):
     """
-    todo: document
+    Aperture Test
     """
     name = "Aperture Test"
 
