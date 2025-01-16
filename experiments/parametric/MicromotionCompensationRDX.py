@@ -56,10 +56,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1566.09, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1596.2, precision=3, step=10, min=1, max=10000), group='modulation')
         self.setattr_argument("att_mode_0_db",              NumberValue(default=20, precision=1, step=0.5, min=0, max=31.5), group='modulation')
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1274.66, precision=3, step=10, min=1, max=10000), group='modulation')
+        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1307.8, precision=3, step=10, min=1, max=10000), group='modulation')
         self.setattr_argument("att_mode_1_db",              NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='modulation')
 
         # shim voltages
@@ -293,6 +293,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         print("\tBEGIN SWEEP #{:d}: {:}".format(self._host_sweep_counter,
                                                 self.dc_channel_axes_names[self._host_sweep_counter % 2]))
 
+        fitter = fitLineLinear()
+
         # if more than 2 minima, fit line to extract optimum
         if self._host_sweep_counter >= 2:
             # only use relatively recent results to reduce errors
@@ -301,8 +303,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             optima_tmp = self.sweep_results[idx_min:idx_max, :, 0:2]
 
             # fit a line to the optimum for each mode
-            fit_mode_0 = fitLineLinear(optima_tmp[:, 0])
-            fit_mode_1 = fitLineLinear(optima_tmp[:, 1])
+            fit_mode_0 = fitter.fit(optima_tmp[:, 0])
+            fit_mode_1 = fitter.fit(optima_tmp[:, 1])
 
             # calculate optima as intersection of the fit lines
             opt_v_axis_0 = - (fit_mode_1[0] - fit_mode_0[0]) / (fit_mode_1[1] - fit_mode_0[1])

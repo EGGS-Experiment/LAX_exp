@@ -348,8 +348,9 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # PROCESS SECULAR FREQUENCY SWEEP: only one voltage used
         else:
+            fitter = fitDampedDrivenOscillatorAmplitude
             # fit amplitude for all voltages
-            results_amplitude_fit = {key_voltage: fitDampedDrivenOscillatorAmplitude(val_dataset[:, [0, 1]])
+            results_amplitude_fit = {key_voltage: fitter.fit(val_dataset[:, [0, 1]])
                                      for key_voltage, val_dataset in results_tmp.items()}
             # todo: use amplitude fit values to support phase fitting
             # results_phase_fit =     {key_voltage: fitDampedDrivenOscillatorPhase(val_dataset[:, [0, 2]])

@@ -271,7 +271,8 @@ def extract_ratios(dataset: np.array,
     normalized_probs = 1. - probs / len(threshold_list)
     normalized_probs_rsb = normalized_probs[guess_Ca_carrier_MHz > readout_freqs_MHz_sorted]
     probs_rsb = np.mean(normalized_probs_rsb.reshape(-1, sub_reps * reps), 1)
-    std_rsb = np.std(normalized_probs_rsb.reshape(-1, sub_reps * reps, 1) / np.sqrt(reps * sub_reps))
+
+    std_rsb = np.std(np.reshape(normalized_probs_rsb, (-1, reps * sub_reps)), 1)  / np.sqrt(reps * sub_reps)
 
     normalized_probs_bsb = normalized_probs[guess_Ca_carrier_MHz < readout_freqs_MHz_sorted]
     probs_bsb = np.mean(np.reshape(normalized_probs_bsb, (-1, reps * sub_reps)), 1)
@@ -435,6 +436,8 @@ def process_laser_scan_results(results, time_us):
     results_tmp =           groupBy(results_tmp, column_num=0, reduce_func=np.mean)
     results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
+
+
     # calculate peak criteria from data
     # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
     # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
@@ -465,7 +468,8 @@ def process_laser_scan_results(results, time_us):
         # fit sinc profile and replace spectrum peak with fitted value
         # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
         from LAX_exp.analysis.fitting import fitSinc
-        fit_sinc_params, _ = fitSinc(points_tmp, time_us / 2.)
+        fitter = fitSinc()
+        fit_sinc_params, _ = fitter.fit(points_tmp, time_us / 2.)
         peak_vals[0, 0] = fit_sinc_params[1]
 
     return peak_vals, results_tmp

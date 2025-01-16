@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
+from sipyco import pyon
 
 
 class LaserScanMulti(LAXExperiment, Experiment):
@@ -22,17 +23,17 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=30, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("scan_type",      EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2",
-                                                                  "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan"))
+                                                                  "Scan+Both", "Sideband1", "Sideband2", "Both Sidebands"], default="Scan+Both"))
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=CenterScan(102.410, 0.02, 0.0001, randomize=True),
+                                                            default=CenterScan(101.3492, 0.02, 0.00025, randomize=True),
                                                             global_min=60, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ), group=self.name)
-        self.setattr_argument("freq_sideband_1",    NumberValue(default=0.76, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
-        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.07, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_1",    NumberValue(default=1.592, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
+        self.setattr_argument("freq_sideband_2",    NumberValue(default=1.303, min=0, max=20, step=1, unit="MHz", scale=1, precision=6), group=self.name)
         self.setattr_argument("time_qubit_us",      NumberValue(default=5000, precision=5, step=1, min=1, max=10000000), group=self.name)
         self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50, precision=3, step=10, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",       NumberValue(default=28, precision=1, step=0.5, min=8, max=31.5), group=self.name)
@@ -150,7 +151,8 @@ class LaserScanMulti(LAXExperiment, Experiment):
         threshold_list =        findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities and convert from D-state probability to S-state probability
+        #todo: talk to Clayton about this
+        # normalize probabilities and convert from S-state probability to D-state probability
         results_tmp[:, 1] =     1. - probability_vals / len(threshold_list)
         # process dataset into x, y, with y being averaged probability
         results_tmp =   groupBy(results_tmp, column_num=0, reduce_func=np.mean)
@@ -185,7 +187,8 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
             # fit sinc profile and replace spectrum peak with fitted value
             # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
-            fit_sinc_params, _ = fitSinc(points_tmp, self.time_qubit_us / 2.)
+            fitter = fitSinc()
+            fit_sinc_params, _ = fitter.fit(points_tmp, self.time_qubit_us / 2.)
             peak_vals[0, 0] = fit_sinc_params[1]
 
         # save results to hdf5 as a dataset
@@ -202,4 +205,26 @@ class LaserScanMulti(LAXExperiment, Experiment):
                 print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
         else:
             print("\tWarning: too many peaks detected.")
+
+        # get results and split into x and y
+        results_plotting = np.array(results_tmp)
+        results_plotting_x, results_plotting_y = results_plotting.transpose()
+
+        # format dictionary for plotting applet
+        plotting_results = {'x': results_plotting_x,
+                            'y': results_plotting_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'AOM. Freq (MHz)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results_laserscan_multi', pyon.encode(plotting_results), broadcast=True)
+
+        # create applet
+        self.ccb.issue("create_applet", f"Laser Scan (Multi)",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan_multi'
+                       ' --num-subplots 1',
+                       group=["plotting", "diagnostics"])
+
         return results_tmp

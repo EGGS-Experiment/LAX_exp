@@ -1,9 +1,13 @@
+
+from artiq.experiment import *
+
 import labrad
 import numpy as np
 from artiq.experiment import *
 
 from LAX_exp.base import LAXExperiment
 
+>>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
 class OvenTest(LAXExperiment, Experiment):
     """
     todo: document
@@ -12,16 +16,18 @@ class OvenTest(LAXExperiment, Experiment):
 
     def build_experiment(self):
 
-        # grab tickle device
+        # grab oven
         self.setattr_device('oven')
 
 
     def prepare_experiment(self):
+
         pass
 
     @property
     def results_shape(self):
         return (2, 2)
+
 
     def initialize_experiment(self):
         pass

@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2, RescueIon
+from sipyco import pyon
 
 
 class LinewidthMeasurement2(LAXExperiment, Experiment):
@@ -178,8 +179,10 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
         # fit gaussian, lorentzian, and voigt profiles
         # todo: fit voigt profile
-        fit_gaussian_params, fit_gaussian_err =     fitGaussian(res_final[:, :2])
-        fit_lorentzian_params, fit_lorentzian_err = fitLorentzian(res_final[:, :2])
+        fitter_gauss = fitGaussian()
+        fitter_lorentzian = fitLorentzian()
+        fit_gaussian_params, fit_gaussian_err =     fitter_gauss.fit(res_final[:, :2])
+        fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
         # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
         fit_gaussian_fwmh_mhz =     2 * (2. * fit_gaussian_params[1]) ** -0.5
         fit_gaussian_fwmh_mhz_err = fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1])
@@ -208,4 +211,25 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         # print("\t\tVoigt Fit:")
         # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
         # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
+
+        results_plotting_x = res_final[:, 0]
+        results_plotting_y = res_final[:, 1]
+        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
+        fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
+        plotting_results = {'x': results_plotting_x,
+                            'y': results_plotting_y,
+                            'fit_x': fit_x,
+                            'fit_y': fit_y,
+                            'subplot_titles': f'Laser Scan',
+                            'subplot_x_labels': 'AOM Frequency (MHz)',
+                            'subplot_y_labels': 'Counts',
+                            'rid': self.scheduler.rid,
+                            }
+
+        self.set_dataset('temp.plotting.results_linewidth2', pyon.encode(plotting_results), broadcast=True)
+
+        self.ccb.issue("create_applet", f"Linewidth Measurement 2",
+                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth2'
+                       ' --num-subplots 1',
+                       group = ['plotting', 'diagnostics'])
         return res_final

@@ -358,7 +358,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.set_to_pmt_after_loading:
             self.flipper.flip()
 
-
     @rpc
     def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
         """
@@ -375,7 +374,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get camera data and format into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
-
         # todo: set 1000 as some parameter for min scattering value
         data = data * (data > 1000)
         if np.max(data) > 0:
