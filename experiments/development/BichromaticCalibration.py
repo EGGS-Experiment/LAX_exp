@@ -47,7 +47,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                         ), group="scan.frequency")
 
         # scan parameters - time
-        self.setattr_argument("equalize_delays",        BooleanValue(default=True), group="scan.time")
+        self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
                                                                 ExplicitScan([6.05]),
@@ -90,14 +90,14 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.qubit_carrier = self.get_device("urukul0_ch1")
         self.freq_qubit_carrier_default_ftw =   self.qubit_carrier.frequency_to_ftw(80. * MHz)
         self.ampl_qubit_carrier_default_asf =   self.qubit_carrier.amplitude_to_asf(50. / 100.)
-        self.att_qubit_carrier_default_mu =     att_to_mu(19. * dB)
+        self.att_qubit_carrier_default_mu =     att_to_mu(13. * dB)
         # tmp remove
 
         # beam parameters
-        self.ampl_729_carrier_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.ampl_729_carrier_asf = self.qubit.amplitude_to_asf(self.ampl_729_carrier_pct / 100.)
+        self.att_729_carrier_mu =   att_to_mu(self.att_729_carrier_db * dB)
 
-        self.att_729_carrier_mu =   att_to_mu(self.att_qubit_db * dB)
+        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
         # create frequency config to equalize output at ion
@@ -119,7 +119,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
             for time_us in self.time_rabi_us_list
         ])
         # turn off delay equalization based on user selection
-        if not self.equalize_delays: self.time_rabiflop_mu_list[:, 0] = np.int64(8)
+        if not self.equalize_delays: time_rabiflop_mu_list[:, 0] = np.int64(8)
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -151,17 +151,18 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # ensure qubit carrier is set up correctly on ALL profiles
-        for i in range(7):
+        for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
                                       profile=i)
             self.qubit_carrier.cpld.io_update.pulse_mu(8)
             delay_mu(5000)
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit_carrier.write32(ad9910._AD9910_REG_CFR1,
-                         (1 << 16) |  # select_sine_output
-                         (1 << 13)  # phase_autoclear
-                         )
+        # self.qubit_carrier.write32(ad9910._AD9910_REG_CFR1,
+        #                  # (1 << 16) |  # select_sine_output
+        #                  (1 << 13) | # phase_autoclear
+        #                  2          # default serial I/O configs
+        #                  )
         self.qubit_carrier.cpld.io_update.pulse_mu(8)
         self.qubit_carrier.sw.on()
         self.core.break_realtime()
@@ -202,6 +203,10 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 else:
                     self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_target)
                 self.core.break_realtime()
+
+                # # tmp remove
+                # self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
+                # # tmp remove
 
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state
@@ -250,7 +255,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # set qubit carrier to default value (b/c AOM thermal drift) on ALL profiles
-        for i in range(7):
+        for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
                                       profile=i)
