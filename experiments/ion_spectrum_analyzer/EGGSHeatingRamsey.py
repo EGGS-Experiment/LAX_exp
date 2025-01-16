@@ -513,6 +513,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
                 print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
 
-    except Exception as e:
-            print("Warning: unable to process data.")
-            print(repr(e))
+        except Exception as e:
+                print("Warning: unable to process data.")
+                print(repr(e))

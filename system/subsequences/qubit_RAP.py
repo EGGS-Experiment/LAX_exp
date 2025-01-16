@@ -42,10 +42,10 @@ class QubitRAP(LAXSubsequence):
         # set subsequence parameters
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
-        self.num_samples =      num_samples
+        # self.num_samples =      num_samples
+        self.num_samples =      1000
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
-        # self.pulse_shape =      "square"
 
         # number of DRG updates per RAM amplitude update; must be power of 2
         self.drg_steps_per_ram_step = 1
