@@ -31,7 +31,6 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # get relevant devices
         self.setattr_device('qubit')
-        self.setattr_device('ccb')
 
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
@@ -180,7 +179,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Sideband Cooling",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
                        ' --num-subplots 2',
-                       group='plotting.diagnostics')
+                       group=['plotting', 'diagnostics'])
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]

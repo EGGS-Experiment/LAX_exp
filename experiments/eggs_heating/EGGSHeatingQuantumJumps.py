@@ -1037,7 +1037,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                 self.ccb.issue("create_applet", f"EGGS Heating - Quantum Jumps",
                                '$python -m LAX_exp.applets.plot_matplotlib '
                                'temp.plotting.results_eggs_heating_quantum_jumps_ch1_sweep'
-                               ' --num-subplots 1', group='plotting.eggs_heating.ch1_sweep')
+                               ' --num-subplots 1', group=['plotting', 'eggs_heating', 'ch1_sweep'])
 
 
             except Exception as e:

@@ -42,7 +42,6 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device('ccb')
 
         # prepare sequences
         self.initialize_subsequence = InitializeQubit(self)
@@ -207,6 +206,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         # create applet
         self.ccb.issue("create_applet", f"Rabi Flopping",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
-                       ' --num-subplots 1', group = 'plotting.diagnostics')
+                       ' --num-subplots 1',
+                       group = ['plotting', 'diagnostics'])
 
         return results_tmp

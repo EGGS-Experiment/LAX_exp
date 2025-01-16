@@ -42,7 +42,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
         self.setattr_device('sampler0')
-        self.setattr_device('ccb')
 
         # subsequences
         self.dopplercool_subsequence =  DopplerCool(self)
@@ -232,5 +231,5 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Linewidth Measurement 2",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth2'
                        ' --num-subplots 1',
-                       group = 'plotting.diagnostics')
+                       group = ['plotting', 'diagnostics'])
         return res_final
