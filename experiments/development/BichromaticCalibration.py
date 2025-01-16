@@ -106,7 +106,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 # note: carrier DDS controls SLS single-pass => 1.0x
                 self.qubit.frequency_to_ftw(self.freq_729_carrier_center_mhz * MHz + freq_khz * kHz),
                 # note: qubit DDS controls double-pass => 0.5x
-                self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz - 0.5 * (freq_khz * kHz))
+                self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz + 0.5 * (freq_khz * kHz))
             ]
             for freq_khz in self.freq_729_carrier_sweep_khz_list
         ])
