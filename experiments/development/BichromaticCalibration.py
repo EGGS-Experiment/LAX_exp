@@ -60,7 +60,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
         # carrier beam parameters
         self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=20, precision=3, step=5, min=0.01, max=50), group="beam.carrier")
-        self.setattr_argument("att_729_carrier_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="beam.carrier")
+        self.setattr_argument("att_729_carrier_db",     NumberValue(default=31.5, precision=1, step=0.5, min=19., max=31.5), group="beam.carrier")
 
         # beam parameters
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group="beam.qubit")
@@ -90,7 +90,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.qubit_carrier = self.get_device("urukul0_ch1")
         self.freq_qubit_carrier_default_ftw =   self.qubit_carrier.frequency_to_ftw(80. * MHz)
         self.ampl_qubit_carrier_default_asf =   self.qubit_carrier.amplitude_to_asf(50. / 100.)
-        self.att_qubit_carrier_default_mu =     att_to_mu(16 * dB)
+        self.att_qubit_carrier_default_mu =     att_to_mu(19. * dB)
         # tmp remove
 
         # beam parameters
