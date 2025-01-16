@@ -356,7 +356,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.aperture.close_aperture()
 
         if self.set_to_pmt_after_loading:
-            self.flip_flipper()
+            self.flipper.flip()
 
     @rpc
     def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
@@ -420,15 +420,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # if PMT counts are below the dark count threshold flip again
         if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
             self.flipper.flip()
-        self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
-    def flip_flipper (self) -> TNone:
-        self.core.break_realtime()
-        self.flipper.flip()
-
-        # synchronize timeline
-        self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
     @rpc
