@@ -98,7 +98,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # EGGS RF - Ramsey
         self.setattr_argument("enable_ramsey_delay",                        BooleanValue(default=True), group='EGGS_Heating.ramsey')
         self.setattr_argument("time_ramsey_delay_us",                       NumberValue(default=60, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.ramsey')
-        self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='Carrier'), group='EGGS_Heating.ramsey')
+        self.setattr_argument("target_ramsey_phase",                        EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='RSB+BSB'), group='EGGS_Heating.ramsey')
         self.setattr_argument("phase_ramsey_anti_turns_list",               Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([0., 0.5]),
@@ -184,7 +184,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.pulse_shaper._phase_offsets_turns =    np.array([0., 0., 0.5, 0., 0.])
 
         # set up the spin echo wizard generally
-        # note: time_pulse_us divided by num_blocks to split it equally
+        # note: time_pulse_us is amount of time for each block
         self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           True

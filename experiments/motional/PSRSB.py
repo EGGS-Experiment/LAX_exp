@@ -170,7 +170,7 @@ class PSRSB(LAXExperiment, Experiment):
         self.waveform_qvsa_pulseshape_id = 0
 
         # set up the spin echo wizard generally
-        # note: time_pulse_us divided by num_blocks to split it equally
+        # note: time_pulse_us is amount of time for each block
         self.spinecho_wizard.time_pulse_us =                self.time_qvsa_us
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           False

@@ -43,7 +43,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                                     CenterScan(250., 100., 5., randomize=True),
                                                                 ],
                                                                 global_min=0.1, global_max=100000, global_step=5.,
-                                                                unit="MHz", scale=1, precision=6
+                                                                unit="kHz", scale=1, precision=6
                                                             ), group="{}.chirp".format(self.name))
         self.setattr_argument("time_rap_us_list",   Scannable(
                                                             default=[
@@ -84,7 +84,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)
         self.rap_subsequence =          QubitRAP(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
-                                                        num_samples=500)
+                                                 num_samples=500, pulse_shape="blackman")
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 

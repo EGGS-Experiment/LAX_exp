@@ -15,13 +15,13 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
     todo: document
     """
-    name = 'Laser Scan Pulse Shape'
+    name = 'Bichromatic Calibration'
     kernel_invariants = {
-        'qubit_carrier',
-        'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
-        'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'pulseshape_subsequence',
-        'time_linetrig_holdoff_mu_list',
+        'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'profile_target',
+        'qubit_carrier', 'freq_qubit_carrier_default_ftw', 'ampl_qubit_carrier_default_asf',
+        'att_qubit_carrier_default_mu',
+        'ampl_729_carrier_asf', 'ampl_qubit_asf', 'att_729_carrier_mu', 'att_qubit_mu',
         'config_experiment_list'
     }
 
@@ -29,10 +29,10 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
-        # qubit scan parameters
-        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.3325, precision=5, step=1, min=50., max=400.),
+        # scan parameters - frequency
+        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.),
                                                 group="scan.frequency")
-        self.setattr_argument("freq_729_carrier_center_mhz",    NumberValue(default=80., precision=5, step=1, min=50., max=400.),
+        self.setattr_argument("freq_729_carrier_center_mhz", NumberValue(default=80., precision=6, step=1, min=50., max=400.),
                                                                 group="scan.frequency")
         self.setattr_argument("freq_729_carrier_sweep_khz_list",  Scannable(
                                                             default=[
@@ -44,6 +44,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                             global_min=-100000., global_max=100000., global_step=10,
                                                             unit="kHz", scale=1, precision=3
                                                         ), group="scan.frequency")
+
+        # scan parameters - time
         self.setattr_argument("equalize_delays",        BooleanValue(default=True), group="scan.time")
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
@@ -70,9 +72,9 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         # subsequences
         self.profile_target = 6
         self.initialize_subsequence =   InitializeQubit(self)
-        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=self.profile_target,
-                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=1000)
+                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=1000,
+                                                        pulse_shape="blackman")
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -144,18 +146,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.qubit.set_profile(0)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
-        self.qubit_carrier.set_att_mu(self.att_qubit_carrier_default_mu)
+        self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
         self.core.break_realtime()
-
-        # record subsequences onto DMA
-        self.initialize_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
-        self.core.break_realtime()
-
-        # set up qubit pulse
-        if self.enable_pulseshaping:
-            self.pulseshape_subsequence.set_pulse_time_us(self.time_qubit_us)
-            self.core.break_realtime()
 
         # ensure qubit carrier is set up correctly on ALL profiles
         for i in range(7):
@@ -165,6 +157,11 @@ class BichromaticCalibration(LAXExperiment, Experiment):
             self.qubit_carrier.cpld.io_update.pulse_mu(8)
             delay_mu(5000)
         self.qubit_carrier.sw.on()
+        self.core.break_realtime()
+
+        # record subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -187,7 +184,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
                 # set pulse time
                 if self.enable_pulseshaping:
-                    self.pulseshape_subsequence.set_pulse_time_us(time_pulse_mu)
+                    self.pulseshape_subsequence.configure(time_pulse_mu)
 
                 # set qubit carrier frequency
                 self.qubit_carrier.set_mu(freq_729_carrier_ftw, asf=self.ampl_qubit_carrier_default_asf,
@@ -253,6 +250,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
             self.qubit_carrier.cpld.io_update.pulse_mu(8)
             delay_mu(5000)
         self.qubit_carrier.sw.on()
+        self.qubit_carrier.set_att_mu(self.att_qubit_carrier_default_mu)
         self.core.break_realtime()
 
     # ANALYSIS

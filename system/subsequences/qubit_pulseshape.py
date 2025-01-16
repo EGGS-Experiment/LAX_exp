@@ -4,9 +4,9 @@ from artiq.coredevice.ad9910 import _AD9910_REG_CFR1
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 import numpy as np
-# todo: migrate to use PulseShaper
 
 
 class QubitPulseShape(LAXSubsequence):
@@ -18,12 +18,13 @@ class QubitPulseShape(LAXSubsequence):
     name = 'qubit_pulseshape'
     kernel_invariants = {
         "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct",
-        "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_s_to_time_step",
+        "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step",
         "ampl_asf_pulseshape_list",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.):
+                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
+                          pulse_shape: TStr = "sine_squared"):
         """
         Defines the main interface for the subsequence.
         Arguments:
@@ -39,6 +40,7 @@ class QubitPulseShape(LAXSubsequence):
         self.ram_addr_start =   ram_addr_start
         self.num_samples =      num_samples
         self.ampl_max_pct =     ampl_max_pct
+        self.pulse_shape =      pulse_shape
 
         # get relevant devices
         self.setattr_device("core")
@@ -73,14 +75,15 @@ class QubitPulseShape(LAXSubsequence):
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
         # todo: get sync_clk from ad9910 device instead
         self.freq_dds_sync_clk_hz =         1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
-        # todo: make this machine units
-        self.time_pulse_s_to_time_step =    self.freq_dds_sync_clk_hz / self.num_samples
+        self.time_pulse_mu_to_ram_step =    ((self.freq_dds_sync_clk_hz / self.core.seconds_to_mu(1)) /
+                                             self.num_samples)
 
         '''CALCULATE WAVEFORM'''
         # calculate pulse shape, then normalize and rescale to max amplitude
-        wav_y_vals = np.array([self._waveform_calc(x_val)
-                               for x_val in np.linspace(0., 1., self.num_samples)])
-        wav_y_vals *= (self.ampl_max_pct / 100) / np.max(wav_y_vals)
+        # note: make sure max x_val is double the rolloff since PulseShaper does rising edge only
+        x_vals = np.linspace(0., 200., self.num_samples)
+        wav_y_vals = available_pulse_shapes[self.pulse_shape](x_vals, 100)
+        wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
 
         # create empty array to store values
         self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
@@ -88,18 +91,6 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
-
-    def _waveform_calc(self, compl_pct: TFloat) -> TFloat:
-        """
-        User function that returns the waveform shape.
-        Arguments:
-            compl_pct: fractional percentage of pulseshape.
-                Must be in [0., 1.].
-        Returns:
-            fractional amplitude in [0., 1.].
-        """
-        # todo: cooler pulses
-        return np.sin(np.pi * compl_pct) ** 2.
 
 
     """
@@ -155,32 +146,32 @@ class QubitPulseShape(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def set_pulse_time_us(self, time_us: TFloat) -> TFloat:
+    def configure(self, time_mu: TInt64) -> TInt64:
         """
         Set the overall pulse time for the shaped pulse.
         This is achieved by adjusting the sample rate of the pulse shape updates.
         Arguments:
-            time_pulse_us: pulse time in us.
+            time_pulse_mu: pulse time in mu.
         Returns:
-            actual pulse time (in us).
+            actual pulse time (in mu).
         """
-        # todo: make this entire function do timing in mu instead of us
-        # calculate step size/timing
-        time_step_size = int((time_us * us) * self.time_pulse_s_to_time_step)
-        if (time_step_size > (1 << 16)) or (time_step_size < 1):
-            raise ValueError("Invalid pulse time in set_pulse_time_us.")
+        # calculate step size/timing for RAM
+        time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
+        if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
+            raise ValueError("Invalid RAM timestemp in qubitPulseShape.configure()."
+                             "Change either pulse time or number of samples.")
 
         # reconvert to get correct time_pulse_mu correctly for later delay
-        self.time_pulse_mu = self.core.seconds_to_mu(time_step_size / self.time_pulse_s_to_time_step)
+        self.time_pulse_mu = np.int64(time_ram_step / self.time_pulse_mu_to_ram_step)
 
         # set RAM profile parameters for pulse shaping
         # note: using RAM rampup mode for simplicity
         self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
-            step=time_step_size,
+            step=time_ram_step,
             profile=self.ram_profile, mode=RAM_MODE_RAMPUP
         )
-        return self.core.mu_to_seconds(self.time_pulse_mu) / us
+        return self.time_pulse_mu
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

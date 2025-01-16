@@ -203,7 +203,7 @@ class EGGSHeatingRDXGlobalOffset(LAXExperiment, Experiment):
         if self.enable_phase_shift_keying:  num_blocks = self.num_psk_phase_shifts + 1
 
         # set up the spin echo wizard generally
-        # note: time_pulse_us divided by num_blocks to split it equally
+        # note: time_pulse_us is amount of time for each block
         self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us / num_blocks
         self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
         self.spinecho_wizard.pulse_shape_blocks =           False

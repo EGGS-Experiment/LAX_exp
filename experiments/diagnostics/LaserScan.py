@@ -14,9 +14,9 @@ class LaserScan(LAXExperiment, Experiment):
     Does a 729nm laser scan; resets the ion(s) every shot.
     Supports sine-squared pulse shaping.
     """
-    name = 'Laser Scan Pulse Shape'
+    name = 'Laser Scan'
     kernel_invariants = {
-        'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu',
+        'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'pulseshape_subsequence',
         'time_linetrig_holdoff_mu_list',
@@ -83,6 +83,9 @@ class LaserScan(LAXExperiment, Experiment):
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
+        # timing
+        self.time_qubit_mu = self.core.seconds_to_mu(self.time_qubit_us * us)
+
         '''
         CONFIGURE LINETRIGGERING
         '''
@@ -127,7 +130,7 @@ class LaserScan(LAXExperiment, Experiment):
 
         # set up qubit pulse
         if self.enable_pulseshaping:
-            self.pulseshape_subsequence.set_pulse_time_us(self.time_qubit_us)
+            self.pulseshape_subsequence.configure(self.time_qubit_mu)
             self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
