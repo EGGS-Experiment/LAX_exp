@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice import ad9910
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -41,7 +42,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                                 ExplicitScan([1303.29, -1303.29]),
                                                                 RangeScan(-1303.29, 1303.29, 200, randomize=True),
                                                             ],
-                                                            global_min=-100000., global_max=100000., global_step=10,
+                                                            global_min=-20000., global_max=200000., global_step=10,
                                                             unit="kHz", scale=1, precision=3
                                                         ), group="scan.frequency")
 
@@ -58,13 +59,13 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                         ), group="scan.time")
 
         # carrier beam parameters
-        self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=20, precision=3, step=5, min=0.01, max=50), group="carrier.beam")
-        self.setattr_argument("att_729_carrier_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="carrier.beam")
+        self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=20, precision=3, step=5, min=0.01, max=50), group="beam.carrier")
+        self.setattr_argument("att_729_carrier_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="beam.carrier")
 
         # beam parameters
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group="qubit.beam")
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group="qubit.beam")
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="qubit.beam")
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group="beam.qubit")
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group="beam.qubit")
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="beam.qubit")
 
         # relevant devices
         self.setattr_device('qubit')
@@ -142,7 +143,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # ensure DMA sequences use profile 0
+        # ensure DMA sequences use correct profile
         self.qubit.set_profile(0)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
@@ -156,6 +157,12 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                       profile=i)
             self.qubit_carrier.cpld.io_update.pulse_mu(8)
             delay_mu(5000)
+        # enable RAM mode and clear DDS phase accumulator
+        self.qubit_carrier.write32(ad9910._AD9910_REG_CFR1,
+                         (1 << 16) |  # select_sine_output
+                         (1 << 13)  # phase_autoclear
+                         )
+        self.qubit_carrier.cpld.io_update.pulse_mu(8)
         self.qubit_carrier.sw.on()
         self.core.break_realtime()
 
@@ -187,7 +194,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                     self.pulseshape_subsequence.configure(time_pulse_mu)
 
                 # set qubit carrier frequency
-                self.qubit_carrier.set_mu(freq_729_carrier_ftw, asf=self.ampl_qubit_carrier_default_asf,
+                self.qubit_carrier.set_mu(freq_729_carrier_ftw, asf=self.ampl_729_carrier_asf,
                                           profile=self.profile_target)
                 # set qubit frequency
                 if self.enable_pulseshaping:
