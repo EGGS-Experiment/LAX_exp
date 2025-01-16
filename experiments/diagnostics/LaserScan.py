@@ -88,7 +88,6 @@ class LaserScan(LAXExperiment, Experiment):
         # relevant devices
         self.setattr_device('qubit')
         self.setattr_device('trigger_line')
-        self.setattr_device('ccb')
 
         # tmp remove
         self.setattr_device('pump')
