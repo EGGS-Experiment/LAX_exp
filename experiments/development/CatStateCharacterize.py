@@ -19,11 +19,18 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     """
     name = 'Cat State Characterize'
     kernel_invariants = {
-        'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target',
-        'qubit_carrier', 'freq_qubit_carrier_default_ftw', 'ampl_qubit_carrier_default_asf',
-        'att_qubit_carrier_default_mu',
-        'ampl_729_carrier_asf', 'ampl_qubit_asf', 'att_729_carrier_mu', 'att_qubit_mu',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'profile_target', 'singlepass0', 'singlepass1',
+
+        'freq_singlepass0_default_ftw', 'ampl_singlepass0_default_asf', 'att_singlepass0_default_mu',
+        'freq_singlepass1_default_ftw', 'ampl_singlepass1_default_asf', 'att_singlepass1_default_mu',
+        'freq_doublepass_default_ftw', 'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
+        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
+
+        'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
+        'phases_pulse4_cat_pow',
+        'phases_pulse4_cat_update_dir', 'freq_pulse5_readout_ftw', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
+
         'config_experiment_list'
     }
 
@@ -147,17 +154,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         # defaults - singlepass AOM
         self.singlepass0 = self.get_device("urukul0_ch1")
-        self.freq_singlepass0_default_ftw =     self.singlepass0.frequency_to_ftw(self.freq_singlepass0_default_ftw * MHz)
+        self.freq_singlepass0_default_ftw =     self.singlepass0.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
         self.ampl_singlepass0_default_asf =     self.singlepass0.amplitude_to_asf(self.ampl_singlepass0_default_pct / 100.)
         self.att_singlepass0_default_mu =       att_to_mu(self.att_singlepass0_default_db * dB)
 
         self.singlepass1 = self.get_device("urukul0_ch2")
-        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass1_default_ftw * MHz)
+        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
         self.ampl_singlepass1_default_asf =     self.singlepass1.amplitude_to_asf(self.ampl_singlepass1_default_pct / 100.)
         self.att_singlepass1_default_mu =       att_to_mu(self.att_singlepass1_default_db * dB)
 
         # defaults - doublepass AOM
-        self.freq_doublepass_default_ftw =     self.qubit.frequency_to_ftw(self.freq_doublepass_default_ftw * MHz)
+        self.freq_doublepass_default_ftw =     self.qubit.frequency_to_ftw(self.freq_doublepass_default_mhz * MHz)
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
         self.att_doublepass_default_mu =       att_to_mu(self.att_doublepass_default_db * dB)
 
@@ -181,7 +188,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS - PULSES
         '''
         # pulse 1 - cat 0
-        self.time_pulse1_cat_us =       self.core.seconds_to_mu(self.time_pulse1_cat_us * us)
+        self.time_pulse1_cat_mu =       self.core.seconds_to_mu(self.time_pulse1_cat_us * us)
         self.phases_pulse1_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
                                                   for phas_pow in self.phases_pulse1_cat_turns], dtype=np.int32)
 
@@ -247,7 +254,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # set up qubit beam for DMA sequences
         self.qubit.set_profile(0)
-        self.qubit.set_att_mu(self.att_doublepass_default_db)
+        self.qubit.set_att_mu(self.att_doublepass_default_mu)
         self.core.break_realtime()
 
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
@@ -324,13 +331,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.pulse_sigmax(time_start_mu, 0)
 
                 # pulse 1: cat 1
-                self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_us, phase_pulse4_cat_pow,
+                self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
                                        freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 # pulse 2: repump via 854
                 if self.enable_pulse2_quench:
                     self.repump_qubit.on()
-                    delay_mu(self.time_repump_qubit_mu)
+                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                     self.repump_qubit.off()
 
                 # pulse 3: sigma_x #2
