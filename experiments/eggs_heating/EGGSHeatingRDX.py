@@ -48,85 +48,66 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
-            default=[
-                ExplicitScan([80.]),
-                # CenterScan(83.20175, 0.05, 0.0005, randomize=True),
-            ],
-            global_min=0.005, global_max=4800, global_step=1,
-            unit="MHz", scale=1, precision=6
-        ), group='EGGS_Heating.frequencies')
+                                                                        default=[
+                                                                            ExplicitScan([80.]),
+                                                                            # CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                                                                        ],
+                                                                        global_min=0.005, global_max=4800, global_step=1,
+                                                                        unit="MHz", scale=1, precision=6
+                                                                    ), group='EGGS_Heating.frequencies')
         self.setattr_argument("freq_eggs_heating_secular_khz_list", Scannable(
-            default=[
-                # ExplicitScan([1303]),
-                CenterScan(1303, 4, 0.1, randomize=True),
-                # ExplicitScan([767.2, 319.2, 1582, 3182]),
-            ],
-            global_min=0, global_max=10000, global_step=1,
-            unit="kHz", scale=1, precision=3
-        ), group='EGGS_Heating.frequencies')
+                                                                        default=[
+                                                                            # ExplicitScan([1303]),
+                                                                            CenterScan(1303, 4, 0.1, randomize=True),
+                                                                            # ExplicitScan([767.2, 319.2, 1582, 3182]),
+                                                                        ],
+                                                                        global_min=0, global_max=10000, global_step=1,
+                                                                        unit="kHz", scale=1, precision=3
+                                                                    ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_readout_us_list", Scannable(
-            default=[
-                ExplicitScan([122.9]),
-                RangeScan(0, 1500, 100, randomize=True),
-            ],
-            global_min=1, global_max=100000, global_step=1,
-            unit="us", scale=1, precision=5
-        ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("time_eggs_heating_us",
-                              NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000),
-                              group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_readout_us_list",               Scannable(
+                                                                        default=[
+                                                                            ExplicitScan([122.9]),
+                                                                            RangeScan(0, 1500, 100, randomize=True),
+                                                                        ],
+                                                                        global_min=1, global_max=100000, global_step=1,
+                                                                        unit="us", scale=1, precision=5
+                                                                    ), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("time_eggs_heating_us", NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list", Scannable(
-            default=[
-                ExplicitScan([0.]),
-                RangeScan(0, 1.0, 3, randomize=True),
-            ],
-            global_min=-1.0, global_max=1.0, global_step=0.1,
-            unit="turns", scale=1, precision=3
-        ), group='EGGS_Heating.waveform.time_phase')
+                                                                        default=[
+                                                                            ExplicitScan([0.]),
+                                                                            RangeScan(0, 1.0, 3, randomize=True),
+                                                                        ],
+                                                                        global_min=-1.0, global_max=1.0, global_step=0.1,
+                                                                        unit="turns", scale=1, precision=3
+                                                                    ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_ch1_turns_list", Scannable(
-            default=[
-                ExplicitScan([0.4668]),
-                RangeScan(0, 1.0, 2, randomize=True),
-            ],
-            global_min=-1.0, global_max=1.0, global_step=0.1,
-            unit="turns", scale=1, precision=3
-        ), group='EGGS_Heating.waveform.time_phase')
-        self.setattr_argument("phase_eggs_heating_bsb_turns",
-                              NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0),
-                              group='EGGS_Heating.waveform.time_phase')
+                                                                        default=[
+                                                                            ExplicitScan([0.4668]),
+                                                                            RangeScan(0, 1.0, 2, randomize=True),
+                                                                        ],
+                                                                        global_min=-1.0, global_max=1.0, global_step=0.1,
+                                                                        unit="turns", scale=1, precision=3
+                                                                    ), group='EGGS_Heating.waveform.time_phase')
+        self.setattr_argument("phase_eggs_heating_bsb_turns", NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_heating_db", NumberValue(default=22., precision=1, step=0.5, min=0, max=31.5),
-                              group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_rsb_pct",
-                              NumberValue(default=40., precision=2, step=10, min=0.0, max=99),
-                              group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_bsb_pct",
-                              NumberValue(default=40., precision=2, step=10, min=0.0, max=99),
-                              group='EGGS_Heating.waveform.ampl')
-        self.setattr_argument("ampl_eggs_heating_carrier_pct",
-                              NumberValue(default=.2, precision=2, step=10, min=0.0, max=99),
-                              group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("att_eggs_heating_db",        NumberValue(default=22., precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_rsb_pct",  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_bsb_pct",  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+        self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=.2, precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",
-                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",
-                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
-                              group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",
-                              NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
-                              group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying", BooleanValue(default=False),
-                              group='EGGS_Heating.waveform.psk')
-        self.setattr_argument("num_psk_phase_shifts", NumberValue(default=3, precision=0, step=10, min=1, max=100),
-                              group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
+        self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
         # get relevant devices
         self.setattr_device("qubit")

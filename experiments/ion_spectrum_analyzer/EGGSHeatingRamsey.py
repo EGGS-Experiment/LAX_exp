@@ -37,11 +37,11 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
 
         # get subsequences
-        self.initialize_subsequence =                                       InitializeQubit(self)
-        self.sidebandcool_subsequence =                                     SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =                                  SidebandReadout(self)
-        self.readout_subsequence =                                          Readout(self)
-        self.rescue_subsequence =                                           RescueIon(self)
+        self.initialize_subsequence =       InitializeQubit(self)
+        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
+        self.sidebandreadout_subsequence =  SidebandReadout(self)
+        self.readout_subsequence =          Readout(self)
+        self.rescue_subsequence =           RescueIon(self)
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
