@@ -51,12 +51,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=50., precision=3, step=5, min=0.01, max=88), group="defaults.beams")
-        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=2., max=31.5), group="defaults.beams")
+        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=61., precision=3, step=5, min=0.01, max=61.2), group="defaults.beams")
+        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
 
         self.setattr_argument("freq_singlepass1_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=88), group="defaults.beams")
-        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=2., max=31.5), group="defaults.beams")
+        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=50), group="defaults.beams")
+        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="defaults.beams")
 
         self.setattr_argument("freq_doublepass_default_mhz",    NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.), group="defaults.beams")
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
@@ -80,14 +80,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                             ), group='defaults.cat')
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
-                                                                    ExplicitScan([1303]),
-                                                                    CenterScan(1303, 4, 0.1, randomize=True),
-                                                                    RangeScan(1250, 1350, 50, randomize=True),
+                                                                    ExplicitScan([701.6]),
+                                                                    CenterScan(701.6, 4, 0.1, randomize=True),
+                                                                    RangeScan(699.0, 704.2, 50, randomize=True),
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
                                                                 unit="kHz", scale=1, precision=3
                                                             ), group='defaults.cat')
-        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("ampls_cat_pct",  PYONValue([61., 61.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([6., 6.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
 
 
@@ -377,6 +377,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                     freq_cat_secular_ftw,
                                     time_pulse4_cat_mu,
                                     phase_pulse4_cat_pow,
+                                    freq_pulse5_readout_ftw,
                                     time_pulse5_readout_mu)
                 self.core.break_realtime()
 
