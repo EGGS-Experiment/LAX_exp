@@ -29,7 +29,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow',
-        'phases_pulse4_cat_update_dir', 'freq_pulse5_readout_ftw', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
+        'phases_pulse4_cat_update_dir', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
 
         'config_experiment_list'
     }
@@ -51,12 +51,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
-        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
+        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=50., precision=3, step=5, min=0.01, max=88), group="defaults.beams")
+        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=2., max=31.5), group="defaults.beams")
 
         self.setattr_argument("freq_singlepass1_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=50), group="defaults.beams")
-        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
+        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=88), group="defaults.beams")
+        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=2., max=31.5), group="defaults.beams")
 
         self.setattr_argument("freq_doublepass_default_mhz",    NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.), group="defaults.beams")
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
@@ -73,7 +73,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                                 default=[
                                                                     ExplicitScan([101.3341]),
                                                                     CenterScan(101.3341, 0.01, 0.0001, randomize=True),
-                                                                    RangeScan(101.3200, 3500, 50, randomize=True),
+                                                                    RangeScan(101.3200, 101.3500, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
@@ -96,6 +96,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax')
 
         # pulse 1 - cat 0
+        self.setattr_argument("enable_pulse1_cat", BooleanValue(default=False), group='pulse1.cat')
         self.setattr_argument("time_pulse1_cat_us", NumberValue(default=8.5, precision=2, step=5, min=0.1, max=10000), group="pulse1.cat")
         self.setattr_argument("phases_pulse1_cat_turns",  PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
 
@@ -129,9 +130,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # pulse 5 - readout
         self.setattr_argument("enable_pulse5_readout",      BooleanValue(default=True), group="pulse5.readout")
-        self.setattr_argument("freq_pulse5_readout_mhz",    NumberValue(default=101.9851, precision=6, step=1, min=50., max=400.), group="pulse5.readout")
         self.setattr_argument("ampl_pulse5_readout_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="pulse5.readout")
         self.setattr_argument("att_pulse5_readout_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="pulse5.readout")
+        self.setattr_argument("freq_pulse5_readout_mhz_list",   Scannable(
+                                                                default=[
+                                                                    ExplicitScan([101.9851]),
+                                                                    CenterScan(101.9851, 0.01, 0.0002, randomize=True),
+                                                                    RangeScan(101.9801, 101.9901, 50, randomize=True),
+                                                                ],
+                                                                global_min=60., global_max=400, global_step=1,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group="pulse5.readout")
         self.setattr_argument("time_pulse5_readout_us_list",    Scannable(
                                                                 default=[
                                                                     ExplicitScan([122.9]),
@@ -217,15 +226,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
         # pulse 5 - readout
-        self.freq_pulse5_readout_ftw =  self.qubit.frequency_to_ftw(self.freq_pulse5_readout_mhz * MHz)
         self.ampl_pulse5_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_pulse5_readout_pct / 100.)
         self.att_pulse5_readout_mu =    att_to_mu(self.att_pulse5_readout_db * dB)
 
         if self.enable_pulse5_readout:
+            freq_pulse5_readout_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                      for freq_mhz in self.freq_pulse5_readout_mhz_list], dtype=np.int32)
             time_pulse5_readout_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
                                                       for time_us in self.time_pulse5_readout_us_list], dtype=np.int64)
         else:
-            time_pulse5_readout_mu_list = np.array([0], dtype=np.int64)
+            freq_pulse5_readout_ftw_list =  np.array([0], dtype=np.int32)
+            time_pulse5_readout_mu_list =   np.array([0], dtype=np.int64)
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -235,14 +246,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             vals
             for vals in product(freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
                                 time_pulse4_cat_mu_list, phase_pulse4_cat_pow_list,
-                                time_pulse5_readout_mu_list)
+                                freq_pulse5_readout_ftw_list, time_pulse5_readout_mu_list)
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                6)
+                7)
 
 
     '''
@@ -307,7 +318,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 freq_cat_secular_ftw =      np.int32(config_vals[1])
                 time_pulse4_cat_mu =        config_vals[2]
                 phase_pulse4_cat_pow =      np.int32(config_vals[3])
-                time_pulse5_readout_mu =    config_vals[4]
+                freq_pulse5_readout_ftw =   np.int32(config_vals[4])
+                time_pulse5_readout_mu =    config_vals[5]
                 self.core.break_realtime()
 
 
@@ -331,8 +343,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.pulse_sigmax(time_start_mu, 0)
 
                 # pulse 1: cat 1
-                self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
-                                       freq_cat_center_ftw, freq_cat_secular_ftw)
+                if self.enable_pulse1_cat:
+                    self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
+                                           freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 # pulse 2: repump via 854
                 if self.enable_pulse2_quench:
@@ -353,7 +366,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 '''READOUT & STORE RESULTS'''
                 # pulse 5: rabiflop/readout
                 if self.enable_pulse5_readout:
-                    self.pulse_readout(time_pulse5_readout_mu)
+                    self.pulse_readout(time_pulse5_readout_mu, freq_pulse5_readout_ftw)
 
                 # read out
                 self.readout_subsequence.run_dma()
@@ -501,15 +514,15 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
-    def pulse_readout(self, time_pulse_mu: TInt64) -> TNone:
+    def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
         Run a readout pulse.
         Arguments:
-            time_start_mu: fiducial timestamp for initial start reference (in machine units).
             time_pulse_mu: length of pulse (in machine units).
+            freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
-        self.qubit.set_mu(self.freq_pulse5_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
+        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
                           profile=self.profile_target)
         self.singlepass0.set_mu(self.freq_singlepass0_default_ftw, asf=self.ampl_singlepass0_default_asf,
                                 pow_=0, profile=self.profile_target)
