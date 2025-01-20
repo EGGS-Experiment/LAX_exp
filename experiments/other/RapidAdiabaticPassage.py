@@ -169,7 +169,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                -1).reshape(-1, 6)
         # if not sweeping cutoff times, set cutoff times same as RAP times
         if not self.enable_cutoff:
-            self.config_experiment_list[:, 3] = self.self.config_experiment_list[:, 2]
+            self.config_experiment_list[:, 3] = self.config_experiment_list[:, 2]
         # ensure correct type and shuffle
         self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
