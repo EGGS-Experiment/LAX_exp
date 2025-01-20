@@ -4,7 +4,7 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, QubitRAP, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, QubitRAP, Readout, RescueIon
 
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
@@ -16,15 +16,19 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
     name = 'Rapid Adiabatic Passage'
     kernel_invariants = {
-        'freq_rap_center_ftw_list', 'freq_rap_dev_ftw_list', 'time_rap_mu_list', 'time_cutoff_mu_list',
-        'ampl_qubit_asf', 'att_qubit_mu',
-        'initialize_subsequence', 'rap_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'ampl_qubit_asf', 'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'rap_subsequence',
+        'readout_subsequence', 'rescue_subsequence',
         'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
+
+        # build SBC here so its arguments come first
+        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
 
         # chirp parameters
         self.setattr_argument("freq_rap_center_mhz_list",   Scannable(
@@ -72,21 +76,41 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
         # todo: actually implement the enable_pulseshaping/chirp stuff lol
 
-        # relevant devices
-        self.setattr_device('qubit')
+        # read out parameters
+        self.setattr_argument("enable_rabiflop_readout",    BooleanValue(default=False), group="rabiflop_readout")
+        self.setattr_argument("ampl_pulse_readout_pct",     NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="rabiflop_readout")
+        self.setattr_argument("att_pulse_readout_db",       NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="rabiflop_readout")
+        self.setattr_argument("freq_pulse_readout_mhz_list",   Scannable(
+                                                                default=[
+                                                                    ExplicitScan([101.9851]),
+                                                                    CenterScan(101.9851, 0.01, 0.0002, randomize=True),
+                                                                    RangeScan(101.9801, 101.9901, 50, randomize=True),
+                                                                ],
+                                                                global_min=60., global_max=400, global_step=1,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group="rabiflop_readout")
+        self.setattr_argument("time_pulse_readout_us_list",    Scannable(
+                                                                default=[
+                                                                    ExplicitScan([122.9]),
+                                                                    RangeScan(0, 1500, 100, randomize=True),
+                                                                ],
+                                                                global_min=1, global_max=100000, global_step=1,
+                                                                unit="us", scale=1, precision=5
+                                                            ), group="rabiflop_readout")
 
-        # tmp remove
-        self.setattr_device('pump')
-        self.setattr_device('repump_cooling')
-        self.setattr_device('repump_qubit')
-        # tmp remove
-
-        # subsequences
+        # initialize other subsequences
+        self.profile_target = 0
         self.initialize_subsequence =   InitializeQubit(self)
-        self.rap_subsequence =          QubitRAP(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
-                                                 num_samples=500, pulse_shape="blackman")
+        self.rap_subsequence =          QubitRAP(self, ram_profile=self.profile_target,
+                                                 ampl_max_pct=self.ampl_qubit_pct, num_samples=500,
+                                                 pulse_shape="blackman")
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
+
+
+        # relevant devices
+        self.setattr_device('qubit')
+        self.setattr_device('repump_qubit')
 
     def prepare_experiment(self):
         """
@@ -106,35 +130,54 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
         # frequency parameters
-        self.freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
-        self.freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
+        freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
+        freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
 
         # timing parameters
-        self.time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                          for time_us in self.time_rap_us_list])
+        time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                     for time_us in self.time_rap_us_list])
         if self.enable_cutoff:
-            self.time_cutoff_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                                 for time_us in self.time_cutoff_us_list])
+            time_cutoff_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                            for time_us in self.time_cutoff_us_list])
         else:
-            self.time_cutoff_mu_list = np.array([1])
+            time_cutoff_mu_list = np.array([-1])
+
+        # rabiflop readout pulse
+        self.ampl_pulse_readout_asf =   self.qubit.amplitude_to_asf(self.ampl_pulse_readout_pct / 100.)
+        self.att_pulse_readout_mu =     att_to_mu(self.att_pulse_readout_db * dB)
+
+        if self.enable_rabiflop_readout:
+            freq_pulse_readout_ftw_list =   np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                      for freq_mhz in self.freq_pulse_readout_mhz_list], dtype=np.int32)
+            time_pulse_readout_mu_list =    np.array([self.core.seconds_to_mu(time_us * us)
+                                                      for time_us in self.time_pulse_readout_us_list], dtype=np.int64)
+        else:
+            freq_pulse_readout_ftw_list =   np.array([-1], dtype=np.int64)
+            time_pulse_readout_mu_list =    np.array([-1], dtype=np.int64)
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_experiment_list = np.stack(np.meshgrid(self.freq_rap_center_ftw_list,
-                                                           self.freq_rap_dev_ftw_list,
-                                                           self.time_rap_mu_list,
-                                                           self.time_cutoff_mu_list),
-                                               -1).reshape(-1, 4)
+        self.config_experiment_list = np.stack(np.meshgrid(freq_rap_center_ftw_list,
+                                                           freq_rap_dev_ftw_list,
+                                                           time_rap_mu_list,
+                                                           time_cutoff_mu_list,
+                                                           freq_pulse_readout_ftw_list,
+                                                           time_pulse_readout_mu_list),
+                                               -1).reshape(-1, 6)
+        # if not sweeping cutoff times, set cutoff times same as RAP times
+        if not self.enable_cutoff:
+            self.config_experiment_list[:, 3] = self.self.config_experiment_list[:, 2]
+        # ensure correct type and shuffle
         self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                5)
+                7)
 
 
     # MAIN SEQUENCE
@@ -150,6 +193,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
@@ -163,46 +207,42 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             # sweep exp config
             for config_vals in self.config_experiment_list:
 
-                # tmp remove
-                # turn on rescue beams while waiting
-                self.core.break_realtime()
-                self.pump.rescue()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
-                self.pump.on()
-                # tmp remove
-
+                '''CONFIGURE'''
                 # extract values from config list
                 freq_center_ftw =   np.int32(config_vals[0])
                 freq_dev_ftw =      np.int32(config_vals[1])
                 time_rap_mu =       config_vals[2]
                 time_cutoff_mu =    config_vals[3]
+                freq_readout_ftw =  np.int32(config_vals[4])
+                time_readout_mu =   config_vals[5]
                 self.core.break_realtime()
 
                 # configure RAP pulse
                 self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 self.core.break_realtime()
 
+                '''INITIALIZE ION'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
+                # optional: sideband cool
+                if self.cooling_type == "SBC - Continuous":
+                    self.sidebandcool_subsequence.run_dma()
 
                 # run RAP pulse
                 self.qubit.set_att_mu(self.att_qubit_mu)
-                if self.enable_cutoff:
-                    self.rap_subsequence.run_rap(time_cutoff_mu)
-                else:
-                    self.rap_subsequence.run_rap(time_rap_mu)
+                self.rap_subsequence.run_rap(time_cutoff_mu)
 
-                # read out
+                '''READ OUT & STORE RESULTS'''
+                if self.enable_rabiflop_readout:
+                    self.pulse_readout(time_readout_mu, freq_readout_ftw)
+
+                # read out fluorescence
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                if self.enable_cutoff:
-                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
-                                        freq_dev_ftw, time_rap_mu, time_cutoff_mu)
-                else:
-                    self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
-                                        freq_dev_ftw, time_rap_mu, time_rap_mu)
+                self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
+                                    freq_dev_ftw, time_rap_mu, time_cutoff_mu,
+                                    freq_readout_ftw, time_readout_mu)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -214,4 +254,33 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
+
+    '''
+    HELPER FUNCTIONS
+    '''
+
+    @kernel(flags={"fast-math"})
+    def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
+        """
+        Run a readout pulse.
+        Arguments:
+            time_pulse_mu: length of pulse (in machine units).
+            freq_readout_ftw: readout frequency (set by the double pass) in FTW.
+        """
+        # set up relevant beam waveforms
+        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
+                          profile=self.profile_target)
+        self.qubit.set_att_mu(self.att_pulse_readout_mu)
+        self.qubit.set_profile(self.profile_target)
+        self.qubit.cpld.io_update.pulse_mu(8)
+
+        # quench D-5/2 to eliminate coherence problems
+        self.repump_qubit.on()
+        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+        self.repump_qubit.off()
+
+        # run readout pulse
+        self.qubit.on()
+        delay_mu(time_pulse_mu)
+        self.qubit.off()
 

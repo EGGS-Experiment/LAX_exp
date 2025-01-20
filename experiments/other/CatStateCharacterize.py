@@ -24,7 +24,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         'freq_singlepass0_default_ftw', 'ampl_singlepass0_default_asf', 'att_singlepass0_default_mu',
         'freq_singlepass1_default_ftw', 'ampl_singlepass1_default_asf', 'att_singlepass1_default_mu',
-        'freq_doublepass_default_ftw', 'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
+        'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
 
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
@@ -58,7 +58,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=50), group="defaults.beams")
         self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="defaults.beams")
 
-        self.setattr_argument("freq_doublepass_default_mhz",    NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.), group="defaults.beams")
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
@@ -173,7 +172,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.att_singlepass1_default_mu =       att_to_mu(self.att_singlepass1_default_db * dB)
 
         # defaults - doublepass AOM
-        self.freq_doublepass_default_ftw =     self.qubit.frequency_to_ftw(self.freq_doublepass_default_mhz * MHz)
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
         self.att_doublepass_default_mu =       att_to_mu(self.att_doublepass_default_db * dB)
 
@@ -361,6 +359,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 if self.enable_pulse4_cat:
                     self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu, 0,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
+
+                # note: needed this for a tmp thing; might need again
+                # # pulse 2: repump via 854
+                # if self.enable_pulse2_quench:
+                #     self.repump_qubit.on()
+                #     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                #     self.repump_qubit.off()
 
 
                 '''READOUT & STORE RESULTS'''

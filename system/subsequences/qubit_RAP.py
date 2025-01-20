@@ -259,7 +259,8 @@ class QubitRAP(LAXSubsequence):
                            (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 13) |  # phase_autoclear
                            (1 << 15) |  # load_lrr
-                           (1 << 14)    # drg_autoclear
+                           (1 << 14) |  # drg_autoclear
+                           2            # default serial I/O configs
                         )
         # enable digital ramp generation
         # note: DRG nodwell low is necessary to allow negative slopes
