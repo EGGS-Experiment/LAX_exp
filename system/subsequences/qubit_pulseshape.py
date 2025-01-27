@@ -188,7 +188,8 @@ class QubitPulseShape(LAXSubsequence):
                            (1 << 31) |              # ram_enable
                            (RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 16) |              # select_sine_output
-                           (1 << 13)                # phase_autoclear
+                           (1 << 13) |              # phase_autoclear
+                           2
                         )
 
         '''FIRE PULSE'''

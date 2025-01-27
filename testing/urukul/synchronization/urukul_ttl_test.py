@@ -64,7 +64,7 @@ class UrukulTTLTest(EnvExperiment):
 
         # set up registers
         at_mu(now_mu() + 10000)
-        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
         self.urukul0_ch3.set_cfr2(matched_latency_enable=1)
         self.urukul0_ch3.sw.off()
 

@@ -159,8 +159,8 @@ class UrukulFastSwitchTest(EnvExperiment):
         with parallel:
             # self.urukul0_ch2.set_cfr1(phase_autoclear=1)
             # self.urukul1_ch2.set_cfr1(phase_autoclear=1)
-            self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-            self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+            self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
         with parallel:
             self.urukul0_ch2.set_cfr2(matched_latency_enable=1)
             self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
@@ -168,8 +168,8 @@ class UrukulFastSwitchTest(EnvExperiment):
         # tmp remove
         at_mu(now_mu() + 50000)
         with parallel:
-            self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-            self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+            self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+            self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
         with parallel:
             self.urukul0_ch1.set_cfr2(matched_latency_enable=1)
             self.urukul1_ch1.set_cfr2(matched_latency_enable=1)
@@ -211,7 +211,7 @@ class UrukulFastSwitchTest(EnvExperiment):
 
         # at_mu((time_start_mu + (416 + 63)
         #       + self.time_delay_mu - 416))
-        # self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
+        # self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
         # at_mu(now_mu() & ~0x7)
         # self.urukul0_cpld.set_profile(2)
         #

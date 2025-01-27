@@ -247,8 +247,8 @@ class UrukulRAMARP(EnvExperiment):
 
         self.dds_fiducial.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
-                         (1 << 13)      # phase_autoclear
-                         )
+                         (1 << 13) |    # phase_autoclear
+                         2)
         self.dds_fiducial.cpld.io_update.pulse_mu(8)
 
 
@@ -354,7 +354,8 @@ class UrukulRAMARP(EnvExperiment):
                                (1 << 16) |              # select_sine_output
                                (1 << 13) |              # phase_autoclear
                                (1 << 15) |              # load_lrr
-                               (1 << 14)                # drg_autoclear
+                               (1 << 14) |              # drg_autoclear
+                                2
                              )
             self.dds.cpld.io_update.pulse_mu(8)
 

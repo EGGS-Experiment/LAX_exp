@@ -74,7 +74,8 @@ class Squeeze(LAXSubsequence):
         # ensure phase_autoclear is enabled ahead of time
         self.dds_parametric.write32(_AD9910_REG_CFR1,
                                     (1 << 16) | # select_sine_output
-                                    (1 << 13))  # phase_autoclear
+                                    (1 << 13) | # phase_autoclear
+                                    2)
 
         # align to coarse RTIO clock
         time_start_mu = now_mu() & ~0x7
@@ -101,7 +102,7 @@ class Squeeze(LAXSubsequence):
     def antisqueeze(self) -> TNone:
         # unset phase_autoclear flag to ensure phase remains tracked,
         # and ensure set_sine_output flag remains set
-        self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16))
+        self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
 
         # set blank profile to ensure switching is exact
         self.dds_parametric.set_profile(2)

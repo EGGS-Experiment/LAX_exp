@@ -111,8 +111,8 @@ class UrukulTrackingTest(EnvExperiment):
 
         # set up registers
         at_mu(now_mu() + 10000)
-        self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
         self.urukul1_ch1.set_cfr2(matched_latency_enable=1)
         self.urukul1_ch2.set_cfr2(matched_latency_enable=1)
 
@@ -166,8 +166,8 @@ class UrukulTrackingTest(EnvExperiment):
         with parallel:
             delay_mu(10000)
             with sequential:
-                self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16))
-                self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16))
+                self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
+                self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
                 self.urukul1_cpld.set_profile(1)
         # self.t01 = now_mu()
 

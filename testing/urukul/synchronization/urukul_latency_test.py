@@ -214,14 +214,14 @@ class UrukulLatencyTest(EnvExperiment):
 
         '''PREPARE - DDS REGISTERS'''
         at_mu(now_mu() + 25000)
-        self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-        self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul0_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+        self.urukul0_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+        self.urukul0_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
 
         at_mu(now_mu() + 25000)
-        self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
-        self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13))
+        self.urukul1_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+        self.urukul1_ch2.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
+        self.urukul1_ch3.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
 
         at_mu(now_mu() + 25000)
         self.urukul0_ch1.set_cfr2(matched_latency_enable=1)

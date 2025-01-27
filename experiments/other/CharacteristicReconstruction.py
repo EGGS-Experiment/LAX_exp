@@ -7,17 +7,19 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous,
                                          QubitPulseShape, Readout, RescueIon)
 
+import math
 from itertools import product
+from collections.abc import Iterable
 from artiq.coredevice import ad9910
 
 
-class CatStateCharacterize(LAXExperiment, Experiment):
+class CharacteristicReconstruction(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Characterize
+    Experiment: Characteristic Reconstruction
 
     todo: document
     """
-    name = 'Cat State Characterize'
+    name = 'Characteristic Reconstruction'
     kernel_invariants = {
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'profile_target', 'singlepass0', 'singlepass1',
@@ -29,7 +31,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow',
-        'phases_pulse4_cat_update_dir', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
+        'phases_pulse4_cat_update_dir',
 
         'config_experiment_list'
     }
@@ -50,7 +52,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
-        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=50., precision=6, step=1, min=50., max=400.), group="defaults.beams")
+        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
         self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=58., precision=3, step=5, min=0.01, max=61.2), group="defaults.beams")
         self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
 
@@ -79,18 +81,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                             ), group='defaults.cat')
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
-                                                                    ExplicitScan([701.6]),
-                                                                    CenterScan(701.6, 4, 0.1, randomize=True),
+                                                                    ExplicitScan([701.8]),
+                                                                    CenterScan(701.8, 4, 0.1, randomize=True),
                                                                     RangeScan(699.0, 704.2, 50, randomize=True),
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
                                                                 unit="kHz", scale=1, precision=3
                                                             ), group='defaults.cat')
         self.setattr_argument("ampls_cat_pct",  PYONValue([58., 58.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([5., 5.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
+        self.setattr_argument("atts_cat_db",    PYONValue([6., 6.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
 
-
-        '''PULSE ARGUMENTS - CAT 1'''
+        '''PULSE ARGUMENTS - MOTIONAL STATE PREPARATION'''
         # pulse 0 - sigma_x0
         self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax')
 
@@ -100,59 +101,34 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("phases_pulse1_cat_turns",  PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
 
         # pulse 2 - quench
-        self.setattr_argument("enable_pulse2_herald",   BooleanValue(default=False), group='pulse2.quench')
-        self.setattr_argument("enable_pulse2_quench",   BooleanValue(default=True), group='pulse2.quench')
+        self.setattr_argument("enable_pulse2_quench", BooleanValue(default=True), group='pulse2')
+        self.setattr_argument("enable_pulse2_herald", BooleanValue(default=True), group='pulse2')
 
-        '''PULSE ARGUMENTS - CAT 2'''
+        '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
         # pulse 3 - sigma_x1
         self.setattr_argument("enable_pulse3_sigmax",       BooleanValue(default=True), group='pulse3.sigmax')
         self.setattr_argument("phase_pulse3_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='pulse3.sigmax')
 
         # pulse 4 - cat 1
         self.setattr_argument("enable_pulse4_cat",  BooleanValue(default=True), group='pulse4.cat')
-        self.setattr_argument("enable_pulse4_herald",   BooleanValue(default=True), group='pulse4.cat')
-        self.setattr_argument("enable_pulse4_quench",   BooleanValue(default=True), group='pulse4.cat')
-        self.setattr_argument("time_pulse4_cat_us_list",    Scannable(
-                                                        default=[
-                                                            ExplicitScan([100]),
-                                                            RangeScan(0, 500, 50, randomize=True),
-                                                        ],
-                                                        global_min=1, global_max=100000, global_step=1,
-                                                        unit="us", scale=1, precision=5
-                                                    ), group="pulse4.cat")
         self.setattr_argument("phases_pulse4_cat_turns",        PYONValue([0., 0.]), group='pulse4.cat', tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_pulse4_cat_phase",        EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group="pulse4.cat")
-        self.setattr_argument("phase_pulse4_cat_turns_list",    Scannable(
-                                                                    default=[
-                                                                        ExplicitScan([0.]),
-                                                                        RangeScan(0, 1.0, 11, randomize=True),
-                                                                    ],
-                                                                    global_min=-1.0, global_max=1.0, global_step=0.1,
-                                                                    unit="turns", scale=1, precision=3
-                                                                ), group="pulse4.cat")
-
-        '''PULSE ARGUMENTS - READOUT'''
-        # pulse 5 - readout
-        self.setattr_argument("enable_pulse5_readout",      BooleanValue(default=True), group="pulse5.readout")
-        self.setattr_argument("ampl_pulse5_readout_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="pulse5.readout")
-        self.setattr_argument("att_pulse5_readout_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="pulse5.readout")
-        self.setattr_argument("freq_pulse5_readout_mhz_list",   Scannable(
+        self.setattr_argument("time_pulse4_cat_x_us_list",      Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.9851]),
-                                                                    CenterScan(101.9851, 0.01, 0.0002, randomize=True),
-                                                                    RangeScan(101.9801, 101.9901, 50, randomize=True),
+                                                                    RangeScan(-1500, 1500, 100, randomize=True),
+                                                                    ExplicitScan([100]),
                                                                 ],
-                                                                global_min=60., global_max=400, global_step=1,
-                                                                unit="MHz", scale=1, precision=6
-                                                            ), group="pulse5.readout")
-        self.setattr_argument("time_pulse5_readout_us_list",    Scannable(
-                                                                default=[
-                                                                    ExplicitScan([122.9]),
-                                                                    RangeScan(0, 1000, 100, randomize=True),
-                                                                ],
-                                                                global_min=1, global_max=100000, global_step=1,
+                                                                global_min=-100000, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
-                                                            ), group="pulse5.readout")
+                                                            ), group="pulse4.cat")
+        self.setattr_argument("time_pulse4_cat_y_us_list",      Scannable(
+                                                                default=[
+                                                                    RangeScan(-1500, 1500, 100, randomize=True),
+                                                                    ExplicitScan([100]),
+                                                                ],
+                                                                global_min=-100000, global_max=100000, global_step=1,
+                                                                unit="us", scale=1, precision=5
+                                                            ), group="pulse4.cat")
 
         # relevant devices
         self.setattr_device('qubit')
@@ -163,13 +139,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
-        '''
-        CHECK INPUT FOR ERRORS
-        '''
-        # ensure we only herald once
-        if self.enable_pulse2_herald and self.enable_pulse4_herald:
-            raise ValueError("Cannot herald twice. Must choose either pulse2_herald OR pulse4_herald.")
-
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
         '''
@@ -218,14 +187,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # pulse 4 - cat 1
         self.phases_pulse4_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
                                                   for phas_pow in self.phases_pulse4_cat_turns], dtype=np.int32)
-        if self.enable_pulse4_cat:
-            time_pulse4_cat_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
-                                                 for time_us in self.time_pulse4_cat_us_list], dtype=np.int64)
-            phase_pulse4_cat_pow_list = np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                      for phas_pow in self.phase_pulse4_cat_turns_list], dtype=np.int32)
-        else:
-            time_pulse4_cat_mu_list =   np.array([0], dtype=np.int64)
-            phase_pulse4_cat_pow_list = np.array([0], dtype=np.int32)
 
         if self.target_pulse4_cat_phase == 'RSB':
             self.phases_pulse4_cat_update_dir = np.array([1, 0], dtype=np.int32)
@@ -236,35 +197,44 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         elif self.target_pulse4_cat_phase == 'RSB+BSB':
             self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
-        # pulse 5 - readout
-        self.ampl_pulse5_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_pulse5_readout_pct / 100.)
-        self.att_pulse5_readout_mu =    att_to_mu(self.att_pulse5_readout_db * dB)
+        if self.enable_pulse4_cat:
+            vals_pulse4_mu_pow_list = np.array([
+                [
+                    self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
+                    self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
+                ]
+                for x_us in self.time_pulse4_cat_x_us_list
+                for y_us in self.time_pulse4_cat_y_us_list
+            ], dtype=np.int64)
 
-        if self.enable_pulse5_readout:
-            freq_pulse5_readout_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_pulse5_readout_mhz_list], dtype=np.int32)
-            time_pulse5_readout_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
-                                                      for time_us in self.time_pulse5_readout_us_list], dtype=np.int64)
         else:
-            freq_pulse5_readout_ftw_list =  np.array([0], dtype=np.int32)
-            time_pulse5_readout_mu_list =   np.array([0], dtype=np.int64)
+            vals_pulse4_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
+        # use generator to flatten list with some tuples
+        def flatten(xs):
+            for x in xs:
+                if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+                    yield from flatten(x)
+                else:
+                    yield x
+
         # create an array of values for the experiment to sweep
         self.config_experiment_list = np.array([
-            vals
-            for vals in product(freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
-                                time_pulse4_cat_mu_list, phase_pulse4_cat_pow_list,
-                                freq_pulse5_readout_ftw_list, time_pulse5_readout_mu_list)
+            list(flatten(vals))
+            for vals in product(
+                freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
+                vals_pulse4_mu_pow_list
+            )
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                8)
+                6)
 
 
     '''
@@ -329,9 +299,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 freq_cat_secular_ftw =      np.int32(config_vals[1])
                 time_pulse4_cat_mu =        config_vals[2]
                 phase_pulse4_cat_pow =      np.int32(config_vals[3])
-                freq_pulse5_readout_ftw =   np.int32(config_vals[4])
-                time_pulse5_readout_mu =    config_vals[5]
                 self.core.break_realtime()
+
 
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state
@@ -346,7 +315,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 # synchronize start time to coarse RTIO clock
                 time_start_mu = now_mu() & ~0x7
 
-                '''CAT #1'''
+                '''PREPARE MOTIONAL STATE'''
                 # pulse 0: sigma_x #1
                 if self.enable_pulse0_sigmax:
                     self.pulse_sigmax(time_start_mu, 0)
@@ -356,60 +325,39 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                # pulse 2a: herald via 397nm
+                # pulse 2a: herald via 397nm fluorescence
                 if self.enable_pulse2_herald:
                     self.readout_subsequence.run_dma()
                     self.pump.off()
 
-                # pulse 2b: repump via 854
+                # pulse 2: repump via 854
                 if self.enable_pulse2_quench:
                     self.repump_qubit.on()
                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                     self.repump_qubit.off()
 
-                '''CAT #2'''
+                '''DIRECT CHARACTERISTIC READOUT'''
                 # pulse 3: sigma_x #2
                 if self.enable_pulse3_sigmax:
                     self.pulse_sigmax(time_start_mu, self.phase_pulse3_sigmax_pow)
 
-                # pulse 4a: cat #2
+                # pulse 4: cat #2
                 if self.enable_pulse4_cat:
                     self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu, 0,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                # pulse 4a: herald via 397nm
-                if self.enable_pulse4_herald:
-                    self.readout_subsequence.run_dma()
-                    self.pump.off()
-
-                # pulse 4b: repump via 854
-                if self.enable_pulse4_quench:
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
-
-                '''READOUT & STORE RESULTS'''
-                # pulse 5: rabiflop/readout
-                if self.enable_pulse5_readout:
-                    self.pulse_readout(time_pulse5_readout_mu, freq_pulse5_readout_ftw)
-
                 # read out
                 self.readout_subsequence.run_dma()
 
-                # get counts & update dataset
-                if self.enable_pulse2_herald or self.enable_pulse4_herald:
-                    counts_her = self.readout_subsequence.fetch_count()
-                else:
-                    counts_her = 0
+                # get heralded measurement and actual results
+                counts_her = self.readout_subsequence.fetch_count()
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
                                     counts_her,
                                     freq_cat_secular_ftw,
                                     time_pulse4_cat_mu,
-                                    phase_pulse4_cat_pow,
-                                    freq_pulse5_readout_ftw,
-                                    time_pulse5_readout_mu)
+                                    phase_pulse4_cat_pow)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -544,42 +492,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         delay_mu(time_pulse_mu)
         self.qubit.off()
         self.singlepass1.sw.off()
-
-    @kernel(flags={"fast-math"})
-    def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
-        """
-        Run a readout pulse.
-        Arguments:
-            time_pulse_mu: length of pulse (in machine units).
-            freq_readout_ftw: readout frequency (set by the double pass) in FTW.
-        """
-        # set up relevant beam waveforms
-        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
-                          profile=self.profile_target)
-        self.singlepass0.set_mu(self.freq_singlepass0_default_ftw, asf=self.ampl_singlepass0_default_asf,
-                                pow_=0, profile=self.profile_target)
-        self.singlepass1.set_mu(self.freq_singlepass1_default_ftw, asf=self.ampl_singlepass1_default_asf,
-                                pow_=0, profile=self.profile_target)
-
-        # set all attenuators together
-        a = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        a |= (
-                (self.att_pulse5_readout_mu << (0 * 8)) |
-                (self.att_singlepass0_default_mu << (1 * 8)) |
-                (self.att_singlepass1_default_mu << (1 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(a)
-
-        # run bichromatic pulse
-        self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
-        self.qubit.on()
-        delay_mu(time_pulse_mu)
-        self.qubit.off()
 
 
     '''

@@ -42,7 +42,8 @@ class DDSDipole(LAXDevice):
         # enable matched latency and phase autoclearing
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
-                         (1 << 13))     # phase_autoclear
+                         (1 << 13) |    # phase_autoclear
+                         2)             # default serial I/O configs
         self.dds.set_cfr2(matched_latency_enable=1)
 
     @kernel(flags={"fast-math"})
