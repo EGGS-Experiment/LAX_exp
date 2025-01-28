@@ -50,7 +50,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
-        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=50., precision=6, step=1, min=50., max=400.), group="defaults.beams")
+        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
         self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=58., precision=3, step=5, min=0.01, max=61.2), group="defaults.beams")
         self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
 
@@ -396,7 +396,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 # read out
                 self.readout_subsequence.run_dma()
 
-                # get counts & update dataset
+                # get heralded measurement and actual results
                 if self.enable_pulse2_herald or self.enable_pulse4_herald:
                     counts_her = self.readout_subsequence.fetch_count()
                 else:

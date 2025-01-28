@@ -101,8 +101,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("phases_pulse1_cat_turns",  PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
 
         # pulse 2 - quench
-        self.setattr_argument("enable_pulse2_quench", BooleanValue(default=True), group='pulse2')
         self.setattr_argument("enable_pulse2_herald", BooleanValue(default=True), group='pulse2')
+        self.setattr_argument("enable_pulse2_quench", BooleanValue(default=True), group='pulse2')
 
         '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
         # pulse 3 - sigma_x1
@@ -350,7 +350,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # get heralded measurement and actual results
-                counts_her = self.readout_subsequence.fetch_count()
+                if self.enable_pulse2_herald:
+                    counts_her = self.readout_subsequence.fetch_count()
+                else:
+                    counts_her = 0
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
