@@ -62,16 +62,16 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.3369, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=3.05, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=3.21, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
 
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.3341]),
-                                                                    CenterScan(101.3341, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([101.3369]),
+                                                                    CenterScan(101.3369, 0.01, 0.0001, randomize=True),
                                                                     RangeScan(101.3200, 101.3500, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
@@ -79,8 +79,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                             ), group='defaults.cat')
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
-                                                                    ExplicitScan([701.6]),
-                                                                    CenterScan(701.6, 4, 0.1, randomize=True),
+                                                                    ExplicitScan([702.01]),
+                                                                    CenterScan(702.01, 4, 0.1, randomize=True),
                                                                     RangeScan(699.0, 704.2, 50, randomize=True),
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
@@ -209,20 +209,20 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         # pulse 1 - cat 0
         self.time_pulse1_cat_mu =       self.core.seconds_to_mu(self.time_pulse1_cat_us * us)
-        self.phases_pulse1_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                  for phas_pow in self.phases_pulse1_cat_turns], dtype=np.int32)
+        self.phases_pulse1_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
+                                         for phas_pow in self.phases_pulse1_cat_turns]
 
         # pulse 3 - sigma_x1
         self.phase_pulse3_sigmax_pow =  self.qubit.turns_to_pow(self.phase_pulse3_sigmax_turns)
 
         # pulse 4 - cat 1
-        self.phases_pulse4_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                  for phas_pow in self.phases_pulse4_cat_turns], dtype=np.int32)
+        self.phases_pulse4_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
+                                         for phas_pow in self.phases_pulse4_cat_turns]
         if self.enable_pulse4_cat:
             time_pulse4_cat_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
                                                  for time_us in self.time_pulse4_cat_us_list], dtype=np.int64)
             phase_pulse4_cat_pow_list = np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                      for phas_pow in self.phase_pulse4_cat_turns_list], dtype=np.int32)
+                                                  for phas_pow in self.phase_pulse4_cat_turns_list], dtype=np.int32)
         else:
             time_pulse4_cat_mu_list =   np.array([0], dtype=np.int64)
             phase_pulse4_cat_pow_list = np.array([0], dtype=np.int32)
@@ -333,6 +333,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 time_pulse5_readout_mu =    config_vals[5]
                 self.core.break_realtime()
 
+                # create phase list
+                cat4_phases = [
+                    self.phases_pulse4_cat_pow[0] + self.phases_pulse4_cat_update_dir[0] * phase_pulse4_cat_pow,
+                    self.phases_pulse4_cat_pow[1] + self.phases_pulse4_cat_update_dir[1] * phase_pulse4_cat_pow,
+                ]
+
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
@@ -353,7 +359,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
                 # pulse 1: cat 1
                 if self.enable_pulse1_cat:
-                    self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
+                    self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
+                                           self.phases_pulse1_cat_pow,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 # pulse 2a: herald via 397nm
@@ -374,7 +381,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
                 # pulse 4a: cat #2
                 if self.enable_pulse4_cat:
-                    self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu, 0,
+                    self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu,
+                                           cat4_phases,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 # pulse 4a: herald via 397nm
@@ -497,7 +505,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.qubit.off()
 
     @kernel(flags={"fast-math"})
-    def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow: TInt32,
+    def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
                           freq_carrier_ftw: TInt32, freq_secular_ftw: TInt32) -> TNone:
         """
         Run a phase-coherent bichromatic pulse on the qubit.
@@ -514,13 +522,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
-            self.freq_singlepass0_default_ftw-freq_secular_ftw, asf=self.ampls_cat_asf[0],
-            pow_=self.phases_pulse4_cat_update_dir[0] * phas_pow, profile=self.profile_target,
+            self.freq_singlepass0_default_ftw - freq_secular_ftw, asf=self.ampls_cat_asf[0],
+            pow_=phas_pow_list[0], profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
-            self.freq_singlepass1_default_ftw+freq_secular_ftw, asf=self.ampls_cat_asf[1],
-            pow_=self.phases_pulse4_cat_update_dir[1] * phas_pow, profile=self.profile_target,
+            self.freq_singlepass1_default_ftw + freq_secular_ftw, asf=self.ampls_cat_asf[1],
+            pow_=phas_pow_list[1], profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
 
