@@ -24,14 +24,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'profile_target', 'singlepass0', 'singlepass1',
 
-        'freq_singlepass0_default_ftw', 'ampl_singlepass0_default_asf', 'att_singlepass0_default_mu',
-        'freq_singlepass1_default_ftw', 'ampl_singlepass1_default_asf', 'att_singlepass1_default_mu',
+        'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
 
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
-        'phases_pulse4_cat_pow',
-        'phases_pulse4_cat_update_dir',
+        'phases_pulse4_cat_pow', 'phases_pulse4_cat_update_dir',
 
         'config_experiment_list'
     }
@@ -52,13 +50,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
-        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=58., precision=3, step=5, min=0.01, max=61.2), group="defaults.beams")
-        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
-
-        self.setattr_argument("freq_singlepass1_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=50), group="defaults.beams")
-        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="defaults.beams")
+        self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (58., 3.)
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([80., 80.]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([58., 58.]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([3., 3.]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
 
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
@@ -96,13 +91,14 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax')
 
         # pulse 1 - cat 0
-        self.setattr_argument("enable_pulse1_cat", BooleanValue(default=False), group='pulse1.cat')
-        self.setattr_argument("time_pulse1_cat_us", NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="pulse1.cat")
-        self.setattr_argument("phases_pulse1_cat_turns",  PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("enable_pulse1_cat",          BooleanValue(default=False), group='pulse1.cat')
+        self.setattr_argument("time_pulse1_cat_us",         NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="pulse1.cat")
+        self.setattr_argument("phases_pulse1_cat_turns",    PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
 
-        # pulse 2 - quench
-        self.setattr_argument("enable_pulse2_herald", BooleanValue(default=True), group='pulse2')
-        self.setattr_argument("enable_pulse2_quench", BooleanValue(default=True), group='pulse2')
+        # pulse 2a - herald
+        self.setattr_argument("enable_pulse2_herald",       BooleanValue(default=True), group='pulse2a.herald')
+        self.setattr_argument("enable_force_herald",        BooleanValue(default=True), group='pulse2a.herald')
+        self.setattr_argument("force_herald_threshold",     NumberValue(default=1, precision=0, step=10, min=0, max=10000), group='pulse2.herald')
 
         '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
         # pulse 3 - sigma_x1
@@ -110,12 +106,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("phase_pulse3_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='pulse3.sigmax')
 
         # pulse 4 - cat 1
-        self.setattr_argument("enable_pulse4_cat",  BooleanValue(default=True), group='pulse4.cat')
-        self.setattr_argument("phases_pulse4_cat_turns",        PYONValue([0., 0.]), group='pulse4.cat', tooltip="[rsb_turns, bsb_turns]")
-        self.setattr_argument("target_pulse4_cat_phase",        EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group="pulse4.cat")
+        self.setattr_argument("enable_pulse4_cat",          BooleanValue(default=True), group='pulse4.cat')
+        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='pulse4.cat', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group="pulse4.cat")
         self.setattr_argument("time_pulse4_cat_x_us_list",      Scannable(
                                                                 default=[
-                                                                    RangeScan(-1500, 1500, 100, randomize=True),
+                                                                    RangeScan(-500, 500, 10, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
@@ -123,7 +119,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                                             ), group="pulse4.cat")
         self.setattr_argument("time_pulse4_cat_y_us_list",      Scannable(
                                                                 default=[
-                                                                    RangeScan(-1500, 1500, 100, randomize=True),
+                                                                    RangeScan(-500, 500, 10, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
@@ -140,18 +136,35 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         Prepare & precompute experimental values.
         """
         '''
+        CHECK INPUT FOR ERRORS
+        '''
+        # ensure we only herald once
+        if self.enable_force_herald and not self.enable_pulse2_herald:
+            raise ValueError("Cannot force_herald if enable_pulse2_herald is disabled. Check input arguments.")
+
+        # ensure single pass values are safe and valid
+        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
+                for ampl_pct in self.ampl_singlepass_default_pct_list)):
+            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
+        
+        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
+                for att_db in self.att_singlepass_default_db_list)):
+            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+
+
+        '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
         '''
         # defaults - singlepass AOM
         self.singlepass0 = self.get_device("urukul0_ch1")
-        self.freq_singlepass0_default_ftw =     self.singlepass0.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
-        self.ampl_singlepass0_default_asf =     self.singlepass0.amplitude_to_asf(self.ampl_singlepass0_default_pct / 100.)
-        self.att_singlepass0_default_mu =       att_to_mu(self.att_singlepass0_default_db * dB)
-
         self.singlepass1 = self.get_device("urukul0_ch2")
-        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
-        self.ampl_singlepass1_default_asf =     self.singlepass1.amplitude_to_asf(self.ampl_singlepass1_default_pct / 100.)
-        self.att_singlepass1_default_mu =       att_to_mu(self.att_singlepass1_default_db * dB)
+
+        self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
+                                                 for freq_mhz in self.freq_singlepass_default_mhz_list]
+        self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
+                                                 for ampl_asf in self.ampl_singlepass_default_pct_list]
+        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
+                                                 for att_db in self.att_singlepass_default_db_list]
 
         # defaults - doublepass AOM
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
@@ -197,6 +210,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         elif self.target_pulse4_cat_phase == 'RSB+BSB':
             self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
+        # create sampling grid in radial coordinates
         if self.enable_pulse4_cat:
             vals_pulse4_mu_pow_list = np.array([
                 [
@@ -206,7 +220,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 for x_us in self.time_pulse4_cat_x_us_list
                 for y_us in self.time_pulse4_cat_y_us_list
             ], dtype=np.int64)
-
         else:
             vals_pulse4_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
 
@@ -259,18 +272,18 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
-                                      asf=self.ampl_singlepass0_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
+                                      asf=self.ampl_singlepass_default_asf_list[0],
                                       profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
-                                      asf=self.ampl_singlepass1_default_asf,
+            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
+                                      asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
         self.core.break_realtime()
 
-        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
-        self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
+        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.core.break_realtime()
 
         self.singlepass0.sw.on()
@@ -301,42 +314,59 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 phase_pulse4_cat_pow =      np.int32(config_vals[3])
                 self.core.break_realtime()
 
-
-                '''INITIALIZE'''
-                # initialize ion in S-1/2 state
-                self.initialize_subsequence.run_dma()
-                # sideband cool
-                self.sidebandcool_subsequence.run_dma()
-
-                # set target profile to ensure we run correctly
-                self.qubit.set_profile(self.profile_target)
-                self.qubit.cpld.io_update.pulse_mu(8)
-
-                # synchronize start time to coarse RTIO clock
+                # prepare variables for execution
+                counts_her = -1
                 time_start_mu = now_mu() & ~0x7
 
                 '''PREPARE MOTIONAL STATE'''
-                # pulse 0: sigma_x #1
-                if self.enable_pulse0_sigmax:
-                    self.pulse_sigmax(time_start_mu, 0)
+                while True:
 
-                # pulse 1: cat 1
-                if self.enable_pulse1_cat:
-                    self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
-                                           freq_cat_center_ftw, freq_cat_secular_ftw)
+                    '''INITIALIZE'''
+                    # initialize ion in S-1/2 state
+                    self.initialize_subsequence.run_dma()
+                    # sideband cool
+                    self.sidebandcool_subsequence.run_dma()
 
-                # pulse 2a: herald via 397nm fluorescence
-                if self.enable_pulse2_herald:
-                    self.readout_subsequence.run_dma()
-                    self.pump.off()
+                    # set target profile to ensure we run correctly
+                    self.qubit.set_profile(self.profile_target)
+                    self.qubit.cpld.io_update.pulse_mu(8)
 
-                # pulse 2: repump via 854
-                if self.enable_pulse2_quench:
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
+                    # synchronize start time to coarse RTIO clock
+                    time_start_mu = now_mu() & ~0x7
 
-                '''DIRECT CHARACTERISTIC READOUT'''
+                    '''APPLY MOTIONAL INTERACTION'''
+                    # pulse 0: sigma_x #1
+                    if self.enable_pulse0_sigmax:
+                        self.pulse_sigmax(time_start_mu, 0)
+
+                    # pulse 1: cat 1
+                    if self.enable_pulse1_cat:
+                        self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu, phase_pulse4_cat_pow,
+                                               freq_cat_center_ftw, freq_cat_secular_ftw)
+
+                    # pulse 2: herald via 397nm fluorescence
+                    if self.enable_pulse2_herald:
+                        self.readout_subsequence.run_dma()
+                        self.pump.off()
+
+                    # pulse 2: force heralding
+                    if self.enable_force_herald:
+                        counts_her = self.readout_subsequence.fetch_count()
+                        if counts_her > self.force_herald_threshold:
+                            continue
+
+                        # add minor slack if we move on
+                        at_mu(self.core.get_rtio_counter_mu() + 100000)
+
+                    # force break loop by default
+                    break
+
+                '''DIRECT CHARACTERISTIC MEASUREMENT'''
+                                # prepare spin state for characteristic readout
+                self.repump_qubit.on()
+                delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                self.repump_qubit.off()
+
                 # pulse 3: sigma_x #2
                 if self.enable_pulse3_sigmax:
                     self.pulse_sigmax(time_start_mu, self.phase_pulse3_sigmax_pow)
@@ -346,14 +376,15 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu, 0,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                # read out
+                '''READOUT'''
+                # read out fluorescence
                 self.readout_subsequence.run_dma()
 
-                # get heralded measurement and actual results
-                if self.enable_pulse2_herald:
+                # retrieve heralded measurement
+                if self.enable_pulse2_herald and not self.enable_force_herald:
                     counts_her = self.readout_subsequence.fetch_count()
-                else:
-                    counts_her = 0
+
+                # retrieve results & update dataset
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
@@ -382,18 +413,18 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
-                                      asf=self.ampl_singlepass0_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
+                                      asf=self.ampl_singlepass_default_asf_list[0],
                                       profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
-                                      asf=self.ampl_singlepass1_default_asf,
+            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
+                                      asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
         self.core.break_realtime()
 
-        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
-        self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
+        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.core.break_realtime()
 
         self.singlepass0.sw.on()
@@ -418,11 +449,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
-            self.freq_singlepass0_default_ftw, asf=self.ampl_singlepass0_default_asf, pow_=0,
+            self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
-            self.freq_singlepass1_default_ftw, asf=self.ampl_singlepass1_default_asf, pow_=0,
+            self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.io_update.pulse_mu(8)
@@ -435,8 +466,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         )
         a |= (
                 (self.att_sigmax_mu << (0 * 8)) |
-                (self.att_singlepass0_default_mu << (1 * 8)) |
-                (self.att_singlepass1_default_mu << (1 * 8))
+                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
+                (self.att_singlepass_default_mu_list[1] << (1 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
@@ -465,12 +496,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
-            self.freq_singlepass0_default_ftw-freq_secular_ftw, asf=self.ampls_cat_asf[0],
+            self.freq_singlepass_default_ftw_list[0]-freq_secular_ftw, asf=self.ampls_cat_asf[0],
             pow_=self.phases_pulse4_cat_update_dir[0] * phas_pow, profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
-            self.freq_singlepass1_default_ftw+freq_secular_ftw, asf=self.ampls_cat_asf[1],
+            self.freq_singlepass_default_ftw_list[1]+freq_secular_ftw, asf=self.ampls_cat_asf[1],
             pow_=self.phases_pulse4_cat_update_dir[1] * phas_pow, profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )

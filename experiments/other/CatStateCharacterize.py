@@ -180,7 +180,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.att_singlepass0_default_mu =       att_to_mu(self.att_singlepass0_default_db * dB)
 
         self.singlepass1 = self.get_device("urukul0_ch2")
-        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
+        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass1_default_mhz * MHz)
         self.ampl_singlepass1_default_asf =     self.singlepass1.amplitude_to_asf(self.ampl_singlepass1_default_pct / 100.)
         self.att_singlepass1_default_mu =       att_to_mu(self.att_singlepass1_default_db * dB)
 
