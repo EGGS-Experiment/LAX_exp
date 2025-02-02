@@ -376,6 +376,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
                 # pulse 2b: repump via 854
                 if self.enable_pulse2_quench:
+                    self.pump.readout()
                     self.repump_qubit.on()
                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                     self.repump_qubit.off()
