@@ -191,8 +191,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         '''
         # pulse 1 - cat 0
         self.time_pulse1_cat_mu =       self.core.seconds_to_mu(self.time_pulse1_cat_us * us)
-        self.phases_pulse1_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                  for phas_pow in self.phases_pulse1_cat_turns], dtype=np.int32)
+        self.phases_pulse1_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
+                                         for phas_pow in self.phases_pulse1_cat_turns]
 
         # pulse 3 - sigma_x1
         self.phase_pulse3_sigmax_pow =  self.qubit.turns_to_pow(self.phase_pulse3_sigmax_turns)
