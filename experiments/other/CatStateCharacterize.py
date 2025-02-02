@@ -22,8 +22,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'profile_target', 'singlepass0', 'singlepass1',
 
-        'freq_singlepass0_default_ftw', 'ampl_singlepass0_default_asf', 'att_singlepass0_default_mu',
-        'freq_singlepass1_default_ftw', 'ampl_singlepass1_default_asf', 'att_singlepass1_default_mu',
+        'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
 
@@ -50,13 +49,10 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
-        self.setattr_argument("freq_singlepass0_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass0_default_pct",   NumberValue(default=58., precision=3, step=5, min=0.01, max=61.2), group="defaults.beams")
-        self.setattr_argument("att_singlepass0_default_db",     NumberValue(default=3., precision=1, step=0.5, min=3., max=31.5), group="defaults.beams")
-
-        self.setattr_argument("freq_singlepass1_default_mhz",   NumberValue(default=80., precision=6, step=1, min=50., max=400.), group="defaults.beams")
-        self.setattr_argument("ampl_singlepass1_default_pct",   NumberValue(default=0.01, precision=3, step=5, min=0.01, max=50), group="defaults.beams")
-        self.setattr_argument("att_singlepass1_default_db",     NumberValue(default=31.5, precision=1, step=0.5, min=14., max=31.5), group="defaults.beams")
+        self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (58., 3.)
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([80., 80.]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([58., 58.]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([3., 3.]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
 
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
@@ -166,6 +162,16 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         CHECK INPUT FOR ERRORS
         '''
+        
+        # ensure single pass values are safe and valid
+        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
+                for ampl_pct in self.ampl_singlepass_default_pct_list)):
+            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
+        
+        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
+                for att_db in self.att_singlepass_default_db_list)):
+            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+        
         # ensure we only herald once
         if self.enable_pulse2_herald and self.enable_pulse4_herald:
             raise ValueError("Cannot herald twice. Must choose either pulse2_herald OR pulse4_herald.")
@@ -175,14 +181,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         # defaults - singlepass AOM
         self.singlepass0 = self.get_device("urukul0_ch1")
-        self.freq_singlepass0_default_ftw =     self.singlepass0.frequency_to_ftw(self.freq_singlepass0_default_mhz * MHz)
-        self.ampl_singlepass0_default_asf =     self.singlepass0.amplitude_to_asf(self.ampl_singlepass0_default_pct / 100.)
-        self.att_singlepass0_default_mu =       att_to_mu(self.att_singlepass0_default_db * dB)
-
         self.singlepass1 = self.get_device("urukul0_ch2")
-        self.freq_singlepass1_default_ftw =     self.singlepass1.frequency_to_ftw(self.freq_singlepass1_default_mhz * MHz)
-        self.ampl_singlepass1_default_asf =     self.singlepass1.amplitude_to_asf(self.ampl_singlepass1_default_pct / 100.)
-        self.att_singlepass1_default_mu =       att_to_mu(self.att_singlepass1_default_db * dB)
+
+        self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
+                                                 for freq_mhz in self.freq_singlepass_default_mhz_list]
+        self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
+                                                 for ampl_asf in self.ampl_singlepass_default_pct_list]
+        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
+                                                 for att_db in self.att_singlepass_default_db_list]
 
         # defaults - doublepass AOM
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
@@ -289,18 +295,18 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
-                                      asf=self.ampl_singlepass0_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
+                                      asf=self.ampl_singlepass_default_asf_list[0],
                                       profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
-                                      asf=self.ampl_singlepass1_default_asf,
+            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
+                                      asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
         self.core.break_realtime()
 
-        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
-        self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
+        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.core.break_realtime()
 
         self.singlepass0.sw.on()
@@ -439,18 +445,18 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
-                                      asf=self.ampl_singlepass0_default_asf,
-                                      profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
-                                      asf=self.ampl_singlepass1_default_asf,
-                                      profile=i)
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
+                                    asf=self.ampl_singlepass_default_asf_list[0],
+                                    profile=i)
+            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
+                                    asf=self.ampl_singlepass_default_asf_list[1],
+                                    profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
         self.core.break_realtime()
 
-        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
-        self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
+        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.core.break_realtime()
 
         self.singlepass0.sw.on()
@@ -475,11 +481,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
-            self.freq_singlepass0_default_ftw, asf=self.ampl_singlepass0_default_asf, pow_=0,
+            self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
-            self.freq_singlepass1_default_ftw, asf=self.ampl_singlepass1_default_asf, pow_=0,
+            self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.io_update.pulse_mu(8)
@@ -492,8 +498,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
         a |= (
                 (self.att_sigmax_mu << (0 * 8)) |
-                (self.att_singlepass0_default_mu << (1 * 8)) |
-                (self.att_singlepass1_default_mu << (1 * 8))
+                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
+                (self.att_singlepass_default_mu_list[1] << (1 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
@@ -512,7 +518,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Arguments:
             time_start_mu: fiducial timestamp for initial start reference (in machine units).
             time_pulse_mu: length of pulse (in machine units).
-            phas_pow: relative phase offset for the beam (in pow).
+            phas_pow_list: relative phase offset for the beams (RSB, BSB) (in pow).
             freq_carrier_ftw: carrier frequency (set by the double pass) in FTW.
             freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
         """
@@ -522,12 +528,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
-            self.freq_singlepass0_default_ftw - freq_secular_ftw, asf=self.ampls_cat_asf[0],
+            self.freq_singlepass_default_ftw_list[0] - freq_secular_ftw, asf=self.ampls_cat_asf[0],
             pow_=phas_pow_list[0], profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
-            self.freq_singlepass1_default_ftw + freq_secular_ftw, asf=self.ampls_cat_asf[1],
+            self.freq_singlepass_default_ftw_list[1] + freq_secular_ftw, asf=self.ampls_cat_asf[1],
             pow_=phas_pow_list[1], profile=self.profile_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
@@ -564,9 +570,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
                           profile=self.profile_target)
-        self.singlepass0.set_mu(self.freq_singlepass0_default_ftw, asf=self.ampl_singlepass0_default_asf,
+        self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
+                                asf=self.ampl_singlepass_default_asf_list[0],
                                 pow_=0, profile=self.profile_target)
-        self.singlepass1.set_mu(self.freq_singlepass1_default_ftw, asf=self.ampl_singlepass1_default_asf,
+        self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
+                                asf=self.ampl_singlepass_default_asf_list[1],
                                 pow_=0, profile=self.profile_target)
 
         # set all attenuators together
@@ -577,8 +585,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
         a |= (
                 (self.att_pulse5_readout_mu << (0 * 8)) |
-                (self.att_singlepass0_default_mu << (1 * 8)) |
-                (self.att_singlepass1_default_mu << (1 * 8))
+                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
+                (self.att_singlepass_default_mu_list[1] << (1 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
