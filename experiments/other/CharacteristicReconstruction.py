@@ -244,6 +244,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
+        # # tmp remove
+        # self.freq_bsb_ftw = self.qubit.frequency_to_ftw(101.5885 * MHz)
+        # # tmp remove
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
@@ -349,6 +353,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                         self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
                                                self.phases_pulse1_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
+
+                    # self.pulse_yzde()
 
                     # pulse 2: herald via 397nm fluorescence
                     if self.enable_pulse2_herald:
@@ -536,6 +542,43 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         delay_mu(time_pulse_mu)
         self.qubit.off()
         self.singlepass1.sw.off()
+
+    # @kernel(flags={"fast-math"})
+    # def pulse_yzde(self) -> TNone:
+    #     # set up relevant beam waveforms
+    #     self.qubit.set_mu(
+    #         self.freq_bsb_ftw, asf=self.ampl_sigmax_asf, pow_=0,
+    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #     )
+    #     self.singlepass0.set_mu(
+    #         self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
+    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #     )
+    #     self.singlepass1.set_mu(
+    #         self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
+    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #     )
+    #     self.qubit.cpld.io_update.pulse_mu(8)
+    #
+    #     # set all attenuators together
+    #     a = self.qubit.cpld.att_reg & ~(
+    #             (0xFF << (0 * 8)) |
+    #             (0xFF << (1 * 8)) |
+    #             (0xFF << (2 * 8))
+    #     )
+    #     a |= (
+    #             (self.att_sigmax_mu << (0 * 8)) |
+    #             (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
+    #             (self.att_singlepass_default_mu_list[1] << (1 * 8))
+    #     )
+    #     self.qubit.cpld.set_all_att_mu(a)
+    #
+    #     # run sigmax pulse
+    #     self.singlepass0.sw.on()
+    #     self.singlepass1.sw.off()
+    #     self.qubit.on()
+    #     delay_mu(66980)
+    #     self.qubit.off()
 
 
     '''
