@@ -362,13 +362,16 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                 continue
 
                             # add minor slack if we move on
-                            at_mu(self.core.get_rtio_counter_mu() + 100000)
+                            at_mu(self.core.get_rtio_counter_mu() + 150000)
 
-                        # force break loop by default
-                        break
+                    # force break loop by default
+                    break
 
                 '''DIRECT CHARACTERISTIC MEASUREMENT'''
                 # prepare spin state for characteristic readout
+                # note: need to set correct profile for normal quenching
+                # otherwise might be stuck in SBC quench params)
+                self.pump.readout()
                 self.repump_qubit.on()
                 delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                 self.repump_qubit.off()
