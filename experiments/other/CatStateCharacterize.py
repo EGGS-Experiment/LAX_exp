@@ -58,7 +58,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.3369, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.2401, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
         self.setattr_argument("time_sigmax_us",     NumberValue(default=3.21, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
@@ -66,9 +66,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.3369]),
-                                                                    CenterScan(101.3369, 0.01, 0.0001, randomize=True),
-                                                                    RangeScan(101.3200, 101.3500, 50, randomize=True),
+                                                                    ExplicitScan([101.2401]),
+                                                                    CenterScan(101.2401, 0.01, 0.0001, randomize=True),
+                                                                    RangeScan(101.2301, 101.2501, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
@@ -398,6 +398,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
                 # pulse 4b: repump via 854
                 if self.enable_pulse4_quench:
+                    self.pump.readout()
                     self.repump_qubit.on()
                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                     self.repump_qubit.off()
