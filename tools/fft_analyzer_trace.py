@@ -15,13 +15,15 @@ class FFTAnalyzerTrace(EnvExperiment):
     def build(self):
         self.setattr_argument("device_key", StringValue(default="GPIB1::10"))
         self.setattr_argument("config_string", StringValue(default="GPIB1::10"))
+        self.setattr_argument("calibration_factor", NumberValue(default=5., precision=2, step=10, min=-100, max=100))
 
     def prepare(self):
         """
         todo: document
         """
-        # set config as dataset
+        # set relevant parameters as dataset
         self.set_dataset('config', self.config_string, broadcast=False)
+        self.set_dataset('calibration_factor', self.calibration_factor, broadcast=False)
 
     """
     PYVISA METHODS
@@ -59,6 +61,8 @@ class FFTAnalyzerTrace(EnvExperiment):
         # get trace values and convert to float (units should be dBm)
         yvals_ampl_dbm = self.dev.query("DSPY? 0")
         yvals_ampl_dbm = np.array([float(str_val) for str_val in yvals_ampl_dbm.split(",")])
+        # update results w/calibration factor
+        yvals_ampl_dbm += self.calibration_factor
 
         # save results in 2D dataset
         self.set_dataset(
