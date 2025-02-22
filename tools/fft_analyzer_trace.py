@@ -15,8 +15,18 @@ class FFTAnalyzerTrace(EnvExperiment):
     def build(self):
         self.setattr_argument("device_key",         StringValue(default="GPIB1::10"))
         self.setattr_argument("display_num",        NumberValue(default=0, precision=0, step=1, min=0, max=1))
+
         self.setattr_argument("config_string",      StringValue(default="N/A"))
         self.setattr_argument("calibration_factor", NumberValue(default=5., precision=2, step=10, min=-100, max=100))
+
+        self.setattr_argument("psd_units",          BooleanValue(default=True))
+        self.setattr_argument("span_freq_khz_list", Scannable(
+                                                            default=[
+                                                                ExplicitScan([12.8, 103.]),
+                                                            ],
+                                                            global_min=0.01, global_max=105, global_step=1,
+                                                            unit="kHz", scale=1, precision=3
+                                                        ))
 
     def prepare(self):
         """
@@ -25,10 +35,17 @@ class FFTAnalyzerTrace(EnvExperiment):
         # ensure display num is either 0 or 1
         self.display_num = round(self.display_num)
 
-        # set relevant parameters as dataset
+        # save relevant parameters as dataset (for convenience later on)
         self.set_dataset('config', self.config_string, broadcast=False)
         self.set_dataset('display_num', self.display_num, broadcast=False)
         self.set_dataset('calibration_factor', self.calibration_factor, broadcast=False)
+        self.set_dataset('psd_units', self.calibration_factor, broadcast=False)
+
+        # create result dataset counter
+        self._idx_results = 0
+
+        # poll delay document
+        self._poll_delay_s = 1.0
 
 
     """
@@ -53,22 +70,38 @@ class FFTAnalyzerTrace(EnvExperiment):
         self.dev.write_termination = '\n'   # default is '\r\n', which is invalid for SR7xx
         self.dev.timeout = 10000            # in ms, default is 3s
 
-        # todo: store important parameters
-        # todo: store PSD units?
-        # todo: store linear vs vector averaging
-        # todo: store units
-        # todo: store measurement type
+        # store/set up important parameters
+        # set up PSD units
+        self.dev.write("PSDU {:d},{:d}".format(self.display_num, self.psd_units))
+        # todo: store input config: grounding, coupling, range
+        # todo: store measurement: type, units
+        # todo: store averaging: type, num_avg
 
-    def get_trace(self) -> TNone:
+    def get_trace(self, freq_span_khz: TFloat) -> TNone:
         """
-        Get 2D trace values
+        Get 2D trace values.
+        Arguments:
+            freq_span_khz: the frequency span to use for the trace (in kHz).
         """
-        # get frequency start/stop
-        self.freq_start_hz =    float(self.dev.query("FSTR? {:d}".format(self.display_num)).strip())
-        self.freq_stop_hz =     float(self.dev.query("FEND? {:d}".format(self.display_num)).strip())
-        self.num_freq_points =  int(self.dev.query("DSPN? {:d}".format(self.display_num)).strip())
-        # create x-axis array in Hz
-        xvals_freq_hz = np.linspace(self.freq_start_hz, self.freq_stop_hz, self.num_freq_points)
+        # set recording span & start
+        # self.dev.write("*CLS; FSPN {:d},{:f}; STRT".format(self.display_num, freq_span_khz * kHz))
+        self.dev.write("*CLS; FSPN {:d},{:f}; STRT".format(2, freq_span_khz * kHz))
+
+        # poll until avgs completed
+        try:
+            completion_status = bool(int(self.dev.query("DSPS? {:d}".format(round(1 + self.display_num * 8)))))
+            while completion_status is False:
+                sleep(self._poll_delay_s)
+                completion_status = bool(int(self.dev.query("DSPS? {:d}".format(round(1 + self.display_num * 8)))))
+        except Exception as e:
+            print("whoopsy daisy baby make oopsie - get trace")
+            raise e
+
+        # get frequency start/stop to create x-axis array in Hz
+        freq_start_hz =     float(self.dev.query("FSTR? {:d}".format(self.display_num)).strip())
+        freq_stop_hz =      float(self.dev.query("FEND? {:d}".format(self.display_num)).strip())
+        num_freq_points =   int(self.dev.query("DSPN? {:d}".format(self.display_num)).strip())
+        xvals_freq_hz =     np.linspace(freq_start_hz, freq_stop_hz, num_freq_points)
 
         # get trace values and convert to float (units should be dBm)
         yvals_ampl_dbm = self.dev.query("DSPY? {:d}".format(self.display_num))
@@ -78,21 +111,34 @@ class FFTAnalyzerTrace(EnvExperiment):
 
         # save results in 2D dataset
         self.set_dataset(
-            "results",
+            "results_{:d}".format(self._idx_results),
             np.transpose([xvals_freq_hz, yvals_ampl_dbm]),
             broadcast=False
         )
+        self._idx_results += 1
+
+    def cleanup_device(self) -> TNone:
+        """
+        Clean up device settings after we're done.
+        """
+        # set PSD units back to normal
+        self.dev.write("PSDU {:d},{:d}".format(self.display_num, False))
+
 
     def run(self) -> TNone:
         """
-        todo: document
+        Main sequence.
         """
         try:
             # connect to device & set up
             self.prepare_pyvisa()
 
             # get trace
-            self.get_trace()
+            for freq_span_khz in self.span_freq_khz_list:
+                self.get_trace(freq_span_khz)
+
+            # clean up
+            self.cleanup_device()
 
         except Exception as e:
             # print error message
