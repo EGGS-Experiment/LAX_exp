@@ -41,11 +41,13 @@ class FFTAnalyzerTrace(EnvExperiment):
         self.set_dataset('calibration_factor', self.calibration_factor, broadcast=False)
         self.set_dataset('psd_units', self.calibration_factor, broadcast=False)
 
-        # create result dataset counter
-        self._idx_results = 0
+        # counters
+        self._idx_results = 0   # result dataset counter
+        self._idx_failure = 0   # failure counter
 
-        # poll delay document
-        self._poll_delay_s = 1.0
+        # magic numbers
+        self.max_failures = 5       # max number of failures
+        self._poll_delay_s = 2.5    # poll delay document
 
 
     """
@@ -83,39 +85,51 @@ class FFTAnalyzerTrace(EnvExperiment):
         Arguments:
             freq_span_khz: the frequency span to use for the trace (in kHz).
         """
-        # set recording span & start
-        # self.dev.write("*CLS; FSPN {:d},{:f}; STRT".format(self.display_num, freq_span_khz * kHz))
+        # set recording span & start data acquisition
         self.dev.write("*CLS; FSPN {:d},{:f}; STRT".format(2, freq_span_khz * kHz))
 
         # poll until avgs completed
-        try:
-            completion_status = bool(int(self.dev.query("DSPS? {:d}".format(round(1 + self.display_num * 8)))))
-            while completion_status is False:
-                sleep(self._poll_delay_s)
+        completion_status = bool(int(self.dev.query("DSPS? {:d}".format(round(1 + self.display_num * 8)))))
+        while completion_status is False:
+            sleep(self._poll_delay_s)
+
+            try:
                 completion_status = bool(int(self.dev.query("DSPS? {:d}".format(round(1 + self.display_num * 8)))))
+
+            except Exception as e:
+                print("Failure #{:d}: {}".format(self._idx_failure, e))
+                self._idx_failure += 1
+                if self._idx_failure > self.max_failures:
+                    raise ValueError("Maximum number of failures reached.")
+
+        # get trace data
+        try:
+            # get frequency start/stop to create x-axis array in Hz
+            freq_start_hz = float(self.dev.query("FSTR? {:d}".format(self.display_num)).strip())
+            freq_stop_hz = float(self.dev.query("FEND? {:d}".format(self.display_num)).strip())
+            num_freq_points = int(self.dev.query("DSPN? {:d}".format(self.display_num)).strip())
+            xvals_freq_hz = np.linspace(freq_start_hz, freq_stop_hz, num_freq_points)
+
+            # get trace values and convert to float (units should be dBm)
+            yvals_ampl_dbm = self.dev.query("DSPY? {:d}".format(self.display_num))
+            yvals_ampl_dbm = np.array([float(str_val) for str_val in yvals_ampl_dbm.split(",")])
+            # update results w/calibration factor
+            yvals_ampl_dbm += self.calibration_factor
+
         except Exception as e:
-            print("whoopsy daisy baby make oopsie - get trace")
-            raise e
+            self._idx_failure += 1
+            print("Failure #{:d}: {}".format(self._idx_failure, e))
+            if self._idx_failure > self.max_failures:
+                raise ValueError("Maximum number of failures reached.")
 
-        # get frequency start/stop to create x-axis array in Hz
-        freq_start_hz =     float(self.dev.query("FSTR? {:d}".format(self.display_num)).strip())
-        freq_stop_hz =      float(self.dev.query("FEND? {:d}".format(self.display_num)).strip())
-        num_freq_points =   int(self.dev.query("DSPN? {:d}".format(self.display_num)).strip())
-        xvals_freq_hz =     np.linspace(freq_start_hz, freq_stop_hz, num_freq_points)
-
-        # get trace values and convert to float (units should be dBm)
-        yvals_ampl_dbm = self.dev.query("DSPY? {:d}".format(self.display_num))
-        yvals_ampl_dbm = np.array([float(str_val) for str_val in yvals_ampl_dbm.split(",")])
-        # update results w/calibration factor
-        yvals_ampl_dbm += self.calibration_factor
-
-        # save results in 2D dataset
-        self.set_dataset(
-            "results_{:d}".format(self._idx_results),
-            np.transpose([xvals_freq_hz, yvals_ampl_dbm]),
-            broadcast=False
-        )
-        self._idx_results += 1
+        else:
+            # save results in 2D dataset
+            self.set_dataset(
+                "results_{:d}".format(self._idx_results),
+                np.transpose([xvals_freq_hz, yvals_ampl_dbm]),
+                broadcast=False
+            )
+            self._idx_results += 1
 
     def cleanup_device(self) -> TNone:
         """
