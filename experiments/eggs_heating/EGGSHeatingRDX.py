@@ -232,11 +232,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # record EGGS pulse waveforms
         for i, phase_rsb in enumerate(self.phase_eggs_heating_rsb_turns_list):
+            # create local copy of _sequence_blocks
+            # note: no need to deep copy b/c it's filled w/immutables
+            _sequence_blocks_local = np.copy(_sequence_blocks)
+
             # update sequence block with rsb phase
-            _sequence_blocks[:, 0, 1] += phase_rsb
+            _sequence_blocks_local[:, 0, 1] += phase_rsb
 
             # create waveform
-            self.spinecho_wizard.sequence_blocks = _sequence_blocks
+            self.spinecho_wizard.sequence_blocks = _sequence_blocks_local
             self.spinecho_wizard.calculate_pulseshape()
             self.spinecho_wizard.compile_waveform()
 
