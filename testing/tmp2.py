@@ -45,6 +45,7 @@ class testarg342(EnvExperiment):
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.duc_stb()
 
+
         # configure ampl & freq
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].oscillator[0].set_frequency(0. * MHz)
