@@ -18,6 +18,14 @@ class QubitAlignment(LAXExperiment, Experiment):
     to examine the qubit beam alignment.
     """
     name = 'Qubit Alignment'
+    kernel_invariants = {
+        # conversions
+        "time_per_point_us", "repetitions",
+        # hardware parameters etc.
+        "freq_qubit_ftw", "att_qubit_mu", "_iter_repetitions", "_iter_loop",
+        # subsequences
+        "initialize_subsequence", "rabiflop_subsequence", "readout_subsequence"
+    }
 
 
     def build_experiment(self):
@@ -25,20 +33,20 @@ class QubitAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s',           NumberValue(default=500, precision=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=10, precision=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('samples_per_point',      NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
-        self.setattr_argument('time_qubit_us',          NumberValue(default=6., precision=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.4518, precision=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument('time_qubit_us',          NumberValue(default=5., precision=3, step=10, min=0.1, max=100000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.0468, precision=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
         self.setattr_argument('counts_threshold',       NumberValue(default=46, precision=0, step=10, min=1, max=1000), group='qubit')
 
 
         # instantiate subsequences
-        self.initialize_subsequence =                   InitializeQubit(self)
-        self.rabiflop_subsequence =                     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.readout_subsequence =                      Readout(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
+        self.readout_subsequence =      Readout(self)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -46,23 +54,23 @@ class QubitAlignment(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # calculate time taken for a single point
-        self.time_per_point_us =                ((self.initialize_subsequence.time_repump_qubit_mu
-                                                 + self.initialize_subsequence.time_doppler_cooling_mu
-                                                 + self.initialize_subsequence.time_spinpol_mu
-                                                 + self.readout_subsequence.time_readout_mu) / 1000
-                                                 + self.time_qubit_us)
+        self.time_per_point_us =    ((self.initialize_subsequence.time_repump_qubit_mu
+                                     + self.initialize_subsequence.time_doppler_cooling_mu
+                                     + self.initialize_subsequence.time_spinpol_mu
+                                     + self.readout_subsequence.time_readout_mu) / 1000
+                                     + self.time_qubit_us)
 
         # get relevant timings and calculate the number of repetitions
-        self.repetitions =                      round(self.time_total_s / (self.samples_per_point * self.time_per_point_us * us))
+        self.repetitions =  round(self.time_total_s / (self.samples_per_point * self.time_per_point_us * us))
 
         # declare loop iterators and holder variables ahead of time to reduce overhead
-        self._iter_repetitions =                np.arange(self.repetitions)
-        self._iter_loop =                       np.arange(self.samples_per_point)
-        self._state_array =                     np.zeros(self.samples_per_point, dtype=np.int32)
+        self._iter_repetitions =    np.arange(self.repetitions)
+        self._iter_loop =           np.arange(self.samples_per_point)
+        self._state_array =         np.zeros(self.samples_per_point, dtype=np.int32)
 
         # convert qubit parameters
-        self.freq_qubit_ftw =                   hz_to_ftw(self.freq_qubit_mhz * MHz)
-        self.att_qubit_mu =                     att_to_mu(self.att_qubit_db * dB)
+        self.freq_qubit_ftw =   hz_to_ftw(self.freq_qubit_mhz * MHz)
+        self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
         # tmp remove
         # todo: set the filter up properly
@@ -83,10 +91,8 @@ class QubitAlignment(LAXExperiment, Experiment):
         counts_y_arr[0] = 0
 
         # prepare datasets for storing counts
-        self.set_dataset('temp.qubit_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=True)
-        self.setattr_dataset('temp.qubit_align.counts_x')
-        self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=True)
-        self.setattr_dataset('temp.qubit_align.counts_y')
+        self.set_dataset('temp.qubit_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
         self.ccb.issue(
@@ -105,7 +111,7 @@ class QubitAlignment(LAXExperiment, Experiment):
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
-    def initialize_experiment(self):
+    def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
         # prepare plotting
@@ -166,7 +172,7 @@ class QubitAlignment(LAXExperiment, Experiment):
 
     # overload the update_results function to allow real-time dataset updating
     @rpc(flags={"async"})
-    def update_results(self, iter_num, state_array):
+    def update_results(self, iter_num: TInt32, state_array: TArray(TInt32, 1)) -> TNone:
         # convert raw counts into a probability
         # dstate_probability = np.sum((state_array < self.counts_threshold) * 1.) / self.samples_per_point
         # tmp remove
@@ -175,10 +181,14 @@ class QubitAlignment(LAXExperiment, Experiment):
         # tmp remove
 
 
-        # update datasets
+        # update datasets for broadcast
         self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
         # self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, dstate_probability)
         self.mutate_dataset('temp.qubit_align.counts_y', self._result_iter, np.mean(self._th0))
+
+        # update dataset for HDF5 storage
+        self.mutate_dataset('results', self._result_iter,
+                            np.array([iter_num * (self.samples_per_point * self.time_per_point_us * us), np.mean(self._th0)]))
 
         # update completion monitor
         self.set_dataset('management.dynamic.completion_pct',
