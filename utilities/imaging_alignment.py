@@ -65,8 +65,10 @@ class ImagingAlignment(LAXExperiment, Experiment):
         counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
         counts_y_arr[0, :] = 0
 
-        self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=True)
+        self.setattr_dataset('temp.imag_align.counts_x')
+        self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=True)
+        self.setattr_dataset('temp.imag_align.counts_y')
 
         # initialize plotting applet
         self.ccb.issue(

@@ -83,8 +83,10 @@ class QubitAlignment(LAXExperiment, Experiment):
         counts_y_arr[0] = 0
 
         # prepare datasets for storing counts
-        self.set_dataset('temp.qubit_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=True)
+        self.setattr_dataset('temp.qubit_align.counts_x')
+        self.set_dataset('temp.qubit_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=True)
+        self.setattr_dataset('temp.qubit_align.counts_y')
 
         # initialize plotting applet
         self.ccb.issue(
