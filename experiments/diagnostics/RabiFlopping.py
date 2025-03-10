@@ -42,7 +42,6 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.setattr_device('ccb')
 
         # prepare sequences
         self.initialize_subsequence = InitializeQubit(self)

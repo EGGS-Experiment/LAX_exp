@@ -46,7 +46,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
         self.setattr_device('sampler0')
-        self.setattr_device('ccb')
 
         # subsequences
         self.probe_subsequence = AbsorptionProbe(self)
@@ -272,7 +271,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Linewidth Measurement",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
                        ' --num-subplots 1',
-
                        group=['plotting','diagnostics'])
 
         return res_final

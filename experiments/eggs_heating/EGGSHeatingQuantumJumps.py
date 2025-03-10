@@ -1038,6 +1038,7 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
                                '$python -m LAX_exp.applets.plot_matplotlib '
                                'temp.plotting.results_eggs_heating_quantum_jumps_ch1_sweep'
 
+
                                ' --num-subplots 1', group=['plotting', 'eggs_heating', 'ch1_sweep'])
 
 

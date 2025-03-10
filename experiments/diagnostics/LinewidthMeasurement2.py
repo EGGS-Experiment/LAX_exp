@@ -42,7 +42,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
         self.setattr_device('sampler0')
-        self.setattr_device('ccb')
 
         # subsequences
         self.dopplercool_subsequence =  DopplerCool(self)

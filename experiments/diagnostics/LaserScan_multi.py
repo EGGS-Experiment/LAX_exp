@@ -40,7 +40,6 @@ class LaserScanMulti(LAXExperiment, Experiment):
 
         # relevant devices
         self.setattr_device('qubit')
-        self.setattr_device('ccb')
 
         # subsequences
         self.initialize_subsequence =   InitializeQubit(self)

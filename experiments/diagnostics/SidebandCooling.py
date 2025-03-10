@@ -31,7 +31,6 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # get relevant devices
         self.setattr_device('qubit')
-        self.setattr_device('ccb')
 
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
@@ -114,7 +113,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         counts_arr =        np.array(results_tmp[:, 1])
         time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
-        results_tmp[:, 0] *= 1.e3 / 0xFFFFFFFF
+        results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
 
         # calculate fluorescence detection threshold
         threshold_list = findThresholdScikit(results_tmp[:, 1])
@@ -163,7 +162,6 @@ class SidebandCooling(LAXExperiment, Experiment):
                                     )**0.5
 
         # format dictionary for applet plotting
-
         plotting_results = {'x': [results_plotting_x_rsb / 2., results_plotting_x_bsb / 2.],
                             'y': [results_plotting_y_rsb, results_plotting_y_bsb],
                             'fit_x': [fit_x_rsb / 2., fit_x_bsb / 2.],
