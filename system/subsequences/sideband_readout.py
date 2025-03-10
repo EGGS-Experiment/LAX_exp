@@ -14,13 +14,12 @@ class SidebandReadout(LAXSubsequence):
     """
     name = 'sideband_readout'
     kernel_invariants = {
-        "ampl_sideband_readout_asf",
-        "att_sideband_readout_mu",
-        "time_sideband_readout_mu",
+        "profile_dds",
+        "ampl_sideband_readout_asf", "att_sideband_readout_mu", "time_sideband_readout_mu",
         "freq_sideband_readout_ftw_list"
     }
 
-    def build_subsequence(self):
+    def build_subsequence(self, profile_dds: TInt32 = 0):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",      Scannable(
                                                                     default=[
@@ -42,6 +41,9 @@ class SidebandReadout(LAXSubsequence):
         self.setattr_argument("att_sideband_readout_db",        NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("time_sideband_readout_us",       NumberValue(default=122.9, precision=5, step=1, min=1, max=10000), group=self.name)
 
+        # set subsequence parameters
+        self.profile_dds = profile_dds
+
         # get relevant devices
         self.setattr_device('qubit')
 
@@ -59,7 +61,7 @@ class SidebandReadout(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         # set readout waveform for qubit
-        self.qubit.set_profile(0)
+        self.qubit.set_profile(self.profile_dds)
         self.qubit.set_att_mu(self.att_sideband_readout_mu)
 
         # population transfer pulse
@@ -70,7 +72,7 @@ class SidebandReadout(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run_time(self, time_readout_mu: TInt64) -> TNone:
         # set readout waveform for qubit
-        self.qubit.set_profile(0)
+        self.qubit.set_profile(self.profile_dds)
         self.qubit.set_att_mu(self.att_sideband_readout_mu)
 
         # population transfer pulse
