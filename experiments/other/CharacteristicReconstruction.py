@@ -367,7 +367,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                             if counts_her > self.force_herald_threshold:
                                 continue
 
-                            # add minor slack if we move on
+                            # add minor slack if we proceed
                             at_mu(self.core.get_rtio_counter_mu() + 150000)
 
                     # force break loop by default
