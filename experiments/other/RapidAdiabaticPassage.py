@@ -72,9 +72,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         # pulse parameters
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
+        # todo: actually implement the enable_pulseshaping/chirp stuff lol
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
         self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
-        # todo: actually implement the enable_pulseshaping/chirp stuff lol
 
         # read out parameters
         self.setattr_argument("enable_rabiflop_readout",    BooleanValue(default=False), group="rabiflop_readout")

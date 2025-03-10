@@ -14,11 +14,12 @@ class RabiflopReadout(LAXSubsequence):
     """
     name = 'rabiflop_readout'
     kernel_invariants = {
+        "profile_dds",
         "time_readout_mu_list",
         "freq_rabiflop_readout_ftw", "att_rabiflop_readout_mu", "ampl_qubit_asf"
     }
 
-    def build_subsequence(self):
+    def build_subsequence(self, profile_dds: TInt32 = 0):
         # timing
         self.setattr_argument("time_readout_us_list",       Scannable(
                                                                 default=RangeScan(0, 50, 51, randomize=True),
@@ -27,15 +28,18 @@ class RabiflopReadout(LAXSubsequence):
                                                             ), group=self.name)
         # readout waveform parameters
         self.setattr_argument("freq_rabiflop_readout_mhz",  NumberValue(default=103.3455, precision=5, step=1, min=1, max=10000), group=self.name)
-        self.setattr_argument("att_readout_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("att_rabiflop_readout_db",    NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_device('qubit')
 
+        # set subsequence parameters
+        self.profile_dds = profile_dds
+
     def prepare_subsequence(self):
+        # convert subsequence arguments to machine units
         self.time_readout_mu_list =         np.array([self.core.mu_to_seconds(time_us * us)
                                                       for time_us in self.time_readout_us_list])
-
         self.freq_rabiflop_readout_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_readout_mhz * MHz)
-        self.att_rabiflop_readout_mu =      att_to_mu(self.att_readout_db * dB)
+        self.att_rabiflop_readout_mu =      att_to_mu(self.att_rabiflop_readout_db * dB)
 
         # get DDS amplitude for rabi flopping from dataset manager
         self.ampl_qubit_asf =   self.get_parameter('ampl_qubit_pct',
@@ -46,12 +50,12 @@ class RabiflopReadout(LAXSubsequence):
     def initialize_subsequence(self) -> TNone:
         # set up the rabiflop readout profile
         self.qubit.set_mu(self.freq_rabiflop_readout_ftw, asf=self.ampl_qubit_asf,
-                          profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+                          profile=self.profile_dds, phase_mode=PHASE_MODE_CONTINUOUS)
 
     @kernel(flags={"fast-math"})
     def run_time(self, time_rabiflop_mu: TInt64) -> TNone:
         # set readout waveform for qubit
-        self.qubit.set_profile(0)
+        self.qubit.set_profile(self.profile_dds)
         self.qubit.set_att_mu(self.att_rabiflop_readout_mu)
 
         # population transfer pulse
