@@ -1033,8 +1033,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
                                ' --num-subplots 1', group=['plotting', 'eggs_heating', 'ch1_sweep'])
 
 
-
-
             except Exception as e:
                 print("Warning: unable to process data.")
                 print(repr(e))

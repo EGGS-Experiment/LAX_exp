@@ -53,7 +53,6 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
         self.setattr_argument("ampl_quench_pct",                        NumberValue(default=4.8, precision=2, step=1, min=0.1, max=50), group='sideband_cooling.continuous')
 
-
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
         mode_total_pct =    np.sum(self.freq_sideband_cooling_mhz_pct_list.values())
