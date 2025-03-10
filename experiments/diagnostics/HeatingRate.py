@@ -23,7 +23,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     def build_experiment(self):
         # heating rate wait times
         self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 100, 500]))
-        self.setattr_device('ccb')
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -215,4 +214,4 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         ccb_command += f' --num-subplots {num_subplots}'
         self.ccb.issue("create_applet", f"Heating Rate",
                        ccb_command,
-                       group='plotting.diagnostics')
+                       group=['plotting', 'diagnostics'])

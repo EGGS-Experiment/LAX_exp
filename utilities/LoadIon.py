@@ -184,6 +184,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             # turn on endcap channels and ensure others are off
             self.trap_dc.east_endcap_toggle(True)
             self.trap_dc.west_endcap_toggle(True)
+
+            self.trap_dc.set_h_shim_voltage(0)
+            self.trap_dc.set_v_shim_voltage(0)
+            self.trap_dc.set_aramp_voltage(0)
             self.trap_dc.h_shim_toggle(False)
             self.trap_dc.v_shim_toggle(False)
             self.trap_dc.aramp_toggle(False)

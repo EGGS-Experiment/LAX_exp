@@ -31,6 +31,12 @@ class Beam729(LAXDevice):
         self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
+    def initialize_device(self) -> TNone:
+        # get CPLD attenuations so we don't override them
+        self.cpld.get_att_mu()
+        self.core.break_realtime()
+
+    @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         # set default profile on CPLD
         self.core.break_realtime()

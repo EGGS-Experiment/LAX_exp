@@ -163,9 +163,10 @@ class SidebandCooling(LAXExperiment, Experiment):
                                     )**0.5
 
         # format dictionary for applet plotting
-        plotting_results = {'x': [results_plotting_x_rsb, results_plotting_x_bsb],
+
+        plotting_results = {'x': [results_plotting_x_rsb / 2., results_plotting_x_bsb / 2.],
                             'y': [results_plotting_y_rsb, results_plotting_y_bsb],
-                            'fit_x': [fit_x_rsb, fit_x_bsb],
+                            'fit_x': [fit_x_rsb / 2., fit_x_bsb / 2.],
                             'fit_y': [fit_y_rsb, fit_y_bsb],
                             'subplot_x_labels': 'AOM Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
@@ -180,7 +181,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Sideband Cooling",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
                        ' --num-subplots 2',
-                       group='plotting.diagnostics')
+                       group=['plotting', 'diagnostics'])
 
         # save results to dataset manager for dynamic experiments
         res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]

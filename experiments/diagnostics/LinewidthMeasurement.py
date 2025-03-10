@@ -272,6 +272,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Linewidth Measurement",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
                        ' --num-subplots 1',
-                       group='plotting.diagnostics')
+
+                       group=['plotting','diagnostics'])
 
         return res_final

@@ -35,9 +35,9 @@ class CompletionMonitor(LayoutWidget):
         self.layout.setRowStretch(1, 6)
 
         # set up timer
-        self.prev_pct = 0
-        self.prev_time = 0
-        self.mbar = 0
+        self.prev_pct = 0.
+        self.prev_time = time()
+        self.mbar = 0.
         self._idx_update = 0
 
     def data_changed(self, value, metadata, persist, mods):
@@ -50,32 +50,48 @@ class CompletionMonitor(LayoutWidget):
         except (KeyError, ValueError, TypeError):
             val = 0
 
-        # process statistics
-        if val >= self.prev_pct:
-            time_now = time()
+        # process statistics only if completion_pct or time_passed have changed
+        time_now = time()
+        if (val > self.prev_pct) and (time_now > self.prev_time):
+
+            # update counter
+            self._idx_update += 1
 
             # update predicted completion time
-            if (self._idx_update > 0) and (self._idx_update % self.subsample == 0):
-                # calculate statistics
+            if self._idx_update % self.subsample == 0:
+            # if (self._idx_update > 0) and (self._idx_update % self.subsample == 0):
+                # calculate most recent slope
                 d_mbar = (val - self.prev_pct) / (time_now - self.prev_time)
-                self.mbar = self.mbar * (1. - 1. / (self._idx_update//self.subsample)) + d_mbar / (self._idx_update//self.subsample)
-                # print("{}\t{}\t{:.5g}\t{:.5g}".format(self._idx_update, self._idx_update//self.subsample, d_mbar, self.mbar))
+                # update cumulative moving average
+                self.mbar = ((self._idx_update//self.subsample - 1) * self.mbar + d_mbar) / ((self._idx_update//self.subsample))
+                # self.mbar = self.mbar * (1. - 1. / (self._idx_update//self.subsample)) + d_mbar / (self._idx_update//self.subsample)
+                # print("{}\t{}\t{:.5g}\t{:.5g}".format(
+                #     self._idx_update, self._idx_update//self.subsample,
+                #     d_mbar, self.mbar
+                # ))
 
                 # calculate remaining time
-                # hack bugfix: made it max(self.mbar, 1) to get around divide-by-zero errors lol
-                time_remaining_s = (100. - val) / max(self.mbar, 1)
-                # print("\n\tpct: {:2.2f}\t time_remaining_s: {:2.2f} => {:02d}:{:04.2f}\n".format(val, time_remaining_s, int(time_remaining_s//60), time_remaining_s % 60))
-                self.eta_display.setText("Time Remaining:\t{:02d}:{:05.2f}".format(int(time_remaining_s // 60), time_remaining_s % 60))
+                try:
+                    time_remaining_s = (100. - val) / self.mbar
+                    # print("\n\tpct: {:2.2f}\t time_remaining_s: {:2.2f} => {:02d}:{:05.2f}\n".format(
+                    #     val, time_remaining_s,
+                    #     int(time_remaining_s//60), time_remaining_s % 60
+                    # ))
+                    self.eta_display.setText("ETA (mm:ss.ss):\t{:02d}:{:05.2f}".format(
+                        int(time_remaining_s // 60), time_remaining_s % 60
+                    ))
+                except ZeroDivisionError:
+                    pass
 
             # update values
             self.prev_pct = val
             self.prev_time = time_now
-            self._idx_update += 1
+            # self._idx_update += 1
 
-        # reset and start anew
+        # reset only if completion has reversed (i.e. new
         elif val < self.prev_pct:
             self.prev_pct = 0
-            self.prev_time = 0
+            self.prev_time = time()
             self.mbar = 0
             self._idx_update = 0
 

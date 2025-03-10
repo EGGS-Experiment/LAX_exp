@@ -10,7 +10,7 @@ from LAX_exp.base import LAXExperiment
 
 class FlipperTest(LAXExperiment, Experiment):
     """
-    todo: document
+    Flipper Test
     """
     name = "Flipper Test"
 

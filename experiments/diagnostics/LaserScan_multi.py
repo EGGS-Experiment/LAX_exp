@@ -226,6 +226,6 @@ class LaserScanMulti(LAXExperiment, Experiment):
         self.ccb.issue("create_applet", f"Laser Scan (Multi)",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan_multi'
                        ' --num-subplots 1',
-                       group="plotting.diagnostics")
+                       group=["plotting", "diagnostics"])
 
         return results_tmp

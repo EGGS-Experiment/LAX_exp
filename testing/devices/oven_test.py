@@ -10,7 +10,7 @@ from LAX_exp.base import LAXExperiment
 >>>>>>> 524534b4c277a6647269fd41893ccfcf493fad2b
 class OvenTest(LAXExperiment, Experiment):
     """
-    todo: document
+    Oven Test
     """
     name = "Oven Test"
 

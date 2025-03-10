@@ -335,12 +335,12 @@ class PSRSB(LAXExperiment, Experiment):
         self.qubit.set_att_mu(self.att_qubit_mu)
 
         # synchronize start time to coarse RTIO clock
-        time_start = now_mu() & ~0x7
+        time_start_mu = now_mu() & ~0x7
 
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start)
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_rsb_mu)
         self.qubit.off()
@@ -348,7 +348,7 @@ class PSRSB(LAXExperiment, Experiment):
         # run carrier pulse
         self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start)
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_carrier_mu)
         self.qubit.off()

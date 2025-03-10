@@ -68,8 +68,9 @@ class Displace(LAXSubsequence):
         # set blank output waveform
         self.dds_dipole.set_profile(2)
         self.dds_dipole.write32(_AD9910_REG_CFR1,
-                                (1 << 16) |  # select_sine_output
-                                (1 << 13))  # phase_autoclear
+                                (1 << 16) | # select_sine_output
+                                (1 << 13) | # phase_autoclear
+                                2)
 
         # align to coarse RTIO clock
         time_start_mu = now_mu() & ~0x7
