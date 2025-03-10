@@ -224,6 +224,8 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
+
+
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
 
         # save results to hdf5 as a dataset
@@ -239,7 +241,7 @@ class LaserScan(LAXExperiment, Experiment):
             for peak_freq, peak_prob in peak_vals:
                 print("\t\t{:.4f} MHz:\t{:.2f}".format(peak_freq, peak_prob))
         else:
-            print("\tWarning: too many peaks detected.")
+            print("\tWarning: Could not detect peaks.")
 
         # get results
         results_plotting = np.array(results_tmp)
