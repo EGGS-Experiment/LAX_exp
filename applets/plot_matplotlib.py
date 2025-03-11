@@ -236,6 +236,7 @@ class MatplotlibPlot(QMainWindow):
         x_filtered = [x_ele for x_ele in x if x_ele is not None]
         self.sc.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 4),4))
         self.sc.axes[ind].legend()
+        self.sc.axes[ind].grid(True)
 
     """VERIFICATION AND HELPER FUNCTIONS"""
 
