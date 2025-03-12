@@ -15,7 +15,7 @@ class SpinEchoWizardRDX(LAXEnvironment):
 
     Design a spin-echo type pulse sequence for phaser based on user input.
     Output format is designed for Phaser Pulse Shaper object.
-    Does not interact with the core device.
+    Does not interact with the core device (but requires it for value conversion).
     """
     name = 'Spin Echo Wizard RDX'
     # kernel_invariants = {
@@ -28,6 +28,7 @@ class SpinEchoWizardRDX(LAXEnvironment):
         Build SpinEchoWizard and create configuration variables.
         """
         # get relevant devices
+        # todo: make it somehow independent of core
         self.setattr_device('core')
         self.setattr_device('phaser_eggs')
 
