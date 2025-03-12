@@ -4,35 +4,33 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous,
+from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous, QVSAPulse,
                                          QubitPulseShape, QubitRAP, Readout, RabiflopReadout, RescueIon)
 
 from itertools import product
 from artiq.coredevice import ad9910
 
 
-# todo: initialize, sbc, create state, RAP, herald, bsb rabi, readout
-
-
 class PuttermanPuzzle(LAXExperiment, Experiment):
     """
     Experiment: Putterman Puzzle
 
-    todo: document
+    Is a coherent state an eigenvalue of the annihilation operator?
+    Let's find out.
     """
     name = 'Putterman Puzzle'
     kernel_invariants = {
+        # subsequences etc.
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target', 'singlepass0', 'singlepass1',
+        'rap_subsequence', 'rabiflop_subsequence',
+        'profile_target_rap', 'profile_target_readout',
 
-        'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
-        'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
-        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
+        # hardware values - core
+        'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu',
 
-        'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
-        'phases_pulse4_cat_pow',
-        'phases_pulse4_cat_update_dir', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
+        # hardware values - motional state prep
 
+        # experiment/config related
         'config_experiment_list'
     }
 
@@ -51,14 +49,16 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
 
         '''MOTIONAL STATE PREP - CONFIGURATION'''
-        # todo: type? - e.g. fock, EGGS
+        # QVSA pulse preparation
+        self.motional_subsequence = QVSAPulse(self)
 
         '''RAP - CONFIGURATION'''
+        self.setattr_argument("enable_rap",             BooleanValue(default=True), group='RAP')
         self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3996, precision=6, step=1, min=50., max=400.), group="RAP")
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="RAP")
-        self.setattr_argument("time_rap_us",            NumberValue(default=3.21, precision=2, step=5, min=0.1, max=10000), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=30, precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("att_rap_db",             NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="RAP")
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=10., precision=3, step=5, min=0.01, max=50), group="RAP")
+        self.setattr_argument("time_rap_us",            NumberValue(default=90.5, precision=2, step=5, min=0.1, max=10000), group="RAP")
+        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
+        self.setattr_argument("att_rap_db",             NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="RAP")
 
         '''HERALD - CONFIGURATION'''
         self.setattr_argument("enable_force_herald",    BooleanValue(default=True), group='herald')
@@ -96,13 +96,16 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.time_rap_mu =          self.core.seconds_to_mu(self.time_rap_us * us)
         self.att_rap_mu =           att_to_mu(self.att_rap_db * dB)
 
+        # heralding values
+        self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
         self.config_experiment_list = np.array([
             vals
-            for vals in product(freq_cat_center_ftw_list, self.rabiflop_subsequence.time_readout_mu_list)
+            for vals in product(self.rabiflop_subsequence.time_readout_mu_list)
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
@@ -135,7 +138,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # instantiate relevant variables
         counts_her = -1 # store heralded counts
 
-        # retrieve relevant DMA subsequences
+        # retrieve relevant DMA sequences
         self.dma_handle_rap = self.core_dma.get_handle('RAP_SUBSEQUENCE')
         self.core.break_realtime()
 
@@ -161,12 +164,14 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     self.sidebandcool_subsequence.run_dma()
 
                     '''APPLY MOTIONAL INTERACTION'''
-                    # todo
+                    # use QVSA for motional excitation
+                    self.motional_subsequence.run_pulse()
 
                     '''APPLY a^\dag (VIA RAP + HERALD)'''
-                    # run RAP on motional sideband (a^\dag operator)
-                    self.qubit.set_att_mu(self.att_rap_mu)
-                    self.core_dma.playback_handle(self.dma_handle_rap)
+                    if self.enable_rap:
+                        # run RAP on motional sideband (a^\dag operator)
+                        self.qubit.set_att_mu(self.att_rap_mu)
+                        self.core_dma.playback_handle(self.dma_handle_rap)
 
                     # herald ion via state-dependent fluorescence
                     self.readout_subsequence.run_dma()
@@ -176,10 +181,11 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     if self.enable_force_herald:
                         counts_her = self.readout_subsequence.fetch_count()
                         if counts_her > self.force_herald_threshold:
+                            self.core.break_realtime()
                             continue
 
                         # add minor slack if we proceed
-                        at_mu(self.core.get_rtio_counter_mu() + 150000)
+                        at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
                 '''READOUT & STORE RESULTS'''
                 # rabi flop & readout for motional detection
