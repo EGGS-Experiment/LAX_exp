@@ -170,7 +170,7 @@ class PhaserEGGS(LAXDevice):
             delay_mu(self.t_sample_mu)
 
     @kernel(flags={"fast-math"})
-    def phaser_setup(self, att_mu_ch0: TInt32, att_mu_ch1: TInt32) -> TNone:
+    def phaser_setup(self, att_mu_ch0: TInt32 = 0, att_mu_ch1: TInt32 = 0) -> TNone:
         """
         Set up hardware to in preparation for an output pulse.
         Arguments:

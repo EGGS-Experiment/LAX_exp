@@ -29,9 +29,10 @@ from LAX_exp.system.subsequences.tickle_dds import TickleDDS
 from LAX_exp.system.subsequences.tickle_fast_dds import TickleFastDDS
 from LAX_exp.system.subsequences.tickle_fast_phaser import TickleFastPhaser
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
+from LAX_exp.system.subsequences.QVSA_pulse import QVSAPulse
 __all__.extend(['Squeeze', 'SqueezeConfigurable',
                 'Displace', 'TickleDDS', 'TickleFastDDS', 'TickleFastPhaser',
-                'ParametricExcite'])
+                'ParametricExcite', 'QVSAPulse'])
 
 # spin state manipulation
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
