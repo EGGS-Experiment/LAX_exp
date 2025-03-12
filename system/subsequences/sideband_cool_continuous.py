@@ -78,7 +78,6 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         '''PREPARE SIDEBAND COOLING'''
         # CONFIG
-        self.qubit_func = self.qubit.off if self.calibration_continuous is True else self.qubit.on
         self.freq_sideband_cooling_ftw_list =   np.array([hz_to_ftw(freq_mhz * MHz)
                                                           for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
         self.iter_sideband_cooling_modes_list = np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))
@@ -191,8 +190,8 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.repump_qubit.on()
 
             # turn on qubit beam
-            self.qubit_func()           # we use qubit_func() instead of self.qubit.on()
-                                        # to allow for variable behavior due to calibration
+            if not self.calibration_continuous:
+                self.qubit.on()
 
         # intersperse state preparation with normal SBC
         time_start_mu = now_mu()

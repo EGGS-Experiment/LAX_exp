@@ -1,6 +1,6 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_TRACKING, _AD9910_REG_CFR1
+from artiq.coredevice import ad9910
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -343,7 +343,7 @@ class PSRSB(LAXExperiment, Experiment):
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
+                          phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_rsb_mu)
         self.qubit.off()
@@ -351,7 +351,7 @@ class PSRSB(LAXExperiment, Experiment):
         # run carrier pulse
         self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
+                          phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_carrier_mu)
         self.qubit.off()

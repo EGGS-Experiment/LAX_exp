@@ -2,26 +2,18 @@ import numpy as np
 from enum import Enum
 
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import *
-from artiq.coredevice.urukul import DEFAULT_PROFILE
-from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0
-
-RAM_MODE_DIRECTSWITCH = 0
-RAM_MODE_RAMPUP = 1
-RAM_MODE_BIDIR_RAMP = 2
-RAM_MODE_CONT_BIDIR_RAMP = 3
-RAM_MODE_CONT_RAMPUP = 4
+from artiq.coredevice import ad9910
 
 
 class RAM_MODE(Enum):
     """
     Enum class to convert the RAM mode bits to a string
     """
-    RAM_MODE_DIRECTSWITCH =     0
-    RAM_MODE_RAMPUP =           1
-    RAM_MODE_BIDIR_RAMP =       2
-    RAM_MODE_CONT_BIDIR_RAMP =  3
-    RAM_MODE_CONT_RAMPUP =      4
+    RAM_MODE_DIRECTSWITCH =     ad9910.RAM_MODE_DIRECTSWITCH
+    RAM_MODE_RAMPUP =           ad9910.RAM_MODE_RAMPUP
+    RAM_MODE_BIDIR_RAMP =       ad9910.RAM_MODE_BIDIR_RAMP
+    RAM_MODE_CONT_BIDIR_RAMP =  ad9910.RAM_MODE_CONT_BIDIR_RAMP
+    RAM_MODE_CONT_RAMPUP =      ad9910.RAM_MODE_CONT_RAMPUP
 
 
 class UrukulRead(EnvExperiment):
@@ -137,7 +129,7 @@ class UrukulRead(EnvExperiment):
         self.core.break_realtime()
 
         # todo: need to read directly from register (instead of using get_mu) since profile may be RAM
-        self._profile_word = np.int64(self.dds.read64(_AD9910_REG_PROFILE0 + self.dds_profile))
+        self._profile_word = np.int64(self.dds.read64(ad9910._AD9910_REG_PROFILE0 + self.dds_profile))
         self.core.break_realtime()
 
         # # read data from RAM
@@ -147,7 +139,7 @@ class UrukulRead(EnvExperiment):
         #     self.core.break_realtime()
 
         # clean up by setting default profile
-        self.dds_cpld.set_profile(DEFAULT_PROFILE)
+        self.dds_cpld.set_profile(ad9910.DEFAULT_PROFILE)
         self.dds_cpld.io_update.pulse_mu(8)
         self.core.wait_until_mu(now_mu())
 
@@ -167,7 +159,7 @@ class UrukulRead(EnvExperiment):
     #     self.core.break_realtime()
     #
     #     # note: need to read directly from register (instead of using get_mu) since profile may be RAM
-    #     _profile_word = np.int64(dds_dev.read64(_AD9910_REG_PROFILE0 + profile_num))
+    #     _profile_word = np.int64(dds_dev.read64(ad9910._AD9910_REG_PROFILE0 + profile_num))
     #     self.core.break_realtime()
     #
     #     return _profile_word

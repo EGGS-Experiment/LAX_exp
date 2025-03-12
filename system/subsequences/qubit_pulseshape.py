@@ -1,6 +1,5 @@
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import *
-from artiq.coredevice.ad9910 import _AD9910_REG_CFR1
+from artiq.coredevice import ad9910
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
@@ -113,7 +112,7 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
             step=0xFFF,
-            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
+            profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
 
         # set target RAM profile
@@ -169,7 +168,7 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
             step=time_ram_step,
-            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
+            profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
         return self.time_pulse_mu
 
@@ -184,9 +183,9 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit.write32(_AD9910_REG_CFR1,
+        self.qubit.write32(ad9910._AD9910_REG_CFR1,
                            (1 << 31) |              # ram_enable
-                           (RAM_DEST_ASF << 29) |   # ram_destination
+                           (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 16) |              # select_sine_output
                            (1 << 13) |              # phase_autoclear
                            2
