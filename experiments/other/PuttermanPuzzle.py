@@ -5,10 +5,9 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous, QVSAPulse,
-                                         QubitPulseShape, QubitRAP, Readout, RabiflopReadout, RescueIon)
+                                         QubitRAP, Readout, RabiflopReadout, RescueIon)
 
 from itertools import product
-from artiq.coredevice import ad9910
 
 
 class PuttermanPuzzle(LAXExperiment, Experiment):

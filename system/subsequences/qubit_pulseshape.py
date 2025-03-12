@@ -1,11 +1,10 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
-
-import numpy as np
 
 
 class QubitPulseShape(LAXSubsequence):

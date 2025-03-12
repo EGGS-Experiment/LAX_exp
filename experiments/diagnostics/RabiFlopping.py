@@ -4,9 +4,10 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, Readout, RescueIon
-from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous, SidebandCoolPulsed
+from LAX_exp.system.subsequences import (InitializeQubit, RabiFlop, Readout, QubitPulseShape, RescueIon,
+                                         NoOperation, SidebandCoolContinuous, SidebandCoolPulsed)
 from sipyco import pyon
+# todo: add linetrigger
 
 
 class RabiFlopping(LAXExperiment, Experiment):
@@ -18,7 +19,8 @@ class RabiFlopping(LAXExperiment, Experiment):
     kernel_invariants = {
         'freq_rabiflop_ftw', 'att_readout_mu', 'time_rabiflop_mu_list',
         'initialize_subsequence', 'doppler_subsequence', 'sidebandcool_pulsed_subsequence',
-        'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'pulseshape_subsequence'
     }
 
     def build_experiment(self):
@@ -39,15 +41,19 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=6, step=1, min=50., max=400.), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group=self.name)
 
         # get devices
         self.setattr_device('qubit')
 
         # prepare sequences
+        self.profile_rabiflop = 0
         self.initialize_subsequence = InitializeQubit(self)
         self.doppler_subsequence = NoOperation(self)
         self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence = SidebandCoolContinuous(self)
+        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=self.profile_rabiflop,
+                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=100)
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
 
@@ -79,6 +85,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         return (self.repetitions * len(self.time_rabiflop_mu_list),
                 2)
 
+
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
@@ -90,16 +97,33 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # set qubit readout waveform
-        self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+        if self.enable_pulseshaping:
+            self.qubit.set_ftw(self.freq_rabiflop_ftw)
+        else:
+            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+        self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         self.core.break_realtime()
+
+        # create holder variable to support variable pulse shaping
+        time_rabi_actual_mu = -1
+
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
 
             # sweep rabi flopping times
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
                 self.core.break_realtime()
+
+                # set up qubit pulse
+                if self.enable_pulseshaping:
+                    time_rabi_actual_mu = self.pulseshape_subsequence.configure(time_rabi_pair_mu[1])
+                    self.core.break_realtime()
+                else:
+                    time_rabi_actual_mu = time_rabi_pair_mu[1]
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
@@ -111,17 +135,19 @@ class RabiFlopping(LAXExperiment, Experiment):
 
                 # add delay to ensure each shot takes same time
                 delay_mu(time_rabi_pair_mu[0])
-
-                # rabi flop
-                self.qubit.on()
-                delay_mu(time_rabi_pair_mu[1])
-                self.qubit.off()
+                # rabi flop & read out
+                if self.enable_pulseshaping:
+                    self.pulseshape_subsequence.run()
+                else:
+                    self.qubit.on()
+                    delay_mu(time_rabi_actual_mu)
+                    self.qubit.off()
 
                 # do readout
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(time_rabi_pair_mu[1], self.readout_subsequence.fetch_count())
+                self.update_results(time_rabi_actual_mu, self.readout_subsequence.fetch_count())
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -139,7 +165,6 @@ class RabiFlopping(LAXExperiment, Experiment):
         """
         Fit rabi flopping data with an exponentially damped sine curve
         """
-
         # get results
         results_tmp = np.array(self.results)
         probability_vals = np.zeros(len(results_tmp))

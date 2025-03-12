@@ -15,18 +15,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     name = 'sideband_cool_continuous_RAM'
     kernel_invariants = {
-        # todo: finish kern inv
-        "ampl_qubit_asf",
-        "time_repump_qubit_mu",
-        "time_spinpol_mu",
-        "freq_repump_qubit_ftw",
-        "freq_sideband_cooling_ftw_list",
-        "iter_sideband_cooling_modes_list",
-        "ampl_quench_asf",
+        "profile_ram_729", "profile_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
+        "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu",
         "att_sidebandcooling_mu",
-        "time_sideband_cooling_mu",
-        "delay_sideband_cooling_cycle_mu_list",
+        "freq_dds_sync_clk_hz", "time_cycle_mu_to_ram_step", "ram_timestep_val", "time_sideband_cooling_mu",
         "time_spinpolarization_mu_list",
+        "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list"
     }
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
@@ -133,12 +127,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_pulse_mu_to_ram_step)
 
         # calculate spinpol timings
-        self.time_per_spinpol_mu = self.core.seconds_to_mu(self.time_per_spinpol_us * us)
+        time_per_spinpol_mu = self.core.seconds_to_mu(self.time_per_spinpol_us * us)
         # note: we account for the nonzero spinpol time in these delays
         self.time_spinpolarization_mu_list = np.arange(
-            self.time_per_spinpol_mu,
+            time_per_spinpol_mu,
             self.time_sideband_cooling_mu - 10000,   # ensure we don't spinpol within 10us of SBC end
-            self.time_per_spinpol_mu + self.time_spinpol_mu + 250,  # add 250ns to account for switches
+            time_per_spinpol_mu + self.time_spinpol_mu + 250,  # add 250ns to account for switches
             dtype=np.int64
         )
 
@@ -281,11 +275,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling attenuation for qubit beam
-            self.qubit.set_att_mu(self.att_sidebandcooling_mu)
+            with sequential:
+                self.qubit.set_att_mu(self.att_sidebandcooling_mu)
+                self.qubit.set_asf(self.ampl_qubit_asf)
 
             with sequential:
                 # set sideband cooling profiles for regular beams
                 self.repump_qubit.set_profile(self.profile_ram_854)
+                self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
                 # do spin polarization before SBC (per Guggemos' thesis)
                 self.spin_polarize()
 
