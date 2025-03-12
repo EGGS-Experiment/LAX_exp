@@ -271,16 +271,16 @@ class PSRSB(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''STATE PREPARATION'''
-                # initialize ion in S-1/2 state
+                # initialize ion in S-1/2 state, then SBC to ground motional state
                 self.initialize_subsequence.run_dma()
-                # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
                 '''PHASE-SENSITIVE RED SIDEBAND SEQUENCE'''
                 # create qvsa displacement
-                self.phaser_run(self.waveform_qvsa_pulseshape_id)
-                # run PSRSB detection
-                self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw, phas_carrier_pow)
+                t_phaser_start_mu = self.phaser_run(self.waveform_qvsa_pulseshape_id)
+                # run PSRSB detection (synchronized to phaser)
+                self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw,
+                               phas_carrier_pow, t_phaser_start_mu)
 
                 '''READOUT'''
                 self.readout_subsequence.run_dma()
@@ -321,13 +321,15 @@ class PSRSB(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def psrsb_run(self, freq_rsb_ftw: TInt32, freq_carrier_ftw: TInt32, phas_carrier_pow: TInt32) -> TNone:
+    def psrsb_run(self, freq_rsb_ftw: TInt32 = 0, freq_carrier_ftw: TInt32 = 0,
+                  phas_carrier_pow: TInt32 = 0, time_ref_mu: TInt64 = -1) -> TNone:
         """
         Run the phase-sensitive red-sideband detection sequence.
         Arguments:
             freq_rsb_ftw: RSB frequency in FTW.
             freq_carrier_ftw: Carrier frequency in FTW.
             phas_carrier_pow: Carrier phase (relative) in POW.
+            time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
         """
         # set target profile and attenuation
         self.qubit.set_profile(self.profile_psrsb)
@@ -335,12 +337,13 @@ class PSRSB(LAXExperiment, Experiment):
         self.qubit.set_att_mu(self.att_qubit_mu)
 
         # synchronize start time to coarse RTIO clock
-        time_start_mu = now_mu() & ~0x7
+        if time_ref_mu < 0:
+            time_ref_mu = now_mu() & ~0x7
 
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_rsb_mu)
         self.qubit.off()
@@ -348,17 +351,20 @@ class PSRSB(LAXExperiment, Experiment):
         # run carrier pulse
         self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_carrier_mu)
         self.qubit.off()
 
     @kernel(flags={"fast-math"})
-    def phaser_run(self, waveform_id: TInt32) -> TNone:
+    def phaser_run(self, waveform_id: TInt32) -> TInt64:
         """
         Run the main EGGS pulse together with supporting functionality.
         Arguments:
-            waveform_id     (TInt32)    : the ID of the waveform to run.
+            waveform_id: the ID of the waveform to run.
+        Returns:
+            the start time of the phaser oscillator waveform.
+            Useful to synchronize device operation.
         """
         # EGGS - START/SETUP
         self.phaser_eggs.phaser_setup(self.att_qvsa_mu, self.att_qvsa_mu)
@@ -366,12 +372,18 @@ class PSRSB(LAXExperiment, Experiment):
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
+        # synchronize to next frame
+        t_start_mu = self.phaser_eggs.get_next_frame_mu()
+        at_mu(t_start_mu)
         self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
         # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
         # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
+
+        # return phaser osc start time (in case others want to sync)
+        return t_start_mu
 
 
     '''
