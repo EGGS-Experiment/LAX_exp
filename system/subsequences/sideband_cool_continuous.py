@@ -169,6 +169,11 @@ class SidebandCoolContinuous(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
+        """
+        Run SBC pulse sequence.
+        Note: use of at_mu() is OK even when recording onto DMA
+            b/c we don't care about phase coherence here.
+        """
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling profiles for regular beams
@@ -178,11 +183,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.qubit.set_att_mu(self.att_sidebandcooling_mu)
 
         # do spin polarization before SBC per Guggemos' thesis
-        self.probe.on()
-        self.repump_cooling.on()
-        delay_mu(self.time_spinpol_mu)
-        self.probe.off()
-        self.repump_cooling.off()
+        self._spin_polarize()
 
         # turn on sideband cooling beams
         with parallel:
@@ -190,7 +191,9 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.repump_qubit.on()
 
             # turn on qubit beam
-            if not self.calibration_continuous:
+            if self.calibration_continuous:
+                self.qubit.off()
+            else:
                 self.qubit.on()
 
         # intersperse state preparation with normal SBC
@@ -206,25 +209,35 @@ class SidebandCoolContinuous(LAXSubsequence):
                     self.qubit.set_profile(self.iter_sideband_cooling_modes_list[i])
                     self.qubit.io_update()
 
-            # spin polarization
+            # spin polarization according to schedule
             for time_spinpol_mu in self.time_spinpolarization_mu_list:
-                # do spin polarization at set time
                 at_mu(time_start_mu + time_spinpol_mu)
-                self.probe.on()
-                self.repump_cooling.on()
-                delay_mu(self.time_spinpol_mu)
-                self.probe.off()
-                self.repump_cooling.off()
+                self._spin_polarize()
 
         # stop sideband cooling
         at_mu(time_start_mu + self.time_sideband_cooling_mu)
         with parallel:
-            self.repump_qubit.set_profile(1)
             self.qubit.off()
+            self.repump_qubit.set_profile(1)
 
         # repump qubit after sideband cooling
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def _spin_polarize(self) -> TNone:
+        """
+        Run spin polarization for optical pumping into the correct Zeeman manifold.
+        """
+        with parallel:
+            self.probe.on()
+            self.repump_cooling.on()
+
+        delay_mu(self.time_spinpol_mu)
+
+        with parallel:
+            self.probe.off()
+            self.repump_cooling.off()
 
     def analyze(self):
         """

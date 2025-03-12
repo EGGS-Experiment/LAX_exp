@@ -16,7 +16,7 @@ class QubitPulseShape(LAXSubsequence):
     """
     name = 'qubit_pulseshape'
     kernel_invariants = {
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct",
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
         "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step",
         "ampl_asf_pulseshape_list",
     }
@@ -33,6 +33,7 @@ class QubitPulseShape(LAXSubsequence):
             num_samples: the number of samples to use for the pulse shape.
                 Must result in a final RAM address <= 1023.
             ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+            pulse_shape: the pulse shape to use.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
@@ -157,7 +158,7 @@ class QubitPulseShape(LAXSubsequence):
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
-            raise ValueError("Invalid RAM timestemp in qubitPulseShape.configure()."
+            raise ValueError("Invalid RAM timestep in qubitPulseShape.configure()."
                              "Change either pulse time or number of samples.")
 
         # reconvert to get correct time_pulse_mu correctly for later delay

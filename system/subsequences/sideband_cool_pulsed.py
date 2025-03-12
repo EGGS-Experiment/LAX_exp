@@ -145,7 +145,9 @@ class SidebandCoolPulsed(LAXSubsequence):
                     self.qubit.set_profile(i)
 
                     # qubit pi-pulse
-                    if not self.calibration_pulsed:
+                    if self.calibration_pulsed:
+                        self.qubit.off()
+                    else:
                         self.qubit.on()
                     delay_mu(time_modes_mu[i - 1])
                     self.qubit.off()

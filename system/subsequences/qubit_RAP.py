@@ -38,6 +38,7 @@ class QubitRAP(LAXSubsequence):
             num_samples: the number of samples to use for the pulse shape.
                 Must result in a final RAM address <= 1023.
             ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+            pulse_shape: the pulse shape to use.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
