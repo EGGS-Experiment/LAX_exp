@@ -35,7 +35,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # get subsequences
         self.initialize_subsequence = InitializeQubit(self)
@@ -60,7 +60,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.setattr_argument("att_rap_db",             NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="RAP")
 
         '''HERALD - CONFIGURATION'''
-        self.setattr_argument("enable_force_herald",    BooleanValue(default=True), group='herald')
+        self.setattr_argument("enable_force_herald",    BooleanValue(default=False), group='herald')
         self.setattr_argument("force_herald_threshold", NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='herald')
 
         '''RABIFLOP READOUT - CONFIGURATION'''
@@ -137,8 +137,10 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # instantiate relevant variables
         counts_her = -1 # store heralded counts
 
-        # retrieve relevant DMA sequences
-        self.dma_handle_rap = self.core_dma.get_handle('RAP_SUBSEQUENCE')
+        # retrieve relevant DMA sequences.handles
+        self.motional_subsequence.pulse_shaper.waveform_load()
+        self.core.break_realtime()
+        dma_handle_rap = self.core_dma.get_handle('RAP_SUBSEQUENCE')
         self.core.break_realtime()
 
 
@@ -170,7 +172,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     if self.enable_rap:
                         # run RAP on motional sideband (a^\dag operator)
                         self.qubit.set_att_mu(self.att_rap_mu)
-                        self.core_dma.playback_handle(self.dma_handle_rap)
+                        self.core_dma.playback_handle(dma_handle_rap)
 
                     # herald ion via state-dependent fluorescence
                     self.readout_subsequence.run_dma()
@@ -185,6 +187,9 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                         # add minor slack if we proceed
                         at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
+
+                    # force break loop by default
+                    break
 
                 '''READOUT & STORE RESULTS'''
                 # rabi flop & readout for motional detection

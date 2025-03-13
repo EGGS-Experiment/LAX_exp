@@ -17,7 +17,7 @@ class RabiFlopping(LAXExperiment, Experiment):
     """
     name = 'Rabi Flopping'
     kernel_invariants = {
-        'freq_rabiflop_ftw', 'att_readout_mu', 'time_rabiflop_mu_list',
+        'freq_rabiflop_ftw', 'ampl_qubit_asf', 'att_readout_mu', 'time_rabiflop_mu_list',
         'initialize_subsequence', 'doppler_subsequence', 'sidebandcool_pulsed_subsequence',
         'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'pulseshape_subsequence'
@@ -25,22 +25,23 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=30, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
+                                                                RangeScan(1, 100, 100, randomize=True),
                                                                 ExplicitScan([6.05]),
-                                                                RangeScan(1, 50, 200, randomize=True),
                                                                 CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=102.1020, precision=6, step=1, min=50., max=400.), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.0463, precision=6, step=1, min=50., max=400.), group=self.name)
+        self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("equalize_delays",        BooleanValue(default=True), group=self.name)
+        self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name)
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group=self.name)
 
         # get devices
@@ -58,6 +59,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.rescue_subsequence = RescueIon(self)
 
     def prepare_experiment(self):
+        """
+        Prepare values for speedy evaluation.
+        """
         # choose correct cooling subsequence
         if self.cooling_type == "Doppler":
             self.cooling_subsequence = self.doppler_subsequence
@@ -67,8 +71,9 @@ class RabiFlopping(LAXExperiment, Experiment):
             self.cooling_subsequence = self.sidebandcool_pulsed_subsequence
 
         # convert input arguments to machine units
-        self.freq_rabiflop_ftw = hz_to_ftw(self.freq_rabiflop_mhz * MHz)
-        self.att_readout_mu = att_to_mu(self.att_readout_db * dB)
+        self.freq_rabiflop_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
+        self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
 
         # convert time to machine units
         max_time_us = np.max(list(self.time_rabi_us_list))
@@ -95,12 +100,13 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         self.cooling_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+        self.core.break_realtime()
 
         # set qubit readout waveform
         if self.enable_pulseshaping:
             self.qubit.set_ftw(self.freq_rabiflop_ftw)
         else:
-            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
+            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf, profile=0)
         self.core.break_realtime()
 
 

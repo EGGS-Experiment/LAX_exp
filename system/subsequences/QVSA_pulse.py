@@ -162,7 +162,7 @@ class QVSAPulse(LAXSubsequence):
         # configure phaser core hardware
         self.phaser_eggs.frequency_configure(self.freq_qvsa_carrier_hz,
                                              [-self.freq_qvsa_secular_hz, self.freq_qvsa_secular_hz, 0., 0., 0.],
-                                             self.phaser_eggs.phase_ch1_inherent_turns)
+                                             self.phaser_eggs.phase_inherent_ch1_turns)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})

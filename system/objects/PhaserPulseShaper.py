@@ -32,6 +32,21 @@ class PhaserPulseShaper(LAXEnvironment):
         else:
             raise Exception("Error in PhaserPulseShaper - phase_offsets_turns must have length 5: {}".format(phase_offsets_turns))
 
+        # tmp remove
+        # set global variables
+        self._max_waveforms = 64
+        # note: max update rate should be a multiple of 5x the sample period
+        # such that each oscillator is deterministically updated
+        self.t_max_phaser_update_rate_mu = 5 * self.phaser_eggs.t_sample_mu
+
+        # create data structures to allow programmatic recording & playback of DMA handles
+        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
+        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * self._max_waveforms
+
+        # store number of waveforms recorded
+        self._num_waveforms = 0
+        # tmp remove
+
     def prepare(self):
         """
         Prepare relevant values for waveform compilation.

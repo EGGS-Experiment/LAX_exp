@@ -19,30 +19,35 @@ class SidebandReadout(LAXSubsequence):
         "freq_sideband_readout_ftw_list"
     }
 
-    def build_subsequence(self, profile_dds: TInt32 = 0):
+    def build_subsequence(self, profile_dds: TInt32 = 0) -> TNone:
+        """
+        Defines the main interface for the subsequence.
+        Arguments:
+            profile_dds: the AD9910 profile to use for sideband readout.
+        """
+        # set subsequence parameters
+        self.profile_dds = profile_dds
+
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        # ExplicitScan([100.6922]),
-                                                                        CenterScan(100.6922, 0.01, 0.00025, randomize=True),
+                                                                        CenterScan(100.3760, 0.02, 0.00025, randomize=True),
+                                                                        ExplicitScan([100.7044]),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, precision=5
                                                                 ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        # ExplicitScan([101.9927]),
-                                                                        CenterScan(101.9927, 0.01, 0.00025, randomize=True),
+                                                                        CenterScan(101.7163, 0.02, 0.00025, randomize=True),
+                                                                        ExplicitScan([101.3901]),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
                                                                     unit="MHz", scale=1, precision=5
                                                                 ), group=self.name)
         self.setattr_argument("ampl_sideband_readout_pct",      NumberValue(default=50, precision=3, step=10, min=1, max=50.), group=self.name)
         self.setattr_argument("att_sideband_readout_db",        NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("time_sideband_readout_us",       NumberValue(default=122.9, precision=5, step=1, min=1, max=10000), group=self.name)
-
-        # set subsequence parameters
-        self.profile_dds = profile_dds
+        self.setattr_argument("time_sideband_readout_us",       NumberValue(default=85.09, precision=5, step=1, min=1, max=10000), group=self.name)
 
         # get relevant devices
         self.setattr_device('qubit')
@@ -79,3 +84,4 @@ class SidebandReadout(LAXSubsequence):
         self.qubit.on()
         delay_mu(time_readout_mu)
         self.qubit.off()
+

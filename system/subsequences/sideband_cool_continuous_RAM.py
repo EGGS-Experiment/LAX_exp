@@ -15,7 +15,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     name = 'sideband_cool_continuous_RAM'
     kernel_invariants = {
-        "profile_ram_729", "profile_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
+        "profile_ram_729", "profile_ram_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
         "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu",
         "att_sidebandcooling_mu",
         "freq_dds_sync_clk_hz", "time_cycle_mu_to_ram_step", "ram_timestep_val", "time_sideband_cooling_mu",
@@ -25,7 +25,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
                           ram_addr_start_729: TInt32 = 0x00, ram_addr_start_854: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000):
+                          num_samples: TInt32 = 500):
         """
         Defines the main interface for the subsequence.
         Arguments:
@@ -38,13 +38,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             num_samples: the number of samples to use for the pulse shape.
                 Must result in a final RAM address <= 1023.
         """
-        # get devices
-        self.setattr_device('probe')
-        self.setattr_device('pump')
-        self.setattr_device('repump_cooling')
-        self.setattr_device('repump_qubit')
-        self.setattr_device('qubit')
-
         # set subsequence parameters
         self.profile_ram_729 =      profile_729
         self.profile_ram_854 =      profile_854
@@ -52,18 +45,27 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_addr_start_854 =   ram_addr_start_854
         self.num_samples =          num_samples
 
+        # get devices
+        self.setattr_device('probe')
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        self.setattr_device('qubit')
+
         # sideband cooling - hardware values
-        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=6000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
-        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=2000, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
+        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=12000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
+        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=1680, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
                                                                 tooltip="time between spin polarization pulses (in us)")
 
         # sideband cooling - configuration
         self.setattr_argument("calibration_continuous",     BooleanValue(default=False), group='SBC_RAM.continuous',
                                                                 tooltip="True: disables 729nm DDS during SBC for calibration purposes")
-        self.setattr_argument("sideband_cycles_continuous", NumberValue(default=1, precision=0, step=1, min=1, max=10000), group='SBC_RAM.continuous',
+        self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='SBC_RAM.continuous',
                                                                 tooltip="number of times to loop over the SBC configuration sequence")
         # old name: freq_sideband_cooling_mhz_pct_list
-        self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.9835: [100., 2.5]}), group='SBC_RAM.continuous',
+        # self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.: [20., 8.], 50.: [50., 24.], 350.: [30., 16.]}), group='SBC_RAM.continuous',
+        #                       tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
+        self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.6938: [26., 8.], 100.3711: [37., 8.], 100.2306: [37., 8.]}), group='SBC_RAM.continuous',
                               tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
         self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='SBC_RAM.continuous')
 
@@ -101,7 +103,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         ])
         mode_quench_ampls_frac = np.array([
             config_arr[1] / 100.
-            for config_arr in self.sideband_cooling_config_list.keys()
+            for config_arr in self.sideband_cooling_config_list.values()
         ])
 
         '''PREPARE SIDEBAND COOLING'''
@@ -124,7 +126,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             raise ValueError("Invalid RAM timestemp in SidebandCoolContinuousRAM."
                              "Change either number of samples or adjust SBC time.")
         # reconvert to get actual/correct SBC time for later use
-        self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_pulse_mu_to_ram_step)
+        self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_cycle_mu_to_ram_step *
+                                                 self.sideband_cycles_continuous)
 
         # calculate spinpol timings
         time_per_spinpol_mu = self.core.seconds_to_mu(self.time_per_spinpol_us * us)
@@ -144,9 +147,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         ])
         # create holder to store RAM waveform data in machine units (ftw, 729nm SBC)
         self.ram_waveform_729_ftw_list = [np.int32(0)] * self.num_samples
-        self.qubit.frequency_to_ram(vals_freq_hz, self.ram_waveform_729_ftw_list)
         # pre-reverse waveform list since write_ram makes a booboo and reverses the array
-        self.ram_waveform_729_ftw_list = self.ram_waveform_729_ftw_list[::-1]
+        self.qubit.frequency_to_ram(vals_freq_hz[::-1], self.ram_waveform_729_ftw_list)
 
         # create 854nm waveform array - amplitude values
         vals_ampl_frac = np.concatenate([
@@ -155,9 +157,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         ])
         # create holder to store RAM waveform data in machine units (asf, 854nm quench)
         self.ram_waveform_854_asf_list = [np.int32(0)] * self.num_samples
-        self.repump_qubit.amplitude_to_ram(vals_ampl_frac, self.ram_waveform_854_asf_list)
         # pre-reverse waveform list since write_ram makes a booboo and reverses the array
-        self.ram_waveform_854_asf_list = self.ram_waveform_854_asf_list[::-1]
+        self.repump_qubit.amplitude_to_ram(vals_ampl_frac[::-1], self.ram_waveform_854_asf_list)
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -196,46 +197,40 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
-        # configure RAM waveform profiles
-        with parallel:
+        # configure RAM waveform profiles - 729nm for SBC
+        # prepare to write waveform to RAM profile
+        self.qubit.set_profile_ram(
+            start=self.ram_addr_start_729, end=self.ram_addr_start_729 + (self.num_samples - 1),
+            step=self.ram_timestep_val,
+            profile=self.profile_ram_729, mode=ad9910.RAM_MODE_CONT_RAMPUP
+        )
 
-            # configure RAM waveform profiles - 729nm for SBC
-            with sequential:
-                # prepare to write waveform to RAM profile
-                self.qubit.set_profile_ram(
-                    start=self.ram_addr_start_729, end=self.ram_addr_start_854 + (self.num_samples - 1),
-                    step=self.ram_timestep_val,
-                    profile=self.profile_ram_729, mode=ad9910.RAM_MODE_CONT_RAMPUP
-                )
+        # set target RAM profile
+        self.qubit.cpld.set_profile(self.profile_ram_729)
+        self.qubit.cpld.io_update.pulse_mu(8)
 
-                # set target RAM profile
-                self.qubit.cpld.set_profile(self.profile_ram_729)
-                self.qubit.cpld.io_update.pulse_mu(8)
+        # write waveform to RAM profile
+        self.core.break_realtime()
+        delay_mu(10000000)   # 10 ms
+        self.qubit.write_ram(self.ram_waveform_729_ftw_list)
+        self.core.break_realtime()
 
-                # write waveform to RAM profile
-                self.core.break_realtime()
-                delay_mu(10000000)   # 10 ms
-                self.qubit.write_ram(self.ram_waveform_729_ftw_list)
-                self.core.break_realtime()
+        # configure RAM waveform profiles - 854nm for quench
+        # prepare to write waveform to RAM profile
+        self.repump_qubit.set_profile_ram(
+            start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
+            step=self.ram_timestep_val,
+            profile=self.profile_ram_854, mode=ad9910.RAM_MODE_CONT_RAMPUP
+        )
 
-            # configure RAM waveform profiles - 854nm for quench
-            with sequential:
-                # prepare to write waveform to RAM profile
-                self.repump_qubit.set_profile_ram(
-                    start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
-                    step=self.ram_timestep_val,
-                    profile=self.profile_ram_854, mode=ad9910.RAM_MODE_CONT_RAMPUP
-                )
+        # set target RAM profile
+        self.repump_qubit.cpld.set_profile(self.profile_ram_854)
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
 
-                # set target RAM profile
-                self.repump_qubit.cpld.set_profile(self.profile_ram_854)
-                self.repump_qubit.cpld.io_update.pulse_mu(8)
-
-                # write waveform to RAM profile
-                self.core.break_realtime()
-                delay_mu(10000000)  # 10 ms
-                self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
-                self.repump_qubit.break_realtime()
+        # write waveform to RAM profile
+        self.core.break_realtime()
+        delay_mu(10000000)  # 10 ms
+        self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
@@ -278,9 +273,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             with sequential:
                 self.qubit.set_att_mu(self.att_sidebandcooling_mu)
                 self.qubit.set_asf(self.ampl_qubit_asf)
+                self.qubit.cpld.io_update.pulse_mu(8)
 
+            # set sideband cooling profiles for regular beams
             with sequential:
-                # set sideband cooling profiles for regular beams
                 self.repump_qubit.set_profile(self.profile_ram_854)
                 self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
                 # do spin polarization before SBC (per Guggemos' thesis)
@@ -300,6 +296,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                    (ad9910.RAM_DEST_FTW << 29) |  # ram_destination
                                    (1 << 16) |  # select_sine_output
                                    (1 << 13) |  # phase_autoclear
+                                   (1 << 9) | # osk_enable
                                    2
                                    )
                 self.qubit.cpld.io_update.pulse_mu(8)   # note: this starts stepping through RAM
@@ -329,11 +326,11 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # get start reference time
         time_start_mu = now_mu()
 
-        # open and close switch to synchronize with RAM pulse
-        delay_mu(416 + 63 - 140 - 244)
-        self.qubit.on()
-        delay_mu(self.time_pulse_mu)
-        self.qubit.off()
+        # # open and close switch to synchronize with RAM pulse
+        # delay_mu(416 + 63 - 140 - 244)
+        # self.qubit.on()
+        # delay_mu(self.time_pulse_mu)
+        # self.qubit.off()
 
         # do spin polarizations according to schedule
         for time_spinpol_mu in self.time_spinpolarization_mu_list:
