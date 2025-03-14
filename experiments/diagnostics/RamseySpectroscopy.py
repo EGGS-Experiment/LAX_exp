@@ -4,8 +4,10 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon
-from LAX_exp.system.subsequences import NoOperation, SidebandCoolContinuous
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon, NoOperation,
+    SidebandCoolContinuous, SidebandCoolContinuousRAM
+)
 
 
 class RamseySpectroscopy(LAXExperiment, Experiment):
@@ -16,17 +18,23 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     """
     name = 'Ramsey Spectroscopy'
     kernel_invariants = {
+        # hardware values
         'time_pulse_mu', 'ampl_ramsey_asf', 'att_ramsey_mu',
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
-        'profile_ramsey', 'config_ramsey_list', 'cooling_subsequence',
-        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
+
+        # configs
+        'profile_ramsey', 'config_ramsey_list',
+
+        # subsequences
+        'cooling_subsequence', 'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'time_linetrig_holdoff_mu_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
+        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"],
+                                                                 default="Doppler"))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
@@ -82,7 +90,12 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # prepare sequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.doppler_subsequence =                  NoOperation(self)
-        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
+        # self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
+        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=1, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=500
+        )
         self.readout_subsequence =                  Readout(self)
         self.rescue_subsequence =                   RescueIon(self)
 

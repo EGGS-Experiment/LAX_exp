@@ -4,9 +4,11 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandCoolPulsed, SidebandCoolContinuousRAM,
-                                         SidebandReadout)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon,
+    SidebandCoolContinuous, SidebandCoolContinuousRAM, SidebandCoolPulsed,
+    SidebandReadout
+)
 from sipyco import pyon
 
 
@@ -18,17 +20,16 @@ class SidebandCooling(LAXExperiment, Experiment):
     """
     name = 'Sideband Cooling'
     kernel_invariants = {
-        'initialize_subsequence', 'sidebandcool_pulsed_subsequence', 'sidebandcool_continuous_subsequence',
-        'sidebandcool_continuous_RAM_subsequence',
+        'initialize_subsequence', 'sidebandcool_continuous_subsequence', 'sidebandcool_pulsed_subsequence',
         'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
-        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Continuous - RAM", "Pulsed"],
+        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"],
                                                                  default="Continuous"))
 
         # get relevant devices
@@ -37,9 +38,12 @@ class SidebandCooling(LAXExperiment, Experiment):
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
-        self.sidebandcool_continuous_ram_subsequence =  SidebandCoolContinuousRAM(self, profile_729=1, profile_854=3,
-                                                                                  ram_addr_start_729=0, ram_addr_start_854=0)
+        # self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
+        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=1, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=500
+        )
         self.sidebandreadout_subsequence =          SidebandReadout(self, profile_dds=0)
         self.readout_subsequence =                  Readout(self)
         self.rescue_subsequence =                   RescueIon(self)
@@ -48,8 +52,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         # choose correct cooling subsequence
         if self.cooling_type == "Continuous":
             self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "Continuous - RAM":
-            self.sidebandcool_subsequence = self.sidebandcool_continuous_ram_subsequence
+        # elif self.cooling_type == "Continuous - RAM":
+        #     self.sidebandcool_subsequence = self.sidebandcool_continuous_ram_subsequence
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
@@ -252,5 +256,4 @@ class SidebandCooling(LAXExperiment, Experiment):
         results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         return results_rsb, results_bsb
-
 
