@@ -36,7 +36,7 @@ class RabiflopReadout(LAXSubsequence):
 
     def prepare_subsequence(self):
         # convert subsequence arguments to machine units
-        self.time_readout_mu_list =         np.array([self.core.mu_to_seconds(time_us * us)
+        self.time_readout_mu_list =         np.array([self.core.seconds_to_mu(time_us * us)
                                                       for time_us in self.time_readout_us_list])
         self.freq_rabiflop_readout_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_readout_mhz * MHz)
         self.att_rabiflop_readout_mu =      att_to_mu(self.att_rabiflop_readout_db * dB)
@@ -55,7 +55,9 @@ class RabiflopReadout(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run_time(self, time_rabiflop_mu: TInt64) -> TNone:
         # set readout waveform for qubit
+        # self.qubit.set_mu(self.freq_rabiflop_readout_ftw, asf=self.ampl_qubit_asf, profile=self.profile_dds)
         self.qubit.set_profile(self.profile_dds)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.qubit.set_att_mu(self.att_rabiflop_readout_mu)
 
         # population transfer pulse

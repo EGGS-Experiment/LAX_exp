@@ -27,7 +27,7 @@ class QubitRAP(LAXSubsequence):
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 500, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
@@ -44,7 +44,7 @@ class QubitRAP(LAXSubsequence):
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
         # self.num_samples =      num_samples
-        self.num_samples =      1000
+        self.num_samples =      200
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
 
@@ -134,9 +134,10 @@ class QubitRAP(LAXSubsequence):
 
         # write waveform to RAM profile
         self.core.break_realtime()
-        delay_mu(20000000)   # 20 ms
+        delay_mu(30000000)   # 20 ms
         # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
         self.qubit.cpld.io_update.pulse_mu(8)
+        # delay_mu(2000000)   # extra slack - 2025/03/21 - empirical slack
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
 

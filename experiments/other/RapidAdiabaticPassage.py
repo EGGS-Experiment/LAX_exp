@@ -255,10 +255,10 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+
     '''
     HELPER FUNCTIONS
     '''
-
     @kernel(flags={"fast-math"})
     def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
@@ -268,11 +268,17 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
-        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
-                          profile=self.profile_target)
-        self.qubit.set_att_mu(self.att_pulse_readout_mu)
-        self.qubit.set_profile(self.profile_target)
-        self.qubit.cpld.io_update.pulse_mu(8)
+        with parallel:
+            # ensure quench is using correct profile
+            self.pump.readout()
+
+            # set up qubit readout pulse
+            with sequential:
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
+                                  profile=self.profile_target)
+                self.qubit.set_att_mu(self.att_pulse_readout_mu)
+                self.qubit.set_profile(self.profile_target)
+                self.qubit.cpld.io_update.pulse_mu(8)
 
         # quench D-5/2 to eliminate coherence problems
         self.repump_qubit.on()

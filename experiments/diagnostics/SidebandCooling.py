@@ -6,8 +6,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon,
-    SidebandCoolContinuous, SidebandCoolContinuousRAM, SidebandCoolPulsed,
-    SidebandReadout
+    SidebandCoolContinuousRAM, SidebandCoolPulsed, SidebandReadout
 )
 from sipyco import pyon
 
@@ -38,7 +37,6 @@ class SidebandCooling(LAXExperiment, Experiment):
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        # self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=1, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
@@ -52,8 +50,6 @@ class SidebandCooling(LAXExperiment, Experiment):
         # choose correct cooling subsequence
         if self.cooling_type == "Continuous":
             self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        # elif self.cooling_type == "Continuous - RAM":
-        #     self.sidebandcool_subsequence = self.sidebandcool_continuous_ram_subsequence
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
