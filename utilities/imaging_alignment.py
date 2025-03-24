@@ -70,7 +70,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
         counts_y_arr[0, :] = 0
         counts_snr_arr = np.zeros(self.repetitions) * np.nan
-        counts_snr_arr[0, :] = 0
+        counts_snr_arr[0] = 0
 
         self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
@@ -83,6 +83,14 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # command
             '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
             ' --x temp.imag_align.counts_x --title "Imaging Alignment"',
+            group=["alignment"] # folder directory for applet
+        )
+        self.ccb.issue(
+            "create_applet",    # name of broadcast
+            "qubit_alignment",  # applet name
+            # command
+            '${artiq_applet}plot_xy temp.imag_align.counts_snr'
+            ' --x temp.qubit_align.counts_x --title "Imaging Alignment - SNR"',
             group=["alignment"] # folder directory for applet
         )
 
