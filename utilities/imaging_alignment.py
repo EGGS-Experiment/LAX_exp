@@ -69,9 +69,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
         counts_x_arr[0] = 0
         counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
         counts_y_arr[0, :] = 0
+        counts_snr_arr = np.zeros(self.repetitions) * np.nan
+        counts_snr_arr[0, :] = 0
 
         self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_snr', counts_snr_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
         self.ccb.issue(
@@ -178,6 +181,8 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.mutate_dataset('temp.imag_align.counts_y', self._result_iter, np.array([_counts_avg_signal,
                                                                                           _counts_avg_background,
                                                                                           _counts_avg_signal - _counts_avg_background]))
+        self.mutate_dataset('temp.imag_align.counts_snr',
+                            self._result_iter, (_counts_avg_signal - _counts_avg_background) / _counts_avg_background)
 
         # update dataset for HDF5 storage
         self.mutate_dataset('results', self._result_iter,
