@@ -103,23 +103,7 @@ class PSRSB(LAXExperiment, Experiment):
         Prepare experimental values.
         """
         '''SANITIZE/VALIDATE INPUTS & CHECK ERRORS'''
-        # ensure phaser oscillator amplitudes are configured correctly
-        if (type(self.ampl_qvsa_pct_config) is not list) or (len(self.ampl_qvsa_pct_config) != 3):
-            raise ValueError("Invalid QVSA oscillator amplitude configuration."
-                             "Must be of list [rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct].")
-        elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
-            raise ValueError("Invalid QVSA oscillator amplitude. Must be in range [0., 100.].")
-        elif sum(self.ampl_qvsa_pct_config) >= 100.:
-            raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
-
-        # ensure phaser oscillator phases are configured correctly
-        if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
-            raise ValueError("Invalid QVSA oscillator phase configuration."
-                             "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
-
-        # ensure phaser output frequency falls within valid DUC bandwidth
-        if abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz) >= 200. * MHz:
-            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
+        self._prepare_argument_checks()
 
         '''CONVERT VALUES TO MACHINE UNITS - QVSA'''
         # convert frequencies to Hz
@@ -159,6 +143,28 @@ class PSRSB(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure phaser oscillator amplitudes are configured correctly
+        if (type(self.ampl_qvsa_pct_config) is not list) or (len(self.ampl_qvsa_pct_config) != 3):
+            raise ValueError("Invalid QVSA oscillator amplitude configuration."
+                             "Must be of list [rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct].")
+        elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
+            raise ValueError("Invalid QVSA oscillator amplitude. Must be in range [0., 100.].")
+        elif sum(self.ampl_qvsa_pct_config) >= 100.:
+            raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
+
+        # ensure phaser oscillator phases are configured correctly
+        if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
+            raise ValueError("Invalid QVSA oscillator phase configuration."
+                             "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
+
+        # ensure phaser output frequency falls within valid DUC bandwidth
+        if abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz) >= 200. * MHz:
+            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
     def _prepare_waveform(self) -> TNone:
         """

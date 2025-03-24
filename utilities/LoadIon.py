@@ -11,7 +11,6 @@ from LAX_exp.system.subsequences import Readout
 
 from skimage.transform import hough_circle, hough_circle_peaks
 
-# todo: finish kernel_invariants
 # todo: speed things up here and there
 
 
@@ -83,7 +82,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('scheduler')
-        self.readout_subsequence = Readout(self, time_readout_us = 3000)
+        self.readout_subsequence = Readout(self, time_readout_us=3000)
 
         # relevant devices - labrad
         self.setattr_device('shutters')

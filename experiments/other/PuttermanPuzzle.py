@@ -124,13 +124,13 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
-        # tmp remove
-        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
+        # # tmp remove - high fock test
+        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(101.3981 * MHz)
         self.ampl_fock_asf =    self.qubit.amplitude_to_asf(0.5)
         self.att_fock_mu =      att_to_mu(8. * dB)
-        self.time_fock_mu =     self.core.seconds_to_mu(45.35 * us)
+        self.time_fock_mu =     self.core.seconds_to_mu(43.92 * us)
         self.profile_fock =     3
-        # tmp remove
+        # # tmp remove - high fock test
 
     @property
     def results_shape(self):
@@ -194,10 +194,23 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     # use QVSA for motional excitation
                     self.motional_subsequence.run_pulse()
 
+                    # # tmp remove - high fock test
+                    # self.pulse_fock(self.time_fock_mu)
+                    # # tmp remove - high fock test
+
                     '''APPLY a^\dag (VIA RAP + HERALD)'''
                     if self.enable_rap:
                         # run RAP on motional sideband (a^\dag operator)
                         self.core_dma.playback_handle(dma_handle_rap)
+
+                        # # tmp remove - high fock test
+                        # # self.pump.readout()
+                        # for i in range(5):
+                        #     self.core_dma.playback_handle(dma_handle_rap)
+                        #     self.repump_qubit.on()
+                        #     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                        #     self.repump_qubit.off()
+                        # # tmp remove - high fock test
 
                     # optional: herald ion via state-dependent fluorescence
                     if self.enable_herald:
