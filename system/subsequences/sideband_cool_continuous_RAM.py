@@ -290,21 +290,21 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 # self.repump_qubit.on()
                 # delay_mu(1000000)
                 # self.repump_qubit.off()
-                # # do spin polarization before SBC (per Guggemos' thesis)
+                # do spin polarization before SBC (per Guggemos' thesis)
                 # self.spin_polarize()
 
-        '''SCHEDULE SPINPOL'''
-        # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # get start reference time
-        time_start_mu = now_mu()
-
-        # do spin polarizations according to schedule
-        for time_spinpol_mu in self.time_spinpolarization_mu_list:
-            at_mu(time_start_mu + time_spinpol_mu)
-            self.spin_polarize()
+        # '''SCHEDULE SPINPOL'''
+        # # note: we do this here due to difficulties w/empty list for spinpol scheduling
+        # # get start reference time
+        # time_start_mu = now_mu()
+        #
+        # # do spin polarizations according to schedule
+        # for time_spinpol_mu in self.time_spinpolarization_mu_list:
+        #     at_mu(time_start_mu + time_spinpol_mu)
+        #     self.spin_polarize()
 
         '''PRIME RAM MODE FOR SBC BEAMS'''
-        at_mu(time_start_mu + self.time_spinpol_mu + 200)
+        # at_mu(time_start_mu + self.time_spinpol_mu + 10000)
         with parallel:
             with sequential:
                 # set target RAM profile
@@ -343,9 +343,20 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.on()  # FIRE BEAM
 
 
+        '''SCHEDULE SPINPOL'''
+        # note: we do this here due to difficulties w/empty list for spinpol scheduling
+        # get start reference time
+        time_start_mu = now_mu()
+
+        # do spin polarizations according to schedule
+        for time_spinpol_mu in self.time_spinpolarization_mu_list:
+            at_mu(time_start_mu + time_spinpol_mu)
+            self.spin_polarize()
+
         '''FINISH'''
         # stop sideband cooling
-        at_mu(time_start_mu + self.time_spinpol_mu + 200 + self.time_sideband_cooling_mu)
+        # at_mu(time_start_mu + self.time_spinpol_mu + 200 + self.time_sideband_cooling_mu)
+        at_mu(time_start_mu + self.time_sideband_cooling_mu)
         with parallel:
             # stop beams via RF switches
             self.qubit.off()
