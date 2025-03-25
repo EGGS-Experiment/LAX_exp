@@ -4,8 +4,10 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon,
+    SidebandCoolContinuousRAM, SidebandReadout
+)
 from sipyco import pyon
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
@@ -41,8 +43,12 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # get subsequences
         self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence = SidebandReadout(self)
+        # ram-based continuous sideband cooling
+        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=3, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )        self.sidebandreadout_subsequence = SidebandReadout(self)
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
 
