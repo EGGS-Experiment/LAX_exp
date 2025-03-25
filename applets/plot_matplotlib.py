@@ -234,8 +234,9 @@ class MatplotlibPlot(QMainWindow):
         self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
         # set xticks by removing Nones from list
         x_filtered = [x_ele for x_ele in x if x_ele is not None]
-        self.sc.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 4),4))
+        self.sc.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 5),3))
         self.sc.axes[ind].legend()
+        self.sc.axes[ind].grid(True)
 
     """VERIFICATION AND HELPER FUNCTIONS"""
 
