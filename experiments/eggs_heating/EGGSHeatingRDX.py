@@ -48,7 +48,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             self, profile_729=3, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
-        )        self.sidebandreadout_subsequence = SidebandReadout(self)
+        )
+        self.sidebandreadout_subsequence = SidebandReadout(self)
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
 
