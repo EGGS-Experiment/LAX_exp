@@ -72,9 +72,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         # pulse parameters
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
+        # todo: actually implement the enable_pulseshaping/chirp stuff lol
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
         self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
-        # todo: actually implement the enable_pulseshaping/chirp stuff lol
 
         # read out parameters
         self.setattr_argument("enable_rabiflop_readout",    BooleanValue(default=False), group="rabiflop_readout")
@@ -255,10 +255,10 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+
     '''
     HELPER FUNCTIONS
     '''
-
     @kernel(flags={"fast-math"})
     def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
@@ -268,11 +268,17 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
-        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
-                          profile=self.profile_target)
-        self.qubit.set_att_mu(self.att_pulse_readout_mu)
-        self.qubit.set_profile(self.profile_target)
-        self.qubit.cpld.io_update.pulse_mu(8)
+        with parallel:
+            # ensure quench is using correct profile
+            self.pump.readout()
+
+            # set up qubit readout pulse
+            with sequential:
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
+                                  profile=self.profile_target)
+                self.qubit.set_att_mu(self.att_pulse_readout_mu)
+                self.qubit.set_profile(self.profile_target)
+                self.qubit.cpld.io_update.pulse_mu(8)
 
         # quench D-5/2 to eliminate coherence problems
         self.repump_qubit.on()

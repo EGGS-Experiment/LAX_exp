@@ -15,7 +15,7 @@ class Readout(LAXSubsequence):
         "time_readout_mu"
     }
 
-    def build_subsequence(self):
+    def build_subsequence(self, time_readout_us=3000):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')

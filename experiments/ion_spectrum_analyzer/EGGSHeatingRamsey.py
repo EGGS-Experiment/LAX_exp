@@ -222,19 +222,22 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
         # record EGGS pulse waveforms
         for i in range(len(self.phase_ramsey_anti_turns_list)):
+            # create local copy of _sequence_blocks
+            # note: no need to deep copy b/c it's filled w/immutables
+            _sequence_blocks_local = np.copy(_sequence_blocks)
+
             # update sequence block with ramsey phase
             phase_ramsey_turns = self.phase_ramsey_anti_turns_list[i]
-
             # set phase shift for RSB+BSB case
             if self.target_ramsey_phase == 'RSB+BSB':
-                _sequence_blocks[1, 0, 1] += phase_ramsey_turns
-                _sequence_blocks[1, 1, 1] += phase_ramsey_turns
+                _sequence_blocks_local[1, 0, 1] += phase_ramsey_turns
+                _sequence_blocks_local[1, 1, 1] += phase_ramsey_turns
             # otherwise, set phase for given osc target
             else:
-                _sequence_blocks[1, ramsey_osc_target, 1] += phase_ramsey_turns
+                _sequence_blocks_local[1, ramsey_osc_target, 1] += phase_ramsey_turns
 
             # create waveform
-            self.spinecho_wizard.sequence_blocks = _sequence_blocks
+            self.spinecho_wizard.sequence_blocks = _sequence_blocks_local
             self.spinecho_wizard.calculate_pulseshape()
             self.spinecho_wizard.compile_waveform()
 

@@ -1,6 +1,6 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_TRACKING, _AD9910_REG_CFR1
+from artiq.coredevice import ad9910
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -103,23 +103,7 @@ class PSRSB(LAXExperiment, Experiment):
         Prepare experimental values.
         """
         '''SANITIZE/VALIDATE INPUTS & CHECK ERRORS'''
-        # ensure phaser oscillator amplitudes are configured correctly
-        if (type(self.ampl_qvsa_pct_config) is not list) or (len(self.ampl_qvsa_pct_config) != 3):
-            raise ValueError("Invalid QVSA oscillator amplitude configuration."
-                             "Must be of list [rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct].")
-        elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
-            raise ValueError("Invalid QVSA oscillator amplitude. Must be in range [0., 100.].")
-        elif sum(self.ampl_qvsa_pct_config) >= 100.:
-            raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
-
-        # ensure phaser oscillator phases are configured correctly
-        if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
-            raise ValueError("Invalid QVSA oscillator phase configuration."
-                             "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
-
-        # ensure phaser output frequency falls within valid DUC bandwidth
-        if abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz) >= 200. * MHz:
-            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
+        self._prepare_argument_checks()
 
         '''CONVERT VALUES TO MACHINE UNITS - QVSA'''
         # convert frequencies to Hz
@@ -159,6 +143,28 @@ class PSRSB(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure phaser oscillator amplitudes are configured correctly
+        if (type(self.ampl_qvsa_pct_config) is not list) or (len(self.ampl_qvsa_pct_config) != 3):
+            raise ValueError("Invalid QVSA oscillator amplitude configuration."
+                             "Must be of list [rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct].")
+        elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
+            raise ValueError("Invalid QVSA oscillator amplitude. Must be in range [0., 100.].")
+        elif sum(self.ampl_qvsa_pct_config) >= 100.:
+            raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
+
+        # ensure phaser oscillator phases are configured correctly
+        if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
+            raise ValueError("Invalid QVSA oscillator phase configuration."
+                             "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
+
+        # ensure phaser output frequency falls within valid DUC bandwidth
+        if abs(self.freq_qvsa_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz) >= 200. * MHz:
+            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -271,16 +277,16 @@ class PSRSB(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''STATE PREPARATION'''
-                # initialize ion in S-1/2 state
+                # initialize ion in S-1/2 state, then SBC to ground motional state
                 self.initialize_subsequence.run_dma()
-                # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
                 '''PHASE-SENSITIVE RED SIDEBAND SEQUENCE'''
                 # create qvsa displacement
-                self.phaser_run(self.waveform_qvsa_pulseshape_id)
-                # run PSRSB detection
-                self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw, phas_carrier_pow)
+                t_phaser_start_mu = self.phaser_run(self.waveform_qvsa_pulseshape_id)
+                # run PSRSB detection (synchronized to phaser)
+                self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw,
+                               phas_carrier_pow, t_phaser_start_mu)
 
                 '''READOUT'''
                 self.readout_subsequence.run_dma()
@@ -321,13 +327,15 @@ class PSRSB(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def psrsb_run(self, freq_rsb_ftw: TInt32, freq_carrier_ftw: TInt32, phas_carrier_pow: TInt32) -> TNone:
+    def psrsb_run(self, freq_rsb_ftw: TInt32 = 0, freq_carrier_ftw: TInt32 = 0,
+                  phas_carrier_pow: TInt32 = 0, time_ref_mu: TInt64 = -1) -> TNone:
         """
         Run the phase-sensitive red-sideband detection sequence.
         Arguments:
             freq_rsb_ftw: RSB frequency in FTW.
             freq_carrier_ftw: Carrier frequency in FTW.
             phas_carrier_pow: Carrier phase (relative) in POW.
+            time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
         """
         # set target profile and attenuation
         self.qubit.set_profile(self.profile_psrsb)
@@ -335,12 +343,13 @@ class PSRSB(LAXExperiment, Experiment):
         self.qubit.set_att_mu(self.att_qubit_mu)
 
         # synchronize start time to coarse RTIO clock
-        time_start_mu = now_mu() & ~0x7
+        if time_ref_mu < 0:
+            time_ref_mu = now_mu() & ~0x7
 
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
+                          phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_rsb_mu)
         self.qubit.off()
@@ -348,17 +357,20 @@ class PSRSB(LAXExperiment, Experiment):
         # run carrier pulse
         self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
                           profile=self.profile_psrsb,
-                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
+                          phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_carrier_mu)
         self.qubit.off()
 
     @kernel(flags={"fast-math"})
-    def phaser_run(self, waveform_id: TInt32) -> TNone:
+    def phaser_run(self, waveform_id: TInt32) -> TInt64:
         """
         Run the main EGGS pulse together with supporting functionality.
         Arguments:
-            waveform_id     (TInt32)    : the ID of the waveform to run.
+            waveform_id: the ID of the waveform to run.
+        Returns:
+            the start time of the phaser oscillator waveform.
+            Useful to synchronize device operation.
         """
         # EGGS - START/SETUP
         self.phaser_eggs.phaser_setup(self.att_qvsa_mu, self.att_qvsa_mu)
@@ -366,12 +378,18 @@ class PSRSB(LAXExperiment, Experiment):
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
+        # synchronize to next frame
+        t_start_mu = self.phaser_eggs.get_next_frame_mu()
+        at_mu(t_start_mu)
         self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
         # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
         # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
+
+        # return phaser osc start time (in case others want to sync)
+        return t_start_mu
 
 
     '''

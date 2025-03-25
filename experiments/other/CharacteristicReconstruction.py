@@ -4,8 +4,10 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous,
-                                         QubitPulseShape, Readout, RescueIon)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, SidebandCoolContinuousRAM,
+    Readout, RescueIon
+)
 
 import math
 from itertools import product
@@ -21,16 +23,20 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     """
     name = 'Characteristic Reconstruction'
     kernel_invariants = {
+        # hardware objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target', 'singlepass0', 'singlepass1',
+        'profile_target', 'profile_SBC', 'singlepass0', 'singlepass1',
 
+        # hardware parameters
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
 
+        # cat-state parameters
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow', 'phases_pulse4_cat_update_dir',
 
+        # experiment parameters
         'config_experiment_list'
     }
 
@@ -38,14 +44,19 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
+        # set target profile for stuff
+        self.profile_SBC =      5
+        self.profile_target =   6
+
         # get subsequences
         self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
-
-        # set target profile for stuff
-        self.profile_target = 6
 
 
         '''DEFAULT CONFIG ARGUMENTS'''
@@ -102,6 +113,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
         # pulse 3 - sigma_x1
+        # todo: make selectable re/im/both
         self.setattr_argument("enable_pulse3_sigmax",       BooleanValue(default=True), group='pulse3.sigmax')
         self.setattr_argument("phase_pulse3_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='pulse3.sigmax')
 
@@ -138,19 +150,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         '''
         CHECK INPUT FOR ERRORS
         '''
-        # ensure we only herald once
-        if self.enable_force_herald and not self.enable_pulse2_herald:
-            raise ValueError("Cannot force_herald if enable_pulse2_herald is disabled. Check input arguments.")
-
-        # ensure single pass values are safe and valid
-        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
-                for ampl_pct in self.ampl_singlepass_default_pct_list)):
-            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
-
-        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
-                for att_db in self.att_singlepass_default_db_list)):
-            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
-
+        self._prepare_argument_checks()
 
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
@@ -158,7 +158,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # defaults - singlepass AOM
         self.singlepass0 = self.get_device("urukul0_ch1")
         self.singlepass1 = self.get_device("urukul0_ch2")
-
         self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
                                                  for freq_mhz in self.freq_singlepass_default_mhz_list]
         self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
@@ -247,6 +246,22 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # # tmp remove
         # self.freq_bsb_ftw = self.qubit.frequency_to_ftw(101.5885 * MHz)
         # # tmp remove
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure we only herald once
+        if self.enable_force_herald and not self.enable_pulse2_herald:
+            raise ValueError("Cannot force_herald if enable_pulse2_herald is disabled. Check input arguments.")
+
+        # ensure single pass values are safe and valid
+        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
+                for ampl_pct in self.ampl_singlepass_default_pct_list)):
+            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
+        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
+                for att_db in self.att_singlepass_default_db_list)):
+            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
 
     @property
     def results_shape(self):
@@ -367,7 +382,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                             if counts_her > self.force_herald_threshold:
                                 continue
 
-                            # add minor slack if we move on
+                            # add minor slack if we proceed
                             at_mu(self.core.get_rtio_counter_mu() + 150000)
 
                     # force break loop by default

@@ -437,39 +437,42 @@ def process_laser_scan_results(results, time_us):
     results_tmp =           np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
 
+    try:
+        # calculate peak criteria from data
+        # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
+        # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
+        # _peak_height =          np.power(repetitions, -0.5)
+        _peak_height =          0.2
+        _peak_thresh =          0.05
+        # peak distance criteria is set as ~8 kHz between points
+        _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
 
-    # calculate peak criteria from data
-    # todo: somehow relate peak height to shot noise (i.e. 1/sqrt(N))
-    # todo: maybe set min peak width of at least 2 points (? not sure if good idea)
-    # _peak_height =          np.power(repetitions, -0.5)
-    _peak_height =          0.2
-    _peak_thresh =          0.05
-    # peak distance criteria is set as ~8 kHz between points
-    _peak_dist =            int(4e-3 / (results_tmp[1, 0] - results_tmp[0, 0]))
+        # calculate peaks from data and extract values
+        from scipy.signal import find_peaks
+        peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
+        peak_vals =             results_tmp[peaks]
 
-    # calculate peaks from data and extract values
-    from scipy.signal import find_peaks
-    peaks, props =          find_peaks(results_tmp[:, 1], height=_peak_height, distance=_peak_dist)
-    peak_vals =             results_tmp[peaks]
+        # fit sinc profile to results (only in the case of one peak)
+        if len(peaks) == 1:
+            # get index step size in frequency (mhz)
+            step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
+            freq_sinc_mhz = 1. / time_us
 
-    # fit sinc profile to results (only in the case of one peak)
-    if len(peaks) == 1:
-        # get index step size in frequency (mhz)
-        step_size_mhz = np.mean(results_tmp[1:, 0] - results_tmp[:-1, 0])
-        freq_sinc_mhz = 1. / time_us
+            # get points +/- 6x the 1/f time for sinc fitting
+            num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
+            index_peak_center = peaks[0]
+            index_min = max(0, index_peak_center - num_points_sinc)
+            index_max = min(index_peak_center + num_points_sinc, len(results_tmp))
+            points_tmp = results_tmp[index_min: index_max]
 
-        # get points +/- 6x the 1/f time for sinc fitting
-        num_points_sinc = round(6. * freq_sinc_mhz / step_size_mhz)
-        index_peak_center = peaks[0]
-        index_min = max(0, index_peak_center - num_points_sinc)
-        index_max = min(index_peak_center + num_points_sinc, len(results_tmp))
-        points_tmp = results_tmp[index_min: index_max]
+            # fit sinc profile and replace spectrum peak with fitted value
+            # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
+            from LAX_exp.analysis.fitting import fitSinc
+            fitter = fitSinc()
+            fit_sinc_params, _ = fitter.fit(points_tmp, time_us / 2.)
+            peak_vals[0, 0] = fit_sinc_params[1]
 
-        # fit sinc profile and replace spectrum peak with fitted value
-        # note: division by 2 accounts for conversion between AOM freq. and abs. freq.
-        from LAX_exp.analysis.fitting import fitSinc
-        fitter = fitSinc()
-        fit_sinc_params, _ = fitter.fit(points_tmp, time_us / 2.)
-        peak_vals[0, 0] = fit_sinc_params[1]
+    except Exception as e:
+        peak_vals = []
 
     return peak_vals, results_tmp

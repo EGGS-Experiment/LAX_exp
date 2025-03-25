@@ -46,31 +46,24 @@ class SidebandCoolPulsed(LAXSubsequence):
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)
-        num_min_times =                                                 len(list(self.time_min_sideband_cooling_us_list))
-        num_max_times =                                                 len(list(self.time_max_sideband_cooling_us_list))
-        num_modes =                                                     len(list(self.freq_sideband_cooling_mhz_list))
-        assert num_modes < 7,                                           "Exceeded maximum number of cooling frequencies."
-        assert num_min_times == num_max_times == num_modes,             "Number of modes and timings are not equal."
+        num_min_times = len(list(self.time_min_sideband_cooling_us_list))
+        num_max_times = len(list(self.time_max_sideband_cooling_us_list))
+        num_modes =     len(list(self.freq_sideband_cooling_mhz_list))
+        assert num_modes < 7,   "Exceeded maximum number of cooling frequencies."
+        assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
 
         # DDS parameters
-        self.ampl_qubit_asf =                                           self.get_parameter('ampl_qubit_pct',
-                                                                                           group='beams.ampl_pct', override=True,
-                                                                                           conversion_function=pct_to_asf)
+        self.ampl_qubit_asf =   self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
+                                                   conversion_function=pct_to_asf)
 
         # timing parameters
-        self.time_repump_qubit_mu =                                     self.get_parameter('time_repump_qubit_us',
-                                                                                           group='timing', override=True,
-                                                                                           conversion_function=seconds_to_mu, units=us)
-        self.time_spinpol_mu =                                          self.get_parameter('time_spinpol_us',
-                                                                                           group='timing', override=True,
-                                                                                           conversion_function=seconds_to_mu, units=us)
-
-        # calibration setup
-        self.qubit_func =                                               self.qubit.off if self.calibration_pulsed is True else self.qubit.on
-
+        self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us', group='timing', override=True,
+                                                       conversion_function=seconds_to_mu, units=us)
+        self.time_spinpol_mu =      self.get_parameter('time_spinpol_us', group='timing', override=True,
+                                                       conversion_function=seconds_to_mu, units=us)
 
         # timing
-        self.time_sideband_cooling_list_mu =                            np.array([])
+        self.time_sideband_cooling_list_mu = np.array([])
 
         # calculate cooling timeform: linear
         if self.time_form_sideband_cooling == 'Linear':
@@ -108,17 +101,17 @@ class SidebandCoolPulsed(LAXSubsequence):
 
 
         # extra sideband cooling cycles
-        extra_cycles_arr =                                              np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
-        self.time_sideband_cooling_list_mu =                            np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
+        extra_cycles_arr = np.tile(self.time_sideband_cooling_list_mu[1], (self.extra_sideband_cycles, 1))
+        self.time_sideband_cooling_list_mu = np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
 
         # split up sideband cooling times to intersperse spin polarization
-        num_spin_polarizations =                                        int(self.sideband_cycles_pulsed / self.cycles_per_spin_polarization + 0.5)
-        self.time_sideband_cooling_list_mu =                            np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
+        num_spin_polarizations = int(self.sideband_cycles_pulsed / self.cycles_per_spin_polarization + 0.5)
+        self.time_sideband_cooling_list_mu = np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # sideband cooling waveforms
-        self.freq_sideband_cooling_ftw_list =                           np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
-        self.att_sidebandcooling_mu =                                   att_to_mu(self.att_sidebandcooling_pulsed_db * dB)
-        self.iter_sideband_cooling_modes_list =                         np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
+        self.freq_sideband_cooling_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
+        self.att_sidebandcooling_mu = att_to_mu(self.att_sidebandcooling_pulsed_db * dB)
+        self.iter_sideband_cooling_modes_list = np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self) -> TNone:
@@ -152,8 +145,10 @@ class SidebandCoolPulsed(LAXSubsequence):
                     self.qubit.set_profile(i)
 
                     # qubit pi-pulse
-                    self.qubit_func()               # we use qubit_func() instead of self.qubit.on()
-                                                    # to allow for variable behavior due to calibration
+                    if self.calibration_pulsed:
+                        self.qubit.off()
+                    else:
+                        self.qubit.on()
                     delay_mu(time_modes_mu[i - 1])
                     self.qubit.off()
 
@@ -166,3 +161,4 @@ class SidebandCoolPulsed(LAXSubsequence):
             self.repump_qubit.on()
             delay_mu(self.time_repump_qubit_mu)
             self.repump_qubit.off()
+

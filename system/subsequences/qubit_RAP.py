@@ -27,7 +27,7 @@ class QubitRAP(LAXSubsequence):
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 500, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
@@ -38,12 +38,13 @@ class QubitRAP(LAXSubsequence):
             num_samples: the number of samples to use for the pulse shape.
                 Must result in a final RAM address <= 1023.
             ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+            pulse_shape: the pulse shape to use.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
         # self.num_samples =      num_samples
-        self.num_samples =      1000
+        self.num_samples =      200
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
 
@@ -61,17 +62,7 @@ class QubitRAP(LAXSubsequence):
         '''
         VALIDATE INPUTS
         '''
-        # note: validate inputs here to get around bugs where args are passed from setattr_argument
-        # sanitize sequence parameters
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
-        if self.ram_profile not in range(0, 7):
-            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
-        elif not (0 <= self.ram_addr_start <= 1023 - 100):
-            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
-        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
-            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
-        elif not (0. <= self.ampl_max_pct <= 50.):
-            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
+        self._prepare_argument_checks()
 
         '''SPECIFY TIMING'''
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
@@ -98,6 +89,23 @@ class QubitRAP(LAXSubsequence):
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # note: validate inputs here to get around bugs where args are passed from setattr_argument
+        # sanitize sequence parameters
+        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
+        if self.ram_profile not in range(0, 7):
+            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
+        elif not (0 <= self.ram_addr_start <= 1023 - 100):
+            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
+        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
+            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
+        elif not (0. <= self.ampl_max_pct <= 50.):
+            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
+
 
 
     """
@@ -133,9 +141,10 @@ class QubitRAP(LAXSubsequence):
 
         # write waveform to RAM profile
         self.core.break_realtime()
-        delay_mu(20000000)   # 20 ms
+        delay_mu(30000000)   # 20 ms
         # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
         self.qubit.cpld.io_update.pulse_mu(8)
+        # delay_mu(2000000)   # extra slack - 2025/03/21 - empirical slack
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
 

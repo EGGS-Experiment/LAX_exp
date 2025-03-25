@@ -14,17 +14,10 @@ class SidebandCoolContinuous(LAXSubsequence):
     """
     name = 'sideband_cool_continuous'
     kernel_invariants = {
-        "ampl_qubit_asf",
-        "time_repump_qubit_mu",
-        "time_spinpol_mu",
-        "freq_repump_qubit_ftw",
-        "freq_sideband_cooling_ftw_list",
-        "iter_sideband_cooling_modes_list",
-        "ampl_quench_asf",
-        "att_sidebandcooling_mu",
-        "time_sideband_cooling_mu",
-        "delay_sideband_cooling_cycle_mu_list",
-        "time_spinpolarization_mu_list",
+        "ampl_qubit_asf", "time_repump_qubit_mu", "time_spinpol_mu",
+        "freq_repump_qubit_ftw", "freq_sideband_cooling_ftw_list", "iter_sideband_cooling_modes_list",
+        "ampl_quench_asf", "att_sidebandcooling_mu", "time_sideband_cooling_mu",
+        "delay_sideband_cooling_cycle_mu_list", "time_spinpolarization_mu_list",
         "power_quench_calibration_num_samples"
     }
 
@@ -43,15 +36,15 @@ class SidebandCoolContinuous(LAXSubsequence):
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
         self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, precision=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=6000, precision=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=35.4, precision=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
-        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({100.9835: 100}), group='sideband_cooling.continuous')
+        self.setattr_argument("freq_sideband_cooling_mhz_pct_list",     PYONValue({100.6942: 100}), group='sideband_cooling.continuous')
 
         # sideband cooling powers
         self.setattr_argument("att_sidebandcooling_continuous_db",      NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='sideband_cooling.continuous')
-        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=4.8, precision=2, step=1, min=0.1, max=50), group='sideband_cooling.continuous')
+        self.setattr_argument("ampl_quench_pct",                        NumberValue(default=8, precision=2, step=1, min=0.1, max=50), group='sideband_cooling.continuous')
 
     def prepare_subsequence(self):
         # ensure mode percentages add up to 100%
@@ -78,7 +71,6 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         '''PREPARE SIDEBAND COOLING'''
         # CONFIG
-        self.qubit_func = self.qubit.off if self.calibration_continuous is True else self.qubit.on
         self.freq_sideband_cooling_ftw_list =   np.array([hz_to_ftw(freq_mhz * MHz)
                                                           for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
         self.iter_sideband_cooling_modes_list = np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))
@@ -170,6 +162,11 @@ class SidebandCoolContinuous(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
+        """
+        Run SBC pulse sequence.
+        Note: use of at_mu() is OK even when recording onto DMA
+            b/c we don't care about phase coherence here.
+        """
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling profiles for regular beams
@@ -179,11 +176,7 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.qubit.set_att_mu(self.att_sidebandcooling_mu)
 
         # do spin polarization before SBC per Guggemos' thesis
-        self.probe.on()
-        self.repump_cooling.on()
-        delay_mu(self.time_spinpol_mu)
-        self.probe.off()
-        self.repump_cooling.off()
+        self._spin_polarize()
 
         # turn on sideband cooling beams
         with parallel:
@@ -191,8 +184,10 @@ class SidebandCoolContinuous(LAXSubsequence):
             self.repump_qubit.on()
 
             # turn on qubit beam
-            self.qubit_func()           # we use qubit_func() instead of self.qubit.on()
-                                        # to allow for variable behavior due to calibration
+            if self.calibration_continuous:
+                self.qubit.off()
+            else:
+                self.qubit.on()
 
         # intersperse state preparation with normal SBC
         time_start_mu = now_mu()
@@ -207,25 +202,35 @@ class SidebandCoolContinuous(LAXSubsequence):
                     self.qubit.set_profile(self.iter_sideband_cooling_modes_list[i])
                     self.qubit.io_update()
 
-            # spin polarization
+            # spin polarization according to schedule
             for time_spinpol_mu in self.time_spinpolarization_mu_list:
-                # do spin polarization at set time
                 at_mu(time_start_mu + time_spinpol_mu)
-                self.probe.on()
-                self.repump_cooling.on()
-                delay_mu(self.time_spinpol_mu)
-                self.probe.off()
-                self.repump_cooling.off()
+                self._spin_polarize()
 
         # stop sideband cooling
         at_mu(time_start_mu + self.time_sideband_cooling_mu)
         with parallel:
-            self.repump_qubit.set_profile(1)
             self.qubit.off()
+            self.repump_qubit.set_profile(1)
 
         # repump qubit after sideband cooling
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def _spin_polarize(self) -> TNone:
+        """
+        Run spin polarization for optical pumping into the correct Zeeman manifold.
+        """
+        with parallel:
+            self.probe.on()
+            self.repump_cooling.on()
+
+        delay_mu(self.time_spinpol_mu)
+
+        with parallel:
+            self.probe.off()
+            self.repump_cooling.off()
 
     def analyze(self):
         """

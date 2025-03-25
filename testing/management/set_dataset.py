@@ -24,11 +24,14 @@ class SetDataset(EnvExperiment):
         self.setattr_device('urukul2_cpld')
 
     def run(self):
-        # import csv
-        file_calib = np.loadtxt("C:\\Users\\EGGS1\\Documents\\2023_11_09_ISA_DEMO_CALIB_expid_data.csv",delimiter=',')
-        file_filter = np.loadtxt("C:\\Users\\EGGS1\\Documents\\2023_11_09_ISA_DEMO_FILTER_expid_data.csv", delimiter=',')
-        self.set_dataset('tmpres.isa_demo.calib_expid', file_calib, broadcast=True, persist=True)
-        self.set_dataset('tmpres.isa_demo.filter_expid', file_filter, broadcast=True, persist=True)
+        # # import csv
+        # file_calib = np.loadtxt("C:\\Users\\EGGS1\\Documents\\2023_11_09_ISA_DEMO_CALIB_expid_data.csv",delimiter=',')
+        # file_filter = np.loadtxt("C:\\Users\\EGGS1\\Documents\\2023_11_09_ISA_DEMO_FILTER_expid_data.csv", delimiter=',')
+        # self.set_dataset('tmpres.isa_demo.calib_expid', file_calib, broadcast=True, persist=True)
+        # self.set_dataset('tmpres.isa_demo.filter_expid', file_filter, broadcast=True, persist=True)
+
+        self.get_dataset('temp.qubit_align.counts_x')
+        self.set_dataset('temp.qubit_align.counts_y')
 
         #
         # self.set_dataset('ampl_qubit_pct', 50.0, broadcast=True, persist=True)

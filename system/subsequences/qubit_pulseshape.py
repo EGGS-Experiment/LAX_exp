@@ -1,12 +1,10 @@
+import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import *
-from artiq.coredevice.ad9910 import _AD9910_REG_CFR1
+from artiq.coredevice import ad9910
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
-
-import numpy as np
 
 
 class QubitPulseShape(LAXSubsequence):
@@ -17,13 +15,13 @@ class QubitPulseShape(LAXSubsequence):
     """
     name = 'qubit_pulseshape'
     kernel_invariants = {
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct",
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
         "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step",
         "ampl_asf_pulseshape_list",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 100, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "sine_squared"):
         """
         Defines the main interface for the subsequence.
@@ -34,6 +32,7 @@ class QubitPulseShape(LAXSubsequence):
             num_samples: the number of samples to use for the pulse shape.
                 Must result in a final RAM address <= 1023.
             ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+            pulse_shape: the pulse shape to use.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
@@ -53,17 +52,7 @@ class QubitPulseShape(LAXSubsequence):
         '''
         VALIDATE INPUTS
         '''
-        # note: validate inputs here to get around bugs where args are passed from setattr_argument
-        # sanitize sequence parameters
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
-        if self.ram_profile not in range(0, 7):
-            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
-        elif not (0 <= self.ram_addr_start <= 1023 - 100):
-            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
-        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
-            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
-        elif not (0. <= self.ampl_max_pct <= 50.):
-            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
+        self._prepare_argument_checks()
 
         '''SPECFIY RAM PARAMETERS'''
         # stop RAM address
@@ -92,6 +81,21 @@ class QubitPulseShape(LAXSubsequence):
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
 
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # note: validate inputs here to get around bugs where args are passed from setattr_argument
+        # sanitize sequence parameters
+        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
+        if self.ram_profile not in range(0, 7):
+            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
+        elif not (0 <= self.ram_addr_start <= 1023 - 100):
+            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
+        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
+            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
+        elif not (0. <= self.ampl_max_pct <= 50.):
+            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
 
     """
     KERNEL FUNCTIONS
@@ -107,21 +111,23 @@ class QubitPulseShape(LAXSubsequence):
 
         # set matched latencies
         self.qubit.set_cfr2(matched_latency_enable=1)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
         # prepare to write waveform to RAM profile
         self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
             step=0xFFF,
-            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
+            profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
+        self.qubit.cpld.io_update.pulse_mu(8)
 
         # set target RAM profile
         self.qubit.cpld.set_profile(self.ram_profile)
         self.qubit.cpld.io_update.pulse_mu(8)
+        self.core.break_realtime()
 
         # write waveform to RAM profile
-        self.core.break_realtime()
         delay_mu(10000000)   # 10 ms
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
@@ -158,7 +164,7 @@ class QubitPulseShape(LAXSubsequence):
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
-            raise ValueError("Invalid RAM timestemp in qubitPulseShape.configure()."
+            raise ValueError("Invalid RAM timestep in qubitPulseShape.configure()."
                              "Change either pulse time or number of samples.")
 
         # reconvert to get correct time_pulse_mu correctly for later delay
@@ -169,7 +175,7 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.set_profile_ram(
             start=self.ram_addr_start, end=self.ram_addr_stop,
             step=time_ram_step,
-            profile=self.ram_profile, mode=RAM_MODE_RAMPUP
+            profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
         return self.time_pulse_mu
 
@@ -184,9 +190,9 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit.write32(_AD9910_REG_CFR1,
+        self.qubit.write32(ad9910._AD9910_REG_CFR1,
                            (1 << 31) |              # ram_enable
-                           (RAM_DEST_ASF << 29) |   # ram_destination
+                           (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 16) |              # select_sine_output
                            (1 << 13) |              # phase_autoclear
                            2

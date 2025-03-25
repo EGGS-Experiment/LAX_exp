@@ -4,9 +4,9 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 import matplotlib.pyplot as plt
-# todo: build using a config dict instead of having to set instance attrs directly
 
 
 class SpinEchoWizard(LAXEnvironment):
@@ -83,56 +83,39 @@ class SpinEchoWizard(LAXEnvironment):
 
         '''calculate num samples (i.e. x-axis)'''
         # convert build variables to units of choice
-        self.time_pulse_shape_rolloff_mu =  self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
+        time_pulse_shape_rolloff_mu =  self.core.seconds_to_mu(self.time_pulse_shape_rolloff_us * us)
         self.time_pulse_shape_sample_mu =   self.core.seconds_to_mu(1. / (self.freq_pulse_shape_sample_khz * kHz))
-
         # ensure pulse shaping sample interval is valid (greater than min val)
-        # if self.time_pulse_shape_sample_mu < self.t_max_phaser_update_rate_mu:
-        #     raise Exception("Error: waveform sample rate too fast.")
         if self.time_pulse_shape_sample_mu < (5 * self.phaser_eggs.t_sample_mu):
             raise Exception("Error: waveform sample rate too fast.")
 
         # ensure pulse shaping sample interval is multiple of phaser sample rate
         # note: -2 accounts for 2x t_sample_mu delay from having to set 3 oscillators
+        # note: evidently, this assumes we have exactly 3 oscillators - won't be accurate if not 3 oscs
         num_multiples = round(self.time_pulse_shape_sample_mu / self.phaser_eggs.t_sample_mu) - 2
         self.time_pulse_shape_sample_mu = np.int64(num_multiples * self.phaser_eggs.t_sample_mu)
 
         # calculate number of samples
-        self.num_pulse_shape_samples = round(self.time_pulse_shape_rolloff_mu / self.time_pulse_shape_sample_mu)
+        num_samples = round(time_pulse_shape_rolloff_mu / self.time_pulse_shape_sample_mu)
         # ensure rolloff time is integer number of pulse shape samples
-        self.time_pulse_shape_rolloff_mu = np.int64(self.num_pulse_shape_samples * self.time_pulse_shape_sample_mu)
+        time_pulse_shape_rolloff_mu = np.int64(num_samples * self.time_pulse_shape_sample_mu)
         # ensure we aren't submitting too many samples to prevent overloading DMA
-        if self.num_pulse_shape_samples > self.num_max_phaser_samples:
+        if num_samples > self.num_max_phaser_samples:
             raise ValueError("Too many points in phaser waveform. Reduce sample rate or rollon time.")
 
-        # create x-axis value array
-        self._pulse_shape_array_times_mu = np.arange(self.num_pulse_shape_samples, dtype=np.int64) * self.time_pulse_shape_sample_mu
-
         '''calculate pulse shape window (i.e. y-vals)'''
-        if self.type_pulse_shape == 'sine_squared':
-            # calculate x-axis scaling factor
-            scale_factor_x = (np.pi / 2.) / self.time_pulse_shape_rolloff_mu
-            x_vals_readjusted = scale_factor_x * self._pulse_shape_array_times_mu
-            # calculate sine squared window
-            self.ampl_window_rising = np.sin(x_vals_readjusted) ** 2.
+        try:
+            # get corresponding pulse shape function
+            pulse_shape_func = available_pulse_shapes[self.type_pulse_shape]
+            self.ampl_window_rising = pulse_shape_func(
+                np.arange(num_samples, dtype=np.int64) * self.time_pulse_shape_sample_mu,  # array of time-series values
+                time_pulse_shape_rolloff_mu
+            )
 
-        elif self.type_pulse_shape == 'error_function':
-            # import error function
-            from math import erf
-            # readjust x-axis
-            scale_factor_x = (2. * np.pi) / self.time_pulse_shape_rolloff_mu
-            x_vals_readjusted = (scale_factor_x * self._pulse_shape_array_times_mu) - np.pi
-            # calculate erf window
-            self.ampl_window_rising = np.array([(1. + erf(x_val)) / 2. for x_val in x_vals_readjusted])
-
-        elif self.type_pulse_shape == 'slepian':
-            pass
-
-        else:
-            raise Exception('Error: idk, some window problem')
-
-        # falling pulse shape should be simple reverse of rising window
-        self.ampl_window_falling = self.ampl_window_rising[::-1]
+            # falling pulse shape should be simple reverse of rising window
+            self.ampl_window_falling = self.ampl_window_rising[::-1]
+        except KeyError:
+            raise ValueError('Invalid pulse shape: {}'.format(self.type_pulse_shape))
 
     def compile_waveform(self):
         """

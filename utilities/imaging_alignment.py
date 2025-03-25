@@ -12,14 +12,19 @@ class ImagingAlignment(LAXExperiment, Experiment):
     Read PMT counts over time with cooling repump on/off to compare signal/background.
     """
     name = 'Imaging Alignment'
-
+    kernel_invariants = {
+        # conversions, counters etc.
+        "repetitions", "_iter_repetitions", "_iter_signal", "_iter_background",
+        # timing
+        "time_slack_us", "time_per_point_s", "time_per_point_mu", "time_slack_mu", "time_sample_mu"
+    }
 
     def build_experiment(self):
         """
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',               NumberValue(default=200, precision=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_total_s',               NumberValue(default=10, precision=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('time_sample_us',             NumberValue(default=3000, precision=1, step=500, min=100, max=100000), group='timing')
 
         # sampling
@@ -64,9 +69,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
         counts_x_arr[0] = 0
         counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
         counts_y_arr[0, :] = 0
+        counts_snr_arr = np.zeros(self.repetitions) * np.nan
+        counts_snr_arr[0] = 0
 
         self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_snr', counts_snr_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
         self.ccb.issue(
@@ -75,6 +83,14 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # command
             '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
             ' --x temp.imag_align.counts_x --title "Imaging Alignment"',
+            group=["alignment"] # folder directory for applet
+        )
+        self.ccb.issue(
+            "create_applet",    # name of broadcast
+            "qubit_alignment",  # applet name
+            # command
+            '${artiq_applet}plot_xy temp.imag_align.counts_snr'
+            ' --x temp.qubit_align.counts_x --title "Imaging Alignment - SNR"',
             group=["alignment"] # folder directory for applet
         )
 
@@ -168,11 +184,20 @@ class ImagingAlignment(LAXExperiment, Experiment):
         _counts_avg_signal =        counts_signal / self.signal_samples_per_point
         _counts_avg_background =    counts_background / self.background_samples_per_point
 
-        # update datasets
+        # update datasets for broadcast
         self.mutate_dataset('temp.imag_align.counts_x', self._result_iter, iter_num * self.time_per_point_s)
         self.mutate_dataset('temp.imag_align.counts_y', self._result_iter, np.array([_counts_avg_signal,
                                                                                           _counts_avg_background,
                                                                                           _counts_avg_signal - _counts_avg_background]))
+        self.mutate_dataset('temp.imag_align.counts_snr',
+                            self._result_iter, (_counts_avg_signal - _counts_avg_background) / _counts_avg_background)
+
+        # update dataset for HDF5 storage
+        self.mutate_dataset('results', self._result_iter,
+                            np.array([iter_num * self.time_per_point_s,
+                                      _counts_avg_signal,
+                                      _counts_avg_background,
+                                      _counts_avg_signal - _counts_avg_background]))
 
         # update completion monitor
         self.set_dataset('management.dynamic.completion_pct',
