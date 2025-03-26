@@ -27,7 +27,7 @@ class QubitRAP(LAXSubsequence):
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 500, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 200, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
@@ -43,8 +43,8 @@ class QubitRAP(LAXSubsequence):
         # set subsequence parameters
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
-        # self.num_samples =      num_samples
-        self.num_samples =      200
+        self.num_samples =      num_samples
+        # self.num_samples =      200
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
 
@@ -105,7 +105,6 @@ class QubitRAP(LAXSubsequence):
             raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
         elif not (0. <= self.ampl_max_pct <= 50.):
             raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
-
 
 
     """

@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 from sipyco import pyon
+# todo: fix kernel_invariants issue
 
 
 class HeatingRate(SidebandCooling.SidebandCooling):
@@ -17,7 +18,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     name = 'Heating Rate'
     kernel_invariants = {
         'freq_sideband_readout_ftw_list', 'time_heating_rate_mu_list',
-        'config_heating_rate_list'
+        'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -26,6 +27,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         # run regular sideband cooling build
         super().build_experiment()
+
+        # todo: extend kernel_invariants with SBC parent's kern_invs
 
     def prepare_experiment(self):
         # run preparations for sideband cooling
@@ -39,15 +42,15 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_heating_rate_list = np.stack(np.meshgrid(self.time_heating_rate_mu_list,
+        self.config_experiment_list = np.stack(np.meshgrid(self.time_heating_rate_mu_list,
                                                              self.freq_sideband_readout_ftw_list),
                                                  -1).reshape(-1, 2)
-        self.config_heating_rate_list = np.array(self.config_heating_rate_list, dtype=np.int64)
-        np.random.shuffle(self.config_heating_rate_list)
+        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
+        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_heating_rate_list),
+        return (self.repetitions * len(self.config_experiment_list),
                 3)
 
 
@@ -59,7 +62,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
-            for config_vals in self.config_heating_rate_list:
+            for config_vals in self.config_experiment_list:
                 '''PREPARE'''
                 # extract values from config list
                 time_heating_delay_mu = config_vals[0]
@@ -69,7 +72,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 # set frequency for readout
                 self.qubit.set_mu(
                     freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                    profile=0
+                    profile=self.profile_729_readout
                 )
                 self.core.break_realtime()
 

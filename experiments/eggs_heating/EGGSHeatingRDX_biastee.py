@@ -5,8 +5,9 @@ from LAX_exp.extensions import *
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2
 
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
+)
 
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
@@ -21,14 +22,22 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
     """
     name = 'EGGS Heating RDX Bias Tee'
     kernel_invariants = {
-        'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
+        # hardware parameters
+        'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_eggs_heating_rsb_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns',
         'num_configs',
+
         # EGGS/phaser related
         'waveform_index_to_pulseshaper_vals0', 'waveform_index_to_pulseshaper_vals1',
+
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence',
+        'readout_subsequence', 'rescue_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC', 'config_experiment_list',
+
         # bias-tee specific
         'att_eggs_heating_ch0_mu', 'att_eggs_heating_ch1_mu'
     }
@@ -39,12 +48,20 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
         # get subsequences
-        self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =  SidebandReadout(self)
-        self.readout_subsequence =          Readout(self)
-        self.rescue_subsequence =           RescueIon(self)
+        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
+        self.sidebandreadout_subsequence = SidebandReadout(self, profile_dds=self.profile_729_readout)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list",         Scannable(
@@ -303,3 +320,4 @@ class EGGSHeatingRDXBiasTee(EGGSHeatingRDX.EGGSHeatingRDX):
         # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
         # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
+

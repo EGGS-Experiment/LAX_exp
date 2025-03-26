@@ -24,7 +24,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # subsequences etc.
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'rap_subsequence', 'rabiflop_subsequence',
-        'profile_target_rap', 'profile_target_readout',
+        'profile_729_SBC', 'profile_729_rap', 'profile_729_readout',
 
         # hardware values - core
         'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu',
@@ -33,7 +33,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # hardware values - motional state prep
 
         # experiment/config related
-        'config_experiment_list'
+        'profile_729_SBC', 'profile_729_rap', 'profile_729_readout', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -41,15 +41,14 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # allocate profiles on 729nm for different subsequences
-        self.profile_target_sbc =       4
-        self.profile_target_rap =       5
-        self.profile_target_readout =   6
-
+        self.profile_729_SBC =      4
+        self.profile_729_rap =      5
+        self.profile_729_readout =  6
 
         '''MOTIONAL STATE PREP - CONFIGURATION'''
         # ram-based continuous sideband cooling
         self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
-            self, profile_729=self.profile_target_sbc, profile_854=3,
+            self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
         )
@@ -72,18 +71,17 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.setattr_argument("force_herald_threshold", NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='herald')
 
         '''RABIFLOP READOUT - CONFIGURATION'''
-        self.rabiflop_subsequence = RabiflopReadout(self, profile_dds=self.profile_target_readout)
+        self.rabiflop_subsequence = RabiflopReadout(self, profile_dds=self.profile_729_readout)
 
         # initialize all other subsequences (which rely on build
         # arguments-ish, or don't themselves have arguments)
         self.rap_subsequence =  QubitRAP(
-            self, ram_profile=self.profile_target_rap, ram_addr_start=202,
-            ampl_max_pct=self.ampl_rap_pct, num_samples=500,
-            pulse_shape="blackman"
+            self, ram_profile=self.profile_729_rap, ram_addr_start=202, num_samples=500,
+            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
-        self.initialize_subsequence = InitializeQubit(self)
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -125,10 +123,10 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         np.random.shuffle(self.config_experiment_list)
 
         # # tmp remove - high fock test
-        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(101.3981 * MHz)
+        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(100.8025 * MHz)
         self.ampl_fock_asf =    self.qubit.amplitude_to_asf(0.5)
         self.att_fock_mu =      att_to_mu(8. * dB)
-        self.time_fock_mu =     self.core.seconds_to_mu(43.92 * us)
+        self.time_fock_mu =     self.core.seconds_to_mu(2.5 * us)
         self.profile_fock =     3
         # # tmp remove - high fock test
 
@@ -155,6 +153,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
             # ensure correct att set (RAP subseq doesn't do this for us)
             self.qubit.set_att_mu(self.att_rap_mu)
             self.rap_subsequence.run_rap(self.time_rap_mu)
+            # self.pulse_fock(self.time_fock_mu)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -294,9 +293,9 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         delay_mu(time_mu)
         self.qubit.off()
 
-        self.repump_qubit.on()
-        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-        self.repump_qubit.off()
+        # self.repump_qubit.on()
+        # delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+        # self.repump_qubit.off()
 
     '''
     ANALYSIS

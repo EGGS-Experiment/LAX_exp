@@ -14,10 +14,13 @@ class Tickle(LAXExperiment, Experiment):
     """
     name = 'Tickle'
     kernel_invariants = {
+        # hardware parameters
         "att_tickle_mu", "freq_tickle_ftw_list", "ampl_tickle_asf_list", "time_tickle_mu_list",
-        "config_tickle_list",
+        "config_experiment_list",
+
         # subsequences
-        'initialize_subsequence', 'readout_counts_subsequence', 'readout_timestamped_subsequence', 'rescue_subsequence'
+        'initialize_subsequence', 'readout_counts_subsequence', 'readout_timestamped_subsequence',
+        'rescue_subsequence'
     }
 
     def build_experiment(self):
@@ -82,23 +85,23 @@ class Tickle(LAXExperiment, Experiment):
 
         # create an array of values for the experiment to sweep
         # (i.e. tickle frequency, tickle time, readout FTW)
-        self.config_tickle_list = np.stack(np.meshgrid(self.freq_tickle_ftw_list,
+        self.config_experiment_list = np.stack(np.meshgrid(self.freq_tickle_ftw_list,
                                                        self.ampl_tickle_asf_list,
                                                        self.time_tickle_mu_list),
                                            -1).reshape(-1, 3)
-        np.random.shuffle(self.config_tickle_list)
+        np.random.shuffle(self.config_experiment_list)
 
         # tmp remove
         if self.readout_type == 'Timestamped':
             self.readout_subsequence = self.readout_timestamped_subsequence
-            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_tickle_list),
+            self.set_dataset('timestamped_counts', np.zeros((self.repetitions * len(self.config_experiment_list),
                                                              self.readout_subsequence.num_counts), dtype=np.int64))
             self.setattr_dataset('timestamped_counts')
         # tmp remove
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_tickle_list),
+        return (self.repetitions * len(self.config_experiment_list),
                 4)
 
 
@@ -120,8 +123,9 @@ class Tickle(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         for trial_num in range(self.repetitions):
-            for config_vals in self.config_tickle_list:
+            for config_vals in self.config_experiment_list:
 
+                '''CONFIGURE'''
                 # extract values from config list
                 freq_tickle_ftw =   np.int32(config_vals[0])
                 ampl_tickle_asf =   np.int32(config_vals[1])
@@ -132,6 +136,7 @@ class Tickle(LAXExperiment, Experiment):
                 self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf, profile=0)
                 self.core.break_realtime()
 
+                '''INITIALIZE ION & EXCITE'''
                 # initialize ion
                 self.initialize_subsequence.run_dma()
 
@@ -140,9 +145,9 @@ class Tickle(LAXExperiment, Experiment):
                 delay_mu(time_tickle_mu)
                 self.dds_tickle.off()
 
+                '''READ OUT AND RECORD RESULTS'''
                 # fluorescence readout
                 self.readout_subsequence.run()
-
                 # update dataset
                 self.update_results(
                     freq_tickle_ftw,
@@ -196,3 +201,4 @@ class Tickle(LAXExperiment, Experiment):
 
     def analyze(self):
         pass
+

@@ -4,7 +4,10 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuous, QubitRAP, Readout, RescueIon
+from LAX_exp.system.subsequences import (
+    InitializeQubit, SidebandCoolContinuousRAM,
+    QubitRAP, Readout, RescueIon
+)
 
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
@@ -16,9 +19,15 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
     name = 'Rapid Adiabatic Passage'
     kernel_invariants = {
+        # hardware parameters
         'ampl_qubit_asf', 'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
+
+        # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'rap_subsequence',
         'readout_subsequence', 'rescue_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC', 'profile_729_RAP',
         'config_experiment_list'
     }
 
@@ -27,8 +36,17 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+        self.profile_729_RAP =      2
+
         # build SBC here so its arguments come first
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
+        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
 
         # chirp parameters
         self.setattr_argument("freq_rap_center_mhz_list",   Scannable(
@@ -99,14 +117,13 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                             ), group="rabiflop_readout")
 
         # initialize other subsequences
-        self.profile_target = 0
         self.initialize_subsequence =   InitializeQubit(self)
-        self.rap_subsequence =          QubitRAP(self, ram_profile=self.profile_target,
-                                                 ampl_max_pct=self.ampl_qubit_pct, num_samples=500,
-                                                 pulse_shape="blackman")
+        self.rap_subsequence =          QubitRAP(
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=500,
+            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+        )
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
-
 
         # relevant devices
         self.setattr_device('qubit')
@@ -183,12 +200,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
-        # ensure DMA sequences use profile 0
-        self.qubit.set_profile(0)
-        # reduce attenuation/power of qubit beam to resolve lines
-        self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
 
         # record subsequences onto DMA
@@ -275,9 +286,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             # set up qubit readout pulse
             with sequential:
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
-                                  profile=self.profile_target)
+                                  profile=self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_pulse_readout_mu)
-                self.qubit.set_profile(self.profile_target)
+                self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
         # quench D-5/2 to eliminate coherence problems
