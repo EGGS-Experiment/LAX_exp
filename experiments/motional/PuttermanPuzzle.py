@@ -12,7 +12,7 @@ from LAX_exp.system.subsequences import (
 from itertools import product
 
 
-class PuttermanPuzzle(LAXExperiment, Experiment):
+class PuttermanPuzzle2(LAXExperiment, Experiment):
     """
     Experiment: Putterman Puzzle
 
