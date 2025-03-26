@@ -17,11 +17,16 @@ class LaserScan(LAXExperiment, Experiment):
     """
     name = 'Laser Scan'
     kernel_invariants = {
+        # hardware parameters
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
+        'time_linetrig_holdoff_mu_list',
+
+        # subsequences
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'pulseshape_subsequence',
-        'time_linetrig_holdoff_mu_list',
-        'config_experiment_list'
+
+        # configs
+        'profile_729_readout', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -90,11 +95,16 @@ class LaserScan(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         # tmp remove
 
+        # allocate profiles on 729nm for different subsequences
+        self.profile_729_readout = 0
+
         # subsequences
-        self.initialize_subsequence =   InitializeQubit(self)
         self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
-                                                        num_samples=1000)
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_readout, ram_addr_start=0, num_samples=500,
+            ampl_max_pct=self.ampl_qubit_pct,
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -133,19 +143,19 @@ class LaserScan(LAXExperiment, Experiment):
         self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
                 3)
+
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # ensure DMA sequences use profile 0
-        self.qubit.set_profile(0)
+        # ensure DMA sequences use correct parameters
+        self.qubit.set_profile(self.profile_729_readout)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
@@ -188,7 +198,7 @@ class LaserScan(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 # wait for linetrigger
@@ -224,8 +234,6 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
-
-
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
 
         # save results to hdf5 as a dataset
