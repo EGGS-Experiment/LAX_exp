@@ -30,8 +30,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu',
         'time_force_herald_slack_mu',
 
-        # hardware values - motional state prep
-
         # experiment/config related
         'profile_729_SBC', 'profile_729_rap', 'profile_729_readout', 'config_experiment_list'
     }
