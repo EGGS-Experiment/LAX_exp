@@ -5,8 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM,
-    Readout, RescueIon
+    InitializeQubit, SidebandCoolContinuousRAM, Readout, RescueIon
 )
 
 import math
@@ -19,7 +18,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     """
     Experiment: Characteristic Reconstruction
 
-    todo: document
+    Directly reconstruct the Characteristic function of a given motional state using the Fluhmann technique
+    (https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.125.043602).
     """
     name = 'Characteristic Reconstruction'
     kernel_invariants = {
@@ -31,13 +31,14 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
+        'time_force_herald_slack_mu',
 
         # cat-state parameters
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow', 'phases_pulse4_cat_update_dir',
 
         # experiment parameters
-        'config_experiment_list'
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -45,18 +46,18 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
         # set target profile for stuff
-        self.profile_SBC =      5
-        self.profile_target =   6
+        self.profile_729_SBC =      5
+        self.profile_729_target =   6
 
         # get subsequences
-        self.initialize_subsequence = InitializeQubit(self)
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
-            self, profile_729=self.profile_SBC, profile_854=3,
+            self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
         )
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
 
         '''DEFAULT CONFIG ARGUMENTS'''
@@ -222,6 +223,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         else:
             vals_pulse4_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
 
+        # heralding values
+        self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+
         '''
         CREATE EXPERIMENT CONFIG
         '''
@@ -352,7 +356,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     self.sidebandcool_subsequence.run_dma()
 
                     # set target profile to ensure we run correctly
-                    self.qubit.set_profile(self.profile_target)
+                    self.qubit.set_profile(self.profile_729_target)
                     self.qubit.cpld.io_update.pulse_mu(8)
 
                     # synchronize start time to coarse RTIO clock
@@ -383,7 +387,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                 continue
 
                             # add minor slack if we proceed
-                            at_mu(self.core.get_rtio_counter_mu() + 150000)
+                            at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
                     # force break loop by default
                     break
@@ -445,11 +449,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
-                                      asf=self.ampl_singlepass_default_asf_list[0],
-                                      profile=i)
+                                    asf=self.ampl_singlepass_default_asf_list[0],
+                                    profile=i)
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
-                                      asf=self.ampl_singlepass_default_asf_list[1],
-                                      profile=i)
+                                    asf=self.ampl_singlepass_default_asf_list[1],
+                                    profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
         self.core.break_realtime()
@@ -477,15 +481,15 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.io_update.pulse_mu(8)
 
@@ -524,16 +528,16 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0]-freq_secular_ftw, asf=self.ampls_cat_asf[0],
-            pow_=phas_pow_list[0], profile=self.profile_target,
+            pow_=phas_pow_list[0], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1]+freq_secular_ftw, asf=self.ampls_cat_asf[1],
-            pow_=phas_pow_list[1], profile=self.profile_target,
+            pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
 

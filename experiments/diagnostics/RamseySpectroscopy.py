@@ -5,8 +5,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, NoOperation,
-    SidebandCoolContinuousRAM, SidebandCoolContinuousRAM
+    InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
 )
 # todo: enable pi/2 pulse for motional stuff
 
@@ -53,7 +52,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                                                             ), group='linetrigger')
 
         # ram-based continuous sideband cooling
-        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200

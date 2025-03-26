@@ -47,7 +47,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.profile_729_SBC =      1
 
         # get subsequences
-        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
+        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=500
