@@ -58,17 +58,6 @@ class LaserScan(LAXExperiment, Experiment):
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
 
-        # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=True), group='linetrigger')
-        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
-                                                                default=[
-                                                                    ExplicitScan([0.1]),
-                                                                    RangeScan(1, 3, 3, randomize=True),
-                                                                ],
-                                                                global_min=0.01, global_max=1000, global_step=1,
-                                                                unit="ms", scale=1, precision=3
-                                                            ), group='linetrigger')
-
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
                                                             default=[
