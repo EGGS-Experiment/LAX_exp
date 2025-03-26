@@ -10,7 +10,7 @@ from LAX_exp.system.subsequences import InitializeQubit, QubitRAP, Readout, Resc
 
 class CalibrationDeshelving(LAXExperiment, Experiment):
     """
-    Experiment: Calibration Deshelving
+    Calibration: Deshelving
 
     Calibrate/measure deshelving (i.e. 854nm) pulse parameters.
     """

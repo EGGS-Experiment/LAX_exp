@@ -87,10 +87,10 @@ class ImagingAlignment(LAXExperiment, Experiment):
         )
         self.ccb.issue(
             "create_applet",    # name of broadcast
-            "qubit_alignment",  # applet name
+            "imaging_alignment_SNR",  # applet name
             # command
             '${artiq_applet}plot_xy temp.imag_align.counts_snr'
-            ' --x temp.qubit_align.counts_x --title "Imaging Alignment - SNR"',
+            ' --x temp.imag_align.counts_x --title "Imaging Alignment - SNR"',
             group=["alignment"] # folder directory for applet
         )
 
