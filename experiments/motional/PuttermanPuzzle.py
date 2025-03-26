@@ -12,7 +12,7 @@ from LAX_exp.system.subsequences import (
 from itertools import product
 
 
-class PuttermanPuzzle2(LAXExperiment, Experiment):
+class PuttermanPuzzle(LAXExperiment, Experiment):
     """
     Experiment: Putterman Puzzle
 
@@ -24,7 +24,6 @@ class PuttermanPuzzle2(LAXExperiment, Experiment):
         # subsequences etc.
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'rap_subsequence', 'rabiflop_subsequence',
-        'profile_729_SBC', 'profile_729_rap', 'profile_729_readout',
 
         # hardware values - core
         'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu',
