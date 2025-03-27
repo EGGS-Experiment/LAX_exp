@@ -5,7 +5,6 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 from sipyco import pyon
-# todo: fix kernel_invariants issue
 
 
 class HeatingRate(SidebandCooling.SidebandCooling):
@@ -28,7 +27,10 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # run regular sideband cooling build
         super().build_experiment()
 
-        # todo: extend kernel_invariants with SBC parent's kern_invs
+        # extend kernel_invariants with SBC parent's kernel_invariants
+        # (since we redefine them for HeatingRate.py)
+        kernel_invariants_parent = getattr(super(), "kernel_invariants", set())
+        self.kernel_invariants = self.kernel_invariants | kernel_invariants_parent
 
     def prepare_experiment(self):
         # run preparations for sideband cooling

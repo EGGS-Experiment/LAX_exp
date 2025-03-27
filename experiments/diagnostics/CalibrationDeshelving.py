@@ -168,8 +168,8 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
 
                 '''PREPARE & CONFIGURE'''
                 # extract values from config list
-                freq_deshelve_ftw = config_vals[0]
-                ampl_deshelve_asf = config_vals[1]
+                freq_deshelve_ftw = np.int32(config_vals[0])
+                ampl_deshelve_asf = np.int32(config_vals[1])
                 time_deshelve_mu =  config_vals[2]
                 self.core.break_realtime()
 

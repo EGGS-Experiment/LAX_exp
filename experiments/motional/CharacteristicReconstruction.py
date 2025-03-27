@@ -25,7 +25,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target', 'profile_SBC', 'singlepass0', 'singlepass1',
+        'singlepass0', 'singlepass1',
 
         # hardware parameters
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
@@ -34,7 +34,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         'time_force_herald_slack_mu',
 
         # cat-state parameters
-        'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
+        'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_characteristic_axis_pow',
         'phases_pulse4_cat_pow', 'phases_pulse4_cat_update_dir',
 
         # experiment parameters
@@ -99,8 +99,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("atts_cat_db",    PYONValue([6., 6.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
 
         '''PULSE ARGUMENTS - MOTIONAL STATE PREPARATION'''
-        # pulse 0 - sigma_x0
-        self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax')
+        # pulse 0 - sigma_x0: select motional state type (cat state vs coherent state)
+        self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax',
+                              tooltip='sigma_x (pulse #0) selects whether motional state is coherent (True), or cat (False)')
 
         # pulse 1 - cat 0
         self.setattr_argument("enable_pulse1_cat",          BooleanValue(default=False), group='pulse1.cat')
@@ -113,12 +114,14 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("force_herald_threshold",     NumberValue(default=1, precision=0, step=10, min=0, max=10000), group='pulse2.herald')
 
         '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
-        # pulse 3 - sigma_x1
-        # todo: make selectable re/im/both
-        self.setattr_argument("enable_pulse3_sigmax",       BooleanValue(default=True), group='pulse3.sigmax')
-        self.setattr_argument("phase_pulse3_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='pulse3.sigmax')
+        # pulse 3 - sigma_x1: select real/imag part of characteristic function
+        self.setattr_argument("characteristic_axis",        EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic_axis',
+                              tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
+                                      "The 'Both' option enables measurement of both real and imag components within a single experiment.")
+        self.setattr_argument("phase_characteristic_axis_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic_axis',
+                              tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
 
-        # pulse 4 - cat 1
+        # pulse 4 - cat 1: characteristic readout protocol
         self.setattr_argument("enable_pulse4_cat",          BooleanValue(default=True), group='pulse4.cat')
         self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='pulse4.cat', tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group="pulse4.cat")
@@ -194,8 +197,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.phases_pulse1_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
                                          for phas_pow in self.phases_pulse1_cat_turns]
 
-        # pulse 3 - sigma_x1
-        self.phase_pulse3_sigmax_pow =  self.qubit.turns_to_pow(self.phase_pulse3_sigmax_turns)
+        # pulse 3 - define characteristic axis (via sigma_x)
+        self.phase_characteristic_axis_pow =  self.qubit.turns_to_pow(self.phase_characteristic_axis_turns)
+        # configure whether real/imag/both axes of the characteristic function are to be measured
+        if self.characteristic_axis == "Real":          characteristic_axis_list = [False]
+        elif self.characteristic_axis == "Imaginary":   characteristic_axis_list = [True]
+        elif self.characteristic_axis == "Both":        characteristic_axis_list = [True, False]
 
         # pulse 4 - cat 1
         self.phases_pulse4_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
@@ -242,7 +249,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             list(flatten(vals))
             for vals in product(
                 freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
-                vals_pulse4_mu_pow_list
+                vals_pulse4_mu_pow_list,
+                characteristic_axis_list
             )
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
@@ -270,7 +278,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                6)
+                7)
 
 
     '''
@@ -281,7 +289,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # set up qubit beam for DMA sequences
-        self.qubit.set_profile(0)
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
         self.core.break_realtime()
 
@@ -335,6 +342,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 freq_cat_secular_ftw =      np.int32(config_vals[1])
                 time_pulse4_cat_mu =        config_vals[2]
                 phase_pulse4_cat_pow =      np.int32(config_vals[3])
+                characteristic_axis_bool =  bool(config_vals[4])
                 self.core.break_realtime()
 
                 # prepare variables for execution
@@ -350,6 +358,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 while True:
 
                     '''INITIALIZE'''
+                    self.core.break_realtime()
                     # initialize ion in S-1/2 state
                     self.initialize_subsequence.run_dma()
                     # sideband cool
@@ -363,17 +372,15 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     time_start_mu = now_mu() & ~0x7
 
                     '''APPLY MOTIONAL INTERACTION'''
-                    # pulse 0: sigma_x #1
+                    # pulse 0 (sigma_x #1): select cat vs coherent state
                     if self.enable_pulse0_sigmax:
                         self.pulse_sigmax(time_start_mu, 0)
 
-                    # pulse 1: cat 1
+                    # pulse 1 (cat 1)
                     if self.enable_pulse1_cat:
                         self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
                                                self.phases_pulse1_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
-
-                    # self.pulse_yzde()
 
                     # pulse 2: herald via 397nm fluorescence
                     if self.enable_pulse2_herald:
@@ -402,8 +409,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 self.repump_qubit.off()
 
                 # pulse 3: sigma_x #2
-                if self.enable_pulse3_sigmax:
-                    self.pulse_sigmax(time_start_mu, self.phase_pulse3_sigmax_pow)
+                if characteristic_axis_bool:
+                    self.pulse_sigmax(time_start_mu, self.phase_characteristic_axis_pow)
 
                 # pulse 4: cat #2
                 if self.enable_pulse4_cat:
@@ -426,7 +433,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                     counts_her,
                                     freq_cat_secular_ftw,
                                     time_pulse4_cat_mu,
-                                    phase_pulse4_cat_pow)
+                                    phase_pulse4_cat_pow,
+                                    characteristic_axis_bool)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -567,15 +575,15 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     #     # set up relevant beam waveforms
     #     self.qubit.set_mu(
     #         self.freq_bsb_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
     #     )
     #     self.singlepass0.set_mu(
     #         self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
-    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
     #     )
     #     self.singlepass1.set_mu(
     #         self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
-    #         profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
+    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
     #     )
     #     self.qubit.cpld.io_update.pulse_mu(8)
     #
