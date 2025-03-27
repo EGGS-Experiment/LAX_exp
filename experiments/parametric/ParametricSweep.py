@@ -25,15 +25,21 @@ class ParametricSweep(LAXExperiment, Experiment):
     """
     Experiment: Parametric Sweep
 
-    Modulate the trap RF close to a secular frequency while sweeping shim voltgaes
-    to measure micromotion.
+    Modulate the trap RF close to a secular frequency while sweeping shim voltages
+    to characterize excess micromotion.
     """
     name = 'Parametric Sweep'
     kernel_invariants = {
+        # hardware parameters
         "dc_channel_num", "dc_voltages_v_list", "time_dc_synchronize_delay_mu",
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu", "att_modulation_mu", "freq_modulation_list_mu",
+
+        # labrad objects
         "cxn", "dc",
+
+        # fluorescence calibration
         "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts",
+
         # subsequences
         "parametric_subsequence", "rescue_subsequence"
     }
@@ -48,7 +54,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                             default= [
                                                                 CenterScan(1390.76, 3, 0.5, randomize=True),
                                                                 ExplicitScan([1390.76, 1685.11]),
-                                                                # CenterScan(1566.5, 6, 0.1, randomize=True),
+                                                                RangeScan(1100., 1800., 500, randomize=True),
                                                             ],
                                                             global_min=1, global_max=200000, global_step=1,
                                                             unit="kHz", scale=1, precision=4

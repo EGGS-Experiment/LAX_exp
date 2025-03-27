@@ -24,7 +24,6 @@ class PuttermanPuzzle2(LAXExperiment, Experiment):
         # subsequences etc.
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'rap_subsequence', 'rabiflop_subsequence',
-        'profile_729_SBC', 'profile_729_rap', 'profile_729_readout',
 
         # hardware values - core
         'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu',
@@ -121,10 +120,10 @@ class PuttermanPuzzle2(LAXExperiment, Experiment):
         np.random.shuffle(self.config_experiment_list)
 
         # # tmp remove - high fock test
-        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(100.8025 * MHz)
+        self.freq_fock_ftw =    self.qubit.frequency_to_ftw(101.4678 * MHz)
         self.ampl_fock_asf =    self.qubit.amplitude_to_asf(0.5)
         self.att_fock_mu =      att_to_mu(8. * dB)
-        self.time_fock_mu =     self.core.seconds_to_mu(2.5 * us)
+        self.time_fock_mu =     self.core.seconds_to_mu(1. * us)
         self.profile_fock =     3
         # # tmp remove - high fock test
 
@@ -150,8 +149,8 @@ class PuttermanPuzzle2(LAXExperiment, Experiment):
         with self.core_dma.record('RAP_SUBSEQUENCE'):
             # ensure correct att set (RAP subseq doesn't do this for us)
             self.qubit.set_att_mu(self.att_rap_mu)
-            self.rap_subsequence.run_rap(self.time_rap_mu)
-            # self.pulse_fock(self.time_fock_mu)
+            # self.rap_subsequence.run_rap(self.time_rap_mu)
+            self.pulse_fock(self.time_fock_mu)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:

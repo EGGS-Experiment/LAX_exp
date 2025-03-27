@@ -44,7 +44,6 @@ class QubitRAP(LAXSubsequence):
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
         self.num_samples =      num_samples
-        # self.num_samples =      200
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
 
@@ -170,8 +169,7 @@ class QubitRAP(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def configure(self, time_mu: TInt64, freq_center_ftw: TInt32,
-                  freq_dev_ftw: TInt32) -> TInt64:
+    def configure(self, time_mu: TInt64, freq_center_ftw: TInt32, freq_dev_ftw: TInt32) -> TInt64:
         """
         Set the overall pulse time for the shaped pulse.
         This is achieved by adjusting the sample rate of the pulse shape updates.
@@ -197,7 +195,7 @@ class QubitRAP(LAXSubsequence):
         # note: freq_dev_ftw << 1 to make it double-sided
         freq_drg_ftw = np.int32(round((freq_dev_ftw << 1) / (self.num_samples * self.drg_steps_per_ram_step)))
 
-        '''CONFIGURE HARDWARE'''
+        '''CONFIGURE HARDWARE - PULSE SHAPING'''
         # set RAM profile parameters for pulse shaping
         # note: using RAM rampup mode for simplicity
         self.qubit.set_profile_ram(
@@ -207,6 +205,7 @@ class QubitRAP(LAXSubsequence):
         )
         self.qubit.cpld.io_update.pulse_mu(8)
 
+        '''CONFIGURE HARDWARE - FREQUENCY RAMP/CHIRP'''
         # set Digital Ramp Generator limits
         self.qubit.write64(ad9910._AD9910_REG_RAMP_LIMIT,
                            data_high=freq_center_ftw+freq_dev_ftw,  # max freq

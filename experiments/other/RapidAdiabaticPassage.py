@@ -90,7 +90,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         # pulse parameters
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
-        # todo: actually implement the enable_pulseshaping/chirp stuff lol
+        # todo: actually implement the enable_chirp stuff lol
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
         self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
 
@@ -117,17 +117,21 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                             ), group="rabiflop_readout")
 
         # initialize other subsequences
-        self.initialize_subsequence =   InitializeQubit(self)
+        pulse_shape_str = 'blackman'
+        if self.enable_pulseshaping is False:
+            pulse_shape_str = 'square'
         self.rap_subsequence =          QubitRAP(
             self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=500,
-            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+            ampl_max_pct=self.ampl_qubit_pct, pulse_shape=pulse_shape_str
         )
+        self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
         # relevant devices
         self.setattr_device('qubit')
         self.setattr_device('repump_qubit')
+        self.setattr_device('pump')
 
     def prepare_experiment(self):
         """
