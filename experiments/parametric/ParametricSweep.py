@@ -132,6 +132,18 @@ class ParametricSweep(LAXExperiment, Experiment):
         voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
+    @rpc
+    def voltage_get(self, channel: TInt32) -> TFloat:
+        """
+        Get voltage of desired channel.
+        Returns:
+            voltage of desired channel.
+        """
+        # set desired voltage
+        voltage_v = self.dc.voltage(channel)
+        # print('\tvoltage get: {}'.format(voltage_set_v))
+        return voltage_v
+
     @rpc(flags={"async"})
     def prepareDevicesLabrad(self) -> TNone:
         """

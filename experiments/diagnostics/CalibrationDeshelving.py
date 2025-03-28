@@ -101,7 +101,7 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
         # convert deshelving sweep parameters
         freq_deshelve_ftw_list =    np.array([self.repump_qubit.frequency_to_ftw(freq_mhz * MHz)
                                               for freq_mhz in self.freq_deshelve_mhz_list])
-        ampl_deshelve_pct_list =    np.array([self.repump_qubit.frequency_to_ftw(ampl_pct / 100.)
+        ampl_deshelve_pct_list =    np.array([self.repump_qubit.amplitude_to_asf(ampl_pct / 100.)
                                               for ampl_pct in self.ampl_deshelve_pct_list])
         time_deshelve_mu_list =     np.array([self.core.seconds_to_mu(time_us * us)
                                               for time_us in self.time_deshelve_us_list])
@@ -119,7 +119,6 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
-        # (i.e. heating time & readout FTW)
         self.config_experiment_list = np.stack(np.meshgrid(
             freq_deshelve_ftw_list,
             ampl_deshelve_pct_list,
