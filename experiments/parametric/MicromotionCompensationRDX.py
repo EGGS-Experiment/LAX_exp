@@ -14,6 +14,7 @@ from os import environ
 from EGGS_labrad.config.dc_config import dc_config
 
 # todo: actually make adaptive option usable
+# todo: what if we gradient descent within each voltage scan (vs just taking points across the range)?
 
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
