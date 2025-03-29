@@ -6,7 +6,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, QubitPulseShape, RescueIon, NoOperation,
-    SidebandCoolContinuous, SidebandCoolContinuousRAM, SidebandCoolPulsed
+    SidebandCoolContinuousRAM, SidebandCoolPulsed
 )
 from sipyco import pyon
 # todo: add linetrigger
@@ -19,10 +19,16 @@ class RabiFlopping(LAXExperiment, Experiment):
     """
     name = 'Rabi Flopping'
     kernel_invariants = {
+        # hardware parmeters
         'freq_rabiflop_ftw', 'ampl_qubit_asf', 'att_readout_mu', 'time_rabiflop_mu_list',
+
+        # subsequences
         'initialize_subsequence', 'doppler_subsequence', 'sidebandcool_pulsed_subsequence',
         'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'pulseshape_subsequence'
+        'pulseshape_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC'
     }
 
     def build_experiment(self):
@@ -47,26 +53,28 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name)
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group=self.name)
 
-        # get devices
-        self.setattr_device('qubit')
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
 
         # prepare sequences
-        self.profile_rabiflop = 0
-        self.initialize_subsequence =               InitializeQubit(self)
-        self.doppler_subsequence =                  NoOperation(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        # self.sidebandcool_continuous_subsequence = SidebandCoolContinuous(self)
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
-            self, profile_729=1, profile_854=3,
+            self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=500
         )
-        self.pulseshape_subsequence =               QubitPulseShape(
-            self, ram_profile=self.profile_rabiflop,
-            ampl_max_pct=self.ampl_qubit_pct, num_samples=100
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_readout, ram_addr_start=502,
+            num_samples=100, ampl_max_pct=self.ampl_qubit_pct
         )
-        self.readout_subsequence =                  Readout(self)
-        self.rescue_subsequence =                   RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.doppler_subsequence =      NoOperation(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
+
+        # get devices
+        self.setattr_device('qubit')
 
     def prepare_experiment(self):
         """
@@ -116,7 +124,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         if self.enable_pulseshaping:
             self.qubit.set_ftw(self.freq_rabiflop_ftw)
         else:
-            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf, profile=0)
+            self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
+                              profile=self.profile_729_readout)
         self.core.break_realtime()
 
 
@@ -146,7 +155,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 self.cooling_subsequence.run_dma()
 
                 # prepare qubit beam for readout
-                self.qubit.set_profile(0)
+                self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_readout_mu)
 
                 # add delay to ensure each shot takes same time
@@ -241,7 +250,6 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'subplot_y_labels': 'S State Population',
                             'rid': self.scheduler.rid,
                             }
-
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
@@ -249,5 +257,4 @@ class RabiFlopping(LAXExperiment, Experiment):
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
                        ' --num-subplots 1',
                        group = ['plotting', 'diagnostics'])
-
         return results_tmp

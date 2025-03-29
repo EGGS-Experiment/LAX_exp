@@ -4,8 +4,9 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous,
-                                         QubitPulseShape, Readout, RescueIon)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout, RescueIon
+)
 
 from itertools import product
 from artiq.coredevice import ad9910
@@ -19,33 +20,40 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     """
     name = 'Cat State Characterize'
     kernel_invariants = {
+        # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target', 'singlepass0', 'singlepass1',
 
+        # hardware values - default
+        'singlepass0', 'singlepass1',
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
 
+        # hardware values - cat
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow',
         'phases_pulse4_cat_update_dir', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
 
-        'config_experiment_list'
+        # configs
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
+        # allocate relevant beam profiles
+        self.profile_729_SBC =      1
+        self.profile_729_target =   6
+
         # get subsequences
-        self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
-
-        # set target profile for stuff
-        self.profile_target = 6
-
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
@@ -162,7 +170,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         CHECK INPUT FOR ERRORS
         '''
-        
         # ensure single pass values are safe and valid
         if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
                 for ampl_pct in self.ampl_singlepass_default_pct_list)):
@@ -280,8 +287,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # set up qubit beam for DMA sequences
-        self.qubit.set_profile(0)
+        # set up beam parameters
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
         self.core.break_realtime()
 
@@ -352,7 +358,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 # set target profile to ensure we run correctly
-                self.qubit.set_profile(self.profile_target)
+                self.qubit.set_profile(self.profile_729_target)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
                 # synchronize start time to coarse RTIO clock
@@ -480,15 +486,15 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.io_update.pulse_mu(8)
 
@@ -527,16 +533,16 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0] - freq_secular_ftw, asf=self.ampls_cat_asf[0],
-            pow_=phas_pow_list[0], profile=self.profile_target,
+            pow_=phas_pow_list[0], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1] + freq_secular_ftw, asf=self.ampls_cat_asf[1],
-            pow_=phas_pow_list[1], profile=self.profile_target,
+            pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
 
@@ -571,13 +577,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
-                          profile=self.profile_target)
+                          profile=self.profile_729_target)
         self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
                                 asf=self.ampl_singlepass_default_asf_list[0],
-                                pow_=0, profile=self.profile_target)
+                                pow_=0, profile=self.profile_729_target)
         self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                 asf=self.ampl_singlepass_default_asf_list[1],
-                                pow_=0, profile=self.profile_target)
+                                pow_=0, profile=self.profile_729_target)
 
         # set all attenuators together
         a = self.qubit.cpld.att_reg & ~(
@@ -592,7 +598,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
         self.qubit.cpld.set_all_att_mu(a)
 
-        # run bichromatic pulse
+        # run readout pulse
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
         self.qubit.on()

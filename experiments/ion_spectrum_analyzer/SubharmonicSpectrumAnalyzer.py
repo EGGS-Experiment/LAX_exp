@@ -3,8 +3,9 @@ from artiq.experiment import *
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
+)
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
@@ -19,14 +20,22 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
     """
     name = 'Subharmonic Spectrum Analyzer'
     kernel_invariants = {
-        'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
+        'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_eggs_heating_rsb_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns',
         'num_configs',
+
         # EGGS/phaser related
         'waveform_index_to_pulseshaper_vals',
+
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
+        'rescue_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC', 'config_eggs_heating_list',
+
+
         # subharmonic specials
         'freq_global_offset_hz', 'freq_carrier_0_offset_hz', 'freq_carrier_1_offset_hz', 'ampl_eggs_heating_carrier_pct'
     }
@@ -37,10 +46,18 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
         # get subsequences
+        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
+        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =  SidebandReadout(self)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
 
@@ -118,7 +135,6 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
         self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.5, 0., 0.5, 0.]), group=self.name)
         self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.5, 0., 0.5, 0.]), group=self.name)
-
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -284,17 +300,20 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
 
                 # configure EGGS tones and set readout frequency
                 # self.phaser_configure(carrier_freq_hz, sideband_freq_hz, phase_ch1_turns)
-                self.phaser_eggs.frequency_configure(carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
-                                                     [
-                                                         self.freq_global_offset_hz - sideband_freq_hz,
-                                                         self.freq_global_offset_hz + sideband_freq_hz,
-                                                         self.freq_global_offset_hz + self.freq_carrier_0_offset_hz,
-                                                         self.freq_global_offset_hz + self.freq_carrier_1_offset_hz,
-                                                         0.
-                                                     ],
-                                                     phase_ch1_turns)
+                self.phaser_eggs.frequency_configure(
+                    carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
+                    [
+                        self.freq_global_offset_hz - sideband_freq_hz,
+                        self.freq_global_offset_hz + sideband_freq_hz,
+                        self.freq_global_offset_hz + self.freq_carrier_0_offset_hz,
+                        self.freq_global_offset_hz + self.freq_carrier_1_offset_hz,
+                        0.
+                    ],
+                    phase_ch1_turns
+                )
                 self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 '''STATE PREPARATION'''

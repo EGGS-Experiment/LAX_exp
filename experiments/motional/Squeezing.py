@@ -3,9 +3,10 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout,
-                                         SqueezeConfigurable)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon,
+    SidebandCoolContinuousRAM, SidebandReadout, SqueezeConfigurable
+)
 
 
 class Squeezing(LAXExperiment, Experiment):
@@ -17,21 +18,34 @@ class Squeezing(LAXExperiment, Experiment):
     """
     name = 'Squeezing'
     kernel_invariants = {
+        # hardware parameters
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'freq_squeeze_ftw_list', 'phase_antisqueeze_pow_list', 'time_squeeze_mu_list', 'time_delay_mu_list',
-        'config_squeeze_list',
+
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence',
+        'readout_subsequence', 'rescue_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC', 'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
         # get subsequences
+        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
+        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =  SidebandReadout(self)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
 
@@ -81,8 +95,6 @@ class Squeezing(LAXExperiment, Experiment):
         self.squeeze_subsequence = SqueezeConfigurable(self)
         self.setattr_device('dds_parametric')
         self.setattr_device("qubit")
-        # self.setattr_device('ttl8')
-        # self.setattr_device('ttl9')
 
     def prepare_experiment(self):
         # ensure delay time is above minimum value
@@ -109,18 +121,18 @@ class Squeezing(LAXExperiment, Experiment):
 
         # create an array of values for the experiment to sweep
         # (i.e. squeeze frequency, squeeze phase, squeeze time, delay time, readout FTW)
-        self.config_squeeze_list = np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
+        self.config_experiment_list = np.stack(np.meshgrid(self.freq_squeeze_ftw_list,
                                                         self.phase_antisqueeze_pow_list,
                                                         self.time_squeeze_mu_list,
                                                         self.freq_sideband_readout_ftw_list,
                                                         self.time_delay_mu_list,
                                                         self.time_readout_mu_list),
                                             -1).reshape(-1, 6)
-        np.random.shuffle(self.config_squeeze_list)
+        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_squeeze_list),
+        return (self.repetitions * len(self.config_experiment_list),
                 7)
 
 
@@ -143,7 +155,7 @@ class Squeezing(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
-            for config_vals in self.config_squeeze_list:
+            for config_vals in self.config_experiment_list:
                 '''CONFIGURE'''
                 # extract values from config list
                 freq_squeeze_ftw =      np.int32(config_vals[0])
@@ -158,7 +170,8 @@ class Squeezing(LAXExperiment, Experiment):
                 # note - need to return squeezing time since it is liable to change
                 time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_antisqueeze_pow, time_squeeze_mu)
                 self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 '''STATE PREPARATION'''

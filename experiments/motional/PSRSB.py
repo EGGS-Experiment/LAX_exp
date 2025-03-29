@@ -5,7 +5,7 @@ from artiq.coredevice import ad9910
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, SidebandCoolContinuous
+from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
@@ -21,13 +21,16 @@ class PSRSB(LAXExperiment, Experiment):
     name = 'PSRSB'
     kernel_invariants = {
         # config/sweep
-        'config_experiment_list', 'freq_psrsb_rsb_ftw_list', 'freq_psrsb_carrier_ftw_list',
-        'phas_psrsb_carrier_pow_list',
+        'profile_729_SBC', 'profile_729_psrsb', 'config_experiment_list',
+        'freq_psrsb_rsb_ftw_list', 'freq_psrsb_carrier_ftw_list', 'phas_psrsb_carrier_pow_list',
+
         # QVSA/phaser related
         'freq_qvsa_carrier_hz', 'freq_qvsa_secular_hz', 'att_qvsa_mu', 'waveform_qvsa_pulseshape_vals',
+
         # PSRSB
-        'profile_psrsb', 'att_qubit_mu', 'ampl_psrsb_rsb_asf', 'ampl_psrsb_carrier_asf', 'time_psrsb_rsb_mu',
+        'att_qubit_mu', 'ampl_psrsb_rsb_asf', 'ampl_psrsb_carrier_asf', 'time_psrsb_rsb_mu',
         'time_psrsb_carrier_mu',
+
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
         'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
@@ -37,11 +40,19 @@ class PSRSB(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=100000))
 
+        # reserver hardware profiles for qubit
+        self.profile_729_SBC =      5
+        self.profile_729_psrsb =    6
+
         # get subsequences
-        self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
-        self.readout_subsequence =          Readout(self)
-        self.rescue_subsequence =           RescueIon(self)
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=500
+        )
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
         # QVSA configuration - pulse
         self.setattr_argument("freq_qvsa_carrier_mhz",      NumberValue(default=80., precision=6, step=10., min=0., max=1000.), group='QVSA')
@@ -118,7 +129,6 @@ class PSRSB(LAXExperiment, Experiment):
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
         # convert qubit DDS waveform values to machine units
-        self.profile_psrsb = 6
         self.ampl_psrsb_rsb_asf =       self.qubit.amplitude_to_asf(self.ampl_psrsb_rsb_pct / 100.)
         self.ampl_psrsb_carrier_asf =   self.qubit.amplitude_to_asf(self.ampl_psrsb_carrier_pct / 100.)
 
@@ -338,7 +348,7 @@ class PSRSB(LAXExperiment, Experiment):
             time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
         """
         # set target profile and attenuation
-        self.qubit.set_profile(self.profile_psrsb)
+        self.qubit.set_profile(self.profile_729_psrsb)
         self.qubit.cpld.io_update.pulse_mu(8)
         self.qubit.set_att_mu(self.att_qubit_mu)
 
@@ -348,7 +358,7 @@ class PSRSB(LAXExperiment, Experiment):
 
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
-                          profile=self.profile_psrsb,
+                          profile=self.profile_729_psrsb,
                           phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_rsb_mu)
@@ -356,7 +366,7 @@ class PSRSB(LAXExperiment, Experiment):
 
         # run carrier pulse
         self.qubit.set_mu(freq_carrier_ftw, pow_=phas_carrier_pow, asf=self.ampl_psrsb_carrier_asf,
-                          profile=self.profile_psrsb,
+                          profile=self.profile_729_psrsb,
                           phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
         self.qubit.on()
         delay_mu(self.time_psrsb_carrier_mu)

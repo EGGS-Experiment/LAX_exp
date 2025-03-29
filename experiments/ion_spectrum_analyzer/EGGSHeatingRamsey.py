@@ -1,11 +1,12 @@
 import numpy as np
+from sipyco import pyon
 from artiq.experiment import *
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+                                         SidebandCoolContinuousRAM, SidebandReadout)
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
@@ -15,18 +16,23 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     """
     Experiment: EGGS Heating Ramsey
 
-    Cool the ions to the ground state of motion via sideband cooling,
-    then apply bichromatic heating tones in a Ramsey sequence,
-    and measure ion temperature via sideband thermometry.
+    Cool the ions to the ground motional state via sideband cooling,
+    then apply a motional Ramsey sequence using the QVSA effect,
+    then measure the residual ion motion using either sideband thermometry or rabi divination.
     """
     name = 'EGGS Heating Ramsey'
     kernel_invariants = {
-        'config_eggs_heating_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
+        # hardware parameters
+        'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
         'phase_ramsey_anti_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_ramsey_turns',
+
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
         'rescue_subsequence'
+        
+        # configs
+        'profile_729_readout', 'profile_729_SBC', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -36,10 +42,18 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.setattr_argument("sub_repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=500))
         self.setattr_argument("enable_linetrigger", BooleanValue(default=True))
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
         # get subsequences
+        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=500
+        )
+        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence =  SidebandReadout(self)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
 
@@ -146,7 +160,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         self.waveform_index_to_phase_ramsey_turns =             np.arange(len(self.phase_ramsey_anti_turns_list))
 
         # create config data structure
-        self.config_eggs_heating_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
+        self.config_experiment_list =                         np.zeros((len(self.freq_sideband_readout_ftw_list) *
                                                                           len(self.freq_eggs_carrier_hz_list) *
                                                                           len(self.freq_eggs_secular_hz_list) *
                                                                           len(self.phase_ramsey_anti_turns_list) *
@@ -155,7 +169,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                           6), dtype=float)
         # note: sideband readout frequencies are at the end of the meshgrid
         # to ensure successive rsb/bsb measurements are adjacent
-        self.config_eggs_heating_list[:, [1, 2, -3, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
+        self.config_experiment_list[:, [1, 2, -3, -2, -1, 0]] =   np.stack(np.meshgrid(self.freq_eggs_carrier_hz_list,
                                                                                      self.freq_eggs_secular_hz_list,
                                                                                      self.waveform_index_to_phase_ramsey_turns,
                                                                                      self.phase_eggs_heating_ch1_turns_list,
@@ -164,9 +178,9 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                          -1).reshape(-1, 6)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
-        if self.randomize_config: np.random.shuffle(self.config_eggs_heating_list)
+        if self.randomize_config: np.random.shuffle(self.config_experiment_list)
         # precalculate length of configuration list here to reduce run-time overhead
-        self.num_configs = len(self.config_eggs_heating_list)
+        self.num_configs = len(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -255,7 +269,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * self.sub_repetitions * len(self.config_eggs_heating_list),
+        return (self.repetitions * self.sub_repetitions * len(self.config_experiment_list),
                 7)
 
 
@@ -307,7 +321,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 # tmp remove
 
                 '''CONFIGURE'''
-                config_vals = self.config_eggs_heating_list[_config_iter]
+                config_vals = self.config_experiment_list[_config_iter]
                 # extract values from config list
                 freq_readout_ftw =      np.int32(config_vals[0])
                 carrier_freq_hz =       config_vals[1]
@@ -326,7 +340,8 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
                                                      [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.], phase_ch1_turns)
                 self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 # wait for linetrigger
@@ -398,6 +413,7 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
     '''
     HELPER FUNCTIONS - PHASER
     '''
+
     @kernel(flags={"fast-math"})
     def phaser_run(self, waveform_id: TInt32) -> TNone:
         """

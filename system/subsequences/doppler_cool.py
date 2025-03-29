@@ -17,6 +17,7 @@ class DopplerCool(LAXSubsequence):
 
     def build_subsequence(self):
         self.setattr_device('pump')
+        self.setattr_device('probe')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
 
@@ -30,9 +31,10 @@ class DopplerCool(LAXSubsequence):
         # set cooling waveform
         self.pump.cooling()
 
-        # turn repumps on
-        self.repump_cooling.on()
+        # turn repumps on (and ensure spinpol off)
+        self.probe.off()
         self.repump_qubit.on()
+        self.repump_cooling.on()
 
         # doppler cooling
         self.pump.on()

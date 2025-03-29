@@ -5,7 +5,7 @@ from artiq.coredevice import ad9910
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon
 
 from itertools import product
 
@@ -18,12 +18,16 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     """
     name = 'Bichromatic Calibration'
     kernel_invariants = {
+        # subsequences
         'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target',
+
+        # hardware values
         'qubit_carrier', 'freq_qubit_carrier_default_ftw', 'ampl_qubit_carrier_default_asf',
         'att_qubit_carrier_default_mu',
         'ampl_729_carrier_asf', 'ampl_qubit_asf', 'att_729_carrier_mu', 'att_qubit_mu',
-        'config_experiment_list'
+
+        # config
+        'profile_729_target', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -71,11 +75,12 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.setattr_device('qubit')
 
         # subsequences
-        self.profile_target = 6
+        self.profile_729_target =       6
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_target, ram_addr_start=0, num_samples=1000,
+            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+        )
         self.initialize_subsequence =   InitializeQubit(self)
-        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=self.profile_target,
-                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=1000,
-                                                        pulse_shape="blackman")
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -143,14 +148,9 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # ensure DMA sequences use correct profile
-        self.qubit.set_profile(0)
-        # reduce attenuation/power of qubit beam to resolve lines
-        self.qubit.set_att_mu(self.att_qubit_mu)
+        # ensure qubit carrier is set up correctly on ALL profiles
         self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
         self.core.break_realtime()
-
-        # ensure qubit carrier is set up correctly on ALL profiles
         for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
@@ -196,12 +196,12 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
                 # set qubit carrier frequency
                 self.qubit_carrier.set_mu(freq_729_carrier_ftw, asf=self.ampl_729_carrier_asf,
-                                          profile=self.profile_target)
+                                          profile=self.profile_729_target)
                 # set qubit frequency
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
-                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_target)
+                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target)
                 self.core.break_realtime()
 
                 # # tmp remove
@@ -220,7 +220,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.pulseshape_subsequence.run()
                 else:
-                    self.qubit.cpld.set_profile(self.profile_target)
+                    self.qubit.cpld.set_profile(self.profile_729_target)
                     self.qubit.cpld.io_update.pulse_mu(8)
                     self.qubit.on()
                     delay_mu(time_pulse_mu)
@@ -268,3 +268,4 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     # ANALYSIS
     def analyze_experiment(self):
         pass
+
