@@ -82,9 +82,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([45, 85]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([40, 80]), group='voltages')
         self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([40, 80]), group='voltages')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",   NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling',
@@ -237,7 +237,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dds_parametric.set_profile(0)
         self.core.break_realtime()
 
-
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
@@ -345,30 +344,23 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             opt_v_axis_0 = - (fit_mode_1[0] - fit_mode_0[0]) / (fit_mode_1[1] - fit_mode_0[1])
             opt_v_axis_1 = (fit_mode_1[1] * fit_mode_0[0] - fit_mode_0[1] * fit_mode_1[0]) / (fit_mode_1[1] - fit_mode_0[1])
 
-        # if we only have 1 sweep, set optima as mean of previous sweep,
-        # then use initial vector guess to predict optima of other mode
+        # if we only have 1 sweep, set optima as mean of previous sweep and use
+        # initial vector guess to predict optima of other mode
         elif self._host_sweep_counter == 1:
-            opt_v_axis_0, opt_v_axis_1 = np.mean(self.sweep_results[0, :, 0:2], axis=0)
-            y0, y1 = self.sweep_results[0, :, 0]
-            xdj = np.mean(self.sweep_results[0, :, 1])
-            m0, m1 = self.INITIAL_MODE_VECTORS
-            b0 = y0 - m0 * xdj
-            b1 = y1 - m1 * xdj
-            print("\n\n\t\tDEBUG: b0 direct: {}\t\tb1 direct: {}".format(b0, b1))
-
-            b0, b1 = self.sweep_results[0, :, 0] - self.INITIAL_MODE_VECTORS * np.mean(self.sweep_results[0, :, 1])
-            print("\n\n\t\tDEBUG: b0 array: {}\t\tb1 direct: {}".format(b0, b1))
-
             # assume voltage axis 0 was scanned
-            opt_v_axis_0 = - (b1 - b0) / (m1 - m0)
-            opt_v_axis_1 = (m1 * b0 - m0 * b1) / (m1 - m0)
-            print("\n\n\t\tDEBUG: opt new - {} {}".format(opt_v_axis_0, opt_v_axis_1))
-            opt_v_axis_0, opt_v_axis_1 = np.mean(self.sweep_results[0, :, 0:2], axis=0)
-            print("\n\n\t\tDEBUG: opt old - {} {}".format(opt_v_axis_0, opt_v_axis_1))
+            m0, m1 = self.INITIAL_MODE_VECTORS
+            b0, b1 = self.sweep_results[0, :, 0] - self.INITIAL_MODE_VECTORS * np.mean(self.sweep_results[0, :, 1])
+            opt_v_axis_0 = (m1 * b0 - m0 * b1) / (m1 - m0)
+            opt_v_axis_1 = - (b1 - b0) / (m1 - m0)
+
+            # # old: if we only have 1 sweep, guess optima as mean of previous sweep
+            # # note: doesn't propagate change to mode 1 b/c it wasn't scanned
+            # opt_v_axis_0, opt_v_axis_1 = np.mean(self.sweep_results[0, :, 0:2], axis=0)
+            # print("\n\t\tDEBUG: opt old - {} {}".format(opt_v_axis_0, opt_v_axis_1))
 
         # if we have no data, simply use the current voltages
         else:
-            # # if we have no data, set optima as center of scan ranges
+            # # old: if we have no data, set optima as center of scan ranges
             # opt_v_axis_0 = np.mean(self.dc_scan_range_volts_list[0])
             # opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
             opt_v_axis_0 = self.voltage_get(self.dc_channel_axis_0_num)
@@ -390,7 +382,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # check successive optima for convergence
         if self._host_sweep_counter >= 2:
-            if np.linalg.norm(opt_v_arr - self.global_optima[self._host_sweep_counter]) < self.CONVERGENCE_VOLTAGE_V:
+            if np.linalg.norm(opt_v_arr - self.global_optima[self._host_sweep_counter - 1]) < self.CONVERGENCE_VOLTAGE_V:
                 print('STOPPING EARLY - CONVERGED ON VOLTAGE OPTIMUM (distance < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
                 return True
 
@@ -424,10 +416,12 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             voltage_max_v = self._host_voltage_optima_current[voltage_axis] + 0.5 * voltage_range
             voltage_min_v = self._host_voltage_optima_current[voltage_axis] - 0.5 * voltage_range
 
-        # otherwise, simply set the voltage range as half the bounds
+        # otherwise, scan about existing center, w/~40% of range about existing center
+        # # old: otherwise, simply set the voltage range as half the bounds
         else:
             voltage_min_v, voltage_max_v = self.dc_scan_range_volts_list[voltage_axis]
-            voltage_center = 0.5 * (voltage_max_v + voltage_min_v)
+            # voltage_center = 0.5 * (voltage_max_v + voltage_min_v)
+            voltage_center = self.global_optima[self._host_sweep_counter, 0]
             voltage_range = 0.5 * (voltage_max_v - voltage_min_v)
             voltage_max_v = voltage_center + 0.5 * voltage_range
             voltage_min_v = voltage_center - 0.5 * voltage_range

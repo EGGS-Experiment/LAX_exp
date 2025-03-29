@@ -29,11 +29,12 @@ class CalibrationReadout(LAXExperiment, Experiment):
         # core arguments/configuration
         self.setattr_argument("repetitions",        NumberValue(default=40, precision=0, step=1, min=1, max=100000))
 
+        # todo: actually implement the doppler thing lol
         self.setattr_argument("enable_doppler",     BooleanValue(default=True), group=None,
                               tooltip="Enable doppler cooling before each data point.")
         self.setattr_argument("time_readout_us_list",   Scannable(
                                                         default=[
-                                                            ExplicitScan([20]),
+                                                            ExplicitScan([10., 20.]),
                                                             RangeScan(10, 100, 91, randomize=True),
                                                         ],
                                                         global_min=1, global_max=2000, global_step=10,
@@ -52,7 +53,7 @@ class CalibrationReadout(LAXExperiment, Experiment):
                                                     ), group='397nm')
         self.setattr_argument("ampl_397_readout_pct_list",   Scannable(
                                                         default=[
-                                                            ExplicitScan([20]),
+                                                            ExplicitScan([40., 45.]),
                                                             RangeScan(1, 50, 50, randomize=True),
                                                         ],
                                                         global_min=0.1, global_max=50, global_step=10,
@@ -71,7 +72,7 @@ class CalibrationReadout(LAXExperiment, Experiment):
                                                     ), group='866nm')
         self.setattr_argument("ampl_866_readout_pct_list",   Scannable(
                                                         default=[
-                                                            ExplicitScan([20]),
+                                                            ExplicitScan([21., 25.]),
                                                             RangeScan(1, 50, 50, randomize=True),
                                                         ],
                                                         global_min=0.1, global_max=50, global_step=10,
@@ -188,15 +189,16 @@ class CalibrationReadout(LAXExperiment, Experiment):
                 self.pmt.count(time_readout_mu)
 
                 # retrieve readout results & update dataset
-                counts_sig = self.readout_subsequence.fetch_count()
-                counts_bgr = self.readout_subsequence.fetch_count()
+                counts_sig = self.pmt.fetch_count()
+                counts_bgr = self.pmt.fetch_count()
                 self.update_results(time_readout_mu,
+                                    counts_sig,
+                                    counts_bgr,
                                     freq_397_readout_ftw,
                                     freq_397_readout_ftw,
                                     freq_866_readout_ftw,
                                     ampl_866_readout_asf,
-                                    counts_sig,
-                                    counts_bgr)
+                                    )
                 self.core.break_realtime()
 
                 # resuscitate ion
