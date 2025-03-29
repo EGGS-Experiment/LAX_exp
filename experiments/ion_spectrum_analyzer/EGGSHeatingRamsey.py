@@ -477,6 +477,43 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         # print results
         print("\tResults - EGGS Heating:")
 
+            ## convert results to sideband ratio
+            ratios, ave_rsb, ave_bsb, std_rsb, std_bsb, scanning_freq_MHz = extract_ratios(dataset, sorting_col_num,
+                                                                                           1, 0,
+                                                                                           self.repetitions, sub_reps)
+            phonons = convert_ratios_to_coherent_phonons(ratios)
+            fitter = fitSincGeneric()
+            rsb_freqs_MHz, bsb_freqs_MHz, _ = extract_sidebands_freqs(scanning_freq_MHz)
+            fit_params_rsb, fit_err_rsb, fit_rsb = fitter.fit(rsb_freqs_MHz, ave_rsb)
+            fit_params_bsb, fit_err_bsb, fit_bsb = fitter.fit(bsb_freqs_MHz, ave_bsb)
+
+            ## process secular frequency sweep or carrier sweep
+            if sorting_col_num == 3 or sorting_col_num == 2:
+                fit_params_sweep, fit_err_sweep, _ = fitter.fit(scanning_freq_MHz, phonons)
+                phonon_n = fit_params_sweep[0]
+                # todo: implement
+                phonon_err = 0
+
+                # save results to hdf5 as a dataset
+                self.set_dataset('fit_params_secular',  fit_params_sweep)
+                self.set_dataset('fit_err_secular',     fit_err_sweep)
+
+                # save results to dataset manager for dynamic experiments
+                res_dj = [[phonon_n, phonon_err], [fit_params_sweep, fit_err_sweep]]
+                self.set_dataset('temp.eggsheating.results', res_dj, broadcast=True, persist=False, archive=False)
+                self.set_dataset('temp.eggsheating.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+
+                # print results to log
+                print("\t\tSecular: {:.4f} +/- {:.5f} kHz".format(fit_params_sweep[1] * 1e3, fit_err_sweep[1] * 1e3))
+
+                ccb_command += ' --num-subplots 2'
+
+            ## process sideband readout sweep
+            elif sorting_col_num == 0:
+                phonon_n = fit_params_rsb[0] / (fit_params_bsb[0] - fit_params_rsb[0])
+                # todo: implement
+                phonon_err = 0
+
         # sweep over ch1_turns
         for ch1_turns in self.phase_eggs_heating_ch1_turns_list:
 
