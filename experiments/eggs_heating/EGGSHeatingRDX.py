@@ -113,14 +113,22 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("ampl_eggs_heating_rsb_pct",  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",  NumberValue(default=40., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_carrier_pct",  NumberValue(default=.2, precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
+>>>>>>> 316f995a993c9e98485f219c6c5f1faaba305df8
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='EGGS_Heating.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False), group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",
+                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+                              group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",
+                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
+                              group='EGGS_Heating.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",
+                              NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
+                              group='EGGS_Heating.pulse_shaping')
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
+
         self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
         self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
