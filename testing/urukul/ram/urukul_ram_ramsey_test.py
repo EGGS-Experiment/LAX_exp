@@ -208,8 +208,8 @@ class UrukulRAMRamsey(EnvExperiment):
 
         self.dds_fiducial.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
-                         (1 << 13)      # phase_autoclear
-                         )
+                         (1 << 13) |    # phase_autoclear
+                         2)
         self.dds_fiducial.cpld.io_update.pulse_mu(8)
 
 
@@ -282,7 +282,8 @@ class UrukulRAMRamsey(EnvExperiment):
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
                                (1 << 16) |              # select_sine_output
-                               (1 << 13)                # phase_autoclear
+                               (1 << 13) |              # phase_autoclear
+                               2
                             )
 
 
@@ -316,8 +317,8 @@ class UrukulRAMRamsey(EnvExperiment):
             self.dds.write32(_AD9910_REG_CFR1,
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16)                # select_sine_output
-                               )
+                               (1 << 16) |              # select_sine_output
+                               2)
 
             # send debug TTL trigger to signal start of ramp-up
             at_mu(time_start_mu + 95)
