@@ -33,7 +33,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
         'rescue_subsequence',
 
         # configs
-        'profile_729_readout', 'profile_729_SBC', 'config_eggs_heating_list',
+        'profile_729_readout', 'profile_729_SBC', 'config_experiment_list',
 
 
         # subharmonic specials
@@ -284,7 +284,7 @@ class SubharmonicSpectrumAnalyzer(EGGSHeatingRDX.EGGSHeatingRDX):
             while _config_iter < self.num_configs:
 
                 '''CONFIGURE'''
-                config_vals = self.config_eggs_heating_list[_config_iter]
+                config_vals = self.config_experiment_list[_config_iter]
                 # extract values from config list
                 freq_readout_ftw =      np.int32(config_vals[0])
                 carrier_freq_hz =       config_vals[1]

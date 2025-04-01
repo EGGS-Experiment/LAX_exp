@@ -35,9 +35,9 @@ class TTLDynamicTest(EnvExperiment):
 
         self.repetitions =      100
         self.time_readout_us =  3000
-        self.time_bin_us =      150
+        self.time_bin_us =      100
 
-        self.count_rate_bright =    160     # per 3ms
+        self.count_rate_bright =    130     # per 3ms
         self.count_rate_dark =      30      # per 3ms
         self.error_threshold =      0.01    # total error fraction
 
