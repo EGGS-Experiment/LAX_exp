@@ -94,10 +94,12 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
                                                                                 global_min=0.0, global_max=1.0, global_step=1,
                                                                                 unit="turns", scale=1, precision=3
                                                                             ), group='EGGS_Heating.waveform.time_phase')
+        # todo: make phases a list of oscs for generality
         self.setattr_argument("phase_eggs_heating_rsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_bsb_turns",               NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='EGGS_Heating.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
+        # todo: make ampls a list of oscs for generality
         self.setattr_argument("att_eggs_heating_db",                        NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_rsb_pct",                  NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
         self.setattr_argument("ampl_eggs_heating_bsb_pct",                  NumberValue(default=1., precision=2, step=10, min=0.0, max=99), group='EGGS_Heating.waveform.ampl')
@@ -226,7 +228,6 @@ class EGGSHeatingRamsey(LAXExperiment, Experiment):
         _sequence_blocks[:, 1, 1] += self.phase_eggs_heating_bsb_turns + phase_bsb_update_delay_turns
 
         # get ramsey phase target so we can Ramsey on different oscillators
-        ramsey_osc_target = 0
         if self.target_ramsey_phase == 'RSB':
             ramsey_osc_target = 0
         elif self.target_ramsey_phase == 'BSB':

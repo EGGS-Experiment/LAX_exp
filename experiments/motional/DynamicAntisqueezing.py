@@ -295,6 +295,8 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
         # record EGGS pulse waveforms
         for i, phas_turns in enumerate(self.phase_antisqueeze_offset_turns_list):
+            # todo: fix deep copy issue
+
             # update sequence block with target phase
             _sequence_block_antisqueeze[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
             _sequence_block_antisqueeze[0]["oscillator_parameters"][1][1] += phas_update_arr[1] * phas_turns
