@@ -5,7 +5,7 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_timestamp, rtio_input_
 from artiq.coredevice.edge_counter import (CONFIG_COUNT_RISING, CONFIG_COUNT_FALLING,
                                            CONFIG_SEND_COUNT_EVENT, CONFIG_RESET_TO_ZERO)
 
-# todo: subtract 3x slack time from bin time to make it equal
+
 class TTLDynamicTest(EnvExperiment):
     """
     TTLDynamicTest
@@ -194,13 +194,13 @@ class TTLDynamicTest(EnvExperiment):
         Dynamically reads out the ion state using an adaptive maximum likelihood technique.
         See A.H. Burrell's thesis (Oxford, 2010) for more details.
         Returns: a tuple of (ion_state, total_counts, elapsed_bins, P_bright, P_dark).
-        ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e. the
-            bright/dark discrimination criteria was not met. 0 means "dark." 1 means "bright."
-        total_counts: the total number of counts detected during readout. This number will depend on the number
-            of bins that were required to determine the ion state.
-        elapsed_bins: the number of constituent bins required to determine the ion state.
-        P_bright: the likelihood that the ion was bright, given the count "trajectory" detected.
-        P_bright: the likelihood that the ion was dark, given the count "trajectory" detected.
+            ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e. the
+                bright/dark discrimination criteria was not met. 0 means "dark." 1 means "bright."
+            total_counts: the total number of counts detected during readout. This number will depend on the number
+                of bins that were required to determine the ion state.
+            elapsed_bins: the number of constituent bins required to determine the ion state.
+            P_bright: the likelihood that the ion was bright, given the count "trajectory" detected.
+            P_bright: the likelihood that the ion was dark, given the count "trajectory" detected.
         """
         # get reference time
         time_start_mu = now_mu()
@@ -278,6 +278,8 @@ class TTLDynamicTest(EnvExperiment):
         data_dark =     self.results[self.results[:, 0] == 0]
         data_idk =      self.results[self.results[:, 0] == -1]
 
+        # todo: add stds for calculating these
+
         # print bright/dark/idk percentages
         print("Discrimination Results:\n\tBright:\t{:.6g}%\n\tDark:\t{:.6g}%\n\tidk:\t{:.6g}%".format(
             len(data_bright[:, 0]) / len(self.results) * 100.,
@@ -286,14 +288,14 @@ class TTLDynamicTest(EnvExperiment):
         ))
 
         # print mean count rates
-        print("Mean Count Rates (per 3ms):\n\tBright:\t{:.4g}\n\tDark:\t{:.4g}\n\tidk:\t{:.4g}".format(
+        print("Count Rates (per 3ms):\n\tBright:\t{:.4g}\n\tDark:\t{:.4g}\n\tidk:\t{:.4g}".format(
             np.mean(data_bright[:, 1] / data_bright[:, 2] * (3e-3 / (self.time_bin_us * us))),
             np.mean(data_dark[:, 1] / data_dark[:, 2] * (3e-3 / (self.time_bin_us * us))),
             np.mean(data_idk[:, 1] / data_idk[:, 2] * (3e-3 / (self.time_bin_us * us)))
         ))
 
         # print mean count rates
-        print("Mean Time to Detection (# bins, us):"
+        print("Time to Detection (# bins, us):"
               "\n\tBright:\t{:.4g}/\t{:.4g}\n\tDark:\t{:.4g}/\t{:.4g}\n\tidk:\t{:.4g}/\t{:.4g}".format(
             np.mean(data_bright[:, 2]), np.mean(data_bright[:, 2]) * self.time_bin_us,
             np.mean(data_dark[:, 2]), np.mean(data_dark[:, 2]) * self.time_bin_us,
