@@ -219,10 +219,10 @@ class SuperResolution3(LAXExperiment, Experiment):
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
 
-        # tmp remove
-        print(np.shape(self.config_experiment_list))
-        raise ValueError("stop here")
-        # tmp remove
+        # # tmp remove
+        # print(np.shape(self.config_experiment_list))
+        # raise ValueError("stop here")
+        # # tmp remove
 
     def _prepare_argument_checks(self) -> TNone:
         """
