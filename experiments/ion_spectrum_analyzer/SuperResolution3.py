@@ -87,7 +87,7 @@ class SuperResolution3(LAXExperiment, Experiment):
                                                                                     CenterScan(777.5, 4, 0.5, randomize=True),
                                                                                 ],
                                                                                 global_min=-10000, global_max=10000, global_step=10,
-                                                                                unit="kHz", scale=1, precision=3
+                                                                                unit="kHz", scale=1, precision=6
                                                                             ), group = "{}.freq_phase_sweep".format(self.name))
 
         self.setattr_argument("target_phase_sweep",     EnumerationValue(['RSB', 'BSB', 'RSB - BSB',
