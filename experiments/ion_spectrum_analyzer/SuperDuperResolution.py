@@ -12,13 +12,13 @@ from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 
-class SuperResolution3(LAXExperiment, Experiment):
+class SuperDuperResolution(LAXExperiment, Experiment):
     """
-    Experiment: Super Resolution 3
+    Experiment: Super Duper Resolution
 
     Supports lots of easily configurable parameter scanning for phaser.
     """
-    name = 'Super Resolution 3'
+    name = 'Super Duper Resolution'
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr',
