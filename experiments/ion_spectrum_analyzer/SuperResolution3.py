@@ -91,7 +91,7 @@ class SuperResolution3(LAXExperiment, Experiment):
                                                                             ), group = "{}.freq_phase_sweep".format(self.name))
 
         self.setattr_argument("target_phase_sweep",     EnumerationValue(['RSB', 'BSB', 'RSB - BSB',
-                                                                          'Carrier 0', 'Carrier 1, Carrier 0 - Carrier 1'],
+                                                                          'Carrier 0', 'Carrier 1', 'Carrier 0 - Carrier 1'],
                                                                          default='RSB'), group = "{}.freq_phase_sweep".format(self.name))
         self.setattr_argument("phase_superresolution_sweep_turns_list",          Scannable(
                                                                                 default=[
