@@ -147,7 +147,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         Prepare experimental values.
         """
         '''SANITIZE & VALIDATE INPUTS'''
-        # note - this happens last since we need a lot of values converted
         self._prepare_argument_checks()
 
         '''SUBSEQUENCE PARAMETERS'''
@@ -269,32 +268,15 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
         # check that PSK schedule is valid
-        # psk_schedule_valid = any([
-        #     type(psk_schedule) is not list for psk_schedule in
-        #     (self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
-        #      self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns)
-        # ])
-        # if self.enable_phase_shift_keying and psk_schedule_valid:
-        #     raise ValueError("PSK schedule incorrectly specified. Must be a list.")
-        # psk_schedule_length = any([
-        #     len(psk_schedule) != 4 for psk_schedule in
-        #     (self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
-        #      self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns)
-        # ])
-        # if self.enable_phase_shift_keying and psk_schedule_length:
-        #     raise ValueError("PSK schedule length incorrect. Must be list with same length as num_psk_phase_shifts+1.")
-        if self.enable_phase_shift_keying:
-            if (
-                    (type(self.phase_superresolution_rsb_psk_turns) is not list) or
-                    (type(self.phase_superresolution_bsb_psk_turns) is not list) or
-                    (type(self.phase_subharmonic_carrier_0_psk_turns) is not list) or
-                    (type(self.phase_subharmonic_carrier_1_psk_turns) is not list) or
-                    (len(self.phase_superresolution_rsb_psk_turns) != self.num_psk_phase_shifts + 1) or
-                    (len(self.phase_superresolution_bsb_psk_turns) != self.num_psk_phase_shifts + 1) or
-                    (len(self.phase_subharmonic_carrier_0_psk_turns) != self.num_psk_phase_shifts + 1) or
-                    (len(self.phase_subharmonic_carrier_1_psk_turns) != self.num_psk_phase_shifts + 1)
-            ):
-                raise ValueError("Invalid PSK schedule. Must be list with same length as num_psk_phase_shifts+1.")
+        psk_schedule_invalid = self.enable_phase_shift_keying and any([
+            (type(psk_schedule) is not list) or (len(psk_schedule) != self.num_psk_phase_shifts + 1)
+            for psk_schedule in (
+                self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
+                self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns
+            )
+        ])
+        if psk_schedule_invalid:
+            raise ValueError("Invalid PSK schedule. Must be a list of length num_psk_phase_shifts+1.")
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -362,10 +344,9 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # record phaser waveforms
         for i, phase in enumerate(self.phase_superresolution_sweep_turns_list):
-            # create local copy of _sequence_blocks
+            # create local copy of _sequence_blocks and update with target phase
             # note: no need to deep copy b/c it's filled w/immutables
             _sequence_blocks_local = np.copy(_sequence_blocks)
-            # update sequence block with target phase
             _sequence_blocks_local[:, :, 1] += phas_update_arr * phase
 
             # create waveform

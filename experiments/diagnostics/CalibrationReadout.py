@@ -156,9 +156,9 @@ class CalibrationReadout(LAXExperiment, Experiment):
                 # extract values from config list
                 time_readout_mu =       config_vals[0]
                 freq_397_readout_ftw =  np.int32(config_vals[1])
-                ampl_397_readout_asf =  np.int32(config_vals[1])
-                freq_866_readout_ftw =  np.int32(config_vals[1])
-                ampl_866_readout_asf =  np.int32(config_vals[1])
+                ampl_397_readout_asf =  np.int32(config_vals[2])
+                freq_866_readout_ftw =  np.int32(config_vals[3])
+                ampl_866_readout_asf =  np.int32(config_vals[4])
                 self.core.break_realtime()
 
                 # set up readout (i.e. 397nm and 866nm) DDSs
