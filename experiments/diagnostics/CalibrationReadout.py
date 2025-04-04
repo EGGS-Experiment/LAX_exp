@@ -195,7 +195,7 @@ class CalibrationReadout(LAXExperiment, Experiment):
                                     counts_sig,
                                     counts_bgr,
                                     freq_397_readout_ftw,
-                                    freq_397_readout_ftw,
+                                    ampl_397_readout_asf,
                                     freq_866_readout_ftw,
                                     ampl_866_readout_asf,
                                     )
