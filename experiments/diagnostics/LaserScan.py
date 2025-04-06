@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
+
 from sipyco import pyon
 
 
@@ -31,7 +32,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=25, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
@@ -47,17 +48,17 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
                                                         default=[
-                                                            CenterScan(101.3548, 0.01, 0.0001, randomize=True),
-                                                            ExplicitScan([101.4459]),
+                                                            CenterScan(101.1349, 0.02, 0.0002, randomize=True),
+                                                            ExplicitScan([101.1349]),
                                                             RangeScan(1, 50, 200, randomize=True),
                                                         ],
                                                         global_min=60, global_max=200, global_step=0.01,
                                                         unit="MHz", scale=1, precision=6
                                                     ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=25, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group=self.name)
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -90,7 +91,8 @@ class LaserScan(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # laser parameters
-        self.freq_qubit_scan_ftw = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
+        self.freq_qubit_scan_ftw = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                             for freq_mhz in self.freq_qubit_scan_mhz])
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
