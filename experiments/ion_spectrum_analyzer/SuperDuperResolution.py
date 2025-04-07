@@ -214,7 +214,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         -1).reshape(-1, 6)
 
         # randomize_config always enabled lol
-        np.random.shuffle(self.config_experiment_list)
+        # np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()

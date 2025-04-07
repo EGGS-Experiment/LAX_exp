@@ -56,8 +56,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('qubit')
 
         # sideband cooling - hardware values
-        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=12000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
-        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=1680, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
+        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
+        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=900, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
                                                                 tooltip="time between spin polarization pulses (in us)")
 
         # sideband cooling - configuration
@@ -123,7 +123,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_timestep_val = round(self.core.seconds_to_mu(self.time_sideband_cooling_us * us) /
                                  self.sideband_cycles_continuous * self.time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
-            raise ValueError("Invalid RAM timestemp in SidebandCoolContinuousRAM."
+            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM."
                              "Change either number of samples or adjust SBC time.")
         # reconvert to get actual/correct SBC time for later use
         self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_cycle_mu_to_ram_step *

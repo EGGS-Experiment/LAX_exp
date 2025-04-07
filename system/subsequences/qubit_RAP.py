@@ -184,7 +184,7 @@ class QubitRAP(LAXSubsequence):
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
-            raise ValueError("Invalid RAM timestemp in qubitRAP.configure."
+            raise ValueError("Invalid RAM timestep in qubitRAP.configure."
                              "Change either pulse time or number of samples.")
 
         # calculate step size/timing for DRG
