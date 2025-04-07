@@ -63,6 +63,11 @@ class PMTCounter(LAXDevice):
             if time_photon_mu >= 0:
                 timestamp_mu_list[self._counter] = time_photon_mu
                 self._counter += 1
+            # if count invalid, add slack so we can keep eating counts
+            # todo: maybe - should we just terminate if problematic?
+            else:
+                # todo: maybe make this a timeout slack?
+                delay_mu(time_gating_mu)
 
         # add slack and stop counting
         self.core.break_realtime()
@@ -74,3 +79,4 @@ class PMTCounter(LAXDevice):
         # reset loop counter
         # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical
         self._counter = 0
+

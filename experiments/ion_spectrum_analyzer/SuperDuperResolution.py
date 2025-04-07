@@ -17,6 +17,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
     Experiment: Super Duper Resolution
 
     Supports lots of easily configurable parameter scanning for phaser.
+    Experiment name inspired by Sam Crary.
     """
     name = 'Super Duper Resolution'
     kernel_invariants = {
@@ -217,11 +218,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
-        # # tmp remove
-        # print(np.shape(self.config_experiment_list))
-        # raise ValueError("stop here")
-        # # tmp remove
 
     def _prepare_argument_checks(self) -> TNone:
         """
