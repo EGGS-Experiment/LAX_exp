@@ -453,7 +453,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # get heralded measurement and actual results
-                if self.enable_pulse2_herald or self.enable_pulse4_herald:
+                if (self.enable_pulse2_herald or self.enable_pulse4_herald) and not self.enable_force_herald:
                     counts_her = self.readout_subsequence.fetch_count()
 
                 counts_res = self.readout_subsequence.fetch_count()
