@@ -93,9 +93,9 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         '''
         # tmp remove
         self.qubit_carrier = self.get_device("urukul0_ch1")
-        self.freq_qubit_carrier_default_ftw =   self.qubit_carrier.frequency_to_ftw(80. * MHz)
-        self.ampl_qubit_carrier_default_asf =   self.qubit_carrier.amplitude_to_asf(50. / 100.)
-        self.att_qubit_carrier_default_mu =     att_to_mu(13. * dB)
+        self.freq_qubit_carrier_default_ftw =   self.qubit_carrier.frequency_to_ftw(120.339 * MHz)
+        self.ampl_qubit_carrier_default_asf =   self.qubit_carrier.amplitude_to_asf(0.5)
+        self.att_qubit_carrier_default_mu =     att_to_mu(7. * dB)
         # tmp remove
 
         # beam parameters
@@ -111,7 +111,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 # note: carrier DDS controls SLS single-pass => 1.0x
                 self.qubit.frequency_to_ftw(self.freq_729_carrier_center_mhz * MHz + freq_khz * kHz),
                 # note: qubit DDS controls double-pass => 0.5x
-                self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz + 0.5 * (freq_khz * kHz))
+                self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz - 0.5 * (freq_khz * kHz))
             ]
             for freq_khz in self.freq_729_carrier_sweep_khz_list
         ])

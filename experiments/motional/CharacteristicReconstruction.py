@@ -111,7 +111,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # pulse 2 - herald
         self.setattr_argument("enable_pulse2_herald",       BooleanValue(default=True), group='pulse2.herald')
         self.setattr_argument("enable_force_herald",        BooleanValue(default=True), group='pulse2.herald')
-        self.setattr_argument("force_herald_threshold",     NumberValue(default=1, precision=0, step=10, min=0, max=10000), group='pulse2.herald')
+        self.setattr_argument("force_herald_threshold",     NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='pulse2.herald')
 
         '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
         # pulse 3 - sigma_x1: select real/imag part of characteristic function
@@ -356,12 +356,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
                 '''PREPARE MOTIONAL STATE'''
                 while True:
+                    self.core.break_realtime()
 
                     '''INITIALIZE'''
-                    self.core.break_realtime()
-                    # initialize ion in S-1/2 state
+                    # initialize ion in S-1/2 state & SBC to ground state
                     self.initialize_subsequence.run_dma()
-                    # sideband cool
                     self.sidebandcool_subsequence.run_dma()
 
                     # set target profile to ensure we run correctly
@@ -510,7 +509,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         a |= (
                 (self.att_sigmax_mu << (0 * 8)) |
                 (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (1 * 8))
+                (self.att_singlepass_default_mu_list[1] << (2 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
@@ -596,7 +595,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     #     a |= (
     #             (self.att_sigmax_mu << (0 * 8)) |
     #             (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-    #             (self.att_singlepass_default_mu_list[1] << (1 * 8))
+    #             (self.att_singlepass_default_mu_list[1] << (2 * 8))
     #     )
     #     self.qubit.cpld.set_all_att_mu(a)
     #

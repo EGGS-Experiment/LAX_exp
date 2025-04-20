@@ -25,10 +25,10 @@ class LaserScanMulti(LaserScan.LaserScan):
         self.setattr_argument("scan_type", EnumerationValue(["Scan", "Scan+Sideband1", "Scan+Sideband2", "Scan+Sideband3",
                                                              "Scan+1+2", "Scan+All", "Sideband1", "Sideband2", "Sideband3",
                                                              "1+2", "All Sidebands"],
-                                                            default="Scan+All"), group=self.name)
-        self.setattr_argument("freq_sideband_1_khz",    NumberValue(default=702.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3), group=self.name)
-        self.setattr_argument("freq_sideband_2_khz",    NumberValue(default=1303.1, min=-4e5, max=4e5, step=10, unit="kHz", scale=1, precision=3), group=self.name)
-        self.setattr_argument("freq_sideband_3_khz",    NumberValue(default=1592.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3), group=self.name)
+                                                            default="Scan+All"), group="Multiscan")
+        self.setattr_argument("freq_sideband_1_khz",    NumberValue(default=702.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3), group="Multiscan")
+        self.setattr_argument("freq_sideband_2_khz",    NumberValue(default=1303.1, min=-4e5, max=4e5, step=10, unit="kHz", scale=1, precision=3), group="Multiscan")
+        self.setattr_argument("freq_sideband_3_khz",    NumberValue(default=1592.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3), group="Multiscan")
 
     def prepare_experiment(self):
         # pre-convert variables for convenience
