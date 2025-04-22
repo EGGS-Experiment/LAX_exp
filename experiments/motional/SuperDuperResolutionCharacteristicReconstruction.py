@@ -29,8 +29,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         'singlepass0', 'singlepass1',
 
         # hardware values - superresolution
-        'att_eggs_heating_mu', 'freq_superresolution_osc_base_hz_list', 'freq_global_offset_hz', 'pulseshaper_vals',
-        'time_superresolution_stop_mu',
+        'att_eggs_heating_mu', 'freq_eggs_heating_carrier_hz', 'freq_superresolution_osc_base_hz_list',
+        'freq_global_offset_hz', 'pulseshaper_vals', 'time_superresolution_stop_mu',
         # hardware values - characteristic readout - default
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
@@ -83,7 +83,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         Set specific arguments for superresolution.
         """
         # superresolution - geeneral config
-        self.setattr_argument("enable_phaser", BooleanValue(default=False))
+        self.setattr_argument("enable_phaser", BooleanValue(default=True))
         self.setattr_argument("enable_cutoff", BooleanValue(default=False))
 
         # superresolution - configurable freq & sweeps
@@ -107,12 +107,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(self.name))
 
         # superresolution - custom waveform specification
-        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000),
+        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=200, precision=2, step=500, min=0.04, max=100000000),
                               group="{}.waveform".format(self.name))
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=22., precision=1, step=0.5, min=0, max=31.5), group="{}.waveform".format(self.name))
+        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=17., precision=1, step=0.5, min=0, max=31.5), group="{}.waveform".format(self.name))
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10.), group="{}.waveform".format(self.name))
         self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702.2, 702.2, 0., 0.]), group="{}.waveform".format(self.name))
-        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 1., 0.]), group="{}.waveform".format(self.name))
+        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 10., 0.]), group="{}.waveform".format(self.name))
         self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.]), group="{}.waveform".format(self.name))
         self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group="{}.waveform".format(self.name))
 
@@ -201,7 +201,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         '''HARDWARE VALUES - CONFIG'''
         self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
-        self.freq_eggs_carrier_hz = self.freq_eggs_heating_carrier_mhz * MHz
+        self.freq_eggs_heating_carrier_hz = self.freq_eggs_heating_carrier_mhz * MHz
         self.freq_superresolution_osc_base_hz_list = (np.array(self.freq_superresolution_osc_khz_list) * kHz +
                                                       self.freq_global_offset_hz)
 
@@ -503,7 +503,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 # set phaser frequency
                 self.phaser_eggs.frequency_configure(
                     # carrier frequency (via DUC)
-                    self.freq_eggs_heating_carrier_mhz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
+                    self.freq_eggs_heating_carrier_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
                     # oscillator frequencies
                     [self.freq_superresolution_osc_base_hz_list[0], self.freq_superresolution_osc_base_hz_list[1],
                      self.freq_superresolution_osc_base_hz_list[2], self.freq_superresolution_osc_base_hz_list[3], 0.],
