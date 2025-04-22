@@ -82,6 +82,10 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         """
         Set specific arguments for superresolution.
         """
+        # superresolution - geeneral config
+        self.setattr_argument("enable_phaser", BooleanValue(default=False))
+        self.setattr_argument("enable_cutoff", BooleanValue(default=False))
+
         # superresolution - configurable freq & sweeps
         self.setattr_argument("freq_eggs_heating_carrier_mhz", NumberValue(default=86.0, precision=6, step=0.001, min=1., max=200.),
                               group="{}.freq_phase_sweep".format(self.name))
@@ -509,6 +513,9 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
 
                 '''MOTIONAL STATE PREPARATION'''
+                # get current time
+                t_phaser_start_mu = now_mu()
+
                 # initialize ion in S-1/2 state & sideband cool to ground state
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
@@ -518,7 +525,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 self.qubit.cpld.io_update.pulse_mu(8)
 
                 # apply superresolution interaction
-                t_phaser_start_mu = self.phaser_run(self.pulseshaper_id)
+                if self.enable_phaser:
+                    t_phaser_start_mu = self.phaser_run(self.pulseshaper_id)
 
                 '''CHARACTERISTIC RECONSTRUCTION'''
                 # prepare spin state for characteristic readout
@@ -614,16 +622,17 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.pulse_shaper.waveform_playback(waveform_id)
 
         ### CHARACTERISTIC SPECIAL ###
-        time_stop_mu = now_mu()
-        # run a pre-emptive stop (atts + switches)
-        at_mu(t_start_mu + self.time_superresolution_stop_mu)
-        # self.phaser_eggs.channel[0].set_att_mu(0x00)
-        # delay_mu(self.phaser_eggs.t_sample_mu)
-        # self.phaser_eggs.channel[1].set_att_mu(0x00)
-        self.phaser_eggs.ch0_amp_sw.off()
-        self.phaser_eggs.ch1_amp_sw.off()
+        if self.enable_cutoff:
+            time_stop_mu = now_mu()
+            # run a pre-emptive stop (atts + switches)
+            at_mu(t_start_mu + self.time_superresolution_stop_mu)
+            # self.phaser_eggs.channel[0].set_att_mu(0x00)
+            # delay_mu(self.phaser_eggs.t_sample_mu)
+            # self.phaser_eggs.channel[1].set_att_mu(0x00)
+            self.phaser_eggs.ch0_amp_sw.off()
+            self.phaser_eggs.ch1_amp_sw.off()
 
-        at_mu(time_stop_mu)
+            at_mu(time_stop_mu)
         ### CHARACTERISTIC SPECIAL ###
 
         # EGGS - STOP
