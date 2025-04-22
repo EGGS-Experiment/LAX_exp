@@ -23,7 +23,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
     Characteristic Function Reconstruction (for Wigner tomography) of the Super Duper Resolution technique.
     """
-    name = 'Super Duper Resolution Characteristic Reconstruction'
+    name = 'SuperRes Char Read'
     kernel_invariants = {
         # hardware objects
         'singlepass0', 'singlepass1',
