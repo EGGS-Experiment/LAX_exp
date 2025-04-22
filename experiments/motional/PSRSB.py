@@ -379,7 +379,7 @@ class PSRSB(LAXExperiment, Experiment):
         Arguments:
             waveform_id: the ID of the waveform to run.
         Returns:
-            the start time of the phaser oscillator waveform.
+            the start time of the phaser oscillator waveform (in machine units, 64b int).
             Useful to synchronize device operation.
         """
         # EGGS - START/SETUP

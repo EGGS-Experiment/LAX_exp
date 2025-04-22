@@ -23,7 +23,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr',
-        'phase_superresolution_sweep_turns_list', 'phase_eggs_heating_ch1_turns_list',
+        'phase_superresolution_sweep_turns_list',
         'freq_superresolution_osc_base_hz_list',
 
         # EGGS/phaser related

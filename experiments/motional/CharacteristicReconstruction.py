@@ -375,7 +375,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     if self.enable_pulse0_sigmax:
                         self.pulse_sigmax(time_start_mu, 0)
 
-                    # pulse 1 (cat 1)
+                    # pulse 1 (cat 1): create cat or coherent state
                     if self.enable_pulse1_cat:
                         self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
                                                self.phases_pulse1_cat_pow,
@@ -534,7 +534,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
-            freq_carrier_ftw, asf=self.ampl_sigmax_asf, pow_=0,
+            freq_carrier_ftw, asf=self.ampl_doublepass_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
