@@ -41,15 +41,15 @@ class FockStateGenerator(LAXSubsequence):
                               group='fock_state_generation')
 
         # pulse timings
-        self.time_carrier_pi_pulse = self.setattr_argument('time_carrier_pi_pulse_us',
+        self.setattr_argument('time_carrier_pi_pulse_us',
                                                            NumberValue(default=2, step=0.1, precision=3, min=0, max=1000),
                                                            group='fock_state_generation')
-        self.time_sideband_base_pi_pulse = self.setattr_argument('time_sideband_pi_pulse_us',
+        self.setattr_argument('time_sideband_pi_pulse_us',
                                                                  NumberValue(default=30, step=0.1, precision=3, min=0, max=1000),
                                                                  group='fock_state_generation')
 
         # fock state
-        self.final_fock_state = self.setattr_argument("final_fock_state", NumberValue(default=0, step=1, precision=0, min=0, max=10),
+        self.setattr_argument("final_fock_state", NumberValue(default=0, step=1, precision=0, min=0, max=10),
                                                       group='fock_state_generation')
 
     def prepare_subsequence(self):
@@ -95,7 +95,6 @@ class FockStateGenerator(LAXSubsequence):
 
         # continually apply bsb and rsb (alternating) to achieve the fock state we want
         for idx in range(self.final_fock_state):
-            self.core.break_realtime()
             self.qubit.set_mu(self.dds_configs[idx, 0], asf=self.dds_configs[idx, 1], profile=0)
             self.qubit.on()
             delay_mu(self.time_pi_pulses_mu[idx])
@@ -103,7 +102,6 @@ class FockStateGenerator(LAXSubsequence):
 
         # reset to S1/2, mj=-1/2 if needed
         if self.apply_carrier:
-            self.core.break_realtime()
             self.qubit.set_mu(self.freq_carrier_rabiflop_ftw, asf=self.ampl_qubit_asf, profile=0)
             self.qubit.on()
             delay_mu(self.time_carrier_pi_pulse_mu)
