@@ -8,6 +8,8 @@ from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, QubitPulseShape, RescueIon, NoOperation,
     SidebandCoolContinuousRAM, SidebandCoolPulsed
 )
+from LAX_exp.system.subsequences import (InitializeQubit, RabiFlop, Readout, QubitPulseShape, RescueIon,
+                                         NoOperation, SidebandCoolContinuous, SidebandCoolPulsed)
 from sipyco import pyon
 # todo: add linetrigger
 
@@ -36,8 +38,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
-                                                                         default="SBC - Continuous"))
+        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
                                                                 RangeScan(1, 100, 100, randomize=True),
@@ -51,7 +52,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name)
-        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group=self.name)
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group=self.name)
 
         # allocate relevant beam profiles
         self.profile_729_readout =  0
@@ -75,7 +76,15 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-
+        self.profile_rabiflop = 0
+        self.initialize_subsequence = InitializeQubit(self)
+        self.doppler_subsequence = NoOperation(self)
+        self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
+        self.sidebandcool_continuous_subsequence = SidebandCoolContinuous(self)
+        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=self.profile_rabiflop,
+                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=100)
+        self.readout_subsequence = Readout(self)
+        self.rescue_subsequence = RescueIon(self)
     def prepare_experiment(self):
         """
         Prepare values for speedy evaluation.

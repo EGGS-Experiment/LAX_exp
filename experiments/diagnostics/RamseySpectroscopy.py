@@ -4,6 +4,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
+<<<<<<< HEAD
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
 )
@@ -18,7 +19,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     """
     name = 'Ramsey Spectroscopy'
     kernel_invariants = {
-        # hardware values
         'time_pulse_mu', 'ampl_ramsey_asf', 'att_ramsey_mu',
         'time_delay_mu_list', 'freq_ramsey_ftw_list', 'phase_ramsey_pow_list',
 
@@ -32,9 +32,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"],
-                                                                 default="Doppler"))
+        self.setattr_argument("repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
 
         # allocate profiles on 729nm for different subsequences
         self.profile_729_SBC =      4

@@ -19,6 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
     """
     name = 'Sideband Cooling'
     kernel_invariants = {
+<<<<<<< HEAD
         # subsequences
         'initialize_subsequence', 'sidebandcool_continuous_subsequence', 'sidebandcool_pulsed_subsequence',
         'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
@@ -29,10 +30,10 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
-        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"],
+        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Continuous - RAM", "Pulsed"],
                                                                  default="Continuous"))
 
         # allocate profiles on 729nm for different subsequences
@@ -42,6 +43,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
+<<<<<<< HEAD
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
@@ -58,6 +60,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         # choose correct cooling subsequence
         if self.cooling_type == "Continuous":
             self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
+
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
@@ -261,4 +264,5 @@ class SidebandCooling(LAXExperiment, Experiment):
         results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         return results_rsb, results_bsb
+
 
