@@ -19,7 +19,6 @@ class SidebandCooling(LAXExperiment, Experiment):
     """
     name = 'Sideband Cooling'
     kernel_invariants = {
-<<<<<<< HEAD
         # subsequences
         'initialize_subsequence', 'sidebandcool_continuous_subsequence', 'sidebandcool_pulsed_subsequence',
         'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
@@ -43,7 +42,6 @@ class SidebandCooling(LAXExperiment, Experiment):
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-<<<<<<< HEAD
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,

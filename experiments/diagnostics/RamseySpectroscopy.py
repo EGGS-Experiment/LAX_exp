@@ -4,7 +4,6 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-<<<<<<< HEAD
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
 )
