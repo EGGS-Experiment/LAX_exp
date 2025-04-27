@@ -49,5 +49,7 @@ from LAX_exp.system.subsequences.rabiflop_readout import RabiflopReadout
 from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
 from LAX_exp.system.subsequences.absorption_probe2 import AbsorptionProbe2
 from LAX_exp.system.subsequences.doppler_recooling import DopplerRecooling
+from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
 __all__.extend(['Readout', 'SidebandReadout', 'RabiflopReadout',
-                'AbsorptionProbe', 'AbsorptionProbe2', 'DopplerRecooling'])
+                'AbsorptionProbe', 'AbsorptionProbe2', 'DopplerRecooling',
+                'FockStateGenerator'])
