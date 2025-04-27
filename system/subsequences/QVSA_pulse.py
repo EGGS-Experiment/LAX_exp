@@ -4,6 +4,7 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
@@ -34,7 +35,7 @@ class QVSAPulse(LAXSubsequence):
 
         # QVSA configuration - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='QVSA.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='QVSA.pulse_shaping')
+        self.setattr_argument("type_pulse_shape",               EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'), group='QVSA.pulse_shaping')
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='QVSA.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='QVSA.pulse_shaping')
 

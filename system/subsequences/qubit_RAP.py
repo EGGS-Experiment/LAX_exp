@@ -27,7 +27,7 @@ class QubitRAP(LAXSubsequence):
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
-                          num_samples: TInt32 = 1000, ampl_max_pct: TFloat = 50.,
+                          num_samples: TInt32 = 200, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
@@ -43,8 +43,7 @@ class QubitRAP(LAXSubsequence):
         # set subsequence parameters
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
-        # self.num_samples =      num_samples
-        self.num_samples =      1000
+        self.num_samples =      num_samples
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
 
@@ -62,17 +61,7 @@ class QubitRAP(LAXSubsequence):
         '''
         VALIDATE INPUTS
         '''
-        # note: validate inputs here to get around bugs where args are passed from setattr_argument
-        # sanitize sequence parameters
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
-        if self.ram_profile not in range(0, 7):
-            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
-        elif not (0 <= self.ram_addr_start <= 1023 - 100):
-            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
-        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
-            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
-        elif not (0. <= self.ampl_max_pct <= 50.):
-            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
+        self._prepare_argument_checks()
 
         '''SPECIFY TIMING'''
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
@@ -99,6 +88,22 @@ class QubitRAP(LAXSubsequence):
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # note: validate inputs here to get around bugs where args are passed from setattr_argument
+        # sanitize sequence parameters
+        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
+        if self.ram_profile not in range(0, 7):
+            raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
+        elif not (0 <= self.ram_addr_start <= 1023 - 100):
+            raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
+        elif not (100 <= self.num_samples <= 1023 - self.ram_addr_start):
+            raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [100, 1000].".format(self.num_samples))
+        elif not (0. <= self.ampl_max_pct <= 50.):
+            raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
 
 
     """
@@ -134,9 +139,10 @@ class QubitRAP(LAXSubsequence):
 
         # write waveform to RAM profile
         self.core.break_realtime()
-        delay_mu(20000000)   # 20 ms
+        delay_mu(30000000)   # 20 ms
         # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
         self.qubit.cpld.io_update.pulse_mu(8)
+        # delay_mu(2000000)   # extra slack - 2025/03/21 - empirical slack
         self.qubit.write_ram(self.ampl_asf_pulseshape_list)
         self.core.break_realtime()
 
@@ -163,8 +169,7 @@ class QubitRAP(LAXSubsequence):
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
-    def configure(self, time_mu: TInt64, freq_center_ftw: TInt32,
-                  freq_dev_ftw: TInt32) -> TInt64:
+    def configure(self, time_mu: TInt64, freq_center_ftw: TInt32, freq_dev_ftw: TInt32) -> TInt64:
         """
         Set the overall pulse time for the shaped pulse.
         This is achieved by adjusting the sample rate of the pulse shape updates.
@@ -179,7 +184,7 @@ class QubitRAP(LAXSubsequence):
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
-            raise ValueError("Invalid RAM timestemp in qubitRAP.configure."
+            raise ValueError("Invalid RAM timestep in qubitRAP.configure."
                              "Change either pulse time or number of samples.")
 
         # calculate step size/timing for DRG
@@ -190,7 +195,7 @@ class QubitRAP(LAXSubsequence):
         # note: freq_dev_ftw << 1 to make it double-sided
         freq_drg_ftw = np.int32(round((freq_dev_ftw << 1) / (self.num_samples * self.drg_steps_per_ram_step)))
 
-        '''CONFIGURE HARDWARE'''
+        '''CONFIGURE HARDWARE - PULSE SHAPING'''
         # set RAM profile parameters for pulse shaping
         # note: using RAM rampup mode for simplicity
         self.qubit.set_profile_ram(
@@ -200,6 +205,7 @@ class QubitRAP(LAXSubsequence):
         )
         self.qubit.cpld.io_update.pulse_mu(8)
 
+        '''CONFIGURE HARDWARE - FREQUENCY RAMP/CHIRP'''
         # set Digital Ramp Generator limits
         self.qubit.write64(ad9910._AD9910_REG_RAMP_LIMIT,
                            data_high=freq_center_ftw+freq_dev_ftw,  # max freq

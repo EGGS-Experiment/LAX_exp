@@ -15,9 +15,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     name = 'sideband_cool_continuous_RAM'
     kernel_invariants = {
+        # general subsequence parameters
         "profile_ram_729", "profile_ram_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
         "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu",
         "att_sidebandcooling_mu",
+
+        # RAM-related parameters
         "freq_dds_sync_clk_hz", "time_cycle_mu_to_ram_step", "ram_timestep_val", "time_sideband_cooling_mu",
         "time_spinpolarization_mu_list",
         "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list"
@@ -25,7 +28,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
                           ram_addr_start_729: TInt32 = 0x00, ram_addr_start_854: TInt32 = 0x00,
-                          num_samples: TInt32 = 500):
+                          num_samples: TInt32 = 200):
         """
         Defines the main interface for the subsequence.
         Arguments:
@@ -53,8 +56,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('qubit')
 
         # sideband cooling - hardware values
-        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=12000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
-        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=1680, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
+        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
+        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=900, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
                                                                 tooltip="time between spin polarization pulses (in us)")
 
         # sideband cooling - configuration
@@ -62,9 +65,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                                                 tooltip="True: disables 729nm DDS during SBC for calibration purposes")
         self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='SBC_RAM.continuous',
                                                                 tooltip="number of times to loop over the SBC configuration sequence")
-        # old name: freq_sideband_cooling_mhz_pct_list
-        # self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.: [20., 8.], 50.: [50., 24.], 350.: [30., 16.]}), group='SBC_RAM.continuous',
-        #                       tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
         self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.6938: [26., 8.], 100.3711: [37., 8.], 100.2306: [37., 8.]}), group='SBC_RAM.continuous',
                               tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
         self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='SBC_RAM.continuous')
@@ -123,7 +123,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_timestep_val = round(self.core.seconds_to_mu(self.time_sideband_cooling_us * us) /
                                  self.sideband_cycles_continuous * self.time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
-            raise ValueError("Invalid RAM timestemp in SidebandCoolContinuousRAM."
+            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM."
                              "Change either number of samples or adjust SBC time.")
         # reconvert to get actual/correct SBC time for later use
         self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_cycle_mu_to_ram_step *
@@ -135,9 +135,11 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.time_spinpolarization_mu_list = np.arange(
             time_per_spinpol_mu,
             self.time_sideband_cooling_mu - 10000,   # ensure we don't spinpol within 10us of SBC end
-            time_per_spinpol_mu + self.time_spinpol_mu + 250,  # add 250ns to account for switches
+            time_per_spinpol_mu + self.time_spinpol_mu + 200,  # add 200ns to account for switches
             dtype=np.int64
         )
+        # ensure we do a spinpol at least once at the beginning
+        # self.time_spinpolarization_mu_list = np.insert(self.time_spinpolarization_mu_list, 0, 16)
 
         '''PREPARE RAM WAVEFORM'''
         # create 729nm waveform array - frequency values
@@ -232,6 +234,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         delay_mu(10000000)  # 10 ms
         self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
         self.core.break_realtime()
+        delay_mu(1000000)
+
+        # bugfix: needed to make RAM/DMA/whatever happy
+        self.repump_qubit.on()
+        delay_mu(1000)
+        self.repump_qubit.off()
 
     @kernel(flags={"fast-math"})
     def cleanup_subsequence(self) -> TNone:
@@ -261,12 +269,22 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.repump_qubit.cpld.io_update.pulse_mu(8)
         self.core.break_realtime()
 
+        # add extra slack following cleanup
+        delay_mu(100000)   # 100 us
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
+
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         """
         Run sideband cooling via RAM mode.
         """
         '''PREPARE ION FOR SBC '''
+        # quick bugfix to make this subsequence happy (wrt write_ram issues)
+        self.repump_qubit.on()
+        delay_mu(50)
+        self.repump_qubit.off()
+        delay_mu(50)
+
         # prepare beams for sideband cooling
         with parallel:
             # set sideband cooling attenuation for qubit beam
@@ -280,11 +298,20 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.set_profile(self.profile_ram_854)
                 self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
                 # do spin polarization before SBC (per Guggemos' thesis)
-                self.spin_polarize()
+                # self.spin_polarize()
 
+        # '''SCHEDULE SPINPOL'''
+        # # note: we do this here due to difficulties w/empty list for spinpol scheduling
+        # # get start reference time
+        # time_start_mu = now_mu()
+        #
+        # # do spin polarizations according to schedule
+        # for time_spinpol_mu in self.time_spinpolarization_mu_list:
+        #     at_mu(time_start_mu + time_spinpol_mu)
+        #     self.spin_polarize()
 
         '''PRIME RAM MODE FOR SBC BEAMS'''
-        # todo: synchronize switches on w/ timings later on (b/c ram delay this and that idk)
+        # at_mu(time_start_mu + self.time_spinpol_mu + 10000)
         with parallel:
             with sequential:
                 # set target RAM profile
@@ -301,10 +328,11 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                    )
                 self.qubit.cpld.io_update.pulse_mu(8)   # note: this starts stepping through RAM
 
+                # FIRE BEAM
                 if self.calibration_continuous:
                     self.qubit.off()
                 else:
-                    self.qubit.on() # FIRE BEAM
+                    self.qubit.on()
 
             with sequential:
                 # set target RAM profile
@@ -322,15 +350,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.on()  # FIRE BEAM
 
 
-        '''RUN SPINPOL'''
+        '''SCHEDULE SPINPOL'''
+        # note: we do this here due to difficulties w/empty list for spinpol scheduling
         # get start reference time
         time_start_mu = now_mu()
-
-        # # open and close switch to synchronize with RAM pulse
-        # delay_mu(416 + 63 - 140 - 244)
-        # self.qubit.on()
-        # delay_mu(self.time_pulse_mu)
-        # self.qubit.off()
 
         # do spin polarizations according to schedule
         for time_spinpol_mu in self.time_spinpolarization_mu_list:
@@ -339,6 +362,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         '''FINISH'''
         # stop sideband cooling
+        # at_mu(time_start_mu + self.time_spinpol_mu + 200 + self.time_sideband_cooling_mu)
         at_mu(time_start_mu + self.time_sideband_cooling_mu)
         with parallel:
             # stop beams via RF switches

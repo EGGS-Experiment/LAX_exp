@@ -4,8 +4,9 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, SidebandCoolContinuous,
-                                         QubitPulseShape, Readout, RescueIon)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout, RescueIon
+)
 
 from itertools import product
 from artiq.coredevice import ad9910
@@ -15,37 +16,45 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     """
     Experiment: Cat State Characterize
 
-    todo: document
+    Create and characterize cat states using BSB rabi divination.
     """
     name = 'Cat State Characterize'
     kernel_invariants = {
+        # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'profile_target', 'singlepass0', 'singlepass1',
 
+        # hardware values - default
+        'singlepass0', 'singlepass1',
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
         'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
+        'time_force_herald_slack_mu',
 
+        # hardware values - cat
         'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_pulse3_sigmax_pow',
         'phases_pulse4_cat_pow',
         'phases_pulse4_cat_update_dir', 'ampl_pulse5_readout_asf', 'att_pulse5_readout_mu',
 
-        'config_experiment_list'
+        # configs
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
+        # allocate relevant beam profiles
+        self.profile_729_SBC =      1
+        self.profile_729_target =   6
+
         # get subsequences
-        self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
-
-        # set target profile for stuff
-        self.profile_target = 6
-
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
@@ -84,6 +93,10 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                             ), group='defaults.cat')
         self.setattr_argument("ampls_cat_pct",  PYONValue([58., 58.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([5., 5.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
+
+        # defaults - herald
+        self.setattr_argument("enable_force_herald",    BooleanValue(default=True), group='defaults.herald')
+        self.setattr_argument("force_herald_threshold", NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='defaults.herald')
 
 
         '''PULSE ARGUMENTS - CAT 1'''
@@ -162,7 +175,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''
         CHECK INPUT FOR ERRORS
         '''
-        
         # ensure single pass values are safe and valid
         if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
                 for ampl_pct in self.ampl_singlepass_default_pct_list)):
@@ -255,6 +267,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             freq_pulse5_readout_ftw_list =  np.array([0], dtype=np.int32)
             time_pulse5_readout_mu_list =   np.array([0], dtype=np.int64)
 
+        # heralding values
+        self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+
         '''
         CREATE EXPERIMENT CONFIG
         '''
@@ -280,8 +295,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # set up qubit beam for DMA sequences
-        self.qubit.set_profile(0)
+        # set up beam parameters
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
         self.core.break_realtime()
 
@@ -339,84 +353,109 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 time_pulse5_readout_mu =    config_vals[5]
                 self.core.break_realtime()
 
-                # create phase list
+                # prepare variables for execution
+                counts_her = -1
+                time_start_mu = now_mu() & ~0x7
                 cat4_phases = [
                     self.phases_pulse4_cat_pow[0] + self.phases_pulse4_cat_update_dir[0] * phase_pulse4_cat_pow,
                     self.phases_pulse4_cat_pow[1] + self.phases_pulse4_cat_update_dir[1] * phase_pulse4_cat_pow,
                 ]
+                self.core.break_realtime()
 
                 '''INITIALIZE'''
-                # initialize ion in S-1/2 state
-                self.initialize_subsequence.run_dma()
-                # sideband cool
-                self.sidebandcool_subsequence.run_dma()
+                while True:
+                    self.core.break_realtime()
 
-                # set target profile to ensure we run correctly
-                self.qubit.set_profile(self.profile_target)
-                self.qubit.cpld.io_update.pulse_mu(8)
+                    # initialize ion in S-1/2 state & SBC to ground state
+                    self.initialize_subsequence.run_dma()
+                    self.sidebandcool_subsequence.run_dma()
 
-                # synchronize start time to coarse RTIO clock
-                time_start_mu = now_mu() & ~0x7
+                    # set target profile to ensure we run correctly
+                    self.qubit.set_profile(self.profile_729_target)
+                    self.qubit.cpld.io_update.pulse_mu(8)
 
-                '''CAT #1'''
-                # pulse 0: sigma_x #1
-                if self.enable_pulse0_sigmax:
-                    self.pulse_sigmax(time_start_mu, 0)
+                    # synchronize start time to coarse RTIO clock
+                    time_start_mu = now_mu() & ~0x7
 
-                # pulse 1: cat 1
-                if self.enable_pulse1_cat:
-                    self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
-                                           self.phases_pulse1_cat_pow,
-                                           freq_cat_center_ftw, freq_cat_secular_ftw)
+                    '''CAT #1'''
+                    # pulse 0: sigma_x #1
+                    if self.enable_pulse0_sigmax:
+                        self.pulse_sigmax(time_start_mu, 0)
 
-                # pulse 2a: herald via 397nm
-                if self.enable_pulse2_herald:
-                    self.readout_subsequence.run_dma()
-                    self.pump.off()
+                    # pulse 1: cat 1
+                    if self.enable_pulse1_cat:
+                        self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
+                                               self.phases_pulse1_cat_pow,
+                                               freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                # pulse 2b: repump via 854
-                if self.enable_pulse2_quench:
-                    self.pump.readout()
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
+                    # pulse 2a: herald via 397nm fluorescence
+                    if self.enable_pulse2_herald:
+                        self.readout_subsequence.run_dma()
+                        self.pump.off()
 
-                '''CAT #2'''
-                # pulse 3: sigma_x #2
-                if self.enable_pulse3_sigmax:
-                    self.pulse_sigmax(time_start_mu, self.phase_pulse3_sigmax_pow)
+                        # pulse 2a: force heralding
+                        if self.enable_force_herald:
+                            counts_her = self.readout_subsequence.fetch_count()
+                            if counts_her > self.force_herald_threshold:
+                                continue
 
-                # pulse 4a: cat #2
-                if self.enable_pulse4_cat:
-                    self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu,
-                                           cat4_phases,
-                                           freq_cat_center_ftw, freq_cat_secular_ftw)
+                            # add minor slack if we proceed
+                            at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
-                # pulse 4a: herald via 397nm
-                if self.enable_pulse4_herald:
-                    self.readout_subsequence.run_dma()
-                    self.pump.off()
+                    # pulse 2b: repump via 854
+                    if self.enable_pulse2_quench:
+                        self.pump.readout()
+                        self.repump_qubit.on()
+                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                        self.repump_qubit.off()
 
-                # pulse 4b: repump via 854
-                if self.enable_pulse4_quench:
-                    self.pump.readout()
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
+                    '''CAT #2'''
+                    # pulse 3: sigma_x #2
+                    if self.enable_pulse3_sigmax:
+                        self.pulse_sigmax(time_start_mu, self.phase_pulse3_sigmax_pow)
+
+                    # pulse 4a: cat #2
+                    if self.enable_pulse4_cat:
+                        self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu,
+                                               cat4_phases,
+                                               freq_cat_center_ftw, freq_cat_secular_ftw)
+
+                    # pulse 4a: herald via 397nm
+                    if self.enable_pulse4_herald:
+                        self.readout_subsequence.run_dma()
+                        self.pump.off()
+
+                        # pulse 4a: force heralding
+                        if self.enable_force_herald:
+                            counts_her = self.readout_subsequence.fetch_count()
+                            if counts_her > self.force_herald_threshold:
+                                continue
+
+                            # add minor slack if we proceed
+                            at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
+
+                    # pulse 4b: repump via 854
+                    if self.enable_pulse4_quench:
+                        self.pump.readout()
+                        self.repump_qubit.on()
+                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                        self.repump_qubit.off()
+
+                    # force break loop by default
+                    break
 
                 '''READOUT & STORE RESULTS'''
                 # pulse 5: rabiflop/readout
                 if self.enable_pulse5_readout:
                     self.pulse_readout(time_pulse5_readout_mu, freq_pulse5_readout_ftw)
 
-                # read out
+                # read out fluorescence
                 self.readout_subsequence.run_dma()
 
                 # get heralded measurement and actual results
-                if self.enable_pulse2_herald or self.enable_pulse4_herald:
+                if (self.enable_pulse2_herald or self.enable_pulse4_herald) and not self.enable_force_herald:
                     counts_her = self.readout_subsequence.fetch_count()
-                else:
-                    counts_her = 0
+
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
@@ -480,15 +519,15 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.io_update.pulse_mu(8)
 
@@ -501,7 +540,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         a |= (
                 (self.att_sigmax_mu << (0 * 8)) |
                 (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (1 * 8))
+                (self.att_singlepass_default_mu_list[1] << (2 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
@@ -527,16 +566,16 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-            profile=self.profile_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0] - freq_secular_ftw, asf=self.ampls_cat_asf[0],
-            pow_=phas_pow_list[0], profile=self.profile_target,
+            pow_=phas_pow_list[0], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass1.set_mu(
             self.freq_singlepass_default_ftw_list[1] + freq_secular_ftw, asf=self.ampls_cat_asf[1],
-            pow_=phas_pow_list[1], profile=self.profile_target,
+            pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
 
@@ -571,13 +610,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse5_readout_asf, pow_=0,
-                          profile=self.profile_target)
+                          profile=self.profile_729_target)
         self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
                                 asf=self.ampl_singlepass_default_asf_list[0],
-                                pow_=0, profile=self.profile_target)
+                                pow_=0, profile=self.profile_729_target)
         self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                 asf=self.ampl_singlepass_default_asf_list[1],
-                                pow_=0, profile=self.profile_target)
+                                pow_=0, profile=self.profile_729_target)
 
         # set all attenuators together
         a = self.qubit.cpld.att_reg & ~(
@@ -588,11 +627,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         a |= (
                 (self.att_pulse5_readout_mu << (0 * 8)) |
                 (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (1 * 8))
+                (self.att_singlepass_default_mu_list[1] << (2 * 8))
         )
         self.qubit.cpld.set_all_att_mu(a)
 
-        # run bichromatic pulse
+        # run readout pulse
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
         self.qubit.on()

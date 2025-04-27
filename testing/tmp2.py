@@ -10,7 +10,7 @@ from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
 class testarg342(EnvExperiment):
     """
     testarg342
-    Testing
+    Testing 2
     """
     kernel_invariants = {
         "phaser"

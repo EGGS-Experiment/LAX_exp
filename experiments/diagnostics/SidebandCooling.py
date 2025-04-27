@@ -1,4 +1,5 @@
 import numpy as np
+from sipyco import pyon
 from artiq.experiment import *
 
 from LAX_exp.analysis import *
@@ -6,10 +7,8 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon,
-    SidebandCoolContinuous, SidebandCoolContinuousRAM, SidebandCoolPulsed,
-    SidebandReadout
+    SidebandCoolContinuousRAM, SidebandCoolPulsed, SidebandReadout
 )
-from sipyco import pyon
 
 
 class SidebandCooling(LAXExperiment, Experiment):
@@ -20,8 +19,12 @@ class SidebandCooling(LAXExperiment, Experiment):
     """
     name = 'Sideband Cooling'
     kernel_invariants = {
+        # subsequences
         'initialize_subsequence', 'sidebandcool_continuous_subsequence', 'sidebandcool_pulsed_subsequence',
-        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence'
+        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
+
+        # configs
+        'profile_729_readout', 'profile_729_SBC'
     }
 
     def build_experiment(self):
@@ -32,28 +35,29 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"],
                                                                  default="Continuous"))
 
-        # get relevant devices
-        self.setattr_device('qubit')
+        # allocate profiles on 729nm for different subsequences
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
 
         # get subsequences
         self.initialize_subsequence =               InitializeQubit(self)
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        # self.sidebandcool_continuous_subsequence =  SidebandCoolContinuous(self)
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
-            self, profile_729=1, profile_854=3,
+            self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=500
         )
-        self.sidebandreadout_subsequence =          SidebandReadout(self, profile_dds=0)
+        self.sidebandreadout_subsequence =          SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.readout_subsequence =                  Readout(self)
         self.rescue_subsequence =                   RescueIon(self)
+
+        # get relevant devices
+        self.setattr_device('qubit')
 
     def prepare_experiment(self):
         # choose correct cooling subsequence
         if self.cooling_type == "Continuous":
             self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        # elif self.cooling_type == "Continuous - RAM":
-        #     self.sidebandcool_subsequence = self.sidebandcool_continuous_ram_subsequence
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
@@ -86,7 +90,8 @@ class SidebandCooling(LAXExperiment, Experiment):
             for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
 
                 # set frequency
-                self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 # initialize ion in S-1/2 state & SBC to the ground motional state

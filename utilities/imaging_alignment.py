@@ -69,9 +69,12 @@ class ImagingAlignment(LAXExperiment, Experiment):
         counts_x_arr[0] = 0
         counts_y_arr = np.zeros((self.repetitions, 3)) * np.nan
         counts_y_arr[0, :] = 0
+        counts_snr_arr = np.zeros(self.repetitions) * np.nan
+        counts_snr_arr[0] = 0
 
         self.set_dataset('temp.imag_align.counts_x', counts_x_arr, broadcast=True, persist=False, archive=False)
         self.set_dataset('temp.imag_align.counts_y', counts_y_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.imag_align.counts_snr', counts_snr_arr, broadcast=True, persist=False, archive=False)
 
         # initialize plotting applet
         self.ccb.issue(
@@ -80,6 +83,14 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # command
             '$python -m LAX_exp.applets.plot_xy_multi temp.imag_align.counts_y'
             ' --x temp.imag_align.counts_x --title "Imaging Alignment"',
+            group=["alignment"] # folder directory for applet
+        )
+        self.ccb.issue(
+            "create_applet",    # name of broadcast
+            "imaging_alignment_SNR",  # applet name
+            # command
+            '${artiq_applet}plot_xy temp.imag_align.counts_snr'
+            ' --x temp.imag_align.counts_x --title "Imaging Alignment - SNR"',
             group=["alignment"] # folder directory for applet
         )
 
@@ -178,6 +189,8 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.mutate_dataset('temp.imag_align.counts_y', self._result_iter, np.array([_counts_avg_signal,
                                                                                           _counts_avg_background,
                                                                                           _counts_avg_signal - _counts_avg_background]))
+        self.mutate_dataset('temp.imag_align.counts_snr',
+                            self._result_iter, (_counts_avg_signal - _counts_avg_background) / _counts_avg_background)
 
         # update dataset for HDF5 storage
         self.mutate_dataset('results', self._result_iter,

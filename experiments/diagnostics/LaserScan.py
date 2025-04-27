@@ -5,6 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
+
 from sipyco import pyon
 
 
@@ -17,16 +18,21 @@ class LaserScan(LAXExperiment, Experiment):
     """
     name = 'Laser Scan'
     kernel_invariants = {
+        # hardware parameters
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
+        'time_linetrig_holdoff_mu_list',
+
+        # subsequences
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'pulseshape_subsequence',
-        'time_linetrig_holdoff_mu_list',
-        'config_experiment_list'
+
+        # configs
+        'profile_729_readout', 'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=25, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
@@ -42,43 +48,17 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
                                                         default=[
-                                                            CenterScan(101.3548, 0.01, 0.0001, randomize=True),
-                                                            ExplicitScan([101.4459]),
+                                                            CenterScan(101.1349, 0.02, 0.0002, randomize=True),
+                                                            ExplicitScan([101.1349]),
                                                             RangeScan(1, 50, 200, randomize=True),
                                                         ],
                                                         global_min=60, global_max=200, global_step=0.01,
                                                         unit="MHz", scale=1, precision=6
                                                     ), group=self.name)
         self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=25, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-
-        # linetrigger
-        self.setattr_argument("enable_linetrigger",     BooleanValue(default=True), group='linetrigger')
-        self.setattr_argument("time_linetrig_holdoff_ms_list",   Scannable(
-                                                                default=[
-                                                                    ExplicitScan([0.1]),
-                                                                    RangeScan(1, 3, 3, randomize=True),
-                                                                ],
-                                                                global_min=0.01, global_max=1000, global_step=1,
-                                                                unit="ms", scale=1, precision=3
-                                                            ), group='linetrigger')
-
-        # scan parameters
-        self.setattr_argument("freq_qubit_scan_mhz",    Scannable(
-                                                            default=[
-                                                                CenterScan(101.3318, 0.01, 0.0001, randomize=True),
-                                                                ExplicitScan([101.3318]),
-                                                                RangeScan(1, 50, 200, randomize=True),
-                                                            ],
-                                                            global_min=60, global_max=200, global_step=0.01,
-                                                            unit="MHz", scale=1, precision=6
-                                                        ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=5, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=0.01, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group=self.name)
-
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
         # relevant devices
         self.setattr_device('qubit')
@@ -90,11 +70,16 @@ class LaserScan(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         # tmp remove
 
+        # allocate profiles on 729nm for different subsequences
+        self.profile_729_readout = 0
+
         # subsequences
-        self.initialize_subsequence =   InitializeQubit(self)
         self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
-        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=0, ampl_max_pct=self.ampl_qubit_pct,
-                                                        num_samples=1000)
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_readout, ram_addr_start=0, num_samples=500,
+            ampl_max_pct=self.ampl_qubit_pct,
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -106,7 +91,8 @@ class LaserScan(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # laser parameters
-        self.freq_qubit_scan_ftw = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_qubit_scan_mhz])
+        self.freq_qubit_scan_ftw = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                             for freq_mhz in self.freq_qubit_scan_mhz])
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
@@ -133,19 +119,19 @@ class LaserScan(LAXExperiment, Experiment):
         self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
-
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
                 3)
+
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
 
-        # ensure DMA sequences use profile 0
-        self.qubit.set_profile(0)
+        # ensure DMA sequences use correct parameters
+        self.qubit.set_profile(self.profile_729_readout)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
         self.core.break_realtime()
@@ -188,7 +174,7 @@ class LaserScan(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=0)
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout)
                 self.core.break_realtime()
 
                 # wait for linetrigger
@@ -224,8 +210,6 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Fit data and guess potential spectral peaks.
         """
-
-
         peak_vals, results_tmp = process_laser_scan_results(self.results, self.time_qubit_us)
 
         # save results to hdf5 as a dataset

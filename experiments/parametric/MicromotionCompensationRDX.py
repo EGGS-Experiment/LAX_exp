@@ -13,8 +13,8 @@ import labrad
 from os import environ
 from EGGS_labrad.config.dc_config import dc_config
 
-# todo: retrieve initial mode vector guesses from dataset_db so we don't waste two sweeps
 # todo: actually make adaptive option usable
+# todo: what if we gradient descent within each voltage scan (vs just taking points across the range)?
 
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
@@ -30,15 +30,21 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # modulation & modes
         "freq_mode_0_ftw", "freq_mode_1_ftw", "freq_mode_ftw_list", "mode_list_idx",
         "att_mode_0_mu", "att_mode_1_mu", "att_db_bounds_list",
+
         # voltages
         "dc_channel_axis_0_num", "dc_channel_axis_1_num", "dc_scan_range_volts_list", "time_dc_synchronize_delay_mu",
         "dc_channel_axes_names",
+
         # beam values
         "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu",
+
         # magic numbers
-        "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE",
+        "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE", "CONVERGENCE_VOLTAGE_V",
+        "INITIAL_MODE_VECTORS",
+
         # labrad
         "cxn", "dc",
+
         # subsequences
         "parametric_subsequence", "rescue_subsequence"
     }
@@ -51,26 +57,43 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("iterations",                 NumberValue(default=2, precision=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=2, precision=0, step=1, min=1, max=100), group='configuration')
-        self.setattr_argument("num_steps",                  NumberValue(default=8, precision=0, step=1, min=5, max=100), group='configuration')
-        self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration')
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, precision=0, step=1, min=1, max=100), group='configuration',
+                              tooltip="The number of repetitions on each mode for a single voltage point."
+                                      "All repetitions are executed at once for each point, but are alternated"
+                                      "between modes (e.g. 2 reps => mode0, mode1, mode0, mode1).")
+        self.setattr_argument("num_steps",                  NumberValue(default=8, precision=0, step=1, min=5, max=100), group='configuration',
+                              tooltip="The number of steps for each voltage scan.")
+        self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration',
+                              tooltip="Predicts the mode vectors for each scan, and automatically adjusts"
+                                      "the attenuation. This feature is currently always on (i.e. False will"
+                                      "do nothing lol).")
 
         # modulation - mode #1
         self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1596.2, precision=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_0_db",              NumberValue(default=20, precision=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("att_mode_0_db",              NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), group='modulation',
+                              tooltip="The starting attenuation to use for mode 0."
+                                      "If the adaptive option is selected, the experiment will automatically adjust "
+                                      "the attenuation to maximize signal.")
         # modulation - mode #2
         self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1307.8, precision=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_1_db",              NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("att_mode_1_db",              NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), group='modulation',
+                              tooltip="The starting attenuation to use for mode 1."
+                                      "If the adaptive option is selected, the experiment will automatically adjust "
+                                      "the attenuation to maximize signal.")
 
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([45, 85]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([40, 80]), group='voltages')
         self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([40, 80]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",           NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",           NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling',
+                              tooltip="The DDS amplitude to use for the cooling beam. Lower amplitudes reduce background"
+                                      "and improve SNR, but will take longer and makes the ion prone to death.")
+        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling',
+                              tooltip="The DDS frequency to use for the cooling beam. Frequencies closer to resonance"
+                                      "improve the SNR, but makes the ion prone to death.")
 
         # get relevant devices
         self.setattr_device('pump')
@@ -81,6 +104,13 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # get relevant subsequences
         self.parametric_subsequence =   ParametricExcite(self)
         self.rescue_subsequence =       RescueIon(self)
+
+        '''MAGIC NUMBERS'''
+        self.OPT_CORR_AMPL_FRAC =       0.2     # target corr ampl when adjusting atts
+        self.GUESS_CORR_AMPL_GAMMA =    0.15    # used to predict target corr ampl
+        self.CORR_AMPL_ATT_SLOPE =      -7.362e-3   # guess for dependence of corr ampl on att
+        self.CONVERGENCE_VOLTAGE_V =    0.3     # voltage "distance" criteria for convergence
+        # self.INITIAL_MODE_VECTORS =     np.array([-1., 1.]) # initial guess for mode vectors [RF, EGGS]
 
     def prepare_experiment(self):
         """
@@ -161,12 +191,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self._host_demod_holder =       np.zeros((2, 100, 4), dtype=float)
         self._host_demod_holder_idx =   np.array([0, 0])
 
-        '''
-        MAGIC NUMBERS
-        '''
-        self.OPT_CORR_AMPL_FRAC =       0.2
-        self.GUESS_CORR_AMPL_GAMMA =    0.15
-        self.CORR_AMPL_ATT_SLOPE =      -7.362e-3
+        # guess initial mode vectors
+        if self.freq_mode_0_ftw < self.freq_mode_1_ftw:
+            self.INITIAL_MODE_VECTORS = np.array([-1., 1.]) # [RF, EGGS]
+        else:
+            self.INITIAL_MODE_VECTORS = np.array([1., -1.]) # [EGGS, RF]
 
         '''
         LABRAD
@@ -209,32 +238,24 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.dds_parametric.set_profile(0)
         self.core.break_realtime()
 
-
-
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
         Main sequence of experiment.
         """
+        self.core.break_realtime()
+
+        # predict initial optimum
+        convergence_status = self.predict_optimum()
+        self.core.break_realtime()
+
         # run given number of iterations
         for _iter_num in range(self.iterations):
             self.core.break_realtime()
 
             '''
-            PREPARE OPTIMIZATION LOOP
-            '''
-            # support graceful termination
-            self.check_termination()
-            self.core.break_realtime()
-
-
-            '''
             SWEEP VOLTAGE AXIS 0
             '''
-            # calculate voltage and set optima
-            self.predict_optimum()
-            self.core.break_realtime()
-
             # generate voltage vector array
             voltage_scan_axis0_v_arr = self.prepare_voltage_scan(0)
             self.core.break_realtime()
@@ -251,15 +272,21 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # process and store results
             self.process_optimum(0)
             self.core.break_realtime()
+            # calculate optimum and check convergence
+            convergence_status = self.predict_optimum()
+            self.core.break_realtime()
+            delay_mu(1000000)
+            if convergence_status is True:
+                return
+
+            # support graceful termination
+            self.check_termination()
+            self.core.break_realtime()
 
 
             '''
             SWEEP VOLTAGE AXIS 1
             '''
-            # calculate voltage and set optima
-            self.predict_optimum()
-            self.core.break_realtime()
-
             # generate voltage vector array and scan
             voltage_scan_axis1_v_arr = self.prepare_voltage_scan(1)
             self.core.break_realtime()
@@ -276,23 +303,31 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # process and store results
             self.process_optimum(1)
             self.core.break_realtime()
+            # calculate optimum and check convergence
+            convergence_status = self.predict_optimum()
+            self.core.break_realtime()
+            delay_mu(1000000)
+            if convergence_status is True:
+                return
 
-        # run predict_optimum one final time to conclude
-        self.predict_optimum()
+            # support graceful termination
+            self.check_termination()
+            self.core.break_realtime()
 
 
     '''
     HELPER FUNCTIONS
     '''
     @rpc
-    def predict_optimum(self) -> TNone:
+    def predict_optimum(self) -> TBool:
         """
         Predict the location of the global micromotion optimum using
         linear fits to the measured optima of each mode.
+        Returns:
+            TBool:  whether we have converged on the global optimum.
         """
         print("\tBEGIN SWEEP #{:d}: {:}".format(self._host_sweep_counter,
                                                 self.dc_channel_axes_names[self._host_sweep_counter % 2]))
-
         fitter = fitLineLinear()
 
         # if more than 2 minima, fit line to extract optimum
@@ -310,14 +345,27 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             opt_v_axis_0 = - (fit_mode_1[0] - fit_mode_0[0]) / (fit_mode_1[1] - fit_mode_0[1])
             opt_v_axis_1 = (fit_mode_1[1] * fit_mode_0[0] - fit_mode_0[1] * fit_mode_1[0]) / (fit_mode_1[1] - fit_mode_0[1])
 
-        # if we only have 1 sweep, set optima as mean of previous sweep
+        # if we only have 1 sweep, set optima as mean of previous sweep and use
+        # initial vector guess to predict optima of other mode
         elif self._host_sweep_counter == 1:
-            opt_v_axis_0, opt_v_axis_1 = np.mean(self.sweep_results[0, :, 0:2], axis=0)
+            # assume voltage axis 0 was scanned
+            m0, m1 = self.INITIAL_MODE_VECTORS
+            b0, b1 = self.sweep_results[0, :, 0] - self.INITIAL_MODE_VECTORS * np.mean(self.sweep_results[0, :, 1])
+            opt_v_axis_0 = (m1 * b0 - m0 * b1) / (m1 - m0)
+            opt_v_axis_1 = - (b1 - b0) / (m1 - m0)
 
-        # if we have no data, then set optima as center of scan ranges
+            # # old: if we only have 1 sweep, guess optima as mean of previous sweep
+            # # note: doesn't propagate change to mode 1 b/c it wasn't scanned
+            # opt_v_axis_0, opt_v_axis_1 = np.mean(self.sweep_results[0, :, 0:2], axis=0)
+            # print("\n\t\tDEBUG: opt old - {} {}".format(opt_v_axis_0, opt_v_axis_1))
+
+        # if we have no data, simply use the current voltages
         else:
-            opt_v_axis_0 = np.mean(self.dc_scan_range_volts_list[0])
-            opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
+            # # old: if we have no data, set optima as center of scan ranges
+            # opt_v_axis_0 = np.mean(self.dc_scan_range_volts_list[0])
+            # opt_v_axis_1 = np.mean(self.dc_scan_range_volts_list[1])
+            opt_v_axis_0 = self.voltage_get(self.dc_channel_axis_0_num)
+            opt_v_axis_1 = self.voltage_get(self.dc_channel_axis_1_num)
         print('\t\tPredicted Optimum: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds before we set them
@@ -332,6 +380,14 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         opt_v_arr = np.array([opt_v_axis_0, opt_v_axis_1])
         self._host_voltage_optima_current = opt_v_arr
         self.mutate_dataset('global_optima', self._host_sweep_counter, opt_v_arr)
+
+        # check successive optima for convergence
+        if self._host_sweep_counter >= 2:
+            if np.linalg.norm(opt_v_arr - self.global_optima[self._host_sweep_counter - 1]) < self.CONVERGENCE_VOLTAGE_V:
+                print('STOPPING EARLY - CONVERGED ON VOLTAGE OPTIMUM (distance < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
+                return True
+
+        return False
 
     @rpc
     def prepare_voltage_scan(self, voltage_axis: TInt32) -> TArray(TFloat, 1):
@@ -361,10 +417,12 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             voltage_max_v = self._host_voltage_optima_current[voltage_axis] + 0.5 * voltage_range
             voltage_min_v = self._host_voltage_optima_current[voltage_axis] - 0.5 * voltage_range
 
-        # otherwise, simply set the voltage range as half the bounds
+        # otherwise, scan about existing center, w/~40% of range about existing center
+        # # old: otherwise, simply set the voltage range as half the bounds
         else:
             voltage_min_v, voltage_max_v = self.dc_scan_range_volts_list[voltage_axis]
-            voltage_center = 0.5 * (voltage_max_v + voltage_min_v)
+            # voltage_center = 0.5 * (voltage_max_v + voltage_min_v)
+            voltage_center = self.global_optima[self._host_sweep_counter, 0]
             voltage_range = 0.5 * (voltage_max_v - voltage_min_v)
             voltage_max_v = voltage_center + 0.5 * voltage_range
             voltage_min_v = voltage_center - 0.5 * voltage_range
@@ -413,8 +471,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         att_list_db = [max(self.att_db_bounds_list[0], att_db) for att_db in att_list_db]
         self._host_att_db_list = np.array(att_list_db)
         print('\t\tAttenuations:')
-        print('\t\t\tMode 0 ({:.1f} kHz): {:.1f} dB\n\t\t\tMode 1 ({:.1f} kHz): {:.1f} dB'.format(self.freq_mode_0_khz, att_list_db[0],
-                                                                                                  self.freq_mode_1_khz, att_list_db[1]))
+        print('\t\t\tMode 0 ({:.1f} kHz): {:.1f} dB\n\t\t\tMode 1 ({:.1f} kHz): {:.1f} dB'.format(
+            self.freq_mode_0_khz, att_list_db[0],
+            self.freq_mode_1_khz, att_list_db[1])
+        )
 
         # convert results to machine units and return
         att_list_mu = [self.dds_parametric.cpld.att_to_mu(att_db * dB) for att_db in att_list_db]
@@ -502,8 +562,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     @rpc
     def process_optimum(self, voltage_axis: TInt32) -> TNone:
         """
-        Retrieve recent experiment data
+        Process demodulated counts to extract voltage optima for each mode.
         Necessary for kernel to interface with results since raw data is store on host-side.
+        Note: this should only be called at the end of a voltage scan, since this updates internal
+        counters/iterators (i.e. this function defines the end of a voltage scan).
+        # todo: check results to ensure max corr ampl is above a given threshold
         Arguments:
             voltage_axis    (TInt32): the voltage axis that was swept.
         """
@@ -537,16 +600,19 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
             # extract minimum mode voltage
             opt_voltage_v, opt_voltage_err = complexLinearFitMinimize(results_tmp)
-            print("\t\tMode {:d} Opt. (Axis {:d}, {:}): {:.2f} +/- {:.3f} V".format(mode_idx, voltage_axis,
-                                                                                    self.dc_channel_axes_names[voltage_axis],
-                                                                                    opt_voltage_v, opt_voltage_err))
+            print("\t\tMode {:d} Opt. (Axis {:d}, {:}): {:.2f} +/- {:.3f} V".format(
+                mode_idx, voltage_axis, self.dc_channel_axes_names[voltage_axis],
+                opt_voltage_v, opt_voltage_err)
+            )
 
             # check optima for errors
             if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
                     (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis, 1])):
-                raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(mode_idx, opt_voltage_v))
+                raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(
+                    mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:
-                raise ValueError("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(mode_idx, opt_voltage_err))
+                raise ValueError("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(
+                    mode_idx, opt_voltage_err))
 
             # get full optima vector
             if voltage_axis == 0:

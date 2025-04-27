@@ -100,7 +100,8 @@ class DDSParametric(LAXDevice):
         # ensure signal is output as a sine with 0 phase
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
-                         (1 << 13))     # phase_autoclear
+                         (1 << 13) |    # phase_autoclear
+                         2)             # default serial I/O configs
         # pulse io_update to clear phase
         at_mu(now_mu() & ~0x7)
         self.cpld.io_update.pulse_mu(8)

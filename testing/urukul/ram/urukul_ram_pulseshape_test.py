@@ -203,8 +203,8 @@ class UrukulRAMAmplitude(EnvExperiment):
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
                                (1 << 16) |              # select_sine_output
-                               (1 << 13)                # phase_autoclear
-                               )
+                               (1 << 13) |              # phase_autoclear
+                               2)
 
             # prime RAM sequence by pulsing IO_UPDATE
             self.dds.cpld.io_update.pulse_mu(8)
@@ -221,8 +221,8 @@ class UrukulRAMAmplitude(EnvExperiment):
             self.dds.write32(_AD9910_REG_CFR1,
                                (1 << 31) |              # ram_enable
                                (RAM_DEST_ASF << 29) |   # ram_destination
-                               (1 << 16)                # select_sine_output
-                               )
+                               (1 << 16) |              # select_sine_output
+                               2)
             self.dds.cpld.io_update.pulse_mu(8)
 
             # open DDS switch at appropriate time

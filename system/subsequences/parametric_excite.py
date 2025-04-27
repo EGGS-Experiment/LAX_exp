@@ -27,9 +27,12 @@ class ParametricExcite(LAXSubsequence):
 
     def prepare_subsequence(self):
         # get input triggering parameters
-        self.time_pmt_gating_mu =   self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu, units=us)
-        self.time_rf_gating_mu =    self.get_parameter('time_rf_gating_ns', group='rf', override=False, conversion_function=seconds_to_mu, units=ns)
-        self.time_rf_holdoff_mu =   self.get_parameter('time_rf_holdoff_us', group='rf', override=False, conversion_function=seconds_to_mu, units=us)
+        self.time_pmt_gating_mu =   self.get_parameter('time_pmt_gating_us', group='pmt', override=False,
+                                                       conversion_function=seconds_to_mu, units=us)
+        self.time_rf_gating_mu =    self.get_parameter('time_rf_gating_ns', group='rf', override=False,
+                                                       conversion_function=seconds_to_mu, units=ns)
+        self.time_rf_holdoff_mu =   self.get_parameter('time_rf_holdoff_us', group='rf', override=False,
+                                                       conversion_function=seconds_to_mu, units=us)
 
         # create holder array to store PMT counts
         self.timestamp_mu_list =    np.zeros(self.num_counts, dtype=np.int64)

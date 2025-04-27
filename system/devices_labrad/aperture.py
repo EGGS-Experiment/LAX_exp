@@ -3,6 +3,7 @@ from LAX_exp.base import LAXDevice
 
 import labrad
 from os import environ
+from time import sleep
 
 
 class Aperture(LAXDevice):
@@ -10,10 +11,15 @@ class Aperture(LAXDevice):
     High-level API functions for using the Aperture Server.
     """
     name = "aperture"
+    kernel_invariants = {
+        "position_close"
+    }
 
     def prepare_device(self):
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.aperture = self.cxn.elliptec_server
+
+        self.position_close = 2888  # aperture position for "closed" state
 
     @rpc
     def open_aperture(self) -> TNone:
@@ -27,27 +33,27 @@ class Aperture(LAXDevice):
         """
         Closes the Aperture
         """
-        self.aperture.move_absolute(2888)
+        self.aperture.move_absolute(self.position_close)
 
     @rpc
-    def pulse_aperture_open(self, wait_time: TFloat) -> TNone:
+    def pulse_aperture_open(self, wait_time_s: TFloat) -> TNone:
         """
         Pulse Aperture Open
         Args:
-            wait_time: seconds to wait before closing aperture again
+            wait_time_s: seconds to wait before closing aperture
         """
         self.aperture.move_home()
-        time.sleep(wait_time)
-        self.aperture.move_absolute(2888)
+        sleep(wait_time_s)
+        self.aperture.move_absolute(self.position_close)
 
     @rpc
-    def pulse_aperture_close(self, wait_time: TFloat) -> TNone:
+    def pulse_aperture_close(self, wait_time_s: TFloat) -> TNone:
         """
-        Pulse Aperture Open
+        Pulse Aperture Close
         Args:
-            wait_time: seconds to before reopening aperture
+            wait_time_s: seconds to before reopening aperture
         """
-        self.aperture.move_absolute(2888)
-        time.sleep(wait_time)
+        self.aperture.move_absolute(self.position_close)
+        sleep(wait_time_s)
         self.aperture.move_home()
 

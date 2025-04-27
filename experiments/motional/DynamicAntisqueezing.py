@@ -3,8 +3,10 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon,
+    SidebandCoolContinuous, SidebandReadout
+)
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
@@ -23,11 +25,14 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         # config/sweep
         'config_experiment_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
         'freq_pulse_secular_hz_list',
+
         # squeezing
         'freq_squeeze_carrier_hz', 'att_squeeze_mu', 'waveform_squeezing_compiled',
+
         # antisqueezing
         'freq_antisqueeze_carrier_hz', 'att_antisqueeze_mu', 'phase_antisqueeze_offset_turns_list',
         'waveform_idx_to_phase_turns', 'waveform_idx_to_compiled',
+
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
         'sidebandreadout_subsequence', 'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
@@ -290,6 +295,8 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
         # record EGGS pulse waveforms
         for i, phas_turns in enumerate(self.phase_antisqueeze_offset_turns_list):
+            # todo: fix deep copy issue
+
             # update sequence block with target phase
             _sequence_block_antisqueeze[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
             _sequence_block_antisqueeze[0]["oscillator_parameters"][1][1] += phas_update_arr[1] * phas_turns

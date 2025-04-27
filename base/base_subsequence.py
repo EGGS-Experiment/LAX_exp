@@ -38,7 +38,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
     BUILD
     '''
 
-    def build(self, **kwargs):
+    def build(self, *args, **kwargs):
         """
         General construction of the subsequence object.
         Gets/sets instance attributes and process build arguments.
@@ -58,7 +58,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
         setattr(self,   '_dma_record_flag', False)
 
         # call user-defined build function
-        self.build_subsequence()
+        self.build_subsequence(*args, **kwargs)
 
     def build_subsequence(self, **kwargs):
         """
