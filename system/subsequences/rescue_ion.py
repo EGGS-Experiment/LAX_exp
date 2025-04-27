@@ -129,6 +129,7 @@ class RescueIon(LAXSubsequence):
             self._deathcount_sum_counts += 1
         else:
             self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
+        self.core.break_realtime()
 
 
         # update filter once we have stored enough counts
@@ -136,6 +137,7 @@ class RescueIon(LAXSubsequence):
 
             # subtract history from running average (i.e. circular buffer)
             self._deathcount_sum_counts -= self._deathcount_arr[(self._deathcount_iter + 1) % self.deathcount_length]
+            self.core.break_realtime()
 
             # process syndromes
             if self._deathcount_sum_counts < self.deathcount_tolerance:

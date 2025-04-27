@@ -18,7 +18,8 @@ class FockStateGenerator(LAXSubsequence):
         "freq_carrier_rabiflop_ftw",
         "time_carrier_pi_pulse_mu",
         "dds_configs",
-        "time_pi_pulses_mu"
+        "time_pi_pulses_mu",
+        "apply_carrier"
     }
 
     def build_subsequence(self):
@@ -64,43 +65,46 @@ class FockStateGenerator(LAXSubsequence):
         ### tmp remove
 
         ### create array of fock state to create
-        self.fock_states = np.arange(0, self.final_fock_state + 1)
-        self.time_pi_pulses_us = np.zeros(len(self.fock_states))
-        self.dds_configs = np.zeros((len(self.fock_states), 2))
+        self.time_pi_pulses_us = np.zeros(self.final_fock_state)
+        self.dds_configs = np.zeros((self.final_fock_state, 2), dtype = np.int32)
 
         # configure arrays so we can alternate between rsb and bsb pi pulses
-        for idx, fock_state in enumerate(self.fock_states):
+        for idx, fock_state in enumerate(range(self.final_fock_state)):
             ### configure bsb pulses
-            if idx % 2 == 0:
-                self.time_pi_pulses_us[idx] = self.time_sideband_pi_pulse_us * np.sqrt(
-                    factorial(fock_state) / factorial(fock_state + 1)) * genlaguerre(fock_state, 1)(lamb_dicke)
 
+            self.time_pi_pulses_us[idx] = self.time_sideband_pi_pulse_us /( np.sqrt(
+                    1 / (fock_state + 1)) * genlaguerre(fock_state, 1)(lamb_dicke**2))
+
+            if idx % 2 == 0:
                 self.dds_configs[idx, :] = [self.freq_bsb_rabiflop_ftw, self.ampl_qubit_asf]
-            ### configure  rsb pulse
             else:
-                self.time_pi_pulses_us[idx] = self.time_sideband_pi_pulse_us * np.sqrt(
-                    factorial(fock_state - 1) / factorial(fock_state)) * genlaguerre(fock_state - 1, 1)(lamb_dicke)
                 self.dds_configs[idx, :] = [self.freq_rsb_rabiflop_ftw, self.ampl_qubit_asf]
+
 
         self.time_pi_pulses_mu = np.array([us_to_mu(time_pi_pulses_us) for time_pi_pulses_us in self.time_pi_pulses_us])
 
         # determine if we need an additional pi pulse at end to reset to S1/2, mj = -1/2
-        self.apply_carrier = self.final_fock_state % 2 == 0
+        self.apply_carrier = (self.final_fock_state % 2 != 0 and self.final_fock_state != 0)
+
+        if self.final_fock_state == 0 :
+            self.dds_configs = np.array([[0,0]], dtype = np.int32)
+            self.time_pi_pulses_mu = np.array([0], dtype = np.int32)
+
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
-        self.core.break_realtime()
-
         # continually apply bsb and rsb (alternating) to achieve the fock state we want
+
+        self.qubit.set_att_mu(self.att_readout_mu)
         for idx in range(self.final_fock_state):
-            self.qubit.set_mu(np.int32(self.dds_configs[idx, 0]), asf=np.int32(self.dds_configs[idx, 1]), profile=0)
+            self.qubit.set_mu(self.dds_configs[idx, 0], asf=self.dds_configs[idx, 1], profile=0)
             self.qubit.on()
             delay_mu(self.time_pi_pulses_mu[idx])
             self.qubit.off()
 
         # reset to S1/2, mj=-1/2 if needed
         if self.apply_carrier:
-            self.qubit.set_mu(np.int32(self.freq_carrier_rabiflop_ftw), asf=np.int32(self.ampl_qubit_asf), profile=0)
+            self.qubit.set_mu(self.freq_carrier_rabiflop_ftw, asf=self.ampl_qubit_asf, profile=0)
             self.qubit.on()
             delay_mu(self.time_carrier_pi_pulse_mu)
             self.qubit.off()

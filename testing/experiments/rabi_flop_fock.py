@@ -58,7 +58,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("equalize_delays", BooleanValue(default=False), group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
-        self.setattr_argument('enable_fock_state_generation', BooleanValue(False), group="fock_state_generation")
+        self.setattr_argument('enable_fock_state_generation', BooleanValue(True), group="fock_state_generation")
 
         # allocate relevant beam profiles
         self.profile_729_readout = 0
@@ -69,7 +69,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.sidebandcool_continuous_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=500
+            num_samples=100
         )
         self.pulseshape_subsequence = QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=502,
