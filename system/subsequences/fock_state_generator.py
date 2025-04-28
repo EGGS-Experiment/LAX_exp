@@ -5,6 +5,7 @@ from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 from math import factorial
 from scipy.special import genlaguerre
+from LAX_exp.extensions.physics_constants import *
 
 
 class FockStateGenerator(LAXSubsequence):
@@ -61,9 +62,8 @@ class FockStateGenerator(LAXSubsequence):
         self.att_readout_mu = att_to_mu(self.att_flopping_db * dB)
         self.time_carrier_pi_pulse_mu = us_to_mu(self.time_carrier_pi_pulse_us)
 
-        ### tmp remove
-        lamb_dicke = 0.05
-        ### tmp remove
+        omega = 4*np.pi * (self.freq_carrier_rabiflop_mhz - self.freq_rsb_rabiflop_mhz)*MHz # extra factor of 2 for AOM units
+        lamb_dicke = 2*np.pi/729e-9 * np.sqrt(hbar/(2*mCa*omega))
 
         ### create array of fock state to create
         self.time_pi_pulses_us = np.zeros(self.final_fock_state)
