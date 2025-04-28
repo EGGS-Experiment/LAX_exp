@@ -14,9 +14,9 @@ from collections.abc import Iterable
 from artiq.coredevice import ad9910
 
 
-class CharacteristicReconstruction(LAXExperiment, Experiment):
+class CharacteristicReconstructionJosh(LAXExperiment, Experiment):
     """
-    Experiment: Characteristic Reconstruction
+    Experiment: Characteristic Reconstruction Josh
 
     Directly reconstruct the Characteristic function of a given motional state using the Fluhmann technique
     (https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.125.043602).
