@@ -20,7 +20,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     name = 'Rapid Adiabatic Passage'
     kernel_invariants = {
         # hardware parameters
-        'ampl_qubit_asf', 'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
+        'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'rap_subsequence',
@@ -147,7 +147,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # beam parameters
-        self.ampl_qubit_asf =   self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
         # frequency parameters

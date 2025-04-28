@@ -14,9 +14,9 @@ from sipyco import pyon
 # todo: add linetrigger
 
 
-class RabiFlopping(LAXExperiment, Experiment):
+class FockRabiFlopping(LAXExperiment, Experiment):
     """
-    Experiment: Rabi Flopping
+    Experiment: Fock Rabi Flopping
     Measures ion fluorescence vs 729nm pulse time and frequency.
     """
     name = 'Rabi Flopping'
@@ -63,6 +63,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         # allocate relevant beam profiles
         self.profile_729_readout = 0
         self.profile_729_SBC = 1
+        self.profile_fock = 2
 
         # prepare sequences
         self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
@@ -79,7 +80,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.doppler_subsequence = NoOperation(self)
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
-        self.fock_state_generator_subsequence = FockStateGenerator(self)
+        self.fock_state_generator_subsequence = FockStateGenerator(self, self.profile_fock)
 
         # get devices
         self.setattr_device('qubit')
