@@ -36,7 +36,6 @@ class RSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
         # configs
         'profile_729_readout', 'profile_729_SBC', 'config_experiment_list',
 
-
         # subharmonic specials
         'freq_global_offset_hz', 'freq_carrier_0_offset_hz', 'freq_carrier_1_offset_hz', 'ampl_eggs_heating_carrier_pct'
     }
