@@ -38,17 +38,17 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="Doppler"))
+        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="SBC - Continuous"))
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
-                                                                RangeScan(1, 100, 100, randomize=True),
+                                                                RangeScan(1, 30, 100, randomize=True),
                                                                 ExplicitScan([6.05]),
                                                                 CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.0463, precision=6, step=1, min=50., max=400.), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.1079, precision=6, step=1, min=50., max=400.), group=self.name)
         self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
         self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name)
@@ -76,15 +76,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
-        self.profile_rabiflop = 0
-        self.initialize_subsequence = InitializeQubit(self)
-        self.doppler_subsequence = NoOperation(self)
-        self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence = SidebandCoolContinuous(self)
-        self.pulseshape_subsequence =   QubitPulseShape(self, ram_profile=self.profile_rabiflop,
-                                                        ampl_max_pct=self.ampl_qubit_pct, num_samples=100)
-        self.readout_subsequence = Readout(self)
-        self.rescue_subsequence = RescueIon(self)
+
     def prepare_experiment(self):
         """
         Prepare values for speedy evaluation.
