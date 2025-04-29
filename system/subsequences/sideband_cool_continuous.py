@@ -35,8 +35,8 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         # sideband cooling configuration
         self.setattr_argument("calibration_continuous",                 BooleanValue(default=False), group='sideband_cooling.continuous')
-        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=1, precision=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
-        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
+        self.setattr_argument("sideband_cycles_continuous",             NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='sideband_cooling.continuous')
+        self.setattr_argument("time_sideband_cooling_us",               NumberValue(default=5000, precision=3, step=100, min=0.001, max=1000000), group='sideband_cooling.continuous')
         self.setattr_argument("pct_per_spin_polarization",              NumberValue(default=35.4, precision=3, step=1, min=0.01, max=100), group='sideband_cooling.continuous')
 
         # sideband cooling modes
