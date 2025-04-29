@@ -12,13 +12,13 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
 
-class RSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
+class TSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
     """
-    Experiment: R Super Resolution 2
+    Experiment: T Super Resolution 2
 
     todo: document
     """
-    name = 'Super Resolution 2'
+    name = 'T Super Resolution 2'
     kernel_invariants = {
         # hardware values
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
