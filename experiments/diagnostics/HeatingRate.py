@@ -22,7 +22,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate wait times
-        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 100, 500]))
+        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 10, 20]))
 
         # run regular sideband cooling build
         super().build_experiment()
@@ -55,11 +55,13 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         return (self.repetitions * len(self.config_experiment_list),
                 3)
 
+
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         self.core.break_realtime()
 
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
 
             for config_vals in self.config_experiment_list:
@@ -76,6 +78,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 )
                 self.core.break_realtime()
 
+                '''INITIALIZE'''
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
@@ -83,12 +86,15 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 # wait time to measure heating rate
                 delay_mu(time_heating_delay_mu)
 
+                '''READ OUT'''
                 # sideband readout
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
                 # get results & update dataset
-                self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(), time_heating_delay_mu)
+                self.update_results(freq_readout_ftw,
+                                    self.readout_subsequence.fetch_count(),
+                                    time_heating_delay_mu)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -223,3 +229,4 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         self.ccb.issue("create_applet", f"Heating Rate",
                        ccb_command,
                        group=['plotting', 'diagnostics'])
+

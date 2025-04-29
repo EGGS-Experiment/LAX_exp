@@ -29,10 +29,10 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
 
         # sideband cooling type
-        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Continuous - RAM", "Pulsed"],
+        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"],
                                                                  default="Continuous"))
 
         # allocate profiles on 729nm for different subsequences
@@ -58,7 +58,6 @@ class SidebandCooling(LAXExperiment, Experiment):
         # choose correct cooling subsequence
         if self.cooling_type == "Continuous":
             self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-
         elif self.cooling_type == "Pulsed":
             self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
 
@@ -262,5 +261,4 @@ class SidebandCooling(LAXExperiment, Experiment):
         results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
         return results_rsb, results_bsb
-
 

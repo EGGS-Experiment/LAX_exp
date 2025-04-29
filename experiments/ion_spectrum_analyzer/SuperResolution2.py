@@ -12,9 +12,9 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
 
-class SuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
+class RSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
     """
-    Experiment: Super Resolution 2
+    Experiment: R Super Resolution 2
 
     todo: document
     """
@@ -35,7 +35,6 @@ class SuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # configs
         'profile_729_readout', 'profile_729_SBC', 'config_experiment_list',
-
 
         # subharmonic specials
         'freq_global_offset_hz', 'freq_carrier_0_offset_hz', 'freq_carrier_1_offset_hz', 'ampl_eggs_heating_carrier_pct'
