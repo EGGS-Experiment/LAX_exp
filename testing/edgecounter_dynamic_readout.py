@@ -33,12 +33,13 @@ class TTLDynamicTest(EnvExperiment):
         self.setattr_device("scheduler")
         self.setattr_device("ttl0_counter")
 
+        # note: we start having slack problems with bin times below 5us
         self.repetitions =      10000
         self.time_readout_us =  1500
-        self.time_bin_us =      100
+        self.time_bin_us =      5
 
-        self.count_rate_bright =    120     # per 3ms
-        self.count_rate_dark =      36      # per 3ms
+        self.count_rate_bright =    144     # per 3ms
+        self.count_rate_dark =      31      # per 3ms
         self.error_threshold =      1e-2    # total error fraction
         self._dist_sigma_max =      6       # \sigma above mean for max counts
 
@@ -64,8 +65,8 @@ class TTLDynamicTest(EnvExperiment):
         # reprocess error threshold for faster calculation (avoids expensive divisions during kernel)
         self.error_threshold_frac =     self.error_threshold / (1. - self.error_threshold)
 
+        # calculate likelihood values
         self._prepare_likelihoods()
-        self._prepare_dataset()
 
     def _prepare_likelihoods(self):
         """
@@ -79,6 +80,7 @@ class TTLDynamicTest(EnvExperiment):
         )
 
         # precalculate factorials & likelihood functions
+        # note: use stirling's approx to 2nd order to reduce size of numbers
         log_factorial_stirling = lambda n: (
                 math.log(n) * (n + 0.5) - n + 0.5*math.log(2.*math.pi) +
                 math.log(1. + 1./(12.*n))
@@ -103,6 +105,11 @@ class TTLDynamicTest(EnvExperiment):
         self.set_dataset("likelihood_dark_n", self.likelihood_dark_n)
         self.setattr_dataset("likelihood_dark_n")
 
+        # tmp remove - runtime
+        self.time_start_mu = np.int64(0)
+        self.time_stop_mu = np.int64(0)
+
+    @rpc
     def _prepare_dataset(self):
         """
         Prepare datasets to record data.
@@ -135,48 +142,51 @@ class TTLDynamicTest(EnvExperiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
-        # reset
+        # prepare sequence
+        self.time_start_mu = now_mu()
+        self._prepare_dataset()
+        self.core.break_realtime()
         self.core.reset()
 
         # todo: add error handling
         for i in range(self.repetitions):
-            # simulate pulse sequence
             self.core.break_realtime()
-            delay_mu(1000000)   # 1ms
+
+            # simulate pulse sequence
+            # delay_mu(10000)   # 10us
 
             # dynamic readout
             results = self._readout()
-            self.core.break_realtime()
+            delay_mu(100000)
 
-            # add slack/finish up
+            # finish up and add slack
             self.update_results(results)
             self.core.break_realtime()
 
             # periodically check termination
-            if i % 10 == 0:
+            if i % 10 == 1:
                 if self.scheduler.check_termination():
                     self.core.break_realtime()
                     break
 
-        # clean up
+        # record stop time and clean up
+        self.time_stop_mu = now_mu()
+        self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
-        delay_mu(1000000)
         self.core.break_realtime()
         self.core.reset()
 
 
+    """
+    HELPER FUNCTIONS
+    """
     @rpc(flags={"async"})
     def update_results(self, args):
-        # # tmp remove
-        # if self._result_iter % 5 == 0:
-        #     print(args)
-        # # tmp remove
-
         # store results in main dataset
         self.mutate_dataset('results', self._result_iter, np.array(args))
 
         # do intermediate processing
-        if (self._result_iter % self._dynamic_reduction_factor) == 0:
+        if self._result_iter % self._dynamic_reduction_factor == 0:
             # plot counts in real-time to monitor ion death
             self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
             self._counts_iter += 1
@@ -252,19 +262,9 @@ class TTLDynamicTest(EnvExperiment):
                 ion_state = 0
                 break
 
-        # ensure all gates are closed
-        rtio_output(self.ttl_chan_out, CONFIG_SEND_COUNT_EVENT)
-        self.core.break_realtime()
-
-        # eat all remaining counts
-        # todo: is this necessary? pretty fair to say it's certain we only have ONE final bin
-        count_events_remaining = self.ttl.fetch_timestamped_count(now_mu() + 5000)
-        while count_events_remaining[0] != -1:
-            count_events_remaining = self.ttl.fetch_timestamped_count(now_mu() + 5000)
-            delay_mu(5000)
-        self.core.break_realtime()
-
-        # return results
+        # ensure remaining count bin is cleared from input FIFO
+        self.ttl.fetch_timestamped_count(now_mu())
+        delay_mu(5000)
         return ion_state, total_counts, bin_counter, p_b, p_d
 
     def analyze(self):
@@ -272,31 +272,37 @@ class TTLDynamicTest(EnvExperiment):
         Print summary statistics.
         """
         print("\n########## RESULT SUMMARY ##########")
+        print("Run time: {:.3f}\n".format(self.core.mu_to_seconds(self.time_stop_mu - self.time_start_mu)))
 
-        # collate data
+        # collate data and ensure correct shape for processing
         data_bright =   self.results[self.results[:, 0] == 1]
         data_dark =     self.results[self.results[:, 0] == 0]
         data_idk =      self.results[self.results[:, 0] == -1]
+        if len(data_bright) == 0:   data_bright = np.ones((1, np.shape(self.results)[1])) * np.nan
+        if len(data_dark) == 0:     data_dark = np.ones((1, np.shape(self.results)[1])) * np.nan
+        if len(data_idk) == 0:      data_idk = np.ones((1, np.shape(self.results)[1])) * np.nan
 
-        # todo: add stds for calculating these
+        # todo: add stds for calculating summary results
 
         # print bright/dark/idk percentages
-        print("Discrimination Results:\n\tBright:\t{:.6g}%\n\tDark:\t{:.6g}%\n\tidk:\t{:.6g}%".format(
+        print("\nDiscrimination Results by state:"
+              "\n\tBright:\t\t{:.3f}%\n\tDark:\t\t{:.3f}%\n\tIndeterminate:\t{:.3f}%\n".format(
             len(data_bright[:, 0]) / len(self.results) * 100.,
             len(data_dark[:, 0]) / len(self.results) * 100.,
             len(data_idk[:, 0]) / len(self.results) * 100.
         ))
 
         # print mean count rates
-        print("Count Rates (per 3ms):\n\tBright:\t{:.4g}\n\tDark:\t{:.4g}\n\tidk:\t{:.4g}".format(
+        print("Count Rates by state (per 3ms):"
+              "\n\tBright:\t\t{:.2f}\n\tDark:\t\t{:.2f}\n\tIndeterminate:\t{:.2f}\n".format(
             np.mean(data_bright[:, 1] / data_bright[:, 2] * (3e-3 / (self.time_bin_us * us))),
             np.mean(data_dark[:, 1] / data_dark[:, 2] * (3e-3 / (self.time_bin_us * us))),
             np.mean(data_idk[:, 1] / data_idk[:, 2] * (3e-3 / (self.time_bin_us * us)))
         ))
 
         # print mean count rates
-        print("Time to Detection (# bins, us):"
-              "\n\tBright:\t{:.4g}/\t{:.4g}\n\tDark:\t{:.4g}/\t{:.4g}\n\tidk:\t{:.4g}/\t{:.4g}".format(
+        print("Time to Detection by state (# bins, us):"
+              "\n\tBright:\t\t{:.1f}/\t{:.1f}\n\tDark:\t\t{:.1f}/\t{:.3f}\n\tIndeterminate:\t{:.1f}/\t{:.3f}\n\n".format(
             np.mean(data_bright[:, 2]), np.mean(data_bright[:, 2]) * self.time_bin_us,
             np.mean(data_dark[:, 2]), np.mean(data_dark[:, 2]) * self.time_bin_us,
             np.mean(data_idk[:, 2]), np.mean(data_idk[:, 2]) * self.time_bin_us
