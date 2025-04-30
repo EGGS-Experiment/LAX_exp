@@ -5,7 +5,8 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout)
+                                         SidebandCoolContinuous, SidebandReadout,
+                                         SidebandCoolContinuousRAM)
 from sipyco import pyon
 
 
@@ -17,7 +18,7 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
     then apply bichromatic heating tones, and try to read out the fluorescence.
     Scans multiple ranges in an incredible way and allows user choice of amplitudes.
     """
-    name = 'EGGS Heating'
+    name = 'EGGS Heating Multi Tone'
 
     def build_experiment(self):
         # core arguments
@@ -27,8 +28,20 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
         # # get subsequences
         self.initialize_subsequence = InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuous(self)
-        self.sidebandreadout_subsequence = SidebandReadout(self)
+        # self.sidebandcool_subsequence = SidebandCoolContinuous(self)
+        # self.sidebandreadout_subsequence = SidebandReadout(self)
+
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
+        # get subsequences
+        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0,
+            num_samples=200
+        )
+        self.sidebandreadout_subsequence = SidebandReadout(self, profile_dds=self.profile_729_readout)
+
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
 
