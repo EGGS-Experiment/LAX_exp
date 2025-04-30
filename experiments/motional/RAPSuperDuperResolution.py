@@ -133,7 +133,7 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
         self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.3318, step=0.0100, precision=6, min=60, max=200), group = 'RAP')
         self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., step=0.01, precision=2, min=1, max=10000), group = 'RAP')
-        self.setattr_argument("time_rap_us", NumberValue(default= 200.,min=1, max=100000, step=1, unit="us", scale=1, precision=5), group="RAP")
+        self.setattr_argument("time_rap_us", NumberValue(default= 200.,min=1, max=100000, step=1, scale=1, precision=5), group="RAP")
 
         # get relevant devices
         self.setattr_device("qubit")
