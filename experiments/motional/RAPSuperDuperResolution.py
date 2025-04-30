@@ -69,10 +69,10 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
                                                                                 ],
                                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                                 unit="MHz", scale=1, precision=6
-                                                                            ), group="{}.freq_phase_sweep".format(self.name))
+                                                                            ), group="{}.freq_phase_sweep".format("RAP_SDR"))
 
         self.setattr_argument("target_freq_sweep",     EnumerationValue(['Secular', 'Probe', 'X1', 'X2'],
-                                                                        default='Secular'), group = "{}.freq_phase_sweep".format(self.name))
+                                                                        default='Secular'), group = "{}.freq_phase_sweep".format("RAP_SDR"))
         self.setattr_argument("freq_superresolution_sweep_khz_list",        Scannable(
                                                                                 default=[
                                                                                     ExplicitScan([767.2, 319.2, 1582, 3182]),
