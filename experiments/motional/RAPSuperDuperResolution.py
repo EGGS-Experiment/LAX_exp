@@ -18,7 +18,7 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
     Supports lots of easily configurable parameter scanning for phaser.
     Experiment name inspired by Sam Crary.
     """
-    name = 'Super Duper Resolution'
+    name = 'RAP Super Duper Resolution'
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr',
@@ -131,9 +131,9 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
         # RAP arguements
         self.setattr_argument("att_rap_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="RAP")
         self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.3318, step=0.0100, precision=6, min=60, max=200, unit='MHz'), group = 'RAP')
-        self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., step=0.01, precision=2, min=1, max=10000, unit='kHz'), group = 'RAP')
-        self.setattr_argument("time_rap_us", NumberValue(default= 200.,min=1, max=100000, step=1, unit="us", scale=1, precision=5), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.3318, step=0.0100, precision=6, min=60, max=200), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., step=0.01, precision=2, min=1, max=10000), group='RAP')
+        self.setattr_argument("time_rap_us", NumberValue(default=200.,min=1, max=100000, step=1, scale=1, precision=5), group="RAP")
 
         # get relevant devices
         self.setattr_device("qubit")

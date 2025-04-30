@@ -12,13 +12,13 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
 
-class SuperResolution(EGGSHeatingRDX.EGGSHeatingRDX):
+class StuperSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
     """
-    Experiment: Super Resolution
+    Experiment: Stuper Super Resolution 2 DONT USE
 
     todo: document
     """
-    name = 'Super Resolution'
+    name = 'Q Super Resolution 2'
     kernel_invariants = {
         # hardware values
         'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
@@ -35,7 +35,6 @@ class SuperResolution(EGGSHeatingRDX.EGGSHeatingRDX):
 
         # configs
         'profile_729_readout', 'profile_729_SBC', 'config_experiment_list',
-
 
         # subharmonic specials
         'freq_global_offset_hz', 'freq_carrier_0_offset_hz', 'freq_carrier_1_offset_hz', 'ampl_eggs_heating_carrier_pct'
