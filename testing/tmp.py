@@ -56,6 +56,6 @@ class testarg34(EnvExperiment):
             self.dds.cpld.io_update.pulse_mu(8)
             self.core.break_realtime()
 
-            # finish
-            self.dds.sw.on()
+        # finish
+        self.dds.sw.on()
 
