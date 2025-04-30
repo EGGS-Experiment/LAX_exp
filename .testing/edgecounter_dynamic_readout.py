@@ -12,14 +12,14 @@ class AdaptiveReadoutTest(EnvExperiment):
     """
     Adaptive Readout Test
     Test adaptive, MLE-based readout (assuming a single-ion system).
-    Technique from Alice Burrell thesis (2010, Lucas/Oxford).
+    Technique from Alice H. Burrell thesis (2010, Lucas/Oxford).
     """
     kernel_invariants = {
         # devices
         "ttl", "ttl_chan_out", "ttl_chan_in",
 
         # timing
-        "time_readout_us", "time_readout_mu", "time_bin_us", "time_bin_mu", "time_bin_process_slack_mu",
+        "time_readout_us", "time_bin_us", "time_bin_mu",
 
         # config/binning
         "repetitions", "num_sub_bins",
@@ -63,11 +63,9 @@ class AdaptiveReadoutTest(EnvExperiment):
         self.ttl = self.get_device("ttl0_counter")
         self.ttl_chan_in =  self.ttl.channel
         self.ttl_chan_out = self.ttl.channel << 8
-        self.time_bin_process_slack_mu = self.core.seconds_to_mu(0.05 * us)
 
         self.time_bin_mu =      self.core.seconds_to_mu(self.time_bin_us * us)
         self.num_sub_bins =     self.time_readout_us // self.time_bin_us
-        self.time_readout_mu =  self.core.seconds_to_mu((self.time_bin_us * us) * self.num_sub_bins)
 
         # store dynamic variables
         self.run_error = False
@@ -80,7 +78,7 @@ class AdaptiveReadoutTest(EnvExperiment):
         self.count_rate_dark_bin =      self.count_rate_dark * ((self.time_bin_us * us) / (3. * ms))
 
         # calculate values to account for Bright => Dark decay
-        self._t_decay_const = (self.time_bin_us * us) / 1.149   # D-5/2 to S-12/2 decay time
+        self._t_decay_const = (self.time_bin_us * us) / 1.149   # D-5/2 to S-1/2 decay time
 
         # calculate likelihood values
         self._prepare_likelihoods()
@@ -100,7 +98,7 @@ class AdaptiveReadoutTest(EnvExperiment):
         )
 
         # precalculate factorials & likelihood functions
-        # note: use stirling's approx to 2nd order to reduce size of numbers b/c we reach 64b quickly)
+        # note: use stirling's approx to 2nd order to reduce size of numbers b/c we reach 64b quickly
         log_factorial_stirling = lambda n: (
                 math.log(n) * (n + 0.5) - n + 0.5*math.log(2.*math.pi) +
                 math.log(1. + 1./(12.*n))
@@ -108,8 +106,7 @@ class AdaptiveReadoutTest(EnvExperiment):
         likelihood_poisson =        lambda ld, n: ld ** n * math.exp(-ld) / math.factorial(n)
         log_likelihood_poisson =    lambda ld, n: n * math.log(ld) - ld - log_factorial_stirling(n)
 
-        # use log-likelihoods b/c numbers are very large BEFORE division
-        # this reduces numerical digitization errors
+        # use log-likelihoods to reduce numerical errors b/c numbers are very large BEFORE division
         self.likelihood_bright_n = np.array([
             likelihood_poisson(self.count_rate_bright_bin, n) if n <= 10
             else math.exp(log_likelihood_poisson(self.count_rate_bright_bin, n))
@@ -293,7 +290,7 @@ class AdaptiveReadoutTest(EnvExperiment):
                 break
 
         # ensure remaining count bin is cleared from input FIFO
-        self.ttl.fetch_timestamped_count(now_mu())
+        rtio_input_data(self.ttl_chan_in)
         delay_mu(5000)
         return ion_state, total_counts, bin_counter, p_b, p_d
 

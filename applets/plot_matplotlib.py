@@ -1,4 +1,3 @@
-import numpy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -93,11 +92,11 @@ class MatplotlibPlot(QMainWindow):
         errors = np.array(self.get_from_dict(results, 'errors', None))
         fit_xs = np.array(self.get_from_dict(results, 'fit_x', None))
         fit_ys = np.array(self.get_from_dict(results, 'fit_y', None))
-        x_labels = numpy.array(self.get_from_dict(results, 'subplot_x_labels', None))
-        y_labels = numpy.array(self.get_from_dict(results, 'subplot_y_labels', None))
-        titles = numpy.array(self.get_from_dict(results, 'subplot_titles', None))
-        ylims = numpy.array(self.get_from_dict(results, 'ylims', None))
-        rid = numpy.array(self.get_from_dict(results, 'rid', None))
+        x_labels = np.array(self.get_from_dict(results, 'subplot_x_labels', None))
+        y_labels = np.array(self.get_from_dict(results, 'subplot_y_labels', None))
+        titles = np.array(self.get_from_dict(results, 'subplot_titles', None))
+        ylims = np.array(self.get_from_dict(results, 'ylims', None))
+        rid = np.array(self.get_from_dict(results, 'rid', None))
 
         # inform user of unused keys and data
         unused_keys = [key for key in results.keys() if key not in self.default_keys]
@@ -204,7 +203,7 @@ class MatplotlibPlot(QMainWindow):
         else:
             fit_x = None
 
-        if not isinstance(self.sc.axes, numpy.ndarray):
+        if not isinstance(self.sc.axes, np.ndarray):
             self.sc.axes = np.array([self.sc.axes])
 
         # get features of the plot legend
@@ -254,7 +253,6 @@ class MatplotlibPlot(QMainWindow):
             plot_element : list of element (data or label)
             ind: index of the label in the list
         """
-
         # see if plot label comes in array
         if isinstance(plot_element, np.ndarray):
             # check if array is filled with all Nones
