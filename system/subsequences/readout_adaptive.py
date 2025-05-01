@@ -59,20 +59,20 @@ class ReadoutAdaptive(LAXSubsequence):
         """
         '''PREPARE PARAMETERS'''
         time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
-        count_rate_bright = self.get_parameter('count_rate_bright_3ms', group='pmt', override=False)
-        count_rate_dark =   self.get_parameter('count_rate_dark_3ms', group='pmt', override=False)
+        # rescale count rates for given bin times
+        count_rate_bright_bin = (self.get_parameter('count_rate_bright_3ms', group='pmt', override=False) *
+                                 (self.time_bin_us * us) / (3. * ms))
+        count_rate_dark_bin =   (self.get_parameter('count_rate_dark_3ms', group='pmt', override=False) *
+                                 (self.time_bin_us * us) / (3. * ms))
 
         '''PREPARE HARDWARE'''
-        self.ttl_chan_in =  self.pmt.channel
-        self.ttl_chan_out = self.pmt.channel << 8
+        self.ttl_chan_in =  self.pmt.pmt.channel
+        self.ttl_chan_out = self.pmt.pmt.channel << 8
 
         self.time_bin_mu =  self.core.seconds_to_mu(self.time_bin_us * us)
         self.num_sub_bins = time_readout_us // self.time_bin_us
 
         '''PRECALCULATE STATISTICS'''
-        # rescale the count rates for the given bin times
-        count_rate_bright_bin = count_rate_bright * ((self.time_bin_us * us) / (3. * ms))
-        count_rate_dark_bin =   count_rate_dark * ((self.time_bin_us * us) / (3. * ms))
         # calculate values to account for Bright => Dark decay
         self._t_decay_const = self.time_bin_us * us / 1.149   # D-5/2 to S-1/2 decay time
 
@@ -86,7 +86,7 @@ class ReadoutAdaptive(LAXSubsequence):
 
         # calculate likelihood distributions and store
         likelihood_bright_n, likelihood_dark_n = self._prepare_likelihoods(
-            count_rate_bright_bin, count_rate_bright_bin, self.max_counts_bin
+            count_rate_bright_bin, count_rate_dark_bin, self.max_counts_bin
         )
         self.set_dataset("likelihood_bright_n", likelihood_bright_n)
         self.setattr_dataset("likelihood_bright_n")
@@ -147,9 +147,6 @@ class ReadoutAdaptive(LAXSubsequence):
             P_bright: the likelihood that the ion was dark, given the count "trajectory" detected.
         """
         '''PREPARE'''
-        # get fiducial start time
-        time_start_mu = now_mu()
-
         # instantiate variables
         ion_state =     -1
         total_counts =  0
@@ -164,7 +161,10 @@ class ReadoutAdaptive(LAXSubsequence):
         self.pump.on()
         self.repump_cooling.on()
 
-        # start initial sub-bin (to give us slack later on)
+        # get fiducial start time
+        time_start_mu = now_mu()
+
+        # start initial sub-bin (to give slack later on)
         at_mu(time_start_mu)
         rtio_output(self.ttl_chan_out, CONFIG_COUNT_RISING | CONFIG_RESET_TO_ZERO)
         delay_mu(self.time_bin_mu)
@@ -223,9 +223,9 @@ class ReadoutAdaptive(LAXSubsequence):
         self.core.break_realtime()
 
         # eat any remaining count events
-        count_events_remaining = self.ttl.fetch_timestamped_count(now_mu() + 10000)
+        count_events_remaining = self.pmt.fetch_timestamped_count(now_mu() + 10000)
         while count_events_remaining[0] != -1:
-            count_events_remaining = self.ttl.fetch_timestamped_count(now_mu() + 10000)
+            count_events_remaining = self.pmt.fetch_timestamped_count(now_mu() + 10000)
             delay_mu(10000)
         self.core.break_realtime()
 

@@ -22,19 +22,19 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=1e5, precision=0, step=1, min=1, max=1e9))
+        self.setattr_argument("repetitions", NumberValue(default=1e4, precision=0, step=1, min=1, max=1e9))
 
         # sequence configuration
         self.setattr_argument("enable_doppler", BooleanValue(default=False))
-        self.setattr_argument("enable_qubit",   BooleanValue(default=False))
+        self.setattr_argument("enable_qubit",   BooleanValue(default=True))
 
         # adaptive readout parameters
         self.setattr_argument("time_bin_us",        NumberValue(default=10, precision=3, step=5, min=0.1, max=10000), group="readout")
         self.setattr_argument("error_threshold",    NumberValue(default=1e-2, precision=8, step=1e-2, min=1e-10, max=1.), group="readout")
 
         # qubit parameters
-        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.3977, precision=6, step=1, min=50., max=400.), group="qubit")
-        self.setattr_argument("time_qubit_us",  NumberValue(default=5, precision=2, step=5, min=0.1, max=10000), group="qubit")
+        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.1072, precision=6, step=1, min=50., max=400.), group="qubit")
+        self.setattr_argument("time_qubit_us",  NumberValue(default=1.5, precision=2, step=5, min=0.1, max=10000), group="qubit")
         self.setattr_argument("att_qubit_db",   NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="qubit")
 
         # relevant devices
@@ -112,10 +112,11 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
                 self.qubit.off()
 
             # adaptive readout
-            results = self._readout()
+            results = self.readout_subsequence.run()
 
             # finish up and add slack
-            self.update_results(results)
+            self.update_results(results[0], results[1], results[2],
+                                results[3], results[4])
             delay_mu(10000)
 
             # periodically check termination
@@ -134,7 +135,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
         """
         Print summary statistics.
         """
-        print("\n########## RESULT SUMMARY ##########")
+        print("############# RESULT SUMMARY #############")
         # collate data and ensure correct shape for processing
         data_bright =   self.results[self.results[:, 0] == 1]
         data_dark =     self.results[self.results[:, 0] == 0]
