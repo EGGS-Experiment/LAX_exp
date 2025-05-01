@@ -39,10 +39,6 @@ class ReadoutAdaptive(LAXSubsequence):
             error_threshold: error threshold (fractional) required to determine ion state.
             sigma_max: number of stdevs above mean to account for when processing counts.
         """
-        # check argument validity
-        if time_bin_us <= 5:
-            raise ValueError("Invalid bin timing for ReadoutAdaptive. time_bin_us must be >5us.")
-
         # set subsequence arguments
         self.time_bin_us =      time_bin_us
         self.error_threshold =  error_threshold
@@ -57,6 +53,10 @@ class ReadoutAdaptive(LAXSubsequence):
         """
         Prepare & precompute experimental values.
         """
+        '''SANITIZE INPUT'''
+        # timing/latencies become challenging below/near 5us bin times
+        if self.time_bin_us <= 5: raise ValueError("Invalid bin timing for ReadoutAdaptive. time_bin_us must be >5us.")
+
         '''PREPARE PARAMETERS'''
         time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
         # rescale count rates for given bin times
