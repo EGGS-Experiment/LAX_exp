@@ -11,7 +11,8 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
     """
     Calibration: Adaptive Readout
 
-    todo: document
+    Test adaptive, MLE-based readout (assuming a single-ion system).
+    Technique from Alice H. Burrell thesis (2010, Lucas/Oxford).
     """
     name = 'Calibration Adaptive Readout'
     kernel_invariants = {
@@ -22,7 +23,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=1e4, precision=0, step=1, min=1, max=1e9))
+        self.setattr_argument("repetitions", NumberValue(default=10000, precision=0, step=1, min=1, max=100000000))
 
         # sequence configuration
         self.setattr_argument("enable_doppler", BooleanValue(default=False))
@@ -76,7 +77,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions, 5)
+        return (self.repetitions, 3)
 
 
     # MAIN SEQUENCE
@@ -115,8 +116,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
             results = self.readout_subsequence.run()
 
             # finish up and add slack
-            self.update_results(results[0], results[1], results[2],
-                                results[3], results[4])
+            self.update_results(results[0], results[1], results[2])
             delay_mu(50000)
 
             # periodically check termination
@@ -144,24 +144,34 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
         if len(data_dark) == 0:     data_dark = np.ones((1, np.shape(self.results)[1])) * np.nan
         if len(data_idk) == 0:      data_idk = np.ones((1, np.shape(self.results)[1])) * np.nan
 
-        # todo: store summary statistics as datasets
+        # calculate summary statistics and store as dataset
+        num_bright, num_dark, num_idk = (len(data_bright[:, 0]), len(data_dark[:, 0]), len(data_idk[:, 0]))
+        det_time_bright, det_time_std_bright, det_time_dark, det_time_std_dark = (
+            self.core.mu_to_seconds(np.mean(data_bright[:, 2])), self.core.mu_to_seconds(np.std(data_bright[:, 2])),
+            self.core.mu_to_seconds(np.mean(data_dark[:, 2])), self.core.mu_to_seconds(np.std(data_dark[:, 2]))
+        )
+        rates_bright, rates_dark, rates_idk = tuple(
+            arr[:, 1] / (self.core.mu_to_seconds(arr[:, 2])) * 3e-3
+            for arr in (data_bright, data_dark, data_idk)
+        )
+        self.set_dataset("det_time_s_bright_dark", [det_time_bright, det_time_dark])
+        self.set_dataset("det_time_std_s_bright_dark", [det_time_std_bright, det_time_std_dark])
+        self.set_dataset("count_rate_3ms_bright_dark_idk", [np.mean(rates_bright), np.mean(rates_dark), np.mean(rates_idk)])
+        self.set_dataset("count_rate_std_3ms_bright_dark_idk", [np.std(rates_bright), np.std(rates_dark), np.std(rates_idk)])
 
         print("Discrimination Results (%, total events):"
               "\n\tBright:\t\t{:.3f}% ({:d})\n\tDark:\t\t{:.3f}% ({:d})\n\tIndeterminate:\t{:.3f}% ({:d})\n".format(
-            len(data_bright[:, 0]) / len(self.results) * 100., len(data_bright[:, 0]),
-            len(data_dark[:, 0]) / len(self.results) * 100., len(data_dark[:, 0]),
-            len(data_idk[:, 0]) / len(self.results) * 100., len(data_idk[:, 0])
+            num_bright / self.repetitions * 100., num_bright,
+            num_dark / self.repetitions * 100., num_dark,
+            num_idk / self.repetitions * 100., num_idk
         ))
-
+        print("Time to Detection (us):"
+              "\n\tBright:\t\t{:.1f} +/- {:.3g}\n\tDark:\t\t{:.1f}  +/- {:.3g}\n".format(
+            det_time_bright / us, det_time_std_bright / us, det_time_dark / us, det_time_std_dark / us
+        ))
         print("Count Rates (per 3ms):"
               "\n\tBright:\t\t{:.2f} +/- {:.3g}\n\tDark:\t\t{:.2f} +/- {:.3g}\n\tIndeterminate:\t{:.2f} +/- {:.3g}\n".format(
-            np.mean(data_bright[:, 1] / data_bright[:, 2] * (3e-3 / (self.time_bin_us * us))), np.std(data_bright[:, 1] / data_bright[:, 2] * (3e-3 / (self.time_bin_us * us))),
-            np.mean(data_dark[:, 1] / data_dark[:, 2] * (3e-3 / (self.time_bin_us * us))), np.mean(data_dark[:, 1] / data_dark[:, 2] * (3e-3 / (self.time_bin_us * us))),
-            np.mean(data_idk[:, 1] / data_idk[:, 2] * (3e-3 / (self.time_bin_us * us))), np.mean(data_idk[:, 1] / data_idk[:, 2] * (3e-3 / (self.time_bin_us * us)))
-        ))
-
-        print("Time to Detection (us, # bins):"
-              "\n\tBright:\t\t{:.1f} +/- {:.3g} ({:.1f})\n\tDark:\t\t{:.1f}  +/- {:.3g} ({:.3f})\n".format(
-            np.mean(data_bright[:, 2]) * self.time_bin_us, np.std(data_bright[:, 2]) * self.time_bin_us, np.mean(data_bright[:, 2]),
-            np.mean(data_dark[:, 2]) * self.time_bin_us, np.std(data_dark[:, 2]) * self.time_bin_us, np.mean(data_dark[:, 2])
+            np.mean(rates_bright), np.std(rates_bright),
+            np.mean(rates_dark), np.std(rates_dark),
+            np.mean(rates_idk), np.std(rates_idk)
         ))

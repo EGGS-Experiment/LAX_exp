@@ -134,17 +134,17 @@ class ReadoutAdaptive(LAXSubsequence):
     HARDWARE METHODS
     '''
     @kernel(flags={"fast-math"})
-    def run(self) -> TTuple([TInt32, TInt32, TInt32, TFloat, TFloat]):
+    def run(self) -> TTuple([TInt32, TInt32, TInt64]):
         """
         Dynamically reads out the ion state using an adaptive maximum likelihood technique.
         Returns: a tuple of (ion_state, total_counts, elapsed_bins, P_bright, P_dark).
-            ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e. the
-                bright/dark discrimination criteria was not met. 0 means "dark." 1 means "bright."
+            ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e.
+                bright/dark discrimination criteria not met. 0 means "dark." 1 means "bright."
             total_counts: the total number of counts detected during readout. This number will depend on the number
                 of bins that were required to determine the ion state.
-            elapsed_bins: the number of constituent bins required to determine the ion state.
-            P_bright: the likelihood that the ion was bright, given the count "trajectory" detected.
-            P_bright: the likelihood that the ion was dark, given the count "trajectory" detected.
+            elapsed_time: amount of time (in machine units) required to determine the ion state.
+            P_bright: likelihood that ion was bright, given the detected count "trajectory".
+            P_dark: likelihood that ion was dark, given the detected count "trajectory".
         """
         '''PREPARE'''
         # instantiate variables
@@ -213,7 +213,7 @@ class ReadoutAdaptive(LAXSubsequence):
         # ensure remaining count bin is cleared from input FIFO
         rtio_input_data(self.ttl_chan_in)
         delay_mu(5000)
-        return ion_state, total_counts, bin_counter, p_b, p_d
+        return ion_state, total_counts, (bin_counter * self.time_bin_mu)
 
     @kernel(flags={"fast-math"})
     def cleanup_subsequence(self) -> TNone:
