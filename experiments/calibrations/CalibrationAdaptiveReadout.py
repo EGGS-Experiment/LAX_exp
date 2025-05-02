@@ -29,7 +29,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
         self.setattr_argument("enable_qubit",   BooleanValue(default=True))
 
         # adaptive readout parameters
-        self.setattr_argument("time_bin_us",        NumberValue(default=10, precision=3, step=5, min=0.1, max=10000), group="readout")
+        self.setattr_argument("time_bin_us",        NumberValue(default=8, precision=3, step=5, min=0.1, max=10000), group="readout")
         self.setattr_argument("error_threshold",    NumberValue(default=1e-2, precision=8, step=1e-2, min=1e-10, max=1.), group="readout")
 
         # qubit parameters
@@ -117,7 +117,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
             # finish up and add slack
             self.update_results(results[0], results[1], results[2],
                                 results[3], results[4])
-            delay_mu(10000)
+            delay_mu(50000)
 
             # periodically check termination
             if trial_num % 100 == 1:
