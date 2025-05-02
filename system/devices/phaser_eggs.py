@@ -23,7 +23,7 @@ class PhaserEGGS(LAXDevice):
         "t_sample_mu", "t_frame_mu", "t_output_delay_mu",
         "channel",
         "freq_center_hz", "phase_inherent_ch1_turns", "time_latency_ch1_system_ns",
-        "time_rf_servo_holdoff_mu", "time_switch_holdoff_mu"
+        "time_phaser_holdoff_mu"
     }
 
     def build_device(self):
@@ -46,7 +46,7 @@ class PhaserEGGS(LAXDevice):
         # holdoff delay before & after phaser pulses (e.g. to allow RF servo to re-lock, to account for switch rise times)
         self.time_phaser_holdoff_mu = self.get_parameter("time_phaser_holdoff_us", group="eggs", conversion_function=us_to_mu)
         # ensure delays are multiples of phaser frame period
-        self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.time_frame_mu) * self.time_frame_mu)
+        self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.t_frame_mu) * self.t_frame_mu)
 
     @kernel(flags={'fast-math'})
     def initialize_device(self) -> TNone:
@@ -211,7 +211,7 @@ class PhaserEGGS(LAXDevice):
             self.int_hold.on()
 
         # add holdoff delay to account for integrator hold, switch rise/fall times (25us for ZSW2-272VDHR+)
-        delay_mu(self.time_phaser_holdoff_us)
+        delay_mu(self.time_phaser_holdoff_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_stop(self) -> TNone:
@@ -251,7 +251,7 @@ class PhaserEGGS(LAXDevice):
             self.int_hold.off()
 
         # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_phaser_holdoff_us)
+        delay_mu(self.time_phaser_holdoff_mu)
 
         # switch off EGGS attenuators to prevent phaser leakage
         at_mu(self.phaser.get_next_frame_mu())

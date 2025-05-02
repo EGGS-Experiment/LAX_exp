@@ -331,6 +331,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
 
         # predeclare variables ahead of time
         time_start_mu = now_mu() & ~0x7
+        ion_state = (-1, 0, np.int64(0))
 
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
@@ -371,28 +372,28 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                     time_start_mu = now_mu() & ~0x7
 
                     '''CAT #1'''
-                    # pulse 0: sigma_x #1
+                    # cat1 - sigma_x (displacement vs cat)
                     if self.enable_cat1_sigmax:
                         self.pulse_sigmax(time_start_mu, 0)
 
-                    # pulse 1: cat 1
+                    # cat1 - bichromatic cat pulse
                     if self.enable_cat1_bichromatic:
                         self.pulse_bichromatic(time_start_mu, self.time_cat1_bichromatic_mu,
                                                self.phases_pulse1_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                    # pulse 2a: force herald via 397nm fluorescence
+                    # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
-                        state, _, _ = self.readout_adaptive_subsequence.run()
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(20000)
                         self.pump.off()
-                        # ensure dark state (flag is 0)
-                        if state != 0:
-                            continue
 
-                        # add minor slack if we proceed
+                        # ensure dark state (flag is 0)
+                        if ion_state[0] != 0: continue
+                        # otherwise, add minor slack and proceed
                         at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
-                    # pulse 2b: repump via 854
+                    # cat1 - quench spin-up to spin-down; can be used to create mixed state
                     if self.enable_cat1_quench:
                         self.pump.readout()
                         self.repump_qubit.on()
@@ -400,29 +401,28 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                         self.repump_qubit.off()
 
                     '''CAT #2'''
-                    # pulse 3: sigma_x #2
+                    # cat2 - sigma_x (displacement vs cat)
                     if self.enable_cat2_sigmax:
                         self.pulse_sigmax(time_start_mu, self.phase_cat2_sigmax_pow)
 
-                    # pulse 4a: cat #2
+                    # cat2 - bichromatic cat pulse
                     if self.enable_cat2_bichromatic:
                         self.pulse_bichromatic(time_start_mu, time_cat2_cat_mu,
                                                cat4_phases,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                    # pulse 4a: force herald via 397nm
+                    # cat2 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat2_herald:
-                        state, _, _ = self.readout_adaptive_subsequence.run_dma()
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(20000)
                         self.pump.off()
 
                         # ensure dark state (flag is 0)
-                        if state != 0:
-                            continue
-
-                        # add minor slack if we proceed
+                        if ion_state[0] != 0: continue
+                        # otherwise, add minor slack and proceed
                         at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
-                    # pulse 4b: repump via 854
+                    # cat2 - quench spin-up to spin-down; can be used to create mixed state
                     if self.enable_cat2_quench:
                         self.pump.readout()
                         self.repump_qubit.on()
@@ -433,7 +433,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                     break
 
                 '''READOUT & STORE RESULTS'''
-                # pulse 5: rabiflop/readout
+                # 729nm based readout (sideband ratio, rabi flopping)
                 if self.enable_729_readout:
                     self.pulse_readout(time_729_readout_mu, freq_729_readout_ftw)
 

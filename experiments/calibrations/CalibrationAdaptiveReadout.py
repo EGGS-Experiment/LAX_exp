@@ -167,7 +167,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
         ))
         print("Time to Detection (us):"
               "\n\tBright:\t\t{:.1f} +/- {:.3g}\n\tDark:\t\t{:.1f}  +/- {:.3g}\n".format(
-            det_time_bright, det_time_std_bright, det_time_dark, det_time_std_dark
+            det_time_bright / us, det_time_std_bright / us, det_time_dark / us, det_time_std_dark / us
         ))
         print("Count Rates (per 3ms):"
               "\n\tBright:\t\t{:.2f} +/- {:.3g}\n\tDark:\t\t{:.2f} +/- {:.3g}\n\tIndeterminate:\t{:.2f} +/- {:.3g}\n".format(
