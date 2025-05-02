@@ -3,6 +3,7 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
+# todo: add function to dynamically change TRF frequency
 
 
 class PhaserEGGS(LAXDevice):
@@ -30,7 +31,6 @@ class PhaserEGGS(LAXDevice):
         self.t_sample_mu =          int64(40)
         self.t_frame_mu =           int64(320)
         self.t_output_delay_mu =    int64(1953)
-        # todo: max phaser sample rate
 
     def prepare_device(self):
         # alias both phaser output channels
@@ -43,13 +43,10 @@ class PhaserEGGS(LAXDevice):
         self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs', override=False)
         self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='eggs', override=False)
 
-        # get holdoff delay after phaser pulses to allow RF servo to re-lock
-        self.time_rf_servo_holdoff_mu = self.get_parameter("time_rf_servo_holdoff_us", group="eggs",
-                                                           conversion_function=us_to_mu)
-
-        # get holdoff delay after setting TTL switches
-        self.time_switch_holdoff_mu = self.get_parameter("time_switch_holdoff_us", group="eggs",
-                                                         conversion_function=us_to_mu)
+        # holdoff delay before & after phaser pulses (e.g. to allow RF servo to re-lock, to account for switch rise times)
+        self.time_phaser_holdoff_mu = self.get_parameter("time_phaser_holdoff_us", group="eggs", conversion_function=us_to_mu)
+        # ensure delays are multiples of phaser frame period
+        self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.time_frame_mu) * self.time_frame_mu)
 
     @kernel(flags={'fast-math'})
     def initialize_device(self) -> TNone:
@@ -128,7 +125,7 @@ class PhaserEGGS(LAXDevice):
         '''
         # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
         phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.time_latency_ch1_system_ns * ns)
-        delay_mu(100000) # add slack
+        delay_mu(99840) # add slack (320ns multiple)
 
         '''
         SET CARRIER FREQUENCY
@@ -146,6 +143,22 @@ class PhaserEGGS(LAXDevice):
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[1].set_duc_phase(phase_ch1_turns)
         self.phaser.duc_stb()
+
+        # # get fiducial start time
+        # time_start_mu = self.phaser.get_next_frame_mu()
+        #
+        # # set carrier offset frequency via the DUC and strobe updates for both channels
+        # at_mu(time_start_mu)
+        # self.phaser.channel[0].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
+        # at_mu(time_start_mu + self.t_frame_mu)
+        # self.phaser.channel[1].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
+        # at_mu(time_start_mu + 2 * self.t_frame_mu)
+        # self.phaser.duc_stb()
+        #
+        # # set DUC phase delay to compensate for inter-channel latency
+        # at_mu(time_start_mu + 3 * self.t_frame_mu)
+        # self.phaser.channel[1].set_duc_phase(phase_ch1_turns)
+        # self.phaser.duc_stb()
 
         '''
         SET OSCILLATOR (i.e. sideband) FREQUENCIES
@@ -182,23 +195,23 @@ class PhaserEGGS(LAXDevice):
             :param att_mu_ch1: phaser CH1 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
         """
         # EGGS - START/SETUP
-        # set phaser attenuators - warning: creates turn on glitch
+        # set phaser attenuators - warning: creates turn on glitch, must do while switches are closed
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att_mu(att_mu_ch0)
-        delay_mu(self.t_sample_mu)
+        delay_mu(self.t_frame_mu)
         self.phaser.channel[1].set_att_mu(att_mu_ch1)
 
+        # add extra delay to ensure turn-on glitches are suppressed by switches
+        delay_mu(1920)  # 6 frame periods
+
+        # open phaser amp switches and activate integrator hold
         with parallel:
-            # open phaser amp switches (add 25us delay for switches to fully open to prevent damage)
             self.ch0_amp_sw.on()
             self.ch1_amp_sw.on()
-            # activate integrator hold
             self.int_hold.on()
 
-        # add delay time after integrator hold to reduce effect of turn-on glitches
-        delay_mu(self.time_rf_servo_holdoff_mu)
-        # note: need 25us delay b/c max rise/fall time of ZSW2-272VDHR+ switches
-        delay_mu(self.time_switch_holdoff_mu)
+        # add holdoff delay to account for integrator hold, switch rise/fall times (25us for ZSW2-272VDHR+)
+        delay_mu(self.time_phaser_holdoff_us)
 
     @kernel(flags={"fast-math"})
     def phaser_stop(self) -> TNone:
@@ -207,7 +220,7 @@ class PhaserEGGS(LAXDevice):
         Set maximum attenuation to prevent output leakage.
         Can be used following an EGGS pulse to stop the phaser.
         """
-        # disable eggs phaser output
+        # disable phaser oscillator output
         with parallel:
             self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
@@ -229,21 +242,20 @@ class PhaserEGGS(LAXDevice):
             self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
             delay_mu(self.t_sample_mu)
 
-        # stop phaser amp switches - add extra delay b/c phaser pipeline pipeline latency
-        delay_mu(2500)
+        # add delay for oscillator updates to account for pipeline latency
+        delay_mu(2560)  # 8 frame periods
+        # stop phaser amp switches & deactivate integrator hold
         with parallel:
             self.ch0_amp_sw.off()
             self.ch1_amp_sw.off()
-            # deactivate integrator hold
             self.int_hold.off()
 
         # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_rf_servo_holdoff_mu)
+        delay_mu(self.time_phaser_holdoff_us)
 
         # switch off EGGS attenuators to prevent phaser leakage
-        delay_mu(self.t_sample_mu)
+        at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att_mu(0x00)
-        delay_mu(self.t_sample_mu)
+        delay_mu(self.t_frame_mu)
         self.phaser.channel[1].set_att_mu(0x00)
-
 

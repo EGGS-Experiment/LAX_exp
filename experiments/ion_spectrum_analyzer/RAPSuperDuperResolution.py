@@ -11,6 +11,7 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
+
 class RAPSuperDuperResolution(LAXExperiment, Experiment):
     """
     Experiment: RAP Super Duper Resolution
