@@ -6,7 +6,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout, QubitRAP
 )
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
@@ -24,20 +24,16 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
     name = 'EGGS Heating RDX'
     kernel_invariants = {
         # hardware parameters
-        'freq_sideband_readout_ftw_list', 'time_readout_mu_list', 'att_eggs_heating_mu',
-        'freq_eggs_carrier_hz_list', 'freq_eggs_secular_hz_list',
-        'phase_eggs_heating_rsb_turns_list', 'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns',
-        'num_configs',
-
-        # EGGS/phaser related
+        'att_eggs_heating_mu', 'freq_eggs_secular_hz_list', 'phase_eggs_heating_rsb_turns_list',
+        'phase_eggs_heating_ch1_turns_list', 'waveform_index_to_phase_rsb_turns', 'num_configs',
         'waveform_index_to_pulseshaper_vals',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
-        'rescue_subsequence',
+        'rescue_subsequence', 'rap_subsequence', 'enable_RAP',
 
         # configs
-        'profile_729_readout', 'profile_729_SBC', 'config_experiment_list'
+        'profile_729_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -45,10 +41,12 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config", BooleanValue(default=True))
         self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500))
+        self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
 
         # allocate relevant beam profiles
         self.profile_729_readout =  0
         self.profile_729_SBC =      1
+        self.profile_729_RAP =      2
 
         # get subsequences
         self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
@@ -60,6 +58,23 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
+
+        # Sideband Readout - extra argument
+        self.setattr_argument("time_readout_us_list", Scannable(
+                                                            default=[
+                                                                ExplicitScan([120.5]),
+                                                                RangeScan(0, 1500, 100, randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, precision=5
+                                                        ), group='sideband_readout')
+
+        # RAP-based readout
+        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group="RAP")
+        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4), group='RAP')
+        self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1), group="RAP")
 
         # EGGS RF
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
@@ -81,14 +96,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                                                                     ), group='EGGS_Heating.frequencies')
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_readout_us_list",               Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([122.9]),
-                                                                            RangeScan(0, 1500, 100, randomize=True),
-                                                                        ],
-                                                                        global_min=1, global_max=100000, global_step=1,
-                                                                        unit="us", scale=1, precision=5
-                                                                    ), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("time_eggs_heating_us", NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='EGGS_Heating.waveform.time_phase')
         self.setattr_argument("phase_eggs_heating_rsb_turns_list", Scannable(
                                                                         default=[
@@ -120,50 +127,54 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='EGGS_Heating.pulse_shaping')
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='EGGS_Heating.pulse_shaping')
 
-        # EGGS RF - waveform - PSK (Phase-shift Keying)
+        # EGGS RF - waveform - PSK (Phase-Shift Keying)
         self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group='EGGS_Heating.waveform.psk')
         self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=3, precision=0, step=10, min=1, max=100), group='EGGS_Heating.waveform.psk')
 
-        # get relevant devices
+        # instantiate RAP here
+        self.rap_subsequence = QubitRAP(
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
+            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+        )
+        # get relevant devices & instantiate helper objects
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
-
-        # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
-        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
+        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.])) # phase delays set field geometries (0.5 for osc_2 => dipole)
 
     def prepare_experiment(self):
         """
         Prepare experimental values.
         """
         '''SANITIZE/VALIDATE INPUTS & CHECK ERRORS'''
-        # ensure phaser amplitudes sum to less than 100%
-        total_phaser_channel_amplitude = (self.ampl_eggs_heating_rsb_pct +
-                                          self.ampl_eggs_heating_bsb_pct +
-                                          self.ampl_eggs_heating_carrier_pct)
-        if total_phaser_channel_amplitude > 100.:
-            raise ValueError("Error: phaser oscillator amplitudes exceed 100%.")
-
-        # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_output_freqs_hz = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
-        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
-        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
-        if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
-            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
+        self._prepare_argument_checks()
 
         '''SUBSEQUENCE PARAMETERS'''
-        # get readout values from sidebandreadout subsequence
-        self.freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-        self.time_readout_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                              for time_us in self.time_readout_us_list])
+        # prepare RAP arguments
+        self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
+        self.freq_rap_center_ftw = hz_to_ftw(self.freq_rap_center_mhz * MHz)
+        self.freq_rap_dev_ftw = hz_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
+
+        # configure readout method
+        if self.readout_type == 'RAP':
+            self.enable_RAP = True
+            freq_sideband_readout_ftw_list =    np.array([self.freq_rap_center_ftw], dtype=np.int32)
+            time_readout_mu_list =              np.array([self.time_rap_mu], dtype=np.int64)
+        elif self.readout_type == 'Sideband Ratio':
+            self.enable_RAP = False
+            freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+            time_readout_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
+                                             for time_us in self.time_readout_us_list])
+        else:
+            raise ValueError("Invalid readout type. Must be one of (Sideband Ratio, RAP).")
 
         '''EGGS HEATING - CONFIG'''
         # convert attenuation from dB to machine units
         self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
 
         # convert build arguments to appropriate values and format as numpy arrays
-        self.freq_eggs_carrier_hz_list = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
+        freq_eggs_carrier_hz_list = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_eggs_secular_hz_list = np.array(list(self.freq_eggs_heating_secular_khz_list)) * kHz
         self.phase_eggs_heating_rsb_turns_list = np.array(list(self.phase_eggs_heating_rsb_turns_list))
         self.phase_eggs_heating_ch1_turns_list = np.array(list(self.phase_eggs_heating_ch1_turns_list))
@@ -173,22 +184,22 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
         # create config data structure
         self.config_experiment_list = np.zeros((
-            len(self.freq_sideband_readout_ftw_list) *
-            len(self.freq_eggs_carrier_hz_list) *
+            len(freq_sideband_readout_ftw_list) *
+            len(freq_eggs_carrier_hz_list) *
             len(self.freq_eggs_secular_hz_list) *
             len(self.phase_eggs_heating_rsb_turns_list) *
             len(self.phase_eggs_heating_ch1_turns_list) *
-            len(self.time_readout_mu_list),
+            len(time_readout_mu_list),
         6), dtype=float)
         # note: sideband readout frequencies are at the end of the meshgrid
         # to ensure successive rsb/bsb measurements are adjacent
         self.config_experiment_list[:, [1, 2, -3, -2, -1, 0]] = np.stack(np.meshgrid(
-            self.freq_eggs_carrier_hz_list,
+            freq_eggs_carrier_hz_list,
             self.freq_eggs_secular_hz_list,
             self.waveform_index_to_phase_rsb_turns,
             self.phase_eggs_heating_ch1_turns_list,
-            self.time_readout_mu_list,
-            self.freq_sideband_readout_ftw_list),
+            time_readout_mu_list,
+            freq_sideband_readout_ftw_list),
         -1).reshape(-1, 6)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
@@ -273,10 +284,29 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         # self.set_dataset("waveforms", self.waveform_index_to_pulseshaper_vals)
         # tmp remove
 
+    def _prepare_argument_checks(self):
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure phaser amplitudes sum to less than 100%
+        total_phaser_channel_amplitude = (self.ampl_eggs_heating_rsb_pct +
+                                          self.ampl_eggs_heating_bsb_pct +
+                                          self.ampl_eggs_heating_carrier_pct)
+        if total_phaser_channel_amplitude > 100.:
+            raise ValueError("Error: phaser oscillator amplitudes exceed 100%.")
+
+        # ensure phaser output frequency falls within valid DUC bandwidth
+        phaser_output_freqs_hz = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
+        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
+        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
+        if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
+            raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
+
     @property
     def results_shape(self):
         return (self.repetitions * self.sub_repetitions * len(self.config_experiment_list),
                 7)
+
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
@@ -286,6 +316,11 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
+
+        # configure RAP pulse
+        if self.enable_RAP:
+            self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
+            delay_mu(50000)
 
         ### PHASER INITIALIZATION ###
         self.phaser_record()
@@ -316,6 +351,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
             # sweep experiment configurations
             while _config_iter < self.num_configs:
+                self.core.break_realtime()
 
                 '''CONFIGURE'''
                 config_vals = self.config_experiment_list[_config_iter]
@@ -330,32 +366,37 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 # get corresponding RSB phase and waveform ID from the index
                 phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[phase_rsb_index]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_rsb_index]
-                self.core.break_realtime()
+                delay_mu(50000)
 
                 # configure EGGS tones and set readout frequency
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
                                                      [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.],
                                                      phase_ch1_turns)
-                self.core.break_realtime()
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(25000)
+                if not self.enable_RAP:
+                    self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                      profile=self.profile_729_readout)
+                    delay_mu(25000)
 
                 '''STATE PREPARATION'''
-                # initialize ion in S-1/2 state
+                # initialize ion in S-1/2 state & sideband cool to ground state
                 self.initialize_subsequence.run_dma()
-                # sideband cool
                 self.sidebandcool_subsequence.run_dma()
 
                 '''EGGS HEATING'''
                 self.phaser_run(waveform_id)
 
                 '''READOUT'''
-                self.sidebandreadout_subsequence.run_time(time_readout_mu)
+                # readout via RAP or sideband ratio
+                if self.enable_RAP:
+                    self.qubit.set_att_mu(self.att_rap_mu)
+                    self.rap_subsequence.run(time_readout_mu)
+                else:
+                    self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
 
-                # update dataset
+                # get counts & update dataset
+                counts = self.readout_subsequence.fetch_count()
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -368,10 +409,8 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
-                # resuscitate ion
+                # resuscitate ion & death detection
                 self.rescue_subsequence.resuscitate()
-
-                # death detection
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()
 
