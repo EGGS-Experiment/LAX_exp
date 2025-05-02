@@ -5,7 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, Readout, RescueIon
+    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon
 )
 
 import math
@@ -23,8 +23,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     """
     name = 'Characteristic Reconstruction'
     kernel_invariants = {
+        # subsequences
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'readout_adaptive_subsequence',
+        'rescue_subsequence',
+
         # hardware objects
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'singlepass0', 'singlepass1',
 
         # hardware parameters
@@ -33,9 +36,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
         'time_force_herald_slack_mu',
 
-        # cat-state parameters
-        'ampls_cat_asf', 'atts_cat_mu', 'time_pulse1_cat_mu', 'phases_pulse1_cat_pow', 'phase_characteristic_axis_pow',
-        'phases_pulse4_cat_pow', 'phases_pulse4_cat_update_dir',
+        # cat state parameters
+        'ampls_cat_asf', 'atts_cat_mu', 'time_motion_cat_mu', 'phases_motion_cat_pow', 'phase_char_axis_pow',
+        'phases_char_cat_pow', 'phases_char_cat_update_dir',
 
         # experiment parameters
         'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
@@ -57,6 +60,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
+        self.readout_adaptive_subsequence = ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence =       RescueIon(self)
 
 
@@ -98,49 +102,42 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("ampls_cat_pct",  PYONValue([58., 58.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([6., 6.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
 
-        '''PULSE ARGUMENTS - MOTIONAL STATE PREPARATION'''
-        # pulse 0 - sigma_x0: select motional state type (cat state vs coherent state)
-        self.setattr_argument("enable_pulse0_sigmax", BooleanValue(default=False), group='pulse0.sigmax',
-                              tooltip='sigma_x (pulse #0) selects whether motional state is coherent (True), or cat (False)')
+        '''ARGUMENTS - MOTIONAL STATE PREPARATION'''
+        self.setattr_argument("enable_motion_sigmax",   BooleanValue(default=False), group='motional.config',
+                              tooltip='sigma_x selects whether motional state is coherent (True), or cat (False).')
+        self.setattr_argument("enable_motion_cat",      BooleanValue(default=False), group='motional.config')
+        self.setattr_argument("enable_motion_herald",   BooleanValue(default=True), group='motional.config')
+        self.setattr_argument("time_motion_cat_us",     NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="motional.config")
+        self.setattr_argument("phases_motion_cat_turns",    PYONValue([0., 0.]), group='motional.config', tooltip="[rsb_turns, bsb_turns]")
 
-        # pulse 1 - cat 0
-        self.setattr_argument("enable_pulse1_cat",          BooleanValue(default=False), group='pulse1.cat')
-        self.setattr_argument("time_pulse1_cat_us",         NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="pulse1.cat")
-        self.setattr_argument("phases_pulse1_cat_turns",    PYONValue([0., 0.]), group='pulse1.cat', tooltip="[rsb_turns, bsb_turns]")
-
-        # pulse 2 - herald
-        self.setattr_argument("enable_pulse2_herald",       BooleanValue(default=True), group='pulse2.herald')
-        self.setattr_argument("enable_force_herald",        BooleanValue(default=True), group='pulse2.herald')
-        self.setattr_argument("force_herald_threshold",     NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='pulse2.herald')
-
-        '''PULSE ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
-        # pulse 3 - sigma_x1: select real/imag part of characteristic function
-        self.setattr_argument("characteristic_axis",        EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic_axis',
+        '''ARGUMENTS - CHARACTERISTIC FUNCTION MEASUREMENT'''
+        # sigma_x: select real/imag part of characteristic function
+        self.setattr_argument("characteristic_axis",        EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic.axis',
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
-        self.setattr_argument("phase_characteristic_axis_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic_axis',
+        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic.axis',
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
 
-        # pulse 4 - cat 1: characteristic readout protocol
-        self.setattr_argument("enable_pulse4_cat",          BooleanValue(default=True), group='pulse4.cat')
-        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='pulse4.cat', tooltip="[rsb_turns, bsb_turns]")
-        self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group="pulse4.cat")
-        self.setattr_argument("time_pulse4_cat_x_us_list",      Scannable(
+        # bichromatic: characteristic readout protocol
+        self.setattr_argument("enable_char_bichromatic",          BooleanValue(default=True), group='characteristic.read')
+        self.setattr_argument("phases_char_cat_turns",    PYONValue([0., 0.]), group='characteristic.read', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("target_char_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group='characteristic.read')
+        self.setattr_argument("time_char_cat_x_us_list",      Scannable(
                                                                 default=[
                                                                     RangeScan(-500, 500, 10, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
-                                                            ), group="pulse4.cat")
-        self.setattr_argument("time_pulse4_cat_y_us_list",      Scannable(
+                                                            ), group='characteristic.read')
+        self.setattr_argument("time_char_cat_y_us_list",      Scannable(
                                                                 default=[
                                                                     RangeScan(-500, 500, 10, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
-                                                            ), group="pulse4.cat")
+                                                            ), group='characteristic.read')
 
         # relevant devices
         self.setattr_device('qubit')
@@ -173,7 +170,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
         self.att_doublepass_default_mu =       att_to_mu(self.att_doublepass_default_db * dB)
 
-        # defaults - sigma_x pulses
+        # defaults - sigma_x waveform
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
         self.att_sigmax_mu =    att_to_mu(self.att_sigmax_db * dB)
@@ -190,45 +187,44 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                           for att_db in self.atts_cat_db], dtype=np.int32)
 
         '''
-        CONVERT VALUES TO MACHINE UNITS - PULSES
+        CONVERT VALUES TO MACHINE UNITS
         '''
-        # pulse 1 - cat 0
-        self.time_pulse1_cat_mu =       self.core.seconds_to_mu(self.time_pulse1_cat_us * us)
-        self.phases_pulse1_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
-                                         for phas_pow in self.phases_pulse1_cat_turns]
+        # motional state - cat/bichromatic
+        self.time_motion_cat_mu =       self.core.seconds_to_mu(self.time_motion_cat_us * us)
+        self.phases_motion_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
+                                         for phas_pow in self.phases_motion_cat_turns]
 
-        # pulse 3 - define characteristic axis (via sigma_x)
-        self.phase_characteristic_axis_pow =  self.qubit.turns_to_pow(self.phase_characteristic_axis_turns)
+        # define characteristic axis (via sigma_x)
+        self.phase_char_axis_pow =  self.qubit.turns_to_pow(self.phase_char_axis_turns)
         # configure whether real/imag/both axes of the characteristic function are to be measured
         if self.characteristic_axis == "Real":          characteristic_axis_list = [False]
         elif self.characteristic_axis == "Imaginary":   characteristic_axis_list = [True]
         elif self.characteristic_axis == "Both":        characteristic_axis_list = [True, False]
 
-        # pulse 4 - cat 1
-        self.phases_pulse4_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                  for phas_pow in self.phases_pulse4_cat_turns], dtype=np.int32)
-
-        if self.target_pulse4_cat_phase == 'RSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, 0], dtype=np.int32)
-        elif self.target_pulse4_cat_phase == 'BSB':
-            self.phases_pulse4_cat_update_dir = np.array([0, 1], dtype=np.int32)
-        elif self.target_pulse4_cat_phase == 'RSB-BSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, -1], dtype=np.int32)
-        elif self.target_pulse4_cat_phase == 'RSB+BSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
+        # characteristic readout - bichromatic
+        self.phases_char_cat_pow =    np.array([self.singlepass0.turns_to_pow(phas_pow)
+                                                  for phas_pow in self.phases_char_cat_turns], dtype=np.int32)
+        if self.target_char_cat_phase == 'RSB':
+            self.phases_char_cat_update_dir = np.array([1, 0], dtype=np.int32)
+        elif self.target_char_cat_phase == 'BSB':
+            self.phases_char_cat_update_dir = np.array([0, 1], dtype=np.int32)
+        elif self.target_char_cat_phase == 'RSB-BSB':
+            self.phases_char_cat_update_dir = np.array([1, -1], dtype=np.int32)
+        elif self.target_char_cat_phase == 'RSB+BSB':
+            self.phases_char_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
         # create sampling grid in radial coordinates
-        if self.enable_pulse4_cat:
-            vals_pulse4_mu_pow_list = np.array([
+        if self.enable_char_bichromatic:
+            vals_char_mu_pow_list = np.array([
                 [
                     self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
                     self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
                 ]
-                for x_us in self.time_pulse4_cat_x_us_list
-                for y_us in self.time_pulse4_cat_y_us_list
+                for x_us in self.time_char_cat_x_us_list
+                for y_us in self.time_char_cat_y_us_list
             ], dtype=np.int64)
         else:
-            vals_pulse4_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
+            vals_char_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
 
         # heralding values
         self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
@@ -249,7 +245,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             list(flatten(vals))
             for vals in product(
                 freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
-                vals_pulse4_mu_pow_list,
+                vals_char_mu_pow_list,
                 characteristic_axis_list
             )
         ], dtype=np.int64)
@@ -263,11 +259,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
-        # ensure we only herald once
-        if self.enable_force_herald and not self.enable_pulse2_herald:
-            raise ValueError("Cannot force_herald if enable_pulse2_herald is disabled. Check input arguments.")
-
-        # ensure single pass values are safe and valid
+        # ensure singlepass values are safe and valid
         if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
                 for ampl_pct in self.ampl_singlepass_default_pct_list)):
             raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
@@ -278,7 +270,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                7)
+                6)
 
 
     '''
@@ -298,7 +290,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(50000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
@@ -310,15 +302,13 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
+        delay_mu(50000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(50000)
 
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -330,6 +320,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         self.core.break_realtime()
 
+        # instantiate relevant variables
+        time_start_mu = now_mu() & ~0x7
+        ion_state = (-1, 0, np.int64(0))
+
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -340,17 +334,15 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 # extract values from config list
                 freq_cat_center_ftw =       np.int32(config_vals[0])
                 freq_cat_secular_ftw =      np.int32(config_vals[1])
-                time_pulse4_cat_mu =        config_vals[2]
-                phase_pulse4_cat_pow =      np.int32(config_vals[3])
+                time_char_cat_mu =          config_vals[2]
+                phase_char_cat_pow =        np.int32(config_vals[3])
                 characteristic_axis_bool =  bool(config_vals[4])
                 self.core.break_realtime()
 
                 # prepare variables for execution
-                counts_her = -1
-                time_start_mu = now_mu() & ~0x7
-                cat4_phases = [
-                    self.phases_pulse4_cat_pow[0] + self.phases_pulse4_cat_update_dir[0] * phase_pulse4_cat_pow,
-                    self.phases_pulse4_cat_pow[1] + self.phases_pulse4_cat_update_dir[1] * phase_pulse4_cat_pow,
+                char_read_phases = [
+                    self.phases_char_cat_pow[0] + self.phases_char_cat_update_dir[0] * phase_char_cat_pow,
+                    self.phases_char_cat_pow[1] + self.phases_char_cat_update_dir[1] * phase_char_cat_pow,
                 ]
                 self.core.break_realtime()
 
@@ -371,29 +363,26 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     time_start_mu = now_mu() & ~0x7
 
                     '''APPLY MOTIONAL INTERACTION'''
-                    # pulse 0 (sigma_x #1): select cat vs coherent state
-                    if self.enable_pulse0_sigmax:
+                    # sigma_x: select cat vs coherent state
+                    if self.enable_motion_sigmax:
                         self.pulse_sigmax(time_start_mu, 0)
 
-                    # pulse 1 (cat 1): create cat or coherent state
-                    if self.enable_pulse1_cat:
-                        self.pulse_bichromatic(time_start_mu, self.time_pulse1_cat_mu,
-                                               self.phases_pulse1_cat_pow,
+                    # bichromatic interaction to generate motional state
+                    if self.enable_motion_cat:
+                        self.pulse_bichromatic(time_start_mu, self.time_motion_cat_mu,
+                                               self.phases_motion_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
 
-                    # pulse 2: herald via 397nm fluorescence
-                    if self.enable_pulse2_herald:
-                        self.readout_subsequence.run_dma()
+                    # herald ion via state-dependent fluorescence (to projectively disentangle spin/motion)
+                    if self.enable_motion_herald:
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(20000)
                         self.pump.off()
 
-                        # pulse 2: force heralding
-                        if self.enable_force_herald:
-                            counts_her = self.readout_subsequence.fetch_count()
-                            if counts_her > self.force_herald_threshold:
-                                continue
-
-                            # add minor slack if we proceed
-                            at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
+                        # ensure dark state (flag is 0)
+                        if ion_state[0] != 0: continue
+                        # otherwise, add minor slack and proceed
+                        at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
                     # force break loop by default
                     break
@@ -407,32 +396,25 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                 self.repump_qubit.off()
 
-                # pulse 3: sigma_x #2
+                # char read: sigma_x (re vs im)
                 if characteristic_axis_bool:
-                    self.pulse_sigmax(time_start_mu, self.phase_characteristic_axis_pow)
+                    self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow)
 
-                # pulse 4: cat #2
-                if self.enable_pulse4_cat:
-                    self.pulse_bichromatic(time_start_mu, time_pulse4_cat_mu,
-                                           cat4_phases,
+                # char read: bichromatic
+                if self.enable_char_bichromatic:
+                    self.pulse_bichromatic(time_start_mu, time_char_cat_mu,
+                                           char_read_phases,
                                            freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 '''READOUT'''
-                # read out fluorescence
+                # read out fluorescence & save results
                 self.readout_subsequence.run_dma()
-
-                # retrieve heralded measurement
-                if self.enable_pulse2_herald and not self.enable_force_herald:
-                    counts_her = self.readout_subsequence.fetch_count()
-
-                # retrieve results & update dataset
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
-                                    counts_her,
                                     freq_cat_secular_ftw,
-                                    time_pulse4_cat_mu,
-                                    phase_pulse4_cat_pow,
+                                    time_char_cat_mu,
+                                    phase_char_cat_pow,
                                     characteristic_axis_bool)
                 self.core.break_realtime()
 
@@ -605,11 +587,4 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     #     self.qubit.on()
     #     delay_mu(66980)
     #     self.qubit.off()
-
-
-    '''
-    ANALYSIS
-    '''
-    def analyze_experiment(self):
-        pass
 

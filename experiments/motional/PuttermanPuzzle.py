@@ -5,8 +5,8 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, QVSAPulse,
-    QubitRAP, Readout, RabiflopReadout, RescueIon
+    InitializeQubit, SidebandCoolContinuousRAM, QVSAPulse, QubitRAP, Readout,
+    ReadoutAdaptive, RabiflopReadout, RescueIon
 )
 
 from itertools import product
@@ -22,8 +22,8 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
     name = 'Putterman Puzzle'
     kernel_invariants = {
         # subsequences etc.
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'rap_subsequence', 'rabiflop_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'readout_adaptive_subsequence',
+        'rescue_subsequence', 'rap_subsequence', 'rabiflop_subsequence',
 
         # hardware values - core
         'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu', 'time_force_herald_slack_mu',
@@ -71,8 +71,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
         '''HERALD - CONFIGURATION'''
         self.setattr_argument("enable_herald",          BooleanValue(default=True), group='herald')
-        self.setattr_argument("enable_force_herald",    BooleanValue(default=False), group='herald')
-        self.setattr_argument("force_herald_threshold", NumberValue(default=46, precision=0, step=10, min=0, max=10000), group='herald')
 
         '''RABIFLOP READOUT - CONFIGURATION'''
         self.setattr_argument("freq_rabiflop_readout_mhz_list",   Scannable(
@@ -94,6 +92,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
+        self.readout_adaptive_subsequence = ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence =       RescueIon(self)
 
         # relevant devices
@@ -109,9 +108,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         '''
         CHECK INPUT FOR ERRORS
         '''
-        # ensure heralding is enabled if user wants to force_herald
-        if self.enable_force_herald and not self.enable_herald:
-            raise ValueError("Cannot force_herald if enable_pulse2_herald is disabled. Check input arguments.")
+        # todo
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -146,8 +143,8 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         np.random.shuffle(self.config_experiment_list)
 
         # # tmp remove - high fock test
-        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4678 * MHz)
-        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.8051 * MHz)
+        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.1065 * MHz)
+        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7554 * MHz)
         self.ampl_fock_asf =    self.qubit.amplitude_to_asf(0.5)
         self.att_fock_mu =      att_to_mu(8. * dB)
         self.time_fock_mu =     self.core.seconds_to_mu(2.5 * us)
@@ -157,7 +154,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                5)
+                4)
 
 
     '''
@@ -182,7 +179,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # instantiate relevant variables
-        counts_her = -1 # store heralded counts
+        ion_state = (-1, 0, np.int64(0))
 
         # retrieve relevant DMA sequences.handles
         self.motional_subsequence.pulse_shaper.waveform_load()
@@ -233,22 +230,14 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                     # optional: herald ion via state-dependent fluorescence
                     if self.enable_herald:
-                        self.readout_subsequence.run_dma()
-                        # make sure to turn beams off after sequence
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(20000)
                         self.pump.off()
-                        self.repump_cooling.off()
 
-                        # optional: force heralding (i.e. run until we succeed w/RAP)
-                        if self.enable_force_herald:
-                            counts_her = self.readout_subsequence.fetch_count()
-
-                            # bright state - try again
-                            if counts_her > self.force_herald_threshold:
-                                self.core.break_realtime()
-                                continue
-
-                            # otherwise, dark state - proceed (and add minor slack)
-                            at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
+                        # ensure dark state (flag is 0)
+                        if ion_state[0] != 0: continue
+                        # otherwise, add minor slack and proceed
+                        at_mu(self.core.get_rtio_counter_mu() + self.time_force_herald_slack_mu)
 
                     # force break loop by default
                     break
@@ -267,17 +256,12 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                 self.rabiflop_subsequence.run_time(time_rabiflop_readout_mu)
                 self.readout_subsequence.run_dma()
 
-                # retrieve heralded measurement ONLY IF THERE EXISTS ONE
-                if self.enable_herald and not self.enable_force_herald:
-                    counts_her = self.readout_subsequence.fetch_count()
-
                 # retrieve readout results & update dataset
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_rap_center_ftw,
                                     time_rabiflop_readout_mu,
                                     freq_rabiflop_readout_ftw,
-                                    counts_res,
-                                    counts_her)
+                                    counts_res)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -289,13 +273,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
-    def cleanup_experiment(self) -> TNone:
-        """
-        Clean up the experiment.
-        """
-        self.core.break_realtime()
 
 
     '''
@@ -323,11 +300,4 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # self.repump_qubit.on()
         # delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
         # self.repump_qubit.off()
-
-
-    '''
-    ANALYSIS
-    '''
-    def analyze_experiment(self):
-        pass
 
