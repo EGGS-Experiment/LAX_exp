@@ -23,7 +23,7 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=1e4, precision=0, step=1, min=1, max=1e9))
+        self.setattr_argument("repetitions", NumberValue(default=10000, precision=0, step=1, min=1, max=1e9))
 
         # sequence configuration
         self.setattr_argument("enable_doppler", BooleanValue(default=False))
