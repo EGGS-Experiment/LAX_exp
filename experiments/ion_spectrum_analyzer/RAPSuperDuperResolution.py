@@ -130,9 +130,9 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group="{}.waveform".format(self.name))
 
         # RAP arguements
-        self.setattr_argument("att_rap_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="RAP")
+        self.setattr_argument("att_rap_db",   NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group="RAP")
         self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.3318, step=0.0100, precision=6, min=60, max=200), group='RAP')
+        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.4471, step=0.0100, precision=6, min=60, max=200), group='RAP')
         self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., step=0.01, precision=2, min=1, max=10000), group='RAP')
         self.setattr_argument("time_rap_us", NumberValue(default=200.,min=1, max=100000, step=1, scale=1, precision=5), group="RAP")
 
@@ -162,15 +162,12 @@ class RAPSuperDuperResolution(LAXExperiment, Experiment):
         # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
         self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
 
-        # call parent prepare method
-        # note: need to set these values before calling parent prepare_experiment
-
         '''HARDWARE VALUES - CONFIG'''
         # convert attenuation from dB to machine units
         self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
 
         # convert freqs to Hz
-        self.freq_global_offset_hz =    self.freq_global_offset_mhz * MHz
+        self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
 
         # convert build arguments to appropriate values and format as numpy arrays
         freq_eggs_carrier_hz_list = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz

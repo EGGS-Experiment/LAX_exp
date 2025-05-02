@@ -97,7 +97,8 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
 
         '''PULSE ARGUMENTS - CAT 1'''
-        self.setattr_argument("enable_cat1_sigmax", BooleanValue(default=False), group='cat1.config')
+        self.setattr_argument("enable_cat1_sigmax", BooleanValue(default=False), group='cat1.config',
+                              tooltip='sigma_x (pulse #0) selects whether motional state is displaced (True), or cat (False)')
         self.setattr_argument("enable_cat1_bichromatic", BooleanValue(default=False), group='cat1.config')
         self.setattr_argument("enable_cat1_herald",   BooleanValue(default=False), group='cat1.config')
         self.setattr_argument("enable_cat1_quench",   BooleanValue(default=True), group='cat1.config')
