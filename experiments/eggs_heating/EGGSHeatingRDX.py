@@ -409,7 +409,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
-                # resuscitate ion & death detection
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()

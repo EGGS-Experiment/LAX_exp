@@ -92,13 +92,15 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 self.readout_subsequence.run_dma()
 
                 # get results & update dataset
+                counts = self.readout_subsequence.fetch_count()
                 self.update_results(freq_readout_ftw,
-                                    self.readout_subsequence.fetch_count(),
+                                    counts,
                                     time_heating_delay_mu)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run detect death
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

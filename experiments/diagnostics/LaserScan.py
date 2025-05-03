@@ -192,11 +192,13 @@ class LaserScan(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_holdoff_mu)
+                counts = self.readout_subsequence.fetch_count()
+                self.update_results(freq_ftw, counts, time_holdoff_mu)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)

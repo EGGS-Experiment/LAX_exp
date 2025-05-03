@@ -172,11 +172,13 @@ class RabiFlopping(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(time_rabi_actual_mu, self.readout_subsequence.fetch_count())
+                counts = self.readout_subsequence.fetch_count()
+                self.update_results(time_rabi_actual_mu, counts)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
