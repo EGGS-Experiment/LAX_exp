@@ -228,7 +228,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results_linewidth2', pyon.encode(plotting_results), broadcast=True)
 
-        self.ccb.issue("create_applet", f"Linewidth Measurement 2",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth2'
                        ' --num-subplots 1',
                        group = ['plotting', 'diagnostics'])

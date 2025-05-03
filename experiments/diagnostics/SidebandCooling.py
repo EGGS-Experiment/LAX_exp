@@ -193,7 +193,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
-        self.ccb.issue("create_applet", f"Sideband Cooling",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
                        ' --num-subplots 2',
                        group=['plotting', 'diagnostics'])

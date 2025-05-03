@@ -35,6 +35,7 @@ class MplCanvas(FigureCanvasQTAgg):
         plt.ion()
         plt.tight_layout()
         self.fig.tight_layout()
+        self.fig.clf()
         super().__init__(self.fig)
 
 
@@ -84,6 +85,7 @@ class MatplotlibPlot(QMainWindow):
         """
 
         # extract data from dictionary
+
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary

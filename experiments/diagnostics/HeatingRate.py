@@ -228,7 +228,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         self.set_dataset('temp.plotting.results_heating_rate', pyon.encode(plotting_results), broadcast=True)
         ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_heating_rate'
         ccb_command += f' --num-subplots {num_subplots}'
-        self.ccb.issue("create_applet", f"Heating Rate",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        ccb_command,
                        group=['plotting', 'diagnostics'])
 
