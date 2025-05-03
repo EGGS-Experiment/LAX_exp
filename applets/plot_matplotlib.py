@@ -36,6 +36,8 @@ class MplCanvas(FigureCanvasQTAgg):
         plt.tight_layout()
         self.fig.tight_layout()
         self.fig.clf()
+        for ax in self.axes:
+            ax.cla()
         super().__init__(self.fig)
 
 
@@ -210,6 +212,9 @@ class MatplotlibPlot(QMainWindow):
 
         if not isinstance(self.sc.axes, np.ndarray):
             self.sc.axes = np.array([self.sc.axes])
+
+        for ax in self.sc.axes:
+            ax.cla()
 
         # get features of the plot legend
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()
