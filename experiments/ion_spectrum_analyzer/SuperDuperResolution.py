@@ -473,7 +473,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 '''READOUT'''
                 if self.enable_RAP:
                     self.qubit.set_att_mu(self.att_rap_mu)
-                    self.rap_subsequence.run(time_readout_mu)
+                    self.rap_subsequence.run_rap(time_readout_mu)
                 else:
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()

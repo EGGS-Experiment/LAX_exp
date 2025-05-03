@@ -65,7 +65,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                     ), group="SBC.sweep")
         self.setattr_argument("ampl_quench_pct_list",   Scannable(
                                                             default=[
-                                                                RangeScan(1., 5., 15., randomize=True),
+                                                                RangeScan(1, 5, 15, randomize=True),
                                                                 ExplicitScan([3.5]),
                                                                 CenterScan(3.5, 4., 0.2, randomize=True),
                                                             ],
