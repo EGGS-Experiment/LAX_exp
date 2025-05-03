@@ -41,10 +41,10 @@ class Beam729(LAXDevice):
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         # set default profile on CPLD
-        self.core.break_realtime()
         self.set_profile(DEFAULT_PROFILE)
         self.cpld.io_update.pulse_mu(8)
         self.off()
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:

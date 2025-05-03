@@ -48,17 +48,14 @@ class DDSDipole(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
-        self.core.break_realtime()
-
         # set default profile
         self.set_profile(DEFAULT_PROFILE)
         self.cpld.io_update.pulse_mu(8)
 
         # clear any possible output
         self.dds.set_att_mu(0x0)
-        self.core.break_realtime()
         self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # make sure switches are closed
         self.off()
