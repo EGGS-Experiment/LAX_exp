@@ -106,11 +106,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         Prepare & precompute experimental values.
         """
         '''
-        CHECK INPUT FOR ERRORS
-        '''
-        # todo
-
-        '''
         CONVERT VALUES TO MACHINE UNITS
         '''
         # RAP values
@@ -120,10 +115,8 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         self.time_rap_mu =          self.core.seconds_to_mu(self.time_rap_us * us)
         self.att_rap_mu =           att_to_mu(self.att_rap_db * dB)
 
-        # heralding values
+        # heralding/readout
         self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
-
-        # readout values
         freq_rabiflop_readout_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                       for freq_mhz in self.freq_rabiflop_readout_mhz_list],
                                                      dtype=np.int32)

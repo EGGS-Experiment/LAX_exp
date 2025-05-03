@@ -45,6 +45,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=4, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
+        self.setattr_argument("randomize_config", BooleanValue(default=True))
 
         # allocate relevant beam profiles
         self.profile_729_sb_readout =   0
@@ -243,7 +244,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         -1).reshape(-1, 6)
 
         # randomize_config always enabled lol
-        # np.random.shuffle(self.config_experiment_list)
+        if self.randomize_config is True:
+            np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
