@@ -1,6 +1,6 @@
 import numpy as np
-from sipyco import pyon
 from artiq.experiment import *
+from artiq.coredevice import ad9910
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -43,17 +43,10 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                               tooltip="number of times to loop over the SBC configuration sequence", group='SBC.base')
         self.setattr_argument("time_per_spinpol_us",    NumberValue(default=600, precision=3, step=1, min=0.01, max=100000),
                               tooltip="time between spin polarization pulses (in us)", group='SBC.base')
+        self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5),
+                              group='SBC_RAM.continuous')
 
         # SBC parameter scanning
-        self.setattr_argument("freq_sbc_scan_khz_list",  Scannable(
-                                                        default=[
-                                                            CenterScan(0, 20, 20, randomize=True),
-                                                            ExplicitScan([0.]),
-                                                            RangeScan(-10, 10, 20, randomize=True),
-                                                        ],
-                                                        global_min=-1000, global_max=1000, global_step=1.,
-                                                        unit="kHz", scale=1, precision=3
-                                                    ), group="SBC.sweep")
         self.setattr_argument("time_sbc_us_list",   Scannable(
                                                         default=[
                                                             RangeScan(100, 2000, 100, randomize=True),
@@ -62,6 +55,15 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=50, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
+                                                    ), group="SBC.sweep")
+        self.setattr_argument("freq_sbc_scan_khz_list",  Scannable(
+                                                        default=[
+                                                            CenterScan(0, 20, 20, randomize=True),
+                                                            ExplicitScan([0.]),
+                                                            RangeScan(-10, 10, 20, randomize=True),
+                                                        ],
+                                                        global_min=-1000, global_max=1000, global_step=1.,
+                                                        unit="kHz", scale=1, precision=3
                                                     ), group="SBC.sweep")
         self.setattr_argument("ampl_quench_pct_list",   Scannable(
                                                             default=[
@@ -73,6 +75,26 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                             unit="%", scale=1, precision=3
                                                         ), group="SBC.sweep")
 
+        # Doppler cooling parameters
+        self.setattr_argument("freq_397_doppler_mhz_list",  Scannable(
+                                                        default=[
+                                                            CenterScan(115, 6, 20, randomize=True),
+                                                            ExplicitScan([115.]),
+                                                            RangeScan(112, 118, 20, randomize=True),
+                                                        ],
+                                                        global_min=60, global_max=400, global_step=1.,
+                                                        unit="MHz", scale=1, precision=6
+                                                    ), group="Doppler.sweep")
+        self.setattr_argument("ampl_397_doppler_pct_list",   Scannable(
+                                                            default=[
+                                                                RangeScan(9., 20., 22., randomize=True),
+                                                                ExplicitScan([15]),
+                                                                CenterScan(15, 6., 0.2, randomize=True),
+                                                            ],
+                                                            global_min=0.01, global_max=50., global_step=1,
+                                                            unit="%", scale=1, precision=3
+                                                        ), group="Doppler.sweep")
+
         # get subsequences
         self.initialize_subsequence =       InitializeQubit(self)
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
@@ -80,19 +102,87 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.rescue_subsequence =           RescueIon(self)
 
         # get relevant devices
+        self.setattr_device('probe')
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
     def prepare_experiment(self):
         """
         Prepare & precompute experimental values.
         """
-        # todo:
-        pass
+        # validate inputs
+        self._prepare_argument_checks()
+
+        '''
+        CONVERT VALUES TO MACHINE UNITS
+        '''
+        # scan values
+        freq_sbc_scan_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_khz * kHz)
+                                              for freq_khz in self.freq_sbc_scan_khz_list])
+        ampl_quench_asf_list =      np.array([self.repump_cooling.amplitude_to_asf(ampl_pct / 100.)
+                                              for ampl_pct in self.ampl_quench_pct_list])
+        time_sbc_mu_list =          np.array([self.core.seconds_to_mu(time_us * us)
+                                              for time_us in self.time_sbc_us_list])
+        freq_397_doppler_ftw_list = np.array([self.pump.frequency_to_ftw(freq_mhz * MHz)
+                                              for freq_mhz in self.freq_397_doppler_mhz_list])
+        ampl_397_doppler_asf_list = np.array([self.pump.amplitude_to_asf(ampl_pct / 100.)
+                                              for ampl_pct in self.ampl_397_doppler_pct_list])
+
+        # base SBC config
+        self.att_sidebandcooling_mu =   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
+
+        # base sbc schedule
+        mode_freqs_hz = np.array([
+            freq_mhz * MHz
+            for freq_mhz in self.sideband_cooling_config_list.keys()
+        ])
+        mode_time_pct = np.array([
+            config_arr[0]
+            for config_arr in self.sideband_cooling_config_list.values()
+        ])
+        mode_quench_ampls_frac = np.array([
+            config_arr[1] / 100.
+            for config_arr in self.sideband_cooling_config_list.values()
+        ])
+
+
+        sbc_schedule = np.zeros((len(self.sideband_cooling_config_list), 3))
+        sbc_schedule[:, 0]
+
+
+
+        '''
+        CREATE EXPERIMENT CONFIG
+        '''
+        # create an array of values for the experiment to sweep
+        # (i.e. heating time & readout FTW)
+        self.config_experiment_list = np.stack(np.meshgrid(
+            time_readout_mu_list,
+            freq_397_readout_ftw_list, ampl_397_readout_asf_list,
+            freq_866_readout_ftw_list, ampl_866_readout_asf_list
+        ), -1).reshape(-1, 5)
+        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
+        np.random.shuffle(self.config_experiment_list)
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure a reasonable amount of modes (i.e. not too many)
+        if len(self.sideband_cooling_config_list) > 20:
+            raise ValueError("Too many modes for SBC. Number of modes must be in [1, 20].")
+
+        # ensure SBC config on all modes add up to 100%
+        mode_total_pct = np.sum([config_arr[0] for config_arr in self.sideband_cooling_config_list.values()])
+        if mode_total_pct > 100.:
+            raise ValueError("Total sideband cooling mode percentages exceed 100%.")
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                5)
+                6)
 
 
     # MAIN SEQUENCE
@@ -112,20 +202,44 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
             # scan over sideband readout frequencies
             for config_vals in self.config_experiment_list:
-
-                '''CONFIGURE'''
-                # todo
-
-                # set frequency
-                self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_readout)
                 self.core.break_realtime()
 
-                # initialize ion in S-1/2 state & SBC to the ground motional state
+                '''CONFIGURE'''
+                # extract values from config list
+                time_readout_mu = config_vals[0]
+                freq_397_readout_ftw = np.int32(config_vals[1])
+                ampl_397_readout_asf = np.int32(config_vals[2])
+                freq_866_readout_ftw = np.int32(config_vals[3])
+                ampl_866_readout_asf = np.int32(config_vals[4])
+
+                # set beam frequencies
+                self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                self.pump.set_mu()
+                delay_mu(50000)
+
+                # set cooling waveform
+                self.pump.cooling(freq_doppler_ftw, asf=ampl_doppler_asf, profile=0, phase_mode=)
+
+                # turn repumps on (and ensure spinpol off)
+                self.probe.off()
+                self.repump_qubit.on()
+                self.repump_cooling.on()
+
+                # doppler cooling
+                self.pump.on()
+                delay_mu(self.time_doppler_cooling_mu)
+                self.pump.off()
+
+                '''INITIALIZE & SBC'''
+                # doppler cool & initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
+
+                # run sideband cooling sequence
                 self.sidebandcool_subsequence.run_dma()
 
-                # sideband readout
+                '''READOUT & SAVE RESULTS'''
+                # sideband readout & detect fluorescence
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
@@ -142,150 +256,4 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
-
-
-    # ANALYSIS
-    def analyze_experiment(self):
-        """
-        Fit resultant spectrum with a sinc profile.
-        """
-        # create data structures for processing
-        results_tmp =       np.array(self.results)
-        probability_vals =  np.zeros(len(results_tmp))
-        counts_arr =        np.array(results_tmp[:, 1])
-        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
-        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
-        results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
-
-        # calculate fluorescence detection threshold
-        threshold_list = findThresholdScikit(results_tmp[:, 1])
-        for threshold_val in threshold_list:
-            probability_vals[np.where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities and convert from D-state probability to S-state probability
-        results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
-        # process dataset into x, y, with y being averaged probability
-        results_tmp =   groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp =   np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
-        # separate spectrum into RSB & BSB and fit using sinc profile
-        # guess carrier as mean of highest and lowest frequencies
-        guess_carrier_mhz =             (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
-        # split data into RSB and BSB
-        split = lambda arr, cond: [arr[cond], arr[~cond]]
-        results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
-
-        # split results into x and y and red and blue sideband
-        results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
-        results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
-
-        # format arrays for fitting
-        fit_x_rsb = np.linspace(np.min(results_plotting_x_rsb), np.max(results_plotting_x_rsb), 1000)
-        fit_x_bsb = np.linspace(np.min(results_plotting_x_bsb), np.max(results_plotting_x_bsb), 1000)
-
-        try:
-            # attempt to fit sinc profile
-            fitter = fitSinc()
-            fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_readout_us)
-            fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_readout_us)
-            fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
-            fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
-        except Exception as e:
-            # fill array with Nones to avoid fit if fit can't be found
-            fit_y_rsb = [None]*len(fit_x_rsb)
-            fit_y_bsb = [None]*len(fit_x_bsb)
-
-        # process fit parameters to give values of interest
-        sinc_max =  lambda a, t: np.sin(np.pi * t * a)**2.
-        # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
-                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
-        phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
-                                    )**0.5
-
-        # format dictionary for applet plotting
-        plotting_results = {'x': [results_plotting_x_rsb / 2., results_plotting_x_bsb / 2.],
-                            'y': [results_plotting_y_rsb, results_plotting_y_bsb],
-                            'fit_x': [fit_x_rsb / 2., fit_x_bsb / 2.],
-                            'fit_y': [fit_y_rsb, fit_y_bsb],
-                            'subplot_x_labels': 'AOM Freq (MHz)',
-                            'subplot_y_labels': 'D State Population',
-                            'subplot_titles': ['RSB', 'BSB'],
-                            'rid': self.scheduler.rid,
-                            'ylims': [[0,1], [0,1]]
-                            }
-
-        self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)
-
-        # create applet
-        self.ccb.issue("create_applet", f"Sideband Cooling",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
-                       ' --num-subplots 2',
-                       group=['plotting', 'diagnostics'])
-
-        # save results to dataset manager for dynamic experiments
-        res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
-        self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.sidebandcooling.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-        # save results to hdf5 as a dataset
-        self.set_dataset('fit_params_rsb',  fit_params_rsb)
-        self.set_dataset('fit_params_bsb',  fit_params_bsb)
-        self.set_dataset('fit_err_rsb',     fit_err_rsb)
-        self.set_dataset('fit_err_bsb',     fit_err_bsb)
-        # print out fitted parameters
-        print("\tResults - Sideband Cooling:")
-        print("\t\tn: {:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
-        print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
-        print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
-        return results_tmp
-
-    def _extract_phonon(self, dataset, time_fit_us):
-        """
-        Process a 2D dataset with both rsb and bsb data to extract the phonon number.
-        Arguments:
-            dataset: array containing results from the experiment
-            time_fit_us: time in microseconds experiment was run for
-
-        Returns:
-            numpy array containing phonon number and phonon std
-        """
-        time_readout_us = self.sidebandreadout_subsequence.time_sideband_readout_us
-        results_rsb, results_bsb = self._extract_populations(dataset, time_fit_us)
-        # fit sinc profile
-        fitter = fitSinc()
-        fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_fit_us)
-        fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_fit_us)
-
-        # process fit parameters to give values of interest
-        sinc_max = lambda a, t: np.sin(np.pi*t*a)**2.
-        # phonon_n =      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
-                        (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
-        phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (fit_params_bsb[0] - fit_params_rsb[0])**2.
-                                    )**0.5
-        return np.array([abs(phonon_n), abs(phonon_err)])
-
-    def _extract_populations(self, dataset, time_fit_us):
-        """
-        Extract the population
-
-        Args:
-            dataset: array containing results from the experiment
-            time_fit_us: time in microseconds experimental trial was run for
-        Returns:
-            results from red and blue sideband
-        """
-        # process dataset into x, y, with y being averaged probability
-        results_tmp = groupBy(dataset, column_num=0, reduce_func=np.mean)
-        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
-
-        # separate spectrum into RSB & BSB and fit using sinc profile
-        # guess carrier as mean of highest and lowest frequencies
-        guess_carrier_mhz = (results_tmp[0, 0] + results_tmp[-1, 0]) / 2.
-        # split data into RSB and BSB
-        split = lambda arr, cond: [arr[cond], arr[~cond]]
-        results_rsb, results_bsb = split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
-
-        return results_rsb, results_bsb
 
