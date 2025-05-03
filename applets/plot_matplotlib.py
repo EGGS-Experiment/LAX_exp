@@ -86,6 +86,9 @@ class MatplotlibPlot(QMainWindow):
 
         # extract data from dictionary
 
+        self.sc.fig.clf()
+        self.sc.axes.cla()
+
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary
