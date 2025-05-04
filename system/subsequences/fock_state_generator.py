@@ -1,11 +1,8 @@
 import numpy as np
-from EGGS_labrad.config.dds_config import dds_config
-from artiq.build.lib.artiq.language.environment import EnumerationValue
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-from math import factorial
 from scipy.special import genlaguerre
 from LAX_exp.extensions.physics_constants import *
 

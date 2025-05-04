@@ -56,7 +56,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('qubit')
 
         # sideband cooling - hardware values
-        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=5000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
+        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=6000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
         self.setattr_argument("time_per_spinpol_us",        NumberValue(default=600, precision=3, step=1, min=0.01, max=100000), group='SBC_RAM.continuous',
                                                                 tooltip="time between spin polarization pulses (in us)")
 
@@ -65,7 +65,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                                                 tooltip="True: disables 729nm DDS during SBC for calibration purposes")
         self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000), group='SBC_RAM.continuous',
                                                                 tooltip="number of times to loop over the SBC configuration sequence")
-        self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.7555: [26., 5.], 100.455: [37., 5.], 100.315: [37., 5.]}),
+        self.setattr_argument("sideband_cooling_config_list",       PYONValue({100.7528: [26., 3.], 100.456: [37., 3.], 100.3: [37., 5.]}),
                               group='SBC_RAM.continuous',
                               tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
         self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='SBC_RAM.continuous')
@@ -301,15 +301,15 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 # do spin polarization before SBC (per Guggemos' thesis)
                 # self.spin_polarize()
 
-        # '''SCHEDULE SPINPOL'''
-        # # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # # get start reference time
-        # time_start_mu = now_mu()
-        #
-        # # do spin polarizations according to schedule
-        # for time_spinpol_mu in self.time_spinpolarization_mu_list:
-        #     at_mu(time_start_mu + time_spinpol_mu)
-        #     self.spin_polarize()
+        # # '''SCHEDULE SPINPOL'''
+        # # # note: we do this here due to difficulties w/empty list for spinpol scheduling
+        # # # get start reference time
+        # # time_start_mu = now_mu()
+        # #
+        # # # do spin polarizations according to schedule
+        # # for time_spinpol_mu in self.time_spinpolarization_mu_list:
+        # #     at_mu(time_start_mu + time_spinpol_mu)
+        # #     self.spin_polarize()
 
         '''PRIME RAM MODE FOR SBC BEAMS'''
         # at_mu(time_start_mu + self.time_spinpol_mu + 10000)

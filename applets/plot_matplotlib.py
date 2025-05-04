@@ -36,8 +36,10 @@ class MplCanvas(FigureCanvasQTAgg):
         plt.tight_layout()
         self.fig.tight_layout()
         self.fig.clf()
+        self.fig.clear()
         for ax in self.axes:
             ax.cla()
+            ax.remove()
         super().__init__(self.fig)
 
 
