@@ -141,8 +141,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # defaults - bichromatic
         self.setattr_argument("freq_cat_center_mhz", NumberValue(default=101.1202, precision=6, step=0.001, min=50., max=400.), group="defaults.bichromatic")
         self.setattr_argument("freq_cat_secular_khz", NumberValue(default=702.2, precision=4, step=1, min=0., max=4e5), group="defaults.bichromatic")
-        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
+        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='defaults.bichromatic', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.bichromatic', tooltip="[rsb_db, bsb_db]")
 
         # characteristic readout: configure readout grid
         self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic_readout',
@@ -424,7 +424,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         '''CHARACTERISTIC FUNCTION INITIALIZATION'''
         # set up qubit beam for DMA sequences
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         # enable RAM mode and clear DDS phase accumulator
@@ -432,7 +432,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
@@ -444,15 +444,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(25000)
 
         '''SUPERRESOLUTION INITIALIZATION'''
         # record general subsequences onto DMA
@@ -472,11 +469,10 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
+        delay_mu(1000000)
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
+        delay_mu(250000)
 
         # used to check_termination more frequently
         _loop_iter = 0
@@ -511,7 +507,6 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 )
                 self.core.break_realtime()
 
-
                 '''MOTIONAL STATE PREPARATION'''
                 # get current time
                 t_phaser_start_mu = now_mu()
@@ -536,9 +531,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                 self.repump_qubit.off()
 
-                # sigma_x to select axis
-                if characteristic_axis_bool:
-                    self.pulse_sigmax(t_phaser_start_mu, self.phase_characteristic_axis_pow)
+                # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
+                self.pulse_sigmax(t_phaser_start_mu, self.phase_characteristic_axis_pow, characteristic_axis_bool)
 
                 # bichromatic pulse + state detection
                 self.pulse_bichromatic(t_phaser_start_mu, time_char_read_mu, phase_char_read_pow_list,
@@ -575,8 +569,6 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
@@ -587,15 +579,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                     profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(25000)
 
 
     '''
@@ -663,12 +652,13 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
     HELPER FUNCTIONS - CHARACTERISTIC READOUT
     '''
     @kernel(flags={"fast-math"})
-    def pulse_sigmax(self, time_start_mu: TInt64, phas_pow: TInt32) -> TNone:
+    def pulse_sigmax(self, time_start_mu: TInt64 = -1, phas_pow: TInt32 = 0x0, is_real: TBool = False) -> TNone:
         """
         Run a phase-coherent sigma_x pulse on the qubit.
         Arguments:
             time_start_mu: fiducial timestamp for initial start reference (in machine units).
             phas_pow: relative phase offset for the beam.
+            is_real: whether to actually run the pulse (True) or a dummy pulse (False).
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
@@ -700,8 +690,11 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # run sigmax pulse
         self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
-        self.qubit.on()
+        self.singlepass1.sw.on()
+        if is_real:
+            self.qubit.on()
+        else:
+            self.qubit.off()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
 

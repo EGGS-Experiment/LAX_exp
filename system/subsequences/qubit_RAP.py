@@ -114,12 +114,9 @@ class QubitRAP(LAXSubsequence):
         """
         Prepare the subsequence immediately before run.
         """
-        self.core.break_realtime()
-
         # disable RAM + DRG and set matched latencies
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.set_cfr2(matched_latency_enable=1)
-        self.core.break_realtime()
         # note: somehow this delay is critical
         delay_mu(1000000)
 
@@ -129,17 +126,15 @@ class QubitRAP(LAXSubsequence):
             step=0xFFF, # note: step size irrelevant since it's set in configure()
             profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
-        self.core.break_realtime()
-        delay_mu(1000000)
+        delay_mu(25000)
 
         # set target RAM profile
         self.qubit.cpld.set_profile(self.ram_profile)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(5000)
 
         # write waveform to RAM profile
-        self.core.break_realtime()
-        delay_mu(30000000)   # 20 ms
+        delay_mu(3000000)   # 3 ms
         # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
         self.qubit.cpld.io_update.pulse_mu(8)
         # delay_mu(2000000)   # extra slack - 2025/03/21 - empirical slack
@@ -151,22 +146,20 @@ class QubitRAP(LAXSubsequence):
         """
         Clean up the subsequence immediately after run.
         """
-        self.core.break_realtime()
-
         # stop & clear output
         self.qubit.off()
         self.qubit.set_ftw(0x00)
         self.qubit.set_asf(0x00)
         self.qubit.set_pow(0x00)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # disable RAM mode
         self.qubit.set_cfr1(ram_enable=0)
         # tood: does set_cfr1 need its own io_update? or can I latch ALL with a single io_update?
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(15000)
 
     @kernel(flags={"fast-math"})
     def configure(self, time_mu: TInt64, freq_center_ftw: TInt32, freq_dev_ftw: TInt32) -> TInt64:

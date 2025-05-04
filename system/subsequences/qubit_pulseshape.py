@@ -112,7 +112,7 @@ class QubitPulseShape(LAXSubsequence):
         # set matched latencies
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # prepare to write waveform to RAM profile
         self.qubit.set_profile_ram(
@@ -125,7 +125,7 @@ class QubitPulseShape(LAXSubsequence):
         # set target RAM profile
         self.qubit.cpld.set_profile(self.ram_profile)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # write waveform to RAM profile
         delay_mu(10000000)   # 10 ms
@@ -137,19 +137,17 @@ class QubitPulseShape(LAXSubsequence):
         """
         Clean up the subsequence immediately after run.
         """
-        self.core.break_realtime()
-
         # stop & clear output
         self.qubit.off()
         self.qubit.set_asf(0x00)
         self.qubit.set_pow(0x00)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # disable RAM mode
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def configure(self, time_mu: TInt64) -> TInt64:

@@ -185,8 +185,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Prepare hardware for operation.
         """
-        self.core.break_realtime()
-
         # disable RAM mode and set matched latencies
         with parallel:
             with sequential:
@@ -247,20 +245,19 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Clean up the subsequence immediately after run.
         """
-        self.core.break_realtime()
-
         # stop & clear output/registers of SBC beams
         self.qubit.off()
         self.qubit.set_asf(0x00)
         self.qubit.set_ftw(0x00)
         self.qubit.set_pow(0x00)
         self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(25000)
 
         self.repump_qubit.set_asf(0x00)
         self.repump_qubit.set_ftw(0x00)
         self.repump_qubit.set_pow(0x00)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # disable RAM mode for SBC beams
         self.qubit.set_cfr1(ram_enable=0)
@@ -268,10 +265,9 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         self.repump_qubit.set_cfr1(ram_enable=0)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
 
         # add extra slack following cleanup
-        delay_mu(100000)   # 100 us
+        delay_mu(25000)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})

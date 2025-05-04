@@ -138,13 +138,10 @@ class QVSAPulse(LAXSubsequence):
         """
         Prepare the subsequence immediately before run.
         """
-        self.core.break_realtime()
-
         ### PHASER INITIALIZATION ###
         # record phaser oscillator waveform
         # note: normally this would be encapsulated in phaser_record
         # e.g. in EGGSHeatingRDX-type exps
-        self.core.break_realtime()
         delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
         self._idx_waveform = self.pulse_shaper.waveform_record(
             self.waveform_qvsa_pulseshape_vals[0],
@@ -158,13 +155,12 @@ class QVSAPulse(LAXSubsequence):
         self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att_mu(0x00)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # configure phaser core hardware
         self.phaser_eggs.frequency_configure(self.freq_qvsa_carrier_hz,
                                              [-self.freq_qvsa_secular_hz, self.freq_qvsa_secular_hz, 0., 0., 0.],
                                              self.phaser_eggs.phase_inherent_ch1_turns)
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_pulse(self) -> TInt64:

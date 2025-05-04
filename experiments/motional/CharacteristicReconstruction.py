@@ -278,11 +278,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # set up qubit beam for DMA sequences
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         # enable RAM mode and clear DDS phase accumulator
@@ -290,7 +288,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(50000)
+        delay_mu(25000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
@@ -302,13 +300,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        delay_mu(50000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        delay_mu(50000)
+        delay_mu(25000)
 
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -318,8 +315,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # instantiate relevant variables
         time_start_mu = now_mu() & ~0x7
         ion_state = (-1, 0, np.int64(0))
@@ -337,7 +332,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 time_char_cat_mu =          config_vals[2]
                 phase_char_cat_pow =        np.int32(config_vals[3])
                 characteristic_axis_bool =  bool(config_vals[4])
-                self.core.break_realtime()
 
                 # prepare variables for execution
                 char_read_phases = [
@@ -396,9 +390,8 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
                 self.repump_qubit.off()
 
-                # char read: sigma_x (re vs im)
-                if characteristic_axis_bool:
-                    self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow)
+                # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
+                self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow, characteristic_axis_bool)
 
                 # char read: bichromatic
                 if self.enable_char_bichromatic:
@@ -433,8 +426,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
@@ -445,27 +436,25 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                     profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(25000)
 
 
     '''
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def pulse_sigmax(self, time_start_mu: TInt64, phas_pow: TInt32) -> TNone:
+    def pulse_sigmax(self, time_start_mu: TInt64 = -1, phas_pow: TInt32 = 0x0, is_real: TBool = False) -> TNone:
         """
         Run a phase-coherent sigma_x pulse on the qubit.
         Arguments:
             time_start_mu: fiducial timestamp for initial start reference (in machine units).
             phas_pow: relative phase offset for the beam.
+            is_real: whether to actually run the pulse (True) or a dummy pulse (False).
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
@@ -498,7 +487,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # run sigmax pulse
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.qubit.on()
+        if is_real:
+            self.qubit.on()
+        else:
+            self.qubit.off()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
 

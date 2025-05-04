@@ -37,7 +37,6 @@ class Cleanup(LAXSubsequence):
         """
         # reset core device, RTIOs, and FIFOs
         self.core.reset()
-        self.core.break_realtime()
 
         '''
         DDS HARDWARE
@@ -51,7 +50,7 @@ class Cleanup(LAXSubsequence):
         self.urukul0_cpld.set_profile(0)
         self.urukul0_cpld.io_update.pulse_mu(8)
         self.urukul0_cpld.cfg_switches(0b0000)
-        self.core.break_realtime()
+        delay_mu(50000)
         # todo: ensure urukul0 TTL switches are also closed
 
         # reset motional board to rescue parameters
@@ -62,14 +61,14 @@ class Cleanup(LAXSubsequence):
         self.urukul1_cpld.set_all_att_mu(0)
         # set clean waveform for tickle DDS to prevent leakage
         self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
-        self.core.break_realtime()
+        delay_mu(50000)
         # todo: ensure urukul1 TTL switches are also closed
 
         # reset main board to rescue parameters
         self.urukul2_cpld.set_profile(0)
         self.urukul2_cpld.io_update.pulse_mu(8)
         self.urukul2_cpld.cfg_switches(0b1110)
-        self.core.break_realtime()
+        delay_mu(50000)
 
 
         '''
@@ -87,7 +86,7 @@ class Cleanup(LAXSubsequence):
         # ensure EGGS amp switches are closed
         self.ttl8.off()
         self.ttl9.off()
-        self.core.break_realtime()
+        delay_mu(50000)
 
         ### PHASER0 ###
         # reset phaser attenuators
@@ -95,12 +94,12 @@ class Cleanup(LAXSubsequence):
         self.phaser0.channel[0].set_att_mu(0x00)
         delay_mu(40)
         self.phaser0.channel[1].set_att_mu(0x00)
-        self.core.break_realtime()
+        delay_mu(100000)
 
         # reset phaser oscillators
         for i in range(5):
             # synchronize to frame
-            self.core.break_realtime()
+            delay_mu(125000)
             at_mu(self.phaser0.get_next_frame_mu())
 
             # clear oscillator frequencies
@@ -118,17 +117,17 @@ class Cleanup(LAXSubsequence):
 
         ### PHASER1 ###
         # reset phaser attenuators
-        self.core.break_realtime()
+        delay_mu(125000)
         at_mu(self.phaser1.get_next_frame_mu())
         self.phaser1.channel[0].set_att_mu(0x00)
         delay_mu(40)
         self.phaser1.channel[1].set_att_mu(0x00)
-        self.core.break_realtime()
+        delay_mu(125000)
 
         # reset phaser oscillators
         for i in range(5):
             # synchronize to frame
-            self.core.break_realtime()
+            delay_mu(125000)
             at_mu(self.phaser1.get_next_frame_mu())
 
             # clear oscillator frequencies
@@ -144,6 +143,6 @@ class Cleanup(LAXSubsequence):
                 delay_mu(40)
 
         # add slack, then synchronize timeline to ensure events submit before resetting
-        self.core.break_realtime()
+        delay_mu(125000)
         self.core.wait_until_mu(now_mu())
         self.core.reset()

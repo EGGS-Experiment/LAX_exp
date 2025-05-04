@@ -61,7 +61,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 80.]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
         self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 31.5]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
 
@@ -69,7 +69,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1065, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
         self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
@@ -77,8 +77,8 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.1065]),
-                                                                    CenterScan(101.1065, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([101.1054]),
+                                                                    CenterScan(101.1054, 0.01, 0.0001, randomize=True),
                                                                     RangeScan(101.1000, 101.1100, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
@@ -286,11 +286,9 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # set up beam parameters
         self.qubit.set_att_mu(self.att_doublepass_default_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         # enable RAM mode and clear DDS phase accumulator
@@ -298,7 +296,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
@@ -309,16 +307,13 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                                       asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
-            delay_mu(8000)
-        self.core.break_realtime()
+            delay_mu(10000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -348,7 +343,6 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                 phase_cat2_cat_pow =    np.int32(config_vals[3])
                 freq_729_readout_ftw =  np.int32(config_vals[4])
                 time_729_readout_mu =   config_vals[5]
-                self.core.break_realtime()
 
                 # prepare variables for execution
                 cat4_phases = [
@@ -465,8 +459,6 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
@@ -477,15 +469,12 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                                     profile=i)
             self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(10000)
 
 
     '''
