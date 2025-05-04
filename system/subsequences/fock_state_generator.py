@@ -1,5 +1,6 @@
 import numpy as np
 from EGGS_labrad.config.dds_config import dds_config
+from artiq.build.lib.artiq.language.environment import EnumerationValue
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
@@ -47,9 +48,10 @@ class FockStateGenerator(LAXSubsequence):
                               group='fock_state_generation')
         self.setattr_argument('time_sideband_pi_pulse_us', NumberValue(default=27.1, step=0.1, precision=3, min=0, max=1000),
                               group='fock_state_generation')
+        self.setattr_argument('motional_mode', EnumerationValue(["EGGS", "RF", "AXIAL"]))
 
         # fock state
-        self.setattr_argument("final_fock_state", NumberValue(default=0, step=1, precision=0, min=0, max=10),
+        self.setattr_argument("final_fock_state", NumberValue(default=10, step=1, precision=0, min=0, max=10),
                                                       group='fock_state_generation')
 
     def prepare_subsequence(self):
@@ -65,8 +67,13 @@ class FockStateGenerator(LAXSubsequence):
         self.time_carrier_pi_pulse_mu = self.core.seconds_to_mu(self.time_carrier_pi_pulse_us*us)
 
         # calculate lamb dicke parameter to scale successive RSB/BSB pulse times
+        if self.motional_mode == 'EGGS' or self.motional_mode == 'RF':
+            lambe_dicke_projection = 1/2
+        else:
+            lambe_dicke_projection = 1/np.sqrt(2)
+
         omega = 4 * np.pi * (self.freq_carrier_rabiflop_mhz - self.freq_rsb_rabiflop_mhz) * MHz # extra factor of 2 for AOM units
-        lamb_dicke = (2 * np.pi / 729e-9) * np.sqrt(hbar/(2*mCa*omega))
+        lamb_dicke = lambe_dicke_projection * (2 * np.pi / 729e-9) * np.sqrt(hbar/(2*mCa*omega))
 
         ### create config array for each RSB/BSB pulse
         self.time_pi_pulses_us = np.zeros(self.final_fock_state)
@@ -104,6 +111,7 @@ class FockStateGenerator(LAXSubsequence):
         # continually apply bsb and rsb (alternating) to achieve the fock state we want
         for idx in range(self.final_fock_state):
             # note: this 8ns delay is CRITICAL to proper operation
+            delay_mu(8)
             self.qubit.set_mu(self.dds_configs[idx,0], asf=self.dds_configs[idx,1], profile=self.profile_fock)
             self.qubit.on()
             delay_mu(self.time_pi_pulses_mu[idx])
