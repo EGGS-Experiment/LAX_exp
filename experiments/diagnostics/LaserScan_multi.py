@@ -70,10 +70,12 @@ class LaserScanMulti(LaserScan.LaserScan):
         elif self.scan_type == "1+2":
             self.freq_qubit_scan_mhz = np.concatenate((freq_sideband_arrays_aom_mhz_list[0],
                                                        freq_sideband_arrays_aom_mhz_list[1]))
-        elif self.scan_type == "All":
+        elif self.scan_type == "All Sidebands":
             self.freq_qubit_scan_mhz = np.concatenate((freq_sideband_arrays_aom_mhz_list[0],
                                                        freq_sideband_arrays_aom_mhz_list[1],
                                                        freq_sideband_arrays_aom_mhz_list[2]))
+        else:
+            raise ValueError("Invalid scan argument: {}".format(self.scan_type))
 
         # call parent prepare_experiment
         super().prepare_experiment()

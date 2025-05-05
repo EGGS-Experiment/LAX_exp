@@ -1,10 +1,12 @@
 import numpy as np
+
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+
 from PyQt5.QtCore import Qt
 
 from sipyco import pyon
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
 

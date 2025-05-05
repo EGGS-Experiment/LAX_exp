@@ -146,11 +146,10 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # ensure qubit carrier is set up correctly on ALL profiles
         self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
+
         for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
@@ -165,7 +164,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         #                  )
         self.qubit_carrier.cpld.io_update.pulse_mu(8)
         self.qubit_carrier.sw.on()
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -174,8 +173,6 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -202,7 +199,7 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
                     self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target)
-                self.core.break_realtime()
+                delay_mu(10000)
 
                 # # tmp remove
                 # self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
@@ -252,8 +249,6 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set qubit carrier to default value (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
@@ -263,9 +258,5 @@ class BichromaticCalibration(LAXExperiment, Experiment):
             delay_mu(5000)
         self.qubit_carrier.sw.on()
         self.qubit_carrier.set_att_mu(self.att_qubit_carrier_default_mu)
-        self.core.break_realtime()
-
-    # ANALYSIS
-    def analyze_experiment(self):
-        pass
+        delay_mu(25000)
 
