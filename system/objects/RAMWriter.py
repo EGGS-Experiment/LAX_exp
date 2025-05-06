@@ -1,4 +1,3 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
@@ -7,7 +6,8 @@ class RAMWriter(HasEnvironment):
     """
     Helper: RAM Writer
 
-    Writes waveform data in blocks for AD9910 DDSs.
+    Writes waveform data in blocks for AD9910 DDSs to unpredictable RTIOUnderflow errors.
+    See here for details: https://github.com/m-labs/artiq/issues/1378
     """
     name = 'RAM Writer'
     kernel_invariants = {
@@ -38,6 +38,7 @@ class RAMWriter(HasEnvironment):
         # stop DDS output and disable RAM mode before writing
         self.dds.off()
         self.dds.set_cfr1(ram_enable=0)
+        self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(50000) # 50us
 
         # keep track of current index as we step through RAM data list
