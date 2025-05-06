@@ -1,3 +1,4 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
@@ -27,7 +28,7 @@ class RAMWriter(HasEnvironment):
         self.dds_profile = dds_profile
 
         # hardcoded values
-        self.time_block_write_slack_mu = self.core.seconds_to_mu(500 * us)
+        self.time_block_write_slack_mu = self.core.seconds_to_mu(250 * us)
 
     @kernel(flags={"fast-math"})
     def write(self, ram_data: TList(TInt32), start_addr: TInt32) -> TNone:
@@ -44,12 +45,21 @@ class RAMWriter(HasEnvironment):
         num_vals = len(ram_data)
 
         # write RAM data to AD9910 in small blocks
-        for i in range(num_vals // self.block_size + 1):
+        num_write_operations = num_vals // self.block_size + min(num_vals % self.block_size, 0)
+        for i in range(num_write_operations):
 
             # update start/stop indices
             addr_current = start_addr + index_current
             update_end = min(self.block_size, num_vals - index_current) - 1
             delay_mu(10000) # 10us
+
+            # # tmp remove
+            # delay_mu(1000000)
+            # print(index_current, addr_current, update_end)
+            # # core_log(index_current, addr_current, update_end)
+            # self.core.break_realtime()
+            # delay_mu(1000000)
+            # # tmp remove
 
             # set waveform address range in RAM profile
             # note: step and mode are unimportant b/c user SHOULD overwrite them later
@@ -58,6 +68,7 @@ class RAMWriter(HasEnvironment):
                 profile=self.dds_profile, step=0x001, mode=ad9910.RAM_MODE_RAMPUP
             )
             self.dds.cpld.io_update.pulse_mu(8)
+            delay_mu(512)
             self.dds.cpld.set_profile(self.dds_profile)
             self.dds.cpld.io_update.pulse_mu(8)
 
