@@ -14,12 +14,12 @@ class TrapDC(LAXDevice):
     name = "trap_dc"
 
     # todo: make it get from dc_config somehow (preferably registry)
-    EAST_ENDCAP_CHANNEL =   28
-    WEST_ENDCAP_CHANNEL =   27
-    V_SHIM_CHANNEL =        20
-    H_SHIM_CHANNEL =        25
-    ARAMP_1_CHANNEL =       24
-    ARAMP_2_CHANNEL =       23
+    EAST_ENDCAP_CHANNEL =   dc_config.channeldict['E Endcap']['num']
+    WEST_ENDCAP_CHANNEL =   dc_config.channeldict['W Endcap']['num']
+    V_SHIM_CHANNEL =        dc_config.channeldict['V Shim']['num']
+    H_SHIM_CHANNEL =        dc_config.channeldict['H Shim']['num']
+    ARAMP_1_CHANNEL =       dc_config.channeldict['A-Ramp 1']['num']
+    ARAMP_2_CHANNEL =       dc_config.channeldict['A-Ramp 2']['num']
 
     def prepare_device(self):
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
