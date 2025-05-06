@@ -93,11 +93,10 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
                           profile=self.profile_729_target)
         self.qubit.set_profile(self.profile_729_target)
         self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # main sequence
         for trial_num in range(self.repetitions):
             self.core.break_realtime()

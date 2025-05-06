@@ -73,8 +73,6 @@ class SidebandCooling(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -83,7 +81,6 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
         for trial_num in range(self.repetitions):
 
             # scan over sideband readout frequencies
@@ -92,7 +89,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                 # set frequency
                 self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(10000)
 
                 # initialize ion in S-1/2 state & SBC to the ground motional state
                 self.initialize_subsequence.run_dma()

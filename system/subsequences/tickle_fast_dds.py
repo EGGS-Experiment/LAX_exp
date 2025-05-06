@@ -19,38 +19,31 @@ class TickleFastDDS(LAXSubsequence):
     """
     name = 'tickle_fast_dds'
     kernel_invariants = {
-        "ampl_ticklefast_asf",
-        "time_latency_ch1_system_ns",
-        "att_ticklefast_mu",
-        "time_system_prepare_delay_mu",
+        "ampl_ticklefast_asf", "att_ticklefast_mu",
+        "time_latency_ch1_system_ns", "time_system_prepare_delay_mu",
         "time_system_cleanup_delay_mu"
     }
 
     def build_subsequence(self):
-        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5), group='ticklefast')
+        self.setattr_argument('att_ticklefast_dds_db', NumberValue(default=24, precision=1, step=0.5, min=0, max=31.5),
+                              group='ticklefast')
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
         self.dds_ch1 = self.get_device('urukul1_ch3')
 
-        # tmp remove
-        # self.setattr_device('ttl8')
-        # self.setattr_device('ttl9')
-        # tmp remove
-
     def prepare_subsequence(self):
         # get DDS configuration parameters from dataset manager
-        self.ampl_ticklefast_asf =          self.get_parameter('ampl_ticklefast_pct',
-                                                               group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
-        self.time_latency_ch1_system_ns =   self.get_parameter('time_urukul0_urukul1_ch3_latency_ns',
-                                                               group='dds.delay', override=False)
+        self.ampl_ticklefast_asf = self.get_parameter('ampl_ticklefast_pct', group='dds.ampl_pct', override=False,
+                                                      conversion_function=pct_to_asf)
+        self.time_latency_ch1_system_ns = self.get_parameter('time_urukul0_urukul1_ch3_latency_ns',
+                                                             group='dds.delay', override=False)
 
         # prepare parameters for tickle pulse
         self.att_ticklefast_mu =            att_to_mu(self.att_ticklefast_dds_db * dB)
 
         # set empty holder variable for delay time
         self.time_delay_mu =                np.int64(0)
-
         # set empty variables for phase to compensate for ch0 & ch1 delays
         self.phase_ch1_inherent_turns =     0.
         self.phase_ch1_latency_turns =      float(0)
@@ -64,22 +57,19 @@ class TickleFastDDS(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self) -> TNone:
         # set up DDSs for output
-        with parallel:
-            self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
-            self.dds_ch1.set_att_mu(self.att_ticklefast_mu)
+        self.dds_ch0.set_att_mu(self.att_ticklefast_mu)
+        delay_mu(512)
+        self.dds_ch1.set_att_mu(self.att_ticklefast_mu)
+        delay_mu(512)
 
-            self.dds_ch0.set_phase_mode(PHASE_MODE_ABSOLUTE)
-            self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.dds_ch0.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        self.dds_ch1.set_phase_mode(PHASE_MODE_ABSOLUTE)
+        delay_mu(10000)
 
-            # tmp remove
-            # self.ttl8.off()
-            # self.ttl9.off()
-            # tmp remove
-        self.core.break_realtime()
-
-        with parallel:
-            self.dds_ch0.set_cfr2(matched_latency_enable=1)
-            self.dds_ch1.set_cfr2(matched_latency_enable=1)
+        self.dds_ch0.set_cfr2(matched_latency_enable=1)
+        delay_mu(512)
+        self.dds_ch1.set_cfr2(matched_latency_enable=1)
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -109,20 +99,23 @@ class TickleFastDDS(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def configure(self, freq_ftw: TInt32, phase_pow: TInt32, time_delay_mu: TInt64) -> TNone:
+        """
+        todo: document
+        """
         # store timings
-        time_delay_tmp_mu =                 time_delay_mu & ~0x7
-        self.time_delay_mu =                time_delay_mu
+        time_delay_tmp_mu =     time_delay_mu & ~0x7
+        self.time_delay_mu =    time_delay_mu
 
         # calculate phase values to compensate for ch0 & ch1 delays
-        self.phase_ch1_latency_turns =      self.dds_ch0.ftw_to_frequency(freq_ftw) * (self.time_latency_ch1_system_ns * ns)
-        self.phase_ch1_delay_turns =        self.dds_ch0.ftw_to_frequency(freq_ftw) * (time_delay_tmp_mu * ns)
+        self.phase_ch1_latency_turns =  self.dds_ch0.ftw_to_frequency(freq_ftw) * (self.time_latency_ch1_system_ns * ns)
+        self.phase_ch1_delay_turns =    self.dds_ch0.ftw_to_frequency(freq_ftw) * (time_delay_tmp_mu * ns)
 
         # combine compensation values into ch1 phase: ch0 vs ch1 inherent phase shift/relation,
         # ch0 vs ch1 inherent time delay, and 0.5 (for cancellation)
-        self.phase_ch1_final_pow =          self.dds_ch0.turns_to_pow(self.phase_ch1_inherent_turns +
-                                                                      self.phase_ch1_latency_turns +
-                                                                      self.phase_ch1_delay_turns +
-                                                                      0.5) + phase_pow
+        self.phase_ch1_final_pow = self.dds_ch0.turns_to_pow(
+            self.phase_ch1_inherent_turns + self.phase_ch1_latency_turns +
+            self.phase_ch1_delay_turns + 0.5
+        ) + phase_pow
 
         # set waveforms for profiles
         at_mu(now_mu() + 50000)
@@ -135,7 +128,7 @@ class TickleFastDDS(LAXSubsequence):
                 self.dds_ch1.set_mu(freq_ftw, asf=0x01, pow_=self.phase_ch1_final_pow, profile=0)
                 self.dds_ch1.set_mu(freq_ftw, asf=self.ampl_ticklefast_asf, pow_=self.phase_ch1_final_pow, profile=1)
                 self.dds_ch1.write32(_AD9910_REG_CFR1, (1 << 16) | (1 << 13) | 2)
-        self.core.break_realtime()
+        delay_mu(25000)
 
     @kernel
     def _set_cpld_profile_switch_on(self) -> TNone:

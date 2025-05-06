@@ -59,8 +59,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
@@ -76,7 +74,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                     freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                     profile=self.profile_729_readout
                 )
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state & sideband cool

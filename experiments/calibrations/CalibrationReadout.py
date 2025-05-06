@@ -143,8 +143,6 @@ class CalibrationReadout(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # MAIN EXECUTION LOOP
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
