@@ -113,18 +113,18 @@ class LaserPowerMeasure(EnvExperiment):
         self.dds.sw.off()
         self.dds.cpld.set_profile(0)
         self.dds.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # set DDS attenuator without affecting other DDSs on board
         self.dds.cpld.get_att_mu()
         self.core.break_realtime()
         self.dds.set_att(self.dds_attenuation_db * dB)
         self.dds.sw.on()
-        self.core.break_realtime()
+        delay_mu(5000)
 
         # set up ADC
         self.adc.set_gain_mu(self.adc_channel_num, self.adc_gain_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

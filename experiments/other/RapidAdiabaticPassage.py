@@ -203,8 +203,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -213,8 +211,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -233,7 +229,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
                 # configure RAP pulse
                 self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
-                self.core.break_realtime()
+                delay_mu(50000)
 
                 '''INITIALIZE ION'''
                 # initialize ion in S-1/2 state

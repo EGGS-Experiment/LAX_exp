@@ -169,8 +169,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # instantiate relevant variables
         ion_state = (-1, 0, np.int64(0))
 
@@ -197,12 +195,12 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                 # configure RAP pulse
                 self.rap_subsequence.configure(self.time_rap_mu, freq_rap_center_ftw, self.freq_rap_dev_ftw)
-                self.core.break_realtime()
+                delay_mu(50000)
 
                 # configure rabiflop readout frequency
                 self.qubit.set_mu(freq_rabiflop_readout_ftw, asf=self.qubit.ampl_qubit_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''PREPARE TARGET MOTIONAL STATE'''
                 while True:

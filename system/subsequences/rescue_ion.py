@@ -129,16 +129,13 @@ class RescueIon(LAXSubsequence):
             self._deathcount_sum_counts += 1
         else:
             self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
-        self.core.break_realtime()
-
+        delay_mu(15000) # 15us
 
         # update filter once we have stored enough counts
         if self._deathcount_iter >= self.deathcount_length:
 
             # subtract history from running average (i.e. circular buffer)
             self._deathcount_sum_counts -= self._deathcount_arr[(self._deathcount_iter + 1) % self.deathcount_length]
-            self.core.break_realtime()
-
             # process syndromes
             if self._deathcount_sum_counts < self.deathcount_tolerance:
                 self._deathcount_status = 1     # syndrome: ion death (no bright counts)
@@ -146,7 +143,7 @@ class RescueIon(LAXSubsequence):
                 self._deathcount_status = 2     # syndrome: bad transition (no dark counts)
             else:
                 self._deathcount_status = 0     # syndrome: clear (no error)
-
+            delay_mu(25000) # 25us
 
             # process status change
             if self._deathcount_status != self._deathcount_status_latched:
@@ -168,11 +165,11 @@ class RescueIon(LAXSubsequence):
                         print('Ion death detected - opening aperture in response.')
                         self.aperture.pulse_aperture_open(self.time_aperture_pulse_s)
                         self.core.break_realtime()
-                        delay_mu(1000000)
+                        delay_mu(500000) # 500us
 
                 # update status flag
                 self._deathcount_status_latched = self._deathcount_status
-            self.core.break_realtime()
+            delay_mu(50000) # 50us
 
         # update count array iterator
         self._deathcount_iter += 1

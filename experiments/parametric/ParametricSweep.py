@@ -159,8 +159,6 @@ class ParametricSweep(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # set up labrad devices via RPC
         self.prepareDevicesLabrad()
         self.core.break_realtime()
@@ -175,13 +173,15 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.pump.on()
         self.repump_cooling.on()
         self.repump_qubit.on()
+        delay_mu(10000)
 
         # set up DDS for modulation
         self.dds_parametric.set_att_mu(self.att_modulation_mu)
         self.dds_parametric.set_phase_absolute()
-        self.core.break_realtime()
+        delay_mu(10000)
         # note: use profile 0 for modulation waveform
         self.dds_parametric.set_profile(0)
+        delay_mu(8000)
 
         # do check to verify that mirror is flipped to mirror
         # tmp remove: fix

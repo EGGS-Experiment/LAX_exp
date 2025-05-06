@@ -286,8 +286,6 @@ class SuperDuperResolutionB(EGGSHeatingRDX.EGGSHeatingRDX):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -333,10 +331,10 @@ class SuperDuperResolutionB(EGGSHeatingRDX.EGGSHeatingRDX):
                     ],
                     phase_ch1_turns
                 )
-                self.core.break_realtime()
+                delay_mu(25000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state

@@ -346,8 +346,6 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -367,7 +365,6 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 freq_sideband_hz =  config_vals[1]
                 phas_wav_idx =      np.int32(config_vals[2])
                 time_readout_mu =   np.int64(config_vals[3])
-                self.core.break_realtime()
 
                 # get corresponding RSB phase and waveform ID from the index
                 phas_offset_turns = self.phase_antisqueeze_offset_turns_list[phas_wav_idx]
@@ -378,9 +375,9 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 self.phaser_eggs.frequency_configure(self.freq_squeeze_carrier_hz,
                                                      [-freq_sideband_hz, freq_sideband_hz, 0., 0., 0.],
                                                      self.phaser_eggs.phase_inherent_ch1_turns)
-                self.core.break_realtime()
+                delay_mu(25000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool

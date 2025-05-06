@@ -112,8 +112,6 @@ class QubitAlignment(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # prepare plotting
         # note: do it here instead of prepare to prevent overriding other experiments
         self.initialize_plotting()
@@ -123,7 +121,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.qubit.set_profile(0)
         self.qubit.set_att_mu(self.att_qubit_mu)
         self.qubit.set_mu(self.freq_qubit_ftw, asf=self.qubit.ampl_qubit_asf, profile=0)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # record alignment sequence
         with self.core_dma.record('_QUBIT_ALIGNMENT'):
@@ -139,8 +137,6 @@ class QubitAlignment(LAXExperiment, Experiment):
         
     @kernel(flags={"fast-math"})
     def run_main(self):
-        self.core.break_realtime()
-
         # retrieve DMA handles for qubit alignment
         _handle_alignment = self.core_dma.get_handle('_QUBIT_ALIGNMENT')
         self.core.break_realtime()
@@ -173,13 +169,15 @@ class QubitAlignment(LAXExperiment, Experiment):
     # overload the update_results function to allow real-time dataset updating
     @rpc(flags={"async"})
     def update_results(self, iter_num: TInt32, state_array: TArray(TInt32, 1)) -> TNone:
+        """
+        todo: document
+        """
         # convert raw counts into a probability
         # dstate_probability = np.sum((state_array < self.counts_threshold) * 1.) / self.samples_per_point
         # tmp remove
         for val in state_array:
             self._th0.append((val < self.counts_threshold) * 1.)
         # tmp remove
-
 
         # update datasets for broadcast
         self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
@@ -188,7 +186,8 @@ class QubitAlignment(LAXExperiment, Experiment):
 
         # update dataset for HDF5 storage
         self.mutate_dataset('results', self._result_iter,
-                            np.array([iter_num * (self.samples_per_point * self.time_per_point_us * us), np.mean(self._th0)]))
+                            np.array([iter_num * (self.samples_per_point * self.time_per_point_us * us),
+                                      np.mean(self._th0)]))
 
         # update completion monitor
         self.set_dataset('management.dynamic.completion_pct',

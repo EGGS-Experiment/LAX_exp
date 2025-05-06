@@ -102,8 +102,6 @@ class ImagingAlignment(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # prepare plotting
         # note: do it here instead of prepare to prevent overriding other experiments
         self.initialize_plotting()
@@ -137,8 +135,6 @@ class ImagingAlignment(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # retrieve DMA handles for PMT alignment
         _handle_alignment_signal =      self.core_dma.get_handle('_PMT_ALIGNMENT_SIGNAL')
         _handle_alignment_background =  self.core_dma.get_handle('_PMT_ALIGNMENT_BACKGROUND')

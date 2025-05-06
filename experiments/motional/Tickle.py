@@ -108,11 +108,10 @@ class Tickle(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # ensure DMA sequences use profile 0
         self.dds_tickle.set_profile(0)
         self.dds_tickle.set_att_mu(self.att_tickle_mu)
+        delay_mu(10000)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -120,8 +119,6 @@ class Tickle(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
@@ -134,7 +131,7 @@ class Tickle(LAXExperiment, Experiment):
 
                 # configure tickle and qubit readout
                 self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf, profile=0)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''INITIALIZE ION & EXCITE'''
                 # initialize ion

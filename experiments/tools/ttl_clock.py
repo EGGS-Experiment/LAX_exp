@@ -1,6 +1,7 @@
 from artiq.experiment import *
 
 # todo: duty cycle
+# todo: set kernel invariants
 
 
 class TTLClock(EnvExperiment):
@@ -30,7 +31,7 @@ class TTLClock(EnvExperiment):
         Set up the dataset and prepare values to minimize kernel overhead.
         """
         # devices
-        self.ttl_clock =                self.get_device("ttl{:d}".format(self.ttl_channel))
+        self.ttl_clock = self.get_device("ttl{:d}".format(self.ttl_channel))
 
         # timing
         self.time_trigger_delay_mu =    self.core.seconds_to_mu(50.88 * us)

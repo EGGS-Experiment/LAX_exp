@@ -321,9 +321,7 @@ class PhaserConfigure(EnvExperiment):
         self.phaser.channel[0].set_att(31.5 * dB)
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[1].set_att(31.5 * dB)
-
-        # add slack
-        self.core.break_realtime()
+        delay_mu(10000)
 
 
         '''
@@ -345,7 +343,7 @@ class PhaserConfigure(EnvExperiment):
             self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
 
         # add slack
-        self.core.break_realtime()
+        delay_mu(25000)
 
 
         '''
@@ -353,12 +351,12 @@ class PhaserConfigure(EnvExperiment):
         '''
         # configure TRF via phaser initialization (this is the easiest way!)
         if self.configure_trf:
-            delay_mu(100000)
+            delay_mu(100000) # 100us
             self.phaser.init(debug=True)
 
             # ensure TRF outputs are disabled while we finish configurating
             self.core.break_realtime()
-            delay_mu(100000)
+            delay_mu(100000) # 100us
             at_mu(self.phaser.get_next_frame_mu())
             self.phaser.channel[0].en_trf_out(rf=0, lo=0)
             delay_mu(self.time_phaser_sample_mu)

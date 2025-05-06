@@ -488,13 +488,13 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 time_char_read_mu =        config_vals[0]
                 phase_char_read_pow =      np.int32(config_vals[1])
                 characteristic_axis_bool =  bool(config_vals[2])
-                self.core.break_realtime()
 
                 # set phases for characteristic readout
                 phase_char_read_pow_list = [
                     self.phases_pulse4_cat_pow[0] + self.phases_pulse4_cat_update_dir[0] * phase_char_read_pow,
                     self.phases_pulse4_cat_pow[1] + self.phases_pulse4_cat_update_dir[1] * phase_char_read_pow,
                 ]
+                self.core.break_realtime()
 
                 # set phaser frequency
                 self.phaser_eggs.frequency_configure(
@@ -505,7 +505,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                      self.freq_superresolution_osc_base_hz_list[2], self.freq_superresolution_osc_base_hz_list[3], 0.],
                     self.phase_eggs_heating_ch1_turns
                 )
-                self.core.break_realtime()
+                delay_mu(20000)
 
                 '''MOTIONAL STATE PREPARATION'''
                 # get current time
