@@ -39,8 +39,9 @@ __all__.extend(['Squeeze', 'SqueezeConfigurable',
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.ramsey import Ramsey
 from LAX_exp.system.subsequences.qubit_pulseshape import QubitPulseShape
+from LAX_exp.system.subsequences.qubit_pulseshape_test import QubitPulseShapeTest
 from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
-__all__.extend(['RabiFlop', 'Ramsey', 'QubitPulseShape', 'QubitRAP'])
+__all__.extend(['RabiFlop', 'Ramsey', 'QubitPulseShape', 'QubitRAP', 'QubitPulseShapeTest'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout
