@@ -18,7 +18,7 @@ class QubitPulseShape(LAXSubsequence):
     kernel_invariants = {
         "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
         "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step",
-        "ampl_asf_pulseshape_list", "RAMWriter"
+        "ampl_asf_pulseshape_list", "ram_writer"
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
@@ -45,7 +45,7 @@ class QubitPulseShape(LAXSubsequence):
         # get relevant devices
         self.setattr_device("core")
         self.setattr_device("qubit")
-        self.ram_writer = RAMWriter(self, dds_device=self.qubit,
+        self.ram_writer = RAMWriter(self, dds_device=self.qubit.beam,
                                     dds_profile=self.ram_profile, block_size=50)
 
     def prepare_subsequence(self):
@@ -58,11 +58,10 @@ class QubitPulseShape(LAXSubsequence):
         self._prepare_argument_checks()
 
         '''SPECFIY RAM PARAMETERS'''
-        # stop RAM address
+        # prepare ram_writer (b/c only LAXExperiment classes call their own children)
+        self.ram_writer.prepare()
         self.ram_addr_stop = self.ram_addr_start + (self.num_samples - 1)
-
-        # preallocate delay time for later use
-        self.time_pulse_mu = np.int64(0)
+        self.time_pulse_mu = np.int64(0)    # delay time (holder, for later use)
 
         # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
         # todo: get sync_clk from ad9910 device instead
@@ -77,9 +76,8 @@ class QubitPulseShape(LAXSubsequence):
         wav_y_vals = available_pulse_shapes[self.pulse_shape](x_vals, 100)
         wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
 
-        # create empty array to store values
+        # create array to store amplitude waveform in ASF (but formatted as a RAM word)
         self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
-        # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in ampl_asf_pulseshape_list
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]

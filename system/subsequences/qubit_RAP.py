@@ -54,7 +54,7 @@ class QubitRAP(LAXSubsequence):
         # get relevant devices
         self.setattr_device("core")
         self.setattr_device("qubit")
-        self.ram_writer = RAMWriter(self, dds_device=self.qubit,
+        self.ram_writer = RAMWriter(self, dds_device=self.qubit.beam,
                                     dds_profile=self.ram_profile, block_size=50)
 
     def prepare_subsequence(self):
@@ -76,7 +76,8 @@ class QubitRAP(LAXSubsequence):
                                              (self.num_samples * self.drg_steps_per_ram_step))
 
         '''SPECFIY RAM PARAMETERS FOR PULSE SHAPING'''
-        # stop RAM address
+        # prepare ram_writer (b/c only LAXExperiment classes call their own children)
+        self.ram_writer.prepare()
         self.ram_addr_stop = self.ram_addr_start + (self.num_samples - 1)
 
         # calculate pulse shape, then normalize and rescale to max amplitude
@@ -85,9 +86,8 @@ class QubitRAP(LAXSubsequence):
         wav_y_vals = available_pulse_shapes[self.pulse_shape](x_vals, 100)
         wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
 
-        # create empty array to store values
+        # create array to store amplitude waveform in ASF (but formatted as a RAM word)
         self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
-        # convert amplitude data to RAM in ampl. mod. mode (i.e. 64-bit word) and store in ampl_asf_pulseshape_list
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]

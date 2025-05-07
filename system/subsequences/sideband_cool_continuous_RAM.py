@@ -57,9 +57,9 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('qubit')
 
         # use helper objects
-        self.ram_writer_729 = RAMWriter(self, dds_device=self.qubit,
-                                    dds_profile=self.profile_ram_729, block_size=50)
-        self.ram_writer_854 = RAMWriter(self, dds_device=self.repump_qubit,
+        self.ram_writer_729 = RAMWriter(self, dds_device=self.qubit.beam,
+                                        dds_profile=self.profile_ram_729, block_size=50)
+        self.ram_writer_854 = RAMWriter(self, dds_device=self.repump_qubit.beam,
                                         dds_profile=self.profile_ram_854, block_size=50)
 
         # sideband cooling - hardware values
@@ -150,6 +150,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # self.time_spinpolarization_mu_list = np.insert(self.time_spinpolarization_mu_list, 0, 16)
 
         '''PREPARE RAM WAVEFORM'''
+        # prepare RAMWriters (b/c only LAXExperiment classes call their own children)
+        self.ram_writer_729.prepare()
+        self.ram_writer_854.prepare()
+
         # create 729nm waveform array - frequency values
         vals_freq_hz = np.concatenate([
             mode_freqs_hz[i] * np.ones(num_steps)
