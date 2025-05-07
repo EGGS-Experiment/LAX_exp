@@ -7,6 +7,8 @@ from LAX_exp.base import LAXEnvironment
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 import matplotlib.pyplot as plt
+# todo: make more things passable as arguments, less self variables
+# todo: make entire waveform specifiable as dict
 
 
 class SpinEchoWizard(LAXEnvironment):
@@ -60,7 +62,6 @@ class SpinEchoWizard(LAXEnvironment):
         self.enable_pulse_shaping =         True
         self.pulse_shape_blocks =           False
         self.type_pulse_shape =             'sine_squared'
-        # self.type_pulse_shape =             'error_function'
         self.time_pulse_shape_rolloff_us =  100
         self.freq_pulse_shape_sample_khz =  500
 
@@ -117,9 +118,10 @@ class SpinEchoWizard(LAXEnvironment):
         except KeyError:
             raise ValueError('Invalid pulse shape: {}'.format(self.type_pulse_shape))
 
-    def compile_waveform(self):
+    def compile_waveform(self) -> TNone:
         """
         Compile configured waveform for use with PhaserPulseShaper.
+        todo: why store result? why not just return?
         """
         # get shapes of blocks
         num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
@@ -129,12 +131,18 @@ class SpinEchoWizard(LAXEnvironment):
         _phas_arrs =    list(np.zeros((num_oscs, 0), dtype=np.float64))
         _time_arr =     np.zeros(0, dtype=np.int64)
 
-
-        ###BEGIN COMPILATION - CONTIGUOUS SEQUENCES###
+        # determine whether constituent blocks in the sequence are contiguous, or non-contiguous
+        # contiguous: only a single pulse-shape is applied; namely to the first and last blocks of the sequence
+        # non-contiguous: all constituent blocks have a pulse shape applied to them
         _contiguous_sequence = ((self.pulse_shape_blocks is False) or
                                 ((self.enable_delay_spinecho is False) and (self.enable_pulse_shaping is False)))
+
+
+        ###BEGIN COMPILATION - CONTIGUOUS SEQUENCES###
         if _contiguous_sequence:
-            # implement pulse shaping: rising
+
+            # step 1: implement pulse shape (rising)
+            # note: the rising pulse shape assumes the ampl and phase of the first block in the sequence
             if self.enable_pulse_shaping is True:
                 # pulse shape each oscillator individually
                 for idx_osc in range(num_oscs):
@@ -154,7 +162,7 @@ class SpinEchoWizard(LAXEnvironment):
                 _time_arr = np.append(_time_arr, time_tmp)
 
 
-            # process blocks
+            # step 2: process blocks
             for idx_block in range(num_blocks):
                 # set values for each oscillator individually
                 for idx_osc in range(num_oscs):
@@ -169,7 +177,8 @@ class SpinEchoWizard(LAXEnvironment):
                 _time_arr = np.append(_time_arr, self.time_pulse_mu)
 
 
-            # implement pulse shaping: falling
+            # step 3: implement pulse shaping: falling
+            # note: the falling pulse shape assumes the ampl and phase of the last block in the sequence
             if self.enable_pulse_shaping is True:
                 # pulse shape each oscillator individually
                 for idx_osc in range(num_oscs):
@@ -189,17 +198,18 @@ class SpinEchoWizard(LAXEnvironment):
                 _time_arr = np.append(_time_arr, time_tmp)
 
 
-            # ensure pulse turns off
+            # step 4: ensure pulse turns off
             for idx_osc in range(num_oscs):
                 _ampl_arrs[idx_osc] = np.append(_ampl_arrs[idx_osc], 0.)
                 _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], 0.)
-            # set minimum delay time
+            # set minimum delay time after turnoff
             _time_arr = np.append(_time_arr, self.phaser_eggs.t_sample_mu)
 
 
         ###BEGIN COMPILATION - NON-CONTIGUOUS SEQUENCES###
         else:
-            # process blocks
+
+            # process each block separately
             for idx_block in range(num_blocks):
                 # get block vals
                 block_vals = self.sequence_blocks[idx_block]
@@ -294,6 +304,7 @@ class SpinEchoWizard(LAXEnvironment):
     def display_waveform(self):
         """
         Display waveform phase and amplitude of each oscillator.
+        todo: document
         """
         try:
             # get sequence shape
