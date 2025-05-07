@@ -120,7 +120,7 @@ class SidebandCoolPulsed(LAXSubsequence):
         # profile 1 & greater: sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
             self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
-            self.core.break_realtime()
+            delay_mu(8000) # 8us
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

@@ -145,19 +145,19 @@ class SidebandCoolContinuous(LAXSubsequence):
         self.repump_cooling.off()
         self.qubit.off()
         self.repump_qubit.on()
-        delay_mu(50000)
+        delay_mu(50000) # 50us
 
         # read sampler and accumulate reads into a single storage variable
         for sample_num in range(self.power_quench_calibration_num_samples):
             self.sampler0.sample_mu(self.power_quench_calibration_mu_list)
             self.power_quench_calibration_store_mu += self.power_quench_calibration_mu_list[2]
-            delay_mu(8000)
+            delay_mu(8000) # 8us
 
         # convert storage variable to mV and store in dataset
-        self.set_dataset('calibration_power_quench_mv', 1000. * 100. * (self.power_quench_calibration_store_mu * 1. / self.power_quench_calibration_num_samples / (1 << 15)))
+        self.set_dataset('calibration_power_quench_mv', 1000. * 100. * (self.power_quench_calibration_store_mu * 1. /
+                                                                        self.power_quench_calibration_num_samples / (1 << 15)))
         self.setattr_dataset('calibration_power_quench_mv')
         self.core.break_realtime()
-
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

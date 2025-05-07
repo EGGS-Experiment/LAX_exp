@@ -214,8 +214,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.core.break_realtime()
-
         # set up labrad devices via RPC
         self.prepareDevicesLabrad()
         self.core.break_realtime()
@@ -233,18 +231,16 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # set up DDS for modulation
         self.dds_parametric.set_phase_absolute()
-        self.core.break_realtime()
+        delay_mu(10000)
         # note: use profile 0 for modulation waveform
         self.dds_parametric.set_profile(0)
-        self.core.break_realtime()
+        delay_mu(8000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         """
         Main sequence of experiment.
         """
-        self.core.break_realtime()
-
         # predict initial optimum
         convergence_status = self.predict_optimum()
         self.core.break_realtime()
@@ -275,7 +271,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # calculate optimum and check convergence
             convergence_status = self.predict_optimum()
             self.core.break_realtime()
-            delay_mu(1000000)
+            delay_mu(1000000) # 1ms
             if convergence_status is True:
                 return
 
@@ -306,7 +302,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             # calculate optimum and check convergence
             convergence_status = self.predict_optimum()
             self.core.break_realtime()
-            delay_mu(1000000)
+            delay_mu(1000000) # 1ms
             if convergence_status is True:
                 return
 

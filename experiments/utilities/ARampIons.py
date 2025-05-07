@@ -119,25 +119,26 @@ class ARampEjection(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        self.core.break_realtime()
-
-        '''HARDWARE INITIALIZATION'''
+        """
+        Hardware initialization immediately before run().
+        """
         # store attenuations to prevent overriding
         self.pump.beam.cpld.get_att_mu()
         self.core.break_realtime()
 
         # set readout profile for beams
         self.pump.readout()
-        self.core.break_realtime()
         self.pump.set_att_mu(self.att_397_mu)
+        delay_mu(8000)
         self.repump_qubit.set_att_mu(self.att_854_mu)
+        delay_mu(500)
         self.repump_cooling.set_att_mu(self.att_866_mu)
-        self.core.break_realtime()
+        delay_mu(8000)
         # turn on lasers
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
-        self.core.break_realtime()
+        delay_mu(8000)
 
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
@@ -286,7 +287,7 @@ class ARampEjection(LAXExperiment, Experiment):
         # if PMT counts are below the dark count threshold flip again
         if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
             self.flipper.flip()
-        self.core.break_realtime()
+            self.core.break_realtime()
 
     @rpc
     def check_termination(self) -> TNone:

@@ -112,8 +112,6 @@ class RabiFlopping(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.cooling_subsequence.record_dma()
@@ -126,13 +124,10 @@ class RabiFlopping(LAXExperiment, Experiment):
         else:
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
                               profile=self.profile_729_readout)
-        self.core.break_realtime()
-
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # create holder variable to support variable pulse shaping
         time_rabi_actual_mu = -1
 
@@ -146,7 +141,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # set up qubit pulse
                 if self.enable_pulseshaping:
                     time_rabi_actual_mu = self.pulseshape_subsequence.configure(time_rabi_pair_mu[1])
-                    self.core.break_realtime()
+                    delay_mu(50000)
                 else:
                     time_rabi_actual_mu = time_rabi_pair_mu[1]
 

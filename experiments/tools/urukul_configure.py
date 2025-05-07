@@ -68,7 +68,6 @@ class UrukulConfigure(EnvExperiment):
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         # reset & prepare
-        self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
         self.core.reset()
@@ -78,12 +77,12 @@ class UrukulConfigure(EnvExperiment):
         if self.initialize_cpld:
             self.dds.cpld.init()
         self.core.break_realtime()
-        delay_mu(1000000)
+        delay_mu(1000000) # 1ms
 
         if self.initialize_ad9910:
             self.dds.init()
         self.core.break_realtime()
-        delay_mu(1000000)
+        delay_mu(1000000) # 1ms
 
         # get board attenuations to prevent unwanted overwrites
         self.dds.cpld.get_att_mu()
@@ -98,13 +97,13 @@ class UrukulConfigure(EnvExperiment):
         self.dds.cpld.io_update.pulse_mu(8)
         self.dds.set_cfr2()
         self.dds.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         '''SETUP'''
         # set parameters for DDS profiles
         for profile_num in self.dds_profiles:
-            self.core.break_realtime()
             self.dds.set_mu(self.freq_ftw, asf=self.ampl_asf, profile=profile_num)
+            delay_mu(10000)
 
         '''CLEAN UP'''
         # set DDS to profile 7 (i.e. the default profile)

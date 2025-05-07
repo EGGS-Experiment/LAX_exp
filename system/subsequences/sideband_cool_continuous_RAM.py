@@ -4,6 +4,7 @@ from artiq.coredevice import ad9910
 import numpy as np
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+from LAX_exp.system.objects.RAMWriter import RAMWriter
 
 
 class SidebandCoolContinuousRAM(LAXSubsequence):
@@ -23,7 +24,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # RAM-related parameters
         "freq_dds_sync_clk_hz", "time_cycle_mu_to_ram_step", "ram_timestep_val", "time_sideband_cooling_mu",
         "time_spinpolarization_mu_list",
-        "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list"
+        "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list", "ram_writer_729", "ram_writer_854"
     }
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
@@ -54,6 +55,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
+
+        # use helper objects
+        self.ram_writer_729 = RAMWriter(self, dds_device=self.qubit.beam,
+                                        dds_profile=self.profile_ram_729, block_size=50)
+        self.ram_writer_854 = RAMWriter(self, dds_device=self.repump_qubit.beam,
+                                        dds_profile=self.profile_ram_854, block_size=50)
 
         # sideband cooling - hardware values
         self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=6000, precision=3, step=100, min=0.001, max=1000000), group='SBC_RAM.continuous')
@@ -143,6 +150,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # self.time_spinpolarization_mu_list = np.insert(self.time_spinpolarization_mu_list, 0, 16)
 
         '''PREPARE RAM WAVEFORM'''
+        # prepare RAMWriters (b/c only LAXExperiment classes call their own children)
+        self.ram_writer_729.prepare()
+        self.ram_writer_854.prepare()
+
         # create 729nm waveform array - frequency values
         vals_freq_hz = np.concatenate([
             mode_freqs_hz[i] * np.ones(num_steps)
@@ -185,60 +196,105 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Prepare hardware for operation.
         """
+        # # disable RAM mode and set matched latencies
+        # with parallel:
+        #     with sequential:
+        #         self.qubit.set_cfr1(ram_enable=0)
+        #         self.qubit.set_cfr2(matched_latency_enable=1)
+        #         self.qubit.cpld.io_update.pulse_mu(8)
+        #
+        #     with sequential:
+        #         self.repump_qubit.set_cfr1(ram_enable=0)
+        #         self.repump_qubit.set_cfr2(matched_latency_enable=1)
+        #         self.repump_qubit.cpld.io_update.pulse_mu(8)
+        # self.core.break_realtime()
+        #
+        # # configure RAM waveform profiles - 729nm for SBC
+        # # prepare to write waveform to RAM profile
+        # self.qubit.set_profile_ram(
+        #     start=self.ram_addr_start_729, end=self.ram_addr_start_729 + (self.num_samples - 1),
+        #     step=self.ram_timestep_val,
+        #     profile=self.profile_ram_729, mode=ad9910.RAM_MODE_CONT_RAMPUP
+        # )
+        #
+        # # set target RAM profile
+        # self.qubit.cpld.set_profile(self.profile_ram_729)
+        # self.qubit.cpld.io_update.pulse_mu(8)
+        #
+        # # write waveform to RAM profile
+        # self.core.break_realtime()
+        # delay_mu(10000000)   # 10 ms
+        # self.qubit.write_ram(self.ram_waveform_729_ftw_list)
+        # self.core.break_realtime()
+        #
+        # # configure RAM waveform profiles - 854nm for quench
+        # # prepare to write waveform to RAM profile
+        # self.repump_qubit.set_profile_ram(
+        #     start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
+        #     step=self.ram_timestep_val,
+        #     profile=self.profile_ram_854, mode=ad9910.RAM_MODE_CONT_RAMPUP
+        # )
+        #
+        # # set target RAM profile
+        # self.repump_qubit.cpld.set_profile(self.profile_ram_854)
+        # self.repump_qubit.cpld.io_update.pulse_mu(8)
+        #
+        # # write waveform to RAM profile
+        # self.core.break_realtime()
+        # delay_mu(10000000)  # 10 ms
+        # self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
+        # self.core.break_realtime()
+        # delay_mu(1000000)
+        #
+        # # bugfix: needed to make RAM/DMA/whatever happy
+        # self.repump_qubit.on()
+        # delay_mu(1000)
+        # self.repump_qubit.off()
+
+
+        '''729nm RAM SETUP'''
         # disable RAM mode and set matched latencies
-        with parallel:
-            with sequential:
-                self.qubit.set_cfr1(ram_enable=0)
-                self.qubit.set_cfr2(matched_latency_enable=1)
-                self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.set_cfr1(ram_enable=0)
+        self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.set_cfr2(matched_latency_enable=1)
+        self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(25000)
 
-            with sequential:
-                self.repump_qubit.set_cfr1(ram_enable=0)
-                self.repump_qubit.set_cfr2(matched_latency_enable=1)
-                self.repump_qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        # write waveform to RAM of 729nm DDS via RAMWriter
+        self.ram_writer_729.write(self.ram_waveform_729_ftw_list, self.ram_addr_start_729)
+        delay_mu(25000)
 
-        # configure RAM waveform profiles - 729nm for SBC
-        # prepare to write waveform to RAM profile
+        # set up 729nm RAM profile correctly after waveform uploaded
         self.qubit.set_profile_ram(
             start=self.ram_addr_start_729, end=self.ram_addr_start_729 + (self.num_samples - 1),
             step=self.ram_timestep_val,
             profile=self.profile_ram_729, mode=ad9910.RAM_MODE_CONT_RAMPUP
         )
-
-        # set target RAM profile
-        self.qubit.cpld.set_profile(self.profile_ram_729)
         self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(10000)
 
-        # write waveform to RAM profile
-        self.core.break_realtime()
-        delay_mu(10000000)   # 10 ms
-        self.qubit.write_ram(self.ram_waveform_729_ftw_list)
-        self.core.break_realtime()
 
-        # configure RAM waveform profiles - 854nm for quench
-        # prepare to write waveform to RAM profile
+        '''854nm RAM SETUP'''
+        # disable RAM mode and set matched latencies
+        self.repump_qubit.set_cfr1(ram_enable=0)
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
+        self.repump_qubit.set_cfr2(matched_latency_enable=1)
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(25000)
+
+        # write waveform to RAM of 729nm DDS via RAMWriter
+        self.ram_writer_854.write(self.ram_waveform_854_asf_list, self.ram_addr_start_854)
+        delay_mu(25000)
+
+        # set up 854nm RAM profile correctly after waveform uploaded
         self.repump_qubit.set_profile_ram(
             start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
             step=self.ram_timestep_val,
             profile=self.profile_ram_854, mode=ad9910.RAM_MODE_CONT_RAMPUP
         )
-
-        # set target RAM profile
-        self.repump_qubit.cpld.set_profile(self.profile_ram_854)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(10000)
 
-        # write waveform to RAM profile
-        self.core.break_realtime()
-        delay_mu(10000000)  # 10 ms
-        self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
-        self.core.break_realtime()
-        delay_mu(1000000)
-
-        # bugfix: needed to make RAM/DMA/whatever happy
-        self.repump_qubit.on()
-        delay_mu(1000)
-        self.repump_qubit.off()
 
     @kernel(flags={"fast-math"})
     def cleanup_subsequence(self) -> TNone:

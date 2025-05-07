@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+# todo: set kernel invariants
 
 
 class ProphylacticSweep(EnvExperiment):
@@ -10,7 +11,6 @@ class ProphylacticSweep(EnvExperiment):
     mass species from being trapped.
     """
 
-
     def build(self):
         # get core devices
         self.setattr_device("core")
@@ -18,10 +18,10 @@ class ProphylacticSweep(EnvExperiment):
         self.setattr_device("scheduler")
 
         # modulation
-        self.setattr_argument("repetitions",            NumberValue(default=5, precision=0, step=1, min=1, max=10000))
-        self.setattr_argument("mod_time_total_s",       NumberValue(default=20, precision=3, step=1, min=0.001, max=10000000))
-        self.setattr_argument("mod_att_db",             NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
-        self.setattr_argument("mod_freq_khz_list",      Scannable(
+        self.setattr_argument("repetitions",        NumberValue(default=5, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("mod_time_total_s",   NumberValue(default=20, precision=3, step=1, min=0.001, max=10000000))
+        self.setattr_argument("mod_att_db",         NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
+        self.setattr_argument("mod_freq_khz_list",  Scannable(
                                                             default=[
                                                                 CenterScan(1686, 1000, 100., randomize=True),
                                                                 RangeScan(1800, 2300, 501, randomize=True),
@@ -32,21 +32,21 @@ class ProphylacticSweep(EnvExperiment):
 
     def prepare(self):
         # modulation devices
-        self.mod_dds =                      self.get_device("urukul1_ch1")
-        self.mod_dds_sw =                   self.get_device("ttl11")
-        self.mod_dds_ampl_pct =             self.mod_dds.amplitude_to_asf(0.35)
-        self.mod_dds_att_mu =               self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
+        self.mod_dds =      self.get_device("urukul1_ch1")
+        self.mod_dds_sw =   self.get_device("ttl11")
+        self.mod_dds_ampl_pct = self.mod_dds.amplitude_to_asf(0.35)
+        self.mod_dds_att_mu =   self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
 
         # timing/iteration
-        self.mod_freq_mu_list =             np.array([
-                                                self.mod_dds.frequency_to_ftw(freq_khz * kHz)
-                                                for freq_khz in self.mod_freq_khz_list
-                                            ])
-        self.mod_time_mu =                  self.core.seconds_to_mu(self.mod_time_total_s / (len(self.mod_freq_mu_list) * self.repetitions))
-        self.time_cooling_holdoff_mu =      self.core.seconds_to_mu(3 * ms)
+        self.mod_freq_mu_list = np.array([
+                                    self.mod_dds.frequency_to_ftw(freq_khz * kHz)
+                                    for freq_khz in self.mod_freq_khz_list
+                                ])
+        self.mod_time_mu = self.core.seconds_to_mu(self.mod_time_total_s / (len(self.mod_freq_mu_list) * self.repetitions))
+        self.time_cooling_holdoff_mu = self.core.seconds_to_mu(3 * ms)
 
         # for completion manager
-        self._num_loops =                   len(self.mod_freq_mu_list) * self.repetitions
+        self._num_loops = len(self.mod_freq_mu_list) * self.repetitions
 
 
     @kernel(flags={"fast-math"})
@@ -104,26 +104,29 @@ class ProphylacticSweep(EnvExperiment):
         # configure rf modulation source
         self.mod_dds.sw.off()
         self.mod_dds.set_att_mu(self.mod_dds_att_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def cleanupDevices(self):
         """
         Clean up devices.
         """
-        # delay experiment cancellation until sequence has finished
-        self.core.break_realtime()
-
         # clean up DDS to prevent leakage
         self.mod_dds.set_att(31.5 * dB)
         self.mod_dds.set_mu(0x01, asf=0x01)
+        delay_mu(10000)
         # switch off all switches
         self.mod_dds_sw.off()
         self.mod_dds.cfg_sw(False)
         self.mod_dds.sw.off()
-        self.core.break_realtime()
+        delay_mu(2000)
 
     @rpc(flags={"async"})
     def updateCompletion(self, i: TInt32) -> TNone:
+        """
+        Update completion monitor for user convenience.
+        Arguments:
+            i: the current run iteration.
+        """
         self.set_dataset('management.dynamic.completion_pct', round(i / self._num_loops * 100., 3),
                          broadcast=True, persist=True, archive=False)

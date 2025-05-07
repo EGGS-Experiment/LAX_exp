@@ -141,8 +141,6 @@ class Squeezing(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -150,8 +148,6 @@ class Squeezing(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -169,10 +165,10 @@ class Squeezing(LAXExperiment, Experiment):
                 # configure squeezing and qubit readout
                 # note - need to return squeezing time since it is liable to change
                 time_squeeze_mu = self.squeeze_subsequence.configure(freq_squeeze_ftw, phase_antisqueeze_pow, time_squeeze_mu)
-                self.core.break_realtime()
+                delay_mu(50000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state
@@ -210,5 +206,3 @@ class Squeezing(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-    def analyze(self):
-        pass

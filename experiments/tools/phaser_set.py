@@ -179,9 +179,6 @@ class PhaserSet(EnvExperiment):
 
     @kernel(flags={"fast-math"})
     def run(self):
-        self.core.break_realtime()
-        self.core.break_realtime()
-        self.core.break_realtime()
         #
         # # # center @ 85
         # at_mu(self.phaser0.get_next_frame_mu())
@@ -211,10 +208,6 @@ class PhaserSet(EnvExperiment):
         #
         # at_mu(self.phaser0.get_next_frame_mu())
         # self.phaser0.channel[0].oscillator[0].set_amplitude_phase(amplitude=0.5, phase=0.0, clr=0)
-
-        self.core.break_realtime()
-        self.core.break_realtime()
-        self.core.break_realtime()
         #
         # # PREPARE (HARDWARE)
         # self._run_prepare()
@@ -272,31 +265,30 @@ class PhaserSet(EnvExperiment):
         Puts the same RSB and BSB on both channels, and sets a third oscillator to 0 Hz in case dynamical decoupling is used.
         """
         # calculate phase delays between CH0 and CH1
-        self.core.break_realtime()
-        self.phase_ch1_turns =          (self.phase_inherent_ch1_turns +
-                                         (self.freq_carrier_hz * self.time_latency_ch1_system_ns * ns))
+        self.phase_ch1_turns =  (self.phase_inherent_ch1_turns +
+                                 (self.freq_carrier_hz * self.time_latency_ch1_system_ns * ns))
 
         # calculate phase delays for each oscillator to account for inherent update latencies and system latencies
         # oscillator 0
-        self.phase_ch0_osc0 =           self.phas_ch0_osc_turns_list[0]
-        self.phase_ch1_osc0 =           self.phas_ch1_osc_turns_list[0]
+        self.phase_ch0_osc0 =   self.phas_ch0_osc_turns_list[0]
+        self.phase_ch1_osc0 =   self.phas_ch1_osc_turns_list[0]
 
         # oscillator 1
-        self.phase_ch0_osc1 =           self.freq_ch0_osc_hz_list[1] * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[1]
-        self.phase_ch1_osc1 =           self.freq_ch1_osc_hz_list[1] * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[1]
+        self.phase_ch0_osc1 =   self.freq_ch0_osc_hz_list[1] * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[1]
+        self.phase_ch1_osc1 =   self.freq_ch1_osc_hz_list[1] * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[1]
 
         # oscillator 2
-        self.phase_ch0_osc2 =           self.freq_ch0_osc_hz_list[2] * 2 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[2]
-        self.phase_ch1_osc2 =           self.freq_ch1_osc_hz_list[2] * 2 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[2]
+        self.phase_ch0_osc2 =   self.freq_ch0_osc_hz_list[2] * 2 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[2]
+        self.phase_ch1_osc2 =   self.freq_ch1_osc_hz_list[2] * 2 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[2]
 
         # oscillator 3
-        self.phase_ch0_osc2 =           self.freq_ch0_osc_hz_list[3] * 3 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[3]
-        self.phase_ch1_osc2 =           self.freq_ch1_osc_hz_list[3] * 3 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[3]
+        self.phase_ch0_osc2 =   self.freq_ch0_osc_hz_list[3] * 3 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[3]
+        self.phase_ch1_osc2 =   self.freq_ch1_osc_hz_list[3] * 3 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[3]
 
         # oscillator 4
-        self.phase_ch0_osc2 =           self.freq_ch0_osc_hz_list[4] * 4 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[4]
-        self.phase_ch1_osc2 =           self.freq_ch1_osc_hz_list[4] * 4 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[4]
-        self.core.break_realtime()
+        self.phase_ch0_osc2 =   self.freq_ch0_osc_hz_list[4] * 4 * self.t_sample_mu * ns + self.phas_ch0_osc_turns_list[4]
+        self.phase_ch1_osc2 =   self.freq_ch1_osc_hz_list[4] * 4 * self.t_sample_mu * ns + self.phas_ch1_osc_turns_list[4]
+        delay_mu(50000)
 
         # set carrier offset frequency via the DUC
         at_mu(self.phaser0.get_next_frame_mu())
@@ -345,7 +337,7 @@ class PhaserSet(EnvExperiment):
             self.phaser0.channel[1].oscillator[4].set_frequency(self.phas_ch1_osc_turns_list[4])
 
         # add slack
-        self.core.break_realtime()
+        delay_mu(50000)
 
     @kernel(flags={"fast-math"})
     def phaser_run(self):
@@ -478,8 +470,7 @@ class PhaserSet(EnvExperiment):
         self.phaser0.channel[1].set_duc_cfg(clr_once=1)
         at_mu(self.phaser0.get_next_frame_mu())
         self.phaser0.duc_stb()
-
-        self.core.break_realtime()
+        delay_mu(25000)
 
     def analyze(self):
         pass
