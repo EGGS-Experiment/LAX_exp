@@ -35,14 +35,14 @@ class FockRabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=40, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
                                                                default="SBC - Continuous"))
         self.setattr_argument("time_rabi_us_list", Scannable(
             default=[
-                RangeScan(1, 100, 100, randomize=True),
+                RangeScan(1, 150, 150, randomize=True),
                 ExplicitScan([6.05]),
                 CenterScan(3.05, 5., 0.1, randomize=True),
             ],
@@ -50,7 +50,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
             unit="us", scale=1, precision=5
         ), group=self.name)
         self.setattr_argument("freq_rabiflop_mhz",
-                              NumberValue(default=101.0463, precision=6, step=1, min=50., max=400.), group=self.name)
+                              NumberValue(default=101.4412, precision=6, step=1, min=50., max=400.), group=self.name)
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50),
                               group=self.name)
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5),
@@ -63,7 +63,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         # allocate relevant beam profiles
         self.profile_729_readout = 0
         self.profile_729_SBC = 1
-        self.profile_fock = 2
+        self.profile_fock = 6
 
         # prepare sequences
         self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
@@ -89,6 +89,10 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         """
         Prepare values for speedy evaluation.
         """
+        # tmp remove
+        self.setattr_device('urukul0_ch1')
+        # tmp remove
+
         # choose correct cooling subsequence
         if self.cooling_type == "Doppler":
             self.cooling_subsequence = self.doppler_subsequence
@@ -121,6 +125,8 @@ class FockRabiFlopping(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         self.core.break_realtime()
+        self.qubit.cpld.get_att_mu()
+        self.core.break_realtime()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -150,8 +156,8 @@ class FockRabiFlopping(LAXExperiment, Experiment):
             # sweep rabi flopping times
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
                 self.core.break_realtime()
-
-                # set up qubit pulse
+                #
+                # # set up qubit pulse
                 if self.enable_pulseshaping:
                     time_rabi_actual_mu = self.pulseshape_subsequence.configure(time_rabi_pair_mu[1])
                     self.core.break_realtime()
@@ -163,6 +169,11 @@ class FockRabiFlopping(LAXExperiment, Experiment):
                 self.cooling_subsequence.run_dma()
 
                 if self.enable_fock_state_generation:
+                    # self.urukul0_ch1.set(120.339 * MHz, amplitude=0.5, profile=self.profile_fock)
+                    # delay_mu(100000)
+                    # self.urukul0_ch1.cpld.set_profile(self.profile_fock)
+                    # self.urukul0_ch1.cpld.io_update.pulse_mu(8)
+                    # delay_mu(100000)
                     self.fock_state_generator_subsequence.run_dma()
 
                 # prepare qubit beam for readout
