@@ -1,6 +1,8 @@
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, RAM_MODE_RAMPUP
 
+from numpy import ceil
+
 
 class RAMWriter(HasEnvironment):
     """
@@ -67,8 +69,8 @@ class RAMWriter(HasEnvironment):
         num_vals = len(ram_data)
 
         # write RAM data to AD9910 in small blocks
-        num_write_operations = num_vals // self.block_size + min(num_vals % self.block_size, 0)
-        for i in range(num_write_operations):
+        # num_write_operations = num_vals // self.block_size + min(num_vals % self.block_size, 0)
+        for i in range(round(ceil(num_vals / self.block_size))):
 
             # update start/stop indices
             addr_current = start_addr + index_current
