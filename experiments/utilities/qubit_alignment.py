@@ -30,12 +30,12 @@ class QubitAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s',           NumberValue(default=10, precision=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument('time_total_s',           NumberValue(default=100, precision=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('samples_per_point',      NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
         self.setattr_argument('time_qubit_us',          NumberValue(default=5., precision=3, step=10, min=0.1, max=100000), group='qubit')
-        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.0468, precision=5, step=1, min=1, max=10000), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",         NumberValue(default=101.1038, precision=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("att_qubit_db",           NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
 
         # instantiate subsequences
@@ -147,7 +147,7 @@ class QubitAlignment(LAXExperiment, Experiment):
                 self.core_dma.playback_handle(_handle_alignment)
 
                 # determine ion state
-                ion_state = self.readout_adaptive_subsequence.run()
+                ion_state = self.readout_subsequence.run()
                 self._state_array[num_count] = ion_state[0]
                 delay_mu(25000)
 
@@ -167,7 +167,11 @@ class QubitAlignment(LAXExperiment, Experiment):
         todo: document
         """
         # average results while ignoring indeterminate results
-        dstate_probability = np.sum(state_array[state_array == 1]) / np.sum(state_array[state_array != -1])
+        num_indeterminate = np.sum(state_array[state_array == -1])
+        if num_indeterminate == self.samples_per_point:
+            dstate_probability = 0.
+        else:
+            dstate_probability = np.sum(state_array[state_array == 1]) / (self.samples_per_point - num_indeterminate)
 
         # update datasets for broadcast
         self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, iter_num * (self.samples_per_point * self.time_per_point_us * us))
