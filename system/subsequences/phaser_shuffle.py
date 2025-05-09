@@ -23,26 +23,42 @@ class PhaserShuffle(LAXSubsequence):
         'freq_nco_threshold_hz', 'freq_nco_band1_center_hz', 'freq_nco_band2_center_hz'
     }
 
-    def build_subsequence(self):
+    def build_subsequence(self, phaser_att_db: TFloat = 31.5):
         # get relevant devices
         self.setattr_device("core")
         self.setattr_device('phaser_eggs')
 
         self.phaser_dev_name = 'phaser0'
         self.phaser_dev_chan = 0
-        self.phaser_att_db = 10.
+        self.phaser_att_db = phaser_att_db
 
     def prepare_subsequence(self):
         """
         Prepare values for speedy evaluation.
         """
+        # sanitize inputs
+        self._prepare_argument_checks()
+
         # get target device
-        self.phaser_dev = self.get_device('phaser0')
+        self.phaser_dev = self.get_device(self.phaser_dev_name)
 
         # set frequencies and bands
         self.freq_nco_threshold_hz =    300 * MHz
         self.freq_nco_band1_center_hz = 175 * MHz - 302 * MHz
         self.freq_nco_band2_center_hz = 425 * MHz - 302 * MHz
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        if isinstance(self.phaser_att_db, float):
+            if not (0. <= self.phaser_att_db <= 31.5):
+                raise ValueError("Invalid value for phaser_att_db. Must be in [0, 31.5].")
+        else:
+            raise ValueError("Invalid type for phaser_att_db. Must be a float.")
+
+        # todo: check that we're using correct phaser somehow
+
 
     """
     KERNEL FUNCTIONS
@@ -62,7 +78,7 @@ class PhaserShuffle(LAXSubsequence):
         self.device_cleanup()
 
     @kernel(flags={"fast-math"})
-    def run_config(self, config_list: TArray(TFloat, 2), repetitions: TInt32) -> TNone:
+    def run_config(self, config_list: TArray(TFloat, 2), repetitions: TInt32 = 1) -> TNone:
         """
         todo: document
         """
@@ -70,6 +86,9 @@ class PhaserShuffle(LAXSubsequence):
         # set attenuator
         self.phaser_dev.channel[self.phaser_dev_chan].set_att(self.phaser_att_db * dB)
         delay_mu(10000)
+
+        # create holder variable
+        freq_nco_center_hz = 0.
 
         # run pulses for given number of reps
         for i in range(repetitions):
@@ -80,18 +99,17 @@ class PhaserShuffle(LAXSubsequence):
                 freq_hz =   config_vals[0]
                 ampl_pct =  config_vals[1]
                 time_mu =   np.int64(config_vals[2])
+                if freq_hz < self.freq_nco_threshold_hz:
+                    freq_nco_center_hz = self.freq_nco_band1_center_hz
+                else:
+                    freq_nco_center_hz = self.freq_nco_band2_center_hz
                 delay_mu(50000)
 
                 # set NCO and DUC freqs
                 at_mu(self.phaser_dev.get_next_frame_mu())
-                if freq_hz < self.freq_nco_threshold_hz:
-                    self.phaser_dev.channel[self.phaser_dev_chan].set_nco_frequency(self.freq_nco_band1_center_hz)
-                    delay_mu(3200)
-                    self.phaser_dev.channel[self.phaser_dev_chan].set_duc_frequency(freq_hz - self.freq_nco_band1_center_hz)
-                else:
-                    self.phaser_dev.channel[self.phaser_dev_chan].set_nco_frequency(self.freq_nco_band2_center_hz)
-                    delay_mu(3200)
-                    self.phaser_dev.channel[self.phaser_dev_chan].set_duc_frequency(freq_hz - self.freq_nco_band2_center_hz)
+                self.phaser_dev.channel[self.phaser_dev_chan].set_nco_frequency(freq_nco_center_hz)
+                delay_mu(3200)
+                self.phaser_dev.channel[self.phaser_dev_chan].set_duc_frequency(freq_hz - freq_nco_center_hz)
                 delay_mu(3200)
                 self.phaser_dev.duc_stb()
 

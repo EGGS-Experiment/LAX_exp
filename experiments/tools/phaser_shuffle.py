@@ -1,8 +1,5 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.dac34h84 import DAC34H84
-from artiq.coredevice.trf372017 import TRF372017
-
 from LAX_exp.system.subsequences import PhaserShuffle
 
 
@@ -13,9 +10,7 @@ class PhaserShuffle(LAXExperiment):
     todo: document
     """
     name = "Phaser Shuffle"
-    kernel_invariants = {
-        'idk', 'idk2'
-    }
+    kernel_invariants = set()
 
     def build_experiment(self):
         # set core arguments
@@ -23,6 +18,7 @@ class PhaserShuffle(LAXExperiment):
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
 
         # frequency configuration
+        self.setattr_argument("phaser_att_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
         self.setattr_argument("phaser_config_list", ([[65., 100., 1000], [72., 100., 1000], [81., 100., 1000],
                                                       [83., 100., 1000], [85., 100., 1000], [91., 100., 1000],
                                                       [210., 100., 1000], [376., 100., 1000], [521., 100., 1000]]),
@@ -40,7 +36,10 @@ class PhaserShuffle(LAXExperiment):
         self.phaser_config_list = np.array(self.phaser_config_list)
         self._prepare_argument_checks()
 
-        # convert config times from us to mu
+        # convert config units (MHz to Hz, pct to frac, us to mu)
+        self.phaser_config_list[:, 0] *= MHz
+        self.phaser_config_list[:, 1] /= 100.
+        self.phaser_config_list[:, 2] = self.core.seconds_to_mu(self.phaser_config_list[:, 2] * us)
 
         # if randomize_config is enabled, completely randomize the sweep configuration
         if self.randomize_config: np.random.shuffle(self.phaser_config_list)
@@ -49,23 +48,18 @@ class PhaserShuffle(LAXExperiment):
         """
         Check experiment arguments for validity.
         """
-        # todo: frequencies valid
-        # todo: ampls valid
-        # todo: times valid
+        # check that all elements in phaser_config_list are valid
+        if not all(50. < freq_mhz < 550. for freq_mhz in self.phaser_config_list[:, 0]):
+            raise ValueError("Invalid frequencie(s) in phaser_config_list. Must be in [50., 550.] MHz.")
+        if not all(0.01 < ampl_pct < 100. for ampl_pct in self.phaser_config_list[:, 1]):
+            raise ValueError("Invalid amplitude(s) in phaser_config_list. Must be in [0.01, 100) %.")
+        if not all(1 < time_us < 10000000 for time_us in self.phaser_config_list[:, 2]):
+            raise ValueError("Invalid time(s) in phaser_config_list. Must be in [1us, 10s].")
+
         # todo: ensure we're using an upconverter phaser and phaser_eggs is NOT the same phaser
-
-
-        # ensure NCO frequency is valid
-        if (self.freq_nco_mhz > 400.) or (self.freq_nco_mhz < -400.):
-            raise Exception("Invalid phaser NCO frequency. Must be in range [-400, 400].")
-        elif (self.freq_nco_mhz > 300.) or (self.freq_nco_mhz < -300.):
-            print("Warning: Phaser NCO frequency outside passband of [-300, 300] MHz.")
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        """
-        Initialize and configure hardware elements on the phaser.
-        """
-        self.core.reset()
-        self.shuffle_subsequence.run_config(self.config_list, self.repetitions)
+        self.shuffle_subsequence.run_config(self.phaser_config_list, self.repetitions)
         delay_mu(10000)
+
