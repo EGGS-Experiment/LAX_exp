@@ -19,11 +19,11 @@ from artiq.coredevice import ad9910
 
 class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experiment):
     """
-    Experiment: Super Duper Resolution Characteristic Reconstruction Dev
+    Experiment: Super Duper Resolution Characteristic Reconstruction
 
     Characteristic Function Reconstruction (for Wigner tomography) of the Super Duper Resolution technique.
     """
-    name = 'SuperRes Char Read Dev'
+    name = 'SuperRes Char Read'
     kernel_invariants = {
         # hardware objects
         'singlepass0', 'singlepass1',
@@ -397,7 +397,7 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
         self.pulseshaper_id =   np.int32(0) # store waveform ID for pulseshaper
 
         '''PROCESS ARGUMENTS INTO WAVEFORM CONFIGS'''
-        # create list of block timings
+        # calculate block timings
         if self.enable_phase_shift_keying:
             time_block_us = self.time_eggs_heating_us / (self.num_psk_phase_shifts + 1)
 
@@ -409,10 +409,10 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
             else:
                 num_blocks = round(np.ceil(self.time_superresolution_stop_us / time_block_us))
                 block_time_list_us = [time_block_us] * num_blocks
-                block_time_list_us[-1] = self.time_superresolution_stop_us % time_block_us
+                if self.time_superresolution_stop_us % time_block_us != 0:
+                    block_time_list_us[-1] = self.time_superresolution_stop_us % time_block_us
         else:
             num_blocks = 1
-
             if not self.enable_cutoff:
                 block_time_list_us = [self.time_eggs_heating_us]
             # implement QVSA pulse cutoffs by modifying waveform itself
