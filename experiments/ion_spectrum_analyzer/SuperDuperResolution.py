@@ -424,6 +424,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
 
             # sweep experiment configurations
             for config_vals in self.config_experiment_list:
@@ -457,7 +458,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_sb_readout)
-                delay_mu(25000)
+                delay_mu(50000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
