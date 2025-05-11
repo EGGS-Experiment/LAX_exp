@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -199,7 +200,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                 # configure rabiflop readout frequency
                 self.qubit.set_mu(freq_rabiflop_readout_ftw, asf=self.qubit.ampl_qubit_asf,
-                                  profile=self.profile_729_readout)
+                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(8000)
 
                 '''PREPARE TARGET MOTIONAL STATE'''
@@ -279,7 +280,8 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         #         self.qubit.io_update()
         #         self.qubit.set_att_mu(self.att_fock_mu)
 
-        self.qubit.set_mu(freq_ftw, asf=self.ampl_fock_asf, profile=self.profile_fock)
+        self.qubit.set_mu(freq_ftw, asf=self.ampl_fock_asf, profile=self.profile_fock,
+                          phase_mode=PHASE_MODE_CONTINUOUS)
         self.qubit.set_profile(self.profile_fock)
         self.qubit.io_update()
         self.qubit.set_att_mu(self.att_fock_mu)

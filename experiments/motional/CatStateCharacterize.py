@@ -262,7 +262,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
                 (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
         )
-        # todo: readout as well
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -291,9 +290,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             raise ValueError(
                 "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
 
-        # ensure we only herald once
-        if self.enable_cat1_herald and self.enable_cat2_herald:
-            raise ValueError("Cannot herald twice. Must choose either cat1_herald OR cat2_herald.")
+        # # ensure we only herald once
+        # if self.enable_cat1_herald and self.enable_cat2_herald:
+        #     raise ValueError("Cannot herald twice. Must choose either cat1_herald OR cat2_herald.")
 
     @property
     def results_shape(self):
@@ -322,7 +321,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                       asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(10000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
@@ -483,7 +481,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                     asf=self.ampl_singlepass_default_asf_list[1],
                                     profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])

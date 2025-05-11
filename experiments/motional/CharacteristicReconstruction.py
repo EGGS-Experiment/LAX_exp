@@ -298,7 +298,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                       asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
@@ -433,7 +432,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                     asf=self.ampl_singlepass_default_asf_list[1],
                                     profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
