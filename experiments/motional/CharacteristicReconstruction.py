@@ -32,12 +32,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         # hardware parameters
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
-        'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
-        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
-        'time_force_herald_slack_mu',
+        'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
+        'time_force_herald_slack_mu', 'att_reg_bichromatic', 'att_reg_sigmax',
 
         # cat state parameters
-        'ampls_cat_asf', 'atts_cat_mu', 'time_motion_cat_mu', 'phases_motion_cat_pow', 'phase_char_axis_pow',
+        'ampls_cat_asf', 'time_motion_cat_mu', 'phases_motion_cat_pow', 'phase_char_axis_pow',
         'phases_char_cat_pow', 'phases_char_cat_update_dir',
 
         # experiment parameters
@@ -67,40 +66,39 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (58., 3.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([80., 80.]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
-        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([58., 58.]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([3., 3.]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
-
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 7.]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=3.05, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.59, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
 
-        # defaults - cat
+        # defaults - bichromatic
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.3341]),
-                                                                    CenterScan(101.3341, 0.01, 0.0001, randomize=True),
-                                                                    RangeScan(101.3200, 101.3500, 50, randomize=True),
+                                                                    ExplicitScan([101.1013]),
+                                                                    CenterScan(101.1013, 0.01, 0.0001, randomize=True),
+                                                                    RangeScan(101.1005, 101.1021, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group='defaults.cat')
+                                                            ), group='defaults.bichromatic')
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
-                                                                    ExplicitScan([701.8]),
-                                                                    CenterScan(701.8, 4, 0.1, randomize=True),
-                                                                    RangeScan(699.0, 704.2, 50, randomize=True),
+                                                                    ExplicitScan([703.101]),
+                                                                    CenterScan(703.1, 4, 0.1, randomize=True),
+                                                                    RangeScan(701.0, 704.0, 50, randomize=True),
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
                                                                 unit="kHz", scale=1, precision=3
-                                                            ), group='defaults.cat')
-        self.setattr_argument("ampls_cat_pct",  PYONValue([58., 58.]), group='defaults.cat', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([6., 6.]), group='defaults.cat', tooltip="[rsb_db, bsb_db]")
+                                                            ), group='defaults.bichromatic')
+        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='defaults.bichromatic', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.bichromatic', tooltip="[rsb_db, bsb_db]")
 
         '''ARGUMENTS - MOTIONAL STATE PREPARATION'''
         self.setattr_argument("enable_motion_sigmax",   BooleanValue(default=False), group='motional.config',
@@ -115,11 +113,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("characteristic_axis",        EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic.axis',
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
-        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic.axis',
+        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0.125, precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic.axis',
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
 
         # bichromatic: characteristic readout protocol
-        self.setattr_argument("enable_char_bichromatic",          BooleanValue(default=True), group='characteristic.read')
         self.setattr_argument("phases_char_cat_turns",    PYONValue([0., 0.]), group='characteristic.read', tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_char_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'), group='characteristic.read')
         self.setattr_argument("time_char_cat_x_us_list",      Scannable(
@@ -156,24 +153,18 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
         '''
-        # defaults - singlepass AOM
+        # defaults - singlepass AOMs
         self.singlepass0 = self.get_device("urukul0_ch1")
         self.singlepass1 = self.get_device("urukul0_ch2")
         self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
                                                  for freq_mhz in self.freq_singlepass_default_mhz_list]
         self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
                                                  for ampl_asf in self.ampl_singlepass_default_pct_list]
-        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
-                                                 for att_db in self.att_singlepass_default_db_list]
-
-        # defaults - doublepass AOM
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
-        self.att_doublepass_default_mu =       att_to_mu(self.att_doublepass_default_db * dB)
 
         # defaults - sigma_x waveform
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
-        self.att_sigmax_mu =    att_to_mu(self.att_sigmax_db * dB)
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
 
         # defaults - cat
@@ -183,8 +174,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                               for freq_khz in self.freq_cat_secular_khz_list])
         self.ampls_cat_asf =    np.array([self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
                                           for ampl_pct in self.ampls_cat_pct], dtype=np.int32)
-        self.atts_cat_mu =      np.array([att_to_mu(att_db * dB)
-                                          for att_db in self.atts_cat_db], dtype=np.int32)
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -213,18 +202,33 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         elif self.target_char_cat_phase == 'RSB+BSB':
             self.phases_char_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
+        '''
+        CREATE ATTENUATION REGISTERS
+        '''
+        atts_cat_mu = np.array([att_to_mu(att_db * dB) for att_db in self.atts_cat_db], dtype=np.int32)
+        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
+                                                 for att_db in self.att_singlepass_default_db_list]
+        self.att_reg_sigmax = 0x00000000 | (
+                (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+        )
+        self.att_reg_bichromatic = 0x00000000 | (
+                (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+                (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
+        )
+
+        '''CREATE EXPERIMENT CONFIG'''
         # create sampling grid in radial coordinates
-        if self.enable_char_bichromatic:
-            vals_char_mu_pow_list = np.array([
-                [
-                    self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
-                    self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
-                ]
-                for x_us in self.time_char_cat_x_us_list
-                for y_us in self.time_char_cat_y_us_list
-            ], dtype=np.int64)
-        else:
-            vals_char_mu_pow_list = np.array([[0, 0]], dtype=np.int64)
+        vals_char_mu_pow_list = np.array([
+            [
+                self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
+                self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
+            ]
+            for x_us in self.time_char_cat_x_us_list
+            for y_us in self.time_char_cat_y_us_list
+        ], dtype=np.int64)
 
         # heralding values
         self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
@@ -278,10 +282,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # set up qubit beam for DMA sequences
-        self.qubit.set_att_mu(self.att_doublepass_default_mu)
-        delay_mu(10000)
-
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         # enable RAM mode and clear DDS phase accumulator
         self.qubit.set_cfr1()
@@ -359,7 +359,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     '''APPLY MOTIONAL INTERACTION'''
                     # sigma_x: select cat vs coherent state
                     if self.enable_motion_sigmax:
-                        self.pulse_sigmax(time_start_mu, 0)
+                        self.pulse_sigmax(time_start_mu, 0, True)
 
                     # bichromatic interaction to generate motional state
                     if self.enable_motion_cat:
@@ -394,10 +394,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow, characteristic_axis_bool)
 
                 # char read: bichromatic
-                if self.enable_char_bichromatic:
-                    self.pulse_bichromatic(time_start_mu, time_char_cat_mu,
-                                           char_read_phases,
-                                           freq_cat_center_ftw, freq_cat_secular_ftw)
+                self.pulse_bichromatic(time_start_mu, time_char_cat_mu,
+                                       char_read_phases,
+                                       freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 '''READOUT'''
                 # read out fluorescence & save results
@@ -469,30 +468,18 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
-        # set all attenuators together
-        a = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        a |= (
-                (self.att_sigmax_mu << (0 * 8)) |
-                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (2 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(a)
-
-        # run sigmax pulse
+        # run pulse
         self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
+        self.singlepass1.sw.on()
         if is_real:
             self.qubit.on()
         else:
             self.qubit.off()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
+        self.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
     def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
@@ -521,19 +508,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-
-        # set all attenuators together
-        a = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        a |= (
-                (self.att_doublepass_default_mu << (0 * 8)) |
-                (self.atts_cat_mu[0] << (1 * 8)) |
-                (self.atts_cat_mu[1] << (2 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(a)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
 
         # run bichromatic pulse
         self.singlepass0.sw.on()
@@ -542,41 +517,4 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         delay_mu(time_pulse_mu)
         self.qubit.off()
         self.singlepass1.sw.off()
-
-    # @kernel(flags={"fast-math"})
-    # def pulse_yzde(self) -> TNone:
-    #     # set up relevant beam waveforms
-    #     self.qubit.set_mu(
-    #         self.freq_bsb_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
-    #     )
-    #     self.singlepass0.set_mu(
-    #         self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
-    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
-    #     )
-    #     self.singlepass1.set_mu(
-    #         self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
-    #         profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_ABSOLUTE
-    #     )
-    #     self.qubit.cpld.io_update.pulse_mu(8)
-    #
-    #     # set all attenuators together
-    #     a = self.qubit.cpld.att_reg & ~(
-    #             (0xFF << (0 * 8)) |
-    #             (0xFF << (1 * 8)) |
-    #             (0xFF << (2 * 8))
-    #     )
-    #     a |= (
-    #             (self.att_sigmax_mu << (0 * 8)) |
-    #             (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-    #             (self.att_singlepass_default_mu_list[1] << (2 * 8))
-    #     )
-    #     self.qubit.cpld.set_all_att_mu(a)
-    #
-    #     # run sigmax pulse
-    #     self.singlepass0.sw.on()
-    #     self.singlepass1.sw.off()
-    #     self.qubit.on()
-    #     delay_mu(66980)
-    #     self.qubit.off()
 
