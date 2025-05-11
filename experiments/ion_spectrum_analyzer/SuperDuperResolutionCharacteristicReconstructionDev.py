@@ -259,12 +259,12 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
         self.att_singlepass_default_mu_list = [att_to_mu(att_db * dB)
                                                for att_db in self.att_singlepass_default_db_list]
         self.att_reg_sigmax = 0x00000000 | (
-                (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.chip_select - 4) * 8)) |
+                (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
                 (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
         )
         self.att_reg_bichromatic = 0x00000000 | (
-                (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.chip_select - 4) * 8)) |
+                (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
                 (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
         )

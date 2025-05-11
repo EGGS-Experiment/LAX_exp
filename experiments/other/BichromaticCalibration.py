@@ -154,14 +154,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
                                       profile=i)
-            self.qubit_carrier.cpld.io_update.pulse_mu(8)
-            delay_mu(5000)
-        # enable RAM mode and clear DDS phase accumulator
-        # self.qubit_carrier.write32(ad9910._AD9910_REG_CFR1,
-        #                  # (1 << 16) |  # select_sine_output
-        #                  (1 << 13) | # phase_autoclear
-        #                  2          # default serial I/O configs
-        #                  )
+            delay_mu(10000)
+
         self.qubit_carrier.cpld.io_update.pulse_mu(8)
         self.qubit_carrier.sw.on()
         delay_mu(10000)
