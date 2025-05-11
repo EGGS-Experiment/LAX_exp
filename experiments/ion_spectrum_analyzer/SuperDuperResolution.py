@@ -441,7 +441,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_superresolution_sweep_turns_list[phase_sweep_idx]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_sweep_idx]
-                delay_mu(10000)
+                delay_mu(25000)
 
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_superresolution_osc_base_hz_list + freq_sweep_hz * self.freq_update_arr
@@ -458,7 +458,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_sb_readout)
-                delay_mu(8000)
+                delay_mu(25000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
