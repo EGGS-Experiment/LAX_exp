@@ -427,7 +427,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
             # sweep experiment configurations
             for config_vals in self.config_experiment_list:
-                self.core.break_realtime()
 
                 '''CONFIGURE'''
                 # extract values from config list
@@ -441,7 +440,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_superresolution_sweep_turns_list[phase_sweep_idx]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_sweep_idx]
-                delay_mu(25000)
+                self.core.break_realtime()
 
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_superresolution_osc_base_hz_list + freq_sweep_hz * self.freq_update_arr
@@ -453,7 +452,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                      freq_update_list[2], freq_update_list[3], 0.],
                     phase_ch1_turns
                 )
-                delay_mu(25000)
+                self.core.break_realtime()
 
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
