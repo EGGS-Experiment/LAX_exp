@@ -250,12 +250,12 @@ class PhaserConfigure(EnvExperiment):
 
         # get list of valid phaser devices and set them as arguments
         phaser_device_list = self._get_phaser_devices()
-        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser1'))
+        self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-400., max=400.))
         # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="N/A"))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
 
     def _get_phaser_devices(self):
         """
@@ -337,12 +337,14 @@ class PhaserConfigure(EnvExperiment):
             self.phaser.channel[0].oscillator[i].set_frequency(0. * MHz)
             delay_mu(self.time_phaser_sample_mu)
             self.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+            delay_mu(10000)
 
             # clear channel 1 oscillator
             at_mu(self.phaser.get_next_frame_mu())
             self.phaser.channel[1].oscillator[i].set_frequency(0. * MHz)
             delay_mu(self.time_phaser_sample_mu)
             self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
+            delay_mu(10000)
 
         # add slack
         self.core.break_realtime()
