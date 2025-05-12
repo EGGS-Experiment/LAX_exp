@@ -321,7 +321,9 @@ class PhaserConfigure(EnvExperiment):
         self.phaser.channel[0].set_att(31.5 * dB)
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[1].set_att(31.5 * dB)
-        delay_mu(10000)
+
+        # add slack
+        self.core.break_realtime()
 
 
         '''
@@ -343,7 +345,7 @@ class PhaserConfigure(EnvExperiment):
             self.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., clr=1)
 
         # add slack
-        delay_mu(25000)
+        self.core.break_realtime()
 
 
         '''
