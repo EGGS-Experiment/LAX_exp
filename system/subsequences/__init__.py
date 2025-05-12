@@ -54,3 +54,8 @@ from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
 __all__.extend(['Readout', 'ReadoutAdaptive', 'SidebandReadout', 'RabiflopReadout',
                 'AbsorptionProbe', 'AbsorptionProbe2', 'DopplerRecooling',
                 'FockStateGenerator'])
+
+# hardware utilities
+from LAX_exp.system.subsequences.phaser_shuffle import PhaserShuffle
+__all__.extend(['PhaserShuffle'])
+
