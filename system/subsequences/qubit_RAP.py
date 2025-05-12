@@ -298,6 +298,7 @@ class QubitRAP(LAXSubsequence):
                          (1 << 18)  # digital_ramp_nodwell_high
                          )
         self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(256)   # necessary to prevent RTIO collisions
 
         '''FIRE PULSE'''
         time_start_mu = now_mu() & ~7
