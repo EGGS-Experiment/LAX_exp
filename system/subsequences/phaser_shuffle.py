@@ -1,16 +1,11 @@
 import numpy as np
 from artiq.experiment import *
-
-from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-
-# band 1: [50 MHz, 300]
-# band 2: [300 MHz, 550 MHz]
 
 
 class PhaserShuffle(LAXSubsequence):
     """
-    Subsequence: PHaser Shuffle
+    Subsequence: Phaser Shuffle
 
     todo: document
     """
@@ -20,10 +15,11 @@ class PhaserShuffle(LAXSubsequence):
         'phaser_dev_name', 'phaser_dev_chan', 'phaser_dev',
 
         # hardware values
-        'freq_nco_threshold_hz', 'freq_nco_band1_center_hz', 'freq_nco_band2_center_hz'
+        'freq_band1_center_hz', 'freq_band2_center_hz', 'freq_nco_band1_hz', 'freq_nco_band2_hz',
+        'freq_nco_threshold_hz'
     }
 
-    def build_subsequence(self, phaser_att_db: TFloat = 31.5):
+    def build_subsequence(self, phaser_att_db: TFloat = 10.):
         # get relevant devices
         self.setattr_device("core")
         self.setattr_device('phaser_eggs')
@@ -44,8 +40,11 @@ class PhaserShuffle(LAXSubsequence):
 
         # set frequencies and bands
         self.freq_nco_threshold_hz =    300 * MHz
-        self.freq_nco_band1_center_hz = 175 * MHz - 302 * MHz
-        self.freq_nco_band2_center_hz = 425 * MHz - 302 * MHz
+        self.freq_band1_center_hz = 175 * MHz
+        self.freq_band2_center_hz = 425 * MHz
+
+        self.freq_nco_band1_hz = self.freq_band1_center_hz - 302 * MHz
+        self.freq_nco_band2_hz = self.freq_band2_center_hz - 302 * MHz
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -100,25 +99,29 @@ class PhaserShuffle(LAXSubsequence):
                 ampl_pct =  config_vals[1]
                 time_mu =   np.int64(config_vals[2])
                 if freq_hz < self.freq_nco_threshold_hz:
-                    freq_nco_center_hz = self.freq_nco_band1_center_hz
+                    freq_nco_center_hz = self.freq_nco_band1_hz
+                    freq_center_hz = self.freq_band1_center_hz
                 else:
-                    freq_nco_center_hz = self.freq_nco_band2_center_hz
+                    freq_nco_center_hz = self.freq_nco_band2_hz
+                    freq_center_hz = self.freq_band2_center_hz
                 delay_mu(50000)
 
                 # set NCO and DUC freqs
                 at_mu(self.phaser_dev.get_next_frame_mu())
                 self.phaser_dev.channel[self.phaser_dev_chan].set_nco_frequency(freq_nco_center_hz)
-                delay_mu(3200)
-                self.phaser_dev.channel[self.phaser_dev_chan].set_duc_frequency(freq_hz - freq_nco_center_hz)
-                delay_mu(3200)
+                at_mu(self.phaser_dev.get_next_frame_mu())
+                self.phaser_dev.dac_sync()
+
+                at_mu(self.phaser_dev.get_next_frame_mu())
+                self.phaser_dev.channel[self.phaser_dev_chan].set_duc_frequency(freq_hz - freq_center_hz)
+                at_mu(self.phaser_dev.get_next_frame_mu())
                 self.phaser_dev.duc_stb()
 
                 # prepare oscillators
                 at_mu(self.phaser_dev.get_next_frame_mu())
-                self.phaser_dev.channel[self.phaser_dev_chan].oscillator[0].set_frequency(1 * MHz)
+                self.phaser_dev.channel[self.phaser_dev_chan].oscillator[0].set_frequency(0.01 * MHz)
                 delay_mu(40)
                 self.phaser_dev.channel[self.phaser_dev_chan].oscillator[0].set_amplitude_phase(ampl_pct, 0.)
-                # todo: set switches etc.
 
                 # run pulse
                 delay_mu(time_mu)

@@ -1,9 +1,11 @@
 import numpy as np
 from artiq.experiment import *
+from LAX_exp.base import LAXExperiment
+
 from LAX_exp.system.subsequences import PhaserShuffle
 
 
-class PhaserShuffle(LAXExperiment):
+class PhaserShuffleTool(LAXExperiment, Experiment):
     """
     Tool: Phaser Shuffle
 
@@ -14,18 +16,19 @@ class PhaserShuffle(LAXExperiment):
 
     def build_experiment(self):
         # set core arguments
-        self.setattr_argument("repetitions",        NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",        NumberValue(default=100, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
 
         # frequency configuration
         self.setattr_argument("phaser_att_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
-        self.setattr_argument("phaser_config_list", ([[65., 100., 1000], [72., 100., 1000], [81., 100., 1000],
-                                                      [83., 100., 1000], [85., 100., 1000], [91., 100., 1000],
-                                                      [210., 100., 1000], [376., 100., 1000], [521., 100., 1000]]),
-                              tooltip="[[freq_mhz, ampl_pct, time_us]]")
+        self.setattr_argument("phaser_config_list", PYONValue([
+            [65., 99., 1000], [72., 99., 1000], [81., 99., 1000], [83., 99., 1000],
+            [85., 99., 1000], [91., 99., 1000], [210., 99., 1000], [376., 99., 1000],
+            [521., 99., 1000], [480., 99., 1000], [541., 99., 1000], [501., 99., 1000]
+        ]), tooltip="[[freq_mhz, ampl_pct, time_us]]")
 
         # instantiate subsequences
-        self.shuffle_subsequence = PhaserShuffle()
+        self.shuffle_subsequence = PhaserShuffle(self)
 
     def prepare_experiment(self):
         """
@@ -57,6 +60,10 @@ class PhaserShuffle(LAXExperiment):
             raise ValueError("Invalid time(s) in phaser_config_list. Must be in [1us, 10s].")
 
         # todo: ensure we're using an upconverter phaser and phaser_eggs is NOT the same phaser
+
+    @property
+    def results_shape(self):
+        return (1, 1)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
