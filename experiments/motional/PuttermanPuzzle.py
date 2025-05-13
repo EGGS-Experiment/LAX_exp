@@ -237,8 +237,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                 '''READOUT & STORE RESULTS'''
                 # configurable quench: put spin state back into ground state
                 if self.enable_quench:
-                    # note: ensure DDS set to readout parameters; should already be
-                    # in correct profile b/c we do heralding immediately before
+                    # note: ensure DDS set to readout parameters in case we don't do herald
                     self.pump.readout()
                     self.repump_qubit.on()
                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
@@ -246,14 +245,15 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                 # rabi flop & readout for motional detection
                 self.rabiflop_subsequence.run_time(time_rabiflop_readout_mu)
-                self.readout_subsequence.run_dma()
+                # self.readout_subsequence.run_dma()
 
                 # retrieve readout results & update dataset
-                counts_res = self.readout_subsequence.fetch_count()
+                # counts_res = self.readout_subsequence.fetch_count()
+                ion_state = self.readout_adaptive_subsequence.run()
                 self.update_results(freq_rap_center_ftw,
+                                    ion_state[0],
                                     time_rabiflop_readout_mu,
-                                    freq_rabiflop_readout_ftw,
-                                    counts_res)
+                                    freq_rabiflop_readout_ftw)
                 self.core.break_realtime()
 
                 # resuscitate ion
