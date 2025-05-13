@@ -6,7 +6,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, QVSAPulse, QubitRAP, Readout,
+    InitializeQubit, SidebandCoolContinuousRAM, QVSAPulse, QubitRAP,
     ReadoutAdaptive, RabiflopReadout, RescueIon
 )
 
@@ -23,21 +23,26 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
     name = 'Putterman Puzzle'
     kernel_invariants = {
         # subsequences etc.
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'readout_adaptive_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_adaptive_subsequence',
         'rescue_subsequence', 'rap_subsequence', 'rabiflop_subsequence',
 
         # hardware values - core
         'freq_rap_dev_ftw', 'time_rap_mu', 'att_rap_mu', 'time_force_herald_slack_mu',
 
         # experiment/config related
-        'profile_729_SBC', 'profile_729_rap', 'profile_729_readout', 'config_experiment_list'
+        'profile_729_frsb', 'profile_729_SBC', 'profile_729_rap', 'profile_729_readout', 'config_experiment_list',
+
+        # tmp remove - frsb
+        'time_frsb_mu', 'ampl_rap_asf'
+        # tmp remove - frsb
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=75, precision=0, step=1, min=1, max=100000))
 
         # allocate profiles on 729nm for different subsequences
+        self.profile_729_frsb =     3
         self.profile_729_SBC =      4
         self.profile_729_rap =      5
         self.profile_729_readout =  6
@@ -49,29 +54,30 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
         )
-
         # QVSA pulse
         self.motional_subsequence = QVSAPulse(self)
 
-        '''RAP - CONFIGURATION'''
-        self.setattr_argument("enable_rap",             BooleanValue(default=True), group='RAP')
-        self.setattr_argument("enable_quench",          BooleanValue(default=True), group='RAP')
+        '''A OPERATOR - CONFIGURATION'''
+        self.setattr_argument("enable_rap",     BooleanValue(default=True), group='a_hat')
+        self.setattr_argument("enable_quench",  BooleanValue(default=True), group='a_hat')
+        self.setattr_argument("enable_herald",  BooleanValue(default=True), group='a_hat')
         self.setattr_argument("freq_rap_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.3977]),
-                                                                    CenterScan(101.3977, 0.01, 0.0002, randomize=True),
-                                                                    RangeScan(101.9801, 101.9901, 50, randomize=True),
+                                                                    ExplicitScan([101.1012]),
+                                                                    CenterScan(101.1012, 0.01, 0.0002, randomize=True),
+                                                                    RangeScan(101.0912, 101.1112, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group="RAP")
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=12.5, precision=3, step=5, min=0.01, max=1000), group="RAP")
-        self.setattr_argument("time_rap_us",            NumberValue(default=125, precision=2, step=5, min=0.1, max=10000), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("att_rap_db",             NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="RAP")
-
-        '''HERALD - CONFIGURATION'''
-        self.setattr_argument("enable_herald",          BooleanValue(default=True), group='herald')
+                                                            ), group="a_hat")
+        self.setattr_argument("freq_rap_dev_khz",   NumberValue(default=175, precision=3, step=5, min=0.01, max=1000, unit="kHz", scale=1.),
+                              group="a_hat")
+        self.setattr_argument("time_rap_us",    NumberValue(default=1000, precision=2, step=5, min=0.1, max=100000, unit="us", scale=1.),
+                              group="a_hat")
+        self.setattr_argument("ampl_rap_pct",   NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.),
+                              group="a_hat")
+        self.setattr_argument("att_rap_db",     NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.),
+                              group="a_hat")
 
         '''RABIFLOP READOUT - CONFIGURATION'''
         self.setattr_argument("freq_rabiflop_readout_mhz_list",   Scannable(
@@ -92,7 +98,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
             ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
         self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      Readout(self)
         self.readout_adaptive_subsequence = ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -112,15 +117,15 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # RAP values
         freq_rap_center_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                               for freq_mhz in self.freq_rap_center_mhz_list], dtype=np.int32)
-        self.freq_rap_dev_ftw =     self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
-        self.time_rap_mu =          self.core.seconds_to_mu(self.time_rap_us * us)
-        self.att_rap_mu =           att_to_mu(self.att_rap_db * dB)
+        self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.ampl_rap_asf =     self.qubit.amplitude_to_asf(self.ampl_rap_pct / 100.)
+        self.time_rap_mu =      self.core.seconds_to_mu(self.time_rap_us * us)
+        self.att_rap_mu =       att_to_mu(self.att_rap_db * dB)
 
         # heralding/readout
-        self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+        self.time_force_herald_slack_mu =   self.core.seconds_to_mu(150 * us)
         freq_rabiflop_readout_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_rabiflop_readout_mhz_list],
-                                                     dtype=np.int32)
+                                                      for freq_mhz in self.freq_rabiflop_readout_mhz_list], dtype=np.int32)
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -136,14 +141,11 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
-        # # tmp remove - high fock test
-        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.1065 * MHz)
-        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7554 * MHz)
-        self.ampl_fock_asf =    self.qubit.amplitude_to_asf(0.5)
-        self.att_fock_mu =      att_to_mu(8. * dB)
-        self.time_fock_mu =     self.core.seconds_to_mu(2.5 * us)
-        self.profile_fock =     3
-        # # tmp remove - high fock test
+        # tmp remove - fast RSB
+        time_frsb_us = 6.22
+        self.set_dataset("time_frsb_us", time_frsb_us)
+        self.time_frsb_mu = self.core.seconds_to_mu(time_frsb_us * us)
+        # tmp remove - fast RSB
 
     @property
     def results_shape(self):
@@ -159,7 +161,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
         # configure RAP & record onto DMA
@@ -179,7 +180,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         dma_handle_rap = self.core_dma.get_handle('RAP_SUBSEQUENCE')
         self.core.break_realtime()
 
-
         # MAIN EXECUTION LOOP
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
@@ -194,10 +194,13 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                 freq_rabiflop_readout_ftw = np.int32(config_vals[2])
                 self.core.break_realtime()
 
-                # configure RAP pulse
-                self.rap_subsequence.configure(self.time_rap_mu, freq_rap_center_ftw, self.freq_rap_dev_ftw)
+                # configure adag pulse
+                if self.enable_rap:
+                    self.rap_subsequence.configure(self.time_rap_mu, freq_rap_center_ftw, self.freq_rap_dev_ftw)
+                else:
+                    self.qubit.set_mu(freq_rap_center_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_frsb,
+                                      phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(50000)
-
                 # configure rabiflop readout frequency
                 self.qubit.set_mu(freq_rabiflop_readout_ftw, asf=self.qubit.ampl_qubit_asf,
                                   profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
@@ -206,19 +209,19 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                 '''PREPARE TARGET MOTIONAL STATE'''
                 while True:
 
-                    '''INITIALIZE'''
+                    '''INITIALIZE MOTIONAL STATE'''
                     # initialize ion in S-1/2 state, then SBC to ground motional state
                     self.initialize_subsequence.run_dma()
                     self.sidebandcool_subsequence.run_dma()
 
-                    '''APPLY MOTIONAL INTERACTION'''
-                    # use QVSA for motional excitation
+                    # use QVSA to generate motional excitation
                     self.motional_subsequence.run_pulse()
 
                     '''APPLY a^\dag (VIA RAP + HERALD)'''
                     if self.enable_rap:
-                        # run RAP on motional sideband (a^\dag operator)
                         self.core_dma.playback_handle(dma_handle_rap)
+                    else:
+                        self.pulse_fock(self.time_frsb_mu)
 
                     # optional: herald ion via state-dependent fluorescence
                     if self.enable_herald:
@@ -245,10 +248,8 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
                 # rabi flop & readout for motional detection
                 self.rabiflop_subsequence.run_time(time_rabiflop_readout_mu)
-                # self.readout_subsequence.run_dma()
 
                 # retrieve readout results & update dataset
-                # counts_res = self.readout_subsequence.fetch_count()
                 ion_state = self.readout_adaptive_subsequence.run()
                 self.update_results(freq_rap_center_ftw,
                                     ion_state[0],
@@ -271,26 +272,12 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def pulse_fock(self, freq_ftw: TInt32, time_mu: TInt64) -> TNone:
-        # with parallel:
-        #     self.pump.readout()
-        #     with sequential:
-        #         self.qubit.set_mu(freq_ftw, asf=self.ampl_fock_asf, profile=self.profile_fock)
-        #         self.qubit.set_profile(self.profile_fock)
-        #         self.qubit.io_update()
-        #         self.qubit.set_att_mu(self.att_fock_mu)
-
-        self.qubit.set_mu(freq_ftw, asf=self.ampl_fock_asf, profile=self.profile_fock,
-                          phase_mode=PHASE_MODE_CONTINUOUS)
-        self.qubit.set_profile(self.profile_fock)
-        self.qubit.io_update()
-        self.qubit.set_att_mu(self.att_fock_mu)
-
+    def pulse_fock(self, time_mu: TInt64) -> TNone:
+        self.qubit.set_profile(self.profile_729_frsb)
+        self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.set_att_mu(self.att_rap_mu)
+        delay_mu(5000)
         self.qubit.on()
         delay_mu(time_mu)
         self.qubit.off()
-
-        # self.repump_qubit.on()
-        # delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-        # self.repump_qubit.off()
 
