@@ -14,8 +14,7 @@ class PhaserPulseShaper(LAXEnvironment):
     """
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
-        "_max_waveforms", "t_max_phaser_update_rate_mu",
-        "_phase_offsets_turns",
+        "_max_waveforms", "t_max_phaser_update_rate_mu", "_phase_offsets_turns",
         "_dma_names"
     }
 
@@ -27,12 +26,12 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # initialize important variables
         # note: we do this here since "prepare" method is run AFTER prepare_experiment
-        if len(phase_offsets_turns) == 5:
+        if isinstance(phase_offsets_turns, list) and len(phase_offsets_turns) == 5:
             self._phase_offsets_turns = phase_offsets_turns
         else:
-            raise Exception("Error in PhaserPulseShaper - phase_offsets_turns must have length 5: {}".format(phase_offsets_turns))
+            raise Exception("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
 
-        # tmp remove
+        # tmp remove - create initial copy of key values so we have them by build
         # set global variables
         self._max_waveforms = 64
         # note: max update rate should be a multiple of 5x the sample period
@@ -45,7 +44,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # store number of waveforms recorded
         self._num_waveforms = 0
-        # tmp remove
+        # tmp remove - create initial copy of key values so we have them by build
 
     def prepare(self):
         """
@@ -139,7 +138,7 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         # loop over input array (guided by ampl_frac_list)
         for osc_num in range(len(ampl_frac_list)):
-            # set outputs for both phaser channels in parallel
+            # set outputs for both phaser channels simultaneously
             with parallel:
                 self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(
                     amplitude=ampl_frac_list[osc_num],

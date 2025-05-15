@@ -16,11 +16,15 @@ class PhaserPulseShaper2(LAXEnvironment):
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
         "_max_waveforms", "t_max_phaser_update_rate_mu",
-        "_phase_offsets_turns",
         "_dma_names"
     }
 
     def build(self, phase_offsets_turns=np.array([0., 0., 0., 0., 0.])):
+        """
+        TODO: DOCUMENT
+        Arguments:
+            phase_offsets_turns: todo: document
+        """
         # get relevant devices
         self.setattr_device('core')
         self.setattr_device('core_dma')
@@ -28,10 +32,10 @@ class PhaserPulseShaper2(LAXEnvironment):
 
         # initialize important variables
         # note: we do this here since "prepare" method is run AFTER prepare_experiment
-        if len(phase_offsets_turns) == 5:
-            self._phase_offsets_turns = phase_offsets_turns
+        if (isinstance(phase_offsets_turns, list) or isinstance(phase_offsets_turns, np.ndarray)) and len(phase_offsets_turns) == 5:
+            self.phase_offsets_turns = phase_offsets_turns
         else:
-            raise Exception("Error in PhaserPulseShaper - phase_offsets_turns must have length 5: {}".format(phase_offsets_turns))
+            raise Exception("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
 
     def prepare(self):
         """
@@ -128,7 +132,7 @@ class PhaserPulseShaper2(LAXEnvironment):
                 )
                 self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(
                     amplitude=ampl_frac_list1[osc_num],
-                    phase=phase_turns_list1[osc_num] + self._phase_offsets_turns[osc_num],
+                    phase=phase_turns_list1[osc_num] + self.phase_offsets_turns[osc_num],
                     clr=0
                 )
                 delay_mu(self.phaser_eggs.t_sample_mu)
