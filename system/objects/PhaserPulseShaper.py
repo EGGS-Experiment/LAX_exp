@@ -26,7 +26,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # initialize important variables
         # note: we do this here since "prepare" method is run AFTER prepare_experiment
-        if isinstance(phase_offsets_turns, list) and len(phase_offsets_turns) == 5:
+        if (isinstance(phase_offsets_turns, list) or isinstance(phase_offsets_turns, np.ndarray)) and len(phase_offsets_turns) == 5:
             self._phase_offsets_turns = phase_offsets_turns
         else:
             raise Exception("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")

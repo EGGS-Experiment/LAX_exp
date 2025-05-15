@@ -156,4 +156,5 @@ class PhaserPulseShaper2(LAXEnvironment):
             waveform_num    (TInt32): The waveform index to play back.
         """
         # note: don't synchronize to frame - let user do this since user may also need to reset DUC
+        # at_mu(self.phaser_eggs.get_next_frame_mu())
         self.core_dma.playback_handle(self._dma_handles[waveform_num])
