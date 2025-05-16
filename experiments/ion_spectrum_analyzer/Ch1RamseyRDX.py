@@ -140,7 +140,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., .0, 0., 0., 0.]), group="{}.waveform".format("SDR"))
         self.setattr_argument("phase_osc_ch1_offset_turns",     PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format("SDR"))
 
-        self.setattr_argument('osc_ch0_off_first_stage', PYONValue([1,2,3,4]), group= "{}.wavef_floor_phaser_sample_intervalorm".format("SDR"))
+        self.setattr_argument('osc_ch0_off_first_stage', PYONValue([1,2,3,4]), group= "{}.waveform".format("SDR"))
         self.setattr_argument('osc_ch0_off_second_stage', PYONValue([1,2,3,4]), group= "{}.waveform".format("SDR"))
         self.setattr_argument('osc_ch1_off_first_stage', PYONValue([0,2,3,4]), group= "{}.waveform".format("SDR"))
         self.setattr_argument('osc_ch1_off_second_stage', PYONValue([0,2,3,4]), group= "{}.waveform".format("SDR"))
