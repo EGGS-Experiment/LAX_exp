@@ -44,7 +44,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=20, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
         self.setattr_argument("randomize_config", BooleanValue(default=True))
 
@@ -110,7 +110,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                      default='osc0'), group = "{}.freq_phase_sweep".format("SDR"))
         self.setattr_argument("phase_sweep_turns_list", Scannable(
                                                                             default=[
-                                                                                ExplicitScan([0.]),
+                                                                                ExplicitScan([0.5]),
                                                                                 RangeScan(0, 1.0, 3, randomize=True),
                                                                                 ExplicitScan([0.]),
                                                                             ],
@@ -134,16 +134,16 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument("time_heating_us",   NumberValue(default=1e3, precision=2, step=500, min=0.04, max=100000000),
                               group="{}.waveform".format("SDR"))
         self.setattr_argument("att_heating_db",    NumberValue(default=4., precision=1, step=0.5, min=0, max=31.5), group="{}.waveform".format("SDR"))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=-0., precision=6, step=1., min=-10., max=10.), group="{}.waveform".format("SDR"))
+        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=1., precision=6, step=1., min=-10., max=10.), group="{}.waveform".format("SDR"))
         self.setattr_argument("freq_osc_khz_list",      PYONValue([0., 0., 0.0, 0.,0.]), group="{}.waveform".format("SDR"))
         self.setattr_argument("ampl_osc_frac_list",     PYONValue([20.,20., 20., 20.,19.9]), group="{}.waveform".format("SDR"))
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., .0, 0., 0., 0.]), group="{}.waveform".format("SDR"))
         self.setattr_argument("phase_osc_ch1_offset_turns",     PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format("SDR"))
 
-        self.setattr_argument('osc_ch0_off_first_stage', PYONValue([0,1,2,4]), group= "{}.wavef_floor_phaser_sample_intervalorm".format("SDR"))
-        self.setattr_argument('osc_ch0_off_second_stage', PYONValue([0,1,2,4]), group= "{}.waveform".format("SDR"))
-        self.setattr_argument('osc_ch1_off_first_stage', PYONValue([1,2,3,4]), group= "{}.waveform".format("SDR"))
-        self.setattr_argument('osc_ch1_off_second_stage', PYONValue([1,2,3,4]), group= "{}.waveform".format("SDR"))
+        self.setattr_argument('osc_ch0_off_first_stage', PYONValue([1,2,3,4]), group= "{}.wavef_floor_phaser_sample_intervalorm".format("SDR"))
+        self.setattr_argument('osc_ch0_off_second_stage', PYONValue([1,2,3,4]), group= "{}.waveform".format("SDR"))
+        self.setattr_argument('osc_ch1_off_first_stage', PYONValue([0,2,3,4]), group= "{}.waveform".format("SDR"))
+        self.setattr_argument('osc_ch1_off_second_stage', PYONValue([0,2,3,4]), group= "{}.waveform".format("SDR"))
         self.setattr_argument('osc_ch1_sweep', PYONValue([1,1,1,1,1]), group= "{}.waveform".format("SDR"))
 
         # get relevant devices
@@ -369,8 +369,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         _osc_vals[:, :, 0] = np.array(self.ampl_osc_frac_list)
 
         # phase track oscillator updates to account for 40ns sample period
-        # t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(5)
-        t_update_delay_s_list = np.array([0 * 40e-9, 1 * 40e-9, 2 * 40e-9, 10e-9, -80e-9])
+        t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(5)
+        # t_update_delay_s_list = np.array([0 * 40e-9, 1 * 40e-9, 2 * 40e-9, 80e-9, -80e-9])
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list +
                  self.freq_update_arr * np.mean(self.freq_sweep_hz_list)) *
@@ -392,6 +392,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         else:
             phas_update_arr = np.array([0., 0., 0., 0., 0.])
 
+
         '''COMPILE WAVEFORM SEQUENCE'''
         for i, phase in enumerate(self.phase_sweep_turns_list):
             # create local copy of _sequence_blocks
@@ -400,13 +401,11 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             _osc_vals_local_ch0 = np.copy(_osc_vals)
             _osc_vals_local_ch1 = np.copy(_osc_vals)
 
+
             _osc_vals_local_ch0[1, :, 1] += phas_update_arr * phase
             _osc_vals_local_ch1[1, :, 1] += phas_update_arr * phase
-
-
             _osc_vals_local_ch0[0, self.osc_ch0_off_first_stage, 0] = 0.
             _osc_vals_local_ch0[1, self.osc_ch0_off_second_stage, 0] = 0.
-
             _osc_vals_local_ch1[0, self.osc_ch1_off_first_stage, 0] = 0.
             _osc_vals_local_ch1[1, self.osc_ch1_off_second_stage, 0] = 0.
 
@@ -442,6 +441,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                     }
                 } for i in range(num_blocks)
             ]
+
 
             # get waveform data and store in holding structure
             self.spinecho_wizard.sequence_blocks = _sequence_blocks_local_ch0
