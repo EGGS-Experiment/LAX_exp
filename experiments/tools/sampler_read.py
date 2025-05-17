@@ -61,7 +61,7 @@ class SamplerRead(EnvExperiment):
 
         # create holding buffer
         sampler_buffer = [0] * 8
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # sampling loop
         for i in range(self.repetitions):

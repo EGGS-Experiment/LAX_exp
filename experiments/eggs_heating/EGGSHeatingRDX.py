@@ -1,6 +1,7 @@
 import numpy as np
 from sipyco import pyon
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -333,8 +334,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -375,7 +374,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 delay_mu(25000)
                 if not self.enable_RAP:
                     self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                      profile=self.profile_729_readout)
+                                      profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                     delay_mu(25000)
 
                 '''STATE PREPARATION'''
@@ -390,7 +389,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 # readout via RAP or sideband ratio
                 if self.enable_RAP:
                     self.qubit.set_att_mu(self.att_rap_mu)
-                    self.rap_subsequence.run(time_readout_mu)
+                    self.rap_subsequence.run_rap(time_readout_mu)
                 else:
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
@@ -409,7 +408,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
-                # resuscitate ion & death detection
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()

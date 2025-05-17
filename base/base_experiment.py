@@ -176,6 +176,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 setattr(self, '_LAXDevice_{}'.format(i), obj)
                 self.kernel_invariants.add("_LAXDevice_{}".format(i))
                 _initialize_code += "self._LAXDevice_{}.initialize_device()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
 
         # create code to initialize subsequences
         for i, obj in enumerate(_compile_subsequence_list):
@@ -183,6 +184,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 setattr(self, '_LAXSubsequence_{}'.format(i), obj)
                 self.kernel_invariants.add("_LAXSubsequence_{}".format(i))
                 _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
                 # for LAXSubsequences only: get DMA handle for sequences recorded onto DMA
                 _initialize_load_DMA_code += "self._LAXSubsequence_{}._load_dma()\n".format(i)
 
@@ -192,9 +194,11 @@ class LAXExperiment(LAXEnvironment, ABC):
                 setattr(self, '_LAXSequence_{}'.format(i), obj)
                 self.kernel_invariants.add("_LAXSequence_{}".format(i))
                 _initialize_code += "self._LAXSequence_{}.initialize_sequence()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
 
         # call user-defined initialize function for the experiment, as well as _initialize_dataset
         _initialize_code += (
+            "self.core.break_realtime()\n"
             "self.initialize_experiment()\n"
             "self.core.break_realtime()\n"
             "self._initialize_datasets()\n"
@@ -224,16 +228,19 @@ class LAXExperiment(LAXEnvironment, ABC):
         for i, obj in enumerate(_compile_sequence_list):
             if isinstance(obj, LAXSequence):
                 _cleanup_code += "self._LAXSequence_{}.cleanup_sequence()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
 
         # code to cleanup subsequences
         for i, obj in enumerate(_compile_subsequence_list):
             if isinstance(obj, LAXSubsequence):
                 _cleanup_code += "self._LAXSubsequence_{}.cleanup_subsequence()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
 
         # code to cleanup devices
         for i, obj in enumerate(_compile_device_list):
             if isinstance(obj, LAXDevice):
                 _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
+                _initialize_code += "self.core.break_realtime()\n"
 
         # note: final line of kernel_from_string MUST NOT have a "\n" character
         _cleanup_code += "self.core.break_realtime()"
@@ -260,11 +267,6 @@ class LAXExperiment(LAXEnvironment, ABC):
             "\tprint('\tExperiment successfully terminated.')\n"
             "\tself.core.break_realtime()\n"
             "\tdelay_mu(1000000)\n"
-            # "except Exception as e:\n"
-            # "\tself.core.break_realtime()\n"
-            # "\tprint('\tError during experiment:', e)\n"
-            # "\tself.core.break_realtime()\n"
-            # "\tdelay_mu(1000000)\n"
             "finally:\n"
             "\tself.core.break_realtime()\n"
             

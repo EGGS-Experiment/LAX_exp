@@ -1,4 +1,5 @@
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
@@ -14,8 +15,7 @@ class Beam397Probe(LAXDevice):
     core_device = ('beam', 'urukul2_ch0')
     kernel_invariants = {
         "cpld", "sw",
-        "freq_spinpol_ftw", "freq_rescue_ftw",
-        "ampl_spinpol_asf", "ampl_rescue_asf"
+        "freq_spinpol_ftw", "freq_rescue_ftw", "ampl_spinpol_asf", "ampl_rescue_asf"
     }
 
     def prepare_device(self):
@@ -38,20 +38,19 @@ class Beam397Probe(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # set cooling and readout profiles
-        self.core.break_realtime()
-        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
-        self.core.break_realtime()
-        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
-        self.core.break_realtime()
-        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
-        self.core.break_realtime()
-        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=3)
-        self.core.break_realtime()
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
-        self.core.break_realtime()
         self.sw.off()
+        delay_mu(5000)
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:

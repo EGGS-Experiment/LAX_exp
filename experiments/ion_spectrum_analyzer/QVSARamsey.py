@@ -302,8 +302,6 @@ class QVSARamsey(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -343,10 +341,10 @@ class QVSARamsey(LAXExperiment, Experiment):
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
                                                      [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.],
                                                      phase_ch1_turns)
-                self.core.break_realtime()
+                delay_mu(10000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(10000)
 
                 # wait for linetrigger
                 if self.enable_linetrigger:
@@ -379,10 +377,8 @@ class QVSARamsey(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
-                # resuscitate ion
+                # resuscitate ion & detect death
                 self.rescue_subsequence.resuscitate()
-
-                # death detection
                 self.rescue_subsequence.detect_death(counts)
                 self.core.break_realtime()
 
@@ -398,9 +394,6 @@ class QVSARamsey(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
-
-        '''CLEANUP'''
-        self.core.break_realtime()
 
 
     '''

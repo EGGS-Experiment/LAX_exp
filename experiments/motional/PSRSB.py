@@ -240,7 +240,6 @@ class PSRSB(LAXExperiment, Experiment):
         # record phaser oscillator waveform
         # note: normally this would be encapsulated in phaser_record
         # e.g. in EGGSHeatingRDX-type exps
-        self.core.break_realtime()
         delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
         self.waveform_qvsa_pulseshape_id = self.pulse_shaper.waveform_record(
             self.waveform_qvsa_pulseshape_vals[0],
@@ -254,18 +253,17 @@ class PSRSB(LAXExperiment, Experiment):
         self.phaser_eggs.frequency_configure(self.freq_qvsa_carrier_hz,
                                              [-self.freq_qvsa_secular_hz, self.freq_qvsa_secular_hz, 0., 0., 0.],
                                              self.phaser_eggs.phase_inherent_ch1_turns)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_sample_mu)
         self.phaser_eggs.channel[1].set_att_mu(0x00)
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()

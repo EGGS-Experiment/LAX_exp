@@ -3,7 +3,6 @@ from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-from math import factorial
 from scipy.special import genlaguerre
 from LAX_exp.extensions.physics_constants import *
 
@@ -28,11 +27,11 @@ class FockStateGenerator(LAXSubsequence):
         self.setattr_device('qubit')
 
         # laser frequencies
-        self.setattr_argument("freq_carrier_rabiflop_mhz", NumberValue(default=101.1187, step=1, precision=4, min=50., max=400.),
+        self.setattr_argument("freq_carrier_rabiflop_mhz", NumberValue(default=101.1051, step=1, precision=4, min=50., max=400.),
                               group='fock_state_generation')
-        self.setattr_argument("freq_rsb_rabiflop_mhz", NumberValue(default=100.7868, step=1, precision=4, min=50., max=400.),
+        self.setattr_argument("freq_rsb_rabiflop_mhz", NumberValue(default=100.7735, step=1, precision=4, min=50., max=400.),
                               group='fock_state_generation')
-        self.setattr_argument("freq_bsb_rabiflop_mhz", NumberValue(default=101.4516, step=1, precision=4, min=50., max=400.),
+        self.setattr_argument("freq_bsb_rabiflop_mhz", NumberValue(default=101.4412, step=1, precision=4, min=50., max=400.),
                               group='fock_state_generation')
 
         # laser parameters
@@ -42,30 +41,38 @@ class FockStateGenerator(LAXSubsequence):
                               group='fock_state_generation')
 
         # pulse timings
-        self.setattr_argument('time_carrier_pi_pulse_us',
-                                                           NumberValue(default=2, step=0.1, precision=3, min=0, max=1000),
-                                                           group='fock_state_generation')
-        self.setattr_argument('time_sideband_pi_pulse_us',
-                                                                 NumberValue(default=30, step=0.1, precision=3, min=0, max=1000),
-                                                                 group='fock_state_generation')
+        self.setattr_argument('time_carrier_pi_pulse_us', NumberValue(default=2.29, step=0.1, precision=3, min=0, max=1000),
+                              group='fock_state_generation')
+        self.setattr_argument('time_sideband_pi_pulse_us', NumberValue(default=27.1, step=0.1, precision=3, min=0, max=1000),
+                              group='fock_state_generation')
+        self.setattr_argument('motional_mode', EnumerationValue(["EGGS", "RF", "AXIAL"]))
 
         # fock state
-        self.setattr_argument("final_fock_state", NumberValue(default=0, step=1, precision=0, min=0, max=10),
+        self.setattr_argument("final_fock_state", NumberValue(default=10, step=1, precision=0, min=0, max=10),
                                                       group='fock_state_generation')
 
     def prepare_subsequence(self):
+        """
+        Prepare and precompute experiment values.
+        """
         # convert input arguments to machine units
         freq_rsb_rabiflop_ftw = self.qubit.frequency_to_ftw(self.freq_rsb_rabiflop_mhz * MHz)
         freq_bsb_rabiflop_ftw = self.qubit.frequency_to_ftw(self.freq_bsb_rabiflop_mhz * MHz)
         self.freq_carrier_rabiflop_ftw = self.qubit.frequency_to_ftw(self.freq_carrier_rabiflop_mhz * MHz)
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_readout_mu = att_to_mu(self.att_flopping_db * dB)
-        self.time_carrier_pi_pulse_mu = us_to_mu(self.time_carrier_pi_pulse_us)
+        self.time_carrier_pi_pulse_mu = self.core.seconds_to_mu(self.time_carrier_pi_pulse_us*us)
 
-        omega = 4*np.pi * (self.freq_carrier_rabiflop_mhz - self.freq_rsb_rabiflop_mhz)*MHz # extra factor of 2 for AOM units
-        lamb_dicke = 2*np.pi/729e-9 * np.sqrt(hbar/(2*mCa*omega))
+        # calculate lamb dicke parameter to scale successive RSB/BSB pulse times
+        if self.motional_mode == 'EGGS' or self.motional_mode == 'RF':
+            lambe_dicke_projection = 1/2
+        else:
+            lambe_dicke_projection = 1/np.sqrt(2)
 
-        ### create array of fock state to create
+        omega = 4 * np.pi * (self.freq_carrier_rabiflop_mhz - self.freq_rsb_rabiflop_mhz) * MHz # extra factor of 2 for AOM units
+        lamb_dicke = lambe_dicke_projection * (2 * np.pi / 729e-9) * np.sqrt(hbar/(2*mCa*omega))
+
+        ### create config array for each RSB/BSB pulse
         self.time_pi_pulses_us = np.zeros(self.final_fock_state)
         self.dds_configs = np.zeros((self.final_fock_state, 2), dtype = np.int32)
 
@@ -81,8 +88,7 @@ class FockStateGenerator(LAXSubsequence):
             else:
                 self.dds_configs[idx, :] = [freq_rsb_rabiflop_ftw, self.ampl_qubit_asf]
 
-
-        self.time_pi_pulses_mu = np.array([us_to_mu(time_pi_pulses_us) for time_pi_pulses_us in self.time_pi_pulses_us])
+        self.time_pi_pulses_mu = np.array([self.core.seconds_to_mu(time_pi_pulses_us*us) for time_pi_pulses_us in self.time_pi_pulses_us])
 
         # determine if we need an additional pi pulse at end to reset to S1/2, mj = -1/2
         self.apply_carrier = (self.final_fock_state % 2 != 0 and self.final_fock_state != 0)
@@ -93,18 +99,26 @@ class FockStateGenerator(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
-        # continually apply bsb and rsb (alternating) to achieve the fock state we want
+        # prepare target profile
         self.qubit.set_profile(self.profile_fock)
+        self.qubit.cpld.io_update.pulse_mu(8)
         self.qubit.set_att_mu(self.att_readout_mu)
+        delay_mu(8)
+
+        # continually apply bsb and rsb (alternating) to achieve the fock state we want
         for idx in range(self.final_fock_state):
-            self.qubit.set_mu(self.dds_configs[idx, 0], asf=self.dds_configs[idx, 1], profile=self.profile_fock)
+            # note: this 8ns delay is CRITICAL to proper operation
+            delay_mu(8)
+            self.qubit.set_mu(self.dds_configs[idx,0], asf=self.dds_configs[idx,1], profile=self.profile_fock)
             self.qubit.on()
             delay_mu(self.time_pi_pulses_mu[idx])
             self.qubit.off()
 
-        # reset to S1/2, mj=-1/2 if needed
+
+        # reset to S1/2, mj=-1/2 if needed via carrier pi-pulse
         if self.apply_carrier:
             self.qubit.set_mu(self.freq_carrier_rabiflop_ftw, asf=self.ampl_qubit_asf, profile=self.profile_fock)
             self.qubit.on()
             delay_mu(self.time_carrier_pi_pulse_mu)
             self.qubit.off()
+

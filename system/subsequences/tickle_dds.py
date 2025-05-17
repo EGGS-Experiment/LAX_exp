@@ -12,17 +12,17 @@ class TickleDDS(LAXSubsequence):
     """
     name = 'tickle_dds'
     kernel_invariants = {
-        "time_tickle_mu",
-        "att_tickle_mu"
+        "time_tickle_mu", "att_tickle_mu"
     }
 
     def build_subsequence(self):
-        self.setattr_argument('time_tickle_us', NumberValue(default=100, precision=3, step=100, min=1, max=1000000), group=self.name)
-        self.setattr_argument('att_tickle_db',  NumberValue(default=10, precision=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('time_tickle_us', NumberValue(default=100, precision=3, step=100, min=1, max=1000000),
+                              group=self.name)
+        self.setattr_argument('att_tickle_db',  NumberValue(default=10, precision=1, step=0.5, min=0, max=31.5),
+                              group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_dipole')
-        # self.setattr_device('ttl8')
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
@@ -31,19 +31,16 @@ class TickleDDS(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self) -> TNone:
-        self.core.break_realtime()
-
-        # configure DDS here
-        # this ensures that dds channel will have correct attenuation in any DMA sequences recorded later
+        # configure DDS here to ensure that correct attenuation during DMA recording
         self.dds_dipole.set_att_mu(self.att_tickle_mu)
         self.dds_dipole.set_profile(0)
         self.dds_dipole.set_phase_absolute()
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         # reset DDS phase
         self.dds_dipole.reset_phase()
-        # self.ttl8.on()
 
         # tickle for given time
         self.dds_dipole.on()

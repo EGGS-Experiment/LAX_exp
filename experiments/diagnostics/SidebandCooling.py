@@ -1,6 +1,7 @@
 import numpy as np
 from sipyco import pyon
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -73,8 +74,6 @@ class SidebandCooling(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -83,7 +82,6 @@ class SidebandCooling(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
         for trial_num in range(self.repetitions):
 
             # scan over sideband readout frequencies
@@ -91,8 +89,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
                 # set frequency
                 self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_readout)
-                self.core.break_realtime()
+                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(10000)
 
                 # initialize ion in S-1/2 state & SBC to the ground motional state
                 self.initialize_subsequence.run_dma()
@@ -103,11 +101,13 @@ class SidebandCooling(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count())
+                counts = self.readout_subsequence.fetch_count()
+                self.update_results(freq_ftw, counts)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -191,7 +191,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
-        self.ccb.issue("create_applet", f"Sideband Cooling",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
                        ' --num-subplots 2',
                        group=['plotting', 'diagnostics'])

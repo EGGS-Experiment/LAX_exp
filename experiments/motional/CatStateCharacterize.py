@@ -12,9 +12,9 @@ from itertools import product
 from artiq.coredevice import ad9910
 
 
-class CatStateCharacterizeRDX(LAXExperiment, Experiment):
+class CatStateCharacterize(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Characterize RDX
+    Experiment: Cat State Characterize
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive MLE readout to reduce state determination times and extend available coherence times.
@@ -28,13 +28,13 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         # hardware values - default
         'singlepass0', 'singlepass1',
         'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
-        'ampl_doublepass_default_asf', 'att_doublepass_default_mu',
-        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'att_sigmax_mu', 'time_sigmax_mu',
+        'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
         'time_force_herald_slack_mu',
 
         # hardware values - cat & readout
-        'ampls_cat_asf', 'atts_cat_mu', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phase_cat2_sigmax_pow',
-        'phases_cat2_cat_pow', 'phases_cat2_cat_update_dir', 'ampl_729_readout_asf', 'att_729_readout_mu',
+        'ampls_cat_asf', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phase_cat2_sigmax_pow',
+        'phases_cat2_cat_pow', 'phases_cat2_cat_update_dir', 'ampl_729_readout_asf', 'att_reg_sigmax',
+        'att_reg_bichromatic', 'att_reg_readout',
 
         # configs
         'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
@@ -61,7 +61,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 80.]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
         self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 31.5]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
 
@@ -69,7 +69,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1065, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
         self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
@@ -77,8 +77,8 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.1065]),
-                                                                    CenterScan(101.1065, 0.01, 0.0001, randomize=True),
+                                                                    ExplicitScan([101.1054]),
+                                                                    CenterScan(101.1054, 0.01, 0.0001, randomize=True),
                                                                     RangeScan(101.1000, 101.1100, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
@@ -167,44 +167,24 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
-        '''
-        CHECK INPUT FOR ERRORS
-        '''
-        # ensure single pass values are safe and valid
-        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
-                for ampl_pct in self.ampl_singlepass_default_pct_list)):
-            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
-        
-        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
-                for att_db in self.att_singlepass_default_db_list)):
-            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
-        
-        # ensure we only herald once
-        if self.enable_cat1_herald and self.enable_cat2_herald:
-            raise ValueError("Cannot herald twice. Must choose either cat1_herald OR cat2_herald.")
+        '''SANITIZE & VALIDATE INPUTS'''
+        self._prepare_argument_checks()
 
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
         '''
-        # defaults - singlepass AOM
+        # defaults - AOMS
         self.singlepass0 = self.get_device("urukul0_ch1")
         self.singlepass1 = self.get_device("urukul0_ch2")
-
         self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
                                                  for freq_mhz in self.freq_singlepass_default_mhz_list]
         self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
                                                  for ampl_asf in self.ampl_singlepass_default_pct_list]
-        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
-                                                 for att_db in self.att_singlepass_default_db_list]
-
-        # defaults - doublepass AOM
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
-        self.att_doublepass_default_mu =       att_to_mu(self.att_doublepass_default_db * dB)
 
         # defaults - sigma_x pulses
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
-        self.att_sigmax_mu =    att_to_mu(self.att_sigmax_db * dB)
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
 
         # defaults - cat
@@ -214,8 +194,6 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                                               for freq_khz in self.freq_cat_secular_khz_list])
         self.ampls_cat_asf =    np.array([self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
                                           for ampl_pct in self.ampls_cat_pct], dtype=np.int32)
-        self.atts_cat_mu =      np.array([att_to_mu(att_db * dB)
-                                          for att_db in self.atts_cat_db], dtype=np.int32)
 
         '''
         CONVERT VALUES TO MACHINE UNITS - PULSES
@@ -247,9 +225,8 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         elif self.target_cat2_cat_phase == 'RSB+BSB':
             self.phases_cat2_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
-        # pulse 5 - readout
+        # readout pulse
         self.ampl_729_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_729_readout_pct / 100.)
-        self.att_729_readout_mu =    att_to_mu(self.att_729_readout_db * dB)
 
         if self.enable_729_readout:
             freq_729_readout_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
@@ -263,6 +240,29 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         # heralding values
         self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
 
+        '''CREATE ATTENUATION REGISTERS'''
+        # convert attenuations
+        self.att_singlepass_default_mu_list =   [att_to_mu(att_db * dB)
+                                                 for att_db in self.att_singlepass_default_db_list]
+        atts_cat_mu = [att_to_mu(att_db * dB) for att_db in self.atts_cat_db]
+
+        # create attenuation registers
+        self.att_reg_sigmax = 0x00000000 | (
+                (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+        )
+        self.att_reg_bichromatic = 0x00000000 | (
+                (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+                (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
+        )
+        self.att_reg_readout = 0x00000000 | (
+                (att_to_mu(self.att_729_readout_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+        )
+
         '''
         CREATE EXPERIMENT CONFIG
         '''
@@ -275,6 +275,25 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         ], dtype=np.int64)
         np.random.shuffle(self.config_experiment_list)
 
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure single pass values are safe and valid
+        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
+                for ampl_pct in self.ampl_singlepass_default_pct_list)):
+            raise ValueError(
+                "Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
+
+        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
+                for att_db in self.att_singlepass_default_db_list)):
+            raise ValueError(
+                "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+
+        # # ensure we only herald once
+        # if self.enable_cat1_herald and self.enable_cat2_herald:
+        #     raise ValueError("Cannot herald twice. Must choose either cat1_herald OR cat2_herald.")
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
@@ -286,19 +305,13 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
-        # set up beam parameters
-        self.qubit.set_att_mu(self.att_doublepass_default_mu)
-        self.core.break_realtime()
-
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         # enable RAM mode and clear DDS phase accumulator
         self.qubit.set_cfr1()
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
@@ -308,17 +321,13 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                       asf=self.ampl_singlepass_default_asf_list[1],
                                       profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
-            delay_mu(8000)
-        self.core.break_realtime()
+            delay_mu(10000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -348,7 +357,6 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
                 phase_cat2_cat_pow =    np.int32(config_vals[3])
                 freq_729_readout_ftw =  np.int32(config_vals[4])
                 time_729_readout_mu =   config_vals[5]
-                self.core.break_realtime()
 
                 # prepare variables for execution
                 cat4_phases = [
@@ -465,8 +473,6 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
@@ -475,17 +481,13 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                     asf=self.ampl_singlepass_default_asf_list[1],
                                     profile=i)
-            self.singlepass0.cpld.io_update.pulse_mu(8)
             delay_mu(8000)
-        self.core.break_realtime()
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.core.break_realtime()
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.core.break_realtime()
+        delay_mu(10000)
 
 
     '''
@@ -512,20 +514,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
             self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.qubit.cpld.io_update.pulse_mu(8)
-
-        # set all attenuators together
-        a = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        a |= (
-                (self.att_sigmax_mu << (0 * 8)) |
-                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (2 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(a)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
         # run sigmax pulse
         self.singlepass0.sw.on()
@@ -533,6 +522,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.qubit.on()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
+        self.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
     def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
@@ -561,19 +551,7 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
             pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-
-        # set all attenuators together
-        a = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        a |= (
-                (self.att_doublepass_default_mu << (0 * 8)) |
-                (self.atts_cat_mu[0] << (1 * 8)) |
-                (self.atts_cat_mu[1] << (2 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(a)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
 
         # run bichromatic pulse
         self.singlepass0.sw.on()
@@ -600,26 +578,15 @@ class CatStateCharacterizeRDX(LAXExperiment, Experiment):
         self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                 asf=self.ampl_singlepass_default_asf_list[1],
                                 pow_=0, profile=self.profile_729_target)
-
-        # set all attenuators together (for speed)
-        att_reg = self.qubit.cpld.att_reg & ~(
-                (0xFF << (0 * 8)) |
-                (0xFF << (1 * 8)) |
-                (0xFF << (2 * 8))
-        )
-        att_reg |= (
-                (self.att_729_readout_mu << (0 * 8)) |
-                (self.att_singlepass_default_mu_list[0] << (1 * 8)) |
-                (self.att_singlepass_default_mu_list[1] << (2 * 8))
-        )
-        self.qubit.cpld.set_all_att_mu(att_reg)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout)
 
         # run readout pulse
         self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
+        self.singlepass1.sw.on()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
+        self.singlepass1.sw.off()
 
 
     '''

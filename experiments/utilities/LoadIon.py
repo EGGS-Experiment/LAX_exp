@@ -140,24 +140,22 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # store attenuations to prevent overriding
         self.pump.beam.cpld.get_att_mu()
         self.core.break_realtime()
 
         # set readout profile for beams
         self.pump.readout()
-        self.core.break_realtime()
         self.pump.set_att_mu(self.att_397_mu)
         self.repump_qubit.set_att_mu(self.att_854_mu)
+        delay_mu(10000)
         self.repump_cooling.set_att_mu(self.att_866_mu)
-        self.core.break_realtime()
+        delay_mu(8000)
         # turn on lasers
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
-        self.core.break_realtime()
+        delay_mu(2000)
 
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
@@ -407,18 +405,17 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Set the flipper to send light to the camera.
         """
-        self.core.break_realtime()
         # store PMT count events
         for i in range(self.pmt_sample_num):
             self.readout_subsequence.run()
-            delay_mu(100)
-        self.core.break_realtime()
+            delay_mu(128)
+        delay_mu(25000)
 
         # retrieve counts from PMT
         counts = 0
         for i in range(self.pmt_sample_num):
             counts += self.readout_subsequence.fetch_count()
-            delay_mu(100)
+            delay_mu(128)
 
         # if PMT counts are below the dark count threshold flip again
         if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):

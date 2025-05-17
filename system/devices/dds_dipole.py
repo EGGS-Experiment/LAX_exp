@@ -28,7 +28,8 @@ class DDSDipole(LAXDevice):
         self.cpld = self.dds.cpld
 
         # get relevant parameters
-        self.ampl_modulation_asf =  self.get_parameter('ampl_dipole_pct', group='dds.ampl_pct', override=False, conversion_function=pct_to_asf)
+        self.ampl_modulation_asf =  self.get_parameter('ampl_dipole_pct', group='dds.ampl_pct', override=False,
+                                                       conversion_function=pct_to_asf)
         self.freq_cleanup_ftw =     self.dds.frequency_to_ftw(100 * MHz)
 
     @kernel(flags={"fast-math"})
@@ -48,20 +49,19 @@ class DDSDipole(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
-        self.core.break_realtime()
-
         # set default profile
         self.set_profile(DEFAULT_PROFILE)
         self.cpld.io_update.pulse_mu(8)
+        delay_mu(8000)
 
         # clear any possible output
         self.dds.set_att_mu(0x0)
-        self.core.break_realtime()
         self.dds.set_mu(self.freq_cleanup_ftw, asf=0x01, profile=DEFAULT_PROFILE)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # make sure switches are closed
         self.off()
+        delay_mu(5000)
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:

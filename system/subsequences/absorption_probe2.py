@@ -77,7 +77,7 @@ class AbsorptionProbe2(LAXSubsequence):
         """
         # reset counts store
         self.counts_store = np.int32(0)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # retrieve PMT counts and combine
         for i in self._loop_iter:

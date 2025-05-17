@@ -1,10 +1,12 @@
 import numpy as np
+
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+
 from PyQt5.QtCore import Qt
 
 from sipyco import pyon
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
 
@@ -35,6 +37,11 @@ class MplCanvas(FigureCanvasQTAgg):
         plt.ion()
         plt.tight_layout()
         self.fig.tight_layout()
+        self.fig.clf()
+        self.fig.clear()
+        for ax in self.axes:
+            ax.cla()
+            ax.remove()
         super().__init__(self.fig)
 
 
@@ -84,6 +91,10 @@ class MatplotlibPlot(QMainWindow):
         """
 
         # extract data from dictionary
+
+        self.sc.fig.clf()
+        self.sc.axes.cla()
+
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary
@@ -205,6 +216,9 @@ class MatplotlibPlot(QMainWindow):
 
         if not isinstance(self.sc.axes, np.ndarray):
             self.sc.axes = np.array([self.sc.axes])
+
+        for ax in self.sc.axes:
+            ax.cla()
 
         # get features of the plot legend
         handles, labels = self.sc.axes[ind].get_legend_handles_labels()

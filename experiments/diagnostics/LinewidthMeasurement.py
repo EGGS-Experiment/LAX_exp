@@ -99,16 +99,12 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # set ADC channel gains
         self.sampler0.set_gain_mu(self.adc_channel_num, self.adc_channel_gain_mu)
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # create buffer to hold sampler values
         buffer_sampler = [0] * 8
         read_actual = 0
@@ -125,7 +121,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                 freq_probe_ftw = waveform_params[0]
                 ampl_probe_asf = waveform_params[1]
                 self.pump.set_mu(freq_probe_ftw, asf=ampl_probe_asf, profile=1)
-                self.core.break_realtime()
+                delay_mu(50000)
 
                 # get actual data
                 with parallel:
@@ -268,7 +264,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.set_dataset('temp.plotting.results_linewidth', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
-        self.ccb.issue("create_applet", f"Linewidth Measurement",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
                        ' --num-subplots 1',
                        group=['plotting','diagnostics'])

@@ -20,8 +20,10 @@ class BeamManager(LAXDevice):
     kernel_invariants = {}
 
     def prepare_device(self):
-        self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False, conversion_function=hz_to_ftw, units=MHz)
-        self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False, conversion_function=pct_to_asf)
+        self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False,
+                                                 conversion_function=hz_to_ftw, units=MHz)
+        self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False,
+                                                 conversion_function=pct_to_asf)
 
     @kernel(flags={"fast-math"})
     def on(self):

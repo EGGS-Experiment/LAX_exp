@@ -161,7 +161,6 @@ class SpinEchoWizardRDX(LAXEnvironment):
             block_vals =    _block["oscillator_parameters"]
             block_config =  _block["config"]
             block_time_us = block_config["time_us"]
-
             # set spin-echo/zero-update delay if block_vals is an empty list
             if (block_vals is None) or (len(block_vals) == 0):
                 # clear ampl and phase for each osc
@@ -170,7 +169,6 @@ class SpinEchoWizardRDX(LAXEnvironment):
                     _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], 0.)
                 # set delay time
                 _time_arr = np.append(_time_arr, self._floor_phaser_sample_interval(block_time_us))
-
 
             # otherwise, configure as normal block
             else:
@@ -191,7 +189,6 @@ class SpinEchoWizardRDX(LAXEnvironment):
                         pulse_shaping_config["sample_rate_khz"],
                         pulse_shaping_config["rolloff_time_us"]
                     )
-
                     # scale each oscillator's amplitude+phase identically
                     for idx_osc, block_osc_vals in enumerate(block_vals):
                         wind_ampl_tmp = ampl_window_rising * block_osc_vals[0]

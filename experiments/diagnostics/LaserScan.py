@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -128,13 +129,11 @@ class LaserScan(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # ensure DMA sequences use correct parameters
         self.qubit.set_profile(self.profile_729_readout)
         # reduce attenuation/power of qubit beam to resolve lines
         self.qubit.set_att_mu(self.att_qubit_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -144,12 +143,10 @@ class LaserScan(LAXExperiment, Experiment):
         # set up qubit pulse
         if self.enable_pulseshaping:
             self.pulseshape_subsequence.configure(self.time_qubit_mu)
-            self.core.break_realtime()
+            delay_mu(25000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -168,14 +165,14 @@ class LaserScan(LAXExperiment, Experiment):
                 # extract values from config list
                 freq_ftw = np.int32(config_vals[0])
                 time_holdoff_mu = config_vals[1]
-                self.core.break_realtime()
 
                 # set frequency
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout)
-                self.core.break_realtime()
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout,
+                                      phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(10000)
 
                 # wait for linetrigger
                 if self.enable_linetrigger:
@@ -192,11 +189,13 @@ class LaserScan(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
 
                 # update dataset
-                self.update_results(freq_ftw, self.readout_subsequence.fetch_count(), time_holdoff_mu)
+                counts = self.readout_subsequence.fetch_count()
+                self.update_results(freq_ftw, counts, time_holdoff_mu)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -244,7 +243,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
-        self.ccb.issue("create_applet", f"Laser Scan",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
                        ' --num-subplots 1',
                        group=["plotting", "diagnostics"])

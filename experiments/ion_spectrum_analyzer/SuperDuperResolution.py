@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -45,6 +46,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=4, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
+        self.setattr_argument("randomize_config", BooleanValue(default=True))
 
         # allocate relevant beam profiles
         self.profile_729_sb_readout =   0
@@ -243,7 +245,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         -1).reshape(-1, 6)
 
         # randomize_config always enabled lol
-        # np.random.shuffle(self.config_experiment_list)
+        if self.randomize_config is True:
+            np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -336,11 +339,11 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_ns_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * ns) * np.arange(4)
+        t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(4)
         phase_osc_update_delay_turns_list = (
                 (self.freq_superresolution_osc_base_hz_list +
                  self.freq_update_arr * np.mean(self.freq_superresolution_sweep_hz_list)) *
-                t_update_delay_ns_list
+                t_update_delay_s_list
         )
         _sequence_blocks[:, :, 1] += np.array(self.phase_superresolution_osc_turns_list) + phase_osc_update_delay_turns_list
 
@@ -413,21 +416,19 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
+        delay_mu(500000)
 
         # used to check_termination more frequently
         _loop_iter = 0
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
+            self.core.break_realtime()
 
             # sweep experiment configurations
             for config_vals in self.config_experiment_list:
-                self.core.break_realtime()
 
                 '''CONFIGURE'''
                 # extract values from config list
@@ -441,7 +442,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_superresolution_sweep_turns_list[phase_sweep_idx]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_sweep_idx]
-                delay_mu(50000)
+                self.core.break_realtime()
 
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_superresolution_osc_base_hz_list + freq_sweep_hz * self.freq_update_arr
@@ -457,7 +458,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_sb_readout)
+                                  profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(50000)
 
                 '''STATE PREPARATION'''
@@ -471,7 +472,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 '''READOUT'''
                 if self.enable_RAP:
                     self.qubit.set_att_mu(self.att_rap_mu)
-                    self.rap_subsequence.run(time_readout_mu)
+                    self.rap_subsequence.run_rap(time_readout_mu)
                 else:
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()

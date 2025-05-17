@@ -12,9 +12,9 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
 
-class SvuperSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
+class SuperDuperResolutionB(EGGSHeatingRDX.EGGSHeatingRDX):
     """
-    Experiment: Svuper Super Resolution 2 DONT USE
+    Experiment: Super Duper Resolution B DONT USE
 
     todo: document
     """
@@ -286,8 +286,6 @@ class SvuperSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -333,10 +331,10 @@ class SvuperSuperResolution2(EGGSHeatingRDX.EGGSHeatingRDX):
                     ],
                     phase_ch1_turns
                 )
-                self.core.break_realtime()
+                delay_mu(25000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state

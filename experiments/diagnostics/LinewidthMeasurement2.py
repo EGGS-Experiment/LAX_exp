@@ -94,11 +94,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
     '''MAIN SEQUENCE'''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # set ADC channel gains
         self.sampler0.set_gain_mu(self.adc_channel_num, self.adc_channel_gain_mu)
-        self.core.break_realtime()
+        delay_mu(25000)
 
         # record sequences onto DMA
         self.dopplercool_subsequence.record_dma()
@@ -106,8 +104,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # main loop
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
@@ -120,6 +116,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 freq_ftw = waveform_params[0]
                 ampl_asf = waveform_params[1]
                 self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
+                delay_mu(8000)
 
                 # run doppler cooling
                 self.dopplercool_subsequence.run_dma()
@@ -228,7 +225,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
         self.set_dataset('temp.plotting.results_linewidth2', pyon.encode(plotting_results), broadcast=True)
 
-        self.ccb.issue("create_applet", f"Linewidth Measurement 2",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth2'
                        ' --num-subplots 1',
                        group = ['plotting', 'diagnostics'])

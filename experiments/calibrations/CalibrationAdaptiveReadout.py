@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -90,14 +91,13 @@ class CalibrationAdaptiveReadout(LAXExperiment, Experiment):
         # configure qubit beam
         self.qubit.set_att_mu(self.att_qubit_mu)
         self.qubit.set_mu(self.freq_qubit_ftw, asf=self.qubit.ampl_qubit_asf,
-                          profile=self.profile_729_target)
+                          profile=self.profile_729_target, phase_mode=PHASE_MODE_CONTINUOUS)
         self.qubit.set_profile(self.profile_729_target)
         self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # main sequence
         for trial_num in range(self.repetitions):
             self.core.break_realtime()

@@ -1,6 +1,6 @@
 from artiq.experiment import *
 
-from LAX_exp.base import LAXExperiment, LAXEnvironment
+from LAX_exp.base import LAXEnvironment
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 

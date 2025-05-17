@@ -32,10 +32,10 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=20, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=88, precision=0, step=1, min=1, max=100000))
 
         # scan parameters - frequency
-        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.3341, precision=6, step=1, min=50., max=400.),
+        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.1013, precision=6, step=1, min=50., max=400.),
                                                 group="scan.frequency")
         self.setattr_argument("freq_729_carrier_center_mhz", NumberValue(default=80., precision=6, step=1, min=50., max=400.),
                                                                 group="scan.frequency")
@@ -43,8 +43,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                             default=[
                                                                 CenterScan(0., 2000., 10, randomize=True),
                                                                 ExplicitScan([0.]),
-                                                                ExplicitScan([1303.29, -1303.29]),
-                                                                RangeScan(-1303.29, 1303.29, 200, randomize=True),
+                                                                ExplicitScan([-702.89, 702.89]),
+                                                                RangeScan(-702.89, 702.29, 200, randomize=True),
                                                             ],
                                                             global_min=-20000., global_max=200000., global_step=10,
                                                             unit="kHz", scale=1, precision=3
@@ -54,8 +54,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
+                                                                RangeScan(1, 25, 100, randomize=True),
                                                                 ExplicitScan([6.05]),
-                                                                RangeScan(1, 50, 200, randomize=True),
                                                                 CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
                                                             global_min=1, global_max=100000, global_step=1,
@@ -63,13 +63,13 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                                                         ), group="scan.time")
 
         # carrier beam parameters
-        self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=20, precision=3, step=5, min=0.01, max=88), group="beam.carrier")
-        self.setattr_argument("att_729_carrier_db",     NumberValue(default=31.5, precision=1, step=0.5, min=2., max=31.5), group="beam.carrier")
+        self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=50, precision=3, step=5, min=0.01, max=88), group="beam.carrier")
+        self.setattr_argument("att_729_carrier_db",     NumberValue(default=7., precision=1, step=0.5, min=2., max=31.5), group="beam.carrier")
 
         # beam parameters
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=True), group="beam.qubit")
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50), group="beam.qubit")
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="beam.qubit")
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group="beam.qubit")
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group="beam.qubit")
+        self.setattr_argument("att_qubit_db",   NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="beam.qubit")
 
         # relevant devices
         self.setattr_device('qubit')
@@ -146,26 +146,18 @@ class BichromaticCalibration(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # ensure qubit carrier is set up correctly on ALL profiles
         self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
+
         for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
                                       profile=i)
-            self.qubit_carrier.cpld.io_update.pulse_mu(8)
-            delay_mu(5000)
-        # enable RAM mode and clear DDS phase accumulator
-        # self.qubit_carrier.write32(ad9910._AD9910_REG_CFR1,
-        #                  # (1 << 16) |  # select_sine_output
-        #                  (1 << 13) | # phase_autoclear
-        #                  2          # default serial I/O configs
-        #                  )
-        self.qubit_carrier.cpld.io_update.pulse_mu(8)
+            delay_mu(10000)
+
         self.qubit_carrier.sw.on()
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
@@ -174,8 +166,6 @@ class BichromaticCalibration(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
 
@@ -201,8 +191,9 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
-                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target)
-                self.core.break_realtime()
+                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                delay_mu(10000)
 
                 # # tmp remove
                 # self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
@@ -252,20 +243,14 @@ class BichromaticCalibration(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        self.core.break_realtime()
-
         # set qubit carrier to default value (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
             self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
                                       asf=self.ampl_qubit_carrier_default_asf,
                                       profile=i)
-            self.qubit_carrier.cpld.io_update.pulse_mu(8)
             delay_mu(5000)
+
         self.qubit_carrier.sw.on()
         self.qubit_carrier.set_att_mu(self.att_qubit_carrier_default_mu)
-        self.core.break_realtime()
-
-    # ANALYSIS
-    def analyze_experiment(self):
-        pass
+        delay_mu(25000)
 

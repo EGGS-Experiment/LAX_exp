@@ -53,7 +53,7 @@ class Displace(LAXSubsequence):
         # store parameters as instance attribute
         self.time_displace_mu = time_mu
         # print(self.time_displace_mu)
-        self.core.break_realtime()
+        delay_mu(10000)
 
         # set waveforms for profiles
         # displacement waveform

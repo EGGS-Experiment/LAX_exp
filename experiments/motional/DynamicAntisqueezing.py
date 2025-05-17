@@ -10,7 +10,6 @@ from LAX_exp.system.subsequences import (
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
-
 # todo: bring back ampl sweep
 
 
@@ -70,9 +69,12 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                                                                     unit="kHz", scale=1, precision=3
                                                                 ), group='pulse.general')
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=True), group='pulse.general')
-        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='pulse.general')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='pulse.general')
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='pulse.general')
+        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+                              group='pulse.general')
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
+                              group='pulse.general')
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
+                              group='pulse.general')
 
         # pulse 0 (squeezing) - configuration
         self.setattr_argument("enable_squeezing",           BooleanValue(default=True), group='pulse.squeeze')
@@ -346,8 +348,6 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
         self.core.break_realtime()
@@ -367,7 +367,6 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 freq_sideband_hz =  config_vals[1]
                 phas_wav_idx =      np.int32(config_vals[2])
                 time_readout_mu =   np.int64(config_vals[3])
-                self.core.break_realtime()
 
                 # get corresponding RSB phase and waveform ID from the index
                 phas_offset_turns = self.phase_antisqueeze_offset_turns_list[phas_wav_idx]
@@ -378,9 +377,9 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 self.phaser_eggs.frequency_configure(self.freq_squeeze_carrier_hz,
                                                      [-freq_sideband_hz, freq_sideband_hz, 0., 0., 0.],
                                                      self.phaser_eggs.phase_inherent_ch1_turns)
-                self.core.break_realtime()
+                delay_mu(25000)
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
-                self.core.break_realtime()
+                delay_mu(8000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
@@ -482,7 +481,6 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         """
         # record squeezing waveform onto DMA
         _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_squeezing_compiled
-        self.core.break_realtime()
         delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
         self.waveform_squeezing_id = self.pulse_shaper.waveform_record(_wav_data_ampl,
                                                                        _wav_data_phas,
@@ -502,13 +500,3 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                                                                                        _wav_data_time)
             self.core.break_realtime()
 
-
-    '''
-    ANALYSIS
-    '''
-    def analyze_experiment(self):
-        """
-        todo: document
-        """
-        # todo: implement
-        pass

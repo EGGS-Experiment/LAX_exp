@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -59,8 +60,6 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # MAIN LOOP
         for trial_num in range(self.repetitions):
 
@@ -72,11 +71,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 self.core.break_realtime()
 
                 # set frequency for readout
-                self.qubit.set_mu(
-                    freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                    profile=self.profile_729_readout
-                )
-                self.core.break_realtime()
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(8000)
 
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state & sideband cool
@@ -92,13 +89,15 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 self.readout_subsequence.run_dma()
 
                 # get results & update dataset
+                counts = self.readout_subsequence.fetch_count()
                 self.update_results(freq_readout_ftw,
-                                    self.readout_subsequence.fetch_count(),
+                                    counts,
                                     time_heating_delay_mu)
                 self.core.break_realtime()
 
-                # resuscitate ion
+                # resuscitate ion & run detect death
                 self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
 
             # rescue ion as needed
             self.rescue_subsequence.run(trial_num)
@@ -226,7 +225,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         self.set_dataset('temp.plotting.results_heating_rate', pyon.encode(plotting_results), broadcast=True)
         ccb_command = '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_heating_rate'
         ccb_command += f' --num-subplots {num_subplots}'
-        self.ccb.issue("create_applet", f"Heating Rate",
+        self.ccb.issue("create_applet", f"Data Plotting",
                        ccb_command,
                        group=['plotting', 'diagnostics'])
 

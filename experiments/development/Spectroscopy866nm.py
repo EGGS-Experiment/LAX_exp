@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
@@ -127,7 +128,7 @@ class Spectroscopy866nm(LAXExperiment, Experiment):
                 # get waveform parameters and set probe beam frequency
                 freq_ftw = waveform_params[0]
                 ampl_asf = waveform_params[1]
-                self.repump_cooling.set_mu(freq_ftw, asf=ampl_asf, profile=1)
+                self.repump_cooling.set_mu(freq_ftw, asf=ampl_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
                 self.core.break_realtime()
 
                 # get actual data

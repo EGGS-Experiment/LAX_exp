@@ -3,6 +3,9 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, _AD9910_REG_CFR1
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+# todo: manage profiles better
+# todo: migrate to set_mu and phase tracking
+# todo: use shaped pulses
 
 
 class Squeeze(LAXSubsequence):
@@ -13,28 +16,25 @@ class Squeeze(LAXSubsequence):
     """
     name = 'squeeze'
     kernel_invariants = {
-        "freq_squeeze_ftw",
-        "att_squeeze_mu",
-        "time_squeeze_mu",
-        "phase_squeeze_pow",
-        "phase_antisqueeze_pow"
+        "freq_squeeze_ftw", "phase_squeeze_pow", "phase_antisqueeze_pow",
+        "att_squeeze_mu", "time_squeeze_mu"
     }
 
     def build_subsequence(self):
-        self.setattr_argument('freq_squeeze_khz',           NumberValue(default=4000, precision=3, step=10, min=1, max=400000), group=self.name)
-        self.setattr_argument('att_squeeze_db',             NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5), group=self.name)
+        self.setattr_argument('freq_squeeze_khz',   NumberValue(default=4000, precision=3, step=10, min=1, max=400000),
+                              group=self.name)
+        self.setattr_argument('att_squeeze_db',     NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5),
+                              group=self.name)
 
-        self.setattr_argument('time_squeeze_us',            NumberValue(default=10., precision=3, step=100, min=1, max=1000000), group=self.name)
-        self.setattr_argument('phase_squeeze_turns',        NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
-        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.), group=self.name)
+        self.setattr_argument('time_squeeze_us',        NumberValue(default=10., precision=3, step=100, min=1, max=1000000),
+                              group=self.name)
+        self.setattr_argument('phase_squeeze_turns',    NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.),
+                              group=self.name)
+        self.setattr_argument('phase_antisqueeze_turns',    NumberValue(default=0., precision=3, step=0.1, min=-1., max=1.),
+                              group=self.name)
 
         # get relevant devices
         self.setattr_device('dds_parametric')
-        # todo: debug mode
-        # tmp remove
-        # self.setattr_device('ttl8')
-        # self.setattr_device('ttl9')
-        # tmp remove
 
     def prepare_subsequence(self):
         # prepare parameters for tickle pulse
@@ -47,8 +47,6 @@ class Squeeze(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self):
-        self.core.break_realtime()
-
         # set dds attenuation here - ensures that dds channel will have correct attenuation
         # for any sequences recorded into DMA during initialize_experiment
         self.dds_parametric.set_att_mu(self.att_squeeze_mu)
@@ -63,8 +61,7 @@ class Squeeze(LAXSubsequence):
         # blank waveform
         self.dds_parametric.set_mu(self.freq_squeeze_ftw, asf=0x0, profile=2,
                                    pow_=0x0, phase_mode=PHASE_MODE_CONTINUOUS)
-        self.core.break_realtime()
-
+        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def squeeze(self) -> TNone:
@@ -131,3 +128,4 @@ class Squeeze(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         pass
+

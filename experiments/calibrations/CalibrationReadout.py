@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from.artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -143,8 +144,6 @@ class CalibrationReadout(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # MAIN EXECUTION LOOP
         for trial_num in range(self.repetitions):
             self.core.break_realtime()
@@ -162,11 +161,11 @@ class CalibrationReadout(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # set up readout (i.e. 397nm and 866nm) DDSs
-                self.pump.set_mu(freq_397_readout_ftw, asf=ampl_397_readout_asf,
-                                 profile=self.profile_397_readout)
-                self.repump_cooling.set_mu(freq_866_readout_ftw, asf=ampl_866_readout_asf,
-                                           profile=self.profile_866_readout)
-                self.core.break_realtime()
+                self.pump.set_mu(freq_397_readout_ftw, asf=ampl_397_readout_asf, profile=self.profile_397_readout,
+                                 phase_mode=PHASE_MODE_CONTINUOUS)
+                self.repump_cooling.set_mu(freq_866_readout_ftw, asf=ampl_866_readout_asf, profile=self.profile_866_readout,
+                                           phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(10000)
 
 
                 '''INITIALIZE'''

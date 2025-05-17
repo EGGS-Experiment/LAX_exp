@@ -17,8 +17,8 @@ device_db = {
     },
     "core_log": {
         "type": "controller",
-        "host": "::1",
-        # "host": master_addr,
+        # "host": "::1",
+        "host": master_addr,
         "port": 1068,
         "command": "aqctl_corelog -p {port} --bind {bind} " + core_addr
     },
@@ -755,3 +755,4 @@ device_db["phaser0"]["arguments"]["trf1"] =     TRF_CONFIG_781_MHZ
 device_db["phaser1"]["arguments"]["dac"] =      _phaser_dac_config
 device_db["phaser1"]["arguments"]["trf0"] =     TRF_CONFIG_781_MHZ
 device_db["phaser1"]["arguments"]["trf1"] =     TRF_CONFIG_781_MHZ
+

@@ -220,8 +220,6 @@ class ReadoutAdaptive(LAXSubsequence):
         """
         Ensure all input events are cleared/eaten (in case reset isn't called).
         """
-        self.core.break_realtime()
-
         # eat any remaining count events
         count_events_remaining = self.pmt.fetch_timestamped_count(now_mu() + 10000)
         while count_events_remaining[0] != -1:

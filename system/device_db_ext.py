@@ -44,7 +44,7 @@ device_db_ext = {
         "class": "Flipper"
     },
 
-#########################
+    #########################
     # Sinara Hardware Devices
     #########################
     # BEAMS
@@ -73,14 +73,6 @@ device_db_ext = {
         "module": "LAX_exp.system.devices.beam_729",
         "class": "Beam729"
     },
-
-
-    # artiq flipper
-    # "flipper": {
-    #     "type": "local",
-    #     "module": "LAX_exp.system.devices.flipper",
-    #     "class": "Flipper"
-    # },
 
 
     # DDS

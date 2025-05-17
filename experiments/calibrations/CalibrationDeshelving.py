@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -150,8 +151,6 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # instantiate relevant variables
         counts_her = -1     # store heralded counts
         # retrieve relevant DMA sequences.handles
@@ -173,8 +172,9 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 # set up deshelving/quench/854nm DDS
-                self.repump_qubit.set_mu(freq_deshelve_ftw, asf=ampl_deshelve_asf, profile=self.profile_854_target)
-                self.core.break_realtime()
+                self.repump_qubit.set_mu(freq_deshelve_ftw, asf=ampl_deshelve_asf, profile=self.profile_854_target,
+                                         phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(8000)
 
                 '''PREPARE TARGET SPIN STATE'''
                 while True:
