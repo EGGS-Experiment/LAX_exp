@@ -108,7 +108,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("ampl_beam_pct_list",   Scannable(
                                                             default=[
                                                                 ExplicitScan([15]),
-                                                                RangeScan(9., 20., 22., randomize=True),
+                                                                RangeScan(9, 20, 11, randomize=True),
                                                                 CenterScan(15, 6., 0.2, randomize=True),
                                                             ],
                                                             global_min=0.01, global_max=50., global_step=1,
@@ -154,13 +154,13 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         if self.enable_beam_sweep:
             # process target beam profile and device
             if self.beam_sweep_target == 'doppler_397':
-                self.dds_device = self.get_device('pump')
+                self.dds_beam = self.get_device('pump')
                 self.beam_update_profile = 0
             elif self.beam_sweep_target == 'doppler_866':
-                self.dds_device = self.get_device('repump_cooling')
+                self.dds_beam = self.get_device('repump_cooling')
                 self.beam_update_profile = 0
             elif self.beam_sweep_target == 'readout_397':
-                self.dds_device = self.get_device('pump')
+                self.dds_beam = self.get_device('pump')
                 self.beam_update_profile = 1
 
             freq_beam_ftw_list = np.array([self.dds_beam.frequency_to_ftw(freq_mhz * MHz)
@@ -168,7 +168,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             ampl_beam_asf_list = np.array([self.dds_beam.amplitude_to_asf(ampl_pct / 100.)
                                            for ampl_pct in self.ampl_beam_pct_list])
         else:
-            self.dds_device = self.get_device('qubit')
+            self.dds_beam = self.get_device('qubit')
             self.beam_update_profile = 6
             freq_beam_ftw_list = np.array([0x01], dtype=np.int32)
             ampl_beam_asf_list = np.array([0x01], dtype=np.int32)
@@ -177,7 +177,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.num_modes = len(self.sideband_cooling_config_list)
 
         # create and fill SBC schedule
-        self.sbc_config_base_list = np.zeros((len(self.num_modes), 3), dtype=np.int64)
+        self.sbc_config_base_list = np.zeros((self.num_modes, 3), dtype=np.int64)
         for i, params in enumerate(self.sideband_cooling_config_list.items()):
             self.sbc_config_base_list[i, 0] = self.qubit.frequency_to_ftw(params[0] * MHz)
             self.sbc_config_base_list[i, 1] = self.qubit.amplitude_to_asf(params[1][1] / 100.)
@@ -262,9 +262,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 # create & update SBC config w/target params
                 self.sbc_config_update_list = self.sbc_config_base_list
                 # update sbc config with new timing
-                self.sbc_config_update_list[:, 2] = np.int64(self.sbc_mode_time_frac_list * time_sbc_mu)
-                # for i in range(self.num_modes):
-                #     self.sbc_config_update_list = np.int64(time_sbc_mu * self.sbc_mode_time_frac_list[i])
+                # self.sbc_config_update_list[:, 2] = np.int64(self.sbc_mode_time_frac_list * time_sbc_mu)
+                for i in range(self.num_modes):
+                    self.sbc_config_update_list[i, 2] = np.int64(time_sbc_mu * self.sbc_mode_time_frac_list[i])
                 # update sbc config with target freq/quench ampl
                 self.sbc_config_update_list[self.sbc_mode_target, 0] += freq_sbc_scan_ftw
                 self.sbc_config_update_list[self.sbc_mode_target, 1] = ampl_quench_scan_asf
@@ -274,21 +274,21 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 mode_counter = 0
                 time_remainder_mu = np.int64(8)
                 while time_counter_mu <= time_sbc_mu:
-                    time_counter_mu += self.sbc_config_update_list[mode_counter % self.num_modes]
+                    time_counter_mu += self.sbc_config_update_list[mode_counter % self.num_modes, 2]
                     mode_counter += 1
                 if time_counter_mu > time_sbc_mu:
                     mode_counter -= 1
                     time_remainder_mu = np.int64(
                         time_sbc_mu -
-                        (time_counter_mu - self.sbc_config_update_list[mode_counter % self.num_modes])
+                        (time_counter_mu - self.sbc_config_update_list[mode_counter % self.num_modes, 2])
                     )
                 self.core.break_realtime()
 
-                print(self.sbc_config_update_list)
-                print(time_counter_mu)
-                print(mode_counter)
-                print(time_remainder_mu)
-                self.core.break_realtime()
+                # print(self.sbc_config_update_list)
+                # print(time_counter_mu)
+                # print(mode_counter)
+                # print(time_remainder_mu)
+                # self.core.break_realtime()
 
                 # prepare relevant beams
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
@@ -343,7 +343,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
             self.probe.on()
             self.repump_cooling.on()
-            delay_mu(self.time_spinpol_re_mu)
+            delay_mu(self.initialize_subsequence.time_spinpol_mu)
             self.probe.off()
             self.repump_cooling.off()
 
