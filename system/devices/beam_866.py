@@ -28,12 +28,15 @@ class Beam866(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=0)
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=1)
-        delay_mu(25000)
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=2)
+        self.core.break_realtime()
         self.beam.set_mu(self.freq_repump_cooling_ftw, asf=self.ampl_repump_cooling_asf, profile=3)
-        delay_mu(25000)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:

@@ -46,19 +46,23 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # set waveforms for cooling, readout, and rescue
+        self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
+        self.core.break_realtime()
         self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1)
-        delay_mu(25000)
+        self.core.break_realtime()
         self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
+        self.core.break_realtime()
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3)
-        delay_mu(25000)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         # set default profile on CPLD
+        self.core.break_realtime()
         self.set_profile(DEFAULT_PROFILE)
         self.on()
-        delay_mu(10000)
+
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:

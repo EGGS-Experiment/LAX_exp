@@ -185,6 +185,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Prepare hardware for operation.
         """
+        self.core.break_realtime()
+
         # disable RAM mode and set matched latencies
         with parallel:
             with sequential:
@@ -196,7 +198,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.set_cfr1(ram_enable=0)
                 self.repump_qubit.set_cfr2(matched_latency_enable=1)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(50000)
+        self.core.break_realtime()
 
         # configure RAM waveform profiles - 729nm for SBC
         # prepare to write waveform to RAM profile
@@ -205,11 +207,13 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             step=self.ram_timestep_val,
             profile=self.profile_ram_729, mode=ad9910.RAM_MODE_CONT_RAMPUP
         )
+
         # set target RAM profile
         self.qubit.cpld.set_profile(self.profile_ram_729)
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # write waveform to RAM profile
+        self.core.break_realtime()
         delay_mu(10000000)   # 10 ms
         self.qubit.write_ram(self.ram_waveform_729_ftw_list)
         self.core.break_realtime()
@@ -221,11 +225,13 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             step=self.ram_timestep_val,
             profile=self.profile_ram_854, mode=ad9910.RAM_MODE_CONT_RAMPUP
         )
+
         # set target RAM profile
         self.repump_qubit.cpld.set_profile(self.profile_ram_854)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         # write waveform to RAM profile
+        self.core.break_realtime()
         delay_mu(10000000)  # 10 ms
         self.repump_qubit.write_ram(self.ram_waveform_854_asf_list)
         self.core.break_realtime()
@@ -241,6 +247,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Clean up the subsequence immediately after run.
         """
+        self.core.break_realtime()
+
         # stop & clear output/registers of SBC beams
         self.qubit.off()
         self.qubit.set_asf(0x00)
@@ -252,7 +260,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.repump_qubit.set_ftw(0x00)
         self.repump_qubit.set_pow(0x00)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(50000)
+        self.core.break_realtime()
 
         # disable RAM mode for SBC beams
         self.qubit.set_cfr1(ram_enable=0)
@@ -260,8 +268,11 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         self.repump_qubit.set_cfr1(ram_enable=0)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(50000)
+        self.core.break_realtime()
 
+        # add extra slack following cleanup
+        delay_mu(100000)   # 100 us
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

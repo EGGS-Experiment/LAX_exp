@@ -38,15 +38,19 @@ class Beam397Probe(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # set cooling and readout profiles
+        self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=0)
+        self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=1)
-        delay_mu(25000)
+        self.core.break_realtime()
         self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
+        self.core.break_realtime()
         self.set_mu(self.freq_spinpol_ftw, asf=self.ampl_spinpol_asf, profile=3)
-        delay_mu(25000)
+        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
+        self.core.break_realtime()
         self.sw.off()
 
     @kernel(flags={"fast-math"})

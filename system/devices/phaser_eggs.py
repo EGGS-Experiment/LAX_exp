@@ -78,7 +78,9 @@ class PhaserEGGS(LAXDevice):
         """
         Stop any residual output from the phaser.
         """
+        self.core.break_realtime()
         self.phaser_stop()
+        self.core.break_realtime()
         delay_mu(1000000)
 
 
