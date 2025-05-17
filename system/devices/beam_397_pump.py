@@ -1,5 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice.urukul import DEFAULT_PROFILE
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+, phase_mode=PHASE_MODE_CONTINUOUS)
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
@@ -46,23 +48,21 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # set waveforms for cooling, readout, and rescue
-        self.core.break_realtime()
-        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-        self.core.break_realtime()
-        self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1)
-        self.core.break_realtime()
-        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2)
-        self.core.break_realtime()
-        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3)
-        self.core.break_realtime()
+        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         # set default profile on CPLD
-        self.core.break_realtime()
         self.set_profile(DEFAULT_PROFILE)
         self.on()
-
+        delay_mu(8000)
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
@@ -117,3 +117,4 @@ class Beam397Pump(LAXDevice):
     def set_profile(self, profile_num: TInt32) -> TNone:
         self.cpld.set_profile(profile_num)
         self.cpld.io_update.pulse_mu(8)
+

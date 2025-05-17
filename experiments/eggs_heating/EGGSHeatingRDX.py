@@ -1,6 +1,7 @@
 import numpy as np
 from sipyco import pyon
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -373,7 +374,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 delay_mu(25000)
                 if not self.enable_RAP:
                     self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                      profile=self.profile_729_readout)
+                                      profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                     delay_mu(25000)
 
                 '''STATE PREPARATION'''

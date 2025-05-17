@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -169,7 +170,8 @@ class LaserScan(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout)
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout,
+                                      phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
                 # wait for linetrigger

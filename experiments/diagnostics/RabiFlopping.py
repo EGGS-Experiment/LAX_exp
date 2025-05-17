@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -9,7 +10,6 @@ from LAX_exp.system.subsequences import (
     SidebandCoolContinuousRAM, SidebandCoolPulsed
 )
 from sipyco import pyon
-# todo: add linetrigger
 
 
 class RabiFlopping(LAXExperiment, Experiment):
@@ -123,7 +123,7 @@ class RabiFlopping(LAXExperiment, Experiment):
             self.qubit.set_ftw(self.freq_rabiflop_ftw)
         else:
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
-                              profile=self.profile_729_readout)
+                              profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(10000)
 
     @kernel(flags={"fast-math"})

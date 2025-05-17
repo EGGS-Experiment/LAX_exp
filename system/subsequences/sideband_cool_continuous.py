@@ -1,5 +1,6 @@
 from artiq.experiment import *
 from artiq.coredevice.sampler import adc_mu_to_volt
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 import numpy as np
 from LAX_exp.extensions import *
@@ -119,7 +120,8 @@ class SidebandCoolContinuous(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self) -> TNone:
         # set quench waveform
-        self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3)
+        self.repump_qubit.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_quench_asf, profile=3,
+                                 phase_mode=PHASE_MODE_CONTINUOUS)
 
         # calibrate quench power via photodiode
         self._calibrate_quench_power()
@@ -128,7 +130,8 @@ class SidebandCoolContinuous(LAXSubsequence):
             # profile 0: reserved for readout
             # profile 1 & greater: sideband cooling
         for i in self.iter_sideband_cooling_modes_list:
-            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i)
+            self.qubit.set_mu(self.freq_sideband_cooling_ftw_list[i - 1], asf=self.ampl_qubit_asf, profile=i,
+                              phase_mode=PHASE_MODE_CONTINUOUS)
             delay_mu(8000)
 
     @kernel(flags={"fast-math"})

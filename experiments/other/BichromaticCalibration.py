@@ -191,7 +191,8 @@ class BichromaticCalibration(LAXExperiment, Experiment):
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
-                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target)
+                    self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
                 # # tmp remove

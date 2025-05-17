@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -285,7 +286,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             # set up qubit readout pulse
             with sequential:
                 self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
-                                  profile=self.profile_729_readout)
+                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                 self.qubit.set_att_mu(self.att_pulse_readout_mu)
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.cpld.io_update.pulse_mu(8)

@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
@@ -457,7 +458,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_sb_readout)
+                                  profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(50000)
 
                 '''STATE PREPARATION'''
