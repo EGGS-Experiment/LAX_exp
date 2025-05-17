@@ -99,7 +99,6 @@ class PhaserPulseShaper2(LAXEnvironment):
         # add slack for recording DMA sequences (1 ms)
         self.core.break_realtime()
         delay_mu(1000000)
-
         # record phaser rising pulse shape DMA sequence
         with self.core_dma.record(self._dma_names[self._num_waveforms]):
             for i in range(len_ampls):

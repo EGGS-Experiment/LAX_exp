@@ -133,9 +133,11 @@ class PhaserEGGS(LAXDevice):
         # set carrier offset frequency via the DUC
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
-        delay_mu(self.t_frame_mu)
+        # delay_mu(self.t_frame_mu)
+        at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[1].set_duc_frequency(carrier_freq_hz - self.freq_center_hz)
-        delay_mu(self.t_frame_mu)
+        # delay_mu(self.t_frame_mu)
+        at_mu(self.phaser.get_next_frame_mu())
         # strobe updates for both channels
         self.phaser.duc_stb()
 

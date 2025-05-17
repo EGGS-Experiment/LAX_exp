@@ -378,6 +378,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         )
         # phase_osc_update_delay_turns_list = 0.
         _osc_vals[:, :, 1] += np.array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
+        self.sweep_ch1_phase = 0
 
         if self.target_phase_sweep == "osc0":
             phas_update_arr = np.array([1., 0., 0., 0., 0.])
@@ -389,6 +390,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             phas_update_arr = np.array([0., 0., 0., 1., 0.])
         elif self.target_phase_sweep == "osc4":
             phas_update_arr = np.array([0., 0., 0., 0., 1.])
+        elif self.target_phase_sweep == "ch1":
+            self.sweep_ch1_phase = 1
         else:
             phas_update_arr = np.array([0., 0., 0., 0., 0.])
 
@@ -510,6 +513,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_sweep_turns_list[phase_sweep_idx]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_sweep_idx]
+                # update ch1 phase if sweeping over it
+                phase_ch1_turns += self.sweep_ch1_phase * phase_sweep_turns
                 self.core.break_realtime()
 
                 # create frequency update list for oscillators and set phaser frequencies
