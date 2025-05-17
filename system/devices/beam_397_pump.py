@@ -1,7 +1,6 @@
 from artiq.experiment import *
 from artiq.coredevice.urukul import DEFAULT_PROFILE
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
-, phase_mode=PHASE_MODE_CONTINUOUS)
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
