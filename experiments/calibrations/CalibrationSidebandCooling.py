@@ -162,6 +162,8 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             elif self.beam_sweep_target == 'readout_397':
                 self.dds_beam = self.get_device('pump')
                 self.beam_update_profile = 1
+            else:
+                raise ValueError("Invalid beam sweep type.")
 
             freq_beam_ftw_list = np.array([self.dds_beam.frequency_to_ftw(freq_mhz * MHz)
                                            for freq_mhz in self.freq_beam_mhz_list])
@@ -173,10 +175,10 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             freq_beam_ftw_list = np.array([0x01], dtype=np.int32)
             ampl_beam_asf_list = np.array([0x01], dtype=np.int32)
 
-        '''PREPARE SBC CONFIG/SCHEDULES'''
-        self.num_modes = len(self.sideband_cooling_config_list)
 
+        '''PREPARE SBC CONFIG/SCHEDULES'''
         # create and fill SBC schedule
+        self.num_modes = len(self.sideband_cooling_config_list)
         self.sbc_config_base_list = np.zeros((self.num_modes, 3), dtype=np.int64)
         for i, params in enumerate(self.sideband_cooling_config_list.items()):
             self.sbc_config_base_list[i, 0] = self.qubit.frequency_to_ftw(params[0] * MHz)
@@ -264,7 +266,6 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 # create & update SBC config w/target params
                 self.sbc_config_update_list = self.sbc_config_base_list
                 # update sbc config with new timing
-                # self.sbc_config_update_list[:, 2] = np.int64(self.sbc_mode_time_frac_list * time_sbc_mu)
                 for i in range(self.num_modes):
                     self.sbc_config_update_list[i, 2] = np.int64(time_sbc_mu * self.sbc_mode_time_frac_list[i])
                 # update sbc config with target freq/quench ampl
@@ -285,14 +286,6 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                         (time_counter_mu - self.sbc_config_update_list[mode_counter % self.num_modes, 2])
                     )
                 self.core.break_realtime()
-
-                # print(self.sbc_config_update_list)
-                # print(time_counter_mu)
-                # print(mode_counter)
-                # print(time_remainder_mu)
-                # print(time_per_spinpol_mu)
-                # self.core.break_realtime()
-                # return
 
                 # prepare relevant beams
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
@@ -419,10 +412,10 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         """
         Update target beam with parameters to enable scanning.
         Arguments:
-            beam_freq_ftw: number of overall spin polarizations
-            beam_ampl_asf: delay between successive spinpols
+            beam_freq_ftw: todo document
+            beam_ampl_asf: todo document
         """
         if self.enable_beam_sweep:
-            self.dds_beam.set_mu(beam_freq_ftw, beam_ampl_asf, profile=self.beam_update_profile,
-                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            self.dds_beam.set_mu(beam_freq_ftw, asf=beam_ampl_asf, profile=self.beam_update_profile,
+                                 phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
 
