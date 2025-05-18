@@ -50,7 +50,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000, unit="cycles", scale=1),
                               tooltip="number of times to loop over the SBC configuration sequence", group='SBC.base')
         self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1),
-                              group='SBC_RAM.continuous', tooltip="Attenuation of 729nm beam for SBC.")
+                              group='SBC.base', tooltip="Attenuation of 729nm beam for SBC.")
         self.setattr_argument("time_sbc_us_list",   Scannable(
                                                         default=[
                                                             ExplicitScan([4000, 5000]),
@@ -95,7 +95,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         # beam parameters
         self.setattr_argument("enable_beam_sweep",  BooleanValue(default=False), group='SBC.beam', tooltip="Enable scanning of some beam's parameter.")
         self.setattr_argument("beam_sweep_target",  EnumerationValue(_VALID_BEAM_SCANS, default=_VALID_BEAM_SCANS[0]),
-                              group='SBC.mode', tooltip="Beam parameter to scan.")
+                              group='SBC.beam', tooltip="Beam parameter to scan.")
         self.setattr_argument("freq_beam_mhz_list",  Scannable(
                                                         default=[
                                                             ExplicitScan([115.]),
