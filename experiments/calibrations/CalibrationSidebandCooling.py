@@ -186,7 +186,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.sbc_config_update_list = np.copy(self.sbc_config_base_list)
 
         # create list of relative SBC times
-        self.sbc_mode_time_frac_list = np.array([config_arr[0] / self.sideband_cycles_continuous
+        self.sbc_mode_time_frac_list = np.array([config_arr[0] / 100. / self.sideband_cycles_continuous
                                                  for config_arr in self.sideband_cooling_config_list.values()])
 
         '''
@@ -239,9 +239,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
-        # update spinpol beam with SBC profile params
-        self.probe.set_mu(self.probe.freq_spinpol_ftw, asf=self.probe.ampl_spinpol_asf, profile=self.profile_854_SBC,
-                          phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        # update spinpol (and related) beam with SBC profile params
+        self.probe.set_mu(self.probe.freq_spinpol_ftw, asf=self.probe.ampl_spinpol_asf,
+                          profile=self.profile_854_SBC, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.repump_cooling.set_mu(self.repump_cooling.freq_repump_cooling_ftw, asf=self.repump_cooling.ampl_repump_cooling_asf,
+                                   profile=self.profile_854_SBC, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
 
     @kernel(flags={"fast-math"})
@@ -288,7 +290,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 # print(time_counter_mu)
                 # print(mode_counter)
                 # print(time_remainder_mu)
+                # print(time_per_spinpol_mu)
                 # self.core.break_realtime()
+                # return
 
                 # prepare relevant beams
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
@@ -303,10 +307,13 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
 
                 # synchronize spinpol w/SBC-ing
-                time_start_mu = now_mu()
-                self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
-                at_mu(time_start_mu)
-                self.sbc_schedule(mode_counter, time_remainder_mu)
+                # time_start_mu = now_mu()
+                # self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
+                # at_mu(time_start_mu)
+                # self.sbc_schedule(mode_counter, time_remainder_mu)
+                with parallel:
+                    self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
+                    self.sbc_schedule(mode_counter, time_remainder_mu)
 
                 '''READOUT & SAVE RESULTS'''
                 # sideband readout & detect fluorescence
@@ -328,7 +335,6 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             # support graceful termination
             self.check_termination()
             self.core.break_realtime()
-
 
     @kernel(flags={"fast-math"})
     def spin_polarize(self, time_sbc_mu: TInt64=1, time_per_spinpol_mu: TInt64=10000) -> TNone:
@@ -355,47 +361,58 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
             num_updates: number of modes to toggle through
             time_last_mu: amount of time to cool final mode
         """
-        # prepare attenuation for SBC
+        # prepare waveforms for SBC
         self.qubit.set_att_mu(self.att_sbc_mu)
+        self.qubit.set_profile(self.profile_729_SBC)
+        self.qubit.cpld.io_update.pulse_mu(8)
+        self.repump_qubit.set_profile(self.profile_854_SBC)
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
+
+        self.qubit.on()
+        self.repump_qubit.on()
 
         for i in range(num_updates):
             # update SBC beam parameters
             at_mu(now_mu() & ~7)
-            with parallel:
-                with sequential:
-                    self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
-                                       self.qubit.ampl_qubit_asf << 16, # asf
-                                       np.int32(self.sbc_config_update_list[i % self.num_modes, 0])) # ftw
-                    delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
-                    self.qubit.cpld.io_update.pulse_mu(8)
+            self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
+                               self.qubit.ampl_qubit_asf << 16, # asf
+                               np.int32(self.sbc_config_update_list[i % self.num_modes, 0])) # ftw
+            delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
+            self.qubit.cpld.io_update.pulse_mu(8)
 
-                with sequential:
-                    self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
-                                              np.int32(self.sbc_config_update_list[i % self.num_modes, 1] << 16), # asf
-                                              self.repump_qubit.freq_repump_qubit_ftw) # ftw
-                    delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
-                    self.repump_qubit.cpld.io_update.pulse_mu(8)
+            at_mu(now_mu() & ~7)
+            delay_mu(16)
+            self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
+                                      np.int32(self.sbc_config_update_list[i % self.num_modes, 1]) << 16, # asf
+                                      self.repump_qubit.freq_repump_qubit_ftw) # ftw
+            delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
+            self.repump_qubit.cpld.io_update.pulse_mu(8)
+
             # cool target mode
             delay_mu(self.sbc_config_update_list[i % self.num_modes, 2])
 
         # update SBC beam parameters - final mode
         at_mu(now_mu() & ~7)
-        with parallel:
-            with sequential:
-                self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
-                                   self.qubit.ampl_qubit_asf << 16,  # asf
-                                   np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 0]))  # ftw
-                delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
-                self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
+                           self.qubit.ampl_qubit_asf << 16,  # asf
+                           np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 0]))  # ftw
+        delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
+        self.qubit.cpld.io_update.pulse_mu(8)
 
-            with sequential:
-                self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
-                                          np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 1] << 16),  # asf
-                                          self.repump_qubit.freq_repump_qubit_ftw)  # ftw
-                delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
-                self.repump_qubit.cpld.io_update.pulse_mu(8)
+        at_mu(now_mu() & ~7)
+        delay_mu(16)
+        self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
+                                  np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 1] << 16),  # asf
+                                  self.repump_qubit.freq_repump_qubit_ftw)  # ftw
+        delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
+        self.repump_qubit.cpld.io_update.pulse_mu(8)
+
         # cool target mode - final mode
         delay_mu(time_last_mu)
+
+        # turn off beams
+        self.qubit.off()
+        self.repump_qubit.off()
 
     @kernel(flags={"fast-math"})
     def beam_update(self, beam_freq_ftw: TInt32=0x01, beam_ampl_asf: TInt32=0x01) -> TNone:
