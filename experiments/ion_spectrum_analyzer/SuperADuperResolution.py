@@ -12,9 +12,9 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 import LAX_exp.experiments.eggs_heating.EGGSHeatingRDX as EGGSHeatingRDX
 
 
-class SuperDuperResolutionB(EGGSHeatingRDX.EGGSHeatingRDX):
+class SuperADuperResolutionB(EGGSHeatingRDX.EGGSHeatingRDX):
     """
-    Experiment: Super Duper Resolution B DONT USE
+    Experiment: Super A Duper Resolution B DONT USE
 
     todo: document
     """

@@ -339,7 +339,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(4)
+        # t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(4)
+        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9])
         phase_osc_update_delay_turns_list = (
                 (self.freq_superresolution_osc_base_hz_list +
                  self.freq_update_arr * np.mean(self.freq_superresolution_sweep_hz_list)) *
