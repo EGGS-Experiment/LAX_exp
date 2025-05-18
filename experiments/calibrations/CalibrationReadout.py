@@ -1,6 +1,6 @@
 import numpy as np
 from artiq.experiment import *
-from.artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
