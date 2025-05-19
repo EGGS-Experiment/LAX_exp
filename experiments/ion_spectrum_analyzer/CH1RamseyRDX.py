@@ -95,8 +95,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                         unit="MHz", scale=1, precision=6
                                                                     ), group="{}.freq_phase_sweep".format("SDR"))
 
-        self.setattr_argument("target_freq_sweep",  EnumerationValue(['osc0', 'osc1', 'osc2', 'osc3', 'osc4'],
-                                                                     default='osc0'), group = "{}.freq_phase_sweep".format("SDR"))
+        self.setattr_argument("target_freq_sweep",  EnumerationValue(['Secular', 'Probe', 'osc0', 'osc1', 'osc2', 'osc3', 'osc4'],
+                                                                     default='Secular'), group = "{}.freq_phase_sweep".format("SDR"))
         self.setattr_argument("freq_sweep_khz_list",    Scannable(
                                                                             default=[
                                                                                 # ExplicitScan([767.2, 319.2, 1582, 3182]),
@@ -212,6 +212,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         '''CONFIGURE SWEEP BEHAVIOR'''
         # implement variable freq sweep target
         # adjust oscillator phases based on user configuration
+        if self.target_freq_sweep == "Secular":
+            self.freq_update_arr = np.array([-1., 1., 0., 0., 0.])
+        elif self.target_freq_sweep == "Probe":
+            self.freq_update_arr = np.array([1., 1., 0., 0., 0.])
         if self.target_freq_sweep == "osc0":
             self.freq_update_arr = np.array([1., 0., 0., 0., 0.])
         elif self.target_freq_sweep == "osc1":
