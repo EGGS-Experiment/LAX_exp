@@ -4,7 +4,6 @@ from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
 from scipy.special import genlaguerre
-from LAX_exp.extensions.physics_constants import *
 
 
 class FockStateGenerator(LAXSubsequence):

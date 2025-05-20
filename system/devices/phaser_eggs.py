@@ -1,4 +1,4 @@
-from numpy import int64
+from numpy import int32, int64
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
@@ -258,4 +258,47 @@ class PhaserEGGS(LAXDevice):
         self.phaser.channel[0].set_att_mu(0x00)
         delay_mu(self.t_frame_mu)
         self.phaser.channel[1].set_att_mu(0x00)
+
+
+    '''
+    Conversion functions
+    '''
+    @portable(flags={"fast-math"})
+    def nco_frequency_to_ftw(self, freq_hz: TFloat = 0.) -> TInt32:
+        """
+        Return the 32-bit frequency tuning word corresponding to the given
+        frequency for the DAC34H84 NCO.
+        :param freq_hz: freq_hz: NCO frequency in Hz, passband from [-400, 400] MHz.
+        :returns: 32-bit frequency tuning word (in Hz).
+        """
+        ftw = int32(round(freq_hz * ((1 << 30)/(250 * MHz))))
+        if ftw < 0x0 or ftw > 0xFFFFFFFF:
+            raise ValueError("Invalid NCO frequency, must be in range [-500, 500] MHz")
+        return ftw
+
+    @portable(flags={"fast-math"})
+    def duc_frequency_to_ftw(self, freq_hz: TFloat = 0.) -> TInt32:
+        """
+        Return the 32-bit frequency tuning word corresponding to the given
+        frequency for the Phaser's DUC.
+        :param freq_hz: freq_hz: NCO frequency in Hz, passband from [-250, 250] MHz.
+        :returns: 32-bit frequency tuning word (in Hz).
+        """
+        ftw = int32(round(freq_hz * ((1 << 30)/(125 * MHz))))
+        if ftw < 0x0 or ftw > 0xFFFFFFFF:
+            raise ValueError("Invalid DUC frequency, must be in range [-250, 250] MHz")
+        return ftw
+
+    @portable(flags={"fast-math"})
+    def osc_frequency_to_ftw(self, freq_hz: TFloat = 0.) -> TInt32:
+        """
+        Return the 32-bit frequency tuning word corresponding to the given
+        frequency for a Phaser MultiDDS oscillator.
+        :param freq_hz: freq_hz: NCO frequency in Hz, passband from [-250, 250] MHz.
+        :returns: 32-bit frequency tuning word (in Hz).
+        """
+        ftw = int32(round(freq_hz * ((1 << 30)/(6.25 * MHz))))
+        if ftw < 0x0 or ftw > 0xFFFFFFFF:
+            raise ValueError("Invalid oscillator frequency, must be in range [-12.5, 12.5] MHz")
+        return ftw
 
