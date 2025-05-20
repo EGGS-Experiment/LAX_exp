@@ -456,10 +456,9 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
                 }
             } for i in range(num_blocks)
         ]
+
         # create QVSA waveform and store data in a holder
-        self.spinecho_wizard.sequence_blocks = _sequence_blocks
-        self.spinecho_wizard.compile_waveform()
-        self.pulseshaper_vals = self.spinecho_wizard.get_waveform()
+        self.pulseshaper_vals = self.spinecho_wizard.compile_waveform(_sequence_blocks)
 
     @property
     def results_shape(self):

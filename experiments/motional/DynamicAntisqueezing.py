@@ -250,12 +250,8 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
             _sequence_block_squeeze[0]["oscillator_parameters"][0][0] = 0.
             _sequence_block_squeeze[0]["oscillator_parameters"][1][0] = 0.
 
-        # create squeezing waveform
-        self.spinecho_wizard.sequence_blocks = _sequence_block_squeeze
-        self.spinecho_wizard.compile_waveform()
-
-        # get waveform data and store in holding structure
-        self.waveform_squeezing_compiled = self.spinecho_wizard.get_waveform()
+        # compile squeezing waveform
+        self.waveform_squeezing_compiled = self.spinecho_wizard.compile_waveform(_sequence_block_squeeze)
 
 
         '''PREPARE WAVEFORM COMPILATION - ANTISQUEEZING'''
@@ -295,20 +291,18 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         elif self.target_antisqueeze_phase == "RSB+BSB":
             phas_update_arr = [1., 1.]
 
-        # record EGGS pulse waveforms
+        # record antisqueezing pulse waveforms
         for i, phas_turns in enumerate(self.phase_antisqueeze_offset_turns_list):
-            # todo: fix deep copy issue
+            # create local copy of _sequence_blocks
+            # note: no need to deep copy b/c it's filled w/immutables
+            _sequence_block_antisqueeze_local = np.copy(_sequence_block_antisqueeze)
 
             # update sequence block with target phase
-            _sequence_block_antisqueeze[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
-            _sequence_block_antisqueeze[0]["oscillator_parameters"][1][1] += phas_update_arr[1] * phas_turns
+            _sequence_block_antisqueeze_local[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
+            _sequence_block_antisqueeze_local[0]["oscillator_parameters"][1][1] += phas_update_arr[1] * phas_turns
 
-            # create waveform
-            self.spinecho_wizard.sequence_blocks = _sequence_block_antisqueeze
-            self.spinecho_wizard.compile_waveform()
-
-            # get waveform data and store in holding structure
-            self.waveform_idx_to_compiled.append(self.spinecho_wizard.get_waveform())
+            # compile waveform and store in holding structure
+            self.waveform_idx_to_compiled.append(self.spinecho_wizard.compile_waveform(_sequence_block_antisqueeze_local))
 
         # tmp remove
         # _wav_print_idk = self.waveform_idx_to_compiled[-1]

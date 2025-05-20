@@ -362,6 +362,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         else:
             raise ValueError("Invalid phase sweep type.")
 
+
         '''DESIGN WAVEFORM SEQUENCE'''
         # create separate bare waveform block sequences for CH0 and CH1
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
@@ -382,6 +383,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         )
         _osc_vals_ch0[:, :, 1] += np.array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
         _osc_vals_ch1[:, :, 1] += np.array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
+
 
         '''COMPILE WAVEFORM SEQUENCE'''
         for i, phase in enumerate(self.phase_sweep_turns_list):
@@ -426,15 +428,9 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 } for i in range(num_blocks)
             ]
 
-            # get waveform data and store in holding structure
-            self.spinecho_wizard.sequence_blocks = _sequence_blocks_local_ch0
-            self.spinecho_wizard.compile_waveform()
-            self.waveform_index_to_pulseshaper_vals0.append(self.spinecho_wizard.get_waveform())
-
-            # get waveform data and store in holding structure
-            self.spinecho_wizard.sequence_blocks = _sequence_blocks_local_ch1
-            self.spinecho_wizard.compile_waveform()
-            self.waveform_index_to_pulseshaper_vals1.append(self.spinecho_wizard.get_waveform())
+            # compile waveform and store in holding structure
+            self.waveform_index_to_pulseshaper_vals0.append(self.spinecho_wizard.compile_waveform(_sequence_blocks_local_ch0))
+            self.waveform_index_to_pulseshaper_vals1.append(self.spinecho_wizard.compile_waveform(_sequence_blocks_local_ch1))
 
     @property
     def results_shape(self):

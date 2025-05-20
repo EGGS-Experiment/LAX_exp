@@ -38,28 +38,6 @@ class SpinEchoWizardRDX(LAXEnvironment):
         self.t_max_phaser_update_rate_mu =  5 * self.phaser_eggs.t_sample_mu
         self.num_max_phaser_samples =       190
 
-        '''WAVEFORM CONFIGURATION SEQUENCE'''
-        self.sequence_blocks = [
-            {
-                "oscillator_parameters": [
-                    [40., -0.0],    # [ampl_osc0, phas_osc0]
-                    [40., 0.0],     # [ampl_osc1, phas_osc1]
-                    [20., 0.]       # [ampl_osc2, phas_osc2]
-                ],
-                "config": {
-                    "time_us":          5000,
-                    "pulse_shaping":    True,
-                    "pulse_shaping_config": {
-                        "pulse_shape":          "sine_squared",
-                        "pulse_shape_rising":   True,
-                        "pulse_shape_falling":  True,
-                        "sample_rate_khz":      500,
-                        "rolloff_time_us":      100
-                    }
-                }
-            }
-        ]
-
     def _calculate_pulseshape(self, num_oscs: TInt32, pulse_shape: TStr,
                               sample_rate_khz: TFloat, time_rolloff_us: TFloat)\
             -> TTuple([TArray(TInt64, 1), TArray(TFloat, 1)]):
@@ -113,16 +91,21 @@ class SpinEchoWizardRDX(LAXEnvironment):
         time_mu -= time_mu % self.phaser_eggs.t_sample_mu
         return time_mu
 
-    def compile_waveform(self):
+    def compile_waveform(self, sequence_blocks: dict) -> TTuple([
+        TArray(TFloat, 2), TArray(TFloat, 2), TArray(TInt64, 1)
+    ]):
         """
         Compile configured waveform for use with PhaserPulseShaper.
+        :param sequence_blocks: todo: document
+        :return: todo: document
         """
         '''VERIFY VALID WAVEFORM SEQUENCE'''
+        # todo: move this to a dedicated function instead
         # get shape of oscillator parameters for each block
         try:
             osc_wav_shapes = np.array([
                 np.shape(block["oscillator_parameters"])
-                for block in self.sequence_blocks
+                for block in sequence_blocks
             ])
         except ValueError:
             raise ValueError("Invalid waveform sequence."
@@ -140,7 +123,7 @@ class SpinEchoWizardRDX(LAXEnvironment):
         # todo
 
         # get shapes of blocks
-        num_blocks =    len(self.sequence_blocks)
+        num_blocks =    len(sequence_blocks)
         num_oscs =      osc_wav_shapes[0, 0]
 
         # create temporary holder objects
@@ -155,7 +138,7 @@ class SpinEchoWizardRDX(LAXEnvironment):
 
 
         '''BEGIN COMPILATION'''
-        for idx_block, _block in enumerate(self.sequence_blocks):
+        for idx_block, _block in enumerate(sequence_blocks):
 
             # get block configuration values
             block_vals =    _block["oscillator_parameters"]
@@ -225,31 +208,23 @@ class SpinEchoWizardRDX(LAXEnvironment):
                         _phas_arrs[idx_osc] = np.append(_phas_arrs[idx_osc], wind_phas_tmp)
                     _time_arr = np.append(_time_arr, time_tmp)
 
-        # store results
-        self._ampl_tmp_arr = np.array(_ampl_arrs)
-        self._phas_tmp_arr = np.array(_phas_arrs)
-        self._time_tmp_arr = np.array(_time_arr)
+        # collate results and return
+        # note: divide by 100 for ampls b/c convert ampls from pct to frac
+        _ampl_tmp_arr = np.array(_ampl_arrs) / 100.
+        _phas_tmp_arr = np.array(_phas_arrs)
+        _time_tmp_arr = np.array(_time_arr)
+        return (_ampl_tmp_arr.transpose(),
+                _phas_tmp_arr.transpose(),
+                _time_tmp_arr)
 
-    def get_waveform(self) -> TTuple([TArray(TFloat, 2),
-                                      TArray(TFloat, 2),
-                                      TArray(TInt64, 1)]):
-        """
-        Retrieve the designed waveform.
-        todo: annotate return types
-        """
-        # note: need to convert ampls from pct to frac
-        return (self._ampl_tmp_arr.transpose() / 100.,
-                self._phas_tmp_arr.transpose(),
-                self._time_tmp_arr)
-
-    def display_waveform(self):
+    def display_waveform(self, waveform_values):
         """
         Display waveform phase and amplitude of each oscillator.
+        :param waveform_values: todo document
         """
         try:
             # get sequence shape
             # num_blocks, num_oscs, _ = np.shape(self.sequence_blocks)
-
             # tmp remove - quick workaround for display_waveform
             num_blocks = self.num_blocks
             num_oscs = self.num_oscs
