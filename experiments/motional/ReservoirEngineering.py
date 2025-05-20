@@ -16,7 +16,8 @@ class ReservoirEngineering(LAXExperiment, Experiment):
     """
     Experiment: Reservoir Engineering
 
-    todo: document
+    Implement reservoir engineering from the Home group using multi-chromatic tones on the 729nm single-pass AOM.
+    See: https://www.science.org/doi/10.1126/science.1261033.
     """
     name = 'Reservoir Engineering'
     kernel_invariants = {

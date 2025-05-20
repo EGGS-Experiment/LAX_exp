@@ -5,18 +5,18 @@ from artiq.coredevice import ad9910
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout, RescueIon
 
 from itertools import product
 
 
-class BichromaticCalibration(LAXExperiment, Experiment):
+class CalibrationBichromatic(LAXExperiment, Experiment):
     """
-    Experiment: Bichromatic Calibration
+    Calibration: Bichromatic Amplitude
 
-    todo: document
+    Calibrate relative amplitudes for bi/multi-chromatic operations via the 729nm singlepass.
     """
-    name = 'Bichromatic Calibration'
+    name = 'Calibration Bichromatic'
     kernel_invariants = {
         # subsequences
         'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',

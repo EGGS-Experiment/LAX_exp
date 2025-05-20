@@ -58,7 +58,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         self.freq_probe_scan_ftw = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
         '''CALIBRATE BEAM POWERS'''
-        # get amplitude calibration curve from dataset maanger and interpolate the points
+        # get amplitude calibration curve from dataset manager and interpolate the points
         # interpolation is necessary to allow continuous range of frequency values
         from scipy.interpolate import Akima1DInterpolator
         # ampl_calib_points =     self.get_dataset('calibration.temperature.asf_calibration_curve_mhz_pct')
