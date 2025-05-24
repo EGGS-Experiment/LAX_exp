@@ -2,12 +2,11 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout, RescueIon
-
-from itertools import product
+from LAX_exp.experiment import *
+from LAX_exp.system.subsequences import (
+    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape,
+    Readout, RescueIon, NoOperation
+)
 
 
 class CalibrationBichromatic(LAXExperiment, Experiment):
@@ -22,24 +21,44 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
 
         # hardware values
-        'qubit_carrier', 'freq_qubit_carrier_default_ftw', 'ampl_qubit_carrier_default_asf',
-        'att_qubit_carrier_default_mu',
-        'ampl_729_carrier_asf', 'ampl_qubit_asf', 'att_729_carrier_mu', 'att_qubit_mu',
+        'singlepass0', 'freq_singlepass_default_ftw', 'ampl_singlepass0_default_asf',
+        'att_singlepass0_default_mu',
+        'ampl_singlepass0_asf', 'att_singlepass0_mu', 'ampl_qubit_asf', 'att_qubit_mu',
 
         # config
-        'profile_729_target', 'config_experiment_list'
+        'profile_729_target', 'profile_729_SBC', 'config_experiment_list'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=88, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=88, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"],
+                                                                 default="SBC - Continuous"))
 
-        # scan parameters - frequency
-        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.1013, precision=6, step=1, min=50., max=400.),
-                                                group="scan.frequency")
-        self.setattr_argument("freq_729_carrier_center_mhz", NumberValue(default=80., precision=6, step=1, min=50., max=400.),
-                                                                group="scan.frequency")
-        self.setattr_argument("freq_729_carrier_sweep_khz_list",  Scannable(
+        # subsequences - with arguments
+        self.profile_729_SBC =      5
+        self.profile_729_target =   6
+        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=250
+        )
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_target, ram_addr_start=300, num_samples=250,
+            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+        )
+
+        # beam - qubit (729nm doublepass)
+        self.setattr_argument("freq_qubit_mhz", NumberValue(default=101.0965, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
+                                                group="beam.qubit")
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="beam.qubit")
+        self.setattr_argument("att_qubit_db",   NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="beam.qubit")
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group="beam.qubit")
+
+        # singlepass beam parameters
+        self.setattr_argument("freq_singlepass_center_mhz", NumberValue(default=120.339, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
+                                                                group="beam.singlepass")
+        self.setattr_argument("att_singlepass_db",     NumberValue(default=7., precision=1, step=0.5, min=2., max=31.5, unit="dB", scale=1.), group="beam.singlepass")
+        self.setattr_argument("freq_singlepass_sweep_khz_list",  Scannable(
                                                             default=[
                                                                 CenterScan(0., 2000., 10, randomize=True),
                                                                 ExplicitScan([0.]),
@@ -48,7 +67,16 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                                             ],
                                                             global_min=-20000., global_max=200000., global_step=10,
                                                             unit="kHz", scale=1, precision=3
-                                                        ), group="scan.frequency")
+                                                        ), group="beam.singlepass")
+        self.setattr_argument("ampl_singlepass_pct_list",   Scannable(
+                                                            default=[
+                                                                ExplicitScan([50.]),
+                                                                RangeScan(25, 50, 100, randomize=True),
+                                                                CenterScan(30, 20., 4, randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=70, global_step=5,
+                                                            unit="%", scale=1, precision=3
+                                                        ), group="beam.singlepass")
 
         # scan parameters - time
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
@@ -62,25 +90,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                                             unit="us", scale=1, precision=5
                                                         ), group="scan.time")
 
-        # carrier beam parameters
-        self.setattr_argument("ampl_729_carrier_pct",   NumberValue(default=50, precision=3, step=5, min=0.01, max=88), group="beam.carrier")
-        self.setattr_argument("att_729_carrier_db",     NumberValue(default=7., precision=1, step=0.5, min=2., max=31.5), group="beam.carrier")
-
-        # beam parameters
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group="beam.qubit")
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50), group="beam.qubit")
-        self.setattr_argument("att_qubit_db",   NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="beam.qubit")
-
         # relevant devices
         self.setattr_device('qubit')
 
-        # subsequences
-        self.profile_729_target =       6
-        self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_target, ram_addr_start=0, num_samples=1000,
-            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
-        )
+        # subsequences - other
         self.initialize_subsequence =   InitializeQubit(self)
+        self.doppler_subsequence =      NoOperation(self)
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
@@ -88,32 +103,39 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
+        # choose target cooling subsequence
+        if self.cooling_type == "Doppler":
+            self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC - Continuous":
+            self.cooling_subsequence = self.sidebandcool_subsequence
+
         '''
         CONVERT VALUES TO MACHINE UNITS
         '''
-        # tmp remove
-        self.qubit_carrier = self.get_device("urukul0_ch1")
-        self.freq_qubit_carrier_default_ftw =   self.qubit_carrier.frequency_to_ftw(120.339 * MHz)
-        self.ampl_qubit_carrier_default_asf =   self.qubit_carrier.amplitude_to_asf(0.5)
-        self.att_qubit_carrier_default_mu =     att_to_mu(7. * dB)
-        # tmp remove
+        # get default values for singlepass (so we can set them back afterwards)
+        self.singlepass0 = self.get_device("urukul0_ch1")
+        self.freq_singlepass_default_ftw =   self.singlepass0.frequency_to_ftw(120.339 * MHz)
+        self.ampl_singlepass_default_asf =   self.singlepass0.amplitude_to_asf(0.5)
+        self.att_singlepass_default_mu =     att_to_mu(7. * dB)
 
         # beam parameters
-        self.ampl_729_carrier_asf = self.qubit.amplitude_to_asf(self.ampl_729_carrier_pct / 100.)
-        self.att_729_carrier_mu =   att_to_mu(self.att_729_carrier_db * dB)
-
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
+        self.att_singlepass_mu =    att_to_mu(self.att_singlepass_db * dB)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
+        # create ampl sweep
+        ampl_singlepass_asf_list =  [self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+                                     for ampl_pct in self.ampl_singlepass_pct_list]
+
         # create frequency config to equalize output at ion
-        freq_729_config_ftw_list = np.array([
+        freq_singlepass_config_ftw_list = np.array([
             [
-                # note: carrier DDS controls SLS single-pass => 1.0x
-                self.qubit.frequency_to_ftw(self.freq_729_carrier_center_mhz * MHz + freq_khz * kHz),
+                # note: singlepass DDS controls SLS single-pass => 1.0x
+                self.qubit.frequency_to_ftw(self.freq_729_singlepass_center_mhz * MHz + freq_khz * kHz),
                 # note: qubit DDS controls double-pass => 0.5x
                 self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz - 0.5 * (freq_khz * kHz))
             ]
-            for freq_khz in self.freq_729_carrier_sweep_khz_list
+            for freq_khz in self.freq_729_singlepass_sweep_khz_list
         ])
 
         # convert time to machine units
@@ -131,11 +153,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         '''
         # create an array of values for the experiment to sweep
         # note: need to use product since the constituent config lists are 2D
-        self.config_experiment_list = np.array([
-            np.concatenate((vals))
-            for vals in product(freq_729_config_ftw_list, time_rabiflop_mu_list)
-        ], dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        self.config_experiment_list = create_experiment_config(
+            freq_singlepass_config_ftw_list,
+            ampl_singlepass_asf_list,
+            time_rabiflop_mu_list,
+            shuffle_config_list=True
+        )
 
     @property
     def results_shape(self):
@@ -146,21 +169,18 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # ensure qubit carrier is set up correctly on ALL profiles
-        self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
-        delay_mu(10000)
-
+        # ensure singlepass is set up correctly on ALL profiles
+        self.singlepass0.set_att_mu(self.att_singlepass_mu)
         for i in range(8):
-            self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
-                                      asf=self.ampl_qubit_carrier_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw,
+                                      asf=self.ampl_singlepass_default_asf,
                                       profile=i)
-            delay_mu(10000)
-
-        self.qubit_carrier.sw.on()
-        delay_mu(10000)
+            delay_mu(8000)
+        self.singlepass0.sw.on()
 
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
+        self.cooling_subsequence.record_dma()
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
@@ -174,20 +194,21 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
 
                 '''PREPARE & CONFIGURE'''
                 # extract values from config list
-                freq_729_carrier_ftw =  np.int32(config_vals[0])
+                freq_singlepass_ftw =   np.int32(config_vals[0])
                 freq_qubit_ftw =        np.int32(config_vals[1])
-                time_equalize_mu =      config_vals[2]
-                time_pulse_mu =         config_vals[3]
+                ampl_singlepass_asf =   np.int32(config_vals[2])
+                time_equalize_mu =      config_vals[3]
+                time_pulse_mu =         config_vals[4]
                 self.core.break_realtime()
 
-                # set pulse time
+                # configure pulse times
                 if self.enable_pulseshaping:
                     self.pulseshape_subsequence.configure(time_pulse_mu)
+                    delay_mu(50000)
 
-                # set qubit carrier frequency
-                self.qubit_carrier.set_mu(freq_729_carrier_ftw, asf=self.ampl_729_carrier_asf,
-                                          profile=self.profile_729_target)
-                # set qubit frequency
+                # set 729nm frequencies
+                self.singlepass0.set_mu(freq_singlepass_ftw, asf=ampl_singlepass_asf, profile=self.profile_729_target,
+                                        phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
@@ -195,13 +216,10 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
-                # # tmp remove
-                # self.qubit_carrier.set_att_mu(self.att_729_carrier_mu)
-                # # tmp remove
-
                 '''INITIALIZE'''
-                # initialize ion in S-1/2 state
+                # initialize ion in S-1/2 state and cool
                 self.initialize_subsequence.run_dma()
+                self.cooling_subsequence.run_dma()
 
                 '''MAIN PULSE'''
                 # add delay to ensure each shot takes same time
@@ -224,8 +242,9 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 # update dataset
                 self.update_results(freq_qubit_ftw,
                                     self.readout_subsequence.fetch_count(),
-                                    freq_729_carrier_ftw,
-                                    time_pulse_mu)
+                                    freq_singlepass_ftw,
+                                    time_pulse_mu,
+                                    ampl_singlepass_asf)
                 self.core.break_realtime()
 
                 # resuscitate ion
@@ -243,14 +262,14 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         """
         Clean up the experiment.
         """
-        # set qubit carrier to default value (b/c AOM thermal drift) on ALL profiles
+        # set singlepass to default value (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.qubit_carrier.set_mu(self.freq_qubit_carrier_default_ftw,
-                                      asf=self.ampl_qubit_carrier_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass_default_ftw,
+                                      asf=self.ampl_singlepass_default_asf,
                                       profile=i)
             delay_mu(5000)
 
-        self.qubit_carrier.sw.on()
-        self.qubit_carrier.set_att_mu(self.att_qubit_carrier_default_mu)
+        self.singlepass0.sw.on()
+        self.singlepass0.set_att_mu(self.att_singlepass_default_mu)
         delay_mu(25000)
 
