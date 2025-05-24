@@ -21,9 +21,9 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
 
         # hardware values
-        'singlepass0', 'freq_singlepass_default_ftw', 'ampl_singlepass0_default_asf',
+        'singlepass0', 'freq_singlepass0_default_ftw', 'ampl_singlepass0_default_asf',
         'att_singlepass0_default_mu',
-        'ampl_singlepass0_asf', 'att_singlepass0_mu', 'ampl_qubit_asf', 'att_qubit_mu',
+        'att_singlepass0_mu', 'ampl_qubit_asf', 'att_qubit_mu',
 
         # config
         'profile_729_target', 'profile_729_SBC', 'config_experiment_list'
@@ -41,10 +41,6 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=250
-        )
-        self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_target, ram_addr_start=300, num_samples=250,
-            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
         )
 
         # beam - qubit (729nm doublepass)
@@ -70,8 +66,8 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                                         ), group="beam.singlepass")
         self.setattr_argument("ampl_singlepass_pct_list",   Scannable(
                                                             default=[
+                                                                RangeScan(25, 50, 10, randomize=True),
                                                                 ExplicitScan([50.]),
-                                                                RangeScan(25, 50, 100, randomize=True),
                                                                 CenterScan(30, 20., 4, randomize=True),
                                                             ],
                                                             global_min=1, global_max=70, global_step=5,
@@ -82,7 +78,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
-                                                                RangeScan(1, 25, 100, randomize=True),
+                                                                RangeScan(1, 25, 10, randomize=True),
                                                                 ExplicitScan([6.05]),
                                                                 CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
@@ -94,6 +90,10 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.setattr_device('qubit')
 
         # subsequences - other
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_target, ram_addr_start=300, num_samples=250,
+            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+        )
         self.initialize_subsequence =   InitializeQubit(self)
         self.doppler_subsequence =      NoOperation(self)
         self.readout_subsequence =      Readout(self)
@@ -114,13 +114,13 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         '''
         # get default values for singlepass (so we can set them back afterwards)
         self.singlepass0 = self.get_device("urukul0_ch1")
-        self.freq_singlepass_default_ftw =   self.singlepass0.frequency_to_ftw(120.339 * MHz)
-        self.ampl_singlepass_default_asf =   self.singlepass0.amplitude_to_asf(0.5)
-        self.att_singlepass_default_mu =     att_to_mu(7. * dB)
+        self.freq_singlepass0_default_ftw = self.singlepass0.frequency_to_ftw(120.339 * MHz)
+        self.ampl_singlepass0_default_asf = self.singlepass0.amplitude_to_asf(0.5)
+        self.att_singlepass0_default_mu =   att_to_mu(7. * dB)
 
         # beam parameters
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_singlepass_mu =    att_to_mu(self.att_singlepass_db * dB)
+        self.att_singlepass0_mu =   att_to_mu(self.att_singlepass_db * dB)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
         # create ampl sweep
@@ -131,11 +131,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         freq_singlepass_config_ftw_list = np.array([
             [
                 # note: singlepass DDS controls SLS single-pass => 1.0x
-                self.qubit.frequency_to_ftw(self.freq_729_singlepass_center_mhz * MHz + freq_khz * kHz),
+                self.qubit.frequency_to_ftw(self.freq_singlepass_center_mhz * MHz + freq_khz * kHz),
                 # note: qubit DDS controls double-pass => 0.5x
                 self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz - 0.5 * (freq_khz * kHz))
             ]
-            for freq_khz in self.freq_729_singlepass_sweep_khz_list
+            for freq_khz in self.freq_singlepass_sweep_khz_list
         ])
 
         # convert time to machine units
@@ -157,23 +157,23 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
             freq_singlepass_config_ftw_list,
             ampl_singlepass_asf_list,
             time_rabiflop_mu_list,
-            shuffle_config_list=True
+            shuffle_config=True
         )
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                4)
+                5)
 
 
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # ensure singlepass is set up correctly on ALL profiles
-        self.singlepass0.set_att_mu(self.att_singlepass_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass0_mu)
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass_default_ftw,
-                                      asf=self.ampl_singlepass_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
+                                      asf=self.ampl_singlepass0_default_asf,
                                       profile=i)
             delay_mu(8000)
         self.singlepass0.sw.on()
@@ -264,12 +264,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         """
         # set singlepass to default value (b/c AOM thermal drift) on ALL profiles
         for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass_default_ftw,
-                                      asf=self.ampl_singlepass_default_asf,
+            self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
+                                      asf=self.ampl_singlepass0_default_asf,
                                       profile=i)
             delay_mu(5000)
 
         self.singlepass0.sw.on()
-        self.singlepass0.set_att_mu(self.att_singlepass_default_mu)
+        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
         delay_mu(25000)
 
