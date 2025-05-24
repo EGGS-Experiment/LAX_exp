@@ -17,7 +17,7 @@ from collections.abc import Iterable
 from artiq.coredevice import ad9910
 
 
-class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experiment):
+class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment):
     """
     Experiment: Super Duper Resolution Characteristic Reconstruction
 
@@ -145,7 +145,7 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
                               group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1015, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0962, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
                               group="defaults.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
                               group="defaults.sigmax")
@@ -155,40 +155,55 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
                               group="defaults.sigmax")
 
         # defaults - bichromatic
-        self.setattr_argument("freq_cat_center_mhz",    NumberValue(default=101.1015, precision=6, step=0.001, min=50., max=400., unit="MHz", scale=1.),
+        self.setattr_argument("freq_cat_center_mhz",    NumberValue(default=101.0962, precision=6, step=0.001, min=50., max=400., unit="MHz", scale=1.),
                               group="defaults.bichromatic")
         self.setattr_argument("freq_cat_secular_khz",   NumberValue(default=702.6, precision=4, step=1, min=0., max=4e5, unit="kHz", scale=1.),
                               group="defaults.bichromatic")
         self.setattr_argument("ampls_cat_pct",  PYONValue([50., 54.]), group='defaults.bichromatic', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.bichromatic', tooltip="[rsb_db, bsb_db]")
 
-        # characteristic readout: configure readout grid
-        self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic_readout',
+        # characteristic readout: configuration
+        self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic',
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
         self.setattr_argument("phase_characteristic_axis_turns",  NumberValue(default=0.125, precision=5, step=0.1, min=-1.0, max=1.0, unit='turns', scale=1.),
-                              group='characteristic_readout',
+                              group='characteristic',
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
-
-        # characteristic readout: configure readout grid
-        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='characteristic_readout', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='characteristic', tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'),
-                              group="characteristic_readout",
-                              tooltip="Configures phase sweeping of the bichromatic tones to scan the characteristic function.")
+                              group="characteristic",
+                              tooltip="Configures how the phases of the bichromatic tones are adjusted to measure the characteristic function.")
+        self.setattr_argument("characteristic_readout_sweep", EnumerationValue(['Grid', 'Phase Sweep'], default='Grid'), group='characteristic',
+                              tooltip="Choose sweep type when reading out the characteristic function."
+                                      "'Grid' option reads out on a 2D rectangular grid."
+                                      "'Phase Sweep' option reads out on a 1D phase sweep at a single time radius.")
+
+        # characteristic readout: readout grid
         self.setattr_argument("time_pulse4_cat_x_us_list",  Scannable(
                                                             default=[
                                                                 RangeScan(-45, 45, 15, randomize=True),
                                                                 ExplicitScan([50]),
                                                             ],
                                                             global_min=-100000, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5), group="characteristic_readout")
+                                                            unit="us", scale=1, precision=5), group="characteristic.grid")
         self.setattr_argument("time_pulse4_cat_y_us_list", Scannable(
                                                             default=[
                                                                 RangeScan(-45, 45, 15, randomize=True),
                                                                 ExplicitScan([50]),
                                                             ],
                                                             global_min=-100000, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5), group="characteristic_readout")
+                                                            unit="us", scale=1, precision=5), group="characteristic.grid")
+
+        # characteristic readout: single-radius measurement (alternative to 2D grid)
+        self.setattr_argument("time_char_phase_sweep_us",  NumberValue(default=10., precision=3, step=5, min=0.1, max=10000, unit="us", scale=1.),
+                              group="characteristic.ph_sweep")
+        self.setattr_argument("phases_char_phase_sweep_turns", Scannable(
+                                                                default=[
+                                                                    RangeScan(-1., 1., 42, randomize=True),
+                                                                    ExplicitScan([0.]),
+                                                                ],
+                                                                global_min=-1., global_max=1., global_step=0.1,
+                                                                unit="turns", scale=1., precision=5), group="characteristic.ph_sweep")
 
     def prepare_experiment(self):
         """
@@ -291,15 +306,25 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
         elif self.target_pulse4_cat_phase == 'RSB+BSB':
             self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
 
-        # create sampling grid in radial coordinates
-        vals_pulse4_mu_pow_list = np.array([
-            [
-                self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
-                self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
-            ]
-            for x_us in self.time_pulse4_cat_x_us_list
-            for y_us in self.time_pulse4_cat_y_us_list
-        ], dtype=np.int64)
+        # create sampling grid in radial coordinates for "Grid" readout type
+        if self.characteristic_readout_sweep == "Grid":
+            vals_pulse4_mu_pow_list = np.array([
+                [
+                    self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
+                    self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
+                ]
+                for x_us in self.time_pulse4_cat_x_us_list
+                for y_us in self.time_pulse4_cat_y_us_list
+            ], dtype=np.int64)
+        # create phase-sweep array at single time value for "Phase Sweep" readout type (to save time)
+        elif self.characteristic_readout_sweep == "Phase Sweep":
+            vals_pulse4_mu_pow_list = np.array([
+                [
+                    self.core.seconds_to_mu(self.time_char_phase_sweep_us * us),
+                    self.singlepass0.turns_to_pow(phase_turns)
+                ]
+                for phase_turns in self.phases_char_phase_sweep_turns
+            ], dtype=np.int64)
 
         # use generator to flatten list with some tuples
         def flatten(xs):
@@ -427,7 +452,7 @@ class SuperDuperResolutionCharacteristicReconstructionDev(LAXExperiment, Experim
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu)) * np.arange(4)
+        t_update_delay_s_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu)) * np.array([0, 1, 2, 2, 3])
         _osc_vals_blocks[:, :, 1] += (np.array(self.phase_superresolution_osc_turns_list) +
                                       self.freq_superresolution_osc_base_hz_list * t_update_delay_s_list)
 
