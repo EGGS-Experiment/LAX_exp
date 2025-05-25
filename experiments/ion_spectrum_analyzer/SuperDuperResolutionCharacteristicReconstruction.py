@@ -452,7 +452,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu)) * np.array([0, 1, 2, 2, 3])
+        t_update_delay_s_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu)) * np.array([0, 1, 2, 2])
         _osc_vals_blocks[:, :, 1] += (np.array(self.phase_superresolution_osc_turns_list) +
                                       self.freq_superresolution_osc_base_hz_list * t_update_delay_s_list)
 
