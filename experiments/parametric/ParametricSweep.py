@@ -46,14 +46,14 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",            NumberValue(default=2, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions",            NumberValue(default=1, precision=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",             NumberValue(default=17, precision=1, step=0.5, min=0, max=31.5), group='modulation')
+        self.setattr_argument("mod_att_db",             NumberValue(default=17, precision=1, step=0.5, min=0, max=31.5, scale=1., unit='dB'), group='modulation')
         self.setattr_argument("mod_freq_khz_list",      Scannable(
                                                             default= [
-                                                                CenterScan(1390.76, 3, 0.5, randomize=True),
-                                                                ExplicitScan([1390.76, 1685.11]),
+                                                                CenterScan(1294.15, 3, 0.5, randomize=True),
+                                                                ExplicitScan([1581.76, 1294.11]),
                                                                 RangeScan(1100., 1800., 500, randomize=True),
                                                             ],
                                                             global_min=1, global_max=200000, global_step=1,
@@ -73,8 +73,8 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                         ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=23, precision=2, step=5, min=0.01, max=50), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",       NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=20, precision=2, step=5, min=0.01, max=50), scale=1., unit='%', group='cooling')
+        self.setattr_argument("freq_cooling_mhz",       NumberValue(default=111, precision=6, step=1, min=1, max=500, scale=1., unit='MHz'), group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -129,7 +129,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         Set the channel to the desired voltage.
         """
         # set desired voltage
-        voltage_set_v = self.dc.voltage_fast(channel, voltage_v)
+        self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
     @rpc
@@ -205,8 +205,6 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # run given number of repetitions
         for trial_num in range(self.repetitions):
 
