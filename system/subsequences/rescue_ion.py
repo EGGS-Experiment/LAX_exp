@@ -123,6 +123,7 @@ class RescueIon(LAXSubsequence):
         Process counts in real-time for low-overhead, dynamic response to certain error conditions.
         :param counts: the most recent ion counts from a standard readout pulse.
         """
+        '''UPDATE FILTER'''
         # threshold incoming counts and store data in array
         if counts > self.deathcount_threshold:
             self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 1
@@ -131,11 +132,13 @@ class RescueIon(LAXSubsequence):
             self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
         delay_mu(15000) # 15us
 
-        # update filter once we have stored enough counts
-        if self._deathcount_iter >= self.deathcount_length:
 
+        '''PROCESS FILTER RESULTS'''
+        # start removing values from filter once we have stored enough counts
+        if self._deathcount_iter >= self.deathcount_length:
             # subtract history from running average (i.e. circular buffer)
             self._deathcount_sum_counts -= self._deathcount_arr[(self._deathcount_iter + 1) % self.deathcount_length]
+
             # process syndromes
             if self._deathcount_sum_counts < self.deathcount_tolerance:
                 self._deathcount_status = 1     # syndrome: ion death (no bright counts)
@@ -145,7 +148,8 @@ class RescueIon(LAXSubsequence):
                 self._deathcount_status = 0     # syndrome: clear (no error)
             delay_mu(25000) # 25us
 
-            # process status change
+            # process status only if it's changed
+            # note: this is important to prevent e.g. multiple updates if symptoms are persistent
             if self._deathcount_status != self._deathcount_status_latched:
                 # set syndrome message
                 self.set_dataset('management.dynamic.ion_status',

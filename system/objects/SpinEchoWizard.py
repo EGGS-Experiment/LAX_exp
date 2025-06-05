@@ -1,14 +1,10 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXEnvironment
+from LAX_exp.language import *
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 import matplotlib.pyplot as plt
-# todo: make more things passable as arguments, less self variables
-# todo: make entire waveform specifiable as dict
 
 
 class SpinEchoWizard(LAXEnvironment):

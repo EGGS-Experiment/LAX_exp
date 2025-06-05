@@ -18,7 +18,7 @@ class RAMWriter(HasEnvironment):
 
     def build(self, dds_device: AD9910=None, dds_profile: TInt32=6, block_size: TInt32=88):
         """
-        todo: document
+        Build the RAMWriter object.
         Arguments:
             dds_device: the DDS device object to write for. This MUST be an AD9910 object to prevent silly errors.
             dds_profile: the DDS profile (between [0, 7]) to use while writing RAM. Note that this profile does not

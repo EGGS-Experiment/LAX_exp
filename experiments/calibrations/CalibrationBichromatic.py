@@ -2,7 +2,7 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
-from LAX_exp.experiment import *
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape,
     Readout, RescueIon, NoOperation

@@ -1,8 +1,7 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, ReadoutAdaptive
 # todo: dynamically filter results
 
