@@ -39,7 +39,7 @@ class EggsQLS(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config", BooleanValue(default=True))
         self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500))
         self.setattr_argument("readout_type", EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
@@ -101,10 +101,10 @@ class EggsQLS(LAXExperiment, Experiment):
 
         # EGGS RF - waveform - timing & phase
         self.setattr_argument("time_eggs_qls_us",
-                              NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000),
+                              NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000),
                               group='EGGS_QLS.waveform.time_phase')
         self.setattr_argument("time_eggs_carrier_us",
-                              NumberValue(default=1, precision=2, step=500, min=0.04, max=10000),
+                              NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000),
                               group='EGGS_QLS.waveform.time_phase')
 
         self.setattr_argument("phase_eggs_qls_ch1_turns_list", Scannable(
@@ -125,12 +125,12 @@ class EggsQLS(LAXExperiment, Experiment):
         ), group='EGGS_QLS.waveform.time_phase')
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_qls_db", NumberValue(default=22., precision=1, step=0.5, min=0, max=31.5),
+        self.setattr_argument("att_eggs_qls_db", NumberValue(default=25., precision=1, step=0.5, min=0, max=31.5),
                               group='EGGS_QLS.waveform.ampl')
         self.setattr_argument("ampl_eggs_qls_bsb_pct", NumberValue(default=40., precision=2, step=10, min=0.0, max=99),
                               group='EGGS_QLS.waveform.ampl')
         self.setattr_argument("ampl_eggs_qls_carrier_pct",
-                              NumberValue(default=.2, precision=2, step=10, min=0.0, max=99),
+                              NumberValue(default=40, precision=2, step=10, min=0.0, max=99),
                               group='EGGS_QLS.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
@@ -195,7 +195,8 @@ class EggsQLS(LAXExperiment, Experiment):
         self.phase_eggs_qls_ch1_turns_list = np.array(list(self.phase_eggs_qls_ch1_turns_list))
 
         # map phase to index to facilitate waveform recording
-        self.waveform_index_to_phase_bsb_turns = np.arange(len(self.phase_eggs_heating_bsb_turns_list))
+        self.waveform_index_to_phase_bsb_turns = np.arange(len(self.phase_eggs_qls_bsb_turns_list))
+
 
         # create config data structure
         self.config_experiment_list = np.zeros((
@@ -224,8 +225,6 @@ class EggsQLS(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
-        raise ValueError("here")
 
     def _prepare_waveform(self) -> TNone:
         """
