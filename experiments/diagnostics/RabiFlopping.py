@@ -1,15 +1,13 @@
 import numpy as np
+from sipyco import pyon
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, QubitPulseShape, RescueIon, NoOperation,
     SidebandCoolContinuousRAM, SidebandCoolPulsed
 )
-from sipyco import pyon
 
 
 class RabiFlopping(LAXExperiment, Experiment):
