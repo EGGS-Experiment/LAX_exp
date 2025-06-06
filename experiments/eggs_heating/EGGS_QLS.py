@@ -134,14 +134,25 @@ class EggsQLS(LAXExperiment, Experiment):
                               group='EGGS_QLS.waveform.ampl')
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False), group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",
+        self.setattr_argument("enable_qls_pulse_shaping", BooleanValue(default=False), group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("type_qls_pulse_shape",
                               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
                               group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",
+        self.setattr_argument("time_qls_pulse_shape_rolloff_us",
                               NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
                               group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",
+        self.setattr_argument("freq_qls_pulse_shape_sample_khz",
+                              NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
+                              group='EGGS_QLS.pulse_shaping')
+
+        self.setattr_argument("enable_carrier_pulse_shaping", BooleanValue(default=False), group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("type_carrier_pulse_shape",
+                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+                              group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("time_carrier_pulse_shape_rolloff_us",
+                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
+                              group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("freq_carrier_pulse_shape_sample_khz",
                               NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
                               group='EGGS_QLS.pulse_shaping')
 
@@ -262,13 +273,13 @@ class EggsQLS(LAXExperiment, Experiment):
                     "oscillator_parameters": _sequence_blocks_local[0, :, :],
                     "config": {
                         "time_us": self.time_eggs_qls_us,
-                        "pulse_shaping": self.enable_pulse_shaping,
+                        "pulse_shaping": self.enable_qls_pulse_shaping,
                         "pulse_shaping_config": {
-                            "pulse_shape": self.type_pulse_shape,
-                            "pulse_shape_rising": self.enable_pulse_shaping,
-                            "pulse_shape_falling": self.enable_pulse_shaping,
-                            "sample_rate_khz": self.freq_pulse_shape_sample_khz,
-                            "rolloff_time_us": self.time_pulse_shape_rolloff_us
+                            "pulse_shape": self.type_qls_pulse_shape,
+                            "pulse_shape_rising": self.enable_qls_pulse_shaping,
+                            "pulse_shape_falling": self.enable_qls_pulse_shaping,
+                            "sample_rate_khz": self.freq_qls_pulse_shape_sample_khz,
+                            "rolloff_time_us": self.time_qls_pulse_shape_rolloff_us
                         }
                     }
                 },
@@ -276,13 +287,13 @@ class EggsQLS(LAXExperiment, Experiment):
                     "oscillator_parameters": _sequence_blocks_local[1, :, :],
                     "config": {
                         "time_us": self.time_eggs_carrier_us,
-                        "pulse_shaping": self.enable_pulse_shaping,
+                        "pulse_shaping": self.enable_carrier_pulse_shaping,
                         "pulse_shaping_config": {
-                            "pulse_shape": self.type_pulse_shape,
-                            "pulse_shape_rising": self.enable_pulse_shaping,
-                            "pulse_shape_falling": self.enable_pulse_shaping,
-                            "sample_rate_khz": self.freq_pulse_shape_sample_khz,
-                            "rolloff_time_us": self.time_pulse_shape_rolloff_us
+                            "pulse_shape": self.type_carrier_pulse_shape,
+                            "pulse_shape_rising": self.enable_carrier_pulse_shaping,
+                            "pulse_shape_falling": self.enable_carrier_pulse_shaping,
+                            "sample_rate_khz": self.freq_carrier_pulse_shape_sample_khz,
+                            "rolloff_time_us": self.time_carrier_pulse_shape_rolloff_us
                         }
                     }
                 }
