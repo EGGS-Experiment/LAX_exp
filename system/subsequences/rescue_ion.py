@@ -130,14 +130,16 @@ class RescueIon(LAXSubsequence):
             self._deathcount_sum_counts += 1
         else:
             self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
+        # update count array iterator
+        self._deathcount_iter += 1
         delay_mu(15000) # 15us
 
 
         '''PROCESS FILTER RESULTS'''
-        # start removing values from filter once we have stored enough counts
-        if self._deathcount_iter >= self.deathcount_length:
+        # only start processing filter once we have filled the array once
+        if self._deathcount_iter > self.deathcount_length:
             # subtract history from running average (i.e. circular buffer)
-            self._deathcount_sum_counts -= self._deathcount_arr[(self._deathcount_iter + 1) % self.deathcount_length]
+            self._deathcount_sum_counts -= self._deathcount_arr[self._deathcount_iter % self.deathcount_length]
 
             # process syndromes
             if self._deathcount_sum_counts < self.deathcount_tolerance:
@@ -174,7 +176,4 @@ class RescueIon(LAXSubsequence):
                 # update status flag
                 self._deathcount_status_latched = self._deathcount_status
             delay_mu(50000) # 50us
-
-        # update count array iterator
-        self._deathcount_iter += 1
 
