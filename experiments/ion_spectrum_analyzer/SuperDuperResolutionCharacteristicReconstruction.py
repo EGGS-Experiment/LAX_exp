@@ -5,7 +5,7 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
 )
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
@@ -61,8 +61,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
             num_samples=200
         )
         self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      Readout(self)
-        self.rescue_subsequence =       RescueIon(self)
+        self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
+        self.rescue_subsequence =       RescueIon(self, input_type="probability")
 
         # set arguments for different experiment bases
         self._build_arguments_superresolution()
@@ -526,7 +526,6 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
         ### PHASER INITIALIZATION ###
@@ -544,8 +543,10 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.pulse_shaper.waveform_load()
         delay_mu(250000) # 250us
 
-        # used to check_termination more frequently
-        _loop_iter = 0
+        # create local variables for use
+        _loop_iter = 0  # used to check_termination more frequently
+        ion_state = (-1, 0, np.int64(0))    # store ion state
+
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -600,18 +601,17 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 # bichromatic pulse + state detection
                 self.pulse_bichromatic(t_phaser_start_mu, time_char_read_mu, phase_char_read_pow_list,
                                        self.freq_cat_center_ftw, self.freq_cat_secular_ftw)
-                self.readout_subsequence.run_dma()
+                ion_state = self.readout_subsequence.run()
 
                 '''LOOP CLEANUP'''
                 # retrieve results & update dataset
-                counts_res = self.readout_subsequence.fetch_count()
-                self.update_results(characteristic_axis_bool, counts_res,
+                self.update_results(characteristic_axis_bool, ion_state[0],
                                     time_char_read_mu, phase_char_read_pow)
                 self.core.break_realtime()
 
                 # resuscitate ion & detect deaths
                 self.rescue_subsequence.resuscitate()
-                self.rescue_subsequence.detect_death(counts_res)
+                self.rescue_subsequence.detect_death(ion_state[0])
                 self.core.break_realtime()
 
                 # check termination more frequently in case reps are low

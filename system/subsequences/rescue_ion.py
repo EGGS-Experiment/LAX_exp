@@ -24,10 +24,22 @@ class RescueIon(LAXSubsequence):
         # timing
         "time_rescue_mu", "time_resuscitate_mu", "time_aperture_pulse_s",
         # death counting
-        "deathcount_length", "deathcount_tolerance", "deathcount_threshold"
+        "deathcount_length", "deathcount_tolerance",
+        # count processing
+        "input_type", "count_threshold", "_enable_thresholding"
     }
 
-    def build_subsequence(self):
+    def build_subsequence(self, input_type: TStr='counts'):
+        """
+        Defines the main interface for the subsequence.
+        :param input_type: input type for detect_death. Can be one of ['counts', 'probability'].
+            If 'counts', then input is thresholded according to the dataset pmt.count_rate_bright_3ms
+            and pmt.count_rate_dark_3ms.
+            If 'probability', then input is directly processed (no thresholding).
+        """
+        # build arguments
+        self.input_type = input_type
+
         # get relevant devices
         self.setattr_device('pump')
         self.setattr_device('probe')
@@ -64,7 +76,20 @@ class RescueIon(LAXSubsequence):
         # parameters - death detection
         self.deathcount_length =    self.get_parameter('deathcount_length', group='management.death', override=False)
         self.deathcount_tolerance = self.get_parameter('deathcount_tolerance', group='management.death', override=False)
-        self.deathcount_threshold = self.get_parameter('deathcount_threshold', group='management.death', override=False)
+
+        # calculate state discrimination threshold
+        time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
+        count_rate_bright = self.get_parameter('count_rate_bright_3ms', group='pmt', override=False) * (time_readout_us / 3000.)
+        count_rate_dark =   self.get_parameter('count_rate_dark_3ms', group='pmt', override=False) * (time_readout_us / 3000.)
+        self.count_threshold = count_rate_bright / np.log(1 + count_rate_bright / count_rate_dark)
+
+        # process input type
+        if not isinstance(self.input_type, str) or (self.input_type not in ('counts', 'probability')):
+            raise ValueError("Invalid input type. Must be one of ['counts', 'probability'].")
+        elif self.input_type == "counts":
+            self._enable_thresholding = True
+        elif self.input_type == "probability":
+            self._enable_thresholding = False
 
         '''KERNEL DATA STRUCTURES'''
         # holder arrays
@@ -124,13 +149,16 @@ class RescueIon(LAXSubsequence):
         :param counts: the most recent ion counts from a standard readout pulse.
         """
         '''UPDATE FILTER'''
-        # threshold incoming counts and store data in array
-        if counts > self.deathcount_threshold:
-            self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 1
-            self._deathcount_sum_counts += 1
-        else:
-            self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = 0
-        # update count array iterator
+        # threshold incoming counts
+        counts_tmp = counts
+        if self._enable_thresholding:
+            if counts_tmp > self.count_threshold:
+                counts_tmp = 1
+            else:
+                counts_tmp = 0
+        # store result and update average
+        self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = counts_tmp
+        self._deathcount_sum_counts += counts_tmp
         self._deathcount_iter += 1
         delay_mu(15000) # 15us
 
