@@ -84,7 +84,7 @@ class RescueIon(LAXSubsequence):
         self.count_threshold = count_rate_bright / np.log(1 + count_rate_bright / count_rate_dark)
 
         # process input type
-        if not isinstance(self.input_type, TStr) or (self.input_type not in ('counts', 'probability')):
+        if not isinstance(self.input_type, str) or (self.input_type not in ('counts', 'probability')):
             raise ValueError("Invalid input type. Must be one of ['counts', 'probability'].")
         elif self.input_type == "counts":
             self._enable_thresholding = True
