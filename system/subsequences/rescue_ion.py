@@ -153,9 +153,9 @@ class RescueIon(LAXSubsequence):
         counts_tmp = counts
         if self._enable_thresholding:
             if counts_tmp > self.count_threshold:
-                counts_tmp = 1
+                counts_tmp = 0  # bright => P = 0
             else:
-                counts_tmp = 0
+                counts_tmp = 1  # dark => P = 1
         # store result and update average
         self._deathcount_arr[self._deathcount_iter % self.deathcount_length] = counts_tmp
         self._deathcount_sum_counts += counts_tmp
@@ -170,9 +170,9 @@ class RescueIon(LAXSubsequence):
             self._deathcount_sum_counts -= self._deathcount_arr[self._deathcount_iter % self.deathcount_length]
 
             # process syndromes
-            if self._deathcount_sum_counts < self.deathcount_tolerance:
+            if self._deathcount_sum_counts > (self.deathcount_length - self.deathcount_tolerance):
                 self._deathcount_status = 1     # syndrome: ion death (no bright counts)
-            elif self._deathcount_sum_counts > (self.deathcount_length - self.deathcount_tolerance):
+            elif self._deathcount_sum_counts < self.deathcount_tolerance:
                 self._deathcount_status = 2     # syndrome: bad transition (no dark counts)
             else:
                 self._deathcount_status = 0     # syndrome: clear (no error)
