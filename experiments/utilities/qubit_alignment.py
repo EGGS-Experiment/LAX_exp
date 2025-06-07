@@ -22,7 +22,8 @@ class QubitAlignment(LAXExperiment, Experiment):
         "time_per_point_us", "repetitions", "_iter_repetitions", "_iter_loop",
 
         # hardware parameters etc.
-        "freq_qubit_ftw", "att_qubit_mu", "profile_729_readout", "profile_729_SBC",
+        "freq_qubit_ftw", "att_qubit_mu", "ampl_qubit_asf", "time_qubit_mu",
+        "profile_729_readout", "profile_729_SBC",
 
         # subsequences & objects
         "initialize_subsequence", "rabiflop_subsequence", "readout_subsequence", "pulseshape_subsequence",
@@ -34,12 +35,12 @@ class QubitAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC"], default="SBC"))
+        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC"], default="Doppler"))
         self.setattr_argument('time_total_s',       NumberValue(default=100, precision=0, step=100, min=5, max=100000), group='timing')
         self.setattr_argument('samples_per_point',  NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
-        self.setattr_argument('time_qubit_us',      NumberValue(default=5., precision=3, step=10, min=0.1, max=100000), group='qubit')
+        self.setattr_argument('time_qubit_us',      NumberValue(default=100., precision=3, step=10, min=0.1, max=100000), group='qubit')
         self.setattr_argument("freq_qubit_mhz",     NumberValue(default=101.1038, precision=5, step=1, min=1, max=10000), group='qubit')
         self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50., precision=3, step=5., min=0.01, max=50.), group='qubit')
         self.setattr_argument("att_qubit_db",       NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
@@ -103,6 +104,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.freq_qubit_ftw =   self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
         self.ampl_qubit_asf =   self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
+        self.time_qubit_mu =    self.core.seconds_to_mu(self.time_qubit_us * us)
 
         # prepare mean_filer (b/c only LAXExperiment classes call their own children)
         self.mean_filter.prepare()
@@ -184,11 +186,11 @@ class QubitAlignment(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for num_rep in self._iter_repetitions:
-            self.core.break_realtime()
+            delay_mu(25000)
 
             # burst readout - N samples
             for num_count in self._iter_loop:
-                delay_mu(25000)
+                delay_mu(40000)
 
                 # run qubit alignment sequence
                 self.core_dma.playback_handle(_handle_alignment)
@@ -199,7 +201,6 @@ class QubitAlignment(LAXExperiment, Experiment):
                     self.mean_filter.update_single(1 - ion_state[0])
                 else:
                     invalid_count += 1
-                delay_mu(25000)
 
             # update dataset
             self.update_results(num_rep, self.mean_filter.get_current() / (self.samples_per_point - invalid_count))
@@ -207,9 +208,10 @@ class QubitAlignment(LAXExperiment, Experiment):
             # periodically check termination
             if (num_rep % 50) == 0:
                 self.check_termination()
+                self.core.break_realtime()
 
     @rpc(flags={"async"})
-    def update_display(self, iter_num: TInt32, dstate_probability: TFloat) -> TNone:
+    def update_results(self, iter_num: TInt32, dstate_probability: TFloat) -> TNone:
         """
         Overload the update_results function to allow real-time plot updating.
         """
@@ -224,6 +226,7 @@ class QubitAlignment(LAXExperiment, Experiment):
         self.mutate_dataset('results', self._result_iter, np.array([time_dj, dstate_probability]))
 
         # update completion monitor
+        # todo: make these slower
         self.set_dataset('management.dynamic.completion_pct',
                          round(100. * self._result_iter / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
