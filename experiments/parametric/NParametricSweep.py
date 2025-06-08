@@ -21,9 +21,9 @@ class InsufficientCounts(Exception):
     pass
 
 
-class ParametricSweep(LAXExperiment, Experiment):
+class NParametricSweep(LAXExperiment, Experiment):
     """
-    Experiment: Parametric Sweep
+    Experiment: NParametric Sweep
 
     Modulate the trap RF close to a secular frequency while sweeping shim voltages
     to characterize excess micromotion.
