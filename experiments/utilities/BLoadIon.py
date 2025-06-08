@@ -14,9 +14,9 @@ from skimage.transform import hough_circle, hough_circle_peaks
 # todo: speed things up here and there
 
 
-class IonLloadAndAramp(LAXExperiment, Experiment):
+class BIonLloadAndAramp(LAXExperiment, Experiment):
     """
-    Utility: Ion Lload and Aramp
+    Utility: BIon Lload and Aramp
 
     Automatically load ions via resistive oven and eject excess via A-ramp.
     """
