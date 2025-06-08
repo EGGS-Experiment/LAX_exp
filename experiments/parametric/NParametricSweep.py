@@ -73,7 +73,7 @@ class NParametricSweep(LAXExperiment, Experiment):
                                                         ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=20, precision=2, step=5, min=0.01, max=50), scale=1., unit='%', group='cooling')
+        self.setattr_argument("ampl_cooling_pct",       NumberValue(default=20, precision=2, step=5, min=0.01, max=50, scale=1., unit='%'), group='cooling')
         self.setattr_argument("freq_cooling_mhz",       NumberValue(default=111, precision=6, step=1, min=1, max=500, scale=1., unit='MHz'), group='cooling')
 
         # get relevant devices
