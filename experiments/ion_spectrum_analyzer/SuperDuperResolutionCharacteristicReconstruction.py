@@ -1,13 +1,10 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
 )
-
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
@@ -43,12 +40,14 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
         # configs
-        'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list', '_num_phaser_oscs'
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+
+        self._num_phaser_oscs = 4   # number of phaser oscillators in use
 
         # allocate relevant beam profiles
         self.profile_729_SBC =      1
@@ -350,24 +349,24 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         '''SUPERRESOLUTION - ARGUMENT CHECKS'''
         # check that input amplitude/phase arrays are valid
         if isinstance(self.ampl_superresolution_osc_frac_list, list):
-            if len(self.ampl_superresolution_osc_frac_list) != 4:
-                raise ValueError("Error: phaser oscillator amplitude array must have length 4.")
+            if len(self.ampl_superresolution_osc_frac_list) != self._num_phaser_oscs:
+                raise ValueError("Error: phaser oscillator amplitude array must have length {:d}.".format(self._num_phaser_oscs))
             elif np.sum(self.ampl_superresolution_osc_frac_list) >= 100.:
                 raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
         else:
             raise ValueError("Error: phaser oscillator amplitude array must be a list.")
 
         if isinstance(self.phase_superresolution_osc_turns_list, list):
-            if len(self.phase_superresolution_osc_turns_list) != 4:
-                raise ValueError("Error: phaser oscillator phase array must have length 4.")
+            if len(self.phase_superresolution_osc_turns_list) != self._num_phaser_oscs:
+                raise ValueError("Error: phaser oscillator phase array must have length {:d}.".format(self._num_phaser_oscs))
         else:
             raise ValueError("Error: phaser oscillator phase array must be a list.")
 
         # check that phaser oscillator frequencies are valid
         if not isinstance(self.freq_superresolution_osc_khz_list, list):
             raise ValueError("Error: phaser oscillator frequency array must be a list.")
-        elif len(self.freq_superresolution_osc_khz_list) != 4:
-            raise ValueError("Error: phaser oscillator frequency array must have length 4.")
+        elif len(self.freq_superresolution_osc_khz_list) != self._num_phaser_oscs:
+            raise ValueError("Error: phaser oscillator frequency array must have length {:d}.".format(self._num_phaser_oscs))
         max_osc_freq_hz = (
                 max(self.freq_superresolution_osc_khz_list) * kHz +
                 (self.freq_global_offset_mhz * MHz)
@@ -421,7 +420,6 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.pulseshaper_vals = None        # store compiled waveforms from pulseshaper
         self.pulseshaper_id =   np.int32(0) # store waveform ID for pulseshaper
 
-        '''PROCESS ARGUMENTS INTO WAVEFORM CONFIGS'''
         # calculate block timings
         if self.enable_phase_shift_keying:
             time_block_us = self.time_eggs_heating_us / (self.num_psk_phase_shifts + 1)
@@ -447,21 +445,21 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         '''PROGRAM & COMPILE WAVEFORM'''
         # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = np.zeros((num_blocks, 4, 2), dtype=float)
+        _osc_vals_blocks = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
         _osc_vals_blocks[:, :, 0] = np.array(self.ampl_superresolution_osc_frac_list)
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = (self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu)) * np.array([0, 1, 2, 2])
+        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         _osc_vals_blocks[:, :, 1] += (np.array(self.phase_superresolution_osc_turns_list) +
                                       self.freq_superresolution_osc_base_hz_list * t_update_delay_s_list)
 
         # set PSK phase update schedule
         if self.enable_phase_shift_keying:
-            _osc_vals_blocks[:, 0, 1] += self.phase_superresolution_rsb_psk_turns[:num_blocks]
-            _osc_vals_blocks[:, 1, 1] += self.phase_superresolution_bsb_psk_turns[:num_blocks]
-            _osc_vals_blocks[:, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns[:num_blocks]
-            _osc_vals_blocks[:, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns[:num_blocks]
+            _osc_vals_blocks[:, :, 1] += np.array([
+                self.phase_superresolution_rsb_psk_turns[:num_blocks], self.phase_superresolution_bsb_psk_turns[:num_blocks],
+                self.phase_subharmonic_carrier_0_psk_turns[:num_blocks], self.phase_subharmonic_carrier_1_psk_turns[:num_blocks]
+            ][:self._num_phaser_oscs]).transpose()
 
         # specify sequence as a dict of blocks, where each block is a dict
         _sequence_blocks = [

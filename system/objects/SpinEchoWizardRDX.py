@@ -210,12 +210,9 @@ class SpinEchoWizardRDX(LAXEnvironment):
 
         # collate results and return
         # note: divide by 100 for ampls b/c convert ampls from pct to frac
-        _ampl_tmp_arr = np.array(_ampl_arrs) / 100.
-        _phas_tmp_arr = np.array(_phas_arrs)
-        _time_tmp_arr = np.array(_time_arr)
-        return (_ampl_tmp_arr.transpose(),
-                _phas_tmp_arr.transpose(),
-                _time_tmp_arr)
+        return (np.array(_ampl_arrs).transpose() / 100.,
+                np.array(_phas_arrs).transpose(),
+                np.array(_time_arr))
 
     def display_waveform(self, waveform_values):
         """

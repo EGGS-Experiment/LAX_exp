@@ -9,8 +9,8 @@ __all__ = []
 from numpy import int64, array
 from numpy.random import shuffle
 
-from itertools import product
 from collections.abc import Iterable
+from itertools import product, zip_longest
 from scipy.interpolate import Akima1DInterpolator
 
 
@@ -33,7 +33,7 @@ def interpolate_dataset(target_dataset, calibration_dataset):
 '''
 Experiment configuration tools
 '''
-__all__.extend(['flatten_maybe_tuple', 'create_experiment_config'])
+__all__.extend(['flatten_maybe_tuple', 'create_experiment_config', 'riffle'])
 
 def flatten_maybe_tuple(xs):
     """
@@ -62,4 +62,17 @@ def create_experiment_config(*args, config_type=int64, shuffle_config=True):
 
     if shuffle_config is True: shuffle(exp_config)
     return exp_config
+
+def riffle(*args):
+    """
+    Riffles an arbitrary number of arbitrary-length iterables sequentially.
+    Iterables can each be of different length.
+    :param args: iterables to riffle.
+    :return: a tuple of the riffled iterables.
+    """
+    return tuple(
+        y
+        for x in zip_longest(*args, fillvalue=None)
+        for y in x if y is not None
+    )
 

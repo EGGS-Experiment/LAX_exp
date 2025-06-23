@@ -39,7 +39,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
 
         # subharmonic specials
-        'freq_global_offset_hz',
+        'freq_global_offset_hz'
     }
 
     def build_experiment(self):
@@ -75,11 +75,11 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                         ), group='sideband_readout')
 
         # RAP-based readout
-        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200), group='RAP')
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4), group='RAP')
-        self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1), group="RAP")
+        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
+        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
+        self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # superresolution - configurable freq & sweeps
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
@@ -127,9 +127,9 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format("SDR"))
         self.setattr_argument("type_pulse_shape",       EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
                               group='{}.pulse_shaping'.format("SDR"))
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
                               group='{}.pulse_shaping'.format("SDR"))
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000),
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
                               group='{}.pulse_shaping'.format("SDR"))
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
@@ -141,10 +141,10 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format("SDR"))
 
         # superresolution - custom waveform specification
-        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=500, precision=2, step=500, min=0.04, max=100000000),
+        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=500, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
                               group="{}.waveform".format("SDR"))
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), group="{}.waveform".format("SDR"))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10.), group="{}.waveform".format("SDR"))
+        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.waveform".format("SDR"))
+        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.waveform".format("SDR"))
         self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702., 702., -0.5, 0.]), group="{}.waveform".format("SDR"))
         self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 1., 1.]), group="{}.waveform".format("SDR"))
         self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.5]), group="{}.waveform".format("SDR"))
@@ -544,11 +544,9 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         for i in range(len(self.phase_superresolution_sweep_turns_list)):
             # get waveform for given sweep phase
             _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
-            self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
             delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-            _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
-            self.waveform_index_to_pulseshaper_id[i] = _wav_idx
+            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.core.break_realtime()
 
