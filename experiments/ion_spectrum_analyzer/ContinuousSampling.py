@@ -64,7 +64,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # waveform - global config
-        self.setattr_argument("att_phaser_db",          NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), unit="dB", scale=1., group="{}.global".format(_argstr))
+        self.setattr_argument("att_phaser_db",          NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.global".format(_argstr))
         self.setattr_argument("freq_phaser_carrier_mhz", NumberValue(default=86, precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.), group="{}.global".format(_argstr))
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.global".format(_argstr))
         self.setattr_argument("phase_phaser_ch1_global_turns",  NumberValue(default=0.1, precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.), group="{}.global".format(_argstr))
