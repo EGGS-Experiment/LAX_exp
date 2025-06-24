@@ -180,9 +180,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
             raise ValueError("Error: phaser oscillator frequencies outside valid range of [-10, 10] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_output_freqs_hz = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
-        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
-        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
+        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_phaser_carrier_mhz * MHz)
+        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_phaser_carrier_mhz * MHz)
         if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
@@ -202,10 +201,10 @@ class ContinuousSampling(LAXExperiment, Experiment):
             raise ValueError("Invalid waveform configuration. Cannot have delays enabled without PSKing.")
 
         # ensure that osc_num_target_list contains a valid selection of oscillators
-        if (
+        if not (
                 all(isinstance(val, int) for val in self.osc_num_target_list) and
                 (max(self.osc_num_target_list) <= 4 and min(self.osc_num_target_list) >= 0) and
-                len(self.self.osc_num_target_list) <= 4
+                len(self.osc_num_target_list) <= 4
         ):
             raise ValueError("Invalid target oscillator list. Must be a list of fewer than 4 numbers in [0, 4].")
 
@@ -241,7 +240,6 @@ class ContinuousSampling(LAXExperiment, Experiment):
         _osc_vals_blocks[:, :, 0] = np.array(self.ampl_osc_frac_list)
         _osc_vals_blocks[:, :, 0] *= np.array([block_ampl_scale_list]).transpose()
 
-
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
         t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
@@ -250,10 +248,17 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # set PSK phase update schedule
         if self.enable_phase_shift_keying:
-            _osc_vals_blocks[:, :, 1] += np.array([
-                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
-            ][:self._num_phaser_oscs]).transpose()
+            if self.enable_psk_delay:
+                # note: use ::2 since we only update to non-delay blocks
+                _osc_vals_blocks[::2, :, 1] += np.array([
+                    self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                    self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+                ][:self._num_phaser_oscs]).transpose()
+            else:
+                _osc_vals_blocks[:, :, 1] += np.array([
+                    self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                    self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+                ][:self._num_phaser_oscs]).transpose()
 
         # specify sequence as a dict of blocks, where each block is a dict
         _sequence_blocks = [
@@ -277,7 +282,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.num_samples, 2)
+        return (self.num_samples, 3)
 
 
     # MAIN SEQUENCE
