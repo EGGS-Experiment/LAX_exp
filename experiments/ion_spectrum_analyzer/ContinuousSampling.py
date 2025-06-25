@@ -12,6 +12,10 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 # todo: check kernel invariants
 # todo: double check all arg names
 
+# tmp remove
+from artiq.coredevice import ad9910
+# tmp remove
+
 
 class ContinuousSampling(LAXExperiment, Experiment):
     """
@@ -30,7 +34,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         'rescue_subsequence', 'rap_subsequence',
 
         # configs
-        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs'
+        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr'
     }
 
     def build_experiment(self):
@@ -39,8 +43,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self._num_phaser_oscs = 5   # number of phaser oscillators in use
 
         # core arguments
-        self.setattr_argument("num_samples",        NumberValue(default=4, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("sample_period_ms",   NumberValue(default=10., precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
+        self.setattr_argument("num_samples",        NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("sample_period_ms",   NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC = 1
@@ -59,22 +63,22 @@ class ContinuousSampling(LAXExperiment, Experiment):
         # readout - RAP
         self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
         self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.0855, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
         self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
-        self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
+        self.setattr_argument("time_rap_us",            NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # waveform - global config
-        self.setattr_argument("att_phaser_db",          NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("freq_phaser_carrier_mhz", NumberValue(default=86, precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("phase_phaser_ch1_global_turns",  NumberValue(default=0.1, precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("att_phaser_db",          NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("freq_phaser_carrier_mhz", NumberValue(default=86.221, precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("phase_phaser_ch1_global_turns",  NumberValue(default=-0.138, precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.), group="{}.global".format(_argstr))
         self.setattr_argument("osc_num_target_list",    PYONValue([0, 1]), group="{}.global".format(_argstr))
 
         # waveform - custom specification
-        self.setattr_argument("time_osc_pulse_us",      NumberValue(default=500, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+        self.setattr_argument("time_osc_pulse_us",      NumberValue(default=50, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([-702., 702., -0.5, 0., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 1., 1., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_osc_khz_list",      PYONValue([-702., 702., -0.1, 0.1, 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 8., 8., 0.]), group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0.5, 0.]), group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_osc_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group="{}.waveform".format(_argstr))
 
@@ -132,8 +136,12 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
 
         '''HARDWARE VALUES - CONFIG'''
-        # convert argument units to whatever is most convenient for us
-        self.sample_period_mu = self.core.seconds_to_mu(self.sample_period_ms * ms)
+        # convert argument units to whatever is most convenient
+        # self.sample_period_mu = self.core.seconds_to_mu(self.sample_period_ms * ms)
+        self.sample_period_mu = np.int64(
+            round(self.core.seconds_to_mu(self.sample_period_ms * ms) / self.phaser_eggs.t_frame_mu) *
+            self.phaser_eggs.t_frame_mu
+        )   # ensure sample interval is a multiple of the phaser frame period
         self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
 
@@ -143,6 +151,23 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
+
+        # account for case when osc_num_target_list is empty
+        if len(self.osc_num_target_list) == 0:
+            self.osc_num_target_list = [-1]
+            self._enable_osc_clr = False
+        else:
+            self._enable_osc_clr = True
+
+        # tmp remove
+        self.ref = self.get_device('urukul1_ch2')
+        self.ref_att = att_to_mu(10. * dB)
+        self.ref_asf = self.ref.amplitude_to_asf(50. / 100.)
+        self.ref_pow = self.ref.turns_to_pow(0.)
+        self.ref_ftw = self.ref.frequency_to_ftw(self.freq_phaser_carrier_mhz * MHz)
+        kernel_invariants = getattr(self, "kernel_invariants", set())
+        self.kernel_invariants = kernel_invariants | {'ref', 'ref_att', 'ref_asf', 'ref_pow', 'ref_ftw'}
+        # tmp remove
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -201,7 +226,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
             raise ValueError("Invalid waveform configuration. Cannot have delays enabled without PSKing.")
 
         # ensure that osc_num_target_list contains a valid selection of oscillators
-        if not (
+        # todo: ensure no repeated values
+        if not(len(self.osc_num_target_list) == 0) and not (
                 all(isinstance(val, int) for val in self.osc_num_target_list) and
                 (max(self.osc_num_target_list) <= 4 and min(self.osc_num_target_list) >= 0) and
                 len(self.osc_num_target_list) <= 4
@@ -316,6 +342,16 @@ class ContinuousSampling(LAXExperiment, Experiment):
             self.phase_phaser_ch1_global_turns  # global CH1 phase
         )
 
+        # tmp remove
+        self.ref.sw.off()
+        self.core.break_realtime()
+        self.ref.cpld.get_att_mu()
+        self.core.break_realtime()
+        self.ref.set_att_mu(self.ref_att)
+        self.ref.cpld.set_profile(6)
+        self.ref.cpld.io_update.pulse_mu(8)
+        # tmp remove
+
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # load waveform DMA handles
@@ -324,7 +360,14 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # other setup
         _loop_iter = 0  # used to check_termination more frequently
-        _time_start_mu = now_mu()   # ensure samples are evenly spaced
+        _time_start_mu = now_mu() & ~0x7   # ensure samples are evenly spaced and synced to coarse RTIO
+
+        # tmp remove
+        self.ref.set_mu(self.ref_ftw, asf=self.ref_asf, pow_=self.ref_pow,
+                        phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=_time_start_mu,
+                        profile=6)
+        self.ref.sw.on()
+        # tmp remove
 
         # MAIN LOOP
         for sample_num in range(self.num_samples):
@@ -359,7 +402,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
             self.rescue_subsequence.detect_death(counts)
 
             # check termination more frequently in case reps are low
-            if _loop_iter % 50 == 0:
+            if _loop_iter % 100 == 0:
                 self.check_termination()
             _loop_iter += 1
 
@@ -378,8 +421,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
 
         # EGGS - RUN
-        # reset DUC phase to start DUC deterministically
-        self.phaser_eggs.reset_duc_phase()
+        # note: normally would have a reset_duc_phase here to start DUC deterministically,
+        # but we leave DUC running/untouched for this exp
         self.pulse_shaper.waveform_playback(waveform_id)
 
         # EGGS - STOP
@@ -402,14 +445,15 @@ class ContinuousSampling(LAXExperiment, Experiment):
                 delay_mu(self.phaser_eggs.t_sample_mu)
 
         # clear only phase accumulators of target oscs
-        for osc_num in self.osc_num_target_list:
-            with parallel:
-                self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-                self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(amplitude=0., phase=0., clr=1)
-                delay_mu(self.phaser_eggs.t_sample_mu)
+        if self._enable_osc_clr:
+            for osc_num in self.osc_num_target_list:
+                with parallel:
+                    self.phaser_eggs.channel[0].oscillator[osc_num].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+                    self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+                    delay_mu(self.phaser_eggs.t_sample_mu)
 
         # add delay for oscillator updates to account for pipeline latency
-        delay_mu(2560)  # 8 frame periods
+        delay_mu(2560)  # 8 frame periods - 2.56us
         # stop phaser amp switches & deactivate integrator hold
         with parallel:
             self.phaser_eggs.ch0_amp_sw.off()

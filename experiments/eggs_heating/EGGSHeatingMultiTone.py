@@ -196,7 +196,6 @@ class EGGSHeatingMultiTone(LAXExperiment, Experiment):
 
         '''EGGS HEATING - TIMING'''
         self.time_eggs_heating_mu = self.core.seconds_to_mu(self.time_eggs_heating_ms * ms)
-
         # ensure eggs heating time is a multiple of the phaser sample period
         # note: 1 frame period = 4 ns/clock * 8 clock cycles * 10 words = 320ns
         if self.time_eggs_heating_mu % self.phaser_eggs.t_sample_mu:
