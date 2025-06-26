@@ -1,5 +1,6 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice import ad9910
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -9,25 +10,21 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-# todo: check kernel invariants
 # todo: double check all arg names
-
-# tmp remove
-from artiq.coredevice import ad9910
-# tmp remove
 
 
 class ContinuousSampling(LAXExperiment, Experiment):
     """
     Experiment: Continuous Sampling
 
-    todo: document
+    Synchronized/correlation spectroscopy using a dynamical-decoupling protocol w/QVSA
+    for arbitrary frequency sensing.
     """
     name = 'Continuous Sampling'
     kernel_invariants = {
         # hardware values
-        'freq_osc_base_hz_list', 'freq_phaser_duc_hz', 'freq_global_offset_hz', 'att_phaser_mu', 'pulseshaper_vals',
-        'sample_period_mu',
+        'freq_osc_base_hz_list', 'freq_phaser_duc_hz', 'att_phaser_mu', 'pulseshaper_vals','sample_period_mu',
+        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
@@ -143,11 +140,10 @@ class ContinuousSampling(LAXExperiment, Experiment):
             self.phaser_eggs.t_frame_mu
         )   # ensure sample interval is a multiple of the phaser frame period
         self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
-        self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
 
         # convert build arguments to appropriate values and format as numpy arrays
-        self.freq_phaser_duc_hz = self.freq_phaser_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz
-        self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
+        self.freq_phaser_duc_hz = self.freq_phaser_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_mhz * MHz
+        self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()

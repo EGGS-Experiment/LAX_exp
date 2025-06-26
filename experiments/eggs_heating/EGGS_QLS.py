@@ -14,19 +14,17 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 
-class EggsQLS(LAXExperiment, Experiment):
+class EGGSQLS(LAXExperiment, Experiment):
     """
     Experiment: EGGS QLS
 
-    Cool the ions to the ground state of motion via sideband cooling,
-    then apply single blue sideband tone, and measure ion temperature
-    via sideband thermometry.
+    Single-tone EGGS-based Quantum Logic Spectroscopy.
+    Drive a motional BSB with a single tone, then apply a carrier pulse to reinitialize the state.
     """
     name = 'EGGS QLS'
     kernel_invariants = {
         # hardware parameters
-        'att_eggs_qls_mu', 'freq_eggs_secular_hz_list',
-        'phase_eggs_qls_ch1_turns_list', 'num_configs',
+        'att_eggs_qls_mu', 'freq_eggs_secular_hz_list', 'phase_eggs_qls_ch1_turns_list', 'num_configs',
         'waveform_index_to_pulseshaper_vals',
 
         # subsequences
@@ -38,6 +36,10 @@ class EggsQLS(LAXExperiment, Experiment):
     }
 
     def build_experiment(self):
+        # exp-specific variables
+        _argstr = "QLS"              # string to use for arguments
+        self._num_phaser_oscs = 5   # number of phaser oscillators in use
+
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("randomize_config", BooleanValue(default=True))
@@ -71,13 +73,15 @@ class EggsQLS(LAXExperiment, Experiment):
         ), group='sideband_readout')
 
         # RAP-based readout
-        self.setattr_argument("att_rap_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group="RAP")
-        self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",
-                              NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200), group='RAP')
-        self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4),
+        self.setattr_argument("att_rap_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit='dB', scale=1.),
+                              group="RAP")
+        self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50, unit='%', scale=1.),
+                              group="RAP")
+        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200, unit='MHz', scale=1.),
                               group='RAP')
-        self.setattr_argument("time_rap_us", NumberValue(default=200., precision=3, min=1, max=1e5, step=1),
+        self.setattr_argument("freq_rap_dev_khz",   NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit='kHz', scale=1.),
+                              group='RAP')
+        self.setattr_argument("time_rap_us", NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit='us', scale=1.),
                               group="RAP")
 
         # EGGS RF
@@ -88,7 +92,7 @@ class EggsQLS(LAXExperiment, Experiment):
             ],
             global_min=0.005, global_max=4800, global_step=1,
             unit="MHz", scale=1, precision=6
-        ), group='EGGS_QLS.frequencies')
+        ), group='{}.frequencies'.format(_argstr))
         self.setattr_argument("freq_eggs_qls_secular_khz_list", Scannable(
             default=[
                 ExplicitScan([1303]),
@@ -97,15 +101,13 @@ class EggsQLS(LAXExperiment, Experiment):
             ],
             global_min=0, global_max=10000, global_step=1,
             unit="kHz", scale=1, precision=3
-        ), group='EGGS_QLS.frequencies')
+        ), group='{}.frequencies'.format(_argstr))
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_eggs_qls_us",
-                              NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000),
-                              group='EGGS_QLS.waveform.time_phase')
-        self.setattr_argument("time_eggs_carrier_us",
-                              NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000),
-                              group='EGGS_QLS.waveform.time_phase')
+        self.setattr_argument("time_eggs_qls_us", NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
+                              group='{}.waveform.time_phase'.format(_argstr))
+        self.setattr_argument("time_eggs_carrier_us", NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
+                              group='{}.waveform.time_phase'.format(_argstr))
 
         self.setattr_argument("phase_eggs_qls_ch1_turns_list", Scannable(
             default=[
@@ -114,7 +116,7 @@ class EggsQLS(LAXExperiment, Experiment):
             ],
             global_min=-1.0, global_max=1.0, global_step=0.01,
             unit="turns", scale=1, precision=3
-        ), group='EGGS_QLS.waveform.time_phase')
+        ), group='{}.waveform.time_phase'.format(_argstr))
         self.setattr_argument("phase_eggs_qls_bsb_turns_list", Scannable(
             default=[
                 ExplicitScan([0]),
@@ -122,39 +124,32 @@ class EggsQLS(LAXExperiment, Experiment):
             ],
             global_min=-1.0, global_max=1.0, global_step=0.01,
             unit="turns", scale=1, precision=3
-        ), group='EGGS_QLS.waveform.time_phase')
+        ), group='{}.waveform.time_phase'.format(_argstr))
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_qls_db", NumberValue(default=25., precision=1, step=0.5, min=0, max=31.5),
-                              group='EGGS_QLS.waveform.ampl')
-        self.setattr_argument("ampl_eggs_qls_bsb_pct", NumberValue(default=40., precision=2, step=10, min=0.0, max=99),
-                              group='EGGS_QLS.waveform.ampl')
-        self.setattr_argument("ampl_eggs_qls_carrier_pct",
-                              NumberValue(default=40, precision=2, step=10, min=0.0, max=99),
-                              group='EGGS_QLS.waveform.ampl')
+        self.setattr_argument("att_eggs_qls_db", NumberValue(default=25., precision=1, step=0.5, min=0, max=31.5, unit='dB', scale=1.),
+                              group='{}.waveform.ampl'.format(_argstr))
+        self.setattr_argument("ampl_eggs_qls_bsb_pct", NumberValue(default=40., precision=2, step=10, min=0.0, max=99, unit='%', scale=1.),
+                              group='{}.waveform.ampl'.format(_argstr))
+        self.setattr_argument("ampl_eggs_qls_carrier_pct", NumberValue(default=40, precision=2, step=10, min=0.0, max=99, unit='%', scale=1.),
+                              group='{}.waveform.ampl'.format(_argstr))
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_qls_pulse_shaping", BooleanValue(default=False), group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("type_qls_pulse_shape",
-                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("time_qls_pulse_shape_rolloff_us",
-                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
-                              group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("freq_qls_pulse_shape_sample_khz",
-                              NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
-                              group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("enable_qls_pulse_shaping", BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("type_qls_pulse_shape", EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("time_qls_pulse_shape_rolloff_us", NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit='us', scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("freq_qls_pulse_shape_sample_khz", NumberValue(default=1000, precision=0, step=100, min=100, max=5000, unit='us', scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
 
-        self.setattr_argument("enable_carrier_pulse_shaping", BooleanValue(default=False), group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("type_carrier_pulse_shape",
-                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("time_carrier_pulse_shape_rolloff_us",
-                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000),
-                              group='EGGS_QLS.pulse_shaping')
-        self.setattr_argument("freq_carrier_pulse_shape_sample_khz",
-                              NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
-                              group='EGGS_QLS.pulse_shaping')
+        self.setattr_argument("enable_carrier_pulse_shaping", BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("type_carrier_pulse_shape", EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("time_carrier_pulse_shape_rolloff_us", NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit='us', scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("freq_carrier_pulse_shape_sample_khz", NumberValue(default=1000, precision=0, step=100, min=100, max=5000, unit='kHz', scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
 
         # instantiate RAP here
         self.rap_subsequence = QubitRAP(
@@ -165,8 +160,8 @@ class EggsQLS(LAXExperiment, Experiment):
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
         self.spinecho_wizard = SpinEchoWizardRDX(self)
-        self.pulse_shaper = PhaserPulseShaper(self, np.array(
-            [0., 0.5, 0.0, 0., 0.]))  # phase delays set field geometries (0.5 for osc_1 => dipole)
+        # phase delays set field geometries (0.5 for osc_1 => dipole)
+        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0.5, 0., 0., 0.]))
 
     def prepare_experiment(self):
         """
@@ -207,7 +202,6 @@ class EggsQLS(LAXExperiment, Experiment):
 
         # map phase to index to facilitate waveform recording
         self.waveform_index_to_phase_bsb_turns = np.arange(len(self.phase_eggs_qls_bsb_turns_list))
-
 
         # create config data structure
         self.config_experiment_list = np.zeros((
@@ -253,24 +247,23 @@ class EggsQLS(LAXExperiment, Experiment):
         # create separate bare waveform block sequences for CH0 and CH1
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        _sequence_blocks = np.zeros((num_blocks, 2, 2), dtype=float)
+        _osc_vals_blocks = np.zeros((num_blocks, 2, 2), dtype=float)
+        _osc_vals_blocks[0, 0, 0] = self.ampl_eggs_qls_bsb_pct
+        _osc_vals_blocks[1, 1, 0] = self.ampl_eggs_qls_carrier_pct
 
-        _sequence_blocks[0, 0, 0] = self.ampl_eggs_qls_bsb_pct
-        _sequence_blocks[1, 1, 0] = self.ampl_eggs_qls_carrier_pct
-
-        # no phase delay needed for carrier or bsb
+        # note: no phase delay needed for carrier or bsb
 
         '''COMPILE WAVEFORM SEQUENCE'''
         for i, phase in enumerate(self.phase_eggs_qls_bsb_turns_list):
             # create local copy of _sequence_blocks
             # note: no need to deep copy b/c it's filled w/immutables
             # note: have to obtain different copies so they don't point to same object and overwrite it
-            _sequence_blocks_local = np.copy(_sequence_blocks)
-            _sequence_blocks_local[0, 0, 1] += phase
+            _osc_vals_blocks_local = np.copy(_osc_vals_blocks)
+            _osc_vals_blocks_local[0, 0, 1] += phase
 
             _sequence_blocks_local = [
                 {
-                    "oscillator_parameters": _sequence_blocks_local[0, :, :],
+                    "oscillator_parameters": _osc_vals_blocks_local[0, :, :],
                     "config": {
                         "time_us": self.time_eggs_qls_us,
                         "pulse_shaping": self.enable_qls_pulse_shaping,
@@ -284,7 +277,7 @@ class EggsQLS(LAXExperiment, Experiment):
                     }
                 },
                 {
-                    "oscillator_parameters": _sequence_blocks_local[1, :, :],
+                    "oscillator_parameters": _osc_vals_blocks_local[1, :, :],
                     "config": {
                         "time_us": self.time_eggs_carrier_us,
                         "pulse_shaping": self.enable_carrier_pulse_shaping,
@@ -300,8 +293,7 @@ class EggsQLS(LAXExperiment, Experiment):
             ]
 
             # compile waveform and store in holding structure
-            self.waveform_index_to_pulseshaper_vals.append(
-                self.spinecho_wizard.compile_waveform(_sequence_blocks_local))
+            self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.compile_waveform(_sequence_blocks_local))
 
     def _prepare_argument_checks(self):
         """
@@ -359,7 +351,6 @@ class EggsQLS(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             # implement sub-repetitions here to avoid initial overhead
             _subrep_iter = 0
             _config_iter = 0
@@ -369,16 +360,16 @@ class EggsQLS(LAXExperiment, Experiment):
                 self.core.break_realtime()
 
                 '''CONFIGURE'''
-                config_vals = self.config_experiment_list[_config_iter]
                 # extract values from config list
-                freq_readout_ftw = np.int32(config_vals[0])
-                carrier_freq_hz = config_vals[1]
-                sideband_freq_hz = config_vals[2]
-                phase_bsb_index = np.int32(config_vals[3])
-                phase_ch1_turns = config_vals[4]
-                time_readout_mu = np.int64(config_vals[5])
-                phase_bsb_turns = self.phase_eggs_qls_bsb_turns_list[phase_bsb_index]
-                waveform_id = self.waveform_index_to_pulseshaper_id[phase_bsb_index]
+                config_vals = self.config_experiment_list[_config_iter]
+                freq_readout_ftw =  np.int32(config_vals[0])
+                carrier_freq_hz =   config_vals[1]
+                sideband_freq_hz =  config_vals[2]
+                phase_bsb_index =   np.int32(config_vals[3])
+                phase_ch1_turns =   config_vals[4]
+                time_readout_mu =   np.int64(config_vals[5])
+                phase_bsb_turns =   self.phase_eggs_qls_bsb_turns_list[phase_bsb_index]
+                waveform_id =       self.waveform_index_to_pulseshaper_id[phase_bsb_index]
 
                 # configure EGGS tones and set readout frequency
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
@@ -450,6 +441,7 @@ class EggsQLS(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+
     '''
     HELPER FUNCTIONS - PHASER
     '''
@@ -480,9 +472,9 @@ class EggsQLS(LAXExperiment, Experiment):
         Set up core phaser functionality and record the pulse-shaped waveforms.
         Should be run during initialize_experiment.
         """
-        # record phaser sequences onto DMA for each bSB phase
+        # record phaser sequences onto DMA for each BSB phase
         for i in range(len(self.phase_eggs_qls_bsb_turns_list)):
-            # get waveform for given RSB phase
+            # get waveform for given BSB phase
             _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
             self.core.break_realtime()
 
@@ -491,57 +483,6 @@ class EggsQLS(LAXExperiment, Experiment):
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
-    def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
-                         phase_ch1_offset_turns: TFloat) -> TNone:
-        """
-        Configure the tones on phaser for EGGS.
-        Puts the BSB on both channels, and sets the second oscillator to 0 Hz for carrier pulse.
-
-        Arguments:
-            carrier_freq_hz         (float)     : the carrier frequency (in Hz).
-            sideband_freq_hz        (float)     : the sideband frequency (in Hz).
-            phase_ch1_offset_turns  (float)     : the phase offset for CH1 (in turns).
-        """
-        '''
-        CALCULATE PHASE DELAYS
-        '''
-        # calculate phase delays between CH0 and CH1, accounting for the relative CH1 latency
-        phase_ch1_turns = phase_ch1_offset_turns + (carrier_freq_hz * self.phaser_eggs.time_latency_ch1_system_ns * ns)
-
-        '''
-        SET CARRIER FREQUENCY
-        '''
-        # set carrier offset frequency via the DUC
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        self.phaser_eggs.channel[1].set_duc_frequency(carrier_freq_hz - self.phaser_eggs.freq_center_hz)
-        delay_mu(self.phaser_eggs.t_frame_mu)
-        # strobe updates for both channels
-        self.phaser_eggs.duc_stb()
-
-        # set DUC phase delay to compensate for inter-channel latency
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[1].set_duc_phase(phase_ch1_turns)
-        self.phaser_eggs.duc_stb()
-
-        '''
-        SET OSCILLATOR (i.e. sideband) FREQUENCIES
-        '''
-        # synchronize to frame
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        # set oscillator 0 (BSB)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[0].set_frequency(sideband_freq_hz)
-            self.phaser_eggs.channel[1].oscillator[0].set_frequency(sideband_freq_hz)
-            delay_mu(self.phaser_eggs.t_sample_mu)
-        # set oscillator 1 (carrier)
-        with parallel:
-            self.phaser_eggs.channel[0].oscillator[1].set_frequency(0.)
-            self.phaser_eggs.channel[1].oscillator[1].set_frequency(0.)
-            delay_mu(self.phaser_eggs.t_sample_mu)
 
     '''
     ANALYSIS
