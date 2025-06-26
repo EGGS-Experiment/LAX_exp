@@ -38,7 +38,6 @@ class EGGSQLS(LAXExperiment, Experiment):
     def build_experiment(self):
         # exp-specific variables
         _argstr = "QLS"              # string to use for arguments
-        self._num_phaser_oscs = 5   # number of phaser oscillators in use
 
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=100000))
@@ -88,7 +87,8 @@ class EGGSQLS(LAXExperiment, Experiment):
         self.setattr_argument("freq_eggs_qls_carrier_mhz_list", Scannable(
             default=[
                 ExplicitScan([80.]),
-                CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                CenterScan(83.20175, 0.05, 0.0005, randomize=False),
+                RangeScan(82, 84, 100, randomize=False),
             ],
             global_min=0.005, global_max=4800, global_step=1,
             unit="MHz", scale=1, precision=6
