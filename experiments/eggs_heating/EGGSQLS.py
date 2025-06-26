@@ -40,10 +40,10 @@ class EGGSQLS(LAXExperiment, Experiment):
         _argstr = "QLS"              # string to use for arguments
 
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("randomize_config", BooleanValue(default=True))
+        self.setattr_argument("repetitions", NumberValue(default=80, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config", BooleanValue(default=False))
         self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500))
-        self.setattr_argument("readout_type", EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
+        self.setattr_argument("readout_type", EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
 
         # allocate relevant beam profiles
         self.profile_729_readout = 0
@@ -104,9 +104,9 @@ class EGGSQLS(LAXExperiment, Experiment):
         ), group='{}.frequencies'.format(_argstr))
 
         # EGGS RF - waveform - timing & phase
-        self.setattr_argument("time_eggs_qls_us", NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
+        self.setattr_argument("time_eggs_qls_us", NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
                               group='{}.waveform.time_phase'.format(_argstr))
-        self.setattr_argument("time_eggs_carrier_us", NumberValue(default=50000000, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
+        self.setattr_argument("time_eggs_carrier_us", NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000, unit='us', scale=1.),
                               group='{}.waveform.time_phase'.format(_argstr))
 
         self.setattr_argument("phase_eggs_qls_ch1_turns_list", Scannable(
@@ -127,7 +127,7 @@ class EGGSQLS(LAXExperiment, Experiment):
         ), group='{}.waveform.time_phase'.format(_argstr))
 
         # EGGS RF - waveform - amplitude - general
-        self.setattr_argument("att_eggs_qls_db", NumberValue(default=25., precision=1, step=0.5, min=0, max=31.5, unit='dB', scale=1.),
+        self.setattr_argument("att_eggs_qls_db", NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5, unit='dB', scale=1.),
                               group='{}.waveform.ampl'.format(_argstr))
         self.setattr_argument("ampl_eggs_qls_bsb_pct", NumberValue(default=40., precision=2, step=10, min=0.0, max=99, unit='%', scale=1.),
                               group='{}.waveform.ampl'.format(_argstr))
