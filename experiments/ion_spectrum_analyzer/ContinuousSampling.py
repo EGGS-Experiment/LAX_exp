@@ -254,7 +254,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         else:
             num_blocks = 1
             block_time_list_us = [self.time_osc_pulse_us]
-            block_ampl_scale_list = [1] * (self.num_psk_phase_shifts + 1)
+            block_ampl_scale_list = [1]
 
         '''PROGRAM & COMPILE WAVEFORM'''
         # create bare waveform block sequence & set amplitudes

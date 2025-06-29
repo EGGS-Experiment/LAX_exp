@@ -301,9 +301,9 @@ class GKPCharacteristicReconstruction(LAXExperiment, Experiment):
         """
         '''SUPERRESOLUTION - ARGUMENT CHECKS'''
         # check that input amplitude/phase arrays are valid
-            if np.sum(self.ampl_squeezing_frac) >= 100.:
-                raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
-            if np.abs(self.freq_squeezing_khz*kHz +  self.freq_global_offset_mhz * MHz) > 10 * MHz:
+        if np.sum(self.ampl_squeezing_frac) >= 100.:
+            raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
+        if np.abs(self.freq_squeezing_khz*kHz +  self.freq_global_offset_mhz * MHz) > 10 * MHz:
             raise ValueError("Error: phaser oscillator frequencies outside valid range of [-10, 10] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
