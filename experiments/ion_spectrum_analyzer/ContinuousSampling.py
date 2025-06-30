@@ -160,9 +160,10 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.ref_att = att_to_mu(10. * dB)
         self.ref_asf = self.ref.amplitude_to_asf(50. / 100.)
         self.ref_pow = self.ref.turns_to_pow(0.)
-        self.ref_ftw = self.ref.frequency_to_ftw(self.freq_phaser_carrier_mhz * MHz)
+        # self.ref_ftw = self.ref.frequency_to_ftw(self.freq_phaser_carrier_mhz * MHz)
         kernel_invariants = getattr(self, "kernel_invariants", set())
-        self.kernel_invariants = kernel_invariants | {'ref', 'ref_att', 'ref_asf', 'ref_pow', 'ref_ftw'}
+        # self.kernel_invariants = kernel_invariants | {'ref', 'ref_att', 'ref_asf', 'ref_pow', 'ref_ftw'}
+        self.kernel_invariants = kernel_invariants | {'ref', 'ref_att', 'ref_asf', 'ref_pow'}
         # tmp remove
 
     def _prepare_argument_checks(self) -> TNone:
@@ -359,10 +360,10 @@ class ContinuousSampling(LAXExperiment, Experiment):
         _time_start_mu = now_mu() & ~0x7   # ensure samples are evenly spaced and synced to coarse RTIO
 
         # tmp remove
-        self.ref.set_mu(self.ref_ftw, asf=self.ref_asf, pow_=self.ref_pow,
-                        phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=_time_start_mu,
-                        profile=6)
-        self.ref.sw.on()
+        # self.ref.set_mu(self.ref_ftw, asf=self.ref_asf, pow_=self.ref_pow,
+        #                 phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=_time_start_mu,
+        #                 profile=6)
+        # self.ref.sw.on()
         # tmp remove
 
         # MAIN LOOP
