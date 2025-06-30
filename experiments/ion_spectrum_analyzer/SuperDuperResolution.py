@@ -449,7 +449,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 freq_update_list = self.freq_superresolution_osc_base_hz_list + freq_sweep_hz * self.freq_update_arr
                 self.phaser_eggs.frequency_configure(
                     # carrier frequency (via DUC)
-                    carrier_freq_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
+                    carrier_freq_hz - self.freq_global_offset_hz,
                     # oscillator frequencies
                     [freq_update_list[0], freq_update_list[1],
                      freq_update_list[2], freq_update_list[3], 0.],

@@ -455,7 +455,7 @@ class GKPCharacteristicReconstruction(LAXExperiment, Experiment):
                 # set phaser frequency
                 self.phaser_eggs.frequency_configure(
                     # carrier frequency (via DUC)
-                    self.freq_carrier_hz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_hz,
+                    self.freq_carrier_hz - self.freq_global_offset_hz,
                     # oscillator frequencies
                     [self.freq_squeezing_hz, -self.freq_squeezing_hz, 0., 0., 0.],
                     self.phase_ch1_turns

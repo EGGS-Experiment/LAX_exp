@@ -23,7 +23,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
     name = 'Continuous Sampling'
     kernel_invariants = {
         # hardware values
-        'freq_osc_base_hz_list', 'freq_phaser_duc_hz', 'att_phaser_mu', 'pulseshaper_vals','sample_period_mu',
+        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals','sample_period_mu',
         'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         # subsequences
@@ -142,7 +142,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
 
         # convert build arguments to appropriate values and format as numpy arrays
-        self.freq_phaser_duc_hz = self.freq_phaser_carrier_mhz * MHz - self.phaser_eggs.freq_center_hz - self.freq_global_offset_mhz * MHz
+        self.freq_phaser_carrier_hz = self.freq_phaser_carrier_mhz * MHz - self.freq_global_offset_mhz * MHz
         self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
 
         # configure waveform via pulse shaper & spin echo wizard
@@ -331,7 +331,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # configure global phaser configs (e.g. DUC)
         self.phaser_eggs.frequency_configure(
-            self.freq_phaser_duc_hz,    # carrier frequency (via DUC)
+            self.freq_phaser_carrier_hz,    # carrier frequency (via DUC)
             # oscillator frequencies
             [self.freq_osc_base_hz_list[0], self.freq_osc_base_hz_list[1], self.freq_osc_base_hz_list[2],
              self.freq_osc_base_hz_list[3], self.freq_osc_base_hz_list[4]],

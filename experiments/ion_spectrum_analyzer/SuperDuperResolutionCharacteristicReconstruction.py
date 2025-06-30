@@ -232,8 +232,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         '''HARDWARE VALUES - CONFIG'''
         self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
-        self.freq_phaser_center_hz = (self.freq_eggs_heating_carrier_mhz * MHz  - self.phaser_eggs.freq_center_hz -
-                                      self.freq_global_offset_mhz * MHz)
+        self.freq_phaser_center_hz = (self.freq_eggs_heating_carrier_mhz - self.freq_global_offset_mhz) * MHz
         self.freq_superresolution_osc_base_hz_list = (np.array(self.freq_superresolution_osc_khz_list) * kHz +
                                                       self.freq_global_offset_mhz * MHz)
 
@@ -567,7 +566,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
                 # set phaser frequency
                 self.phaser_eggs.frequency_configure(
-                    # carrier frequency (via DUC) - freq_eggs_heating_carrier_hz - phaser_eggs.freq_center_hz - freq_global_offset_hz
+                    # carrier frequency (via DUC): freq_eggs_heating_carrier_hz - freq_global_offset_hz
                     self.freq_phaser_center_hz,
                     # oscillator frequencies
                     [self.freq_superresolution_osc_base_hz_list[0], self.freq_superresolution_osc_base_hz_list[1],
