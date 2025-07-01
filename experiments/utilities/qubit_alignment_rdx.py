@@ -9,14 +9,14 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.MeanFilter import MeanFilter
 
 
-class QubitAlignment(LAXExperiment, Experiment):
+class QubitAlignmentRDX(LAXExperiment, Experiment):
     """
-    Utility: Qubit Alignment
+    Utility: Qubit Alignment RDX
 
     Excite a dark-state qubit transition for a short, fixed time
     to examine the qubit beam alignment.
     """
-    name = 'Qubit Alignment'
+    name = 'Qubit Alignment RDX'
     kernel_invariants = {
         # conversions etc
         "time_per_point_us", "repetitions", "_iter_repetitions", "_iter_loop",
