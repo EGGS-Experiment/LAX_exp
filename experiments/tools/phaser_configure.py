@@ -158,6 +158,83 @@ TRF_CONFIG_781_MHZ_CH1 = {
     'pllbias_rtrim':        0b10
 }
 
+TRF_CONFIG_1000_MHZ_CH0 = {
+    # LO (i.e. carrier) frequency config
+    'pll_div_sel':          0b01,
+    'rdiv':                 2,
+    'nint':                 32,
+    'prsc_sel':             0,
+    'cal_clk_sel':          0b1110, # f_PFD / cal_clk_sel should be ~ 1MHz and > 0.1 MHz
+
+    'icp':                  0b00000,
+    'icp_double':           0,
+
+    # freq division config
+    'lo_div_sel':           0b11,
+    'lo_div_bias':          0b00,
+    'bufout_bias':          0b00,
+
+    'tx_div_sel':           0b10,
+    'tx_div_bias':          0b11,
+
+    # quadrature modulation compensation (carrier feedthrough)
+    # note: for ioff & qoff, mid-range (i.e. 0x88) is zero,
+    # 0x00 is most negative, 0xFF is most positive
+    'ioff':                 0x02,   # 8b
+    'qoff':                 0x81,   # 8b
+    'dcoffset_i':           0b01,
+
+    # vco config
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+
+    'pllbias_rtrim':        0b10
+}
+
+TRF_CONFIG_1000_MHZ_CH1 = {
+    # LO (i.e. carrier) frequency config
+    'pll_div_sel':          0b01,
+    'rdiv':                 2,
+    'nint':                 32,
+    'prsc_sel':             0,
+    'cal_clk_sel':          0b1110, # f_PFD / cal_clk_sel should be ~ 1MHz and > 0.1 MHz
+
+    'icp':                  0b00000,
+    'icp_double':           0,
+
+    # freq division config
+    'lo_div_sel':           0b11,
+    'lo_div_bias':          0b00,
+    'bufout_bias':          0b00,
+
+    'tx_div_sel':           0b10,
+    'tx_div_bias':          0b11,
+
+    # quadrature modulation compensation (carrier feedthrough)
+    # note: for ioff & qoff, mid-range (i.e. 0x88) is zero,
+    # 0x00 is most negative, 0xFF is most positive
+    'ioff':                 0xCA,   # 8b
+    'qoff':                 0x94,   # 8b
+    'dcoffset_i':           0b10,
+
+    # vco config
+    'vco_bias':             0x8,
+    'vcobias_rtrim':        0b110,
+    'vcobuf_bias':          0b10,
+
+    'vcomux_bias':          0b11,
+    'vco_ampl_ctrl':        0b11,
+    'vco_vb_ctrl':          0b00,
+    'vref_sel':             0b100,
+
+    'pllbias_rtrim':        0b10
+}
+
 DAC_CONFIG_302_MHZ = {
     # general config
     'fifo_offset':          5,
@@ -255,7 +332,7 @@ class PhaserConfigure(EnvExperiment):
         # frequency configuration
         self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-400., max=400.))
         # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
-        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
+        self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239", "1000.003065"], default="302.083853"))
 
     def _get_phaser_devices(self):
         """
@@ -303,6 +380,11 @@ class PhaserConfigure(EnvExperiment):
                 self.phaser.channel[0].trf_mmap = TRF372017(TRF_CONFIG_302_MHZ_CH0).get_mmap()
                 self.phaser.channel[1].trf_mmap = TRF372017(TRF_CONFIG_302_MHZ_CH1).get_mmap()
                 self.phaser.dac_mmap = DAC34H84(DAC_CONFIG_302_MHZ).get_mmap()
+            elif self.freq_trf_mhz == "1000.003065":
+                self.phaser.channel[0].trf_mmap = TRF372017(TRF_CONFIG_1000_MHZ_CH0).get_mmap()
+                self.phaser.channel[1].trf_mmap = TRF372017(TRF_CONFIG_1000_MHZ_CH1).get_mmap()
+                # todo: sort out DAC config for 1GHz operation
+                self.phaser.dac_mmap = DAC34H84(DAC_CONFIG_781_MHZ).get_mmap()
             else:
                 raise Exception("Invalid TRF frequency.")
 
