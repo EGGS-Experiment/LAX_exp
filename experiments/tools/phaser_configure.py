@@ -182,18 +182,21 @@ TRF_CONFIG_1000_MHZ_CH0 = {
     # 0x00 is most negative, 0xFF is most positive
     'ioff':                 0x02,   # 8b
     'qoff':                 0x81,   # 8b
-    'dcoffset_i':           0b01,
+    'dcoffset_i':           0b01
 
-    # vco config
-    'vco_bias':             0x8,
-    'vcobias_rtrim':        0b110,
-    'vcobuf_bias':          0b10,
-
-    'vcomux_bias':          0b11,
-    'vco_ampl_ctrl':        0b11,
-    'vco_vb_ctrl':          0b00,
-
-    'pllbias_rtrim':        0b10
+    # 2025/07/01: had to remove VCO settings since TRF was constantly getting unlocked ONLY
+    # FOR CHANNEL 1 - CH0 had no problems at all - however, commenting these out for BOTH CH0 and CH1
+    #
+    # # vco config
+    # 'vco_bias':             0x8,
+    # 'vcobias_rtrim':        0b110,
+    # 'vcobuf_bias':          0b10,
+    #
+    # 'vcomux_bias':          0b11,
+    # 'vco_ampl_ctrl':        0b11,
+    # 'vco_vb_ctrl':          0b00,
+    #
+    # 'pllbias_rtrim':        0b10
 }
 
 TRF_CONFIG_1000_MHZ_CH1 = {
@@ -220,19 +223,21 @@ TRF_CONFIG_1000_MHZ_CH1 = {
     # 0x00 is most negative, 0xFF is most positive
     'ioff':                 0xCA,   # 8b
     'qoff':                 0x94,   # 8b
-    'dcoffset_i':           0b10,
+    'dcoffset_i':           0b10
 
-    # vco config
-    'vco_bias':             0x8,
-    'vcobias_rtrim':        0b110,
-    'vcobuf_bias':          0b10,
-
-    'vcomux_bias':          0b11,
-    'vco_ampl_ctrl':        0b11,
-    'vco_vb_ctrl':          0b00,
-    'vref_sel':             0b100,
-
-    'pllbias_rtrim':        0b10
+    # 2025/07/01: had to remove VCO settings since TRF was constantly getting unlocked ONLY
+    # FOR CHANNEL 1 - CH0 had no problems at all - however, commenting these out for BOTH CH0 and CH1
+    #
+    # # vco config
+    # 'vco_bias':             0x8,
+    # 'vcobias_rtrim':        0b110,
+    # 'vcobuf_bias':          0b10,
+    #
+    # 'vcomux_bias':          0b11,
+    # 'vco_ampl_ctrl':        0b11,
+    # 'vco_vb_ctrl':          0b00,
+    #
+    # 'pllbias_rtrim':        0b10
 }
 
 DAC_CONFIG_302_MHZ = {
