@@ -526,7 +526,7 @@ class LAXExperiment(LAXEnvironment, ABC):
     '''
 
     @rpc(flags={"async"})
-    def update_results(self, *args):
+    def update_results(self, *args) -> TNone:
         """
         Records data from the main sequence in the experiment dataset.
 

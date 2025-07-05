@@ -3,25 +3,25 @@ LAX.analysis.processing
 
 Contains helpful/commonly used modules for processing datasets.
 """
+__all__ = [
+    'findThresholdScikit', 'findThresholdPeaks',
+    'groupBy', 'groupBy2',
+    'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
+    'convert_ratios_to_squeezed_phonons', 'process_laser_scan_results'
+]
 
-__all__ = ['findThresholdScikit', 'findThresholdPeaks',
-           'groupBy', 'groupBy2',
-           'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
-           'convert_ratios_to_squeezed_phonons', 'process_laser_scan_results']
-
-
-# necessary imports
 import numpy as np
 from itertools import groupby
 
-# from scipy.stats import iqr
 from scipy.signal import find_peaks
-# from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
-from skimage.filters import threshold_multiotsu, threshold_minimum
 from scipy.special import factorial
 from scipy.interpolate import interp1d
+from skimage.filters import threshold_multiotsu, threshold_minimum
 
 from LAX_exp.extensions.conversions import *
+
+# from scipy.stats import iqr
+# from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
 
 
 '''

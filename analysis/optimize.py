@@ -3,11 +3,8 @@ LAX.analysis.optimize
 
 Contains modules used for optimization.
 """
-
 __all__ = ['complexLinearFit', 'complexLinearFitMinimize']
 
-
-# necessary imports
 import numpy as np
 from scipy.optimize import lsq_linear
 # todo: write an optimizer/gradient descent module
