@@ -10,8 +10,6 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-# todo: double check all arg names
-
 
 class ContinuousSampling(LAXExperiment, Experiment):
     """
@@ -23,7 +21,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
     name = 'Continuous Sampling'
     kernel_invariants = {
         # hardware values
-        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals','sample_period_mu',
+        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals', 'sample_period_mu',
         'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         # subsequences
@@ -31,72 +29,104 @@ class ContinuousSampling(LAXExperiment, Experiment):
         'rescue_subsequence', 'rap_subsequence',
 
         # configs
-        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr'
+        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts'
     }
 
     def build_experiment(self):
         # exp-specific variables
-        _argstr = "CS"              # string to use for arguments
-        self._num_phaser_oscs = 5   # number of phaser oscillators in use
+        _argstr = "CS"  # string to use for arguments
+        self._num_phaser_oscs = 5  # number of phaser oscillators in use
+        self._burst_samples = 25  # number of experiment shots to burst submit (for latency/slack reasons)
 
         # core arguments
-        self.setattr_argument("num_samples",        NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("sample_period_ms",   NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
+        self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("sample_period_ms",
+                              NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC = 1
         self.profile_729_RAP = 2
 
         # get subsequences
-        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
         )
-        self.initialize_subsequence =       InitializeQubit(self)
-        self.readout_subsequence =          Readout(self)
-        self.rescue_subsequence =           RescueIon(self)
+        self.initialize_subsequence = InitializeQubit(self)
+        self.readout_subsequence = Readout(self)
+        self.rescue_subsequence = RescueIon(self)
 
         # readout - RAP
-        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.0855, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
-        self.setattr_argument("time_rap_us",            NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
+        self.setattr_argument("att_rap_db",
+                              NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.),
+                              group="RAP")
+        self.setattr_argument("ampl_rap_pct",
+                              NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.),
+                              group="RAP")
+        self.setattr_argument("freq_rap_center_mhz",
+                              NumberValue(default=101.0855, precision=6, step=1e-2, min=60, max=200, unit="MHz",
+                                          scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz",
+                              NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.),
+                              group='RAP')
+        self.setattr_argument("time_rap_us",
+                              NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.),
+                              group="RAP")
 
         # waveform - global config
-        self.setattr_argument("att_phaser_db",          NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("freq_phaser_carrier_mhz", NumberValue(default=86.221, precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("phase_phaser_ch1_global_turns",  NumberValue(default=-0.138, precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.), group="{}.global".format(_argstr))
-        self.setattr_argument("osc_num_target_list",    PYONValue([0, 1]), group="{}.global".format(_argstr))
+        self.setattr_argument("att_phaser_db",
+                              NumberValue(default=10., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
+                              group="{}.global".format(_argstr))
+        self.setattr_argument("freq_phaser_carrier_mhz",
+                              NumberValue(default=86.221, precision=7, step=1, min=0.001, max=4800, unit="MHz",
+                                          scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("freq_global_offset_mhz",
+                              NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
+                              group="{}.global".format(_argstr))
+        self.setattr_argument("phase_phaser_ch1_global_turns",
+                              NumberValue(default=-0.138, precision=3, step=0.05, min=-1.1, max=1.1, unit="turns",
+                                          scale=1.), group="{}.global".format(_argstr))
+        self.setattr_argument("osc_num_target_list", PYONValue([0, 1]), group="{}.global".format(_argstr))
 
         # waveform - custom specification
-        self.setattr_argument("time_osc_pulse_us",      NumberValue(default=50, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+        self.setattr_argument("time_osc_pulse_us",
+                              NumberValue(default=50, precision=2, step=500, min=0.04, max=100000000, unit="us",
+                                          scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([-702., 702., -0.1, 0.1, 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 8., 8., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0.5, 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_osc_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_osc_khz_list", PYONValue([-702., 702., -0.1, 0.1, 0.]),
+                              group="{}.waveform".format(_argstr))
+        self.setattr_argument("ampl_osc_frac_list", PYONValue([40., 40., 8., 8., 0.]),
+                              group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_osc_turns_list", PYONValue([0., 0., 0., 0.5, 0.]),
+                              group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.]),
+                              group="{}.waveform".format(_argstr))
 
         # waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("type_pulse_shape",       EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False),
                               group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
+        self.setattr_argument("type_pulse_shape",
+                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
                               group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
+        self.setattr_argument("time_pulse_shape_rolloff_us",
+                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("freq_pulse_shape_sample_khz",
+                              NumberValue(default=1500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
 
         # waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=True), group="{}.psk".format(_argstr))
-        self.setattr_argument("enable_psk_delay",           BooleanValue(default=True), group="{}.psk".format(_argstr))
-        self.setattr_argument("time_psk_delay_us",          NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_osc0_psk_turns",       PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_osc1_psk_turns",       PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_osc2_psk_turns",       PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_osc3_psk_turns",       PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_osc4_psk_turns",       PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("enable_phase_shift_keying", BooleanValue(default=True), group="{}.psk".format(_argstr))
+        self.setattr_argument("enable_psk_delay", BooleanValue(default=True), group="{}.psk".format(_argstr))
+        self.setattr_argument("time_psk_delay_us",
+                              NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.),
+                              group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc0_psk_turns", PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc1_psk_turns", PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc2_psk_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc3_psk_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc4_psk_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format(_argstr))
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -125,6 +155,13 @@ class ContinuousSampling(LAXExperiment, Experiment):
         # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
         self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_osc_ch1_offset_turns))
 
+        # for convenience/later speed, we rigidly group samples into a "burst"
+        self._num_bursts = round(self.num_samples / self._burst_samples) * self._burst_samples
+        self._counts_burst = np.zeros(self._burst_samples, dtype=np.int32)
+        self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)
+        self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64)
+        self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)
+
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
         self.freq_rap_center_ftw = hz_to_ftw(self.freq_rap_center_mhz * MHz)
@@ -134,10 +171,11 @@ class ContinuousSampling(LAXExperiment, Experiment):
         '''HARDWARE VALUES - CONFIG'''
         # convert argument units to whatever is most convenient
         # self.sample_period_mu = self.core.seconds_to_mu(self.sample_period_ms * ms)
+        # ensure sample interval is a multiple of the phaser frame period
         self.sample_period_mu = np.int64(
             round(self.core.seconds_to_mu(self.sample_period_ms * ms) / self.phaser_eggs.t_frame_mu) *
             self.phaser_eggs.t_frame_mu
-        )   # ensure sample interval is a multiple of the phaser frame period
+        )
         self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
 
         # convert build arguments to appropriate values and format as numpy arrays
@@ -155,6 +193,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
             self._enable_osc_clr = True
 
         # tmp remove
+        # prepare reference DDS
         self.ref = self.get_device('urukul1_ch2')
         self.ref_att = att_to_mu(10. * dB)
         self.ref_asf = self.ref.amplitude_to_asf(50. / 100.)
@@ -172,7 +211,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         # check that input amplitude/phase arrays are valid
         if isinstance(self.ampl_osc_frac_list, list):
             if len(self.ampl_osc_frac_list) != self._num_phaser_oscs:
-                raise ValueError("Error: phaser oscillator amplitude array must have length {:d}.".format(self._num_phaser_oscs))
+                raise ValueError(
+                    "Error: phaser oscillator amplitude array must have length {:d}.".format(self._num_phaser_oscs))
             elif np.sum(self.ampl_osc_frac_list) >= 100.:
                 raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
         else:
@@ -180,7 +220,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         if isinstance(self.phase_osc_turns_list, list):
             if len(self.phase_osc_turns_list) != self._num_phaser_oscs:
-                raise ValueError("Error: phaser oscillator phase array must have length {:d}.".format(self._num_phaser_oscs))
+                raise ValueError(
+                    "Error: phaser oscillator phase array must have length {:d}.".format(self._num_phaser_oscs))
         else:
             raise ValueError("Error: phaser oscillator phase array must be a list.")
 
@@ -188,7 +229,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         if not isinstance(self.freq_osc_khz_list, list):
             raise ValueError("Error: phaser oscillator frequency array must be a list.")
         elif len(self.freq_osc_khz_list) != self._num_phaser_oscs:
-            raise ValueError("Error: phaser oscillator frequency array must have length {:d}.".format(self._num_phaser_oscs))
+            raise ValueError(
+                "Error: phaser oscillator frequency array must have length {:d}.".format(self._num_phaser_oscs))
         max_osc_freq_hz = (
                 max(self.freq_osc_khz_list) * kHz +
                 (self.freq_global_offset_mhz * MHz)
@@ -224,7 +266,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # ensure that osc_num_target_list contains a valid selection of oscillators
         # todo: ensure no repeated values
-        if not(len(self.osc_num_target_list) == 0) and not (
+        if not (len(self.osc_num_target_list) == 0) and not (
                 all(isinstance(val, int) for val in self.osc_num_target_list) and
                 (max(self.osc_num_target_list) <= 4 and min(self.osc_num_target_list) >= 0) and
                 len(self.osc_num_target_list) <= 4
@@ -238,8 +280,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         """
         '''PREPARE WAVEFORM COMPILATION'''
         # create holding structures for EGGS pulse waveforms
-        self.pulseshaper_vals = None        # store compiled waveforms from pulseshaper
-        self.pulseshaper_id =   np.int32(0) # store waveform ID for pulseshaper
+        self.pulseshaper_vals = None  # store compiled waveforms from pulseshaper
+        self.pulseshaper_id = np.int32(0)  # store waveform ID for pulseshaper
 
         # calculate block timings and scale amplitudes for ramsey-ing
         num_psk_blocks = len(self.phase_osc0_psk_turns)
@@ -275,14 +317,16 @@ class ContinuousSampling(LAXExperiment, Experiment):
             if self.enable_psk_delay:
                 # note: use ::2 since we only update to non-delay blocks
                 _osc_vals_blocks[::2, :, 1] += np.array([
-                    self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                    self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
-                ][:self._num_phaser_oscs]).transpose()
+                                                            self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
+                                                            self.phase_osc2_psk_turns,
+                                                            self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+                                                        ][:self._num_phaser_oscs]).transpose()
             else:
                 _osc_vals_blocks[:, :, 1] += np.array([
-                    self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                    self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
-                ][:self._num_phaser_oscs]).transpose()
+                                                          self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
+                                                          self.phase_osc2_psk_turns,
+                                                          self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+                                                      ][:self._num_phaser_oscs]).transpose()
 
         # specify sequence as a dict of blocks, where each block is a dict
         _sequence_blocks = [
@@ -292,11 +336,11 @@ class ContinuousSampling(LAXExperiment, Experiment):
                     "time_us": block_time_list_us[i],
                     "pulse_shaping": self.enable_pulse_shaping,
                     "pulse_shaping_config": {
-                        "pulse_shape":          self.type_pulse_shape,
-                        "pulse_shape_rising":   self.enable_pulse_shaping,
-                        "pulse_shape_falling":  self.enable_pulse_shaping,
-                        "sample_rate_khz":      self.freq_pulse_shape_sample_khz,
-                        "rolloff_time_us":      self.time_pulse_shape_rolloff_us
+                        "pulse_shape": self.type_pulse_shape,
+                        "pulse_shape_rising": self.enable_pulse_shaping,
+                        "pulse_shape_falling": self.enable_pulse_shaping,
+                        "sample_rate_khz": self.freq_pulse_shape_sample_khz,
+                        "rolloff_time_us": self.time_pulse_shape_rolloff_us
                     }
                 }
             } for i in range(num_blocks)
@@ -308,23 +352,48 @@ class ContinuousSampling(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.num_samples, 3)
 
-
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # record general subsequences onto DMA
-        self.initialize_subsequence.record_dma()
-        self.sidebandcool_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
-        self.core.break_realtime()
-
-        # configure RAP pulse
+        """
+        Initialize relevant components of the experiment in-kernel immediately before run.
+        """
+        # configure RAP pulse for DMA recording
         self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
         delay_mu(25000)
 
-        ### PHASER INITIALIZATION ###
-        self.phaser_record()
+        # get phaser waveform for PulseShaper
+        # note: we don't do any error checking here, so have to be really sure all OK
+        ampl_frac_list, phas_turns_list, sample_interval_mu_list = self.pulseshaper_vals
+        self.core.break_realtime()
 
+        # record full sequence for burst reasons
+        delay_mu(1000000)  # add slack
+        # align to phaser frame for later deterministic playback
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        with self.core_dma.record('_SEQUENCE_SHOT'):
+            '''STATE PREPARATION'''
+            self.initialize_subsequence.run()
+            self.sidebandcool_subsequence.run()
+
+            '''WAVEFORM SEQUENCE'''
+            # prepare phaser for output
+            self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
+            # run oscillator waveform
+            for i in range(len(ampl_frac_list)):
+                self.pulse_shaper._waveform_point(ampl_frac_list[i], phas_turns_list[i])
+                delay_mu(sample_interval_mu_list[i])
+            # stop phaser output
+            self.phaser_stop_rdx()
+
+            '''READOUT (RAP-BASED)'''
+            self.qubit.set_att_mu(self.att_rap_mu)
+            self.rap_subsequence.run_rap(self.time_rap_mu)
+            self.readout_subsequence.run()
+        self.core.break_realtime()
+
+
+        ### PHASER INITIALIZATION ###
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att_mu(0x00)
@@ -333,7 +402,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # configure global phaser configs (e.g. DUC)
         self.phaser_eggs.frequency_configure(
-            self.freq_phaser_carrier_hz,    # carrier frequency (via DUC)
+            self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
             # oscillator frequencies
             [self.freq_osc_base_hz_list[0], self.freq_osc_base_hz_list[1], self.freq_osc_base_hz_list[2],
              self.freq_osc_base_hz_list[3], self.freq_osc_base_hz_list[4]],
@@ -341,6 +410,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         )
 
         # tmp remove
+        # initialize reference DDS
         self.ref.sw.off()
         self.core.break_realtime()
         self.ref.cpld.get_att_mu()
@@ -352,81 +422,108 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load waveform DMA handles
-        self.pulse_shaper.waveform_load()
+        # load sequence DMA handle
+        self._sequence_dma_handle = self.core_dma.get_handle('_SEQUENCE_SHOT')
         delay_mu(500000)
 
         # other setup
-        _loop_iter = 0  # used to check_termination more frequently
-        _time_start_mu = now_mu() & ~0x7   # ensure samples are evenly spaced and synced to coarse RTIO
+        _time_curr_mu = self.phaser_eggs.get_next_frame_mu()  # ensure samples are evenly spaced & aligned to phaser frame
 
         # tmp remove
+        # # set reference DDS
         # self.ref.set_mu(self.ref_ftw, asf=self.ref_asf, pow_=self.ref_pow,
-        #                 phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=_time_start_mu,
+        #                 phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=_time_curr_mu,
         #                 profile=6)
         # self.ref.sw.on()
         # tmp remove
 
         # MAIN LOOP
-        for sample_num in range(self.num_samples):
-            # ensure results are samples are evenly/deterministically spaced
-            at_mu(_time_start_mu + (sample_num + 1) * self.sample_period_mu)
+        for burst_num in range(self._num_bursts):
 
-            '''STATE PREPARATION'''
-            self.initialize_subsequence.run_dma()
-            self.sidebandcool_subsequence.run_dma()
+            # burst sequence for low latency
+            # todo: ensure that _time_curr_mu isn't passed by ref here => fuck the timing
+            _time_curr_mu = self.burst_sequence(_time_curr_mu)
 
-            '''WAVEFORM SEQUENCE'''
-            self.phaser_run(self.pulseshaper_id)
-
-            '''READOUT (RAP-BASED)'''
-            self.qubit.set_att_mu(self.att_rap_mu)
-            self.rap_subsequence.run_rap(self.time_rap_mu)
-            self.readout_subsequence.run_dma()
-            _time_stop_mu = now_mu()    # record stop time
-            counts = self.readout_subsequence.fetch_count()
-
-            # update dataset
-            self.update_results(
-                _time_start_mu + (sample_num + 1) * self.sample_period_mu,
-                counts,
-                _time_stop_mu
-            )
-            self.core.break_realtime()
+            # burst readout & store results quickly
+            self.burst_readout()
 
             '''LOOP CLEANUP'''
-            # resuscitate ion & detect deaths
-            self.rescue_subsequence.resuscitate()
-            self.rescue_subsequence.detect_death(counts)
+            # note: don't need rescue since we can't afford the latency for e.g. aperture_open anyways
+            # # resuscitate ion & detect deaths
+            # self.core.break_realtime()
+            # self.rescue_subsequence.resuscitate()
+            # self.rescue_subsequence.detect_death(counts)
 
             # check termination more frequently in case reps are low
-            if _loop_iter % 100 == 0:
-                self.check_termination()
-            _loop_iter += 1
+            self.check_termination()
 
 
     '''
-    HELPER FUNCTIONS - PHASER
+    HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def phaser_run(self, waveform_id: TInt32) -> TNone:
+    def burst_sequence(self, t_start_mu: TInt64) -> TInt64:
         """
-        Run the main EGGS pulse together with supporting functionality.
-        Arguments:
-            waveform_id     (TInt32)    : the ID of the waveform to run.
+        todo: document
         """
-        # EGGS - START/SETUP
-        self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
+        # run a number of shots in a "burst" (for latency/slack)
+        for sample_num in range(self._burst_samples):
+            # ensure results are samples are evenly/deterministically spaced
+            # note: sample_period_mu already multiple of phaser t_frame (see prepare_experiment)
+            #       so no need to separately align to phaser frame
+            t_start_mu += self.sample_period_mu
+            at_mu(t_start_mu)
+            self.core_dma.playback_sequence_handle(self._sequence_dma_handle)
 
-        # EGGS - RUN
-        # note: normally would have a reset_duc_phase here to start DUC deterministically,
-        # but we leave DUC running/untouched for this exp
-        self.pulse_shaper.waveform_playback(waveform_id)
+            # record start and stop times
+            self._times_start_burst[sample_num] = t_start_mu
+            self._times_stop_burst[sample_num] = now_mu()
 
-        # EGGS - STOP
-        # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
-        # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
-        self.phaser_stop_rdx()
+        return t_start_mu
+
+    @kernel(flags={"fast-math"})
+    def burst_readout(self) -> TNone:
+        """
+        todo: document
+        """
+        # burst readout
+        for sample_num in range(self._burst_samples):
+            self._counts_burst[sample_num] = self.readout_subsequence.fetch_count()
+            delay_mu(5000) # add minor slack
+
+        # update dataset
+        self.update_results(
+            self._times_start_burst,
+            self._counts_burst,
+            self._times_stop_burst
+        )
+
+    @rpc(flags={"async"})
+    def update_results(self, time_start_arr_mu: TArray(TInt64), count_arr: TArray(TInt32),
+                       time_stop_arr_mu: TArray(TInt64)) -> TNone:
+        """
+        Records data from the main sequence in the experiment dataset.
+
+        Parameters passed to this function will be converted into a 1D array and added to the dataset.
+        For efficiency, data is added by mutating indices of a preallocated dataset.
+        Contains an internal iterator to keep track of the current index.
+        """
+        # todo: fix this & document
+        # store results in main dataset
+        self.mutate_dataset('results', self._result_iter, np.array(args))
+
+        # do intermediate processing
+        if (self._result_iter % self._dynamic_reduction_factor) == 0:
+            # plot counts in real-time to monitor ion death
+            self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
+            self._counts_iter += 1
+
+            # monitor completion status
+            self.set_dataset('management.dynamic.completion_pct',
+                             round(self._result_iter * self._completion_iter_to_pct, 3),
+                             broadcast=True, persist=True, archive=False)
+        # increment result iterator
+        self._result_iter += 1
 
     @kernel(flags={"fast-math"})
     def phaser_stop_rdx(self) -> TNone:
@@ -466,18 +563,4 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_frame_mu)
         self.phaser_eggs.channel[1].set_att_mu(0x00)
-
-    @kernel(flags={"fast-math"})
-    def phaser_record(self) -> TNone:
-        """
-        Set up core phaser functionality and record the pulse-shaped waveforms.
-        Should be run during initialize_experiment.
-        """
-        # get waveform for given sweep phase
-        _wav_data_ampl, _wav_data_phas, _wav_data_time = self.pulseshaper_vals
-
-        # record phaser pulse sequence and save returned waveform ID
-        delay_mu(1000000)  # 1ms
-        self.pulseshaper_id = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
-        self.core.break_realtime()
 

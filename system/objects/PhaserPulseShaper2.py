@@ -35,7 +35,7 @@ class PhaserPulseShaper2(LAXEnvironment):
         if (isinstance(phase_offsets_turns, list) or isinstance(phase_offsets_turns, np.ndarray)) and len(phase_offsets_turns) == 5:
             self.phase_offsets_turns = phase_offsets_turns
         else:
-            raise Exception("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
+            raise ValueError("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
 
     def prepare(self):
         """
@@ -82,17 +82,17 @@ class PhaserPulseShaper2(LAXEnvironment):
 
         # ensure all inputs have correct dimensionality
         if not ((len_ampls == len_phases) and (len_phases == len_times)):
-            raise Exception("Error: waveform arrays do not have same sizes.")
+            raise ValueError("Error: waveform arrays do not have same sizes.")
 
         # ensure oscillator updates have correct dimensionality
         if not (num_ampl_vals == num_phas_vals):
-            raise Exception("Error: waveform arrays do not have same sizes.")
+            raise ValueError("Error: waveform arrays do not have same sizes.")
         elif (num_ampl_vals > 5) or (num_phas_vals > 5):
-            raise Exception("Error: waveform arrays exceed number of oscillators.")
+            raise ValueError("Error: waveform arrays exceed number of oscillators.")
 
         # ensure we haven't exceeded max number of waveforms
         if self._num_waveforms > self._max_waveforms:
-            raise Exception("Error: too many waveforms recorded.")
+            raise ValueError("Error: too many waveforms recorded.")
 
 
         '''RECORD WAVEFORMS'''
