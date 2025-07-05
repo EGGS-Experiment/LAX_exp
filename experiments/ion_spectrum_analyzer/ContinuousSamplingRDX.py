@@ -9,16 +9,19 @@ from LAX_exp.system.subsequences import (
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+# todo: check on scope that signals are OK; use ref DDS
 
 
-class ContinuousSampling(LAXExperiment, Experiment):
+class ContinuousSamplingRDX(LAXExperiment, Experiment):
     """
-    Experiment: Continuous Sampling
+    Experiment: Continuous Sampling RDX
 
     Synchronized/correlation spectroscopy using a dynamical-decoupling protocol w/QVSA
     for arbitrary frequency sensing.
+
+    Uses burst sequencing/readout to reduce latency/improve sample rate.
     """
-    name = 'Continuous Sampling'
+    name = 'Continuous Sampling RDX'
     kernel_invariants = {
         # hardware values
         'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals', 'sample_period_mu',
@@ -40,8 +43,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # core arguments
         self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("sample_period_ms",
-                              NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
+        self.setattr_argument("sample_period_ms", NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC = 1
@@ -352,6 +354,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.num_samples, 3)
 
+
     # MAIN SEQUENCE
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
@@ -439,20 +442,12 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for burst_num in range(self._num_bursts):
-
             # burst sequence for low latency
             # todo: ensure that _time_curr_mu isn't passed by ref here => fuck the timing
             _time_curr_mu = self.burst_sequence(_time_curr_mu)
 
             # burst readout & store results quickly
             self.burst_readout()
-
-            '''LOOP CLEANUP'''
-            # note: don't need rescue since we can't afford the latency for e.g. aperture_open anyways
-            # # resuscitate ion & detect deaths
-            # self.core.break_realtime()
-            # self.rescue_subsequence.resuscitate()
-            # self.rescue_subsequence.detect_death(counts)
 
             # check termination more frequently in case reps are low
             self.check_termination()
@@ -510,20 +505,20 @@ class ContinuousSampling(LAXExperiment, Experiment):
         """
         # todo: fix this & document
         # store results in main dataset
-        self.mutate_dataset('results', self._result_iter, np.array(args))
+        res_arr = np.array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
+        # todo: use multidimensional slicing from mutate_dataset
+        self.mutate_dataset('results', self._result_iter, res_arr)
 
         # do intermediate processing
-        if (self._result_iter % self._dynamic_reduction_factor) == 0:
-            # plot counts in real-time to monitor ion death
-            self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
-            self._counts_iter += 1
-
-            # monitor completion status
-            self.set_dataset('management.dynamic.completion_pct',
-                             round(self._result_iter * self._completion_iter_to_pct, 3),
-                             broadcast=True, persist=True, archive=False)
-        # increment result iterator
-        self._result_iter += 1
+        # plot counts in real-time to monitor ion death
+        # todo: use multidimensional slicing from mutate_dataset
+        # todo: make it not _counts_iter, but something else
+        self.mutate_dataset('temp.counts.trace', self._counts_iter, count_arr)
+        # monitor completion status
+        self.set_dataset('management.dynamic.completion_pct',
+                         round(self._result_iter * self._completion_iter_to_pct, 3),
+                         broadcast=True, persist=True, archive=False)
+        self._result_iter += self._burst_samples    # increment result iterator
 
     @kernel(flags={"fast-math"})
     def phaser_stop_rdx(self) -> TNone:
