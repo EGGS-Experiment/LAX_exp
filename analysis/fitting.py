@@ -3,21 +3,19 @@ LAX.analysis.fitting
 
 Contains modules used for fitting datasets.
 """
+__all__ = [
+    'fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
+    'fitSinc', 'fitSincGeneric', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
+    'fitLine', 'fitLineLinear'
+]
 
-__all__ = ['fitDampedOscillator', 'fitDampedDrivenOscillatorAmplitude', 'fitDampedDrivenOscillatorPhase',
-           'fitSinc', 'fitSincGeneric', 'fitGaussian', 'fitLorentzian', 'fitVoigt',
-           'fitLine', 'fitLineLinear']
-
-# necessary imports
 import numpy as np
-from scipy.special import wofz
 from scipy.optimize import curve_fit, least_squares, lsq_linear
+
 
 '''
 Fitting: Oscillators
 '''
-
-
 class fitDampedOscillator:
     """
     Fit exponentially damped harmonic oscillator to data.

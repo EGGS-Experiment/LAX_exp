@@ -3,7 +3,6 @@ LAX.analysis
 
 Contains all standard analysis modules for the EGGS Experiment at UCLA.
 """
-
 __all__ = []
 
 # processing
