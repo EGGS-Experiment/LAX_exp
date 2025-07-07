@@ -32,7 +32,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         'rescue_subsequence', 'rap_subsequence',
 
         # configs
-        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts'
+        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr',
+        '_burst_samples', '_num_bursts'
     }
 
     def build_experiment(self):
@@ -459,7 +460,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def burst_sequence(self, t_start_mu: TInt64) -> TInt64:
         """
-        todo: document
+        Submit a number of experimental sequences in "burst" format.
+        :param t_start_mu: the reference start time (in mu).
         """
         # run a number of shots in a "burst" (for latency/slack)
         for sample_num in range(self._burst_samples):
@@ -479,7 +481,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def burst_readout(self) -> TNone:
         """
-        todo: document
+        Read a number of PMT counts in "burst" format.
+        Values are stored in self._burst_samples.
         """
         # burst readout
         for sample_num in range(self._burst_samples):
@@ -497,28 +500,31 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
     def update_results(self, time_start_arr_mu: TArray(TInt64), count_arr: TArray(TInt32),
                        time_stop_arr_mu: TArray(TInt64)) -> TNone:
         """
+        Overload LAX_exp.base_experiment to allow burst updates.
         Records data from the main sequence in the experiment dataset.
-
-        Parameters passed to this function will be converted into a 1D array and added to the dataset.
-        For efficiency, data is added by mutating indices of a preallocated dataset.
-        Contains an internal iterator to keep track of the current index.
         """
-        # todo: fix this & document
         # store results in main dataset
         res_arr = np.array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
-        # todo: use multidimensional slicing from mutate_dataset
-        self.mutate_dataset('results', self._result_iter, res_arr)
+        num_values = len(res_arr)
+        self.mutate_dataset('results', (self._result_iter, self._result_iter + num_values), res_arr)
 
-        # do intermediate processing
-        # plot counts in real-time to monitor ion death
-        # todo: use multidimensional slicing from mutate_dataset
-        # todo: make it not _counts_iter, but something else
-        self.mutate_dataset('temp.counts.trace', self._counts_iter, count_arr)
-        # monitor completion status
+        # get select values for count monitoring
+        counts_tmp = [
+            count_val
+            for idx, count_val in enumerate(count_arr)
+            if (idx + self._result_iter) % self._dynamic_reduction_factor == 0
+        ]
+        num_counts = len(counts_tmp)
+        self.mutate_dataset('temp.counts.trace',
+                            (self._counts_iter, self._counts_iter + num_counts),
+                            num_counts)
+        self._counts_iter += num_counts
+
+        # update completion status
         self.set_dataset('management.dynamic.completion_pct',
                          round(self._result_iter * self._completion_iter_to_pct, 3),
                          broadcast=True, persist=True, archive=False)
-        self._result_iter += self._burst_samples    # increment result iterator
+        self._result_iter += num_values
 
     @kernel(flags={"fast-math"})
     def phaser_stop_rdx(self) -> TNone:

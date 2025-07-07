@@ -10,8 +10,6 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-# todo: double check all arg names
-
 
 class ContinuousSampling(LAXExperiment, Experiment):
     """
