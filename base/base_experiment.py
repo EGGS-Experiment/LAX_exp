@@ -543,8 +543,9 @@ class LAXExperiment(LAXEnvironment, ABC):
             self.mutate_dataset('temp.counts.trace', self._counts_iter, args[1])
             self._counts_iter += 1
 
-            # monitor completion status
-            self.set_dataset('management.dynamic.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+            # update completion status for completion monitor applet
+            self.set_dataset('management.dynamic.completion_pct',
+                             round(self._result_iter * self._completion_iter_to_pct, 3),
                              broadcast=True, persist=True, archive=False)
 
         # increment result iterator
