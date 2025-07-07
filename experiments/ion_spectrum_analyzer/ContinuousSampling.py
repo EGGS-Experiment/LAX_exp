@@ -352,7 +352,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        delay_mu(500000)
+        self.core.break_realtime()
 
         # other setup
         _loop_iter = 0  # used to check_termination more frequently
