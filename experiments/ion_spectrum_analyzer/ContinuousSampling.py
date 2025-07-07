@@ -38,8 +38,8 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self._num_phaser_oscs = 5   # number of phaser oscillators in use
 
         # core arguments
-        self.setattr_argument("num_samples",        NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("sample_period_ms",   NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
+        self.setattr_argument("num_samples",        NumberValue(default=10000, precision=0, step=1, min=1, max=10000000))
+        self.setattr_argument("sample_period_ms",   NumberValue(default=22.1134, precision=6, min=5, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC = 1

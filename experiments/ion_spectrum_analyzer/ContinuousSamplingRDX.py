@@ -43,8 +43,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         self._burst_samples =   50  # number of experiment shots to burst submit (for latency/slack reasons)
 
         # core arguments
-        self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("sample_period_ms", NumberValue(default=22.1134, precision=6, min=12, max=1e5, step=1, unit="ms", scale=1.))
+        self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=10000000))
+        self.setattr_argument("sample_period_ms", NumberValue(default=22.1134, precision=6, min=5, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC = 1
@@ -501,8 +501,7 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         for sample_num in self._tmp_idx_burst_samples:
             self._counts_burst[sample_num] = self.readout_subsequence.fetch_count()
 
-        # note: add slack all at once instead of inside the loop
-        # to reduce overhead
+        # note: add slack all at once instead of inside the loop to reduce overhead
         delay_mu(50000)
 
         # update dataset
