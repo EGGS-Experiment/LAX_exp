@@ -39,8 +39,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
     def build_experiment(self):
         # exp-specific variables
         _argstr = "CS"  # string to use for arguments
-        self._num_phaser_oscs = 5  # number of phaser oscillators in use
-        self._burst_samples = 25  # number of experiment shots to burst submit (for latency/slack reasons)
+        self._num_phaser_oscs = 5   # number of phaser oscillators in use
+        self._burst_samples =   50  # number of experiment shots to burst submit (for latency/slack reasons)
 
         # core arguments
         self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
@@ -159,11 +159,17 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_osc_ch1_offset_turns))
 
         # for convenience/later speed, we rigidly group samples into a "burst"
-        self._num_bursts = round(self.num_samples / self._burst_samples) * self._burst_samples
-        self._counts_burst = np.zeros(self._burst_samples, dtype=np.int32)
-        self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)
-        self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64)
-        self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)
+        self._num_bursts = round(self.num_samples / self._burst_samples)
+        # NOTE: WE REDEFINE num_samples HERE TO BE MULTIPLE OF _num_bursts
+        self.num_samples = self._num_bursts * self._burst_samples
+        self._counts_burst = np.zeros(self._burst_samples, dtype=np.int32)      # store burst counts
+        self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64) # store burst start times
+        self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)  # store burst stop times
+        self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)        # store sequence DMA handle
+        # tmp remove yzde
+        self.t_start_mu = np.int64(0)
+        self._tmp_idx_burst_samples = list(range(self._burst_samples))
+        # tmp remove yzde
 
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
@@ -401,7 +407,7 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         # set maximum attenuations for phaser outputs to prevent leakage
         at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[0].set_att_mu(0x00)
-        delay_mu(self.phaser_eggs.t_sample_mu)
+        at_mu(self.phaser_eggs.get_next_frame_mu())
         self.phaser_eggs.channel[1].set_att_mu(0x00)
 
         # configure global phaser configs (e.g. DUC)
@@ -412,11 +418,11 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
              self.freq_osc_base_hz_list[3], self.freq_osc_base_hz_list[4]],
             self.phase_phaser_ch1_global_turns  # global CH1 phase
         )
+        self.core.break_realtime()
 
         # tmp remove
         # initialize reference DDS
         self.ref.sw.off()
-        self.core.break_realtime()
         self.ref.cpld.get_att_mu()
         self.core.break_realtime()
         self.ref.set_att_mu(self.ref_att)
@@ -428,10 +434,12 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # load sequence DMA handle
         self._sequence_dma_handle = self.core_dma.get_handle('_SEQUENCE_SHOT')
-        delay_mu(500000)
+        self.core.break_realtime()  # add slack
 
         # other setup
-        _time_curr_mu = self.phaser_eggs.get_next_frame_mu()  # ensure samples are evenly spaced & aligned to phaser frame
+        delay_mu(10000000) # add 10ms slack before beginning (just in case)
+        # _time_curr_mu = self.phaser_eggs.get_next_frame_mu()  # ensure samples are evenly spaced & aligned to phaser frame
+        self.t_start_mu = self.phaser_eggs.get_next_frame_mu()  # ensure samples are evenly spaced & aligned to phaser frame
 
         # tmp remove
         # # set reference DDS
@@ -445,38 +453,43 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         for burst_num in range(self._num_bursts):
             # burst sequence for low latency
             # todo: ensure that _time_curr_mu isn't passed by ref here => fuck the timing
-            _time_curr_mu = self.burst_sequence(_time_curr_mu)
+            # _time_curr_mu = self.burst_sequence(_time_curr_mu)
+            self.burst_sequence()
 
             # burst readout & store results quickly
             self.burst_readout()
 
-            # check termination more frequently in case reps are low
-            self.check_termination()
+            # # check termination more frequently in case reps are low
+            # self.check_termination()
 
 
     '''
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def burst_sequence(self, t_start_mu: TInt64) -> TInt64:
+    def burst_sequence(self) -> TNone:
+    # def burst_sequence(self, t_start_mu: TInt64) -> TInt64:
         """
         Submit a number of experimental sequences in "burst" format.
         :param t_start_mu: the reference start time (in mu).
         """
         # run a number of shots in a "burst" (for latency/slack)
-        for sample_num in range(self._burst_samples):
+        # for sample_num in range(self._burst_samples):
+        for sample_num in self._tmp_idx_burst_samples:
             # ensure results are samples are evenly/deterministically spaced
             # note: sample_period_mu already multiple of phaser t_frame (see prepare_experiment)
             #       so no need to separately align to phaser frame
-            t_start_mu += self.sample_period_mu
-            at_mu(t_start_mu)
-            self.core_dma.playback_sequence_handle(self._sequence_dma_handle)
+            # t_start_mu += self.sample_period_mu
+            # at_mu(t_start_mu)
+            self.t_start_mu += self.sample_period_mu
+            at_mu(self.t_start_mu)
+            self.core_dma.playback_handle(self._sequence_dma_handle)
 
             # record start and stop times
-            self._times_start_burst[sample_num] = t_start_mu
+            # self._times_start_burst[sample_num] = t_start_mu
+            self._times_start_burst[sample_num] = self.t_start_mu
             self._times_stop_burst[sample_num] = now_mu()
-
-        return t_start_mu
+        # return t_start_mu
 
     @kernel(flags={"fast-math"})
     def burst_readout(self) -> TNone:
@@ -485,9 +498,12 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         Values are stored in self._burst_samples.
         """
         # burst readout
-        for sample_num in range(self._burst_samples):
+        for sample_num in self._tmp_idx_burst_samples:
             self._counts_burst[sample_num] = self.readout_subsequence.fetch_count()
-            delay_mu(5000) # add minor slack
+
+        # note: add slack all at once instead of inside the loop
+        # to reduce overhead
+        delay_mu(50000)
 
         # update dataset
         self.update_results(
