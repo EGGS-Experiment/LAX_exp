@@ -524,15 +524,15 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         self.mutate_dataset('results', (self._result_iter, self._result_iter + num_values), res_arr)
 
         # get select values for count monitoring
-        counts_tmp = [
+        counts_tmp = np.array([
             count_val
             for idx, count_val in enumerate(count_arr)
             if (idx + self._result_iter) % self._dynamic_reduction_factor == 0
-        ]
+        ])
         num_counts = len(counts_tmp)
         self.mutate_dataset('temp.counts.trace',
                             (self._counts_iter, self._counts_iter + num_counts),
-                            num_counts)
+                            counts_tmp)
         self._counts_iter += num_counts
 
         # update completion status
