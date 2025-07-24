@@ -21,7 +21,7 @@ class Flipper(LAXDevice):
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.labjack = self.cxn.labjack_server
 
-        self.flipper_port_name = "DIO3"
+        self.flipper_port_name = "EIO7"
 
         device_handle = self.labjack.device_info()
         if device_handle == -1:
