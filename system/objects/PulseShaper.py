@@ -63,7 +63,7 @@ def nuttall(time_arr, time_rolloff, kwargs={}):
             0.355768 +
             -0.487396 * np.cos(2. * x_vals_readjusted) +
             0.144232 * np.cos(4. * x_vals_readjusted) +
-            0.012604 * np.cos(6. * x_vals_readjusted)
+            -0.012604 * np.cos(6. * x_vals_readjusted)
     )
 
 def generalized_cosine(time_arr, time_rolloff, kwargs={}):
@@ -82,7 +82,7 @@ def generalized_cosine(time_arr, time_rolloff, kwargs={}):
     # create window based off coefficients
     # todo: maybe normalize window vals? idk
     return np.sum([
-        ((-1)**i) * (2 * i) * coeffs[i]  * np.cos(i * x_vals_readjusted)
+        ((-1)**i) * coeffs[i] * np.cos(2 * i * x_vals_readjusted)
         for i in range(len(coeffs))
     ], axis=0)
     # print(np.shape(np.sum([
@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
     # prepare values
     _time_rollon_arb = 100
-    _x_vals = np.linspace(0., 100., 100)
+    _x_vals = np.linspace(0., 200., 100)
     shape_list = [
         # {
         #     "time_rollon_arb": _time_rollon_arb,
