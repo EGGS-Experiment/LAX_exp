@@ -51,13 +51,28 @@ def blackman(time_arr, time_rolloff, kwargs={}):
             0.08 * np.cos(4. * x_vals_readjusted)
     )
 
+def nuttall(time_arr, time_rolloff, kwargs={}):
+    """
+    Nuttall window (continuous first derivative) (rising edge only).
+    """
+    # rescale x-axis to the rolloff-time (rising edge only)
+    scale_factor_x = (np.pi / 2.) / time_rolloff
+    x_vals_readjusted = scale_factor_x * time_arr
+    # calculate window
+    return (
+            0.355768 +
+            -0.487396 * np.cos(2. * x_vals_readjusted) +
+            0.144232 * np.cos(4. * x_vals_readjusted) +
+            0.012604 * np.cos(6. * x_vals_readjusted)
+    )
+
 def generalized_cosine(time_arr, time_rolloff, kwargs={}):
     """
     Generalized cosine window (rising edge only).
     kwargs:
         coefficients: a list of coefficients for each term. Should be nonnegative.
     """
-    # retrieve coefficients
+    # retrieve coefficients - default is [a0 = 0]
     coeffs = kwargs.get("coefficients", [0])
 
     # rescale x-axis to the rolloff-time (rising edge only)
@@ -133,6 +148,7 @@ available_pulse_shapes = {
 
     "sine_squared": sine_squared,
     "blackman": blackman,
+    "nuttall": nuttall,
     "generalized_cosine": generalized_cosine,
 
     "gaussian": gaussian,
@@ -145,6 +161,7 @@ available_pulse_shapes = {
 if __name__ == "__main__":
     """
     Test pulse shaping
+    # todo: use list of available_pulse_shapes instead of generating our own shape_list lmao
     """
     import matplotlib.pyplot as plt
 
@@ -170,8 +187,13 @@ if __name__ == "__main__":
         {
             "time_rollon_arb": _time_rollon_arb,
             "x_vals": _x_vals,
+            "pulse_shape": 'nuttall'
+        },
+        {
+            "time_rollon_arb": _time_rollon_arb,
+            "x_vals": _x_vals,
             "kwargs": {
-                "coefficients": [0.42, 0.5, 0.08]
+                "coefficients": [0.42, 0.5, 0.08] # approximate blackman coefficients
             },
             "pulse_shape": 'generalized_cosine'
         },
@@ -229,7 +251,7 @@ if __name__ == "__main__":
         ps_dict.update(
             {
                 "fft_x_vals": np.arange(0., 0.5 * max_freq, freq_resolution),
-                "fft_y_vals": np.abs(np.fft.fft(ps_dict["y_vals"], norm="forward")[:len(x_vals) // 2])
+                "fft_y_vals": np.abs(np.fft.fft(ps_dict["y_vals"], norm="forward")[:len(x_vals) // 2]) ** 2.
             }
         )
 
@@ -240,11 +262,10 @@ if __name__ == "__main__":
             label="{:s} @ {:4g}".format(ps_dict["pulse_shape"], ps_dict["time_rollon_arb"])
         )
     plt.title("Pulse Shape Testing\nFFT")
-    # plt.ylim(0., 1)
-    plt.xlabel("Frequency (arb Hz)")
+    plt.xlabel("Frequency (bins)")
     # plt.xscale("log")
-    plt.ylabel("Amplitude (fractional)")
-    # plt.yscale("log")
+    plt.ylabel("Power (dB)")
+    plt.yscale("log")
     plt.legend()
     plt.grid(visible=True)
     plt.show()
