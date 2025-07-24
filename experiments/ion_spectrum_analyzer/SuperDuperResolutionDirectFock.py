@@ -1,6 +1,6 @@
 import numpy as np
 from artiq.experiment import *
-from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, _AD9910_REG_CFR1, RAM_DEST_ASF
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -10,13 +10,9 @@ from LAX_exp.system.subsequences import (
 
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
-# todo: record unb onto DMA
 # todo: add time sweep
 # todo: migrate to SpinEchoWizardRDX
 
-# todo: add pulse shaping
-# todo: ensure phase autoclear not hit
-# todo: simplify pulsing - only trigger as needed
 # todo: setup & configure pulse shape
 
 
@@ -72,8 +68,8 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
             num_samples=200
         )
         self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_PS, ram_addr_start=301,
-            num_samples=600, ampl_max_pct=50.
+            self, ram_profile=self.profile_729_PS, ram_addr_start=401,
+            num_samples=600, ampl_max_pct=50., pulse_shape='blackman'
         )
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
         self.initialize_subsequence =       InitializeQubit(self)
@@ -172,7 +168,7 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
 
         # instantiate RAP here since it relies on experiment arguments
         self.rap_subsequence = QubitRAP(
-            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=51,
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=125,
             ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
 
@@ -183,6 +179,10 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
         """
         Prepare experimental values.
         """
+        # tmp remove UNB
+        self.pulseshape_subsequence.ampl_max_pct = self.sidebandreadout_subsequence.ampl_sideband_readout_pct
+        # tmp remove UNB
+
         '''SANITIZE & VALIDATE INPUTS'''
         self._prepare_argument_checks()
 
@@ -516,7 +516,7 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
                 if not self.enable_RAP:
                     _time_UNB_pulse_mu = self.pulseshape_subsequence.configure(time_readout_mu)
                     # set beam parameters
-                    self.qubit.set_ftw(freq_ftw)
+                    self.qubit.set_ftw(freq_readout_ftw)
                     self.qubit.set_pow(0)
                 delay_mu(500000) # add severe slack
                 # tmp remove - UNB
@@ -538,7 +538,7 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
                     self.rap_subsequence.run_rap(time_readout_mu)
                 else:
                     # self.sidebandreadout_subsequence.run_time(time_readout_mu)
-                    self.unb_readout(freq_readout_ftw, _time_UNB_pulse_mu)
+                    self.unb_readout(_time_UNB_pulse_mu)
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
 
@@ -550,7 +550,12 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
                     freq_sweep_hz,
                     phase_sweep_turns,
                     phase_ch1_turns,
-                    time_readout_mu
+                    
+                    # tmp remove UNB
+                    # time_readout_mu
+                    _time_UNB_pulse_mu
+                    # tmp remove UNB
+                    
                 )
                 self.core.break_realtime()
 
@@ -646,15 +651,16 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
         self.qubit.set_att_mu(self.sidebandreadout_subsequence.att_sideband_readout_mu)
         self.qubit.cpld.set_profile(self.profile_729_PS)
         self.qubit.cpld.io_update.pulse_mu(8)
-        #
+
+        # no need to set params here - we set ahead of time in configure stage
         # # set beam parameters
         # self.qubit.set_ftw(freq_ftw)
         # self.qubit.set_pow(0)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit.write32(ad9910._AD9910_REG_CFR1,
+        self.qubit.write32(_AD9910_REG_CFR1,
                            (1 << 31) |  # ram_enable
-                           (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
+                           (RAM_DEST_ASF << 29) |  # ram_destination
                            (1 << 16) |  # select_sine_output
                            2 # general config - necessary
                            )
