@@ -61,15 +61,45 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
         self.profile_729_RAP =          2
         self.profile_729_PS =           3
 
+
+
+        # tmp remove UNB15
+        self.setattr_device('qubit')
+        UNB3_turns_list = [
+            0., 0.587, 1.174
+        ]
+        UNB5_turns_list = [
+            0., 0.237, 1.583, 0.929, 1.166
+        ]
+        UNB15_turns_list = [
+            0., 0.021, 0.512, 0.894, 0.841,
+            0.475, 0.940, 1.059, 1.166, 1.625,
+            1.264, 1.212, 1.604, 0.095, 0.101
+        ]
+        UNB15_turns_list = [0.] * 1
+
+        # # note: divide by 4 b/c double-pass AOM & pi (vs 2pi)
+        # self.phase_pow_UNB_list = np.array([
+        #     self.qubit.turns_to_pow((p0_t + p1_t) / 4.)
+        #     for p0_t in UNB3_turns_list
+        #     for p1_t in UNB15_turns_list
+        # ])
+        self.phase_pow_UNB_list = np.array([
+            self.qubit.turns_to_pow(phas_turns / 4.)
+            for phas_turns in UNB15_turns_list
+        ])
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_PS, ram_addr_start=401,
+            num_samples=50, ampl_max_pct=50., pulse_shape='nuttall'
+        )
+        # tmp remove UNB15
+
+
         # get subsequences
         self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=200
-        )
-        self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_PS, ram_addr_start=401,
-            num_samples=600, ampl_max_pct=50., pulse_shape='blackman'
         )
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
         self.initialize_subsequence =       InitializeQubit(self)
@@ -266,37 +296,6 @@ class SuperDuperResolutionTMP(LAXExperiment, Experiment):
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
-
-        # tmp remove
-        # UNB15_turns_list = [
-        #     0., 0.021, 0.512, 0.894, 0.841,
-        #     0.475, 0.940, 1.059, 1.166, 1.625,
-        #     1.264, 1.212, 1.604, 0.095, 0.101
-        # ]
-        UNB3_turns_list = [
-            0., 0.587, 1.174
-        ]
-        UNB5_turns_list = [
-            0., 0.237, 1.583, 0.929, 1.166
-        ]
-        UNB15_turns_list = [
-            0., 0.021, 0.512, 0.894, 0.841,
-            0.475, 0.940, 1.059, 1.166, 1.625,
-            1.264, 1.212, 1.604, 0.095, 0.101
-        ]
-        # UNB15_turns_list = [0.] * 15
-        # note: divide by 4 b/c double-pass AOM & pi (vs 2pi)
-        self.phase_pow_UNB_list = np.array([
-            self.qubit.turns_to_pow((p0_t + p1_t) / 4.)
-            for p0_t in UNB3_turns_list
-            for p1_t in UNB15_turns_list
-        ])
-
-        # self.phase_pow_UNB_list = np.array([
-        #     self.qubit.turns_to_pow(phas_turns / 4.)
-        #     for phas_turns in UNB15_turns_list
-        # ])
-        # tmp remove
 
     def _prepare_argument_checks(self) -> TNone:
         """
