@@ -16,12 +16,12 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 class SuperDuperResolution(LAXExperiment, Experiment):
     """
-    Experiment: Super Duper Resolution
+    Experiment: Super Duper Resolution RAP fock
 
     Supports lots of easily configurable parameter scanning for phaser.
     Experiment name inspired by Sam Crary.
     """
-    name = 'Super Duper Resolution'
+    name = 'Super Duper Resolution RAP fock'
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr',
@@ -441,11 +441,16 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.att_prepare_mu = att_to_mu(14. * dB)
         self.ampl_rap_asf = self.qubit.amplitude_to_asf(self.ampl_rap_pct / 100.)
 
-        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7478 * MHz)
-        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4086 * MHz)
+        # prepare
+        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7291 * MHz)
+        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4234 * MHz)
 
+        self.time_prepare1_mu = self.core.seconds_to_mu(50.76 * us)
+        self.time_prepare2_mu = self.core.seconds_to_mu(36.23 * us)
+        self.time_prepare3_mu = self.core.seconds_to_mu(50.80 * us)
 
-        self.freq_carr_ftw =    self.qubit.frequency_to_ftw(101.0771 * MHz)
+        # readout
+        self.freq_carr_ftw =    self.qubit.frequency_to_ftw(101.0770 * MHz)
         self.freq_shelve1_ftw = self.qubit.frequency_to_ftw(113.3558 * MHz)
         self.freq_shelve2_ftw = self.qubit.frequency_to_ftw(104.1466 * MHz)
         self.freq_shelve3_ftw = self.qubit.frequency_to_ftw(110.2858 * MHz)
@@ -457,30 +462,98 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def rap_prepare(self) -> TNone:
-        self.qubit.set_att_mu(self.att_rap_mu)
+        delay_mu(8)
 
-        profile_729_test
+        # # global prepare
+        # self.qubit.set_att_mu(self.att_prepare_mu)
+        # self.qubit.set_profile(self.profile_729_test)
+        #
+        # # n=0 => n=1
+        # self.qubit.set_mu(self.freq_bsb_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_prepare1_mu)
+        # self.qubit.off()
+        #
+        # # n=1 => n=2
+        # self.qubit.set_profile(self.profile_729_test)
+        # self.qubit.set_mu(self.freq_rsb_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_prepare2_mu)
+        # self.qubit.off()
+        #
+        # # # carrier back down
+        # # self.qubit.set_att_mu(self.att_rap_mu)   # return to normal 8 dB
+        # # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        # #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # # self.qubit.on()
+        # # delay_mu(self.time_carr_mu)
+        # # self.qubit.off()
 
     @kernel(flags={"fast-math"})
     def rap_readout(self) -> TNone:
         # prepare global config - all use RAP special values
         self.qubit.set_att_mu(self.att_rap_mu)
 
-        # S/n=0 => D/n=1
-        self.qubit.set_profile(self.profile_729_bsb)
-        self.qubit.cpld.io_update.pulse_mu(8)
-        self.qubit.on()
-        delay_mu(54140)
-        self.qubit.off()
+        # round #0
+        # isolate n=0
+        self.rap_subsequence.run_rap(self.time_rap_mu)
 
-        # # shelving #1
+
+        # # round #1
+        # # shelve => +3/2
         # self.qubit.set_profile(self.profile_729_test)
-        # self.qubit.cpld.io_update.pulse_mu(8)
         # self.qubit.set_mu(self.freq_shelve1_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
         #                   phase_mode=PHASE_MODE_CONTINUOUS)
         # self.qubit.on()
         # delay_mu(self.time_shelve1_mu)
         # self.qubit.off()
+        # # carrier back down
+        # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_carr_mu)
+        # self.qubit.off()
+        # # isolate n=1
+        # self.rap_subsequence.run_rap(self.time_rap_mu)
+        #
+        #
+        # # round #2
+        # # shelve => -3/2
+        # self.qubit.set_profile(self.profile_729_test)
+        # self.qubit.set_mu(self.freq_shelve2_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_shelve2_mu)
+        # self.qubit.off()
+        # # carrier back down
+        # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_carr_mu)
+        # self.qubit.off()
+        # # isolate n=2
+        # self.rap_subsequence.run_rap(self.time_rap_mu)
+        #
+        #
+        # # round #3
+        # # shelve => +1/2
+        # self.qubit.set_profile(self.profile_729_test)
+        # self.qubit.set_mu(self.freq_shelve3_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_shelve3_mu)
+        # self.qubit.off()
+        # # carrier back down
+        # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_carr_mu)
+        # self.qubit.off()
+        # # isolate n=3
+        # self.rap_subsequence.run_rap(self.time_rap_mu)
+
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:

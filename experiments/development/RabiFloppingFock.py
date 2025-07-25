@@ -148,8 +148,8 @@ class RabiFlopping(LAXExperiment, Experiment):
     def _prepare_fock(self):
         # tmp remove - fock
         # convert input arguments to machine units
-        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7304 * MHz)
-        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4235 * MHz)
+        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7291 * MHz)
+        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4234 * MHz)
         self.ampl_fock_asf =    self.qubit.amplitude_to_asf(50. / 100.)
         self.att_fock_mu =      att_to_mu(14. * dB)
         # tmp remove - fock
