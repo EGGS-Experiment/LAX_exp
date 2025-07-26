@@ -20,7 +20,13 @@ class FockStateGenerator(LAXSubsequence):
         "apply_carrier"
     }
 
-    def build_subsequence(self, profile_fock=2):
+    def build_subsequence(self, profile_fock: TInt32=2):
+        """
+        Defines the main interface for the subsequence.
+        Arguments:
+            profile_fock: the AD9910 RAM profile to use for fock_state_generator.
+        """
+        # set subsequence parameters
         self.profile_fock = profile_fock
 
         self.setattr_device('qubit')

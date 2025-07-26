@@ -152,7 +152,6 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
-        # note: need to use product since the constituent config lists are 2D
         self.config_experiment_list = create_experiment_config(
             freq_singlepass_config_ftw_list,
             ampl_singlepass_asf_list,

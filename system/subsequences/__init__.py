@@ -1,21 +1,24 @@
 """
 Contains specifically constructed subsequences for LAX.
 """
-
 __all__ = []
+
 
 # general
 from LAX_exp.system.subsequences.rescue_ion import RescueIon
 from LAX_exp.system.subsequences.cleanup import Cleanup
 from LAX_exp.system.subsequences.no_operation import NoOperation
-__all__.extend(['RescueIon', 'Cleanup', 'NoOperation'])
+from LAX_exp.system.subsequences.agile_pulse_generator import AgilePulseGenerator
+__all__.extend(['RescueIon', 'Cleanup', 'NoOperation', 'AgilePulseGenerator'])
 
 # cooling
 from LAX_exp.system.subsequences.doppler_cool import DopplerCool
 from LAX_exp.system.subsequences.sideband_cool_pulsed import SidebandCoolPulsed
 from LAX_exp.system.subsequences.sideband_cool_continuous import SidebandCoolContinuous
 from LAX_exp.system.subsequences.sideband_cool_continuous_RAM import SidebandCoolContinuousRAM
-__all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous', 'SidebandCoolContinuousRAM'])
+from LAX_exp.system.subsequences.sideband_cool_continuous_RAM2 import SidebandCoolContinuousRAM2
+__all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous', 'SidebandCoolContinuousRAM',
+                'SidebandCoolContinuousRAM2'])
 
 # state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization

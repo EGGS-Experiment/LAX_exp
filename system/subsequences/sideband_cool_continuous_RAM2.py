@@ -7,14 +7,14 @@ from LAX_exp.base import LAXSubsequence
 from LAX_exp.system.objects.RAMWriter import RAMWriter
 
 
-class SidebandCoolContinuousRAM(LAXSubsequence):
+class SidebandCoolContinuousRAM2(LAXSubsequence):
     """
-    Subsequence: Sideband Cool - Continuous (RAM)
+    Subsequence: Sideband Cool - Continuous (RAM) 2
 
     Cool the ion to the ground state using a continuous RSB pulse on the S-1/2 to D-5/2 transition.
     Uses RAM mode to reduce the number of profiles taken up and allow greater functionality.
     """
-    name = 'sideband_cool_continuous_RAM'
+    name = 'sideband_cool_continuous_RAM2'
     kernel_invariants = {
         # general subsequence parameters
         "profile_ram_729", "profile_ram_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
