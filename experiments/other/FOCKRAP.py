@@ -11,7 +11,7 @@ from LAX_exp.system.subsequences import (
 )
 
 
-class RapidAdiabaticPassage(LAXExperiment, Experiment):
+class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
     """
     Experiment: Rapid Adiabatic Passage with Fock
 
