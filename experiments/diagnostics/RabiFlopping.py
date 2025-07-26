@@ -45,11 +45,13 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.1072, precision=6, step=1, min=50., max=400.), group=self.name)
-        self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50), group=self.name)
-        self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name)
-        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.1072, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'), group=self.name)
+        self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit='%'), group=self.name)
+        self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'), group=self.name)
+        self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name,
+                              tooltip="Ensure each shot takes the same overall time by adding a dummy delay.")
+        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group=self.name,
+                              tooltip="Shape the rabiflop pulse to reduce spectral leakage. Uses a Hann (sine-squared) envelope.")
 
         # allocate relevant beam profiles
         self.profile_729_readout =  0
@@ -64,7 +66,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         )
         self.pulseshape_subsequence =   QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=502,
-            num_samples=200, ampl_max_pct=self.ampl_qubit_pct
+            num_samples=200, ampl_max_pct=self.ampl_qubit_pct, pulse_shape="sine_squared"
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.doppler_subsequence =      NoOperation(self)

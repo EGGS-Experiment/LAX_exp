@@ -36,15 +36,15 @@ class ARampEjection(LAXExperiment, Experiment):
 
 
         # ending trap arguments
-        self.setattr_argument('east_endcap_voltage',     NumberValue(default=205., precision=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('east_endcap_voltage',    NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('west_endcap_voltage',    NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('v_shim_voltage',          NumberValue(default=70.8, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('v_shim_voltage',         NumberValue(default=70.8, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('h_shim_voltage',          NumberValue(default=50.5, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('h_shim_voltage',         NumberValue(default=50.5, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('final_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50.),
+        self.setattr_argument('final_aramp_voltage',    NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
@@ -55,13 +55,13 @@ class ARampEjection(LAXExperiment, Experiment):
 
         # aramping parameters
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
-                                                                    default=[
-                                                                        ExplicitScan([14, 14.5, 15, 15.5, 16]),
-                                                                        RangeScan(18, 24, 20, randomize=True),
-                                                                    ],
-                                                                    global_min=0.0, global_max=30.0, global_step=1,
-                                                                    unit="V", scale=1, precision=2
-                                                                ), group='A-Ramp Ejection')
+                                                                default=[
+                                                                    ExplicitScan([14, 14.5, 15, 15.5, 16]),
+                                                                    RangeScan(18, 24, 20, randomize=True),
+                                                                ],
+                                                                global_min=0.0, global_max=30.0, global_step=1,
+                                                                unit="V", scale=1, precision=2
+                                                            ), group='A-Ramp Ejection')
 
         # relevant devices - sinara
         self.setattr_device('pump')

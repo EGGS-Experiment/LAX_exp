@@ -37,8 +37,8 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC"], default="Doppler"))
-        self.setattr_argument('time_total_s',       NumberValue(default=200, precision=0, step=100, min=5, max=100000), group='timing')
+        self.setattr_argument("cooling_type",       EnumerationValue(["Doppler", "SBC"], default="Doppler"))
+        self.setattr_argument('time_total_s',       NumberValue(default=200, precision=0, step=100, min=5, max=100000, scale=1., unit="s"), group='timing')
         self.setattr_argument('samples_per_point',  NumberValue(default=50, precision=0, step=10, min=15, max=500), group='timing')
 
         # qubit
@@ -50,9 +50,9 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
                                                         global_min=0.001, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
                                                     ), group="qubit")
-        self.setattr_argument("freq_qubit_mhz",     NumberValue(default=101.0777, precision=5, step=1, min=1, max=10000), group='qubit')
-        self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50., precision=3, step=5., min=0.01, max=50.), group='qubit')
-        self.setattr_argument("att_qubit_db",       NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='qubit')
+        self.setattr_argument("freq_qubit_mhz",     NumberValue(default=101.0751, precision=5, step=1, min=1, max=10000, scale=1., unit="MHz"), group='qubit')
+        self.setattr_argument("ampl_qubit_pct",     NumberValue(default=50., precision=3, step=5., min=0.01, max=50., scale=1., unit="%"), group='qubit')
+        self.setattr_argument("att_qubit_db",       NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"), group='qubit')
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group='qubit')
 
         # allocate profiles on 729nm for different subsequences

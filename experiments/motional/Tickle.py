@@ -25,38 +25,38 @@ class Tickle(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",                    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
 
         # readout configuration
-        self.setattr_argument("readout_type",                   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)
+        self.setattr_argument("readout_type",   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)
 
         # tickle configuration
-        self.setattr_argument("tickle_source",                  EnumerationValue(['Parametric', 'Dipole'], default='Dipole'), group=self.name)
-        self.setattr_argument("freq_tickle_khz_list",           Scannable(
-                                                                        default=[
-                                                                            CenterScan(1252.6, 20, 0.1, randomize=True),
-                                                                            ExplicitScan([1500]),
-                                                                        ],
-                                                                        global_min=10, global_max=400000, global_step=100,
-                                                                        unit="kHz", scale=1, precision=3
-                                                                    ), group=self.name)
-        self.setattr_argument("ampl_tickle_pct_list",           Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([35.]),
-                                                                            RangeScan(0, 100, 10, randomize=True),
-                                                                        ],
-                                                                        global_min=0.1, global_max=100.0, global_step=10,
-                                                                        unit="pct", scale=1, precision=2
-                                                                    ), group=self.name)
-        self.setattr_argument("time_tickle_us_list",            Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([1000.]),
-                                                                            RangeScan(1000, 2000, 11, randomize=True),
-                                                                        ],
-                                                                        global_min=100, global_max=1000000, global_step=100,
-                                                                        unit="us", scale=1, precision=0
-                                                                    ), group=self.name)
-        self.setattr_argument("att_tickle_db",                  NumberValue(default=10, precision=1, step=0.5, min=0., max=31.5), group=self.name)
+        self.setattr_argument("tickle_source",  EnumerationValue(['Parametric', 'Dipole'], default='Dipole'), group=self.name)
+        self.setattr_argument("freq_tickle_khz_list",   Scannable(
+                                                            default=[
+                                                                CenterScan(1252.6, 20, 0.1, randomize=True),
+                                                                ExplicitScan([1500]),
+                                                            ],
+                                                            global_min=10, global_max=400000, global_step=100,
+                                                            unit="kHz", scale=1, precision=3
+                                                        ), group=self.name)
+        self.setattr_argument("ampl_tickle_pct_list",   Scannable(
+                                                            default=[
+                                                                ExplicitScan([35.]),
+                                                                RangeScan(0, 100, 10, randomize=True),
+                                                            ],
+                                                            global_min=0.1, global_max=100.0, global_step=10,
+                                                            unit="pct", scale=1, precision=2
+                                                        ), group=self.name)
+        self.setattr_argument("time_tickle_us_list",    Scannable(
+                                                            default=[
+                                                                ExplicitScan([1000.]),
+                                                                RangeScan(1000, 2000, 11, randomize=True),
+                                                            ],
+                                                            global_min=100, global_max=1000000, global_step=100,
+                                                            unit="us", scale=1, precision=0
+                                                        ), group=self.name)
+        self.setattr_argument("att_tickle_db",  NumberValue(default=10, precision=1, step=0.5, min=0., max=31.5), group=self.name)
 
         # get necessary devices
         self.setattr_device('dds_parametric')

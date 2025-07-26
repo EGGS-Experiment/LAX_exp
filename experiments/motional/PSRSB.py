@@ -55,23 +55,23 @@ class PSRSB(LAXExperiment, Experiment):
         self.rescue_subsequence =       RescueIon(self)
 
         # QVSA configuration - pulse
-        self.setattr_argument("freq_qvsa_carrier_mhz",      NumberValue(default=80., precision=6, step=10., min=0., max=1000.), group='QVSA')
-        self.setattr_argument("freq_qvsa_secular_khz",      NumberValue(default=1281., precision=3, step=1., min=0., max=5000.), group='QVSA')
-        self.setattr_argument("time_qvsa_us",               NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000), group='QVSA')
+        self.setattr_argument("freq_qvsa_carrier_mhz",      NumberValue(default=80., precision=6, step=10., min=0., max=1000., scale=1., unit="MHz"), group='QVSA')
+        self.setattr_argument("freq_qvsa_secular_khz",      NumberValue(default=1281., precision=3, step=1., min=0., max=5000., scale=1., unit="kHz"), group='QVSA')
+        self.setattr_argument("time_qvsa_us",               NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, scale=1., unit="us"), group='QVSA')
         self.setattr_argument("ampl_qvsa_pct_config",       PYONValue([1., 1., 1.]), group='QVSA', tooltip="[rsb_qvsa_pct, bsb_qvsa_pct, carrier_qvsa_pct]")
         self.setattr_argument("phase_qvsa_turns_config",    PYONValue([0., 0., 0.]), group='QVSA', tooltip="[rsb_qvsa_turns, bsb_qvsa_turns, carrier_qvsa_turns]")
-        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='QVSA')
+        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='QVSA')
 
         # QVSA configuration - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='QVSA.pulse_shaping')
         self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='QVSA.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000), group='QVSA.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000), group='QVSA.pulse_shaping')
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, scale=1., unit="us"), group='QVSA.pulse_shaping')
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000, scale=1., unit="kHz"), group='QVSA.pulse_shaping')
 
         # PSRSB - RSB pulse
-        self.setattr_argument("att_qubit_db",               NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
-        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50), group=self.name)
-        self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000), group=self.name)
+        self.setattr_argument("att_qubit_db",               NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"), group=self.name)
+        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group=self.name)
+        self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000, scale=1., unit="us"), group=self.name)
         self.setattr_argument("freq_psrsb_rsb_mhz_list",    Scannable(
                                                                 default=[
                                                                     CenterScan(100.7947, 0.01, 0.0001, randomize=True),
@@ -81,8 +81,8 @@ class PSRSB(LAXExperiment, Experiment):
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group=self.name)
 
-        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50), group=self.name)
-        self.setattr_argument("time_psrsb_carrier_us",          NumberValue(default=8.51, precision=3, step=1, min=1, max=10000000), group=self.name)
+        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group=self.name)
+        self.setattr_argument("time_psrsb_carrier_us",          NumberValue(default=8.51, precision=3, step=1, min=1, max=10000000, scale=1., unit="us"), group=self.name)
         self.setattr_argument("freq_psrsb_carrier_mhz_list",    Scannable(
                                                                     default=[
                                                                         ExplicitScan([101.4181]),

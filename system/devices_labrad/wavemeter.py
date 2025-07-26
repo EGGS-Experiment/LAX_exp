@@ -47,7 +47,7 @@ class Wavemeter(LAXDevice):
             channel (TInt32): wavemeter channel
             freq_thz: frequency in THz to set wavemeter PID to
         """
-
+        pass
         # if channel == 5:
         #     assert 755.21 freq_thz < 755.23, "Check Set Frequency of 397 Channel for Wavemeter"
 

@@ -56,9 +56,9 @@ class LaserScan(LAXExperiment, Experiment):
                                                         global_min=60, global_max=200, global_step=0.01,
                                                         unit="MHz", scale=1, precision=6
                                                     ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=25, precision=3, step=5, min=1, max=50), group=self.name)
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group=self.name)
+        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000, unit='us', scale=1.), group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=25, precision=3, step=5, min=1, max=50, scale=1., unit='%'), group=self.name)
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'), group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
         # relevant devices

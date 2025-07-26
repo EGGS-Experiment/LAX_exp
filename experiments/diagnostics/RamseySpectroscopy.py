@@ -59,9 +59,9 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         )
 
         # ramsey pulse parameters
-        self.setattr_argument('time_pulse_us',      NumberValue(default=10., precision=2, step=0.5, min=1., max=10000.), group="ramsey.pulse")
-        self.setattr_argument('ampl_ramsey_pct',    NumberValue(default=50., precision=2, step=5., min=0., max=50.), group="ramsey.pulse")
-        self.setattr_argument('att_ramsey_db',      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="ramsey.pulse")
+        self.setattr_argument('time_pulse_us',      NumberValue(default=10., precision=2, step=0.5, min=1., max=10000., scale=1., unit="us"), group="ramsey.pulse")
+        self.setattr_argument('ampl_ramsey_pct',    NumberValue(default=50., precision=2, step=5., min=0., max=50., scale=1., unit="%"), group="ramsey.pulse")
+        self.setattr_argument('att_ramsey_db',      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="ramsey.pulse")
 
         # ramsey sweep parameters
         self.setattr_argument("time_delay_us_list",         Scannable(

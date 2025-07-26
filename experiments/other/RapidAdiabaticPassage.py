@@ -60,15 +60,25 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="{}.chirp".format(self.name))
         self.setattr_argument("freq_rap_dev_khz_list",  Scannable(
-                                                                default=[
-                                                                    ExplicitScan([100.]),
-                                                                    RangeScan(100, 500., 401, randomize=True),
-                                                                    CenterScan(250., 100., 5., randomize=True),
-                                                                ],
-                                                                global_min=0.1, global_max=100000, global_step=5.,
-                                                                unit="kHz", scale=1, precision=6
-                                                            ), group="{}.chirp".format(self.name))
+                                                            default=[
+                                                                ExplicitScan([100.]),
+                                                                RangeScan(100, 500., 401, randomize=True),
+                                                                CenterScan(250., 100., 5., randomize=True),
+                                                            ],
+                                                            global_min=0.1, global_max=100000, global_step=5.,
+                                                            unit="kHz", scale=1, precision=6
+                                                        ), group="{}.chirp".format(self.name))
         self.setattr_argument("time_rap_us_list",   Scannable(
+                                                        default=[
+                                                            ExplicitScan([200.]),
+                                                            RangeScan(1, 50, 200, randomize=True),
+                                                            CenterScan(250., 100., 5., randomize=True),
+                                                        ],
+                                                        global_min=1, global_max=100000, global_step=1,
+                                                        unit="us", scale=1, precision=5
+                                                    ), group="{}.chirp".format(self.name))
+        self.setattr_argument("enable_cutoff",      BooleanValue(default=True), group="{}.chirp".format(self.name))
+        self.setattr_argument("time_cutoff_us_list",    Scannable(
                                                             default=[
                                                                 ExplicitScan([200.]),
                                                                 RangeScan(1, 50, 200, randomize=True),
@@ -77,28 +87,18 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group="{}.chirp".format(self.name))
-        self.setattr_argument("enable_cutoff",      BooleanValue(default=True), group="{}.chirp".format(self.name))
-        self.setattr_argument("time_cutoff_us_list",    Scannable(
-                                                                default=[
-                                                                    ExplicitScan([200.]),
-                                                                    RangeScan(1, 50, 200, randomize=True),
-                                                                    CenterScan(250., 100., 5., randomize=True),
-                                                                ],
-                                                                global_min=1, global_max=100000, global_step=1,
-                                                                unit="us", scale=1, precision=5
-                                                            ), group="{}.chirp".format(self.name))
 
         # pulse parameters
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50), group="{}.pulse".format(self.name))
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5), group="{}.pulse".format(self.name))
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=30, precision=3, step=5, min=1, max=50, scale=1., unit="%"), group="{}.pulse".format(self.name))
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"), group="{}.pulse".format(self.name))
         # todo: actually implement the enable_chirp stuff lol
         self.setattr_argument("enable_pulseshaping",    BooleanValue(default=True), group="{}.pulse".format(self.name))
         self.setattr_argument("enable_chirp",           BooleanValue(default=True), group="{}.pulse".format(self.name))
 
         # read out parameters
         self.setattr_argument("enable_rabiflop_readout",    BooleanValue(default=False), group="rabiflop_readout")
-        self.setattr_argument("ampl_pulse_readout_pct",     NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="rabiflop_readout")
-        self.setattr_argument("att_pulse_readout_db",       NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="rabiflop_readout")
+        self.setattr_argument("ampl_pulse_readout_pct",     NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="rabiflop_readout")
+        self.setattr_argument("att_pulse_readout_db",       NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="rabiflop_readout")
         self.setattr_argument("freq_pulse_readout_mhz_list",   Scannable(
                                                                 default=[
                                                                     ExplicitScan([101.9851]),

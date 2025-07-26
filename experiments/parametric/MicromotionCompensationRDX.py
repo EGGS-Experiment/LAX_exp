@@ -51,32 +51,32 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
     def build_experiment(self):
         # get DC channel configuration dictionary
-        self.dc_config_channeldict =                                dc_config.channeldict
+        self.dc_config_channeldict =    dc_config.channeldict
 
         # core arguments
-        self.setattr_argument("iterations",                 NumberValue(default=2, precision=0, step=1, min=1, max=10))
+        self.setattr_argument("iterations", NumberValue(default=3, precision=0, step=1, min=1, max=10))
 
         # general configuration
         self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, precision=0, step=1, min=1, max=100), group='configuration',
                               tooltip="The number of repetitions on each mode for a single voltage point."
                                       "All repetitions are executed at once for each point, but are alternated"
                                       "between modes (e.g. 2 reps => mode0, mode1, mode0, mode1).")
-        self.setattr_argument("num_steps",                  NumberValue(default=8, precision=0, step=1, min=5, max=100), group='configuration',
+        self.setattr_argument("num_steps",  NumberValue(default=11, precision=0, step=1, min=5, max=100), group='configuration',
                               tooltip="The number of steps for each voltage scan.")
-        self.setattr_argument("adaptive",                   BooleanValue(default=True), group='configuration',
+        self.setattr_argument("adaptive",   BooleanValue(default=True), group='configuration',
                               tooltip="Predicts the mode vectors for each scan, and automatically adjusts"
                                       "the attenuation. This feature is currently always on (i.e. False will"
                                       "do nothing lol).")
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",            NumberValue(default=1596.2, precision=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_0_db",              NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), group='modulation',
+        self.setattr_argument("freq_mode_0_khz",    NumberValue(default=1585.22, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"), group='modulation')
+        self.setattr_argument("att_mode_0_db",      NumberValue(default=24., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='modulation',
                               tooltip="The starting attenuation to use for mode 0."
                                       "If the adaptive option is selected, the experiment will automatically adjust "
                                       "the attenuation to maximize signal.")
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",            NumberValue(default=1307.8, precision=3, step=10, min=1, max=10000), group='modulation')
-        self.setattr_argument("att_mode_1_db",              NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5), group='modulation',
+        self.setattr_argument("freq_mode_1_khz",    NumberValue(default=1299.81, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"), group='modulation')
+        self.setattr_argument("att_mode_1_db",      NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='modulation',
                               tooltip="The starting attenuation to use for mode 1."
                                       "If the adaptive option is selected, the experiment will automatically adjust "
                                       "the attenuation to maximize signal.")
@@ -88,10 +88,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([40, 80]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=30, precision=2, step=5, min=0.01, max=50), group='cooling',
+        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit="%"), group='cooling',
                               tooltip="The DDS amplitude to use for the cooling beam. Lower amplitudes reduce background"
                                       "and improve SNR, but will take longer and makes the ion prone to death.")
-        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=105, precision=6, step=1, min=1, max=500), group='cooling',
+        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=112, precision=6, step=1, min=1, max=500, scale=1., unit="MHz"), group='cooling',
                               tooltip="The DDS frequency to use for the cooling beam. Frequencies closer to resonance"
                                       "improve the SNR, but makes the ion prone to death.")
 

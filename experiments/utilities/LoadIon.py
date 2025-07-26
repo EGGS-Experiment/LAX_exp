@@ -36,21 +36,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
                                                             group='Starting Trap Parameters')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300.),
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
                                                             group='Starting Trap Parameters')
 
         # ending trap arguments
-        self.setattr_argument('end_east_endcap_voltage',     NumberValue(default=205., precision=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('end_east_endcap_voltage',     NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400.),
+        self.setattr_argument('end_west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150.),
+        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
-        self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50.),
+        self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
                                                                 group='Ending Trap Parameters')
 
         # aramping parameters
@@ -65,9 +65,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 ), group='A-Ramp Ejection')
 
         # oven configuration
-        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V"),
+        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V", scale=1.),
                                                         group='Oven Settings')
-        self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A"),
+        self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A", scale=1.),
                                                         group='Oven Settings')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS

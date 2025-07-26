@@ -56,67 +56,67 @@ class QVSARamsey(LAXExperiment, Experiment):
 
         # Sideband Readout - extra argument
         self.setattr_argument("time_readout_us_list",   Scannable(
-                                                                    default=[
-                                                                        ExplicitScan([50.8]),
-                                                                        RangeScan(0, 1500, 100, randomize=True),
-                                                                    ],
-                                                                    global_min=1, global_max=100000, global_step=1,
-                                                                    unit="us", scale=1, precision=5
-                                                                ), group='sideband_readout')
+                                                            default=[
+                                                                ExplicitScan([50.8]),
+                                                                RangeScan(0, 1500, 100, randomize=True),
+                                                            ],
+                                                            global_min=1, global_max=100000, global_step=1,
+                                                            unit="us", scale=1, precision=5
+                                                        ), group='sideband_readout')
 
         # QVSA - frequency
         self.setattr_argument("freq_qvsa_carrier_mhz_list", Scannable(
-                                                                            default=[
-                                                                                ExplicitScan([80.2028]),
-                                                                                CenterScan(83.20175, 0.05, 0.0005, randomize=True),
-                                                                            ],
-                                                                            global_min=0.005, global_max=4800, global_step=1,
-                                                                            unit="MHz", scale=1, precision=6
-                                                                        ), group='QVSA.frequencies')
+                                                                default=[
+                                                                    ExplicitScan([80.2028]),
+                                                                    CenterScan(83.20175, 0.05, 0.0005, randomize=True),
+                                                                ],
+                                                                global_min=0.005, global_max=4800, global_step=1,
+                                                                unit="MHz", scale=1, precision=6
+                                                            ), group='QVSA.frequencies')
         self.setattr_argument("freq_qvsa_secular_khz_list", Scannable(
-                                                                            default=[
-                                                                                ExplicitScan([777.5]),
-                                                                                CenterScan(777.5, 4, 0.5, randomize=True),
-                                                                                ExplicitScan([767.2, 319.2, 1582, 3182]),
-                                                                            ],
-                                                                            global_min=0, global_max=10000, global_step=1,
-                                                                            unit="kHz", scale=1, precision=3
-                                                                        ), group='QVSA.frequencies')
+                                                                default=[
+                                                                    ExplicitScan([777.5]),
+                                                                    CenterScan(777.5, 4, 0.5, randomize=True),
+                                                                    ExplicitScan([767.2, 319.2, 1582, 3182]),
+                                                                ],
+                                                                global_min=0, global_max=10000, global_step=1,
+                                                                unit="kHz", scale=1, precision=3
+                                                            ), group='QVSA.frequencies')
 
         # QVSA - Ramsey
         self.setattr_argument("enable_ramsey_delay",    BooleanValue(default=True), group='QVSA.ramsey')
-        self.setattr_argument("time_ramsey_delay_us",   NumberValue(default=60, precision=2, step=500, min=0.04, max=100000000), group='QVSA.ramsey')
+        self.setattr_argument("time_ramsey_delay_us",   NumberValue(default=60, precision=2, step=500, min=0.04, max=100000000, scale=1., unit="us"), group='QVSA.ramsey')
         self.setattr_argument("target_ramsey_phase",    EnumerationValue(['RSB', 'BSB', 'Carrier', 'RSB+BSB'], default='RSB+BSB'), group='QVSA.ramsey')
         self.setattr_argument("phase_ramsey_anti_turns_list",   Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([0., 0.5]),
-                                                                            RangeScan(0, 1.0, 11, randomize=True),
-                                                                        ],
-                                                                        global_min=0.0, global_max=1.0, global_step=1,
-                                                                        unit="turns", scale=1, precision=3
-                                                                    ), group='QVSA.ramsey')
+                                                                    default=[
+                                                                        ExplicitScan([0., 0.5]),
+                                                                        RangeScan(0, 1.0, 11, randomize=True),
+                                                                    ],
+                                                                    global_min=0.0, global_max=1.0, global_step=1,
+                                                                    unit="turns", scale=1, precision=3
+                                                                ), group='QVSA.ramsey')
 
         # QVSA - waveform
-        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5), group='QVSA.waveform')
-        self.setattr_argument("time_qvsa_us",               NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000), group='QVSA.waveform')
+        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='QVSA.waveform')
+        self.setattr_argument("time_qvsa_us",               NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000, scale=1., unit="us"), group='QVSA.waveform')
         self.setattr_argument("ampl_qvsa_osc_frac_list",    PYONValue([10., 10., 0.]), group="QVSA.waveform")
         self.setattr_argument("phase_qvsa_osc_turns_list",  PYONValue([0., 0., 0.]), group="QVSA.waveform")
         self.setattr_argument("phase_qvsa_ch1_turns_list",  Scannable(
-                                                                        default=[
-                                                                            ExplicitScan([0.2]),
-                                                                            RangeScan(0, 1.0, 21, randomize=True),
-                                                                        ],
-                                                                        global_min=0.0, global_max=1.0, global_step=1,
-                                                                        unit="turns", scale=1, precision=3
-                                                                    ), group='QVSA.waveform')
+                                                                default=[
+                                                                    ExplicitScan([0.2]),
+                                                                    RangeScan(0, 1.0, 21, randomize=True),
+                                                                ],
+                                                                global_min=0.0, global_max=1.0, global_step=1,
+                                                                unit="turns", scale=1, precision=3
+                                                            ), group='QVSA.waveform')
 
         # QVSA - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=True), group="QVSA.waveform.pulse_shaping")
         self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
                               group="QVSA.waveform.pulse_shaping")
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=50, precision=1, step=100, min=0.2, max=100000),
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=50, precision=1, step=100, min=0.2, max=100000, scale=1., unit="us"),
                               group="QVSA.waveform.pulse_shaping")
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000),
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000, scale=1., unit="kHz"),
                               group="QVSA.waveform.pulse_shaping")
 
         # get relevant devices

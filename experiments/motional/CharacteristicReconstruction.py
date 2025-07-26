@@ -73,10 +73,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
-        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
-        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.59, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"), group="defaults.sigmax")
+        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="defaults.sigmax")
+        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="defaults.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.59, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"), group="defaults.sigmax")
 
         # defaults - bichromatic
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
@@ -113,7 +113,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.setattr_argument("characteristic_axis",        EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic.axis',
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
-        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0.125, precision=3, step=0.1, min=-1.0, max=1.0), group='characteristic.axis',
+        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0.125, precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"), group='characteristic.axis',
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
 
         # bichromatic: characteristic readout protocol

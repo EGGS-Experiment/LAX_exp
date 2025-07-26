@@ -23,16 +23,16 @@ class FastARamp(LAXExperiment, Experiment):
     def build_experiment(self):
         # ending trap arguments
         self.setattr_argument("repetitions",            NumberValue(default=5, precision=0, step=1, min=1, max=10000))
-        self.setattr_argument('normal_aramp_voltage',   NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50.), group='A-Ramp')
+        self.setattr_argument('normal_aramp_voltage',   NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"), group='A-Ramp')
         self.setattr_argument("time_aramp_s",           NumberValue(default=1, precision=0, step=1, min=1, max=100000, unit='s', scale=1.), group='A-Ramp')
         self.setattr_argument("aramp_voltage_list",     Scannable(
-                                                                default=[
-                                                                    ExplicitScan([14]),
-                                                                    RangeScan(18, 24, 20, randomize=True),
-                                                                ],
-                                                                global_min=0.0, global_max=30.0, global_step=1,
-                                                                unit="V", scale=1, precision=2
-                                                            ), group='A-Ramp')
+                                                            default=[
+                                                                ExplicitScan([14]),
+                                                                RangeScan(18, 24, 20, randomize=True),
+                                                            ],
+                                                            global_min=0.0, global_max=30.0, global_step=1,
+                                                            unit="V", scale=1, precision=2
+                                                        ), group='A-Ramp')
 
         # relevant devices - labrad
         self.setattr_device('trap_dc')

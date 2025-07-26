@@ -65,14 +65,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 31.5]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
 
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.beams")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.beams")
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="defaults.beams")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400.), group="defaults.sigmax")
-        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="defaults.sigmax")
-        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="defaults.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"), group="defaults.sigmax")
+        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="defaults.sigmax")
+        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="defaults.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"), group="defaults.sigmax")
 
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
@@ -102,13 +102,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("enable_cat1_bichromatic", BooleanValue(default=False), group='cat1.config')
         self.setattr_argument("enable_cat1_herald",   BooleanValue(default=False), group='cat1.config')
         self.setattr_argument("enable_cat1_quench",   BooleanValue(default=True), group='cat1.config')
-        self.setattr_argument("time_cat1_bichromatic_us", NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="cat1.config")
+        self.setattr_argument("time_cat1_bichromatic_us", NumberValue(default=100, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"), group="cat1.config")
         self.setattr_argument("phases_pulse1_cat_turns",  PYONValue([0., 0.]), group='cat1.config', tooltip="[rsb_turns, bsb_turns]")
 
         '''PULSE ARGUMENTS - CAT 2'''
         # cat2 - config
         self.setattr_argument("enable_cat2_sigmax",       BooleanValue(default=True), group='cat2.config')
-        self.setattr_argument("phase_cat2_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0), group='cat2.config')
+        self.setattr_argument("phase_cat2_sigmax_turns",  NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"), group='cat2.config')
         self.setattr_argument("enable_cat2_bichromatic",  BooleanValue(default=True), group='cat2.config')
         self.setattr_argument("enable_cat2_herald",   BooleanValue(default=True), group='cat2.config')
         self.setattr_argument("enable_cat2_quench",   BooleanValue(default=True), group='cat2.config')

@@ -24,8 +24,8 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # timing
-        self.setattr_argument('time_total_s',               NumberValue(default=10, precision=0, step=100, min=5, max=100000), group='timing')
-        self.setattr_argument('time_sample_us',             NumberValue(default=3000, precision=1, step=500, min=100, max=100000), group='timing')
+        self.setattr_argument('time_total_s',   NumberValue(default=10, precision=0, step=100, min=5, max=100000, scale=1., unit="s"), group='timing')
+        self.setattr_argument('time_sample_us', NumberValue(default=3000, precision=1, step=500, min=100, max=100000, scale=1., unit="us"), group='timing')
 
         # sampling
         self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, precision=0, step=10, min=1, max=100), group='sampling')
