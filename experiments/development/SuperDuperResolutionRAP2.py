@@ -408,6 +408,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+        self.sidebandreadout_subsequence.record_dma()
         self.core.break_realtime()
 
         # configure RAP pulse
@@ -442,38 +443,38 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.ampl_rap_asf = self.qubit.amplitude_to_asf(self.ampl_rap_pct / 100.)
 
         # prepare
-        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7291 * MHz)
-        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.4234 * MHz)
+        self.freq_rsb_ftw =     self.qubit.frequency_to_ftw(100.7247 * MHz)
+        self.freq_bsb_ftw =     self.qubit.frequency_to_ftw(101.409 * MHz)
 
-        self.time_prepare1_mu = self.core.seconds_to_mu(50.76 * us)
-        self.time_prepare2_mu = self.core.seconds_to_mu(36.23 * us)
-        self.time_prepare3_mu = self.core.seconds_to_mu(50.80 * us)
+        self.time_prepare1_mu = self.core.seconds_to_mu(48.38 * us)
+        self.time_prepare2_mu = self.core.seconds_to_mu(34.62 * us)
+        self.time_prepare3_mu = self.core.seconds_to_mu(28.364 * us)
 
         # readout
-        self.freq_carr_ftw =    self.qubit.frequency_to_ftw(101.0770 * MHz)
-        self.freq_shelve1_ftw = self.qubit.frequency_to_ftw(113.3558 * MHz)
-        self.freq_shelve2_ftw = self.qubit.frequency_to_ftw(104.1466 * MHz)
-        self.freq_shelve3_ftw = self.qubit.frequency_to_ftw(110.2858 * MHz)
+        self.freq_carr_ftw =    self.qubit.frequency_to_ftw(101.078 * MHz)
+        self.freq_shelve1_ftw = self.qubit.frequency_to_ftw(113.357 * MHz)
+        self.freq_shelve2_ftw = self.qubit.frequency_to_ftw(104.146 * MHz)
+        self.freq_shelve3_ftw = self.qubit.frequency_to_ftw(110.286 * MHz)
 
-        self.time_carr_mu =     self.core.seconds_to_mu(2.08 * us)
-        self.time_shelve1_mu =  self.core.seconds_to_mu(5.08 * us)
-        self.time_shelve2_mu =  self.core.seconds_to_mu(12.26 * us)
-        self.time_shelve3_mu =  self.core.seconds_to_mu(25.40 * us)
+        self.time_carr_mu =     self.core.seconds_to_mu(2.05 * us)
+        self.time_shelve1_mu =  self.core.seconds_to_mu(5.05 * us)
+        self.time_shelve2_mu =  self.core.seconds_to_mu(16.13 * us)
+        self.time_shelve3_mu =  self.core.seconds_to_mu(25.35 * us)
 
     @kernel(flags={"fast-math"})
     def rap_prepare(self) -> TNone:
         delay_mu(8)
 
         # # global prepare
-        # self.qubit.set_att_mu(self.att_prepare_mu)
-        # self.qubit.set_profile(self.profile_729_test)
-        #
-        # # n=0 => n=1
-        # self.qubit.set_mu(self.freq_bsb_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
-        #                   phase_mode=PHASE_MODE_CONTINUOUS)
-        # self.qubit.on()
-        # delay_mu(self.time_prepare1_mu)
-        # self.qubit.off()
+        self.qubit.set_att_mu(self.att_prepare_mu)
+        self.qubit.set_profile(self.profile_729_test)
+
+        # n=0 => n=1
+        self.qubit.set_mu(self.freq_bsb_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+                          phase_mode=PHASE_MODE_CONTINUOUS)
+        self.qubit.on()
+        delay_mu(self.time_prepare1_mu)
+        self.qubit.off()
         #
         # # n=1 => n=2
         # self.qubit.set_profile(self.profile_729_test)
@@ -483,13 +484,13 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # delay_mu(self.time_prepare2_mu)
         # self.qubit.off()
         #
-        # # # carrier back down
-        # # self.qubit.set_att_mu(self.att_rap_mu)   # return to normal 8 dB
-        # # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
-        # #                   phase_mode=PHASE_MODE_CONTINUOUS)
-        # # self.qubit.on()
-        # # delay_mu(self.time_carr_mu)
-        # # self.qubit.off()
+        # # carrier back down
+        # self.qubit.set_att_mu(self.att_rap_mu)   # return to normal 8 dB
+        # self.qubit.set_mu(self.freq_carr_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_test,
+        #                   phase_mode=PHASE_MODE_CONTINUOUS)
+        # self.qubit.on()
+        # delay_mu(self.time_carr_mu)
+        # self.qubit.off()
 
     @kernel(flags={"fast-math"})
     def rap_readout(self) -> TNone:
@@ -517,7 +518,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # self.qubit.off()
         # # isolate n=1
         # self.rap_subsequence.run_rap(self.time_rap_mu)
-        #
         #
         # # round #2
         # # shelve => -3/2
@@ -633,7 +633,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 #     self.rap_subsequence.run_rap(time_readout_mu)
                 # else:
                 #     self.sidebandreadout_subsequence.run_time(time_readout_mu)
-                # # tmp rap
+                # tmp rap
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
 
