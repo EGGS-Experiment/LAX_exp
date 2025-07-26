@@ -13,7 +13,7 @@ from LAX_exp.system.subsequences import (
 
 class RapidAdiabaticPassage(LAXExperiment, Experiment):
     """
-    Experiment: Rapid Adiabatic Passage
+    Experiment: Rapid Adiabatic Passage with Fock
 
     Applies a chirped and pulse-shaped 729nm qubit pulse to achieve Rapid Adiabatic Passage.
     Demonstrated via rabi flopping/spectrum scanning.
