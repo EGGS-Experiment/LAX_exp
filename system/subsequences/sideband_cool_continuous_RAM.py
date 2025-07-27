@@ -63,19 +63,19 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                         dds_profile=self.profile_ram_854, block_size=50)
 
         # sideband cooling - hardware values
-        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000, scale=1., unit='us'), group='SBC_RAM.continuous')
-        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=380, precision=3, step=1, min=0.01, max=100000, scale=1., unit='us'), group='SBC_RAM.continuous',
-                                                                tooltip="time between spin polarization pulses (in us)")
+        self.setattr_argument("time_sideband_cooling_us",   NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000, scale=1., unit='us'), group='SBC_RAM')
+        self.setattr_argument("time_per_spinpol_us",        NumberValue(default=380, precision=3, step=1, min=0.01, max=100000, scale=1., unit='us'), group='SBC_RAM',
+                              tooltip="Time between spin polarization pulses (in us).")
 
         # sideband cooling - configuration
-        self.setattr_argument("calibration_continuous",     BooleanValue(default=False), group='SBC_RAM.continuous',
-                                                                tooltip="True: disables 729nm DDS during SBC for calibration purposes")
-        self.setattr_argument("sideband_cycles_continuous", NumberValue(default=11, precision=0, step=1, min=1, max=10000), group='SBC_RAM.continuous',
-                                                                tooltip="number of times to loop over the SBC configuration sequence")
+        self.setattr_argument("calibration_continuous", BooleanValue(default=False), group='SBC_RAM',
+                              tooltip="If True: disables 729nm DDS (via ONLY the urukul switch) during SBC for calibration purposes")
+        self.setattr_argument("sideband_cycles_continuous", NumberValue(default=11, precision=0, step=1, min=1, max=10000), group='SBC_RAM',
+                              tooltip="Number of times to loop over the SBC configuration sequence."
+                                      "More loops reduce the number of samples required. Probably best to stay within [1, 30].")
         self.setattr_argument("sideband_cooling_config_list",   PYONValue({100.2832: [37., 6.9], 100.4272: [37., 6.5], 100.7258: [26., 8.0]}),
-                              group='SBC_RAM.continuous',
-                              tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
-        self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='SBC_RAM.continuous')
+                              group='SBC_RAM', tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
+        self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='SBC_RAM')
 
     def prepare_subsequence(self):
         """
@@ -424,18 +424,22 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
             # disable RAM mode - 729nm
             with sequential:
+                delay_mu(32) # prevents sequence errors
                 self.qubit.set_cfr1(ram_enable=0)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
             # disable RAM mode - 854nm
             with sequential:
+                delay_mu(64) # prevents sequence errors
                 self.repump_qubit.set_cfr1(ram_enable=0)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         # repump qubit after sideband cooling
         # use normal beam profile for 854 (i.e. not SBC quench)
+        delay_mu(32) # prevents sequence errors
         self.repump_qubit.set_profile(1)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(32) # prevents sequence errors
         self.repump_qubit.on()
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
