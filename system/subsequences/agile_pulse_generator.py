@@ -46,7 +46,7 @@ class AgilePulseGenerator(LAXSubsequence):
         # note: create separate arrays for freq/ampl & time to avoid int32 conversion later on
         # (b/c all variables have to have same type)
         self.num_pulses = len(self.pulse_config)
-        self.dds_configs =[
+        self.dds_configs = [
             [self.qubit.frequency_to_ftw(config[0] * MHz),
              self.qubit.amplitude_to_asf(config[1] / 100.)]
             for config in self.pulse_config

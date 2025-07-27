@@ -7,14 +7,15 @@ from LAX_exp.base import LAXSubsequence
 from LAX_exp.system.objects.RAMWriter import RAMWriter
 
 
-class SidebandCoolContinuousRAM2(LAXSubsequence):
+class SidebandCoolPolish(LAXSubsequence):
     """
-    Subsequence: Sideband Cool - Continuous (RAM) 2
+    Subsequence: Sideband Cool - Polish
 
-    Cool the ion to the ground state using a continuous RSB pulse on the S-1/2 to D-5/2 transition.
-    Uses RAM mode to reduce the number of profiles taken up and allow greater functionality.
+    Cool the ion to the ground state of motion using a continuous RSB pulse on the S-1/2 to D-5/2 transition.
+    Cools only a SINGLE mode using low 729nm power to avoid heating from off-resonant carrier excitation.
+    Does NOT use any AD9910 special modes; simply turns on relevant beams.
     """
-    name = 'sideband_cool_continuous_RAM2'
+    name = 'sideband_cool_polish'
     kernel_invariants = {
         # general subsequence parameters
         "profile_ram_729", "profile_ram_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",

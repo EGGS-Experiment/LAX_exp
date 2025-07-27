@@ -16,9 +16,9 @@ from LAX_exp.system.subsequences.doppler_cool import DopplerCool
 from LAX_exp.system.subsequences.sideband_cool_pulsed import SidebandCoolPulsed
 from LAX_exp.system.subsequences.sideband_cool_continuous import SidebandCoolContinuous
 from LAX_exp.system.subsequences.sideband_cool_continuous_RAM import SidebandCoolContinuousRAM
-from LAX_exp.system.subsequences.sideband_cool_continuous_RAM2 import SidebandCoolContinuousRAM2
+from LAX_exp.system.subsequences.sideband_cool_polish import SidebandCoolPolish
 __all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous', 'SidebandCoolContinuousRAM',
-                'SidebandCoolContinuousRAM2'])
+                'SidebandCoolPolish'])
 
 # state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization
@@ -34,9 +34,10 @@ from LAX_exp.system.subsequences.tickle_fast_dds import TickleFastDDS
 from LAX_exp.system.subsequences.tickle_fast_phaser import TickleFastPhaser
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
 from LAX_exp.system.subsequences.QVSA_pulse import QVSAPulse
+from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
 __all__.extend(['Squeeze', 'SqueezeConfigurable',
                 'Displace', 'TickleDDS', 'TickleFastDDS', 'TickleFastPhaser',
-                'ParametricExcite', 'QVSAPulse'])
+                'ParametricExcite', 'QVSAPulse', 'FockStateGenerator'])
 
 # spin state manipulation
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
@@ -53,10 +54,10 @@ from LAX_exp.system.subsequences.rabiflop_readout import RabiflopReadout
 from LAX_exp.system.subsequences.absorption_probe import AbsorptionProbe
 from LAX_exp.system.subsequences.absorption_probe2 import AbsorptionProbe2
 from LAX_exp.system.subsequences.doppler_recooling import DopplerRecooling
-from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
+from LAX_exp.system.subsequences.overlap_readout import OverlapReadout
 __all__.extend(['Readout', 'ReadoutAdaptive', 'SidebandReadout', 'RabiflopReadout',
                 'AbsorptionProbe', 'AbsorptionProbe2', 'DopplerRecooling',
-                'FockStateGenerator'])
+                'OverlapReadout'])
 
 # hardware utilities
 from LAX_exp.system.subsequences.phaser_shuffle import PhaserShuffle
