@@ -1,3 +1,4 @@
+from numpy import int64
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, RAM_MODE_RAMPUP
 
@@ -21,9 +22,6 @@ class OverlapReadout(QubitRAP):
         # hardware values
         "att_overlap_mu", "freq_carrier_ftw", "ampl_carrier_asf", "time_carrier_mu",
         "freq_rap_center_ftw", "freq_rap_dev_ftw", "time_rap_mu"
-
-        # our new stuff
-        "_time_rap_actual_mu"
     }
 
     def build_subsequence(self, ram_profile: TInt32 = -1, profile_shelve: TInt32 = -1,
@@ -66,7 +64,7 @@ class OverlapReadout(QubitRAP):
                               group="{}.carr".format(_argstr))
 
         # RAP: arguments
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7470, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.),
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7471, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.),
                               group="{}.RAP".format(_argstr))
         self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.),
                               group="{}.RAP".format(_argstr),
@@ -89,8 +87,9 @@ class OverlapReadout(QubitRAP):
         """
         # call parent prepare_subsequence
         super().prepare_subsequence()
-        # todo: if I do super().prepare_subsequence, does it call their _prepare_argument_checks,
+        # question: if I do super().prepare_subsequence, does it call their _prepare_argument_checks,
         #  or MY _prepare_argument_checks?
+        # answer: it runs MY _prepare_argument_checks (reasonably)
 
         '''CONVERT PULSE CONFIGURATION'''
         # process fock state
@@ -100,15 +99,27 @@ class OverlapReadout(QubitRAP):
 
         # note: create separate arrays for freq/ampl & time to avoid int32 conversion later on
         # (b/c all variables have to have same type)
-        self.dds_configs = [
-            [self.qubit.frequency_to_ftw(config[0] * MHz),
-             self.qubit.amplitude_to_asf(config[1] / 100.)]
-            for config in self.shelving_config.values()
-        ]
-        self.pulse_times_mu = [
-            self.core.seconds_to_mu(config[2] * us)
-            for config in self.shelving_config.values()
-        ]
+        # create dummy configs if not needed (to avoid artiq typing issues)
+        if self.num_pulses == 0:
+            self.dds_configs = [
+                [self.qubit.frequency_to_ftw(config[0] * MHz),
+                 self.qubit.amplitude_to_asf(config[1] / 100.)]
+                for config in [[200., 10., 10.]]
+            ]
+            self.pulse_times_mu = [
+                self.core.seconds_to_mu(config[2] * us)
+                for config in [[200., 10., 10.]]
+            ]
+        else:
+            self.dds_configs = [
+                [self.qubit.frequency_to_ftw(config[0] * MHz),
+                 self.qubit.amplitude_to_asf(config[1] / 100.)]
+                for config in self.shelving_config.values()
+            ]
+            self.pulse_times_mu = [
+                self.core.seconds_to_mu(config[2] * us)
+                for config in self.shelving_config.values()
+            ]
 
         '''CONVERT VALUES TO MACHINE UNITS'''
         # overlap
@@ -120,15 +131,15 @@ class OverlapReadout(QubitRAP):
         self.time_carrier_mu =  self.core.seconds_to_mu(self.time_carrier_us * us)
 
         # RAP
-        self.freq_rap_center_ftw = hz_to_ftw(self.freq_rap_center_mhz * MHz)
-        self.freq_rap_dev_ftw = hz_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
+        self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
         self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
+        self._time_rap_actual_mu = int64(0) # holder for RAP actual time (which we receive in initialize)
 
     def _prepare_argument_checks(self) -> TNone:
         """
         Check experiment arguments for validity.
         """
-        # first run parent checks
         super()._prepare_argument_checks()
 
         # ensure fock_state_readout is valid
@@ -183,7 +194,7 @@ class OverlapReadout(QubitRAP):
             we need to also define our own, and ARTIQ doesn't support super()
             on coredevice.
         """
-        '''FROM PARENT QUBITRAP'''
+        '''FROM PARENT (QubitRAP)'''
         # disable RAM + DRG and set matched latencies
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)
@@ -236,7 +247,7 @@ class OverlapReadout(QubitRAP):
         self.qubit.set_profile(self.profile_shelve)
 
         # run shelving pulse (|S,n> => |aux>)
-        self.qubit.set_mu(self.dds_configs[shelve_num, 0], asf=self.dds_configs[shelve_num, 1],
+        self.qubit.set_mu(self.dds_configs[shelve_num][0], asf=self.dds_configs[shelve_num][1],
                           profile=self.profile_shelve, phase_mode=PHASE_MODE_CONTINUOUS)
         self.qubit.on()
         delay_mu(self.pulse_times_mu[shelve_num])

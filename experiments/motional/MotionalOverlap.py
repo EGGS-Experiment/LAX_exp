@@ -1,4 +1,4 @@
-from numpy import int32
+from numpy import int32, array
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
@@ -30,7 +30,7 @@ class MotionalOverlap(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=40, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
     
         # allocate relevant beam profiles
         self.profile_729_rabi =     0
@@ -47,13 +47,13 @@ class MotionalOverlap(LAXExperiment, Experiment):
 
         # fock state generation: arguments
         self.setattr_argument("enable_fock_prep", BooleanValue(default=False), group='fock_prep')
-        self.setattr_argument("fock_pulse_config", PYONValue([[100.7528, 26., 3.], [100.7528, 26., 3.], [100.7528, 26., 3.]]),
+        self.setattr_argument("fock_pulse_config", PYONValue([[101.4081, 25., 50.80], [100.7528, 25., 3.], [101.0781, 50., 2.05]]),
                               group='fock_prep', tooltip="List of [freq_mhz, ampl_pct, time_us].")
-        self.setattr_argument("att_fock_db", NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
+        self.setattr_argument("att_fock_db", NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
                               group='fock_prep')
 
-        # spectroscopy: arguments
-        self.setattr_argument("enable_rabi", BooleanValue(default=False), group='Spectroscopy')
+        # rabi spectroscopy: arguments
+        self.setattr_argument("enable_rabi", BooleanValue(default=False), group='Rabi')
         self.setattr_argument("time_rabi_us_list",  Scannable(
                                                         default=[
                                                             RangeScan(1, 150, 100, randomize=True),
@@ -62,29 +62,30 @@ class MotionalOverlap(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=1, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
-                                                    ), group="Spectroscopy")
+                                                    ), group="Rabi")
         self.setattr_argument("freq_rabi_mhz_list", Scannable(
                                                         default=[
-                                                            CenterScan(100.3172, 0.02, 0.00025, randomize=True),
                                                             ExplicitScan([100.7044]),
+                                                            CenterScan(100.3172, 0.02, 0.00025, randomize=True),
                                                         ],
                                                         global_min=30, global_max=200, global_step=1,
                                                         unit="MHz", scale=1, precision=5
-                                                    ), group="Spectroscopy")
+                                                    ), group="Rabi")
         self.setattr_argument("ampl_rabi_pct",  NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit="%"),
-                              group="Spectroscopy")
+                              group="Rabi")
         self.setattr_argument("att_rabi_db",    NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"),
-                              group="Spectroscopy")
+                              group="Rabi")
 
         # instantiate motional overlap subsequences
+        # note: this arg is going to show up with the rest of overlap_subsequence's arguments
+        self.setattr_argument("enable_overlap", BooleanValue(default=False), group='overlap')
         self.overlap_subsequence = OverlapReadout(
-            self, ram_profile=self.profile_729_rap, profile_shelve=self.profile_729_overlap,
-            ram_addr_start=0, num_samples=500,
-            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+            self, ram_profile=self.profile_729_RAP, profile_shelve=self.profile_729_overlap,
+            ram_addr_start=101, num_samples=200, pulse_shape="blackman"
         )
         self.fock_subsequence = AgilePulseGenerator(
             self, profile_agile=self.profile_729_fock, att_pulse_db=self.att_fock_db,
-            pulse_config=self.fock_pulse_config
+            pulse_config=array(self.fock_pulse_config)
         )
 
         # prepare other sequences
@@ -100,8 +101,14 @@ class MotionalOverlap(LAXExperiment, Experiment):
         Prepare values for speedy evaluation.
         """
         # prepare arguments: rabi/spectroscopy
-        freq_rabi_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rabi_mhz_list]
-        time_rabi_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rabi_us_list]
+        if self.enable_rabi:
+            freq_rabi_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                  for freq_mhz in self.freq_rabi_mhz_list]
+            time_rabi_mu_list = [self.core.seconds_to_mu(time_us * us)
+                                 for time_us in self.time_rabi_us_list]
+        else:
+            freq_rabi_ftw_list = [self.qubit.frequency_to_ftw(100. * MHz)]
+            time_rabi_mu_list = [self.core.seconds_to_mu(100. * us)]
         self.ampl_rabi_asf = self.qubit.amplitude_to_asf(self.ampl_rabi_pct / 100.)
         self.att_rabi_mu = att_to_mu(self.att_rabi_db * dB)
 
@@ -153,12 +160,12 @@ class MotionalOverlap(LAXExperiment, Experiment):
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
-                self.cooling_subsequence.run_dma()
+                self.sidebandcool_subsequence.run_dma()
                 if self.enable_fock_prep:
                     self.fock_subsequence.run_dma()
 
 
-                '''SPECTROSCOPY'''
+                '''RABI SPECTROSCOPY'''
                 # run rabi flopping
                 if self.enable_rabi:
                     self.qubit.set_att_mu(self.att_rabi_mu)

@@ -17,7 +17,7 @@ class AgilePulseGenerator(LAXSubsequence):
     }
 
     def build_subsequence(self, profile_agile: TInt32 = 2, att_pulse_db: TFloat = 31.5,
-                          pulse_config: TArray(TFloat, 2) = np.zeros(1, 3)):
+                          pulse_config: TArray(TFloat, 2) = np.zeros((1, 3))):
         """
         Defines the main interface for the subsequence.
         Arguments:
@@ -69,11 +69,11 @@ class AgilePulseGenerator(LAXSubsequence):
         pulse_ampls_pct = self.pulse_config[:, 1]
         pulse_times_us = self.pulse_config[:, 2]
         if not (all(pulse_freqs_mhz <= 400.) and all(pulse_freqs_mhz >= 30.)):
-            raise ValueError("Invalid pulse configuration frequencies: {:d}. Must be in [30, 400] MHz.".format(pulse_freqs_mhz))
+            raise ValueError("Invalid pulse configuration frequencies: {:}. Must be in [30, 400] MHz.".format(pulse_freqs_mhz))
         elif not (all(pulse_ampls_pct <= 50.) and all(pulse_ampls_pct >= 0.01)):
-            raise ValueError("Invalid pulse configuration amplitudes: {:d}. Must be in [0.01, 50] MHz.".format(pulse_ampls_pct))
+            raise ValueError("Invalid pulse configuration amplitudes: {:}. Must be in [0.01, 50] MHz.".format(pulse_ampls_pct))
         elif not (all(pulse_times_us <= 100000.) and all(pulse_times_us >= 0.5)):
-            raise ValueError("Invalid pulse configuration times: {:d}. Must be in [0.5, 100000] MHz.".format(pulse_times_us))
+            raise ValueError("Invalid pulse configuration times: {:}. Must be in [0.5, 100000] MHz.".format(pulse_times_us))
 
 
     '''
@@ -88,10 +88,11 @@ class AgilePulseGenerator(LAXSubsequence):
         self.qubit.set_profile(self.profile_agile)
         self.qubit.cpld.io_update.pulse_mu(8)
         self.qubit.set_att_mu(self.att_pulse_mu)
+        delay_mu(24) # prevents spi_urukul0 busy errors (b/c set_mu rewinds timeline via coarse RTIO alignment)
 
         # run pulses
         for i in range(self.num_pulses):
-            self.qubit.set_mu(self.dds_configs[i, 0], asf=self.dds_configs[i, 1], profile=self.profile_agile,
+            self.qubit.set_mu(self.dds_configs[i][0], asf=self.dds_configs[i][1], profile=self.profile_agile,
                               phase_mode=PHASE_MODE_CONTINUOUS)
             self.qubit.on()
             delay_mu(self.pulse_times_mu[i])

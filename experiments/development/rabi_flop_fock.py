@@ -169,12 +169,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
                 self.cooling_subsequence.run_dma()
 
                 if self.enable_fock_state_generation:
-                    # self.urukul0_ch1.set(120.339 * MHz, amplitude=0.5, profile=self.profile_fock)
-                    # delay_mu(100000)
-                    # self.urukul0_ch1.cpld.set_profile(self.profile_fock)
-                    # self.urukul0_ch1.cpld.io_update.pulse_mu(8)
-                    # delay_mu(100000)
-                    self.fock_state_generator_subsequence.run_dma()
+                    self.fock_state_generator_subsequence.run()
 
                 # prepare qubit beam for readout
                 self.qubit.set_profile(self.profile_729_readout)
