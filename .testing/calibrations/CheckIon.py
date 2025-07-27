@@ -2,10 +2,8 @@ import labrad
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.base import LAXExperiment
-from LAX_exp.analysis.processing import *
-from LAX_exp.extensions import hz_to_ftw
-from LAX_exp.extensions import mhz_to_ftw
+from LAX_exp.language import *
+
 
 class CheckIon(LAXExperiment, Experiment):
     """

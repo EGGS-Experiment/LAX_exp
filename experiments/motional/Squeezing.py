@@ -108,7 +108,7 @@ class Squeezing(LAXExperiment, Experiment):
                                                           for time_us in self.time_readout_us_list])
 
         '''SQUEEZING PARAMETERS'''
-        self.freq_squeeze_ftw_list =        np.array([hz_to_ftw(freq_khz * kHz)
+        self.freq_squeeze_ftw_list =        np.array([self.dds_parametric.frequency_to_ftw(freq_khz * kHz)
                                                       for freq_khz in self.freq_squeeze_khz_list])
         self.phase_antisqueeze_pow_list =   np.array([self.dds_parametric.turns_to_pow(phase_turns)
                                                       for phase_turns in self.phase_antisqueeze_turns_list])

@@ -72,7 +72,7 @@ class SidebandCoolContinuous(LAXSubsequence):
 
         '''PREPARE SIDEBAND COOLING'''
         # CONFIG
-        self.freq_sideband_cooling_ftw_list =   np.array([hz_to_ftw(freq_mhz * MHz)
+        self.freq_sideband_cooling_ftw_list =   np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                                           for freq_mhz in self.freq_sideband_cooling_mhz_pct_list.keys()])
         self.iter_sideband_cooling_modes_list = np.array(list(range(1, 1 + len(self.freq_sideband_cooling_mhz_pct_list))))
 

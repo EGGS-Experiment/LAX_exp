@@ -109,7 +109,8 @@ class SidebandCoolPulsed(LAXSubsequence):
         self.time_sideband_cooling_list_mu = np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # sideband cooling waveforms
-        self.freq_sideband_cooling_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_sideband_cooling_mhz_list])
+        self.freq_sideband_cooling_ftw_list = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                        for freq_mhz in self.freq_sideband_cooling_mhz_list])
         self.att_sidebandcooling_mu = att_to_mu(self.att_sidebandcooling_pulsed_db * dB)
         self.iter_sideband_cooling_modes_list = np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 

@@ -151,8 +151,8 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
 
         # frequency parameters
-        freq_rap_center_ftw_list = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
-        freq_rap_dev_ftw_list =    np.array([hz_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
+        freq_rap_center_ftw_list = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
+        freq_rap_dev_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
 
         # timing parameters
         time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)

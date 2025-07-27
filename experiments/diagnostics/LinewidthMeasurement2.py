@@ -55,7 +55,7 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
         '''CONVERT VALUES TO MACHINE UNITS'''
         # convert probe frequency scans
         self.freq_probe_scan_mhz = np.array([freq_mhz for freq_mhz in self.freq_probe_scan_mhz])
-        self.freq_probe_scan_ftw = np.array([hz_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
+        self.freq_probe_scan_ftw = np.array([self.pump.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_probe_scan_mhz])
 
         '''CALIBRATE BEAM POWERS'''
         # get amplitude calibration curve from dataset manager and interpolate the points

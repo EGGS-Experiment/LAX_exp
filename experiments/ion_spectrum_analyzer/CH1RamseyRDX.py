@@ -185,8 +185,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
-        self.freq_rap_center_ftw = hz_to_ftw(self.freq_rap_center_mhz * MHz)
-        self.freq_rap_dev_ftw = hz_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
+        self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
         self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
 
         # configure readout method
