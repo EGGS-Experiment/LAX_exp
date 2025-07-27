@@ -27,19 +27,18 @@ class QubitRAP(LAXSubsequence):
         "ampl_asf_pulseshape_list", "ram_writer"
     }
 
-    def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
+    def build_subsequence(self, ram_profile: TInt32 = -1, ram_addr_start: TInt32 = 0x00,
                           num_samples: TInt32 = 200, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "blackman"):
         """
         Defines the main interface for the subsequence.
-        Arguments:
-            ram_profile: the AD9910 RAM profile to use for pulse shaping.
-            ram_addr_start: the beginning RAM register address for pulse shaping.
-                Must be in [0, 923].
-            num_samples: the number of samples to use for the pulse shape.
-                Must result in a final RAM address <= 1023.
-            ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
-            pulse_shape: the pulse shape to use.
+        :param ram_profile: the AD9910 RAM profile to use for pulse shaping.
+        :param ram_addr_start: the beginning RAM register address for pulse shaping.
+            Must be in [0, 923].
+        :param num_samples: the number of samples to use for the pulse shape.
+            Must result in a final RAM address <= 1023.
+        :param ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+        :param pulse_shape: the pulse shape to use. Must be supported by available_pulse_shapes.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile

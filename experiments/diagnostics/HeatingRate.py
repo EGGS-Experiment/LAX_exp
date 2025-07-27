@@ -2,10 +2,11 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
+from LAX_exp.language import *
 import LAX_exp.experiments.diagnostics.SidebandCooling as SidebandCooling
 from sipyco import pyon
+
+# todo: make heatingrate support RAP-based readout
 
 
 class HeatingRate(SidebandCooling.SidebandCooling):
@@ -17,8 +18,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
     """
     name = 'Heating Rate'
     kernel_invariants = {
-        'freq_sideband_readout_ftw_list', 'time_heating_rate_mu_list',
-        'config_experiment_list'
+        'freq_sideband_readout_ftw_list', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -34,22 +34,28 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         self.kernel_invariants = self.kernel_invariants | kernel_invariants_parent
 
     def prepare_experiment(self):
+        """
+        Prepare values for speedy evaluation.
+        """
         # run preparations for sideband cooling
         super().prepare_experiment()
+
+        # note: set as instance variable here b/c analysis code needs it
         self.freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
-        # convert heating rate timings to machine units
-        self.time_heating_rate_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
-                                                   for time_ms in self.time_heating_rate_ms_list],
-                                                  dtype=np.int64)
+        # convert values rate timings to machine units
+        time_heating_rate_mu_list = np.array([
+            self.core.seconds_to_mu(time_ms * ms)
+            for time_ms in self.time_heating_rate_ms_list
+        ], dtype=np.int64)
 
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_experiment_list = np.stack(np.meshgrid(self.time_heating_rate_mu_list,
-                                                             self.freq_sideband_readout_ftw_list),
-                                                 -1).reshape(-1, 2)
-        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        # create an array of values for the experiment to sweep
+        self.config_experiment_list = create_experiment_config(
+            time_heating_rate_mu_list, self.freq_sideband_readout_ftw_list,
+            shuffle_config=True, dtype=np.int64
+        )
 
     @property
     def results_shape(self):
@@ -57,7 +63,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 3)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # MAIN LOOP
@@ -75,6 +83,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                                   profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(8000)
 
+
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
@@ -82,6 +91,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
                 # wait time to measure heating rate
                 delay_mu(time_heating_delay_mu)
+
 
                 '''READ OUT'''
                 # sideband readout
@@ -106,7 +116,10 @@ class HeatingRate(SidebandCooling.SidebandCooling):
             self.check_termination()
             self.core.break_realtime()
 
-    # ANALYSIS
+
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit resultant spectra with a sinc profile to extract n,
