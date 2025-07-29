@@ -12,6 +12,9 @@ DRG_DEST_FTW =  0b00
 DRG_DEST_POW =  0b01
 DRG_DEST_ASF =  0b10
 
+# todo: implement enable
+# todo: also enable etc on qubitpulseshape etc.
+
 
 class QubitRAP(LAXSubsequence):
     """
@@ -29,7 +32,7 @@ class QubitRAP(LAXSubsequence):
 
     def build_subsequence(self, ram_profile: TInt32 = -1, ram_addr_start: TInt32 = 0x00,
                           num_samples: TInt32 = 200, ampl_max_pct: TFloat = 50.,
-                          pulse_shape: TStr = "blackman"):
+                          pulse_shape: TStr = "blackman", enable: TBool = True):
         """
         Defines the main interface for the subsequence.
         :param ram_profile: the AD9910 RAM profile to use for pulse shaping.
@@ -39,6 +42,7 @@ class QubitRAP(LAXSubsequence):
             Must result in a final RAM address <= 1023.
         :param ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
         :param pulse_shape: the pulse shape to use. Must be supported by available_pulse_shapes.
+        :param enable: whether to actually enable the subsequence (via initialization etc.)
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
@@ -46,6 +50,7 @@ class QubitRAP(LAXSubsequence):
         self.num_samples =      num_samples
         self.ampl_max_pct =     ampl_max_pct
         self.pulse_shape =      pulse_shape
+        self.enable =           enable
 
         # number of DRG updates per RAM amplitude update; must be power of 2
         self.drg_steps_per_ram_step = 1
