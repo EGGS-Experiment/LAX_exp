@@ -10,79 +10,99 @@ class SidebandCoolPulsed(LAXSubsequence):
     Subsequence: Sideband Cool - Pulsed
 
     Cool the ion to the ground state using RSB pulses on the S-1/2 to D-5/2 transition.
+    WARNING: uses a separate profile for each mode (starting from profile 1).
     """
     name = 'sideband_cool_pulsed'
     kernel_invariants = {
-        "ampl_qubit_asf",
-        "time_repump_qubit_mu",
-        "time_spinpol_mu",
-        "time_sideband_cooling_list_mu",
-        "freq_sideband_cooling_ftw_list",
-        "att_sidebandcooling_mu",
-        "iter_sideband_cooling_modes_list"
+        "ampl_qubit_asf", "att_sidebandcooling_mu",
+        "time_repump_qubit_mu", "time_spinpol_mu", "time_sideband_cooling_list_mu",
+        "freq_sideband_cooling_ftw_list", "iter_sideband_cooling_modes_list"
     }
 
     def build_subsequence(self):
+        _argstr = "sbc_pulsed" # create short string for argument grouping
+
         # get devices
         self.setattr_device('probe')
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
-        # sideband cooling configuration
-        self.setattr_argument('calibration_pulsed',                     BooleanValue(default=False), group='sideband_cooling.pulsed')
-        self.setattr_argument('sideband_cycles_pulsed',                 NumberValue(default=80, precision=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
-        self.setattr_argument("extra_sideband_cycles",                  NumberValue(default=0, precision=0, step=1, min=0, max=10000), group='sideband_cooling.pulsed')
-        self.setattr_argument('cycles_per_spin_polarization',           NumberValue(default=15, precision=0, step=1, min=1, max=10000), group='sideband_cooling.pulsed')
+        # sideband cooling: configuration
+        self.setattr_argument('calibration_pulsed',     BooleanValue(default=False), group='{}'.format(_argstr),
+                              tooltip="If True: disables 729nm DDS (via ONLY the urukul switch) during SBC"
+                                      "for calibration purposes.")
+        self.setattr_argument('sideband_cycles_pulsed', NumberValue(default=80, precision=0, step=1, min=1, max=10000),
+                              group='{}'.format(_argstr),
+                              tooltip="Number of SBC pulses to run for each mode.")
+        self.setattr_argument("extra_sideband_cycles",  NumberValue(default=0, precision=0, step=1, min=0, max=10000),
+                              group='{}'.format(_argstr),
+                              tooltip="Run extra sideband cycles at the beginning of SBC to improve efficiency."
+                                      "Extra pulses are run for ALL specified modes.")
+        self.setattr_argument('cycles_per_spinpol',     NumberValue(default=15, precision=0, step=1, min=1, max=10000),
+                              group='{}'.format(_argstr),
+                              tooltip="Sets regularity of spin polarization."
+                                      "Number of sideband cooling cycles between each spin polarization pulse.")
 
-        # sideband cooling timing
-        self.setattr_argument("time_form_sideband_cooling",             EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'), group='sideband_cooling.pulsed')
-        self.setattr_argument('time_min_sideband_cooling_us_list',      PYONValue([30]), group='sideband_cooling.pulsed')
-        self.setattr_argument('time_max_sideband_cooling_us_list',      PYONValue([150]), group='sideband_cooling.pulsed')
+        # sideband cooling: timing
+        self.setattr_argument("time_form_sbc", EnumerationValue(['Linear', 'Inverse Square Root'], default='Linear'),
+                              group='{}'.format(_argstr),
+                              tooltip="Sets how SBC pulse lengths should be calculated.")
+        self.setattr_argument('time_min_sbc_us_list', PYONValue([30]), group='{}'.format(_argstr),
+                              tooltip="Minimum SBC pulse length for each mode."
+                                      "These define the START of the SBC sequence."
+                                      "Each mode must have a value specified.")
+        self.setattr_argument('time_max_sbc_us_list', PYONValue([150]), group='{}'.format(_argstr),
+                              tooltip="Maximum SBC pulse length for each mode."
+                                      "These define the END of the SBC sequence."
+                                      "Each mode must have a value specified.")
 
-        # sideband cooling waveform
-        self.setattr_argument('freq_sideband_cooling_mhz_list',         PYONValue([103.77]), group='sideband_cooling.pulsed')
-        self.setattr_argument("att_sidebandcooling_pulsed_db",          NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group='sideband_cooling.pulsed')
+        # sideband cooling: waveform
+        self.setattr_argument('freq_sbc_mhz_list', PYONValue([103.7701]), group='{}'.format(_argstr),
+                              tooltip="Modes to SBC on.")
+        self.setattr_argument("att_sbc_pulsed_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit=1., scale="dB"),
+                              group='{}'.format(_argstr),
+                              tooltip="DDS attenuation to use during SBC.")
 
     def prepare_subsequence(self):
         # ensure input has correct dimensions and uses < 7 modes (due to max of 8 profiles per urukul channel)
-        num_min_times = len(list(self.time_min_sideband_cooling_us_list))
-        num_max_times = len(list(self.time_max_sideband_cooling_us_list))
-        num_modes =     len(list(self.freq_sideband_cooling_mhz_list))
-        assert num_modes < 7,   "Exceeded maximum number of cooling frequencies."
-        assert num_min_times == num_max_times == num_modes, "Number of modes and timings are not equal."
+        num_min_times = len(list(self.time_min_sbc_us_list))
+        num_max_times = len(list(self.time_max_sbc_us_list))
+        num_modes =     len(list(self.freq_sbc_mhz_list))
+        if not (0 < num_modes < 7):
+            raise ValueError("Exceeded maximum number of cooling frequencies: {:d}."
+                             "Must be in [1, 6].".format(num_modes))
+        elif not (num_min_times == num_max_times == num_modes):
+            raise ValueError("Number of modes and timings are not equal.")
 
-        # DDS parameters
+        # get parameters from dataset
         self.ampl_qubit_asf =   self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
                                                    conversion_function=pct_to_asf)
-
-        # timing parameters
         self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us', group='timing', override=True,
                                                        conversion_function=seconds_to_mu, units=us)
         self.time_spinpol_mu =      self.get_parameter('time_spinpol_us', group='timing', override=True,
                                                        conversion_function=seconds_to_mu, units=us)
 
-        # timing
+        ### COMPILE SBC WAVEFORM ###
         self.time_sideband_cooling_list_mu = np.array([])
-
         # calculate cooling timeform: linear
-        if self.time_form_sideband_cooling == 'Linear':
+        if self.time_form_sbc == 'Linear':
 
             self.time_sideband_cooling_list_mu = np.array([
                 self.core.seconds_to_mu(time_us * us)
                 for time_us in np.linspace(
-                    self.time_min_sideband_cooling_us_list,
-                    self.time_max_sideband_cooling_us_list,
+                    self.time_min_sbc_us_list,
+                    self.time_max_sbc_us_list,
                     self.sideband_cycles_pulsed
                 )
             ])
 
         # calculate cooling timeform: inverse square root
-        elif self.time_form_sideband_cooling == 'Inverse Square Root':
+        elif self.time_form_sbc == 'Inverse Square Root':
 
             # alias variables for compactness of notation
             steps = self.sideband_cycles_pulsed
-            (t_min, t_max) = (self.time_min_sideband_cooling_us_list, self.time_max_sideband_cooling_us_list)
+            (t_min, t_max) = (self.time_min_sbc_us_list, self.time_max_sbc_us_list)
 
             # calculate timeshaping
             timeshape_t0 = np.sqrt((steps - 1) / (np.power(t_min, -2.) - np.power(t_max, -2.)))
@@ -94,7 +114,6 @@ class SidebandCoolPulsed(LAXSubsequence):
                 self.core.seconds_to_mu(time_mode_list_us * us)
                 for time_mode_list_us in self.time_sideband_cooling_list_mu
             ])
-
         # account for errors in timing
         else:
             raise Exception('Unknown error in SBC - Pulsed')
@@ -105,15 +124,19 @@ class SidebandCoolPulsed(LAXSubsequence):
         self.time_sideband_cooling_list_mu = np.concatenate([extra_cycles_arr, self.time_sideband_cooling_list_mu])
 
         # split up sideband cooling times to intersperse spin polarization
-        num_spin_polarizations = int(self.sideband_cycles_pulsed / self.cycles_per_spin_polarization + 0.5)
+        num_spin_polarizations = int(self.sideband_cycles_pulsed / self.cycles_per_spinpol + 0.5)
         self.time_sideband_cooling_list_mu = np.array_split(self.time_sideband_cooling_list_mu, num_spin_polarizations)
 
         # sideband cooling waveforms
         self.freq_sideband_cooling_ftw_list = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                        for freq_mhz in self.freq_sideband_cooling_mhz_list])
-        self.att_sidebandcooling_mu = att_to_mu(self.att_sidebandcooling_pulsed_db * dB)
+                                                        for freq_mhz in self.freq_sbc_mhz_list])
+        self.att_sidebandcooling_mu = att_to_mu(self.att_sbc_pulsed_db * dB)
         self.iter_sideband_cooling_modes_list = np.array(range(1, 1 + len(self.freq_sideband_cooling_ftw_list)))
 
+
+    '''
+    COREDEVICE METHODS
+    '''
     @kernel(flags={"fast-math"})
     def initialize_subsequence(self) -> TNone:
         # set sideband cooling profiles for 729nm qubit laser
