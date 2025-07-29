@@ -34,23 +34,26 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type",           EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
-                                                                         default="SBC - Continuous"))
-        self.setattr_argument("time_rabi_us_list",      Scannable(
-                                                            default=[
-                                                                RangeScan(1, 100, 100, randomize=True),
-                                                                ExplicitScan([6.05]),
-                                                                CenterScan(3.05, 5., 0.1, randomize=True),
-                                                            ],
-                                                            global_min=1, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5
-                                                        ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz",      NumberValue(default=101.1072, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'), group=self.name)
-        self.setattr_argument("ampl_qubit_pct",         NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit='%'), group=self.name)
-        self.setattr_argument("att_readout_db",         NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'), group=self.name)
-        self.setattr_argument("equalize_delays",        BooleanValue(default=False), group=self.name,
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
+                                                               default="SBC - Continuous"))
+        self.setattr_argument("time_rabi_us_list", Scannable(
+                                                    default=[
+                                                        RangeScan(1, 100, 100, randomize=True),
+                                                        ExplicitScan([6.05]),
+                                                        CenterScan(3.05, 5., 0.1, randomize=True),
+                                                    ],
+                                                    global_min=1, global_max=100000, global_step=1,
+                                                    unit="us", scale=1, precision=5
+                                                ), group=self.name)
+        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.1072, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'),
+                              group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit='%'),
+                              group=self.name)
+        self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
+                              group=self.name)
+        self.setattr_argument("equalize_delays", BooleanValue(default=False), group=self.name,
                               tooltip="Ensure each shot takes the same overall time by adding a dummy delay.")
-        self.setattr_argument("enable_pulseshaping",    BooleanValue(default=False), group=self.name,
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name,
                               tooltip="Shape the rabiflop pulse to reduce spectral leakage. Uses a Hann (sine-squared) envelope.")
 
         # allocate relevant beam profiles
@@ -61,8 +64,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.pulseshape_subsequence =   QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=502,

@@ -320,7 +320,7 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
                                                           self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
                                                       ][:self._num_phaser_oscs]).transpose()
 
-        # specify sequence as a dict of blocks, where each block is a dict
+        # specify sequence as a list of blocks, where each block is a dict
         _sequence_blocks = [
             {
                 "oscillator_parameters": _osc_vals_blocks[i],

@@ -33,7 +33,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=10, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=7, precision=0, step=1, min=1, max=100000))
 
         # linetrigger
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
@@ -49,16 +49,19 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
                                                         default=[
-                                                            CenterScan(101.1349, 0.02, 0.0002, randomize=True),
+                                                            CenterScan(101.0752, 0.02, 0.0002, randomize=True),
                                                             ExplicitScan([101.1349]),
                                                             RangeScan(1, 50, 200, randomize=True),
                                                         ],
                                                         global_min=60, global_max=200, global_step=0.01,
                                                         unit="MHz", scale=1, precision=6
                                                     ), group=self.name)
-        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000, unit='us', scale=1.), group=self.name)
-        self.setattr_argument("ampl_qubit_pct", NumberValue(default=25, precision=3, step=5, min=1, max=50, scale=1., unit='%'), group=self.name)
-        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'), group=self.name)
+        self.setattr_argument("time_qubit_us",  NumberValue(default=3500, precision=3, step=500, min=1, max=10000000, unit='us', scale=1.),
+                              group=self.name)
+        self.setattr_argument("ampl_qubit_pct", NumberValue(default=20, precision=3, step=5, min=1, max=50, scale=1., unit='%'),
+                              group=self.name)
+        self.setattr_argument("att_qubit_db",   NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
+                              group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
         # relevant devices
@@ -148,9 +151,6 @@ class LaserScan(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
-            # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 # tmp remove

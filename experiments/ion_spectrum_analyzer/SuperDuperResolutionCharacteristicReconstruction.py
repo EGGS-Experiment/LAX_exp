@@ -3,12 +3,11 @@ from artiq.experiment import *
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
+    InitializeQubit, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
 )
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-import math
 from itertools import product
 from collections.abc import Iterable
 from artiq.coredevice import ad9910
@@ -56,8 +55,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # get subsequences
         self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
@@ -308,7 +306,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         if self.characteristic_readout_sweep == "Grid":
             vals_pulse4_mu_pow_list = np.array([
                 [
-                    self.core.seconds_to_mu(math.sqrt(x_us ** 2. + y_us ** 2.) * us),
+                    self.core.seconds_to_mu(np.sqrt(x_us ** 2. + y_us ** 2.) * us),
                     self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
                 ]
                 for x_us in self.time_pulse4_cat_x_us_list
@@ -460,7 +458,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 self.phase_subharmonic_carrier_0_psk_turns[:num_blocks], self.phase_subharmonic_carrier_1_psk_turns[:num_blocks]
             ][:self._num_phaser_oscs]).transpose()
 
-        # specify sequence as a dict of blocks, where each block is a dict
+        # specify sequence as a list of blocks, where each block is a dict
         _sequence_blocks = [
             {
                 "oscillator_parameters": _osc_vals_blocks[i],

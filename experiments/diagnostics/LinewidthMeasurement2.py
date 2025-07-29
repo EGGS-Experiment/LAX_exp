@@ -24,11 +24,14 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=150, precision=0, step=1, min=1, max=100000))
 
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz",    Scannable(
-                                                            default=RangeScan(85, 129, 45, randomize=True),
+                                                            default=[
+                                                                RangeScan(92, 139, 80, randomize=True),
+                                                                ExplicitScan([120.5]),
+                                                            ],
                                                             global_min=80, global_max=140, global_step=1,
                                                             unit="MHz", scale=1, precision=6
                                                         ))

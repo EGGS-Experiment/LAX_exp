@@ -46,10 +46,11 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=1, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=10000))
 
         # modulation
-        self.setattr_argument("mod_att_db",         NumberValue(default=14, precision=1, step=0.5, min=0, max=31.5, scale=1., unit='dB'), group='modulation')
+        self.setattr_argument("mod_att_db",         NumberValue(default=14, precision=1, step=0.5, min=0, max=31.5, scale=1., unit='dB'),
+                              group='modulation')
         self.setattr_argument("mod_freq_khz_list",  Scannable(
                                                         default= [
                                                             CenterScan(1294.15, 8, 0.1, randomize=True),
@@ -61,20 +62,23 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                     ), group='modulation')
 
         # shimming voltages
-        self.dc_channeldict =                           dc_config.channeldict
-        self.setattr_argument("dc_channel",             EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'), group='voltage')
-        self.setattr_argument("dc_voltages_v_list",     Scannable(
-                                                            default=[
-                                                                CenterScan(74.4, 4., 0.6, randomize=True),
-                                                                ExplicitScan([75.5]),
-                                                            ],
-                                                            global_min=0, global_max=400, global_step=1,
-                                                            unit="V", scale=1, precision=1
-                                                        ), group='voltage')
+        self.dc_channeldict = dc_config.channeldict
+        self.setattr_argument("dc_channel", EnumerationValue(list(self.dc_channeldict.keys()), default='V Shim'),
+                              group='voltage')
+        self.setattr_argument("dc_voltages_v_list", Scannable(
+                                                        default=[
+                                                            CenterScan(74.4, 4., 0.6, randomize=True),
+                                                            ExplicitScan([75.5]),
+                                                        ],
+                                                        global_min=0, global_max=400, global_step=1,
+                                                        unit="V", scale=1, precision=1
+                                                    ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit='%'), group='cooling')
-        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=112, precision=6, step=1, min=1, max=500, scale=1., unit='MHz'), group='cooling')
+        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
+                              group='cooling')
+        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=112, precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
+                              group='cooling')
 
         # get relevant devices
         self.setattr_device('pump')
@@ -271,7 +275,9 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.update_results(freq_mhz, voltage_v, correlated_ampl, correlated_phase, count_rate_hz)
 
 
-    # ANALYSIS
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit resultant spectra with a sinc profile to extract n,

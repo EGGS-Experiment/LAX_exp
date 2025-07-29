@@ -13,12 +13,12 @@ from LAX_exp.system.subsequences import (
 
 class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
     """
-    Experiment: Rapid Adiabatic Passage with Fock
+    Experiment: Fock + Rapid Adiabatic Passage
 
     Applies a chirped and pulse-shaped 729nm qubit pulse to achieve Rapid Adiabatic Passage.
     Demonstrated via rabi flopping/spectrum scanning.
     """
-    name = 'Rapid Adiabatic Passage'
+    name = 'Fock Rapid Adiabatic Passage'
     kernel_invariants = {
         # hardware parameters
         'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
@@ -46,8 +46,7 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
         # build SBC here so its arguments come first
         self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
 
         # chirp parameters

@@ -2,8 +2,7 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
 )
@@ -54,25 +53,27 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # ram-based continuous sideband cooling
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
 
         # ramsey pulse parameters
-        self.setattr_argument('time_pulse_us',      NumberValue(default=10., precision=2, step=0.5, min=1., max=10000., scale=1., unit="us"), group="ramsey.pulse")
-        self.setattr_argument('ampl_ramsey_pct',    NumberValue(default=50., precision=2, step=5., min=0., max=50., scale=1., unit="%"), group="ramsey.pulse")
-        self.setattr_argument('att_ramsey_db',      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="ramsey.pulse")
+        self.setattr_argument('time_pulse_us', NumberValue(default=10., precision=2, step=0.5, min=1., max=10000., scale=1., unit="us"),
+                              group="ramsey.pulse")
+        self.setattr_argument('ampl_ramsey_pct', NumberValue(default=50., precision=2, step=5., min=0., max=50., scale=1., unit="%"),
+                              group="ramsey.pulse")
+        self.setattr_argument('att_ramsey_db', NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="ramsey.pulse")
 
         # ramsey sweep parameters
-        self.setattr_argument("time_delay_us_list",         Scannable(
-                                                            default=[
-                                                                ExplicitScan([100.]),
-                                                                RangeScan(20., 70., 10, randomize=True)
-                                                            ],
-                                                            global_min=3, global_max=10000000, global_step=100,
-                                                            unit="us", scale=1, precision=2
-                                                        ), group="ramsey.sweep")
-        self.setattr_argument("freq_ramsey_mhz_list",       Scannable(
+        self.setattr_argument("time_delay_us_list", Scannable(
+                                                        default=[
+                                                            ExplicitScan([100.]),
+                                                            RangeScan(20., 70., 10, randomize=True)
+                                                        ],
+                                                        global_min=3, global_max=10000000, global_step=100,
+                                                        unit="us", scale=1, precision=2
+                                                    ), group="ramsey.sweep")
+        self.setattr_argument("freq_ramsey_mhz_list",   Scannable(
                                                             default=[
                                                                 CenterScan(102.2152, 0.01, 0.0001, randomize=True),
                                                                 ExplicitScan([104.335]),

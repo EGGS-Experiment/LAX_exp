@@ -146,6 +146,7 @@ def flat_top(time_arr, time_rolloff, kwargs={}):
 available_pulse_shapes = {
     "square": square,
 
+    "hann": sine_squared,
     "sine_squared": sine_squared,
     "blackman": blackman,
     "nuttall": nuttall,

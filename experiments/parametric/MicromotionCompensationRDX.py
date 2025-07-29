@@ -57,11 +57,13 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_argument("iterations", NumberValue(default=3, precision=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, precision=0, step=1, min=1, max=100), group='configuration',
+        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, precision=0, step=1, min=1, max=100),
+                              group='configuration',
                               tooltip="The number of repetitions on each mode for a single voltage point."
                                       "All repetitions are executed at once for each point, but are alternated"
                                       "between modes (e.g. 2 reps => mode0, mode1, mode0, mode1).")
-        self.setattr_argument("num_steps",  NumberValue(default=11, precision=0, step=1, min=5, max=100), group='configuration',
+        self.setattr_argument("num_steps",  NumberValue(default=11, precision=0, step=1, min=5, max=100),
+                              group='configuration',
                               tooltip="The number of steps for each voltage scan.")
         self.setattr_argument("adaptive",   BooleanValue(default=True), group='configuration',
                               tooltip="Predicts the mode vectors for each scan, and automatically adjusts"
@@ -69,22 +71,29 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                                       "do nothing lol).")
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",    NumberValue(default=1585.22, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"), group='modulation')
-        self.setattr_argument("att_mode_0_db",      NumberValue(default=24., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='modulation',
+        self.setattr_argument("freq_mode_0_khz",    NumberValue(default=1585.22, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
+                              group='modulation')
+        self.setattr_argument("att_mode_0_db",      NumberValue(default=24., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
+                              group='modulation',
                               tooltip="The starting attenuation to use for mode 0."
                                       "If the adaptive option is selected, the experiment will automatically adjust "
                                       "the attenuation to maximize signal.")
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",    NumberValue(default=1299.81, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"), group='modulation')
-        self.setattr_argument("att_mode_1_db",      NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='modulation',
+        self.setattr_argument("freq_mode_1_khz",    NumberValue(default=1299.81, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
+                              group='modulation')
+        self.setattr_argument("att_mode_1_db",      NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
+                              group='modulation',
                               tooltip="The starting attenuation to use for mode 1."
                                       "If the adaptive option is selected, the experiment will automatically adjust "
                                       "the attenuation to maximize signal.")
 
         # shim voltages
-        self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'), group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([40, 80]), group='voltages')
-        self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'), group='voltages')
+        self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'),
+                              group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([40, 80]),
+                              group='voltages')
+        self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'),
+                              group='voltages')
         self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([40, 80]), group='voltages')
 
         # cooling
