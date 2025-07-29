@@ -2,16 +2,21 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM,
     SidebandReadout, QubitRAP
 )
 
-from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
+from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+
+# todo: add configurable delay for waveform - allow absorption of ramsey-ing
+# todo: add generic all osc use
+# todo: make freq sweep a specifiable array instead of fixed values
+# todo: update argument checks to ensure comprehensive - ensure types all OK
+# todo: change names to make more generic
 
 
 class SuperDuperResolution(LAXExperiment, Experiment):
@@ -24,29 +29,29 @@ class SuperDuperResolution(LAXExperiment, Experiment):
     name = 'Super Duper Resolution'
     kernel_invariants = {
         # hardware values
-        'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr',
-        'phase_superresolution_sweep_turns_list',
-        'freq_superresolution_osc_base_hz_list',
+        'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_update_arr', 'freq_global_offset_hz',
+        'phase_superresolution_sweep_turns_list', 'freq_superresolution_osc_base_hz_list',
 
         # EGGS/phaser related
         'waveform_index_to_pulseshaper_vals', 'waveform_index_to_phase_sweep_turns',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
-        'rescue_subsequence', 'rap_subsequence', 'enable_RAP',
+        'rescue_subsequence', 'rap_subsequence', 'enable_RAP', 'spinecho_wizard',
 
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
-
-        # subharmonic specials
-        'freq_global_offset_hz'
+        '_num_phaser_oscs'
     }
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=4, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions",    NumberValue(default=70, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
         self.setattr_argument("randomize_config", BooleanValue(default=True))
+
+        self._num_phaser_oscs = 4   # number of phaser oscillators in use
+        _argstr = "SDR"  # string to use for arguments
 
         # allocate relevant beam profiles
         self.profile_729_sb_readout =   0
@@ -56,8 +61,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # get subsequences
         self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
         self.initialize_subsequence =       InitializeQubit(self)
@@ -66,46 +70,45 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # Sideband Readout - extra argument
         self.setattr_argument("time_readout_us_list", Scannable(
-                                                            default=[
-                                                                ExplicitScan([120.5]),
-                                                                RangeScan(0, 1500, 100, randomize=True),
-                                                            ],
-                                                            global_min=1, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5
-                                                        ), group='sideband_readout')
+                                                        default=[
+                                                            ExplicitScan([26.11]),
+                                                            RangeScan(0, 800, 200, randomize=True),
+                                                        ],
+                                                        global_min=1, global_max=100000, global_step=1,
+                                                        unit="us", scale=1, precision=5
+                                                    ), group='sideband_readout')
 
         # RAP-based readout
-        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3318, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
-        self.setattr_argument("time_rap_us",            NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
+        self.setattr_argument("att_rap_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
+        self.setattr_argument("ampl_rap_pct", NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz", NumberValue(default=100.7407, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz", NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
+        self.setattr_argument("time_rap_us", NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # superresolution - configurable freq & sweeps
         self.setattr_argument("freq_eggs_heating_carrier_mhz_list", Scannable(
                                                                         default=[
-                                                                            CenterScan(83.20175, 0.002, 0.0005, randomize=True),
                                                                             ExplicitScan([86.]),
+                                                                            CenterScan(86., 0.002, 0.0005, randomize=True),
                                                                         ],
                                                                         global_min=0.005, global_max=4800, global_step=1,
                                                                         unit="MHz", scale=1, precision=6
-                                                                    ), group="{}.freq_phase_sweep".format("SDR"))
+                                                                    ), group="{}.freq_phase_sweep".format(_argstr))
 
         self.setattr_argument("target_freq_sweep",  EnumerationValue(['Secular', 'Probe', 'X1', 'X2'],
-                                                                     default='Secular'), group = "{}.freq_phase_sweep".format("SDR"))
+                                                                     default='Secular'), group = "{}.freq_phase_sweep".format(_argstr))
         self.setattr_argument("freq_superresolution_sweep_khz_list",    Scannable(
                                                                             default=[
-                                                                                ExplicitScan([767.2, 319.2, 1582, 3182]),
-                                                                                ExplicitScan([1276.15]),
-                                                                                CenterScan(777.5, 4, 0.5, randomize=True),
+                                                                                ExplicitScan([0.]),
+                                                                                CenterScan(0., 4, 0.5, randomize=True),
                                                                             ],
                                                                             global_min=-10000, global_max=10000, global_step=10,
                                                                             unit="kHz", scale=1, precision=6
-                                                                        ), group = "{}.freq_phase_sweep".format("SDR"))
+                                                                        ), group = "{}.freq_phase_sweep".format(_argstr))
 
         self.setattr_argument("target_phase_sweep", EnumerationValue(['RSB', 'BSB', 'RSB - BSB',
                                                                       'Carrier 0', 'Carrier 1', 'Carrier 0 - Carrier 1'],
-                                                                     default='RSB'), group = "{}.freq_phase_sweep".format("SDR"))
+                                                                     default='RSB'), group = "{}.freq_phase_sweep".format(_argstr))
         self.setattr_argument("phase_superresolution_sweep_turns_list", Scannable(
                                                                             default=[
                                                                                 RangeScan(0, 1.0, 3, randomize=True),
@@ -113,7 +116,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                             ],
                                                                             global_min=0.0, global_max=1.0, global_step=1,
                                                                             unit="turns", scale=1, precision=3
-                                                                        ), group = "{}.freq_phase_sweep".format("SDR"))
+                                                                        ), group = "{}.freq_phase_sweep".format(_argstr))
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",  Scannable(
                                                                         default=[
                                                                             ExplicitScan([0.]),
@@ -121,34 +124,33 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                         ],
                                                                         global_min=0.0, global_max=1.0, global_step=1,
                                                                         unit="turns", scale=1, precision=3
-                                                                    ), group = "{}.freq_phase_sweep".format("SDR"))
+                                                                    ), group = "{}.freq_phase_sweep".format(_argstr))
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format("SDR"))
-        self.setattr_argument("type_pulse_shape",       EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='{}.pulse_shaping'.format("SDR"))
+        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
+                              group='{}.pulse_shaping'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
-                              group='{}.pulse_shaping'.format("SDR"))
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
-                              group='{}.pulse_shaping'.format("SDR"))
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
+                              group='{}.pulse_shaping'.format(_argstr))
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=True), group="{}.psk".format("SDR"))
-        self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=4, precision=0, step=10, min=1, max=200), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_superresolution_rsb_psk_turns",    PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_superresolution_bsb_psk_turns",    PYONValue([0., 0.5, 0., 0.5, 0.]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0., 0., 0., 0.]), group="{}.psk".format("SDR"))
+        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_superresolution_rsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_superresolution_bsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
 
         # superresolution - custom waveform specification
-        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=500, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-                              group="{}.waveform".format("SDR"))
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.waveform".format("SDR"))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.waveform".format("SDR"))
-        self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702., 702., -0.5, 0.]), group="{}.waveform".format("SDR"))
-        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 1., 1.]), group="{}.waveform".format("SDR"))
-        self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.5]), group="{}.waveform".format("SDR"))
-        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]), group="{}.waveform".format("SDR"))
+        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+                              group="{}.waveform".format(_argstr))
+        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702.687, 702.687, 0., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 10., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.5]), group="{}.waveform".format(_argstr))
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -161,7 +163,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         )
 
         # instantiate helper objects
-        self.spinecho_wizard = SpinEchoWizard(self)
+        self.spinecho_wizard = SpinEchoWizardRDX(self)
 
     def prepare_experiment(self):
         """
@@ -296,15 +298,16 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
         # check that PSK schedule is valid
+        num_psk_blocks = len(self.phase_superresolution_rsb_psk_turns)
         psk_schedule_invalid = self.enable_phase_shift_keying and any([
-            (type(psk_schedule) is not list) or (len(psk_schedule) != self.num_psk_phase_shifts + 1)
+            (type(psk_schedule) is not list) or (len(psk_schedule) != num_psk_blocks)
             for psk_schedule in (
                 self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
                 self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns
             )
         ])
         if psk_schedule_invalid:
-            raise ValueError("Invalid PSK schedule. Must be a list of length num_psk_phase_shifts+1.")
+            raise ValueError("Invalid PSK schedule. All PSK schedules must be of same length.")
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -317,74 +320,78 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.waveform_index_to_pulseshaper_id =     np.zeros(len(self.phase_superresolution_sweep_turns_list),
                                                              dtype=np.int32)   # store pulseshaper waveform ID
 
-        # set up blocks for pulse sequence
+        # set up blocks & timing for phaser waveform
         num_blocks = 1
-        if self.enable_phase_shift_keying:  num_blocks = self.num_psk_phase_shifts + 1
-
-        # set up the spin echo wizard generally
-        # note: time_pulse_us is amount of time for each block
-        self.spinecho_wizard.time_pulse_us =                self.time_eggs_heating_us / num_blocks
-        self.spinecho_wizard.enable_pulse_shaping =         self.enable_pulse_shaping
-        self.spinecho_wizard.pulse_shape_blocks =           False
-        self.spinecho_wizard.type_pulse_shape =             self.type_pulse_shape
-        self.spinecho_wizard.time_pulse_shape_rolloff_us =  self.time_pulse_shape_rolloff_us
-        self.spinecho_wizard.freq_pulse_shape_sample_khz =  self.freq_pulse_shape_sample_khz
-        self.spinecho_wizard.enable_delay_spinecho =        False
-        self.spinecho_wizard.time_delay_spinecho_us =       250
+        if self.enable_phase_shift_keying:  num_blocks = len(self.phase_osc0_psk_turns)
+        time_block_us = self.time_eggs_heating_us / num_blocks
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence & set amplitudes
-        _sequence_blocks = np.zeros((num_blocks, 4, 2), dtype=float)
-        _sequence_blocks[:, :, 0] = np.array(self.ampl_superresolution_osc_frac_list)
+        _osc_vals_blocks = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_blocks[:, :, 0] = np.array(self.ampl_superresolution_osc_frac_list)
 
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        # t_update_delay_s_list = self.core.mu_to_seconds(self.phaser_eggs.t_sample_mu) * np.arange(4)
-        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9])
         phase_osc_update_delay_turns_list = (
                 (self.freq_superresolution_osc_base_hz_list +
                  self.freq_update_arr * np.mean(self.freq_superresolution_sweep_hz_list)) *
-                t_update_delay_s_list
+                np.array([0, 40e-9, 80e-9, 80e-9]) # account for relative delay period between each osc
         )
-        _sequence_blocks[:, :, 1] += np.array(self.phase_superresolution_osc_turns_list) + phase_osc_update_delay_turns_list
+        _osc_vals_blocks[:, :, 1] += np.array(self.phase_superresolution_osc_turns_list) + phase_osc_update_delay_turns_list
 
-        # set PSK phases on BOTH carriers
+        # set PSK phase update schedule
         if self.enable_phase_shift_keying:
-            # PSK on RSB & BSB
-            _sequence_blocks[:, 0, 1] += self.phase_superresolution_rsb_psk_turns
-            _sequence_blocks[:, 1, 1] += self.phase_superresolution_bsb_psk_turns
-            # PSK on carrier 0 & carrier 1
-            _sequence_blocks[:, 2, 1] += self.phase_subharmonic_carrier_0_psk_turns
-            _sequence_blocks[:, 3, 1] += self.phase_subharmonic_carrier_1_psk_turns
+            _osc_vals_blocks[:, :, 1] += np.array([
+                self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
+                self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns
+            ][:self._num_phaser_oscs]).transpose()
 
         # adjust oscillator phases based on user configuration
         if self.target_phase_sweep == "RSB":
-            phas_update_arr = np.array([1., 0., 0., 0.])
+            phas_update_arr = np.array([1., 0., 0., 0.])[:self._num_phaser_oscs]
         elif self.target_phase_sweep == "BSB":
-            phas_update_arr = np.array([0., 1., 0., 0.])
+            phas_update_arr = np.array([0., 1., 0., 0.])[:self._num_phaser_oscs]
         elif self.target_phase_sweep == "RSB - BSB":
-            phas_update_arr = np.array([1., -1., 0., 0.])
+            phas_update_arr = np.array([1., -1., 0., 0.])[:self._num_phaser_oscs]
         elif self.target_phase_sweep == "Carrier 0":
-            phas_update_arr = np.array([0., 0., 1., 0.])
+            phas_update_arr = np.array([0., 0., 1., 0.])[:self._num_phaser_oscs]
         elif self.target_phase_sweep == "Carrier 1":
-            phas_update_arr = np.array([0., 0., 0., 1.])
+            phas_update_arr = np.array([0., 0., 0., 1.])[:self._num_phaser_oscs]
         elif self.target_phase_sweep == "Carrier 0 - Carrier 1":
-            phas_update_arr = np.array([0., 0., 1., -1.])
+            phas_update_arr = np.array([0., 0., 1., -1.])[:self._num_phaser_oscs]
 
-        # record phaser waveforms
-        for i, phase in enumerate(self.phase_superresolution_sweep_turns_list):
-            # create local copy of _sequence_blocks and update with target phase
+        # record phaser waveforms - one for each phase
+        for phase in self.phase_superresolution_sweep_turns_list:
+            # create local copy of _osc_vals_blocks and update with target phase
             # note: no need to deep copy b/c it's filled w/immutables
-            _sequence_blocks_local = np.copy(_sequence_blocks)
-            _sequence_blocks_local[:, :, 1] += phas_update_arr * phase
+            _osc_vals_blocks_local = np.copy(_osc_vals_blocks)
+            _osc_vals_blocks[:, :, 1] += phas_update_arr * phase
 
-            # create waveform
-            self.spinecho_wizard.sequence_blocks = _sequence_blocks_local
-            self.spinecho_wizard.calculate_pulseshape()
-            self.spinecho_wizard.compile_waveform()
-
-            # get waveform data and store in holding structure
-            self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
+            # specify sequence as a list of blocks, where each block is a dict
+            # note: have to instantiate locally each loop b/c dicts aren't deep copied
+            # todo: no pulse shape blocks - maybe? maybe we want now
+            _sequence_blocks_local = [
+                {
+                    "oscillator_parameters": _osc_vals_blocks[_idx_block],
+                    "config": {
+                        "time_us": time_block_us[_idx_block],
+                        "pulse_shaping": self.enable_pulse_shaping and ((_idx_block == 0)
+                                                                        or (_idx_block == num_blocks - 1)),
+                        # note: we DON'T pulse shape each block here
+                        "pulse_shaping_config": {
+                            "pulse_shape": self.type_pulse_shape,
+                            "pulse_shape_rising": self.enable_pulse_shaping and (_idx_block == 0),
+                            "pulse_shape_falling": self.enable_pulse_shaping and (_idx_block == num_blocks - 1),
+                            "sample_rate_khz": self.freq_pulse_shape_sample_khz,
+                            "rolloff_time_us": self.time_pulse_shape_rolloff_us
+                        }
+                    }
+                } for _idx_block in range(num_blocks)
+            ]
+            # create QVSA waveform and store data in a holder
+            self.waveform_index_to_pulseshaper_vals.append(
+                self.spinecho_wizard.compile_waveform(_sequence_blocks_local)
+            )
 
     @property
     def results_shape(self):
@@ -426,9 +433,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
-            # sweep experiment configurations
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
@@ -467,7 +471,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
 
-                '''EGGS HEATING'''
+                '''QVSA PULSE'''
                 self.phaser_run(waveform_id)
 
                 '''READOUT'''
@@ -510,10 +514,10 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
+
     '''
     HELPER FUNCTIONS - PHASER
     '''
-
     @kernel(flags={"fast-math"})
     def phaser_run(self, waveform_id: TInt32) -> TNone:
         """
@@ -547,6 +551,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
             # record phaser pulse sequence and save returned waveform ID
             delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
+            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
+                _wav_data_ampl, _wav_data_phas, _wav_data_time
+            )
             self.core.break_realtime()
 
