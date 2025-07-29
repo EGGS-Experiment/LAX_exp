@@ -3,7 +3,8 @@ from artiq.experiment import *
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, SidebandCoolContinuousRAM, QubitRAP
+    InitializeQubit, Readout, SidebandCoolContinuousRAM, OverlapReadout,
+    AgilePulseGenerator
 )
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
@@ -23,15 +24,16 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
     name = 'Continuous Sampling RDX Ampl'
     kernel_invariants = {
         # hardware values
-        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals', 'sample_period_mu',
-        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
+        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu',
+        'pulseshaper_vals', 'sample_period_mu',
 
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rap_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'fock_subsequence',
+        'overlap_subsequence',
 
         # configs
-        'profile_729_SBC', 'profile_729_RAP', '_num_phaser_oscs', '_enable_osc_clr',
-        '_burst_samples', '_num_bursts'
+        'profile_729_SBC', 'profile_729_RAP', 'profile_729_overlap', 'profile_729_fock',
+        '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts'
     }
 
     def build_experiment(self):
@@ -45,8 +47,10 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         self.setattr_argument("sample_period_ms", NumberValue(default=11., precision=6, min=5, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
-        self.profile_729_SBC = 1
-        self.profile_729_RAP = 2
+        self.profile_729_SBC =      1
+        self.profile_729_RAP =      2
+        self.profile_729_overlap =  3
+        self.profile_729_fock =     4
 
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
@@ -56,30 +60,13 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         self.initialize_subsequence = InitializeQubit(self)
         self.readout_subsequence = Readout(self)
 
-        # readout - RAP
-        self.setattr_argument("att_rap_db",
-                              NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.),
-                              group="RAP")
-        self.setattr_argument("ampl_rap_pct",
-                              NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.),
-                              group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",
-                              NumberValue(default=100.7048, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.),
-                              group='RAP')
-        self.setattr_argument("freq_rap_dev_khz",
-                              NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.),
-                              group='RAP')
-        self.setattr_argument("time_rap_us",
-                              NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.),
-                              group="RAP")
-
         # waveform - global config
         self.setattr_argument("att_phaser_db",
                               NumberValue(default=20., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.global".format(_argstr))
         self.setattr_argument("freq_phaser_carrier_mhz",
-                              NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.),
-                              group="{}.global".format(_argstr))
+                              NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz",
+                                          scale=1.), group="{}.global".format(_argstr))
         self.setattr_argument("freq_global_offset_mhz",
                               NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
                               group="{}.global".format(_argstr))
@@ -131,10 +118,21 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
 
-        # instantiate RAP here since it relies on experiment arguments
-        self.rap_subsequence = QubitRAP(
-            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
-            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+        # fock state generation: arguments
+        self.setattr_argument("enable_fock_prep", BooleanValue(default=False), group='fock_prep')
+        self.setattr_argument("fock_pulse_config", PYONValue([[101.4081, 25., 50.80], [100.7528, 25., 3.], [101.0781, 50., 2.05]]),
+                              group='fock_prep', tooltip="List of [freq_mhz, ampl_pct, time_us].")
+        self.setattr_argument("att_fock_db", NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
+                              group='fock_prep')
+        self.fock_subsequence = AgilePulseGenerator(
+            self, profile_agile=self.profile_729_fock, att_pulse_db=self.att_fock_db,
+            pulse_config=np.array(self.fock_pulse_config)
+        )
+        # instantiate motional overlap subsequence
+        # todo: ampl_max_pct for overlap?
+        self.overlap_subsequence = OverlapReadout(
+            self, ram_profile=self.profile_729_RAP, profile_shelve=self.profile_729_overlap,
+            ram_addr_start=202, num_samples=250, pulse_shape="blackman"
         )
 
         # instantiate helper objects
