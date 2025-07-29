@@ -22,10 +22,11 @@ class MotionalOverlap(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'fock_subsequence', 'overlap_subsequence',
 
         # configs
-        'config_experiment_list', 'profile_729_rabi', 'profile_729_SBC', 'profile_729_fock', 'profile_729_RAP',
-        'profile_729_overlap'
+        'profile_729_rabi', 'profile_729_SBC', 'profile_729_fock', 'profile_729_RAP',
+        'profile_729_overlap', 'config_experiment_list'
     }
 
     def build_experiment(self):
@@ -203,3 +204,4 @@ class MotionalOverlap(LAXExperiment, Experiment):
     def analyze_experiment(self):
         # todo
         pass
+
