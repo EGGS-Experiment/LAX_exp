@@ -81,7 +81,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_argument("sbc_config_list",   PYONValue({100.2832: [37., 6.9], 100.4272: [37., 6.5], 100.7258: [26., 8.0]}),
                               group='SBC_RAM',
                               tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
-        self.setattr_argument("att_sbc_cont_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit=1., scale="dB"),
+        self.setattr_argument("att_sbc_cont_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"),
                               group='SBC_RAM',
                               tooltip="DDS attenuation to use during sideband cooling.")
 

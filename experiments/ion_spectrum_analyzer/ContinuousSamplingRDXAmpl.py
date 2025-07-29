@@ -163,7 +163,8 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)  # store burst stop times
         self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)        # store sequence DMA handle
         self._t_start_mu = np.int64(0)
-        self._idx_burst_samples = range(self._burst_samples)
+        self._idx_burst_samples = list(range(self._burst_samples))
+        self._time_exp_shot_mu = np.int64(0)    # measure actual shot period to prevent user errors
 
         '''HARDWARE VALUES - CONFIG'''
         # convert argument units to whatever is most convenient
@@ -350,6 +351,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         at_mu(self.phaser_eggs.get_next_frame_mu())
         with self.core_dma.record('_SEQUENCE_SHOT'):
             '''STATE PREPARATION - MOTIONAL FOCK STATE'''
+            t0 = now_mu()   # record exp shot period - start time
             self.initialize_subsequence.run()
             self.sidebandcool_subsequence.run()
             if self.enable_fock_prep:
@@ -368,6 +370,12 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
             '''READOUT - MOTIONAL OVERLAP'''
             self.overlap_subsequence.run()
             self.readout_subsequence.run()
+            t1 = now_mu()   # record exp shot period - start time
+        self.core.break_realtime()
+
+        # record exp shot period
+        self._time_exp_shot_mu = t1 - t0
+        print("\n\t\tContSamp shot period (ms):  ", self.core.mu_to_seconds(t1 - t0) / ms, "\n")
         self.core.break_realtime()
 
 
@@ -390,6 +398,13 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
+        # ensure shot period is valid and that we have sufficient buffer between shots
+        if self.sample_period_mu - self._time_exp_shot_mu < 1000000:
+            print("\n\t\tError: actual shot period exceeds allotted sample period.\n")
+            self.core.break_realtime()
+            return
+        delay_mu(125000)
+
         # load burst sequence DMA handle
         self._sequence_dma_handle = self.core_dma.get_handle('_SEQUENCE_SHOT')
         self.core.break_realtime()  # add slack
@@ -520,6 +535,8 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
     ANALYSIS
     '''
     def analyze_experiment(self):
+        # save actual shot period
+        self.set_dataset("exp_shot_period_ms", self.core.mu_to_seconds(self._time_exp_shot_mu) / ms)
         # todo: fft stuff etc.
         # todo: report stats - peak/bgr, variability
         pass

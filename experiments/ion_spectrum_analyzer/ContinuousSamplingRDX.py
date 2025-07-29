@@ -161,10 +161,8 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64) # store burst start times
         self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)  # store burst stop times
         self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)        # store sequence DMA handle
-        # tmp remove yzde
         self.t_start_mu = np.int64(0)
-        self._tmp_idx_burst_samples = list(range(self._burst_samples))
-        # tmp remove yzde
+        self._idx_burst_samples = list(range(self._burst_samples))
 
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
@@ -440,7 +438,7 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         """
         # run a number of shots in a "burst" (for latency/slack)
         # for sample_num in range(self._burst_samples):
-        for sample_num in self._tmp_idx_burst_samples:
+        for sample_num in self._idx_burst_samples:
             # ensure results are samples are evenly/deterministically spaced
             # note: sample_period_mu already multiple of phaser t_frame (see prepare_experiment)
             #       so no need to separately align to phaser frame
@@ -463,7 +461,7 @@ class ContinuousSamplingRDX(LAXExperiment, Experiment):
         Values are stored in self._burst_samples.
         """
         # burst readout
-        for sample_num in self._tmp_idx_burst_samples:
+        for sample_num in self._idx_burst_samples:
             self._counts_burst[sample_num] = self.readout_subsequence.fetch_count()
 
         # note: add slack all at once instead of inside the loop to reduce overhead

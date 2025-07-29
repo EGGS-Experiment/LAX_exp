@@ -60,7 +60,7 @@ class SidebandCoolPulsed(LAXSubsequence):
         # sideband cooling: waveform
         self.setattr_argument('freq_sbc_mhz_list', PYONValue([103.7701]), group='{}'.format(_argstr),
                               tooltip="Modes to SBC on.")
-        self.setattr_argument("att_sbc_pulsed_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit=1., scale="dB"),
+        self.setattr_argument("att_sbc_pulsed_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"),
                               group='{}'.format(_argstr),
                               tooltip="DDS attenuation to use during SBC.")
 

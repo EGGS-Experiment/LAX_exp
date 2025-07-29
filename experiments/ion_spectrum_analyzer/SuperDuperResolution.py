@@ -111,8 +111,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                      default='RSB'), group = "{}.freq_phase_sweep".format(_argstr))
         self.setattr_argument("phase_superresolution_sweep_turns_list", Scannable(
                                                                             default=[
-                                                                                RangeScan(0, 1.0, 3, randomize=True),
                                                                                 ExplicitScan([0.]),
+                                                                                RangeScan(0, 1.0, 3, randomize=True),
                                                                             ],
                                                                             global_min=0.0, global_max=1.0, global_step=1,
                                                                             unit="turns", scale=1, precision=3
@@ -374,7 +374,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 {
                     "oscillator_parameters": _osc_vals_blocks[_idx_block],
                     "config": {
-                        "time_us": time_block_us[_idx_block],
+                        "time_us": time_block_us,
                         "pulse_shaping": self.enable_pulse_shaping and ((_idx_block == 0)
                                                                         or (_idx_block == num_blocks - 1)),
                         # note: we DON'T pulse shape each block here
