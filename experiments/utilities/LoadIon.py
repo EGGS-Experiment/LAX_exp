@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from artiq.experiment import *
 
@@ -375,13 +376,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get camera data and format into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
+        plt.imsave(os.path.join(self.data_path, filepath1), data)
         # todo: set 1000 as some parameter for min scattering value
+        print(np.max(data))
         data = data * (data > 1000)
+
+        print(np.max(data))
         if np.max(data) > 0:
             data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
+        plt.imsave(os.path.join(self.data_path, filepath2), data)
         data = np.uint8(data)
         data = data * (data > np.quantile(data, 0.99))
 
+        plt.imsave(os.path.join(self.data_path, filepath2), data)
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
         accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
