@@ -378,10 +378,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
         plt.imsave(os.path.join(self.data_path, filepath1), data)
         # todo: set 1000 as some parameter for min scattering value
-        print(np.max(data))
         data = data * (data > 1000)
 
-        print(np.max(data))
         if np.max(data) > 0:
             data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
         plt.imsave(os.path.join(self.data_path, filepath2), data)
