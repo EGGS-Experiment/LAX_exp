@@ -322,7 +322,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # set up blocks & timing for phaser waveform
         num_blocks = 1
-        if self.enable_phase_shift_keying:  num_blocks = len(self.phase_osc0_psk_turns)
+        if self.enable_phase_shift_keying:  num_blocks = len(self.phase_superresolution_rsb_psk_turns)
         time_block_us = self.time_eggs_heating_us / num_blocks
 
         '''DESIGN WAVEFORM SEQUENCE'''
