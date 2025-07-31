@@ -365,14 +365,14 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             # create local copy of _osc_vals_blocks and update with target phase
             # note: no need to deep copy b/c it's filled w/immutables
             _osc_vals_blocks_local = np.copy(_osc_vals_blocks)
-            _osc_vals_blocks[:, :, 1] += phas_update_arr * phase
+            _osc_vals_blocks_local[:, :, 1] += phas_update_arr * phase
 
             # specify sequence as a list of blocks, where each block is a dict
             # note: have to instantiate locally each loop b/c dicts aren't deep copied
             # todo: no pulse shape blocks - maybe? maybe we want now
             _sequence_blocks_local = [
                 {
-                    "oscillator_parameters": _osc_vals_blocks[_idx_block],
+                    "oscillator_parameters": _osc_vals_blocks_local[_idx_block],
                     "config": {
                         "time_us": time_block_us,
                         "pulse_shaping": self.enable_pulse_shaping and ((_idx_block == 0)
