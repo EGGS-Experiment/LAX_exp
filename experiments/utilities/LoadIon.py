@@ -38,24 +38,24 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # starting trap arguments
         self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
-                                                            group='Starting Trap Parameters')
+                              group='Start Trap Params')
         self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
-                                                            group='Starting Trap Parameters')
+                              group='Start Trap Params')
 
         # ending trap arguments
-        self.setattr_argument('end_east_endcap_voltage',     NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
-        self.setattr_argument('end_west_endcap_voltage',     NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
-        self.setattr_argument('end_v_shim_voltage',          NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
-        self.setattr_argument('end_h_shim_voltage',          NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+        self.setattr_argument('end_east_endcap_voltage',    NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+                              group='End Trap Params')
+        self.setattr_argument('end_west_endcap_voltage',    NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+                              group='End Trap Params')
+        self.setattr_argument('end_v_shim_voltage',         NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
+                              group='End Trap Params')
+        self.setattr_argument('end_h_shim_voltage',         NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
+                              group='End Trap Params')
         self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='End Trap Params')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp Ejection')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp')
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
                                                                         RangeScan(16, 17.5, 20, randomize=True),
@@ -63,20 +63,26 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                     ],
                                                                     global_min=0.0, global_max=30.0, global_step=1,
                                                                     unit="V", scale=1, precision=2
-                                                                ), group='A-Ramp Ejection')
+                                                                ), group='A-Ramp')
 
         # oven configuration
-        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, max = 2., precision=2, step=0.01, unit="V", scale=1.),
-                                                        group='Oven Settings')
-        self.setattr_argument("oven_current",   NumberValue(default=3.25, max=4., precision=2, step=0.01, unit="A", scale=1.),
-                                                        group='Oven Settings')
+        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, min=0., max=2., precision=2, step=0.1, unit="V", scale=1.),
+                              group='Oven')
+        self.setattr_argument("oven_current",   NumberValue(default=3.25, min=0., max=4., precision=2, step=0.1, unit="A", scale=1.),
+                              group='Oven')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True), group = 'Camera')
-        self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
-        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
-        self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
-        self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
+        self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Width of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
+        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Height of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
+        self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
+                              tooltip="Horizontal pixel bin size to set on camera.")
+        self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
+                              tooltip="Vertical pixel bin size to set on camera.")
 
         # relevant devices - sinara
         self.setattr_device('pump')

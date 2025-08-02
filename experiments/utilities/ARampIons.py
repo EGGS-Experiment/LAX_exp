@@ -34,24 +34,29 @@ class ARampEjection(LAXExperiment, Experiment):
         # general arguments
         self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
 
-
         # ending trap arguments
         self.setattr_argument('east_endcap_voltage',    NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='End Trap Params')
         self.setattr_argument('west_endcap_voltage',    NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='End Trap Params')
         self.setattr_argument('v_shim_voltage',         NumberValue(default=70.8, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='Ending Trap Params')
         self.setattr_argument('h_shim_voltage',         NumberValue(default=50.5, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='End Trap Params')
         self.setattr_argument('final_aramp_voltage',    NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
-                                                                group='Ending Trap Parameters')
+                              group='End Trap Params')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
-        self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
-        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=450, step=50, scale=1, precision=0), group='Camera')
-        self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
-        self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera')
+        self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Width of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
+        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Height of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
+        self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
+                              tooltip="Horizontal pixel bin size to set on camera.")
+        self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
+                              tooltip="Vertical pixel bin size to set on camera.")
 
         # aramping parameters
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
@@ -61,7 +66,7 @@ class ARampEjection(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=0.0, global_max=30.0, global_step=1,
                                                                 unit="V", scale=1, precision=2
-                                                            ), group='A-Ramp Ejection')
+                                                            ), group='A-Ramp')
 
         # relevant devices - sinara
         self.setattr_device('pump')
