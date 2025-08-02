@@ -1,9 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from artiq.experiment import *
+import matplotlib.pyplot as plt
 
 import os
-import time
+from time import time, sleep
 from datetime import datetime
 
 from LAX_exp.extensions import *
@@ -27,6 +27,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     kernel_invariants = {
         "pmt_sample_num", "pmt_dark_threshold_counts",
         "att_397_mu", "att_866_mu", "att_854_mu",
+
         "time_runtime_max_s", "start_time_s",
         "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
         "time_aramp_pulse_s"
@@ -37,9 +38,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='Start Trap Params')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=300., scale=1., unit="V"),
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='Start Trap Params')
 
         # ending trap arguments
@@ -139,12 +140,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # ensure data folder exists; create it if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
 
-    @property
-    def results_shape(self):
-        return (2, 2)
 
-
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # store attenuations to prevent overriding
@@ -176,6 +175,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Initialize labrad devices via RPC.
         """
+        print("\tINITIALIZE - BEGIN")
+        # note: need try/except block here b/c initialize_experiment can't have try/except
         try:
             '''SET UP CAMERA'''
             # set camera region of interest and exposure time
@@ -188,10 +189,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             # turn on endcap channels and ensure others are off
             self.trap_dc.east_endcap_toggle(True)
             self.trap_dc.west_endcap_toggle(True)
-
-            self.trap_dc.set_h_shim_voltage(0)
-            self.trap_dc.set_v_shim_voltage(0)
-            self.trap_dc.set_aramp_voltage(0)
             self.trap_dc.h_shim_toggle(False)
             self.trap_dc.v_shim_toggle(False)
             self.trap_dc.aramp_toggle(False)
@@ -210,8 +207,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.oven.toggle(True)
 
         except Exception as e:
-            print(repr(e))
+            print("Error during initialize_labrad_devices: {:}".format(repr(e)))
             self.cleanup_devices()
+
+        finally:
+            print("\tINITIALIZE - FINISH")
 
     @rpc
     def run_main(self) -> TNone:
@@ -219,7 +219,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Run till ion is loaded or timeout.
         """
         # get start time to check if we exceed max time
-        self.start_time_s = time.time()
+        self.start_time_s = time()
 
         # run loading loop until we load desired_num_of_ions
         num_ions = 0
@@ -245,12 +245,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
             print("\tLOADING COMPLETE - CLEANING UP.")
 
-        except Exception as e:
-            print("Error - stopping execution; cleaning up.")
-            print(repr(e))
+        # note: no need to cleanup if TerminationRequested b/c check_termination does it automatically
+        except TerminationRequested:
+            print("Termination Requested - terminating.")
 
-        '''CLEAN UP'''
-        self.cleanup_devices()
+        # catch all other errors
+        except Exception as e:
+            print("Error: {:}\nStopping execution & cleaning up.".format(repr(e)))
+            self.cleanup_devices()
+
+        # if no error, simply clean up
+        else:
+            self.cleanup_devices()
+
 
     @rpc
     def load_ion(self) -> TInt32:
@@ -262,22 +269,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         print("\tLOAD ION - BEGIN:")
 
         # define some variables for later use
-        idx = 0
         ion_spottings = 0
 
         # run loop while we don't see ions
         while True:
             # extract number of ions on camera
-            num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_maipulated.png')
+            num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_manipulated.png')
 
-            # periodically check if we've reached a stop condition
-            # i.e. max_time reached or termination_requested
-            if idx % 5 == 0:
-                if (time.time() - self.start_time_s) > self.time_runtime_max_s:
-                    print("\t\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
-                    return -1
-                else:
-                    self.check_termination()
+            # check if we've reached a stop condition (e.g. max_time reached, termination_requested)
+            if (time() - self.start_time_s) > self.time_runtime_max_s:
+                print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
+                return -1
+            else:
+                self.check_termination()
 
             # check to see if we have loaded enough ions
             if num_ions >= self.desired_num_of_ions:
@@ -288,7 +292,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                     return num_ions
             else:
                 ion_spottings = 0  # reset if image analysis shows no ions in trap
-            idx += 1
 
         return 0
 
@@ -299,20 +302,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Returns:
             TInt32: Number of ions.
         """
-        # todo: allow for some error conditions
-
+        # todo: catch error conditions
         self.aperture.open_aperture()
 
-        print("\tARAMP EJECTION - START:")
+        print("\tARAMP EJECTION - START")
         for aramp_voltage in self.aramp_ions_voltage_list:
             self.check_termination()
 
             # pulse A-ramp for given period
             print("\t\tARAMPING @ VOLTAGE: {:.1f} V".format(aramp_voltage))
             self.trap_dc.set_aramp_voltage(aramp_voltage)
-            time.sleep(self.time_aramp_pulse_s)
+            sleep(self.time_aramp_pulse_s)
             self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-            time.sleep(self.time_aramp_pulse_s)
+            sleep(self.time_aramp_pulse_s)
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
@@ -330,6 +332,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Set all devices to states as if ion was loaded.
         All but trap electrodes set to original state --- trap electrodes set to final trapping potential.
         """
+        print("\tCLEANUP - BEGIN")
         # turn off oven
         self.oven.set_oven_voltage(0.)
         self.oven.set_oven_current(0.)
@@ -339,23 +342,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.shutters.toggle_377_shutter(False)
         self.shutters.toggle_423_shutter(False)
 
-        # set trap parameters as if ion was loaded
-        self.trap_dc.set_east_endcap_voltage(self.start_east_endcap_voltage)
-        self.trap_dc.set_west_endcap_voltage(self.start_west_endcap_voltage)
+        # set trap parameters for normal operation
         self.trap_dc.set_h_shim_voltage(self.end_h_shim_voltage)
         self.trap_dc.set_v_shim_voltage(self.end_v_shim_voltage)
         self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-
-        # turn on the endcap channels
+        # turn on the other DC channels
         self.trap_dc.h_shim_toggle(True)
         self.trap_dc.v_shim_toggle(True)
         self.trap_dc.aramp_toggle(True)
-
-        # ramp endcaps to end values
+        # ramp endcaps to normal values
         self.trap_dc.ramp_both_endcaps([self.end_east_endcap_voltage, self.end_west_endcap_voltage],
                                        [100., 100.])
         # note: we add sleep and set voltages AGAIN to reflect updates on GUIs
-        time.sleep(2)
+        sleep(2)
         self.trap_dc.set_east_endcap_voltage(self.end_east_endcap_voltage)
         self.trap_dc.set_west_endcap_voltage(self.end_west_endcap_voltage)
 
@@ -366,8 +365,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.set_to_pmt_after_loading:
             self.flipper.flip()
 
+        print("\tCLEANUP - FINISH")
+
     @rpc
-    def process_image(self, filepath1: TStr=None, filepath2: TStr=None) -> TInt32:
+    def process_image(self, filepath1: TStr="original.png", filepath2: TStr="manipulated.png") -> TInt32:
         """
         Process image data from camera and extract the number of ions in the trap.
         Arguments:
@@ -376,39 +377,31 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Returns:
             TInt32: Number of ions in the trap
         """
-        if filepath1 is None:   filepath1 = "original.png"
-        if filepath2 is None:   filepath2 = "manipulated.png"
-
-        # get camera data and format into image
+        # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
         plt.imsave(os.path.join(self.data_path, filepath1), data)
-        # todo: set 1000 as some parameter for min scattering value
-        data = data * (data > 1000)
 
-        if np.max(data) > 0:
-            data = ((data - np.min(data)) / (np.max(data) - np.min(data))) * 255
+        # threshold & rescale data
+        # todo: set 1000 as some parameter for min scatter value
+        data *= data > 1000
+        data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data))) * 255)
+        # use only upper 1% quantile of data
+        data *= data > np.quantile(data, 0.99)
         plt.imsave(os.path.join(self.data_path, filepath2), data)
-        data = np.uint8(data)
-        data = data * (data > np.quantile(data, 0.99))
 
-        plt.imsave(os.path.join(self.data_path, filepath2), data)
+        # extract ion positions
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
-        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii, min_xdistance=1, min_ydistance=1,
-                                                   threshold=0.95)
+        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii,
+                                                     min_xdistance=1, min_ydistance=1,
+                                                     threshold=0.95)
 
-        # create list of cx, cy coordinates
-        cxs_cys_list = []
-        for idx, cx in enumerate(cxs):
-            cxs_cys_list.append([cx, cys[idx]])
-
-        # gather unique locations of ions
-        unique_locs = []
-        for coords in cxs_cys_list:
-            if coords not in unique_locs:
-                unique_locs.append(coords)
-
+        # create unique list of cx, cy coordinates
+        unique_locs = set(tuple(
+            (cx, cys[idx])
+            for idx, cx in enumerate(cxs)
+        ))
         return len(unique_locs)
 
     @kernel(flags={"fast-math"})
