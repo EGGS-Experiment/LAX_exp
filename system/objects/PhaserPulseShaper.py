@@ -124,9 +124,25 @@ class PhaserPulseShaper(LAXEnvironment):
         # add slack after DMA recording
         self.core.break_realtime()
 
-        # increment waveform counter and return current index
+        # save waveform as dataset for posterity
+        self._waveform_save_dataset(self._num_waveforms, ampl_frac_list, phas_turns_list, sample_interval_mu_list)
+        self.core.break_realtime()
+
+        # increment waveform counter and return waveform index
         self._num_waveforms += 1
         return self._num_waveforms - 1
+
+    @rpc(flags={"async"})
+    def _waveform_save_dataset(self, wav_idx: TInt32, ampl_frac_list: TArray(TFloat, 2),
+                               phas_turns_list: TArray(TFloat, 2),
+                               sample_interval_mu_list: TArray(TInt64, 1)) -> TNone:
+        """
+        Save waveform as dataset.
+        In case a question is later raised about waveforms etc.
+        """
+        self.set_dataset("_phaser_wav_{:d}_ampls".format(wav_idx), ampl_frac_list)
+        self.set_dataset("_phaser_wav_{:d}_phases".format(wav_idx), phas_turns_list)
+        self.set_dataset("_phaser_wav_{:d}_times".format(wav_idx), sample_interval_mu_list)
 
     @kernel(flags={"fast-math"})
     def _waveform_point(self, ampl_frac_list: TArray(TFloat, 1), phas_turns_list: TArray(TFloat, 1)) -> TNone:
