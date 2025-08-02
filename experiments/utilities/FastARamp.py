@@ -18,17 +18,13 @@ class FastARamp(LAXExperiment, Experiment):
         # ending trap arguments
         self.setattr_argument('normal_aramp_voltage', NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
                               group='A-Ramp')
-        self.setattr_argument("eject_aramp_voltage", NumberValue(default=1, precision=1, step=0.5, min=0., max=50, scale=1., unit='V'),
+        self.setattr_argument("eject_aramp_voltage", NumberValue(default=8.8, precision=1, step=0.5, min=0., max=50, scale=1., unit='V'),
                               group='A-Ramp')
         self.setattr_argument("time_aramp_s", NumberValue(default=1., precision=1, step=0.1, min=0.1, max=10, scale=1., unit='s'),
                               group='A-Ramp')
 
         # relevant devices - labrad
         self.setattr_device('trap_dc')
-
-    @property
-    def results_shape(self):
-        return (1,1)
 
 
     '''
