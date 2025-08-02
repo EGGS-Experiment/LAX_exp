@@ -40,13 +40,13 @@ class FastARamp(LAXExperiment, Experiment):
 
     def run_main(self) -> TNone:
         # note: add initial "sleep" to ensure everything has settled
-        sleep(2.)
+        sleep(1.)
 
         # a-ramp!
         self.trap_dc.set_aramp_voltage(self.eject_aramp_voltage)
         sleep(self.time_aramp_s)
         self.trap_dc.set_aramp_voltage(self.normal_aramp_voltage)
-        sleep(self.time_aramp_pulse_s)
+        sleep(self.time_aramp_s)
 
     def cleanup_experiment(self) -> TNone:
         """

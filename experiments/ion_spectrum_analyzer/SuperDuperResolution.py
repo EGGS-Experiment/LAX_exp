@@ -99,7 +99,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("freq_superresolution_sweep_khz_list",    Scannable(
                                                                             default=[
                                                                                 ExplicitScan([0.]),
-                                                                                CenterScan(0., 4, 0.5, randomize=True),
+                                                                                CenterScan(0., 4, 0.1, randomize=True),
+                                                                                RangeScan(0., 100.0, 26, randomize=True),
                                                                             ],
                                                                             global_min=-10000, global_max=10000, global_step=10,
                                                                             unit="kHz", scale=1, precision=6
@@ -219,6 +220,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.phase_eggs_heating_ch1_turns_list = np.array(list(self.phase_eggs_heating_ch1_turns_list))
         self.freq_superresolution_osc_base_hz_list = np.array(self.freq_superresolution_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.freq_sweep_arr = np.array(self.freq_sweep_arr, dtype=float)
+        self.phase_sweep_arr = np.array(self.phase_sweep_arr, dtype=float)
 
         # map phase to index to facilitate waveform recording
         self.waveform_index_to_phase_sweep_turns = np.arange(len(self.phase_superresolution_sweep_turns_list))
@@ -307,11 +309,11 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             raise ValueError("Invalid PSK schedule. All PSK schedules must be of same length.")
 
         # ensure that sweep targets are lists of appropriate length
-        if not (isinstance(self.phase_sweep_arr, list) and (len(self.phase_sweep_arr) != self._num_phaser_oscs)):
+        if not (isinstance(self.phase_sweep_arr, list) and (len(self.phase_sweep_arr) == self._num_phaser_oscs)):
             raise ValueError("Invalid phase_sweep_arr: {:}."
                              "phase_sweep_arr must be list of length {:d}.".format(self.phase_sweep_arr,
                                                                                       self._num_phaser_oscs))
-        if not (isinstance(self.freq_sweep_arr, list) and (len(self.freq_sweep_arr) != self._num_phaser_oscs)):
+        if not (isinstance(self.freq_sweep_arr, list) and (len(self.freq_sweep_arr) == self._num_phaser_oscs)):
             raise ValueError("Invalid freq_sweep_arr: {:}."
                              "freq_sweep_arr must be list of length {:d}.".format(self.freq_sweep_arr,
                                                                                       self._num_phaser_oscs))
