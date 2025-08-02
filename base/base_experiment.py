@@ -1,12 +1,10 @@
 from artiq.experiment import *
-from artiq.coredevice.exceptions import CoreException, RTIOOverflow, RTIOUnderflow
 
 import os
-import time
 import h5py
 import socket
 import logging
-import traceback
+from time import localtime, strftime
 
 from datetime import datetime
 from numpy import array, zeros, int32, nan
@@ -26,7 +24,7 @@ class LAXExperiment(LAXEnvironment, ABC):
     Instantiates and initalizes all relevant devices, sequences, and subsequences.
 
     Attributes:
-        name                        str                     : the name of the sequence (must be unique). Will also be used as the core_dma handle.
+        name (str): the name of the sequence (must be unique). Will also be used as the core_dma handle.
     """
     # Class attributes
     name =          None
@@ -87,9 +85,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         General construction of the experiment object.
         Called right before run (unlike build, which is called upon instantiation).
-        ***todo*** prepare_device is called before prepare_experiment to ensure that any values in prepare_device
-        # todo: consider synchronization - is it necessary? where should it be?
-        # todo: maybe we should move the compilation part to its own function?
         """
         '''BEGIN PREPARE'''
         # get kernel invariants (if any)
@@ -150,18 +145,30 @@ class LAXExperiment(LAXEnvironment, ABC):
             self.labrad_subscribe()
 
 
+        '''COMPILE FIXED KERNEL_FROM_STRING SEQUENCES'''
+        self._prepare_compile_code()
+
+    def _prepare_compile_code(self):
+        """
+        Collate relevant experiment code and compile via _kernel_from_string.
+        Allows programmatic execution of LAX object methods without incurring
+            the ~2s overhead required to spawn a kernel
+            (b/c some abstract methods are not available in-kernel).
+        Mainly used to compile the initialize_, run_, and cleanup_ methods.
+        Called at the end of LAXExperiment.prepare().
+        """
         '''COMPILE INITIALIZATION SEQUENCE'''
         # collate LAX objects to speed up experiment compilation and execution
         # note: objects should be initialized in the following order: devices, subsequences, sequences, then experiment
-        _compile_device_list =              [obj
-                                            for obj in self.children
-                                            if isinstance(obj, LAXDevice)]
-        _compile_subsequence_list =         [obj
-                                            for obj in self.children
-                                            if isinstance(obj, LAXSubsequence)]
-        _compile_sequence_list =            [obj
-                                            for obj in self.children
-                                            if isinstance(obj, LAXSequence)]
+        _compile_device_list =      [obj
+                                    for obj in self.children
+                                    if isinstance(obj, LAXDevice)]
+        _compile_subsequence_list = [obj
+                                    for obj in self.children
+                                    if isinstance(obj, LAXSubsequence)]
+        _compile_sequence_list =    [obj
+                                    for obj in self.children
+                                    if isinstance(obj, LAXSequence)]
 
         # write code which initializes the relevant modules entirely on the kernel, without any RPCs
         _initialize_code =          "self.core.reset()\n"
@@ -169,7 +176,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         _initialize_load_DMA_code = "self.core.break_realtime()\n"
 
         # todo: should we set e.g. "_LAX<Object>_{}" as a kernel_invariant? or otherwise get their names?
-        # todo: convert all of these for loops into list comprehensions
         # create code to initialize devices
         for i, obj in enumerate(_compile_device_list):
             if isinstance(obj, LAXDevice):
@@ -286,6 +292,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         To be subclassed.
 
         Used to pre-compute data, modify arguments, and further instantiate objects.
+        Warning: prepare_ methods are called when the experiment is "on-deck," i.e. next in line in the scheduler.
+            To avoid disrupting the in-progress experiment, any e.g. hardware initialization should be called
+            in initialize_, and NOT prepare_.
         """
         pass
 
@@ -330,7 +339,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         To be subclassed.
 
-        todo: document
+        Used to run experiment-specific initializations (e.g. DC voltage adjustment) that should only take place
+            IMMEDIATELY before the experiment enters the run_ stage.
         """
         pass
 
@@ -383,7 +393,9 @@ class LAXExperiment(LAXEnvironment, ABC):
     def cleanup_experiment(self) -> TNone:
         """
         To be subclassed.
-        todo: document
+
+        Used to run experiment-specific cleanups (e.g. disable RAM mode on AD9910 DDSs) to leave the experiment
+            in a usable state for other experiments (or the user).
         """
         pass
 
@@ -486,7 +498,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         in isolation.
         """
         # record overall runtime
-        # note: time_global_stop is set in self._initialize_datasets
+        # note: time_global_start is recorded in self._initialize_datasets
         time_global_stop = datetime.timestamp(datetime.now())
         time_exprun = time_global_stop - self.time_global_start
         self.set_dataset('time_run', time_exprun)
@@ -516,7 +528,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         To be subclassed.
 
         Used to process/analyze experiment results.
-        # todo: document what happens to any returns
+        Values returned by analyze_experiment will attempt to be saved in
+            the HDF5 results file under the key "results_processed".
         """
         return None
 
@@ -552,12 +565,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         self._result_iter += 1
 
     @property
-    @abstractmethod
     def results_shape(self):
         """
-        todo: document
+        Define the array shape of the "results" dataset used to store data.
+        e.g. (100, 3) sets the "results" dataset to be 100 rows long and 3 columns wide.
+        Note (2025/08/01): made it NOT an abstractmethod and added a default return
+            to reduce overhead for non-experiment type LAXExps,
         """
-        pass
+        return (1, 1)
 
     def write_results(self, exp_params):
         """
@@ -566,7 +581,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         # set variables
         rid =           exp_params["rid"]
-        start_time =    time.localtime(exp_params["start_time"])
+        start_time =    localtime(exp_params["start_time"])
         expid =         exp_params["expid"]
 
         # save to all relevant directories - these are retrieved & stored in "prepare"
@@ -576,8 +591,8 @@ class LAXExperiment(LAXEnvironment, ABC):
                 # format file name and save directory
                 filedir = os.path.join(
                     save_dir,
-                    time.strftime("%Y-%m", start_time),
-                    time.strftime("%Y-%m-%d", start_time)
+                    strftime("%Y-%m", start_time),
+                    strftime("%Y-%m-%d", start_time)
                 )
                 filename = "{:09}-{}.h5".format(rid, self.name)
 
