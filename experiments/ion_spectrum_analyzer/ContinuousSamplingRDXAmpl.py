@@ -310,9 +310,9 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         # specify sequence as a list of blocks, where each block is a dict
         _sequence_blocks = [
             {
-                "oscillator_parameters": _osc_vals_blocks[i],
+                "oscillator_parameters": _osc_vals_blocks[_idx_block],
                 "config": {
-                    "time_us": block_time_list_us[i],
+                    "time_us": block_time_list_us[_idx_block],
                     "pulse_shaping": self.enable_pulse_shaping,
                     "pulse_shaping_config": {
                         "pulse_shape": self.type_pulse_shape,
@@ -322,7 +322,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
                         "rolloff_time_us": self.time_pulse_shape_rolloff_us
                     }
                 }
-            } for i in range(num_blocks)
+            } for _idx_block in range(num_blocks)
         ]
         # create QVSA waveform and store data in a holder
         self.pulseshaper_vals = self.spinecho_wizard.compile_waveform(_sequence_blocks)
