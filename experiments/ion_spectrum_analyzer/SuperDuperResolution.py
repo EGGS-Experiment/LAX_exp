@@ -37,6 +37,9 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
         'rescue_subsequence', 'rap_subsequence', 'enable_RAP', 'spinecho_wizard',
 
+        # RAP
+        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
+
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
         '_num_phaser_oscs'
@@ -331,20 +334,19 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # calculate block timings and scale amplitudes for ramsey-ing
         num_psk_blocks = len(self.phase_osc0_psk_turns)
-        time_block_us = self.time_eggs_heating_us / num_psk_blocks
         if self.enable_phase_shift_keying:
             if self.enable_psk_delay:
                 num_blocks = 2 * num_psk_blocks - 1
-                block_time_list_us = riffle([time_block_us] * num_psk_blocks,
+                block_time_list_us = riffle([self.time_eggs_heating_us / num_psk_blocks] * num_psk_blocks,
                                             [self.time_psk_delay_us] * (num_psk_blocks - 1))
                 block_ampl_scale_list = riffle([1] * num_psk_blocks, [0] * (num_psk_blocks - 1))
             else:
                 num_blocks = num_psk_blocks
-                block_time_list_us = [time_block_us] * num_psk_blocks
+                block_time_list_us = [self.time_eggs_heating_us / num_psk_blocks] * num_psk_blocks
                 block_ampl_scale_list = [1] * num_psk_blocks
         else:
             num_blocks = 1
-            block_time_list_us = [time_block_us]
+            block_time_list_us = [self.time_eggs_heating_us]
             block_ampl_scale_list = [1]
 
         '''DESIGN WAVEFORM SEQUENCE'''
@@ -394,7 +396,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                     "oscillator_parameters": _osc_vals_blocks_local[_idx_block],
                     "config": {
                         "time_us": block_time_list_us[_idx_block],
-                        "pulse_shaping": self.enable_pulse_shaping,
+                        # don't pulse shape for delay blocks lmao
+                        "pulse_shaping": self.enable_pulse_shaping and (block_ampl_scale_list[_idx_block] != 0),
                         # note: we DON'T pulse shape each block here
                         "pulse_shaping_config": {
                             "pulse_shape": self.type_pulse_shape,
