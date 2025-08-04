@@ -259,38 +259,31 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
-        # check that input amplitude/phase arrays are valid
-        if type(self.ampl_superresolution_osc_frac_list) is list:
-            if len(self.ampl_superresolution_osc_frac_list) != self._num_phaser_oscs:
-                raise ValueError("Error: phaser oscillator amplitude array must have length 4.")
-            elif np.sum(self.ampl_superresolution_osc_frac_list) >= 100.:
-                raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
-        else:
-            raise ValueError("Error: phaser oscillator amplitude array must be a list.")
+        '''CHECK PHASER BASE OSC CONFIG'''
+        # check that phaser oscillator amplitude config is valid
+        if ((not isinstance(self.ampl_superresolution_osc_frac_list, list)) or
+                (len(self.ampl_superresolution_osc_frac_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
+        elif np.sum(self.ampl_superresolution_osc_frac_list) >= 100.:
+            raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
 
-        if type(self.phase_superresolution_osc_turns_list) is list:
-            if len(self.phase_superresolution_osc_turns_list) != self._num_phaser_oscs:
-                raise ValueError("Error: phaser oscillator phase array must have length 4.")
-        else:
-            raise ValueError("Error: phaser oscillator phase array must be a list.")
+        # check that phaser oscillator phase arrays are valid
+        if ((not isinstance(self.phase_superresolution_osc_turns_list, list)) or
+                (len(self.phase_superresolution_osc_turns_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator phase array must be list of length {:d}.".format(self._num_phaser_oscs))
 
         # check that phaser oscillator frequencies are valid
-        if type(self.freq_superresolution_osc_khz_list) is not list:
-            raise ValueError("Error: phaser oscillator frequency array must be a list.")
-        elif len(self.freq_superresolution_osc_khz_list) != self._num_phaser_oscs:
-            raise ValueError("Error: phaser oscillator frequency array must have length 4.")
-        max_osc_freq_hz = (
-            np.max(list(self.freq_superresolution_sweep_khz_list)) * kHz +
-            max(self.freq_superresolution_osc_khz_list) * kHz +
-            (self.freq_global_offset_mhz * MHz)
-        )
-        min_osc_freq_hz = (
-            np.min(list(self.freq_superresolution_sweep_khz_list)) * kHz +
-            max(self.freq_superresolution_osc_khz_list) * kHz +
-            (self.freq_global_offset_mhz * MHz)
-        )
-        if (max_osc_freq_hz > 10. * MHz) or (min_osc_freq_hz < -10. * MHz):
-            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-10, 10] MHz.")
+        if ((not isinstance(self.freq_superresolution_osc_khz_list, list)) or
+                (len(self.freq_superresolution_osc_khz_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator frequency array must be list of length {:d}.".format(self._num_phaser_oscs))
+        max_osc_freq_hz = (np.max(list(self.freq_superresolution_sweep_khz_list)) * kHz +
+                           max(self.freq_superresolution_osc_khz_list) * kHz +
+                           (self.freq_global_offset_mhz * MHz))
+        min_osc_freq_hz = (np.min(list(self.freq_superresolution_sweep_khz_list)) * kHz +
+                           max(self.freq_superresolution_osc_khz_list) * kHz +
+                           (self.freq_global_offset_mhz * MHz))
+        if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
+            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
         phaser_output_freqs_hz = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
@@ -468,10 +461,10 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_superresolution_sweep_turns_list[phase_sweep_idx]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_sweep_idx]
-                self.core.break_realtime()
 
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_superresolution_osc_base_hz_list + freq_sweep_hz * self.freq_sweep_arr
+                self.core.break_realtime()
                 self.phaser_eggs.frequency_configure(
                     # carrier frequency (via DUC)
                     carrier_freq_hz - self.freq_global_offset_hz,
@@ -480,12 +473,11 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                      freq_update_list[2], freq_update_list[3], 0.],
                     phase_ch1_turns
                 )
-                self.core.break_realtime()
+                delay_mu(35000)
 
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                delay_mu(50000)
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
@@ -514,26 +506,22 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                     phase_ch1_turns,
                     time_readout_mu
                 )
-                self.core.break_realtime()
 
                 '''LOOP CLEANUP'''
                 # resuscitate ion & detect deaths
+                self.core.break_realtime()
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 50 == 0:
                     self.check_termination()
-                    self.core.break_realtime()
                 _loop_iter += 1
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & check termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''

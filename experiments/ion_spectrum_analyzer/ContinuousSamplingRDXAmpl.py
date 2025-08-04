@@ -29,7 +29,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'fock_subsequence', 'overlap_subsequence',
+        'fock_subsequence', 'overlap_subsequence', 'spinecho_wizard', 'pulse_shaper',
 
         # configs
         'profile_729_SBC', 'profile_729_RAP', 'profile_729_overlap', 'profile_729_fock',
@@ -193,29 +193,20 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
-        # check that input amplitude/phase arrays are valid
-        if isinstance(self.ampl_osc_frac_list, list):
-            if len(self.ampl_osc_frac_list) != self._num_phaser_oscs:
-                raise ValueError(
-                    "Error: phaser oscillator amplitude array must have length {:d}.".format(self._num_phaser_oscs))
-            elif np.sum(self.ampl_osc_frac_list) >= 100.:
-                raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
-        else:
-            raise ValueError("Error: phaser oscillator amplitude array must be a list.")
+        '''CHECK PHASER BASE OSC CONFIG'''
+        # check that phaser oscillator amplitude config is valid
+        if (not isinstance(self.ampl_osc_frac_list, list)) or (len(self.ampl_osc_frac_list) != self._num_phaser_oscs):
+            raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
+        elif np.sum(self.ampl_osc_frac_list) >= 100.:
+            raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
 
-        if isinstance(self.phase_osc_turns_list, list):
-            if len(self.phase_osc_turns_list) != self._num_phaser_oscs:
-                raise ValueError(
-                    "Error: phaser oscillator phase array must have length {:d}.".format(self._num_phaser_oscs))
-        else:
-            raise ValueError("Error: phaser oscillator phase array must be a list.")
+        # check that phaser oscillator phase arrays are valid
+        if (not isinstance(self.phase_osc_turns_list, list)) or (len(self.phase_osc_turns_list) != self._num_phaser_oscs):
+            raise ValueError("Error: phaser oscillator phase array must be list of length {:d}.".format(self._num_phaser_oscs))
 
         # check that phaser oscillator frequencies are valid
-        if not isinstance(self.freq_osc_khz_list, list):
-            raise ValueError("Error: phaser oscillator frequency array must be a list.")
-        elif len(self.freq_osc_khz_list) != self._num_phaser_oscs:
-            raise ValueError(
-                "Error: phaser oscillator frequency array must have length {:d}.".format(self._num_phaser_oscs))
+        if (not isinstance(self.freq_osc_khz_list, list)) or (len(self.freq_osc_khz_list) != self._num_phaser_oscs):
+            raise ValueError("Error: phaser oscillator frequency array must be list of length {:d}.".format(self._num_phaser_oscs))
         max_osc_freq_hz = max(self.freq_osc_khz_list) * kHz + (self.freq_global_offset_mhz * MHz)
         min_osc_freq_hz = max(self.freq_osc_khz_list) * kHz + (self.freq_global_offset_mhz * MHz)
         if (max_osc_freq_hz > 10. * MHz) or (min_osc_freq_hz < -10. * MHz):
@@ -227,6 +218,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
+        '''CHECK PHASER WAVEFORM CONFIG'''
         # check that PSK schedule is valid
         num_psk_blocks = len(self.phase_osc0_psk_turns)
         psk_schedule_invalid = self.enable_phase_shift_keying and any([
@@ -239,18 +231,24 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         if psk_schedule_invalid:
             raise ValueError("Invalid PSK schedule. All PSK schedules must be of same length.")
 
-        # ensure that the spinecho-ing makes sense
+        # ensure that spinecho-ing makes sense
         if self.enable_psk_delay and not self.enable_phase_shift_keying:
             raise ValueError("Invalid waveform configuration. Cannot have delays enabled without PSKing.")
 
+        # ensure osc_num_target_list is a valid list
+        if not (isinstance(self.osc_num_target_list, list)):
+            raise ValueError("Invalid osc_num_target_list."
+                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self.num_phaser_oscs, self.num_phaser_oscs-1))
         # ensure that osc_num_target_list contains a valid selection of oscillators
-        # todo: ensure no repeated values
-        if not (len(self.osc_num_target_list) == 0) and not (
-                all(isinstance(val, int) for val in self.osc_num_target_list) and
-                (max(self.osc_num_target_list) <= 4 and min(self.osc_num_target_list) >= 0) and
-                len(self.osc_num_target_list) <= 4
-        ):
-            raise ValueError("Invalid target oscillator list. Must be a list of fewer than 4 numbers in [0, 4].")
+        elif (len(self.osc_num_target_list) != 0) and not all((
+                all(isinstance(val, int) for val in self.osc_num_target_list),
+                max(self.osc_num_target_list) <= self._num_phaser_oscs,
+                min(self.osc_num_target_list) >= 0,
+                len(self.osc_num_target_list) <= self._num_phaser_oscs,
+                len(set(self.osc_num_target_list)) == len(self._num_phaser_oscs)
+        )):
+            raise ValueError("Invalid osc_num_target_list."
+                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self.num_phaser_oscs, self.num_phaser_oscs-1))
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -313,7 +311,8 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
                 "oscillator_parameters": _osc_vals_blocks[_idx_block],
                 "config": {
                     "time_us": block_time_list_us[_idx_block],
-                    "pulse_shaping": self.enable_pulse_shaping,
+                    # don't pulse shape for delay blocks lmao
+                    "pulse_shaping": self.enable_pulse_shaping and (block_ampl_scale_list[_idx_block] != 0),
                     "pulse_shaping_config": {
                         "pulse_shape": self.type_pulse_shape,
                         "pulse_shape_rising": self.enable_pulse_shaping,

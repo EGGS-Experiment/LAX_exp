@@ -54,7 +54,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # create an array of values for the experiment to sweep
         self.config_experiment_list = create_experiment_config(
             time_heating_rate_mu_list, self.freq_sideband_readout_ftw_list,
-            shuffle_config=True, dtype=np.int64
+            shuffle_config=True, config_type=np.int64
         )
 
     @property
