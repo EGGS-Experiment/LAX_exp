@@ -12,8 +12,7 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
-# todo: add generic all osc use
-# todo: change names to make more generic
+# todo: add generic all osc use and change names to make more generic
 
 
 class SuperDuperResolution(LAXExperiment, Experiment):
@@ -27,7 +26,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_global_offset_hz',
-        'freq_superresolution_osc_base_hz_list', 'waveform_index_to_pulseshaper_vals', '_waveform_param_list',
+        'freq_superresolution_osc_base_hz_list', 'waveform_index_to_compiled_wav', '_waveform_param_list',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
@@ -328,7 +327,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         Uses SpinEchoWizard and PhaserPulseShaper objects to simplify waveform compilation.
         """
         '''PREPARE WAVEFORM COMPILATION'''
-        self.waveform_index_to_pulseshaper_vals = list() # store compiled waveform values
+        self.waveform_index_to_compiled_wav = list() # store compiled waveform values
         # note: waveform_index_to_pulseshaper_id is NOT kernel_invariant b/c gets updated in phaser_record
         self.waveform_index_to_pulseshaper_id = np.zeros(len(self._waveform_param_list), dtype=np.int32)
         # store waveform ID linked to DMA sequence
@@ -420,7 +419,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 } for _idx_block in range(num_blocks)
             ]
             # create QVSA waveform and store data in a holder
-            self.waveform_index_to_pulseshaper_vals.append(
+            self.waveform_index_to_compiled_wav.append(
                 self.spinecho_wizard.compile_waveform(_sequence_blocks_local)
             )
 
@@ -455,12 +454,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load waveform DMA handles
-        self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
-
-        # used to check_termination more frequently
-        _loop_iter = 0
+        self.pulse_shaper.waveform_load() # load waveform DMA handles
+        _loop_iter = 0  # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -575,12 +570,24 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # record phaser sequences onto DMA for each waveform parameter
         for i in range(len(self._waveform_param_list)):
             # get waveform for given parameters
-            _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
+            # note: use sync RPC to reduce significant overhead of direct data transfer
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(i)
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
+            # note: no need to add slack b/c waveform_record does it for us
             self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
                 _wav_data_ampl, _wav_data_phas, _wav_data_time
             )
-            self.core.break_realtime()
+
+    @rpc
+    def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                 TArray(TFloat, 2),
+                                                                 TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to kasli.
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        """
+        return self.waveform_index_to_compiled_wav[wav_idx]
 

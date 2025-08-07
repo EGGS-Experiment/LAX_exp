@@ -1,7 +1,6 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import array, ndarray, int32, int64
 
-from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
@@ -20,7 +19,7 @@ class PhaserPulseShaper(LAXEnvironment):
         "_dma_names"
     }
 
-    def build(self, phase_offsets_turns=np.array([0., 0., 0., 0., 0.])):
+    def build(self, phase_offsets_turns=array([0., 0., 0., 0., 0.])):
         # get relevant devices
         self.setattr_device('core')
         self.setattr_device('core_dma')
@@ -28,7 +27,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # initialize important variables
         # note: we do this here since "prepare" method is run AFTER prepare_experiment
-        if (isinstance(phase_offsets_turns, list) or isinstance(phase_offsets_turns, np.ndarray)) and len(phase_offsets_turns) == 5:
+        if (isinstance(phase_offsets_turns, list) or isinstance(phase_offsets_turns, ndarray)) and len(phase_offsets_turns) == 5:
             self._phase_offsets_turns = phase_offsets_turns
         else:
             raise ValueError("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
@@ -40,7 +39,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(PULSESHAPER_MAX_WAVEFORMS)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
+        self._dma_handles = [(0, int64(0), int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
 
         # store number of waveforms recorded
         self._num_waveforms = 0
@@ -58,7 +57,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # create data structures to allow programmatic recording & playback of DMA handles
         self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(PULSESHAPER_MAX_WAVEFORMS)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
+        self._dma_handles = [(0, int64(0), int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
 
         # store number of waveforms recorded
         self._num_waveforms = 0
@@ -110,6 +109,10 @@ class PhaserPulseShaper(LAXEnvironment):
 
 
         '''RECORD WAVEFORMS'''
+        # save waveform as dataset for posterity
+        # note: do here so we don't have to break_realtime again
+        self._waveform_save_dataset(self._num_waveforms, ampl_frac_list, phas_turns_list, sample_interval_mu_list)
+
         # add slack for recording DMA sequences (1 ms)
         self.core.break_realtime()
         delay_mu(1000000)
@@ -122,10 +125,6 @@ class PhaserPulseShaper(LAXEnvironment):
                 # set variable delay
                 delay_mu(sample_interval_mu_list[i])
         # add slack after DMA recording
-        self.core.break_realtime()
-
-        # save waveform as dataset for posterity
-        self._waveform_save_dataset(self._num_waveforms, ampl_frac_list, phas_turns_list, sample_interval_mu_list)
         self.core.break_realtime()
 
         # increment waveform counter and return waveform index
