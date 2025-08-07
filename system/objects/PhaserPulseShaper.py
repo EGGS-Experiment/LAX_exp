@@ -5,6 +5,8 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
+PULSESHAPER_MAX_WAVEFORMS = 64
+
 
 class PhaserPulseShaper(LAXEnvironment):
     """
@@ -14,7 +16,7 @@ class PhaserPulseShaper(LAXEnvironment):
     """
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
-        "_max_waveforms", "t_max_phaser_update_rate_mu", "_phase_offsets_turns",
+        "t_max_phaser_update_rate_mu", "_phase_offsets_turns",
         "_dma_names"
     }
 
@@ -32,15 +34,13 @@ class PhaserPulseShaper(LAXEnvironment):
             raise ValueError("Error in PhaserPulseShaper: phase_offsets_turns must be list of length 5.")
 
         # tmp remove - create initial copy of key values so we have them by build
-        # set global variables
-        self._max_waveforms = 64
         # note: max update rate should be a multiple of 5x the sample period
         # such that each oscillator is deterministically updated
         self.t_max_phaser_update_rate_mu = 5 * self.phaser_eggs.t_sample_mu
 
         # create data structures to allow programmatic recording & playback of DMA handles
-        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * self._max_waveforms
+        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(PULSESHAPER_MAX_WAVEFORMS)]
+        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
 
         # store number of waveforms recorded
         self._num_waveforms = 0
@@ -51,14 +51,14 @@ class PhaserPulseShaper(LAXEnvironment):
         Prepare relevant values for waveform compilation.
         """
         # set global variables
-        self._max_waveforms = 64
+        PULSESHAPER_MAX_WAVEFORMS = 64
         # note: max update rate should be a multiple of 5x the sample period
         # such that each oscillator is deterministically updated
         self.t_max_phaser_update_rate_mu = 5 * self.phaser_eggs.t_sample_mu
 
         # create data structures to allow programmatic recording & playback of DMA handles
-        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * self._max_waveforms
+        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(PULSESHAPER_MAX_WAVEFORMS)]
+        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
 
         # store number of waveforms recorded
         self._num_waveforms = 0
@@ -105,7 +105,7 @@ class PhaserPulseShaper(LAXEnvironment):
             raise ValueError("Error: waveform arrays exceed number of oscillators.")
 
         # ensure we haven't exceeded max number of waveforms
-        if self._num_waveforms > self._max_waveforms:
+        if self._num_waveforms > PULSESHAPER_MAX_WAVEFORMS:
             raise ValueError("Error: too many waveforms recorded.")
 
 

@@ -5,18 +5,19 @@ from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
+PULSESHAPER_MAX_WAVEFORMS = 64
+
 
 class PhaserPulseShaper2(LAXEnvironment):
     """
     Helper: Phaser Pulse Shaper 2
 
     todo: document
-    does phaser CH0 and phaser CH1 separately.
+    Does phaser CH0 and phaser CH1 separately.
     """
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
-        "_max_waveforms", "t_max_phaser_update_rate_mu",
-        "_dma_names"
+        "t_max_phaser_update_rate_mu", "_dma_names"
     }
 
     def build(self, phase_offsets_turns=np.array([0., 0., 0., 0., 0.])):
@@ -41,15 +42,13 @@ class PhaserPulseShaper2(LAXEnvironment):
         """
         Prepare relevant values for waveform compilation.
         """
-        # set global variables
-        self._max_waveforms = 64
         # note: without touching core analyzer, max amplitude update rate for phaser (with 3 oscillators)
         # is (conservatively) about 1.5 MSPS (i.e. 25 sample periods)
         self.t_max_phaser_update_rate_mu =  25 * self.phaser_eggs.t_sample_mu
 
         # create data structures to allow programmatic recording & playback of DMA handles
-        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(self._max_waveforms)]
-        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * self._max_waveforms
+        self._dma_names =   ['_phaser_waveform_{:d}'.format(i) for i in range(PULSESHAPER_MAX_WAVEFORMS)]
+        self._dma_handles = [(0, np.int64(0), np.int32(0), False)] * PULSESHAPER_MAX_WAVEFORMS
 
         # store number of waveforms recorded
         self._num_waveforms = 0
@@ -91,7 +90,7 @@ class PhaserPulseShaper2(LAXEnvironment):
             raise ValueError("Error: waveform arrays exceed number of oscillators.")
 
         # ensure we haven't exceeded max number of waveforms
-        if self._num_waveforms > self._max_waveforms:
+        if self._num_waveforms > PULSESHAPER_MAX_WAVEFORMS:
             raise ValueError("Error: too many waveforms recorded.")
 
 

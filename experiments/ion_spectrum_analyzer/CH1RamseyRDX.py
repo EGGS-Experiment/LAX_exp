@@ -8,9 +8,7 @@ from LAX_exp.system.subsequences import (
     SidebandReadout, QubitRAP
 )
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
-from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2
-
-from sipyco import pyon
+from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2, PULSESHAPER_MAX_WAVEFORMS
 
 
 class CH1RamseyRDX(LAXExperiment, Experiment):
@@ -450,7 +448,6 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-            # sweep experiment configurations
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
@@ -476,11 +473,12 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                      freq_update_list[2], freq_update_list[3], freq_update_list[4]],
                     self.phase_global_ch1_duc_turns
                 )
-                delay_mu(35000)
 
                 # set qubit readout frequency
                 self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                self.core.break_realtime()
+
 
                 '''STATE PREPARATION'''
                 # initialize ion in S-1/2 state & sideband cool
