@@ -30,8 +30,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
-        'rescue_subsequence', 'rap_subsequence', 'enable_RAP',
-        'spinecho_wizard', 'pulse_shaper',
+        'rescue_subsequence', 'rap_subsequence', 'enable_RAP', 'spinecho_wizard', 'pulse_shaper',
 
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
@@ -121,7 +120,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys(), default='sine_squared'),
+        self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
                               group='{}.pulse_shaping'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
