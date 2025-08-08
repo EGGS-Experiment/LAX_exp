@@ -9,6 +9,7 @@ from LAX_exp.system.subsequences import (
 )
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2, PULSESHAPER_MAX_WAVEFORMS
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 
 class CH1RamseyRDX(LAXExperiment, Experiment):
@@ -21,8 +22,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware values - phaser
         'att_heating_mu', 'freq_sweep_hz_list', 'phase_sweep_turns_list', 'freq_osc_base_hz_list',
-        'waveform_index_to_pulseshaper_vals0', 'waveform_index_to_pulseshaper_vals1', 'freq_global_offset_hz',
-        'waveform_index_to_phase_sweep_turns', 'phase_offsets',
+        'freq_global_offset_hz', 'waveform_index_to_phase_sweep_turns', 'phase_offsets',
+        'waveform_index_to_pulseshaper_vals0', 'waveform_index_to_pulseshaper_vals1',
 
         # hardware values - readout
         'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
@@ -39,8 +40,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions",    NumberValue(default=1000, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
+        self.setattr_argument("repetitions",    NumberValue(default=60, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
 
         self._num_phaser_oscs = 5   # number of phaser oscillators in use
         _argstr = "CH1Ram"  # string to use for argument grouping
@@ -53,8 +54,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # get subsequences
         self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
 
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
@@ -75,14 +75,14 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # RAP-based readout
         self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
         self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7367, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7394, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
         self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
         self.setattr_argument("time_rap_us",            NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # configurable freq & sweeps
         self.setattr_argument("freq_heating_carrier_mhz_list", Scannable(
                                                                 default=[
-                                                                    ExplicitScan([70.]),
+                                                                    ExplicitScan([86.]),
                                                                     CenterScan(100, 0.002, 0.0005,
                                                                                randomize=True),
                                                                     # CenterScan(83.20175, 0.002, 0.0005, randomize=True),
@@ -90,7 +90,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="{}.freq_phase_sweep".format(_argstr))
-        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0., 0.]), group="{}.freq_phase_sweep".format(_argstr),
+        self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]), group="{}.freq_phase_sweep".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -121,7 +121,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("type_pulse_shape",       EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
+        self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys(), default='sine_squared'),
                               group='{}.pulse_shaping'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
@@ -136,7 +136,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip="Attempt to move NCO/TRF leakage outside of target band by shifting DUC and oscillators to compensate.")
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_osc_khz_list",      PYONValue([702.581, 0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format(_argstr),
                               tooltip="Relative phases between each oscillator. Applies equally to CH0 and CH1.")
         self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format(_argstr),
@@ -144,13 +144,13 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                       "This is in addition to the CH1 global offset, as well as any CH1 sweeps.")
 
         # custom waveform specification - CH1 Ramsey-specific
-        self.setattr_argument('ampl_ch0_stage_0',   PYONValue([10., 10., 5., 0., 0.]), group= "{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch0_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
                               tooltip="Amplitudes for CH0 oscillators during first stage of Ramsey.")
-        self.setattr_argument('ampl_ch0_stage_1',   PYONValue([10., 10., 5., 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch0_stage_1',   PYONValue([40., 40., 0., 0., 0.]), group="{}.waveform".format(_argstr),
                               tooltip="Amplitudes for CH0 oscillators during second stage of Ramsey.")
-        self.setattr_argument('ampl_ch1_stage_0',   PYONValue([10., 10., 5., 0., 0.]), group= "{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch1_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
                               tooltip="Amplitudes for CH1 oscillators during first stage of Ramsey.")
-        self.setattr_argument('ampl_ch1_stage_1',   PYONValue([10., 10., 5, 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch1_stage_1',   PYONValue([40., 40., 5, 0., 0.]), group="{}.waveform".format(_argstr),
                               tooltip="Amplitudes for CH1 oscillators during second stage of Ramsey.")
         self.setattr_argument('osc_ch1_sweep', PYONValue([0., 0., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
                               tooltip="Sweep array when target_phase_sweep is set to 'ch1'. Each oscillator ")
@@ -215,7 +215,6 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.osc_ch1_sweep = np.array(self.osc_ch1_sweep)
         self.freq_sweep_arr = np.array(self.freq_sweep_arr, dtype=float)
 
-
         '''CONFIGURE SWEEP BEHAVIOR'''
         # create pre-declared phase_offsets list as workaround for artiq stack memory issue
         # see: https://github.com/m-labs/artiq/issues/1520
@@ -228,22 +227,11 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.waveform_index_to_phase_sweep_turns = np.arange(len(self.phase_sweep_turns_list))
 
         # create config data structure
-        self.config_experiment_list = np.zeros((
-            len(freq_sideband_readout_ftw_list) *
-            len(freq_carrier_hz_list) *
-            len(self.freq_sweep_hz_list) *
-            len(self.phase_sweep_turns_list) *
-            len(time_readout_mu_list),
-        5), dtype=float)
-        # note: sideband readout frequencies are at the end of the meshgrid
-        # to ensure successive rsb/bsb measurements are adjacent
-        self.config_experiment_list[:, [1, 2, -3, -1, 0]] = np.stack(np.meshgrid(
-            freq_carrier_hz_list,
-            self.freq_sweep_hz_list,
-            self.waveform_index_to_phase_sweep_turns,
-            time_readout_mu_list,
-            freq_sideband_readout_ftw_list),
-        -1).reshape(-1, 5)
+        self.config_experiment_list = create_experiment_config(
+            freq_sideband_readout_ftw_list, freq_carrier_hz_list,
+            self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
+            time_readout_mu_list
+        )
         # randomize_config always enabled lol
         np.random.shuffle(self.config_experiment_list)
 
@@ -301,7 +289,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # ensure special CH1 ramsey stuff is valid
         if not isinstance(self.osc_ch1_sweep, list):
             raise ValueError("Error: phaser oscillator on/off must be a list.")
-        elif len(self.osc_ch1_sweep) != self.self._num_phaser_oscs:
+        elif len(self.osc_ch1_sweep) != self._num_phaser_oscs:
             raise ValueError("Error: only {:d} oscillators to change phase.".format(self._num_phaser_oscs))
         elif np.max(self.osc_ch1_sweep) > 1:
             raise ValueError("Error: can only turn oscillator on (1)/off (0)")
@@ -362,7 +350,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
 
         '''COMPILE WAVEFORM SEQUENCE'''
-        for i, phase in enumerate(self.phase_sweep_turns_list):
+        for phase in self.phase_sweep_turns_list:
             # create local copy of _sequence_blocks
             # note: no need to deep copy b/c it's filled w/immutables
             # note: have to obtain different copies so they don't point to same object and overwrite it
@@ -439,12 +427,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load waveform DMA handles
-        self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
-
-        # used to check_termination more frequently
-        _loop_iter = 0
+        self.pulse_shaper.waveform_load() # load waveform DMA handles
+        _loop_iter = 0 # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -555,20 +539,44 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         """
         # record phaser sequences onto DMA for each RSB phase
         for i in range(len(self.phase_sweep_turns_list)):
-            # get waveform
-            _wav_data_ampl0, _wav_data_phas0, _wav_data_time0 = self.waveform_index_to_pulseshaper_vals0[i]
-            _wav_data_ampl1, _wav_data_phas1, _wav_data_time1 = self.waveform_index_to_pulseshaper_vals1[i]
+            # get waveform for given parameters
+            # note: use sync RPC to reduce significant overhead of direct data transfer
+            _wav_data_ampl0, _wav_data_phas0, _wav_data_time0 = self._get_compiled_waveform_ch0(i)
+            _wav_data_ampl1, _wav_data_phas1, _wav_data_time1 = self._get_compiled_waveform_ch1(i)
             if self.target_phase_sweep == 'ch1':
                 self.pulse_shaper.phase_offsets_turns = self.phase_offsets[i]
-            self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-            _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl0, _wav_data_ampl1,
-                                                         _wav_data_phas0, _wav_data_phas1,
-                                                         _wav_data_time0)
-            self.waveform_index_to_pulseshaper_id[i] = _wav_idx
-            self.core.break_realtime()
+            # note: no need to add slack b/c waveform_record does it for us
+            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
+                _wav_data_ampl0, _wav_data_ampl1,
+                _wav_data_phas0, _wav_data_phas1,
+                _wav_data_time0
+            )
+
+    @rpc
+    def _get_compiled_waveform_ch0(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                     TArray(TFloat, 2),
+                                                                     TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values - CH0.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to kasli.s
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        """
+        return self.waveform_index_to_pulseshaper_vals0[wav_idx]
+
+    @rpc
+    def _get_compiled_waveform_ch1(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                     TArray(TFloat, 2),
+                                                                     TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values - CH1.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to kasli.
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        """
+        return self.waveform_index_to_pulseshaper_vals1[wav_idx]
 
 
     '''
