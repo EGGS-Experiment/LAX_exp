@@ -6,10 +6,8 @@ import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import ParametricExcite, RescueIon
+from LAX_exp.language import *
+from LAX_exp.system.subsequences import ParametricExcite
 
 
 class InsufficientCounts(Exception):
@@ -32,7 +30,8 @@ class ParametricSweep(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware parameters
         "dc_channel_num", "dc_voltages_v_list", "time_dc_synchronize_delay_mu",
-        "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu", "att_modulation_mu", "freq_modulation_list_mu",
+        "ampl_cooling_asf", "freq_cooling_ftw", "att_modulation_mu", "freq_modulation_list_mu",
+        "profile_397_parametric", "profile_dds_parametric",
 
         # labrad objects
         "cxn", "dc",
@@ -41,15 +40,19 @@ class ParametricSweep(LAXExperiment, Experiment):
         "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts",
 
         # subsequences
-        "parametric_subsequence", "rescue_subsequence"
+        "parametric_subsequence"
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=10000))
 
+        # explicitly specify AD9910 profiles
+        self.profile_397_parametric = 6
+        self.profile_dds_parametric = 6
+
         # modulation
-        self.setattr_argument("mod_att_db",         NumberValue(default=14, precision=1, step=0.5, min=0, max=31.5, scale=1., unit='dB'),
+        self.setattr_argument("mod_att_db", NumberValue(default=14, precision=1, step=0.5, min=0, max=31.5, scale=1., unit='dB'),
                               group='modulation')
         self.setattr_argument("mod_freq_khz_list",  Scannable(
                                                         default= [
@@ -89,8 +92,6 @@ class ParametricSweep(LAXExperiment, Experiment):
 
         # get relevant subsequences
         self.parametric_subsequence =   ParametricExcite(self)
-        self.rescue_subsequence =       RescueIon(self)
-
 
     def prepare_experiment(self):
         # get voltage parameters
@@ -101,7 +102,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =         self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
         self.freq_cooling_ftw =         self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
-        self.time_cooling_holdoff_mu =  self.core.seconds_to_mu(3 * ms)
 
         # modulation control and synchronization
         self.att_modulation_mu =        att_to_mu(self.mod_att_db * dB)
@@ -126,13 +126,14 @@ class ParametricSweep(LAXExperiment, Experiment):
                 5)
 
 
-    # LABRAD FUNCTIONS
+    '''
+    LABRAD FUNCTIONS
+    '''
     @rpc
     def voltage_set(self, channel: TInt32, voltage_v: TFloat) -> TNone:
         """
         Set the channel to the desired voltage.
         """
-        # set desired voltage
         self.dc.voltage_fast(channel, voltage_v)
         # print('\tvoltage set: {}'.format(voltage_set_v))
 
@@ -143,7 +144,6 @@ class ParametricSweep(LAXExperiment, Experiment):
         Returns:
             voltage of desired channel.
         """
-        # set desired voltage
         voltage_v = self.dc.voltage(channel)
         # print('\tvoltage get: {}'.format(voltage_set_v))
         return voltage_v
@@ -153,38 +153,41 @@ class ParametricSweep(LAXExperiment, Experiment):
         """
         Prepare LabRAD devices for the experiment via RPC.
         """
-        # set up amo8
+        # set up amo8 to prevent device communication from being interrupted
         self.dc.polling(False)
         self.dc.alarm(False)
         self.dc.serial_write('remote.w 1\r\n')
         self.dc.serial_read('\n')
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
+        # get DDS CPLD att values so ARTIQ remembers them
+        self.dds_parametric.cpld.get_att_mu()
+
         # set up labrad devices via RPC
         self.prepareDevicesLabrad()
         self.core.break_realtime()
 
-        # get DDS CPLD att values so ARTIQ remembers them
-        self.dds_parametric.cpld.get_att_mu()
-        self.core.break_realtime()
-
-        # set cooling beams
-        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-        self.pump.set_profile(0)
+        # prepare cooling beams
+        self.pump.rescue()
         self.pump.on()
         self.repump_cooling.on()
         self.repump_qubit.on()
+        # store 397nm waveform for modulation
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=self.profile_397_parametric,
+                         phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(10000)
+
 
         # set up DDS for modulation
         self.dds_parametric.set_att_mu(self.att_modulation_mu)
         self.dds_parametric.set_phase_absolute()
         delay_mu(10000)
-        # note: use profile 0 for modulation waveform
-        self.dds_parametric.set_profile(0)
+        self.dds_parametric.set_profile(self.profile_dds_parametric)
         delay_mu(8000)
 
         # do check to verify that mirror is flipped to mirror
@@ -199,6 +202,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         Runs a given number of PMT readout sequences and compares the average fluorescence
         against some given number.
         """
+        # todo: get counts with 397nm on vs off to see if flipped, rather than just raw counts
         # count fluorescence
         self.pmt.count(self.fluorescence_calibration_time_mu)
 
@@ -209,17 +213,15 @@ class ParametricSweep(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # run given number of repetitions
         for trial_num in range(self.repetitions):
 
             # sweep voltage
             for voltage_v in self.dc_voltages_v_list:
-
-                # set DC voltage
                 self.voltage_set(self.dc_channel_num, voltage_v)
 
                 # synchronize hardware clock with timeline, then add delay for voltages to settle
                 # note: delay has added advantage of recooling the ion
+                self.core.break_realtime()
                 self.core.wait_until_mu(now_mu())
                 delay_mu(self.time_dc_synchronize_delay_mu)
 
@@ -227,32 +229,26 @@ class ParametricSweep(LAXExperiment, Experiment):
                 for freq_mu in self.freq_modulation_list_mu:
                     self.core.break_realtime()
 
-                    # set modulation frequency
+                    # prepare hardware for parametric demodulation
                     self.dds_parametric.set_mu(freq_mu, asf=self.dds_parametric.ampl_modulation_asf,
-                                               profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+                                               profile=self.profile_dds_parametric,
+                                               phase_mode=PHASE_MODE_CONTINUOUS)
+                    self.pump.set_profile(self.profile_397_parametric)
+                    delay_mu(25000)
 
-                    # run parametric excitation
+                    # run parametric excitation!
                     pmt_timestamp_list = self.parametric_subsequence.run()
 
-                    # process results (stores them in our results dataset for us)
-                    self._process_results(freq_mu,
-                                          voltage_v,
-                                          pmt_timestamp_list)
-                    self.core.reset()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
-            self.core.break_realtime()
-
+                    # clean up & process results
+                    self.pump.rescue()  # leave beams on rescue while idle
+                    self.pmt.clear_inputs()
+                    self.check_termination()
+                    self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
 
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)) -> TNone:
         """
         Convert modulation frequency and timestamps from machine units and demodulate.
-
         Arguments:
             freq_ftw            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
             voltage_v           (float)         : the current shim voltage (in volts).

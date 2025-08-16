@@ -80,3 +80,23 @@ class PMTCounter(LAXDevice):
         # note: we do this here (i.e. at end) to reduce initial overhead where latencies are critical
         self._counter = 0
 
+    @kernel(flags={"fast-math"})
+    def clear_inputs(self) -> TNone:
+        """
+        Clear input count buffers for both the TTLInOut and EdgeCounter objects.
+        Note: will consume all slack.
+        """
+        self.core.break_realtime()  # add slack
+
+        # clear TTL input events
+        while self.input.timestamp_mu(now_mu()) != -1:
+            delay_mu(5000)
+        self.core.break_realtime()
+
+        # clear edge counter input events
+        count_events_remaining = self.pmt.fetch_timestamped_count(now_mu())
+        while count_events_remaining[0] != -1:
+            delay_mu(5000)
+            count_events_remaining = self.pmt.fetch_timestamped_count(now_mu())
+        self.core.break_realtime()
+

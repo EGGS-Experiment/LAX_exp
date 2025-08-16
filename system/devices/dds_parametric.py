@@ -28,9 +28,9 @@ class DDSParametric(LAXDevice):
         self.cpld = self.dds.cpld
 
         # get relevant parameters
-        self.ampl_modulation_asf =  self.get_parameter('ampl_parametric_pct', group='dds.ampl_pct',
+        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='parametric',
                                                        override=False, conversion_function=pct_to_asf)
-        self.freq_cleanup_ftw =     self.dds.frequency_to_ftw(150 * MHz)
+        self.freq_cleanup_ftw = self.dds.frequency_to_ftw(150 * MHz) # set far, far detuned freq to really remove any leakage
 
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:

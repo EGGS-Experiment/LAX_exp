@@ -4,9 +4,8 @@ from itertools import groupby
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.system.subsequences import ParametricExcite, RescueIon
+from LAX_exp.language import *
+from LAX_exp.system.subsequences import ParametricExcite
 import LAX_exp.experiments.parametric.ParametricSweep as ParametricSweep
 
 import labrad
@@ -15,6 +14,7 @@ from EGGS_labrad.config.dc_config import dc_config
 
 # todo: actually make adaptive option usable
 # todo: what if we gradient descent within each voltage scan (vs just taking points across the range)?
+# todo: improve use of INITIAL_MODE_VECTORS/integrate with adaptive option
 
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
@@ -36,7 +36,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         "dc_channel_axes_names",
 
         # beam values
-        "ampl_cooling_asf", "freq_cooling_ftw", "time_cooling_holdoff_mu",
+        "ampl_cooling_asf", "freq_cooling_ftw", "profile_397_parametric", "profile_dds_parametric",
 
         # magic numbers
         "OPT_CORR_AMPL_FRAC", "GUESS_CORR_AMPL_GAMMA", "CORR_AMPL_ATT_SLOPE", "CONVERGENCE_VOLTAGE_V",
@@ -46,26 +46,29 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         "cxn", "dc",
 
         # subsequences
-        "parametric_subsequence", "rescue_subsequence"
+        "parametric_subsequence"
     }
 
     def build_experiment(self):
         # get DC channel configuration dictionary
         self.dc_config_channeldict =    dc_config.channeldict
+        # explicitly specify AD9910 profiles
+        self.profile_397_parametric = 6
+        self.profile_dds_parametric = 6
 
         # core arguments
         self.setattr_argument("iterations", NumberValue(default=3, precision=0, step=1, min=1, max=10))
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage",    NumberValue(default=3, precision=0, step=1, min=1, max=100),
+        self.setattr_argument("repetitions_per_voltage", NumberValue(default=3, precision=0, step=1, min=1, max=100),
                               group='configuration',
                               tooltip="The number of repetitions on each mode for a single voltage point."
                                       "All repetitions are executed at once for each point, but are alternated"
                                       "between modes (e.g. 2 reps => mode0, mode1, mode0, mode1).")
-        self.setattr_argument("num_steps",  NumberValue(default=11, precision=0, step=1, min=5, max=100),
+        self.setattr_argument("num_steps", NumberValue(default=11, precision=0, step=1, min=5, max=100),
                               group='configuration',
                               tooltip="The number of steps for each voltage scan.")
-        self.setattr_argument("adaptive",   BooleanValue(default=True), group='configuration',
+        self.setattr_argument("adaptive", BooleanValue(default=True), group='configuration',
                               tooltip="Predicts the mode vectors for each scan, and automatically adjusts"
                                       "the attenuation. This feature is currently always on (i.e. False will"
                                       "do nothing lol).")
@@ -90,11 +93,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'),
                               group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([40, 80]),
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([50, 90]),
                               group='voltages')
         self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'),
                               group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([40, 80]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
 
         # cooling
         self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit="%"), group='cooling',
@@ -112,7 +115,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # get relevant subsequences
         self.parametric_subsequence =   ParametricExcite(self)
-        self.rescue_subsequence =       RescueIon(self)
 
         '''MAGIC NUMBERS'''
         self.OPT_CORR_AMPL_FRAC =       0.2     # target corr ampl when adjusting atts
@@ -165,7 +167,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # store modulation values conveniently for programmatic access
         self.freq_mode_ftw_list =   np.array([self.freq_mode_0_ftw, self.freq_mode_1_ftw], dtype=np.int32)
         self.mode_list_idx =        list(range(len(self.freq_mode_ftw_list)))
-        self.att_db_bounds_list =   np.array([6., 31.5])
+        # get attenuation bounds from dataset
+        max_parametric_att_db = self.get_parameter('max_att_db', group='parametric', override=False)
+        if not (0. <= max_parametric_att_db <= 31.5):
+            raise ValueError("Max parametric DDS attenuation set incorrectly in dataset manager: {:}.".format(max_parametric_att_db))
+        self.att_db_bounds_list = np.array([max_parametric_att_db, 31.5])
 
         '''
         COOLING
@@ -173,7 +179,6 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # convert cooling parameters to machine units
         self.ampl_cooling_asf =         self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100.)
         self.freq_cooling_ftw =         self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
-        self.time_cooling_holdoff_mu =  self.core.seconds_to_mu(3. * ms)
 
         '''
         DATA STRUCTURES
@@ -201,6 +206,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self._host_demod_holder_idx =   np.array([0, 0])
 
         # guess initial mode vectors
+        # todo: improve & generalize
         if self.freq_mode_0_ftw < self.freq_mode_1_ftw:
             self.INITIAL_MODE_VECTORS = np.array([-1., 1.]) # [RF, EGGS]
         else:
@@ -220,29 +226,33 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                 5)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+        # get DDS CPLD att values so ARTIQ remembers them
+        self.dds_parametric.cpld.get_att_mu()
+
         # set up labrad devices via RPC
         self.prepareDevicesLabrad()
         self.core.break_realtime()
-        
-        # get DDS CPLD att values so ARTIQ remembers them
-        self.dds_parametric.cpld.get_att_mu()
-        self.core.break_realtime()
 
-        # set cooling beams
-        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0)
-        self.pump.set_profile(0)
+        # prepare cooling beams
+        self.pump.rescue()
         self.pump.on()
         self.repump_cooling.on()
         self.repump_qubit.on()
+        # store 397nm waveform for modulation
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf,
+                         profile=self.profile_397_parametric,
+                         phase_mode=PHASE_MODE_CONTINUOUS)
+        delay_mu(10000)
 
         # set up DDS for modulation
         self.dds_parametric.set_phase_absolute()
         delay_mu(10000)
-        # note: use profile 0 for modulation waveform
-        self.dds_parametric.set_profile(0)
+        self.dds_parametric.set_profile(self.profile_dds_parametric)
         delay_mu(8000)
 
     @kernel(flags={"fast-math"})
@@ -251,73 +261,49 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         Main sequence of experiment.
         """
         # predict initial optimum
-        convergence_status = self.predict_optimum()
-        self.core.break_realtime()
+        self.predict_optimum()
 
         # run given number of iterations
         for _iter_num in range(self.iterations):
-            self.core.break_realtime()
-
             '''
             SWEEP VOLTAGE AXIS 0
             '''
-            # generate voltage vector array
+            # prepare adapted voltage vectors and attenuations for scan
             voltage_scan_axis0_v_arr = self.prepare_voltage_scan(0)
-            self.core.break_realtime()
-            # get ideal attenuations for sweep
             att_mu_mode_list = self.prepare_att(voltage_scan_axis0_v_arr)
-            self.core.break_realtime()
-
             # scan!
             self.scan_voltage_axis(att_mu_mode_list,
                                    self.dc_channel_axis_0_num,
                                    voltage_scan_axis0_v_arr)
-            self.core.break_realtime()
 
-            # process and store results
+            # process optima to check convergence & store results
             self.process_optimum(0)
-            self.core.break_realtime()
-            # calculate optimum and check convergence
             convergence_status = self.predict_optimum()
-            self.core.break_realtime()
-            delay_mu(1000000) # 1ms
             if convergence_status is True:
+                self.core.break_realtime()
                 return
-
             # support graceful termination
             self.check_termination()
-            self.core.break_realtime()
-
 
             '''
             SWEEP VOLTAGE AXIS 1
             '''
-            # generate voltage vector array and scan
+            # prepare adapted voltage vectors and attenuations for scan
             voltage_scan_axis1_v_arr = self.prepare_voltage_scan(1)
-            self.core.break_realtime()
-            # get ideal attenuations for sweep
-            att_mu_mode_list = self.prepare_att(voltage_scan_axis0_v_arr)
-            self.core.break_realtime()
-
+            att_mu_mode_list = self.prepare_att(voltage_scan_axis1_v_arr)
             # scan!
             self.scan_voltage_axis(att_mu_mode_list,
                                    self.dc_channel_axis_1_num,
                                    voltage_scan_axis1_v_arr)
-            self.core.break_realtime()
 
-            # process and store results
+            # process optima to check convergence & store results
             self.process_optimum(1)
-            self.core.break_realtime()
-            # calculate optimum and check convergence
             convergence_status = self.predict_optimum()
-            self.core.break_realtime()
-            delay_mu(1000000) # 1ms
             if convergence_status is True:
+                self.core.break_realtime()
                 return
-
             # support graceful termination
             self.check_termination()
-            self.core.break_realtime()
 
 
     '''
@@ -500,40 +486,36 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
             # set DC voltage and synchronize hardware clock with timeline
             self.voltage_set(dc_channel_num, voltage_v)
+            self.core.break_realtime() # add slack so now_mu() isn't in the past
             self.core.wait_until_mu(now_mu())
             # add extra delay for voltages to settle
             delay_mu(self.time_dc_synchronize_delay_mu)
 
-            # iterate over repetitions
+            # run N reps at target voltage (since voltage adjustment dominates overheads)
             for rep_num in range(self.repetitions_per_voltage):
-
-                # get parametric excitation data for both modes
+                # swap between modes within each rep
                 for mode_idx in self.mode_list_idx:
 
-                    # extract values
+                    # prepare hardware for parametric demodulation
                     mode_freq_ftw = self.freq_mode_ftw_list[mode_idx]
                     mode_att_mu =   mode_att_mu_list[mode_idx]
 
-                    # prepare modulation DDS
+                    self.core.break_realtime()
                     self.dds_parametric.set_att_mu(mode_att_mu)
                     self.dds_parametric.set_mu(mode_freq_ftw, asf=self.dds_parametric.ampl_modulation_asf,
-                                               profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
-                    self.core.break_realtime()
+                                               profile=self.profile_dds_parametric,
+                                               phase_mode=PHASE_MODE_CONTINUOUS)
+                    self.pump.set_profile(self.profile_397_parametric)
+                    delay_mu(25000)
 
                     # run parametric excitation and get timestamps
                     pmt_timestamp_list = self.parametric_subsequence.run()
 
-                    # demodulate counts and store
+                    # clean up and process results (e.g. demodulate counts)
+                    self.pump.rescue()  # leave beams on rescue while idle
+                    self.pmt.clear_inputs()
                     self._demodulate_counts(mode_idx, mode_freq_ftw, voltage_v, pmt_timestamp_list)
-                    self.core.reset()
-
-                # rescue ion as needed
-                self.rescue_subsequence.run(rep_num)
-
-                # support graceful termination
-                with parallel:
                     self.check_termination()
-                    self.core.break_realtime()
 
     @rpc
     def _demodulate_counts(self, mode_idx: TInt32, freq_mu: TInt32, voltage_v: TFloat,
@@ -570,7 +552,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         Process demodulated counts to extract voltage optima for each mode.
         Necessary for kernel to interface with results since raw data is store on host-side.
         Note: this should only be called at the end of a voltage scan, since this updates internal
-        counters/iterators (i.e. this function defines the end of a voltage scan).
+            counters/iterators (i.e. this function defines the end of a voltage scan).
         # todo: check results to ensure max corr ampl is above a given threshold
         Arguments:
             voltage_axis    (TInt32): the voltage axis that was swept.
@@ -639,7 +621,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self._host_sweep_counter += 1
 
 
-    # ANALYZE EXPERIMENT
+    '''
+    ANALYZE EXPERIMENT
+    '''
     def analyze_experiment(self):
         # todo: analyze
         pass

@@ -1,4 +1,4 @@
-import numpy as np
+from numpy import zeros, int64
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
@@ -35,7 +35,7 @@ class ParametricExcite(LAXSubsequence):
                                                        conversion_function=seconds_to_mu, units=us)
 
         # create holder array to store PMT counts
-        self.timestamp_mu_list =    np.zeros(self.num_counts, dtype=np.int64)
+        self.timestamp_mu_list = zeros(self.num_counts, dtype=int64)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TArray(TInt64, 1):
