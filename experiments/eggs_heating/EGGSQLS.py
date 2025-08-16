@@ -344,10 +344,7 @@ class EGGSQLS(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
-
-        # used to check_termination more frequently
-        _loop_iter = 0
+        _loop_iter = 0 # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -357,7 +354,6 @@ class EGGSQLS(LAXExperiment, Experiment):
 
             # sweep experiment configurations
             while _config_iter < self.num_configs:
-                self.core.break_realtime()
 
                 '''CONFIGURE'''
                 # extract values from config list
@@ -372,6 +368,7 @@ class EGGSQLS(LAXExperiment, Experiment):
                 waveform_id =       self.waveform_index_to_pulseshaper_id[phase_bsb_index]
 
                 # configure EGGS tones and set readout frequency
+                self.core.break_realtime()
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
                                                      [sideband_freq_hz, 0., 0., 0., 0.],
                                                      phase_ch1_turns)
@@ -398,8 +395,13 @@ class EGGSQLS(LAXExperiment, Experiment):
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
 
-                # get counts & update dataset
+                # get counts & clean up shot
                 counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
+
+                '''LOOP CLEANUP'''
+                # update dataset
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -409,21 +411,16 @@ class EGGSQLS(LAXExperiment, Experiment):
                     phase_ch1_turns,
                     time_readout_mu
                 )
-                self.core.break_realtime()
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion & run death detection
-                self.rescue_subsequence.resuscitate()
-                self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 50 == 0:
                     self.check_termination()
-                    self.core.break_realtime()
                 _loop_iter += 1
 
                 # handle sub-repetition logic
+                # handle sub-repetition logic
+                # todo: document
+                # todo: fix - when we do RAP, we don't have to do subrep stuff
                 if _config_iter % 2 == 1:
                     _subrep_iter += 1
                     if _subrep_iter < self.sub_repetitions:
@@ -435,17 +432,14 @@ class EGGSQLS(LAXExperiment, Experiment):
                     _config_iter += 1
 
             # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''
     HELPER FUNCTIONS - PHASER
     '''
-
     @kernel(flags={"fast-math"})
     def phaser_run(self, waveform_id: TInt32) -> TNone:
         """
@@ -484,10 +478,10 @@ class EGGSQLS(LAXExperiment, Experiment):
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
             self.core.break_realtime()
 
+
     '''
     ANALYSIS
     '''
-
     def analyze_experiment(self):
         # should be backward-compatible with experiment which had no sub-repetitions
         try:

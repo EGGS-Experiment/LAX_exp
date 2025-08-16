@@ -275,16 +275,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             # get waveform data and store in holding structure
             self.waveform_index_to_pulseshaper_vals.append(self.spinecho_wizard.get_waveform())
 
-        # tmp remove
-        # _wav_print_idk = self.waveform_index_to_pulseshaper_vals[0]
-        # print(_wav_print_idk[0])
-        # print(_wav_print_idk[1])
-        # print(_wav_print_idk[2])
-        # print(_sequence_blocks)
-        # self.spinecho_wizard.display_waveform()
-        # self.set_dataset("waveforms", self.waveform_index_to_pulseshaper_vals)
-        # tmp remove
-
     def _prepare_argument_checks(self):
         """
         Check experiment arguments for validity.
@@ -336,10 +326,7 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
-
-        # used to check_termination more frequently
-        _loop_iter = 0
+        _loop_iter = 0  # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -350,7 +337,6 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
 
             # sweep experiment configurations
             while _config_iter < self.num_configs:
-                self.core.break_realtime()
 
                 '''CONFIGURE'''
                 config_vals = self.config_experiment_list[_config_iter]
@@ -365,9 +351,9 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 # get corresponding RSB phase and waveform ID from the index
                 phase_rsb_turns = self.phase_eggs_heating_rsb_turns_list[phase_rsb_index]
                 waveform_id = self.waveform_index_to_pulseshaper_id[phase_rsb_index]
-                delay_mu(50000)
 
                 # configure EGGS tones and set readout frequency
+                self.core.break_realtime()
                 self.phaser_eggs.frequency_configure(carrier_freq_hz,
                                                      [-sideband_freq_hz, sideband_freq_hz, 0., 0., 0.],
                                                      phase_ch1_turns)
@@ -394,8 +380,13 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
 
-                # get counts & update dataset
+                # get counts & clean up shot
                 counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.resuscitate()
+                self.rescue_subsequence.detect_death(counts)
+
+                '''LOOP CLEANUP'''
+                # update dataset
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -405,21 +396,15 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                     phase_ch1_turns,
                     time_readout_mu
                 )
-                self.core.break_realtime()
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion & run death detection
-                self.rescue_subsequence.resuscitate()
-                self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 50 == 0:
                     self.check_termination()
-                    self.core.break_realtime()
                 _loop_iter += 1
 
                 # handle sub-repetition logic
+                # todo: document
+                # todo: fix - when we do RAP, we don't have to do subrep stuff
                 if _config_iter % 2 == 1:
                     _subrep_iter += 1
                     if _subrep_iter < self.sub_repetitions:
@@ -430,12 +415,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
                 else:
                     _config_iter += 1
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
     '''
     HELPER FUNCTIONS - PHASER
@@ -471,13 +454,11 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
         for i in range(len(self.phase_eggs_heating_rsb_turns_list)):
             # get waveform for given RSB phase
             _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
-            self.core.break_realtime()
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
+            self.core.break_realtime()
             _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
             self.waveform_index_to_pulseshaper_id[i] = _wav_idx
-            self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def phaser_configure(self, carrier_freq_hz: TFloat, sideband_freq_hz: TFloat,
@@ -535,10 +516,10 @@ class EGGSHeatingRDX(LAXExperiment, Experiment):
             self.phaser_eggs.channel[1].oscillator[2].set_frequency(0.)
             delay_mu(self.phaser_eggs.t_sample_mu)
 
+
     '''
     ANALYSIS
     '''
-
     def analyze_experiment(self):
         # should be backward-compatible with experiment which had no sub-repetitions
         try:
