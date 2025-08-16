@@ -20,13 +20,21 @@ class Beam397Pump(LAXDevice):
     kernel_invariants = {
         "sw", "cpld",
         "freq_cooling_ftw", "freq_readout_ftw", "freq_rescue_ftw",
-        "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf"
+        "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf",
+
+        "profile_cooling", "profile_readout", "profile_rescue"
     }
 
     def prepare_device(self):
         # re-alias relevant base devices
         self.sw =   self.beam.sw
         self.cpld = self.beam.cpld
+
+        # define profiles here for clarity/external use
+        # todo: maybe move to build?
+        self.profile_cooling =  0
+        self.profile_readout =  1
+        self.profile_rescue =   2
 
         # get frequency parameters
         self.freq_cooling_ftw = self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz',
@@ -88,19 +96,17 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def cooling(self) -> TNone:
         """
-        Set cooling profile.
-        todo: document
+        Set doppler cooling profile.
         """
-        self.cpld.set_profile(0)
+        self.cpld.set_profile(self.profile_cooling)
         self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def readout(self) -> TNone:
         """
-        Set readout profile.
-        todo: document
+        Set readout (state-dependent fluorescence) profile.
         """
-        self.cpld.set_profile(1)
+        self.cpld.set_profile(self.profile_readout)
         self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
@@ -109,7 +115,7 @@ class Beam397Pump(LAXDevice):
         Set rescue profile.
         todo: document
         """
-        self.cpld.set_profile(2)
+        self.cpld.set_profile(self.profile_rescue)
         self.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
