@@ -130,8 +130,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # create holder variable to support variable pulse shaping
-        time_rabi_actual_mu = -1
+        time_rabi_actual_mu = -1 # holder variable to support variable pulse shaping
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -140,7 +139,7 @@ class RabiFlopping(LAXExperiment, Experiment):
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
                 self.core.break_realtime()
 
-                # set up qubit pulse
+                # configure qubit pulse
                 if self.enable_pulseshaping:
                     time_rabi_actual_mu = self.pulseshape_subsequence.configure(time_rabi_pair_mu[1])
                     delay_mu(50000)
@@ -165,29 +164,27 @@ class RabiFlopping(LAXExperiment, Experiment):
                     delay_mu(time_rabi_actual_mu)
                     self.qubit.off()
 
-                # do readout
+                # do readout & clean up loop
                 self.readout_subsequence.run_dma()
-
-                # update dataset
                 counts = self.readout_subsequence.fetch_count()
-                self.update_results(time_rabi_actual_mu, counts)
-                self.core.break_realtime()
-
-                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
+                # update dataset
+                self.update_results(time_rabi_actual_mu, counts)
 
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
-    # ANALYSIS
+
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
-        Fit rabi flopping data with an exponentially damped sine curve
+        Fit rabi flopping data with an exponentially damped sine curve.
         """
         # get results
         results_tmp = np.array(self.results)

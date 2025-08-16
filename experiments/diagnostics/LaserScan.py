@@ -1,10 +1,8 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import array, int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
 
 from sipyco import pyon
@@ -95,7 +93,7 @@ class LaserScan(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # laser parameters
-        self.freq_qubit_scan_ftw = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+        self.freq_qubit_scan_ftw = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                              for freq_mhz in self.freq_qubit_scan_mhz])
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
@@ -107,21 +105,20 @@ class LaserScan(LAXExperiment, Experiment):
         CONFIGURE LINETRIGGERING
         '''
         if self.enable_linetrigger:
-            self.time_linetrig_holdoff_mu_list = np.array([self.core.seconds_to_mu(time_ms * ms)
+            self.time_linetrig_holdoff_mu_list = array([self.core.seconds_to_mu(time_ms * ms)
                                                            for time_ms in self.time_linetrig_holdoff_ms_list])
         else:
-            self.time_linetrig_holdoff_mu_list = np.array([0])
+            self.time_linetrig_holdoff_mu_list = array([0])
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
-        # create an array of values for the experiment to sweep
-        # (i.e. heating time & readout FTW)
-        self.config_experiment_list = np.stack(np.meshgrid(self.freq_qubit_scan_ftw,
-                                                           self.time_linetrig_holdoff_mu_list),
-                                               -1).reshape(-1, 2)
-        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        # create experiment configuration array
+        self.config_experiment_list = create_experiment_config(
+            self.freq_qubit_scan_ftw, self.time_linetrig_holdoff_mu_list,
+            shuffle_config=True,
+            config_type=int64
+        )
 
     @property
     def results_shape(self):
@@ -163,14 +160,15 @@ class LaserScan(LAXExperiment, Experiment):
                 # tmp remove
 
                 # extract values from config list
-                freq_ftw = np.int32(config_vals[0])
+                freq_ftw = int32(config_vals[0])
                 time_holdoff_mu = config_vals[1]
 
                 # set frequency
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf, profile=self.profile_729_readout,
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf,
+                                      profile=self.profile_729_readout,
                                       phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
@@ -188,21 +186,18 @@ class LaserScan(LAXExperiment, Experiment):
                     self.rabiflop_subsequence.run()
                 self.readout_subsequence.run_dma()
 
-                # update dataset
+                # get counts & clean up loop
                 counts = self.readout_subsequence.fetch_count()
-                self.update_results(freq_ftw, counts, time_holdoff_mu)
-                self.core.break_realtime()
-
-                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
+                # store results
+                self.update_results(freq_ftw, counts, time_holdoff_mu)
 
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
     # ANALYSIS
     def analyze_experiment(self):
@@ -227,7 +222,7 @@ class LaserScan(LAXExperiment, Experiment):
             print("\tWarning: Could not detect peaks.")
 
         # get results
-        results_plotting = np.array(results_tmp)
+        results_plotting = array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
 
         # format dictionary for applet plotting

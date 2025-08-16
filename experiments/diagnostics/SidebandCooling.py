@@ -44,12 +44,11 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
         self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=500
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
         )
-        self.sidebandreadout_subsequence =          SidebandReadout(self, profile_dds=self.profile_729_readout)
-        self.readout_subsequence =                  Readout(self)
-        self.rescue_subsequence =                   RescueIon(self)
+        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
+        self.readout_subsequence =          Readout(self)
+        self.rescue_subsequence =           RescueIon(self)
 
         # get relevant devices
         self.setattr_device('qubit')
@@ -86,9 +85,10 @@ class SidebandCooling(LAXExperiment, Experiment):
             # scan over sideband readout frequencies
             for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
 
-                # set frequency
+                # configure frequency
                 self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                                  profile=self.profile_729_readout,
+                                  phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
                 # initialize ion in S-1/2 state & SBC to the ground motional state
@@ -99,24 +99,23 @@ class SidebandCooling(LAXExperiment, Experiment):
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
-                # update dataset
+                # get counts & clean up loop
                 counts = self.readout_subsequence.fetch_count()
-                self.update_results(freq_ftw, counts)
-                self.core.break_realtime()
-
-                # resuscitate ion & run death detection
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
+                # store results
+                self.update_results(freq_ftw, counts)
 
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
-    # ANALYSIS
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit resultant spectrum with a sinc profile.
