@@ -106,7 +106,7 @@ class LaserScan(LAXExperiment, Experiment):
         '''
         if self.enable_linetrigger:
             self.time_linetrig_holdoff_mu_list = array([self.core.seconds_to_mu(time_ms * ms)
-                                                           for time_ms in self.time_linetrig_holdoff_ms_list])
+                                                        for time_ms in self.time_linetrig_holdoff_ms_list])
         else:
             self.time_linetrig_holdoff_mu_list = array([0])
 

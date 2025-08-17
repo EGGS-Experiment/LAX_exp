@@ -32,6 +32,7 @@ class RabiFlopping(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
 
         # rabi flopping arguments
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
@@ -77,6 +78,12 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # get devices
         self.setattr_device('qubit')
+        self.setattr_device('trigger_line')
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
 
     def prepare_experiment(self):
         """
@@ -111,7 +118,9 @@ class RabiFlopping(LAXExperiment, Experiment):
                 2)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
@@ -134,10 +143,17 @@ class RabiFlopping(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             # sweep rabi flopping times
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
+
+                # tmp remove
+                # turn on rescue beams while waiting
                 self.core.break_realtime()
+                self.pump.rescue()
+                self.repump_cooling.on()
+                self.repump_qubit.on()
+                self.pump.on()
+                # tmp remove
 
                 # configure qubit pulse
                 if self.enable_pulseshaping:
@@ -145,6 +161,10 @@ class RabiFlopping(LAXExperiment, Experiment):
                     delay_mu(50000)
                 else:
                     time_rabi_actual_mu = time_rabi_pair_mu[1]
+
+                # wait for linetrigger
+                if self.enable_linetrigger:
+                    self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
