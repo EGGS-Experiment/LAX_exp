@@ -11,6 +11,8 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2, PULSESHAPER_MAX_WAVEFORMS
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
+# todo: make att sweepable to simplify single channel diagnostics
+
 
 class CH1RamseyRDX(LAXExperiment, Experiment):
     """

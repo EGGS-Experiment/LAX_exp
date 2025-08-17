@@ -196,7 +196,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 7)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
@@ -208,9 +210,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
-            # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
@@ -221,9 +220,9 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 time_cutoff_mu =    config_vals[3]
                 freq_readout_ftw =  int32(config_vals[4])
                 time_readout_mu =   config_vals[5]
-                self.core.break_realtime()
 
                 # configure RAP pulse
+                self.core.break_realtime()
                 self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 delay_mu(50000)
 
@@ -242,24 +241,20 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 if self.enable_rabiflop_readout:
                     self.pulse_readout(time_readout_mu, freq_readout_ftw)
 
-                # read out fluorescence
+                # read out fluorescence & clean up loop
                 self.readout_subsequence.run_dma()
+                self.rescue_subsequence.resuscitate()
 
                 # update dataset
                 self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
                                     freq_dev_ftw, time_rap_mu, time_cutoff_mu,
                                     freq_readout_ftw, time_readout_mu)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''

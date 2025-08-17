@@ -1,14 +1,11 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
-# todo: unify temperature measurement
 from sipyco import pyon
-
-# tmp testing
-from LAX_exp.analysis import *
+# todo: unify temperature measurement
 
 
 class LinewidthMeasurement(LAXExperiment, Experiment):
@@ -98,32 +95,32 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         return (self.repetitions * len(self.freq_probe_scan_ftw) * 2,
                 4)
 
-    '''MAIN SEQUENCE'''
 
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # set ADC channel gains
         self.sampler0.set_gain_mu(self.adc_channel_num, self.adc_channel_gain_mu)
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # create buffer to hold sampler values
-        buffer_sampler = [0] * 8
+        buffer_sampler = [0] * 8    # create buffer to hold sampler values
         read_actual = 0
         read_control = 0
 
         '''MAIN LOOP'''
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
             for waveform_params in self.config_linewidth_measurement_list:
-                self.core.break_realtime()
 
                 # configure probe beam waveform
                 freq_probe_ftw = waveform_params[0]
                 ampl_probe_asf = waveform_params[1]
-                self.pump.set_mu(freq_probe_ftw, asf=ampl_probe_asf, profile=1)
+
+                self.core.break_realtime()
+                self.pump.set_mu(freq_probe_ftw, asf=ampl_probe_asf, profile=1,
+                                 phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(50000)
 
                 # get actual data
@@ -153,29 +150,24 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                         self.sampler0.sample_mu(buffer_sampler)
                         read_control = buffer_sampler[6]
 
-                # get stored counts from PMT
+                # get stored counts from PMT & clean up loop
+                self.rescue_subsequence.resuscitate()
                 counts_actual = self.pmt.fetch_count()
                 counts_control = self.pmt.fetch_count()
 
                 # update datasets
-                self.core.break_realtime()
                 self.update_results(freq_probe_ftw, 1, counts_actual, read_actual)
                 self.update_results(freq_probe_ftw, 0, counts_control, read_control)
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
+
 
     '''
     ANALYSIS
     '''
-
     def analyze_experiment(self):
         """
         Process resultant spectrum and attempt to fit.

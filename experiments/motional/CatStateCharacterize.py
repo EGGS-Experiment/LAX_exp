@@ -1,9 +1,7 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import array, int32, int64, random
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout, ReadoutAdaptive, RescueIon
 )
@@ -188,12 +186,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
 
         # defaults - cat
-        freq_cat_center_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+        freq_cat_center_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                               for freq_mhz in self.freq_cat_center_mhz_list])
-        freq_cat_secular_ftw_list = np.array([self.singlepass0.frequency_to_ftw(freq_khz * kHz)
+        freq_cat_secular_ftw_list = array([self.singlepass0.frequency_to_ftw(freq_khz * kHz)
                                               for freq_khz in self.freq_cat_secular_khz_list])
-        self.ampls_cat_asf =    np.array([self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
-                                          for ampl_pct in self.ampls_cat_pct], dtype=np.int32)
+        self.ampls_cat_asf =    array([self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+                                          for ampl_pct in self.ampls_cat_pct], dtype=int32)
 
         '''
         CONVERT VALUES TO MACHINE UNITS - PULSES
@@ -208,34 +206,34 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.phases_cat2_cat_pow =    [self.singlepass0.turns_to_pow(phas_pow)
                                          for phas_pow in self.phases_cat2_cat_turns]
         if self.enable_cat2_bichromatic:
-            time_cat2_cat_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
-                                                 for time_us in self.time_cat2_cat_us_list], dtype=np.int64)
-            phase_cat2_cat_pow_list = np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                                  for phas_pow in self.phase_cat2_cat_turns_list], dtype=np.int32)
+            time_cat2_cat_mu_list =   array([self.core.seconds_to_mu(time_us * us)
+                                                 for time_us in self.time_cat2_cat_us_list], dtype=int64)
+            phase_cat2_cat_pow_list = array([self.singlepass0.turns_to_pow(phas_pow)
+                                                  for phas_pow in self.phase_cat2_cat_turns_list], dtype=int32)
         else:
-            time_cat2_cat_mu_list =   np.array([0], dtype=np.int64)
-            phase_cat2_cat_pow_list = np.array([0], dtype=np.int32)
+            time_cat2_cat_mu_list =   array([0], dtype=int64)
+            phase_cat2_cat_pow_list = array([0], dtype=int32)
 
         if self.target_cat2_cat_phase == 'RSB':
-            self.phases_cat2_cat_update_dir = np.array([1, 0], dtype=np.int32)
+            self.phases_cat2_cat_update_dir = array([1, 0], dtype=int32)
         elif self.target_cat2_cat_phase == 'BSB':
-            self.phases_cat2_cat_update_dir = np.array([0, 1], dtype=np.int32)
+            self.phases_cat2_cat_update_dir = array([0, 1], dtype=int32)
         elif self.target_cat2_cat_phase == 'RSB-BSB':
-            self.phases_cat2_cat_update_dir = np.array([1, -1], dtype=np.int32)
+            self.phases_cat2_cat_update_dir = array([1, -1], dtype=int32)
         elif self.target_cat2_cat_phase == 'RSB+BSB':
-            self.phases_cat2_cat_update_dir = np.array([1, 1], dtype=np.int32)
+            self.phases_cat2_cat_update_dir = array([1, 1], dtype=int32)
 
         # readout pulse
         self.ampl_729_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_729_readout_pct / 100.)
 
         if self.enable_729_readout:
-            freq_729_readout_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_729_readout_mhz_list], dtype=np.int32)
-            time_729_readout_mu_list =   np.array([self.core.seconds_to_mu(time_us * us)
-                                                      for time_us in self.time_729_readout_us_list], dtype=np.int64)
+            freq_729_readout_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                      for freq_mhz in self.freq_729_readout_mhz_list], dtype=int32)
+            time_729_readout_mu_list =   array([self.core.seconds_to_mu(time_us * us)
+                                                      for time_us in self.time_729_readout_us_list], dtype=int64)
         else:
-            freq_729_readout_ftw_list =  np.array([0], dtype=np.int32)
-            time_729_readout_mu_list =   np.array([0], dtype=np.int64)
+            freq_729_readout_ftw_list =  array([0], dtype=int32)
+            time_729_readout_mu_list =   array([0], dtype=int64)
 
         # heralding values
         self.time_force_herald_slack_mu = self.core.seconds_to_mu(150 * us)
@@ -267,13 +265,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
-        self.config_experiment_list = np.array([
+        self.config_experiment_list = array([
             vals
             for vals in product(freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
                                 time_cat2_cat_mu_list, phase_cat2_cat_pow_list,
                                 freq_729_readout_ftw_list, time_729_readout_mu_list)
-        ], dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        ], dtype=int64)
+        random.shuffle(self.config_experiment_list)
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -341,21 +339,20 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # predeclare variables ahead of time
         time_start_mu = now_mu() & ~0x7
-        ion_state = (-1, 0, np.int64(0))
+        ion_state = (-1, 0, int64(0))
 
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
 
             # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 '''PREPARE & CONFIGURE'''
                 # extract values from config list
-                freq_cat_center_ftw =   np.int32(config_vals[0])
-                freq_cat_secular_ftw =  np.int32(config_vals[1])
+                freq_cat_center_ftw =   int32(config_vals[0])
+                freq_cat_secular_ftw =  int32(config_vals[1])
                 time_cat2_cat_mu =      config_vals[2]
-                phase_cat2_cat_pow =    np.int32(config_vals[3])
-                freq_729_readout_ftw =  np.int32(config_vals[4])
+                phase_cat2_cat_pow =    int32(config_vals[3])
+                freq_729_readout_ftw =  int32(config_vals[4])
                 time_729_readout_mu =   config_vals[5]
 
                 # prepare variables for execution
@@ -363,7 +360,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.phases_cat2_cat_pow[0] + self.phases_cat2_cat_update_dir[0] * phase_cat2_cat_pow,
                     self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
                 ]
-                self.core.break_realtime()
 
                 '''INITIALIZE'''
                 while True:
@@ -446,8 +442,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 if self.enable_729_readout:
                     self.pulse_readout(time_729_readout_mu, freq_729_readout_ftw)
 
-                # read out fluorescence
+                # read out fluorescence & clean up loop
                 self.readout_subsequence.run_dma()
+                self.rescue_subsequence.resuscitate()
+
+                # store results
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
@@ -456,17 +455,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                     phase_cat2_cat_pow,
                                     freq_729_readout_ftw,
                                     time_729_readout_mu)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
     @kernel(flags={"fast-math"})
     def cleanup_experiment(self) -> TNone:

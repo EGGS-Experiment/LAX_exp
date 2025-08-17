@@ -1,5 +1,5 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import array, arange, zeros, int32, nan
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
@@ -111,9 +111,9 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         self.repetitions = round(self.time_total_s / (self.samples_per_point * self.time_per_point_us * us))
 
         # declare loop iterators and holder variables ahead of time to reduce overhead
-        self._iter_repetitions =    np.arange(self.repetitions)
-        self._iter_loop =           np.arange(self.samples_per_point)
-        self._state_array =         np.zeros(self.samples_per_point, dtype=np.int32)
+        self._iter_repetitions =    arange(self.repetitions)
+        self._iter_loop =           arange(self.samples_per_point)
+        self._state_array =         zeros(self.samples_per_point, dtype=int32)
 
         # convert qubit parameters
         self.freq_qubit_ftw =   self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
@@ -140,9 +140,9 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         """
         # prepare datasets for storing counts
         # workaround: set first element to 0 to avoid "RuntimeWarning: All-NaN slice encountered"
-        state_x_arr = np.zeros(self.repetitions) * np.nan
+        state_x_arr = zeros(self.repetitions) * nan
         state_x_arr[0] = 0
-        state_y_arr = np.zeros(self.repetitions) * np.nan
+        state_y_arr = zeros(self.repetitions) * nan
         state_y_arr[0] = 0
 
         # prepare datasets for storing counts
@@ -177,7 +177,9 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         return (self.repetitions, 3)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # prepare plotting
@@ -232,7 +234,7 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # predeclare variables
-        ion_state = (-1, 0, np.int64(0))
+        ion_state = (-1, 0, int64(0))
         # invalid_count = 0
         # tmp remove
         invalid_count_arr = [0] * self.num_times
@@ -310,7 +312,7 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         self.mutate_dataset('temp.qubit_align.counts_y_{:d}'.format(idx_time), self._result_iter, dstate_probability)
 
         # update dataset for HDF5 storage
-        # self.mutate_dataset('results', self._result_iter, np.array([time_dj, dstate_probability]))
+        # self.mutate_dataset('results', self._result_iter, array([time_dj, dstate_probability]))
 
         # update completion monitor
         # self.set_dataset('management.dynamic.completion_pct',

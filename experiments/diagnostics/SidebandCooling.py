@@ -69,7 +69,9 @@ class SidebandCooling(LAXExperiment, Experiment):
                 2)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
@@ -81,7 +83,6 @@ class SidebandCooling(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
-
             # scan over sideband readout frequencies
             for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
 
@@ -99,12 +100,10 @@ class SidebandCooling(LAXExperiment, Experiment):
                 self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
-                # get counts & clean up loop
-                counts = self.readout_subsequence.fetch_count()
+                # clean up loop & store results
                 self.rescue_subsequence.resuscitate()
+                counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.detect_death(counts)
-
-                # store results
                 self.update_results(freq_ftw, counts)
 
             # rescue ion as needed & support graceful termination

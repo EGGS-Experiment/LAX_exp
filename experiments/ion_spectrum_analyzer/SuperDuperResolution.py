@@ -506,9 +506,13 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                 else:
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
 
-                # update dataset
+                '''LOOP CLEANUP'''
+                # resuscitate ion & store results
+                self.rescue_subsequence.resuscitate()
+
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -520,12 +524,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                     phase_ch1_turns,
                     time_readout_mu
                 )
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion & detect deaths
-                self.core.break_realtime()
-                self.rescue_subsequence.resuscitate()
-                self.rescue_subsequence.detect_death(counts)
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 50 == 0:

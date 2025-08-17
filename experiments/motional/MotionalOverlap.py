@@ -1,5 +1,5 @@
-from numpy import int32, array
 from artiq.experiment import *
+from numpy import int32, array
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
@@ -148,7 +148,6 @@ class MotionalOverlap(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             for config_vals in self.config_experiment_list:
                 
                 '''PREPARE & CONFIGURE'''
@@ -180,22 +179,19 @@ class MotionalOverlap(LAXExperiment, Experiment):
 
 
                 '''READOUT'''
-                # run motional overlap subsequence,
-                # then read out via state-selective fluorescence
+                # run motional overlap subsequence & readout via state-selective fluorescence
                 if self.enable_overlap:
                     self.overlap_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
 
-                # update dataset & clean up
-                self.update_results(freq_rabiflop_ftw, self.readout_subsequence.fetch_count(), time_rabiflop_mu)
+                # clean up loop and update results
                 self.rescue_subsequence.resuscitate()
+                self.update_results(freq_rabiflop_ftw, self.readout_subsequence.fetch_count(), time_rabiflop_mu)
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''

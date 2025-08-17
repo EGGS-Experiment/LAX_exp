@@ -319,8 +319,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         ion_state = (-1, 0, np.int64(0))
 
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
             # sweep exp config
             for config_vals in self.config_experiment_list:
 
@@ -337,7 +335,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     self.phases_char_cat_pow[0] + self.phases_char_cat_update_dir[0] * phase_char_cat_pow,
                     self.phases_char_cat_pow[1] + self.phases_char_cat_update_dir[1] * phase_char_cat_pow,
                 ]
-                self.core.break_realtime()
 
                 '''PREPARE MOTIONAL STATE'''
                 while True:
@@ -398,8 +395,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                        freq_cat_center_ftw, freq_cat_secular_ftw)
 
                 '''READOUT'''
-                # read out fluorescence & save results
+                # read out fluorescence & clean up loop
                 self.readout_subsequence.run_dma()
+                self.rescue_subsequence.resuscitate()
+
+                # save results
                 counts_res = self.readout_subsequence.fetch_count()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
@@ -407,17 +407,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                     time_char_cat_mu,
                                     phase_char_cat_pow,
                                     characteristic_axis_bool)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
     @kernel(flags={"fast-math"})
     def cleanup_experiment(self) -> TNone:

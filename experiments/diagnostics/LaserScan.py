@@ -126,7 +126,9 @@ class LaserScan(LAXExperiment, Experiment):
                 3)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # ensure DMA sequences use correct parameters
@@ -199,7 +201,10 @@ class LaserScan(LAXExperiment, Experiment):
             self.rescue_subsequence.run(trial_num)
             self.check_termination()
 
-    # ANALYSIS
+
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit data and guess potential spectral peaks.

@@ -1,9 +1,8 @@
 import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import DopplerCool, AbsorptionProbe2, RescueIon
 from sipyco import pyon
 
@@ -94,7 +93,9 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 4)
 
 
-    '''MAIN SEQUENCE'''
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # set ADC channel gains
@@ -109,16 +110,16 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # main loop
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
 
             # sweep frequency
             for waveform_params in self.waveform_probe_scan:
-                self.core.break_realtime()
 
                 # set probe beam waveform
                 freq_ftw = waveform_params[0]
                 ampl_asf = waveform_params[1]
-                self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1)
+
+                self.core.break_realtime()
+                self.pump.set_mu(freq_ftw, asf=ampl_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(8000)
 
                 # run doppler cooling
@@ -127,26 +128,23 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
                 # run probe subsequence
                 self.probe_subsequence.run_dma()
 
-                # get counts
+                # get counts & clean up loop
+                self.rescue_subsequence.resuscitate()
                 counts_tmp = self.probe_subsequence.get_counts()
 
                 # update dataset
                 self.update_results(freq_ftw, 1, counts_tmp, 0)
                 self.update_results(freq_ftw, 0, 0, 0)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
-    # ANALYSIS
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Process resultant spectrum and attempt to fit.

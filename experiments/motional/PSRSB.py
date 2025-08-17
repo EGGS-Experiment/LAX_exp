@@ -1,14 +1,13 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from numpy import array, int32, zeros
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM
-
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+
+from extensions.utilities import create_experiment_config
 
 
 class PSRSB(LAXExperiment, Experiment):
@@ -22,7 +21,6 @@ class PSRSB(LAXExperiment, Experiment):
     kernel_invariants = {
         # config/sweep
         'profile_729_SBC', 'profile_729_psrsb', 'config_experiment_list',
-        'freq_psrsb_rsb_ftw_list', 'freq_psrsb_carrier_ftw_list', 'phas_psrsb_carrier_pow_list',
 
         # QVSA/phaser related
         'freq_qvsa_carrier_hz', 'freq_qvsa_secular_hz', 'att_qvsa_mu', 'waveform_qvsa_pulseshape_vals',
@@ -107,7 +105,7 @@ class PSRSB(LAXExperiment, Experiment):
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
+        self.pulse_shaper = PhaserPulseShaper(self, array([0., 0., 0.5, 0., 0.]))
 
     def prepare_experiment(self):
         """
@@ -125,31 +123,31 @@ class PSRSB(LAXExperiment, Experiment):
         self.att_qvsa_mu = att_to_mu(self.att_qvsa_db * dB)
 
         '''CONVERT VALUES TO MACHINE UNITS - PSRSB PULSES'''
-        # convert attenuation from dB to machine units
-        self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
-
         # convert qubit DDS waveform values to machine units
+        self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
         self.ampl_psrsb_rsb_asf =       self.qubit.amplitude_to_asf(self.ampl_psrsb_rsb_pct / 100.)
         self.ampl_psrsb_carrier_asf =   self.qubit.amplitude_to_asf(self.ampl_psrsb_carrier_pct / 100.)
 
-        self.freq_psrsb_rsb_ftw_list =      np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in list(self.freq_psrsb_rsb_mhz_list)])
-        self.freq_psrsb_carrier_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in list(self.freq_psrsb_carrier_mhz_list)])
+        freq_psrsb_rsb_ftw_list =       array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                               for freq_mhz in list(self.freq_psrsb_rsb_mhz_list)])
+        freq_psrsb_carrier_ftw_list =   array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                               for freq_mhz in list(self.freq_psrsb_carrier_mhz_list)])
 
-        self.phas_psrsb_carrier_pow_list =  np.array([self.qubit.turns_to_pow(phas_turns)
-                                                      for phas_turns in list(self.phas_psrsb_carrier_turns_list)])
+        phas_psrsb_carrier_pow_list =   array([self.qubit.turns_to_pow(phas_turns)
+                                               for phas_turns in list(self.phas_psrsb_carrier_turns_list)])
 
         # convert time to machine units
         self.time_psrsb_rsb_mu =        self.core.seconds_to_mu(self.time_psrsb_rsb_us * us)
         self.time_psrsb_carrier_mu =    self.core.seconds_to_mu(self.time_psrsb_carrier_us * us)
 
         # create experiment config data structure
-        self.config_experiment_list = np.stack(np.meshgrid(self.freq_psrsb_rsb_ftw_list,
-                                                           self.freq_psrsb_carrier_ftw_list,
-                                                           self.phas_psrsb_carrier_pow_list),
-                                               -1, dtype=np.int32).reshape(-1, 3)
-        np.random.shuffle(self.config_experiment_list)
+        self.config_experiment_list = create_experiment_config(
+            freq_psrsb_rsb_ftw_list,
+            freq_psrsb_carrier_ftw_list,
+            phas_psrsb_carrier_pow_list,
+            shuffle_config=True,
+            config_type=int32
+        )
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -159,7 +157,7 @@ class PSRSB(LAXExperiment, Experiment):
         Check experiment arguments for validity.
         """
         # ensure phaser oscillator amplitudes are configured correctly
-        if (type(self.ampl_qvsa_pct_config) is not list) or (len(self.ampl_qvsa_pct_config) != 3):
+        if (not isinstance(self.ampl_qvsa_pct_config, list)) or (len(self.ampl_qvsa_pct_config) != 3):
             raise ValueError("Invalid QVSA oscillator amplitude configuration."
                              "Must be of list [rsb_ampl_pct, bsb_ampl_pct, carrier_ampl_pct].")
         elif not all(0. <= val <= 100. for val in self.ampl_qvsa_pct_config):
@@ -168,7 +166,7 @@ class PSRSB(LAXExperiment, Experiment):
             raise ValueError("Invalid QVSA oscillator amplitudes. Total must sum to <= 100.")
 
         # ensure phaser oscillator phases are configured correctly
-        if (type(self.phase_qvsa_turns_config) is not list) or (len(self.phase_qvsa_turns_config) != 3):
+        if (not isinstance(self.phase_qvsa_turns_config, list)) or (len(self.phase_qvsa_turns_config) != 3):
             raise ValueError("Invalid QVSA oscillator phase configuration."
                              "Must be of list [rsb_phas_turns, bsb_phas_turns, carrier_phas_turns].")
 
@@ -266,14 +264,10 @@ class PSRSB(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # load waveform DMA handles
         self.pulse_shaper.waveform_load()
-        self.core.break_realtime()
-
-        # used to check_termination more frequently
-        _loop_iter = 0
+        _loop_iter = 0 # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             # sweep experiment configurations
             for config_vals in self.config_experiment_list:
 
@@ -296,39 +290,29 @@ class PSRSB(LAXExperiment, Experiment):
                 self.psrsb_run(freq_rsb_ftw, freq_carrier_ftw,
                                phas_carrier_pow, t_phaser_start_mu)
 
-                '''READOUT'''
+                '''READOUT & CLEANUP'''
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.resuscitate()
 
                 # update dataset
+                counts = self.readout_subsequence.fetch_count()
                 self.update_results(
                     freq_rsb_ftw,
                     counts,
                     freq_carrier_ftw,
                     phas_carrier_pow
                 )
-                self.core.break_realtime()
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
                 # death detection
                 self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
 
                 # check termination more frequently in case reps are low
                 if (_loop_iter % 50) == 0:
                     self.check_termination()
-                    self.core.break_realtime()
                 _loop_iter += 1
 
-            # rescue ion as needed
+            # rescue ion as needed & support graceful termination
             self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
             self.check_termination()
-            self.core.break_realtime()
 
 
     '''
