@@ -110,7 +110,6 @@ class LinewidthMeasurement2(LAXExperiment, Experiment):
     def run_main(self) -> TNone:
         # main loop
         for trial_num in range(self.repetitions):
-
             # sweep frequency
             for waveform_params in self.waveform_probe_scan:
 

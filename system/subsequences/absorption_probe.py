@@ -11,18 +11,22 @@ class AbsorptionProbe(LAXSubsequence):
     """
     name = 'absorption_probe'
     kernel_invariants = {
-        "time_doppler_cooling_mu",
-        "time_probe_mu"
+        "time_doppler_cooling_mu", "time_probe_mu",
     }
 
     def build_subsequence(self):
+        self.setattr_argument('time_probe_us', NumberValue(default=50, step=0.1, precision=3, min=0, max=100000, scale=1., unit='us'),
+                              group='{}'.format(self.name))
+
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
     def prepare_subsequence(self):
-        self.time_doppler_cooling_mu =      self.get_parameter('time_doppler_cooling_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
-        self.time_probe_mu =                self.get_parameter('time_probe_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
+        self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing',
+                                                          override=True,
+                                                          conversion_function=seconds_to_mu, units=us)
+        self.time_probe_mu = self.core.seconds_to_mu(self.time_probe_us * us)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

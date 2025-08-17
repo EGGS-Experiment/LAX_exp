@@ -1,11 +1,8 @@
 from artiq.experiment import *
+from numpy import arange, int32
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
-
-# tmp remove
-import numpy as np
-# tmp remove
 
 
 class AbsorptionProbe2(LAXSubsequence):
@@ -17,9 +14,7 @@ class AbsorptionProbe2(LAXSubsequence):
     name = 'absorption_probe2'
     kernel_invariants = {
         "time_doppler_cooling_mu",
-        "time_probe_mu",
-        "time_reset_mu",
-        "_loop_iter",
+        "time_probe_mu", "time_reset_mu", "_loop_iter",
     }
 
     def build_subsequence(self):
@@ -45,9 +40,8 @@ class AbsorptionProbe2(LAXSubsequence):
         self.time_reset_mu = self.core.seconds_to_mu(self.time_reset_us * us)
 
         # initialize loop variables
-        self.counts_store = np.int32(0)
-        self._loop_iter =   np.arange(self.repetitions_per_point)
-
+        self.counts_store = int32(0)
+        self._loop_iter =   arange(self.repetitions_per_point)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -76,7 +70,7 @@ class AbsorptionProbe2(LAXSubsequence):
         Retrieve stored counts from memory.
         """
         # reset counts store
-        self.counts_store = np.int32(0)
+        self.counts_store = int32(0)
         delay_mu(10000)
 
         # retrieve PMT counts and combine
