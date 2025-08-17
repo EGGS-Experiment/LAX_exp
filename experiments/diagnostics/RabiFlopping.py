@@ -32,11 +32,11 @@ class RabiFlopping(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
-
-        # rabi flopping arguments
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=False))
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
                                                                default="SBC - Continuous"))
+
+        # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list", Scannable(
                                                     default=[
                                                         RangeScan(1, 100, 100, randomize=True),
