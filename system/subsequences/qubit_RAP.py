@@ -1,6 +1,6 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from numpy import int32, int64, linspace
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
@@ -25,9 +25,11 @@ class QubitRAP(LAXSubsequence):
     """
     name = 'qubit_RAP'
     kernel_invariants = {
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
-        "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step", "time_pulse_mu_to_drg_step",
-        "ampl_asf_pulseshape_list", "ram_writer"
+        # waveform configs
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape", "ram_addr_stop",
+
+        # RAM-related configs
+        "time_pulse_mu_to_ram_step", "time_pulse_mu_to_drg_step", "ampl_asf_pulseshape_list", "ram_writer",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = -1, ram_addr_start: TInt32 = 0x00,
@@ -70,31 +72,26 @@ class QubitRAP(LAXSubsequence):
         '''
         self._prepare_argument_checks()
 
-        '''SPECIFY TIMING'''
-        # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
-        # todo: get sync_clk from ad9910 device instead
-        self.freq_dds_sync_clk_hz = 1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
-        self.time_pulse_mu_to_ram_step =    ((self.freq_dds_sync_clk_hz / self.core.seconds_to_mu(1)) /
-                                             self.num_samples)
-        self.time_pulse_mu_to_drg_step =    ((self.freq_dds_sync_clk_hz / self.core.seconds_to_mu(1)) /
-                                             (self.num_samples * self.drg_steps_per_ram_step))
 
         '''SPECFIY RAM PARAMETERS FOR PULSE SHAPING'''
+        # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
+        self.time_pulse_mu_to_ram_step = (self.qubit.beam.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
+        self.time_pulse_mu_to_drg_step = self.time_pulse_mu_to_ram_step / self.drg_steps_per_ram_step
+
         # prepare ram_writer (b/c only LAXExperiment classes call their own children)
         self.ram_writer.prepare()
         self.ram_addr_stop = self.ram_addr_start + (self.num_samples - 1)
 
         # calculate pulse shape, then normalize and rescale to max amplitude
         # note: make sure max x_val is double the rolloff since PulseShaper does rising edge only
-        x_vals = np.linspace(0., 200., self.num_samples)
+        x_vals = linspace(0., 200., self.num_samples)
         wav_y_vals = available_pulse_shapes[self.pulse_shape](x_vals, 100)
-        wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
+        wav_y_vals *= (self.ampl_max_pct / 100.) / max(wav_y_vals)
 
         # create array to store amplitude waveform in ASF (but formatted as a RAM word)
-        self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
+        self.ampl_asf_pulseshape_list = [int32(0)] * self.num_samples
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
-        # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
-        self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
+        self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1] # pre-reverse list b/c write_ram reverses it
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -121,33 +118,6 @@ class QubitRAP(LAXSubsequence):
         """
         Prepare the subsequence immediately before run.
         """
-        # # disable RAM + DRG and set matched latencies
-        # self.qubit.set_cfr1(ram_enable=0)
-        # self.qubit.set_cfr2(matched_latency_enable=1)
-        # # note: somehow this delay is critical
-        # delay_mu(1000000)
-        #
-        # # prepare to write waveform to RAM profile
-        # self.qubit.set_profile_ram(
-        #     start=self.ram_addr_start, end=self.ram_addr_stop,
-        #     step=0xFFF, # note: step size irrelevant since it's set in configure()
-        #     profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
-        # )
-        # delay_mu(25000)
-        #
-        # # set target RAM profile
-        # self.qubit.cpld.set_profile(self.ram_profile)
-        # self.qubit.cpld.io_update.pulse_mu(8)
-        # delay_mu(5000)
-        #
-        # # write waveform to RAM profile
-        # delay_mu(3000000)   # 3 ms
-        # # note: this IO_UPDATE is necessary for slack reasons (cf the critical 1ms delay above)
-        # self.qubit.cpld.io_update.pulse_mu(8)
-        # # delay_mu(2000000)   # extra slack - 2025/03/21 - empirical slack
-        # self.qubit.write_ram(self.ampl_asf_pulseshape_list)
-        # self.core.break_realtime()
-
         # disable RAM + DRG and set matched latencies
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)
@@ -183,10 +153,9 @@ class QubitRAP(LAXSubsequence):
 
         # disable RAM mode
         self.qubit.set_cfr1(ram_enable=0)
-        # tood: does set_cfr1 need its own io_update? or can I latch ALL with a single io_update?
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(15000)
+        delay_mu(256)   # add extra slack to avoid RTIO collisions
 
     @kernel(flags={"fast-math"})
     def configure(self, time_mu: TInt64, freq_center_ftw: TInt32, freq_dev_ftw: TInt32) -> TInt64:
@@ -204,16 +173,15 @@ class QubitRAP(LAXSubsequence):
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
-            raise ValueError("Invalid RAM timestep in qubitRAP.configure."
-                             "Change either pulse time or number of samples.")
+            raise ValueError("Invalid RAM timestep in qubitRAP.configure. Change either pulse time or num_samples.")
 
         # calculate step size/timing for DRG
         time_drg_step = round(time_mu * self.time_pulse_mu_to_drg_step)
         if (time_drg_step > (1 << 16)) or (time_drg_step < 1):
-            raise ValueError("Invalid DRG timestep in qubitRAP.configure."
-                             "Change either pulse time or number of samples.")
+            raise ValueError("Invalid DRG timestep in qubitRAP.configure. Change either pulse time or num_samples.")
         # note: freq_dev_ftw << 1 to make it double-sided
-        freq_drg_ftw = np.int32(round((freq_dev_ftw << 1) / (self.num_samples * self.drg_steps_per_ram_step)))
+        freq_drg_ftw = int32(round((freq_dev_ftw << 1) / (self.num_samples * self.drg_steps_per_ram_step)))
+
 
         '''CONFIGURE HARDWARE - PULSE SHAPING'''
         # set RAM profile parameters for pulse shaping
@@ -224,6 +192,7 @@ class QubitRAP(LAXSubsequence):
             profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP
         )
         self.qubit.cpld.io_update.pulse_mu(8)
+
 
         '''CONFIGURE HARDWARE - FREQUENCY RAMP/CHIRP'''
         # set Digital Ramp Generator limits
@@ -240,32 +209,8 @@ class QubitRAP(LAXSubsequence):
                            data_low=freq_drg_ftw)  # ramp up
         self.qubit.cpld.io_update.pulse_mu(8)
 
-        # # tmp remove
-        # print(time_pulse_mu, "us pulse time")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print(time_ram_step, " ram steps")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print(self.qubit.ftw_to_frequency(freq_center_ftw+freq_dev_ftw) / MHz, " MHz upper bound")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print(self.qubit.ftw_to_frequency(freq_center_ftw-freq_dev_ftw) / MHz, " MHz lower bound")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print(time_drg_step, " drg steps")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print(self.qubit.ftw_to_frequency(freq_drg_ftw) / kHz, " kHz per step (DRG)")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # print((time_pulse_mu / (time_drg_step*4)) * (self.qubit.ftw_to_frequency(freq_drg_ftw) / kHz), " MHz")
-        # self.core.break_realtime()
-        # delay_mu(1000000)
-        # # tmp remove
-
         # return relevant values
-        return np.int64(time_ram_step / self.time_pulse_mu_to_ram_step)
+        return int64(time_ram_step / self.time_pulse_mu_to_ram_step)
 
     @kernel(flags={"fast-math"})
     def run_rap(self, time_pulse_mu: TInt64) -> TNone:
@@ -287,7 +232,7 @@ class QubitRAP(LAXSubsequence):
                            (1 << 13) |  # phase_autoclear
                            (1 << 15) |  # load_lrr
                            (1 << 14) |  # drg_autoclear
-                           2            # default serial I/O configs
+                           2 # sdio_input_only + msb_first
                         )
         # enable digital ramp generation
         # note: DRG nodwell low is necessary to allow negative slopes
@@ -304,6 +249,7 @@ class QubitRAP(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
         delay_mu(256)   # necessary to prevent RTIO collisions
 
+
         '''FIRE PULSE'''
         time_start_mu = now_mu() & ~7
 
@@ -316,6 +262,7 @@ class QubitRAP(LAXSubsequence):
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
+
 
         '''CLEANUP'''
         # disable RAM and DRG

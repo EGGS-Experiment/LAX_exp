@@ -1,6 +1,6 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from numpy import int32, int64, arange
 
 from LAX_exp.language import *
 from LAX_exp.system.objects.RAMWriter import RAMWriter
@@ -15,17 +15,20 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     name = 'sideband_cool_continuous_RAM'
     kernel_invariants = {
-        # DDS configs
-        "profile_ram_729", "profile_ram_854", "ram_addr_start_729", "ram_addr_start_854", "num_samples",
-        
+        # DDS & SBC config
+        "profile_ram_729", "profile_ram_854", "_profile_854_default", "ram_addr_start_729",
+        "ram_addr_start_854", "num_samples", "sbc_config_list",
+
         # beam parameters
-        "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu",
-        "att_sidebandcooling_mu",
+        "ampl_qubit_asf", "time_repump_qubit_mu", "time_spinpol_mu", "att_sbc_mu",
 
         # RAM-related parameters
-        "freq_dds_sync_clk_hz", "time_cycle_mu_to_ram_step", "ram_timestep_val", "time_sideband_cooling_mu",
-        "time_spinpolarization_mu_list",
-        "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list", "ram_writer_729", "ram_writer_854"
+        "ram_timestep_val", "time_sideband_cooling_mu", "time_spinpolarization_mu_list",
+        "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list", "ram_writer_729", "ram_writer_854",
+
+        # polish cooling
+        "enable_polish", "freq_polish_ftw", "ampl_polish_asf", "ampl_quench_polish_asf",
+        "time_polish_mu",
     }
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
@@ -57,97 +60,75 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
 
+        # magic numbers
+        self._profile_854_default = 1 # default profile to reset to
+
         # use helper objects
         self.ram_writer_729 = RAMWriter(self, dds_device=self.qubit.beam,
                                         dds_profile=self.profile_ram_729, block_size=50)
         self.ram_writer_854 = RAMWriter(self, dds_device=self.repump_qubit.beam,
                                         dds_profile=self.profile_ram_854, block_size=50)
 
-        # sideband cooling - hardware values
-        self.setattr_argument("time_sbc_us", NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000, scale=1., unit='us'),
-                              group='SBC_RAM',
-                              tooltip="Total time for sideband cooling.")
-        self.setattr_argument("time_per_spinpol_us",    NumberValue(default=380, precision=3, step=1, min=0.01, max=100000, scale=1., unit='us'),
-                              group='SBC_RAM',
-                              tooltip="Time between spin polarization pulses (in us).")
-
-        # sideband cooling - configuration
-        self.setattr_argument("calib_cont", BooleanValue(default=False), group='SBC_RAM',
-                              tooltip="If True: disables 729nm DDS (via ONLY the urukul switch) during SBC for calibration purposes")
-        self.setattr_argument("sbc_cycles_cont", NumberValue(default=11, precision=0, step=1, min=1, max=10000),
-                              group='SBC_RAM',
-                              tooltip="Number of times to loop over the SBC configuration sequence."
-                                      "More loops reduce the number of samples required. Probably best to stay within [1, 30].")
-        self.setattr_argument("sbc_config_list",   PYONValue({100.2832: [37., 6.9], 100.4272: [37., 6.5], 100.7258: [26., 8.0]}),
-                              group='SBC_RAM',
-                              tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}")
-        self.setattr_argument("att_sbc_cont_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"),
-                              group='SBC_RAM',
-                              tooltip="DDS attenuation to use during sideband cooling.")
-
     def prepare_subsequence(self):
         """
         Prepare values for speedy evaluation.
         """
-        '''VALIDATE INPUTS'''
-        self._prepare_argument_checks()
+        '''PREPARE DATASET PARAMETERS'''
+        # sideband cooling configuration parameters
+        time_sbc_mu =           self.get_parameter('time_sbc_us', group='sbc', override=False,
+                                                   conversion_function=us_to_mu)
+        time_per_spinpol_mu =   self.get_parameter('time_per_spinpol_us', group='sbc', override=False,
+                                                   conversion_function=us_to_mu)
+        self.att_sbc_mu =       self.get_parameter('att_sbc_db', group='sbc', override=False,
+                                                   conversion_function=att_to_mu, units=dB)
 
-        '''RETRIEVE PARAMETERS'''
-        # waveform parameters
-        self.ampl_qubit_asf =       self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
-                                                       conversion_function=pct_to_asf)
-        self.freq_repump_qubit_ftw = self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False,
-                                                        conversion_function=hz_to_ftw, units=MHz)
-        # timing parameters
-        self.time_repump_qubit_mu = self.get_parameter('time_repump_qubit_us', group='timing', override=True,
-                                                       conversion_function=seconds_to_mu, units=us)
-        self.time_spinpol_mu =      self.get_parameter('time_spinpol_us', group='timing', override=True,
-                                                       conversion_function=seconds_to_mu, units=us)
+        sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sbc', override=False)
+        self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sbc', override=False)
 
-        '''CONVERT ARGUMENTS TO MACHINE UNITS'''
-        # waveform values
-        self.att_sidebandcooling_mu =   att_to_mu(self.att_sbc_cont_db * dB)
+        # waveform & timing parameters
+        self.ampl_qubit_asf =           self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
+                                                           conversion_function=pct_to_asf)
+        self.time_repump_qubit_mu =     self.get_parameter('time_repump_qubit_us', group='timing', override=True,
+                                                           conversion_function=seconds_to_mu, units=us)
+        self.time_spinpol_mu =          self.get_parameter('time_spinpol_us', group='timing', override=True,
+                                                           conversion_function=seconds_to_mu, units=us)
 
-        # SBC configuration arrays
-        mode_freqs_hz = np.array([freq_mhz * MHz
-                                  for freq_mhz in self.sbc_config_list.keys()])
-        mode_time_pct = np.array([config_arr[0]
-                                  for config_arr in self.sbc_config_list.values()])
-        mode_quench_ampls_frac = np.array([config_arr[1] / 100.
-                                           for config_arr in self.sbc_config_list.values()])
+        # polish SBC configuration parameters
+        self.enable_polish =            self.get_parameter('enable_polish', group='sbc.polish', override=False)
+        self.freq_polish_ftw =          self.get_parameter('freq_polish_mhz', group='sbc.polish', override=False,
+                                                           conversion_function=hz_to_ftw, units=MHz)
+        self.ampl_polish_asf =          self.get_parameter('ampl_polish_pct', group='sbc.polish', override=False,
+                                                           conversion_function=pct_to_asf)
+        self.ampl_quench_polish_asf =   self.get_parameter('ampl_quench_polish_pct', group='sbc.polish', override=False,
+                                                           conversion_function=pct_to_asf)
+        self.time_polish_mu =           self.get_parameter('time_polish_mu', group='sbc.polish', override=False,
+                                                           conversion_function=us_to_mu)
+
+        self._prepare_argument_checks() # note: validate inputs after we get params so they can be checked
+
 
         '''PREPARE SIDEBAND COOLING'''
         # calculate steps for each mode, then adjust number of samples to accommodate mode division
-        mode_time_steps = np.int32([round(val)
-                                    for val in mode_time_pct / np.sum(mode_time_pct) * self.num_samples])
-        self.num_samples = np.sum(mode_time_steps)
+        mode_time_pct = tuple(config_arr[0] for config_arr in self.sbc_config_list.values())
+        mode_time_steps = tuple(round(val / sum(mode_time_pct) * self.num_samples) for val in mode_time_pct)
+        self.num_samples = sum(mode_time_steps)
 
-        # convert pulse times into multiples of the SYNC_CLK (i.e. waveform update clock) period
-        # todo: get sync_clk from ad9910 device instead
-        self.freq_dds_sync_clk_hz = 1e9 / 4.  # SYNC_CLK HAS 4ns PERIOD
-        self.time_cycle_mu_to_ram_step = ((self.freq_dds_sync_clk_hz / self.core.seconds_to_mu(1)) /
-                                          self.num_samples)
-        # calculate DDS register value to set the timestep
-        self.ram_timestep_val = round(self.core.seconds_to_mu(self.time_sbc_us * us) /
-                                 self.sbc_cycles_cont * self.time_cycle_mu_to_ram_step)
+        # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
+        time_cycle_mu_to_ram_step = (self.qubit.beam.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
+        self.ram_timestep_val = round(time_sbc_mu / sbc_cycles_cont * time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
-            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM."
-                             "Change either number of samples or adjust SBC time.")
+            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM. Change either num_samples or SBC time.")
         # reconvert to get actual/correct SBC time for later use
-        self.time_sideband_cooling_mu = np.int64(self.ram_timestep_val / self.time_cycle_mu_to_ram_step *
-                                                 self.sbc_cycles_cont)
+        self.time_sideband_cooling_mu = int64(self.ram_timestep_val / time_cycle_mu_to_ram_step * sbc_cycles_cont)
 
         # calculate spinpol timings
-        time_per_spinpol_mu = self.core.seconds_to_mu(self.time_per_spinpol_us * us)
-        # note: we account for the nonzero spinpol time in these delays
-        self.time_spinpolarization_mu_list = np.arange(
-            time_per_spinpol_mu,
-            self.time_sideband_cooling_mu - 10000,   # ensure we don't spinpol within 10us of SBC end
-            time_per_spinpol_mu + self.time_spinpol_mu + 200,  # add 200ns to account for switches
-            dtype=np.int64
+        self.time_spinpolarization_mu_list = arange(
+            32, # some small start time number - 32ns
+            self.time_sideband_cooling_mu - 100000,   # ensure no spinpol within 100us of SBC end
+            time_per_spinpol_mu + self.time_spinpol_mu + 200,  # account for spinpol pulse times & switch delay
+            dtype=int64
         )
-        # ensure we do a spinpol at least once at the beginning
-        # self.time_spinpolarization_mu_list = np.insert(self.time_spinpolarization_mu_list, 0, 16)
+
 
         '''PREPARE RAM WAVEFORM'''
         # prepare RAMWriters (b/c only LAXExperiment classes call their own children)
@@ -155,41 +136,69 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_writer_854.prepare()
 
         # create 729nm waveform array - frequency values
-        vals_freq_hz = np.concatenate([
-            mode_freqs_hz[i] * np.ones(num_steps)
-            for i, num_steps in enumerate(mode_time_steps)
-        ])
-        # create holder to store RAM waveform data in machine units (ftw, 729nm SBC)
-        self.ram_waveform_729_ftw_list = [np.int32(0)] * self.num_samples
-        # pre-reverse waveform list since write_ram makes a booboo and reverses the array
-        self.qubit.frequency_to_ram(vals_freq_hz[::-1], self.ram_waveform_729_ftw_list)
+        mode_freqs_hz = tuple(freq_mhz * MHz for freq_mhz in self.sbc_config_list.keys())
+        vals_freq_hz = sum(tuple([mode_freqs_hz[i]]*num_steps for i, num_steps in enumerate(mode_time_steps)), [])
+        self.ram_waveform_729_ftw_list = [int32(0)] * self.num_samples # stores RAM data in machine units
+        self.qubit.frequency_to_ram(vals_freq_hz[::-1], self.ram_waveform_729_ftw_list) # pre-reverse list b/c write_ram reverses it
 
         # create 854nm waveform array - amplitude values
-        vals_ampl_frac = np.concatenate([
-            mode_quench_ampls_frac[i] * np.ones(num_steps)
-            for i, num_steps in enumerate(mode_time_steps)
-        ])
-        # create holder to store RAM waveform data in machine units (asf, 854nm quench)
-        self.ram_waveform_854_asf_list = [np.int32(0)] * self.num_samples
-        # pre-reverse waveform list since write_ram makes a booboo and reverses the array
-        self.repump_qubit.amplitude_to_ram(vals_ampl_frac[::-1], self.ram_waveform_854_asf_list)
+        mode_quench_ampls_frac = tuple(config_arr[1] / 100. for config_arr in self.sbc_config_list.values())
+        vals_ampl_frac = sum(tuple([mode_quench_ampls_frac[i]]*num_steps for i, num_steps in enumerate(mode_time_steps)), [])
+        self.ram_waveform_854_asf_list = [int32(0)] * self.num_samples # stores RAM data in machine units
+        self.repump_qubit.amplitude_to_ram(vals_ampl_frac[::-1], self.ram_waveform_854_asf_list) # pre-reverse list b/c write_ram reverses it
 
     def _prepare_argument_checks(self) -> TNone:
         """
         Check experiment arguments for validity.
         """
-        # ensure a reasonable amount of modes (i.e. not too many)
-        if len(self.sbc_config_list) > 20:
-            raise ValueError("Too many modes for SBC. Number of modes must be in [1, 20].")
+        # check SBC config dict is OK
+        if not all((
+            isinstance(self.sbc_config_list, dict),
+            all(isinstance(config_key, (int, float)) for config_key in self.sbc_config_list.keys()),
+            all(isinstance(config_list, (list, tuple)) for config_list in self.sbc_config_list.values())
+        )):
+            raise ValueError("Invalid SBC config dict. Must be dict of {freq_mhz: [time_pct, quench_ampl_pct]}.")
+        # ensure a reasonable amount of modes
+        elif len(self.sbc_config_list) > 20:
+            raise ValueError("Too many modes for SBC ({:d}). Number of modes must be in [1, 20].".format(
+                len(self.sbc_config_list)
+            ))
 
         # ensure SBC config on all modes add up to 100%
-        mode_total_pct = np.sum([config_arr[0] for config_arr in self.sbc_config_list.values()])
+        mode_total_pct = sum(tuple(config_arr[0] for config_arr in self.sbc_config_list.values()))
         if mode_total_pct > 100.:
             raise ValueError("Total sideband cooling mode percentages exceed 100%.")
+        elif 0. < mode_total_pct < 100.:
+            print("Warning: total sideband cooling mode percentages are < 100% ({:.1f})."
+                  "Percentages have been normalized to sum.".format(mode_total_pct))
 
-        # todo: ensure total SBC time is in [100, ???] us
-        # todo: ensure SBC time step is in [50, ???] us
-        # todo: ensure SBC cycle time is in [???, ???] us
+        # ensure SBC waveform amplitudes/powers are OK/healthy
+        if not (0 <= self.ampl_qubit_asf <= 0x2000):
+            raise ValueError("Invalid qubit amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_qubit_asf) * 100.)
+            )
+        elif not (self.att_sbc_mu <= 0xBF):
+            raise ValueError("Invalid qubit attenuation ({:.1f}) - must be in [8., 31.5] dB.".format(
+                self.qubit.cpld.mu_to_att(self.att_sbc_mu)
+            ))
+
+        # check rest of SBC timing
+        time_per_spinpol_us = self.get_parameter('time_per_spinpol_us', group='sbc')
+        if not (10 <= time_per_spinpol_us):
+            raise ValueError("Invalid time_per_spinpol_us ({:.2f}) - must be > 10 us.".format(
+                time_per_spinpol_us
+            ))
+        # todo: ensure SBC time is OK
+
+        # check polish values OK
+        if self.enable_polish and (self.ampl_polish_asf <= 0x2000):
+            raise ValueError("Invalid qubit polish amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_polish_asf) * 100.)
+            )
+        elif self.enable_polish and (self.ampl_quench_polish_asf <= 0x2000):
+            raise ValueError("Invalid quench polish amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_quench_polish_asf) * 100.)
+            )
 
 
     '''
@@ -243,7 +252,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.repump_qubit.cpld.io_update.pulse_mu(8)
         delay_mu(10000)
 
-
     @kernel(flags={"fast-math"})
     def cleanup_subsequence(self) -> TNone:
         """
@@ -269,10 +277,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         self.repump_qubit.set_cfr1(ram_enable=0)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-
-        # add extra slack following cleanup
-        delay_mu(25000)
-        self.repump_qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(256)   # add extra slack to avoid RTIO collisions
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -280,44 +285,24 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         Run sideband cooling via RAM mode.
         """
         '''PREPARE HARDWARE FOR SBC '''
-        # quick bugfix to make this subsequence happy (wrt write_ram issues)
-        self.repump_qubit.on()
-        delay_mu(50)
-        self.repump_qubit.off()
-        delay_mu(50)
-
-        # prepare beams for sideband cooling
         with parallel:
-            # set sideband cooling attenuation for qubit beam
+            # prepare beams for SBC - 729nm
             with sequential:
-                self.qubit.set_att_mu(self.att_sidebandcooling_mu)
+                # set SBC waveform
+                self.qubit.set_att_mu(self.att_sbc_mu)
                 self.qubit.set_asf(self.ampl_qubit_asf)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
-            # set sideband cooling profiles for regular beams
-            with sequential:
-                self.repump_qubit.set_profile(self.profile_ram_854)
-                self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
-                # do spin polarization before SBC (per Guggemos' thesis)
-                # self.spin_polarize()
-
-        # # '''SCHEDULE SPINPOL'''
-        # # # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # # # get start reference time
-        # # time_start_mu = now_mu()
-        # #
-        # # # do spin polarizations according to schedule
-        # # for time_spinpol_mu in self.time_spinpolarization_mu_list:
-        # #     at_mu(time_start_mu + time_spinpol_mu)
-        # #     self.spin_polarize()
-
-        '''PRIME RAM MODE FOR SBC BEAMS'''
-        # at_mu(time_start_mu + self.time_spinpol_mu + 10000)
-        with parallel:
-            with sequential:
-                # set target RAM profile
+                # set up target RAM profile
+                # note: have to do this here b/c polish cooling uses same profile
+                self.qubit.set_profile_ram(
+                    start=self.ram_addr_start_729, end=self.ram_addr_start_729 + (self.num_samples - 1),
+                    step=self.ram_timestep_val, mode=ad9910.RAM_MODE_CONT_RAMPUP, profile=self.profile_ram_729
+                )
+                self.qubit.cpld.io_update.pulse_mu(8)
                 self.qubit.cpld.set_profile(self.profile_ram_729)
                 self.qubit.cpld.io_update.pulse_mu(8)
+
                 # start RAM mode
                 self.qubit.write32(ad9910._AD9910_REG_CFR1,
                                    (1 << 31) |  # ram_enable
@@ -325,51 +310,62 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                    (1 << 16) |  # select_sine_output
                                    (1 << 13) |  # phase_autoclear
                                    (1 << 9) | # osk_enable
-                                   2
+                                   2 # sdio_input_only + msb_first
                                    )
-                self.qubit.cpld.io_update.pulse_mu(8)   # note: this starts stepping through RAM
 
-                # FIRE BEAM
-                if self.calib_cont:
-                    self.qubit.off()
-                else:
-                    self.qubit.on()
-
+            # prepare beams for SBC - 854nm
             with sequential:
-                # set target RAM profile
+                # set SBC waveform
+                self.repump_qubit.set_ftw(self.repump_qubit.freq_repump_qubit_ftw)
+                self.repump_qubit.cpld.io_update.pulse_mu(8)
+
+                # set up target RAM profile
+                # note: have to do this here b/c polish cooling uses same profile
+                self.repump_qubit.set_profile_ram(
+                    start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
+                    step=self.ram_timestep_val, mode=ad9910.RAM_MODE_CONT_RAMPUP, profile=self.profile_ram_854
+                )
+                self.repump_qubit.cpld.io_update.pulse_mu(8)
+
+                # start RAM mode
                 self.repump_qubit.cpld.set_profile(self.profile_ram_854)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
-                # start RAM mode
                 self.repump_qubit.write32(ad9910._AD9910_REG_CFR1,
                                           (1 << 31) |  # ram_enable
                                           (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
                                           (1 << 16) |  # select_sine_output
                                           (1 << 13) |  # phase_autoclear
-                                          2
+                                          2 # sdio_input_only + msb_first
                                           )
-                self.repump_qubit.cpld.io_update.pulse_mu(8)    # note: this starts stepping through RAM
-                self.repump_qubit.on()  # FIRE BEAM
 
 
-        '''SCHEDULE SPINPOL'''
-        # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # get start reference time
-        time_start_mu = now_mu()
+        '''BEGIN SBC'''
+        time_sbc_init_mu = now_mu()    # get start reference time
 
-        # do spin polarizations according to schedule
+        # run spin polarizations according to schedule
         for time_spinpol_mu in self.time_spinpolarization_mu_list:
-            at_mu(time_start_mu + time_spinpol_mu)
+            at_mu(time_sbc_init_mu + time_spinpol_mu)
             self.spin_polarize()
 
-        '''FINISH'''
-        # stop sideband cooling
-        # at_mu(time_start_mu + self.time_spinpol_mu + 200 + self.time_sideband_cooling_mu)
-        at_mu(time_start_mu + self.time_sideband_cooling_mu)
+        # turn on SBC beams (after first spinpol)
+        at_mu(time_sbc_init_mu + self.time_spinpol_mu + 10000)
         with parallel:
-            # stop beams via RF switches
-            self.qubit.off()
-            self.repump_qubit.off()
+            with sequential:
+                # begin RAM mode and switch on DDS - 729nm
+                self.qubit.cpld.io_update.pulse_mu(8)
+                self.qubit.on()
+            with sequential:
+                # begin RAM mode and switch on DDS - 854nm
+                self.repump_qubit.cpld.io_update.pulse_mu(8)
+                self.repump_qubit.on()
 
+        time_sbc_start_mu = now_mu() # get new fiducial time
+
+
+        '''CLEAN UP'''
+        # stop RAM mode
+        at_mu(time_sbc_start_mu + self.time_sideband_cooling_mu)
+        with parallel:
             # disable RAM mode - 729nm
             with sequential:
                 delay_mu(32) # prevents sequence errors
@@ -377,18 +373,20 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.qubit.cpld.io_update.pulse_mu(8)
 
             # disable RAM mode - 854nm
+            # note: this is last b/c it takes longest, so timeline is correct after parallel block
             with sequential:
                 delay_mu(64) # prevents sequence errors
                 self.repump_qubit.set_cfr1(ram_enable=0)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
 
+        # run polish SBC
+        if self.enable_polish:
+            self.polish_cool()
+
         # repump qubit after sideband cooling
-        # use normal beam profile for 854 (i.e. not SBC quench)
         delay_mu(32) # prevents sequence errors
-        self.repump_qubit.set_profile(1)
+        self.repump_qubit.set_profile(self._profile_854_default) # use default (i.e. not SBC quench) profile for 854nm
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(32) # prevents sequence errors
-        self.repump_qubit.on()
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
 
@@ -397,13 +395,33 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Run spin polarization for optical pumping into the correct Zeeman manifold.
         """
-        with parallel:
-            self.probe.on()
-            self.repump_cooling.on()
-
+        # note: doing on/off in parallel makes core unhappy & trigger sequence errors
+        self.probe.on()
+        self.repump_cooling.on()
         delay_mu(self.time_spinpol_mu)
+        self.probe.off()
+        self.repump_cooling.off()
 
+    @kernel(flags={"fast-math"})
+    def polish_cool(self) -> TNone:
+        """
+        Do SBC at low power for a single mode to improve minimum nbar.
+        """
+        # set beam waveforms
+        delay_mu(64)  # avoid RTIO collisions w/ prev DDS updates
         with parallel:
-            self.probe.off()
-            self.repump_cooling.off()
+            self.qubit.set_mu(self.freq_polish_ftw, asf=self.ampl_polish_asf,
+                              phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+                              profile=self.profile_ram_729)
+            self.repump_qubit.set_mu(self.repump_qubit.freq_repump_qubit_ftw, asf=self.ampl_quench_polish_asf,
+                                     phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+                                     profile=self.profile_ram_854)
+
+        # polish cool!
+        delay_mu(64)  # avoid RTIO collisions w/ prev DDS updates
+        self.qubit.on()
+        self.repump_qubit.on()
+        delay_mu(self.time_polish_mu)
+        self.qubit.off()
+        self.repump_qubit.off()
 
