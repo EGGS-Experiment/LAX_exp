@@ -1,6 +1,6 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from numpy import int32, int64, linspace
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
@@ -16,9 +16,11 @@ class QubitPulseShape(LAXSubsequence):
     """
     name = 'qubit_pulseshape'
     kernel_invariants = {
+        # waveform configs
         "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
-        "ram_addr_stop", "freq_dds_sync_clk_hz", "time_pulse_mu_to_ram_step",
-        "ampl_asf_pulseshape_list", "ram_writer"
+
+        # RAM-related configs
+        "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshape_list", "ram_writer"
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
@@ -61,34 +63,28 @@ class QubitPulseShape(LAXSubsequence):
         # prepare ram_writer (b/c only LAXExperiment classes call their own children)
         self.ram_writer.prepare()
         self.ram_addr_stop = self.ram_addr_start + (self.num_samples - 1)
-        self.time_pulse_mu = np.int64(0)    # delay time (holder, for later use)
+        self.time_pulse_mu = int64(0)    # delay time (holder, for later use)
 
-        # convert specified waveform sample rate to multiples of the SYNC_CLK (i.e. waveform update clock) period
-        # todo: get sync_clk from ad9910 device instead
-        self.freq_dds_sync_clk_hz =         1e9 / 4.    # SYNC_CLK HAS 4ns PERIOD
-        self.time_pulse_mu_to_ram_step =    ((self.freq_dds_sync_clk_hz / self.core.seconds_to_mu(1)) /
-                                             self.num_samples)
+        # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
+        self.time_pulse_mu_to_ram_step = (self.qubit.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
 
         '''CALCULATE WAVEFORM'''
         # calculate pulse shape, then normalize and rescale to max amplitude
         # note: make sure max x_val is double the rolloff since PulseShaper does rising edge only
-        x_vals = np.linspace(0., 200., self.num_samples)
+        x_vals = linspace(0., 200., self.num_samples)
         wav_y_vals = available_pulse_shapes[self.pulse_shape](x_vals, 100)
-        wav_y_vals *= (self.ampl_max_pct / 100.) / np.max(wav_y_vals)
+        wav_y_vals *= (self.ampl_max_pct / 100.) / max(wav_y_vals)
 
         # create array to store amplitude waveform in ASF (but formatted as a RAM word)
-        self.ampl_asf_pulseshape_list = [np.int32(0)] * self.num_samples
+        self.ampl_asf_pulseshape_list = [int32(0)] * self.num_samples
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
-        # pre-reverse ampl_asf_pulseshape_list since write_ram makes a booboo and reverses the array
-        self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1]
+        self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1] # pre-reverse list b/c write_ram reverses it
 
     def _prepare_argument_checks(self) -> TNone:
         """
         Check experiment arguments for validity.
         """
         # note: validate inputs here to get around bugs where args are passed from setattr_argument
-        # sanitize sequence parameters
-        # note: MUST USE PROFILE0 FOR BIDIRECTIONAL RAMP
         if self.ram_profile not in range(0, 7):
             raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
         elif not (0 <= self.ram_addr_start <= 1023 - 100):
@@ -97,6 +93,7 @@ class QubitPulseShape(LAXSubsequence):
             raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [20, 1000].".format(self.num_samples))
         elif not (0. <= self.ampl_max_pct <= 50.):
             raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
+
 
     """
     KERNEL FUNCTIONS
@@ -141,7 +138,7 @@ class QubitPulseShape(LAXSubsequence):
         # disable RAM mode
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(10000)
+        delay_mu(256)   # add extra slack to avoid RTIO collisions
 
     @kernel(flags={"fast-math"})
     def configure(self, time_mu: TInt64) -> TInt64:
@@ -157,10 +154,10 @@ class QubitPulseShape(LAXSubsequence):
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
         if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
             raise ValueError("Invalid RAM timestep in qubitPulseShape.configure()."
-                             "Change either pulse time or number of samples.")
+                             "Change either pulse time or num_samples.")
 
         # reconvert to get correct time_pulse_mu correctly for later delay
-        self.time_pulse_mu = np.int64(time_ram_step / self.time_pulse_mu_to_ram_step)
+        self.time_pulse_mu = int64(time_ram_step / self.time_pulse_mu_to_ram_step)
 
         # set RAM profile parameters for pulse shaping
         # note: using RAM rampup mode for simplicity
@@ -187,7 +184,7 @@ class QubitPulseShape(LAXSubsequence):
                            (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
                            (1 << 16) |              # select_sine_output
                            (1 << 13) |              # phase_autoclear
-                           2
+                           2 # sdio_input_only + msb_first
                         )
 
         '''FIRE PULSE'''

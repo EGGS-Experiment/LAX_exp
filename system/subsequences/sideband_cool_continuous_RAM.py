@@ -102,7 +102,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
         time_cycle_mu_to_ram_step = (self.qubit.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
-        # calculate DDS register value to set timestep
         self.ram_timestep_val = round(time_sbc_mu / sbc_cycles_cont * time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
             raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM. Change either num_samples or SBC time.")
@@ -246,10 +245,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         self.repump_qubit.set_cfr1(ram_enable=0)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-
-        # add extra slack following cleanup
-        delay_mu(25000)
-        self.repump_qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(256)   # add extra slack to avoid RTIO collisions
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
