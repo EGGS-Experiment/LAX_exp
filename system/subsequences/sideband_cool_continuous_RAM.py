@@ -20,11 +20,15 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         "ram_addr_start_854", "num_samples", "sbc_config_list",
 
         # beam parameters
-        "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu", "att_sbc_mu",
+        "ampl_qubit_asf", "time_repump_qubit_mu", "time_spinpol_mu", "att_sbc_mu",
 
         # RAM-related parameters
         "ram_timestep_val", "time_sideband_cooling_mu", "time_spinpolarization_mu_list",
         "ram_waveform_729_ftw_list", "ram_waveform_854_asf_list", "ram_writer_729", "ram_writer_854",
+
+        # polish cooling
+        "enable_polish", "freq_polish_ftw", "ampl_polish_asf", "ampl_quench_polish_asf",
+        "time_polish_mu",
     }
 
     def build_subsequence(self, profile_729: TInt32 = 1, profile_854: TInt32 = 3,
@@ -84,12 +88,21 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # waveform & timing parameters
         self.ampl_qubit_asf =           self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
                                                            conversion_function=pct_to_asf)
-        self.freq_repump_qubit_ftw =    self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False,
-                                                           conversion_function=hz_to_ftw, units=MHz)
         self.time_repump_qubit_mu =     self.get_parameter('time_repump_qubit_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
         self.time_spinpol_mu =          self.get_parameter('time_spinpol_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
+
+        # polish SBC configuration parameters
+        self.enable_polish =            self.get_parameter('enable_polish', group='sbc.polish', override=False)
+        self.freq_polish_ftw =          self.get_parameter('freq_polish_mhz', group='sbc.polish', override=False,
+                                                           conversion_function=hz_to_ftw, units=MHz)
+        self.ampl_polish_asf =          self.get_parameter('ampl_polish_pct', group='sbc.polish', override=False,
+                                                           conversion_function=pct_to_asf)
+        self.ampl_quench_polish_asf =   self.get_parameter('ampl_quench_polish_pct', group='sbc.polish', override=False,
+                                                           conversion_function=pct_to_asf)
+        self.time_polish_mu =           self.get_parameter('time_polish_mu', group='sbc.polish', override=False,
+                                                           conversion_function=us_to_mu)
 
         self._prepare_argument_checks() # note: validate inputs after we get params so they can be checked
 
@@ -176,6 +189,16 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 time_per_spinpol_us
             ))
         # todo: ensure SBC time is OK
+
+        # check polish values OK
+        if self.enable_polish and (self.ampl_polish_asf <= 0x2000):
+            raise ValueError("Invalid qubit polish amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_polish_asf) * 100.)
+            )
+        elif self.enable_polish and (self.ampl_quench_polish_asf <= 0x2000):
+            raise ValueError("Invalid quench polish amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_quench_polish_asf) * 100.)
+            )
 
 
     '''
@@ -270,9 +293,17 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.qubit.set_asf(self.ampl_qubit_asf)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
-                # set target RAM profile & start RAM mode
+                # set up target RAM profile
+                # note: have to do this here b/c polish cooling uses same profile
+                self.qubit.set_profile_ram(
+                    start=self.ram_addr_start_729, end=self.ram_addr_start_729 + (self.num_samples - 1),
+                    step=self.ram_timestep_val, mode=ad9910.RAM_MODE_CONT_RAMPUP, profile=self.profile_ram_729
+                )
+                self.qubit.cpld.io_update.pulse_mu(8)
                 self.qubit.cpld.set_profile(self.profile_ram_729)
                 self.qubit.cpld.io_update.pulse_mu(8)
+
+                # start RAM mode
                 self.qubit.write32(ad9910._AD9910_REG_CFR1,
                                    (1 << 31) |  # ram_enable
                                    (ad9910.RAM_DEST_FTW << 29) |  # ram_destination
@@ -285,10 +316,18 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             # prepare beams for SBC - 854nm
             with sequential:
                 # set SBC waveform
-                self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
+                self.repump_qubit.set_ftw(self.repump_qubit.freq_repump_qubit_ftw)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
 
-                # set target RAM profile & start RAM mode
+                # set up target RAM profile
+                # note: have to do this here b/c polish cooling uses same profile
+                self.repump_qubit.set_profile_ram(
+                    start=self.ram_addr_start_854, end=self.ram_addr_start_854 + (self.num_samples - 1),
+                    step=self.ram_timestep_val, mode=ad9910.RAM_MODE_CONT_RAMPUP, profile=self.profile_ram_854
+                )
+                self.repump_qubit.cpld.io_update.pulse_mu(8)
+
+                # start RAM mode
                 self.repump_qubit.cpld.set_profile(self.profile_ram_854)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
                 self.repump_qubit.write32(ad9910._AD9910_REG_CFR1,
@@ -323,14 +362,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         time_sbc_start_mu = now_mu() # get new fiducial time
 
 
-        '''FINISH'''
-        # stop SBC beams
+        '''CLEAN UP'''
+        # stop RAM mode
         at_mu(time_sbc_start_mu + self.time_sideband_cooling_mu)
         with parallel:
-            # stop beams via RF switches
-            self.qubit.off()
-            self.repump_qubit.off()
-
             # disable RAM mode - 729nm
             with sequential:
                 delay_mu(32) # prevents sequence errors
@@ -344,12 +379,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.set_cfr1(ram_enable=0)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
 
+        # run polish SBC
+        if self.enable_polish:
+            self.polish_cool()
+
         # repump qubit after sideband cooling
         delay_mu(32) # prevents sequence errors
         self.repump_qubit.set_profile(self._profile_854_default) # use default (i.e. not SBC quench) profile for 854nm
         self.repump_qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(32) # prevents sequence errors
-        self.repump_qubit.on()
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
 
@@ -358,12 +395,33 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Run spin polarization for optical pumping into the correct Zeeman manifold.
         """
-        # note: making these parallel really triggers a sequence error
+        # note: doing on/off in parallel makes core unhappy & trigger sequence errors
         self.probe.on()
         self.repump_cooling.on()
-
         delay_mu(self.time_spinpol_mu)
-
         self.probe.off()
         self.repump_cooling.off()
+
+    @kernel(flags={"fast-math"})
+    def polish_cool(self) -> TNone:
+        """
+        Do SBC at low power for a single mode to improve minimum nbar.
+        """
+        # set beam waveforms
+        delay_mu(64)  # avoid RTIO collisions w/ prev DDS updates
+        with parallel:
+            self.qubit.set_mu(self.freq_polish_ftw, asf=self.ampl_polish_asf,
+                              phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+                              profile=self.profile_ram_729)
+            self.repump_qubit.set_mu(self.repump_qubit.freq_repump_qubit_ftw, asf=self.ampl_quench_polish_asf,
+                                     phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+                                     profile=self.profile_ram_854)
+
+        # polish cool!
+        delay_mu(64)  # avoid RTIO collisions w/ prev DDS updates
+        self.qubit.on()
+        self.repump_qubit.on()
+        delay_mu(self.time_polish_mu)
+        self.qubit.off()
+        self.repump_qubit.off()
 
