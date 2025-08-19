@@ -23,8 +23,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
     name = 'CH1 Ramsey RDX'
     kernel_invariants = {
         # hardware values - phaser
-        'att_heating_mu', 'freq_sweep_hz_list', 'phase_sweep_turns_list', 'freq_osc_base_hz_list',
-        'freq_global_offset_hz', 'waveform_index_to_phase_sweep_turns', 'phase_offsets',
+        'freq_sweep_hz_list', 'phase_sweep_turns_list', 'freq_osc_base_hz_list', 'freq_global_offset_hz',
+        'waveform_index_to_phase_sweep_turns', 'phase_offsets',
         'waveform_index_to_pulseshaper_vals0', 'waveform_index_to_pulseshaper_vals1',
 
         # hardware values - readout
@@ -132,8 +132,14 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # custom waveform specification - general
         self.setattr_argument("time_heating_us",   NumberValue(default=1e3, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("att_heating_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
-                              group="{}.waveform".format(_argstr))
+        self.setattr_argument("att_heating_db_list", Scannable(
+                                                        default=[
+                                                            ExplicitScan([31.5]),
+                                                            RangeScan(15., 31.5, 33, randomize=True),
+                                                        ],
+                                                        global_min=0.0, global_max=31.5, global_step=0.5,
+                                                        unit="dB", scale=1, precision=1
+                                                    ), group = "{}.waveform".format(_argstr))
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip="Attempt to move NCO/TRF leakage outside of target band by shifting DUC and oscillators to compensate.")
@@ -204,8 +210,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         '''HARDWARE VALUES - CONFIG'''
         # convert hardware values to convenient units
-        self.att_heating_mu = att_to_mu(self.att_heating_db * dB)
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
+        att_heating_mu_list = [att_to_mu(att_dj_db * dB) for att_dj_db in self.att_heating_db_list]
 
         # convert build arguments to appropriate values and format as numpy arrays
         freq_carrier_hz_list = np.array(list(self.freq_heating_carrier_mhz_list)) * MHz
@@ -231,10 +237,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.config_experiment_list = create_experiment_config(
             freq_sideband_readout_ftw_list, freq_carrier_hz_list,
             self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
-            time_readout_mu_list
+            time_readout_mu_list, att_heating_mu_list,
+            shuffle_config=True,
+            config_type=np.int32
         )
-        # randomize_config always enabled lol
-        np.random.shuffle(self.config_experiment_list)
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -400,7 +406,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                6)
+                7)
 
 
     # MAIN SEQUENCE
@@ -442,6 +448,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 freq_sweep_hz =     config_vals[2]
                 phase_sweep_idx =   np.int32(config_vals[3])
                 time_readout_mu =   np.int64(config_vals[4])
+                att_phaser_mu =     config_vals[5]
 
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_sweep_turns_list[phase_sweep_idx]
@@ -471,7 +478,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 self.sidebandcool_subsequence.run_dma()
 
                 '''HEATING'''
-                self.phaser_run(waveform_id)
+                self.phaser_run(waveform_id, att_phaser_mu)
 
                 '''READOUT'''
                 if self.enable_RAP:
@@ -489,7 +496,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                     carrier_freq_hz,
                     freq_sweep_hz,
                     phase_sweep_turns,
-                    time_readout_mu
+                    time_readout_mu,
+                    att_phaser_mu
                 )
 
                 '''LOOP CLEANUP'''
@@ -513,14 +521,14 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
     HELPER FUNCTIONS - PHASER
     '''
     @kernel(flags={"fast-math"})
-    def phaser_run(self, waveform_id: TInt32) -> TNone:
+    def phaser_run(self, waveform_id: TInt32, att_mu: TInt32) -> TNone:
         """
         Run the main  pulse together with supporting functionality.
         Arguments:
             waveform_id     (TInt32)    : the ID of the waveform to run.
         """
         # START/SETUP
-        self.phaser_eggs.phaser_setup(self.att_heating_mu, self.att_heating_mu)
+        self.phaser_eggs.phaser_setup(att_mu, att_mu)
 
         # RUN
         # reset DUC phase to start DUC deterministically
