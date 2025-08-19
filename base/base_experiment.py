@@ -505,11 +505,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         in isolation.
         """
         # record overall runtime
-        # note: time_global_start is recorded in self._initialize_datasets
-        time_global_stop = datetime.timestamp(datetime.now())
-        time_exprun = time_global_stop - self.time_global_start
-        self.set_dataset('time_run', time_exprun)
-        print('\tRun Time:\t{:.2f}'.format(time_exprun))
+        try:
+            # note: time_global_start is recorded in self._initialize_datasets
+            time_global_stop = datetime.timestamp(datetime.now())
+            time_exprun = time_global_stop - self.time_global_start
+            self.set_dataset('time_run', time_exprun)
+            print('\tRun Time:\t{:.2f}'.format(time_exprun))
+        except Exception as e:
+            pass
 
         # call all child analyze methods
         self.call_child_method('analyze')
