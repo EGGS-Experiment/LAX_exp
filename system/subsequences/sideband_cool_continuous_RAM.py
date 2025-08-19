@@ -75,15 +75,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         '''PREPARE DATASET PARAMETERS'''
         # sideband cooling configuration parameters
-        time_sbc_mu =           self.get_parameter('time_sbc_us', group='sbc', override=False,
+        time_sbc_mu =           self.get_parameter('time_sbc_us', group='sbc.base', override=False,
                                                    conversion_function=us_to_mu)
-        time_per_spinpol_mu =   self.get_parameter('time_per_spinpol_us', group='sbc', override=False,
+        time_per_spinpol_mu =   self.get_parameter('time_per_spinpol_us', group='sbc.base', override=False,
                                                    conversion_function=us_to_mu)
-        self.att_sbc_mu =       self.get_parameter('att_sbc_db', group='sbc', override=False,
+        self.att_sbc_mu =       self.get_parameter('att_sbc_db', group='sbc.base', override=False,
                                                    conversion_function=att_to_mu, units=dB)
-
-        sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sbc', override=False)
-        self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sbc', override=False)
+        sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sbc.base', override=False)
+        self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sbc.base', override=False)
 
         # waveform & timing parameters
         self.ampl_qubit_asf =           self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
@@ -94,14 +93,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                                            conversion_function=seconds_to_mu, units=us)
 
         # polish SBC configuration parameters
-        self.enable_polish =            self.get_parameter('enable_polish', group='sbc.polish', override=False)
+        self.enable_polish =            self.get_parameter('enable_sbc_polish', group='sbc.polish', override=False)
         self.freq_polish_ftw =          self.get_parameter('freq_polish_mhz', group='sbc.polish', override=False,
                                                            conversion_function=hz_to_ftw, units=MHz)
         self.ampl_polish_asf =          self.get_parameter('ampl_polish_pct', group='sbc.polish', override=False,
                                                            conversion_function=pct_to_asf)
         self.ampl_quench_polish_asf =   self.get_parameter('ampl_quench_polish_pct', group='sbc.polish', override=False,
                                                            conversion_function=pct_to_asf)
-        self.time_polish_mu =           self.get_parameter('time_polish_mu', group='sbc.polish', override=False,
+        self.time_polish_mu =           self.get_parameter('time_polish_us', group='sbc.polish', override=False,
                                                            conversion_function=us_to_mu)
 
         self._prepare_argument_checks() # note: validate inputs after we get params so they can be checked
@@ -183,7 +182,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             ))
 
         # check rest of SBC timing
-        time_per_spinpol_us = self.get_parameter('time_per_spinpol_us', group='sbc')
+        time_per_spinpol_us = self.get_parameter('time_per_spinpol_us', group='sbc.base')
         if not (10 <= time_per_spinpol_us):
             raise ValueError("Invalid time_per_spinpol_us ({:.2f}) - must be > 10 us.".format(
                 time_per_spinpol_us
@@ -191,11 +190,11 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # todo: ensure SBC time is OK
 
         # check polish values OK
-        if self.enable_polish and (self.ampl_polish_asf <= 0x2000):
+        if self.enable_polish and not (0 <= self.ampl_polish_asf <= 0x2000):
             raise ValueError("Invalid qubit polish amplitude ({:.2f}) - must be in [0., 50.].".format(
                 self.qubit.asf_to_amplitude(self.ampl_polish_asf) * 100.)
             )
-        elif self.enable_polish and (self.ampl_quench_polish_asf <= 0x2000):
+        elif self.enable_polish and not (0 <= self.ampl_quench_polish_asf <= 0x2000):
             raise ValueError("Invalid quench polish amplitude ({:.2f}) - must be in [0., 50.].".format(
                 self.qubit.asf_to_amplitude(self.ampl_quench_polish_asf) * 100.)
             )
