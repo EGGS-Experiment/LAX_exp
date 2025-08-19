@@ -4,7 +4,6 @@ from numpy import int32, int64, arange
 
 from LAX_exp.language import *
 from LAX_exp.system.objects.RAMWriter import RAMWriter
-# todo: check inputs & dataset args
 
 
 class SidebandCoolContinuousRAM(LAXSubsequence):
@@ -140,34 +139,42 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         Check experiment arguments for validity.
         """
         # check SBC config dict is OK
-        if not all(
+        if not all((
             isinstance(self.sbc_config_list, dict),
             all(isinstance(config_key, (int, float)) for config_key in self.sbc_config_list.keys()),
             all(isinstance(config_list, (list, tuple)) for config_list in self.sbc_config_list.values())
-        ):
+        )):
             raise ValueError("Invalid SBC config dict. Must be dict of {freq_mhz: [time_pct, quench_ampl_pct]}.")
         # ensure a reasonable amount of modes
         elif len(self.sbc_config_list) > 20:
-            raise ValueError("Too many modes for SBC. Number of modes must be in [1, 20].")
+            raise ValueError("Too many modes for SBC ({:d}). Number of modes must be in [1, 20].".format(
+                len(self.sbc_config_list)
+            ))
 
         # ensure SBC config on all modes add up to 100%
         mode_total_pct = sum(tuple(config_arr[0] for config_arr in self.sbc_config_list.values()))
         if mode_total_pct > 100.:
             raise ValueError("Total sideband cooling mode percentages exceed 100%.")
         elif 0. < mode_total_pct < 100.:
-            print("Warning: total sideband cooling mode percentages are < 100%."
-                  "Percentages have been normalized to sum.")
+            print("Warning: total sideband cooling mode percentages are < 100% ({:.1f})."
+                  "Percentages have been normalized to sum.".format(mode_total_pct))
 
         # ensure SBC waveform amplitudes/powers are OK/healthy
-        if not (0 <= self.ampl_qubit_asf <= 0x1FFF):
-            raise ValueError("Invalid qubit amplitude - must be in [0., 50.].")
+        if not (0 <= self.ampl_qubit_asf <= 0x2000):
+            raise ValueError("Invalid qubit amplitude ({:.2f}) - must be in [0., 50.].".format(
+                self.qubit.asf_to_amplitude(self.ampl_qubit_asf) * 100.)
+            )
         elif not (self.att_sbc_mu <= 0xBF):
-            raise ValueError("Invalid qubit attenuation - must be in [8., 31.5] dB.")
+            raise ValueError("Invalid qubit attenuation ({:.1f}) - must be in [8., 31.5] dB.".format(
+                self.qubit.cpld.mu_to_att(self.att_sbc_mu)
+            ))
 
         # check rest of SBC timing
         time_per_spinpol_us = self.get_parameter('time_per_spinpol_us', group='sbc')
         if not (10 <= time_per_spinpol_us):
-            raise ValueError("Invalid time_per_spinpol_us - must be > 10 us.")
+            raise ValueError("Invalid time_per_spinpol_us ({:.2f}) - must be > 10 us.".format(
+                time_per_spinpol_us
+            ))
         # todo: ensure SBC time is OK
 
 
