@@ -211,7 +211,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         '''HARDWARE VALUES - CONFIG'''
         # convert hardware values to convenient units
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
-        att_heating_mu_list = [att_to_mu(att_dj_db * dB) for att_dj_db in self.att_heating_db_list]
+        # ensure att_heating_mu_list is rounded to 0.5dB (min step size of atts) to prevent unnecessary spamming
+        att_heating_mu_list = set(att_to_mu(round(att_db * 2) / 2 * dB) for att_db in self.att_heating_db_list)
 
         # convert build arguments to appropriate values and format as numpy arrays
         freq_carrier_hz_list = np.array(list(self.freq_heating_carrier_mhz_list)) * MHz
