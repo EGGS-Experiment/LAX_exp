@@ -1,9 +1,10 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
-from numpy import int32, int64, insert, arange
+from numpy import int32, int64, arange
 
 from LAX_exp.language import *
 from LAX_exp.system.objects.RAMWriter import RAMWriter
+# todo: check inputs & dataset args
 
 
 class SidebandCoolContinuousRAM(LAXSubsequence):
@@ -138,35 +139,36 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Check experiment arguments for validity.
         """
-        # ensure a reasonable amount of modes (i.e. not too many)
-        if len(self.sbc_config_list) > 20:
+        # check SBC config dict is OK
+        if not all(
+            isinstance(self.sbc_config_list, dict),
+            all(isinstance(config_key, (int, float)) for config_key in self.sbc_config_list.keys()),
+            all(isinstance(config_list, (list, tuple)) for config_list in self.sbc_config_list.values())
+        ):
+            raise ValueError("Invalid SBC config dict. Must be dict of {freq_mhz: [time_pct, quench_ampl_pct]}.")
+        # ensure a reasonable amount of modes
+        elif len(self.sbc_config_list) > 20:
             raise ValueError("Too many modes for SBC. Number of modes must be in [1, 20].")
 
         # ensure SBC config on all modes add up to 100%
         mode_total_pct = sum(tuple(config_arr[0] for config_arr in self.sbc_config_list.values()))
         if mode_total_pct > 100.:
             raise ValueError("Total sideband cooling mode percentages exceed 100%.")
+        elif 0. < mode_total_pct < 100.:
+            print("Warning: total sideband cooling mode percentages are < 100%."
+                  "Percentages have been normalized to sum.")
 
-        # todo: give warning of sum of SBC time % is < 100.
-        # todo: ensure total SBC time is in [100, ???] us
-        # todo: ensure SBC time step is in [50, ???] us
-        # todo: ensure SBC cycle time is in [???, ???] us
-        # todo: add checks for these to _prepare_argument_checks
-        # time_sbc_mu
-        # time_per_spinpol_mu
-        # att_sbc_mu
-        # sbc_cycles_cont
-        # self.sbc_config_list
-        # self.ampl_qubit_asf
-        # self.freq_repump_qubit_ftw
-        # self.time_repump_qubit_mu
-        # self.time_spinpol_mu
-        # self.setattr_argument("time_sbc_us", NumberValue(default=4000, precision=3, step=100, min=0.001, max=1000000, scale=1., unit='us'))
-        # self.setattr_argument("time_per_spinpol_us", NumberValue(default=380, precision=3, step=1, min=0.01, max=100000, scale=1., unit='us'))
-        # self.setattr_argument("calib_cont", BooleanValue(default=False))
-        # self.setattr_argument("sbc_cycles_cont", NumberValue(default=11, precision=0, step=1, min=1, max=10000))
-        # self.setattr_argument("sbc_config_list", PYONValue({100.2832: [37., 6.9], 100.4272: [37., 6.5], 100.7258: [26., 8.0]}))
-        # self.setattr_argument("att_sbc_cont_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"))
+        # ensure SBC waveform amplitudes/powers are OK/healthy
+        if not (0 <= self.ampl_qubit_asf <= 0x1FFF):
+            raise ValueError("Invalid qubit amplitude - must be in [0., 50.].")
+        elif not (self.att_sbc_mu <= 0xBF):
+            raise ValueError("Invalid qubit attenuation - must be in [8., 31.5] dB.")
+
+        # check rest of SBC timing
+        time_per_spinpol_us = self.get_parameter('time_per_spinpol_us', group='sbc')
+        if not (10 <= time_per_spinpol_us):
+            raise ValueError("Invalid time_per_spinpol_us - must be > 10 us.")
+        # todo: ensure SBC time is OK
 
 
     '''
