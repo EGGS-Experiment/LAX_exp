@@ -15,12 +15,9 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     name = 'sideband_cool_continuous_RAM'
     kernel_invariants = {
-        # DDS configs
-        "profile_ram_729", "profile_ram_854", "_profile_854_default",
-        "ram_addr_start_729","ram_addr_start_854", "num_samples",
-
-        # SBC configuration
-        "sbc_cycles_cont", "sbc_config_list",
+        # DDS & SBC config
+        "profile_ram_729", "profile_ram_854", "_profile_854_default", "ram_addr_start_729",
+        "ram_addr_start_854", "num_samples", "sbc_cycles_cont", "sbc_config_list",
 
         # beam parameters
         "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu", "att_sbc_mu",
@@ -84,19 +81,17 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sbc', override=False)
         self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sbc', override=False)
 
-        # waveform parameters
+        # waveform & timing parameters
         self.ampl_qubit_asf =           self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
                                                            conversion_function=pct_to_asf)
         self.freq_repump_qubit_ftw =    self.get_parameter('freq_repump_qubit_mhz', group='beams.freq_mhz', override=False,
                                                            conversion_function=hz_to_ftw, units=MHz)
-        # timing parameters
         self.time_repump_qubit_mu =     self.get_parameter('time_repump_qubit_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
         self.time_spinpol_mu =          self.get_parameter('time_spinpol_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
 
-        # note: validate inputs after we get dataset parameters so they can be checked
-        self._prepare_argument_checks()
+        self._prepare_argument_checks() # note: validate inputs after we get params so they can be checked
 
 
         '''PREPARE SIDEBAND COOLING'''
@@ -110,20 +105,17 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # calculate DDS register value to set timestep
         self.ram_timestep_val = round(time_sbc_mu / sbc_cycles_cont * time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
-            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM."
-                             "Change either number of samples or adjust SBC time.")
+            raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM. Change either num_samples or SBC time.")
         # reconvert to get actual/correct SBC time for later use
         self.time_sideband_cooling_mu = int64(self.ram_timestep_val / time_cycle_mu_to_ram_step * sbc_cycles_cont)
 
-        # calculate spinpol timings (note: we account for nonzero spinpol time in these delays)
+        # calculate spinpol timings
         self.time_spinpolarization_mu_list = arange(
-            time_per_spinpol_mu,
-            self.time_sideband_cooling_mu - 10000,   # ensure no spinpol within 10us of SBC end
-            time_per_spinpol_mu + self.time_spinpol_mu + 200,  # add 200ns for switch delay
+            32, # some small start time number - 32ns
+            self.time_sideband_cooling_mu - 100000,   # ensure no spinpol within 100us of SBC end
+            time_per_spinpol_mu + self.time_spinpol_mu + 200,  # account for spinpol pulse times & switch delay
             dtype=int64
         )
-        # ensure we do a spinpol at least once at the beginning
-        # self.time_spinpolarization_mu_list = insert(self.time_spinpolarization_mu_list, 0, 16)
 
 
         '''PREPARE RAM WAVEFORM'''
@@ -157,7 +149,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
             raise ValueError("Total sideband cooling mode percentages exceed 100%.")
 
         # todo: give warning of sum of SBC time % is < 100.
-
         # todo: ensure total SBC time is in [100, ???] us
         # todo: ensure SBC time step is in [50, ???] us
         # todo: ensure SBC cycle time is in [???, ???] us
@@ -266,42 +257,22 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         Run sideband cooling via RAM mode.
         """
         '''PREPARE HARDWARE FOR SBC '''
-        # quick bugfix to make this subsequence happy (wrt write_ram issues)
-        self.repump_qubit.on()
-        delay_mu(50)
-        self.repump_qubit.off()
-        delay_mu(50)
+        # # tmp remove
+        # # quick bugfix to make this subsequence happy (wrt write_ram issues)
+        # self.repump_qubit.on()
+        # delay_mu(50)
+        # self.repump_qubit.off()
+        # delay_mu(50)
+        # # tmp remove
 
-        # prepare beams for sideband cooling
         with parallel:
-            # set sideband cooling attenuation for qubit beam
+            # prepare beams for SBC - 729nm
             with sequential:
+                # set SBC waveform
                 self.qubit.set_att_mu(self.att_sbc_mu)
                 self.qubit.set_asf(self.ampl_qubit_asf)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
-            # set sideband cooling profiles for regular beams
-            with sequential:
-                self.repump_qubit.set_profile(self.profile_ram_854)
-                self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
-                # do spin polarization before SBC (per Guggemos' thesis)
-                # self.spin_polarize()
-
-        # # '''SCHEDULE SPINPOL'''
-        # # # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # # # get start reference time
-        # # time_start_mu = now_mu()
-        # #
-        # # # do spin polarizations according to schedule
-        # # for time_spinpol_mu in self.time_spinpolarization_mu_list:
-        # #     at_mu(time_start_mu + time_spinpol_mu)
-        # #     self.spin_polarize()
-
-
-        '''PRIME RAM MODE FOR SBC BEAMS'''
-        # at_mu(time_start_mu + self.time_spinpol_mu + 10000)
-        with parallel:
-            with sequential:
                 # set target RAM profile & start RAM mode
                 self.qubit.cpld.set_profile(self.profile_ram_729)
                 self.qubit.cpld.io_update.pulse_mu(8)
@@ -313,11 +284,13 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                    (1 << 9) | # osk_enable
                                    2 # sdio_input_only + msb_first
                                    )
-                # begin RAM mode and switch on DDS
-                self.qubit.cpld.io_update.pulse_mu(8)
-                self.qubit.on()
 
+            # prepare beams for SBC - 854nm
             with sequential:
+                # set SBC waveform
+                self.repump_qubit.set_ftw(self.freq_repump_qubit_ftw)
+                self.repump_qubit.cpld.io_update.pulse_mu(8)
+
                 # set target RAM profile & start RAM mode
                 self.repump_qubit.cpld.set_profile(self.profile_ram_854)
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
@@ -328,26 +301,34 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                           (1 << 13) |  # phase_autoclear
                                           2 # sdio_input_only + msb_first
                                           )
-                # begin RAM mode and switch on DDS
+
+
+        '''BEGIN SBC'''
+        time_sbc_init_mu = now_mu()    # get start reference time
+
+        # run spin polarizations according to schedule
+        for time_spinpol_mu in self.time_spinpolarization_mu_list:
+            at_mu(time_sbc_init_mu + time_spinpol_mu)
+            self.spin_polarize()
+
+        # turn on SBC beams (after first spinpol)
+        at_mu(time_sbc_init_mu + self.time_spinpol_mu + 10000)
+        with parallel:
+            with sequential:
+                # begin RAM mode and switch on DDS - 729nm
+                self.qubit.cpld.io_update.pulse_mu(8)
+                self.qubit.on()
+            with sequential:
+                # begin RAM mode and switch on DDS - 854nm
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
                 self.repump_qubit.on()
 
-
-        '''SCHEDULE SPINPOL'''
-        # note: we do this here due to difficulties w/empty list for spinpol scheduling
-        # get start reference time
-        time_start_mu = now_mu()
-
-        # do spin polarizations according to schedule
-        for time_spinpol_mu in self.time_spinpolarization_mu_list:
-            at_mu(time_start_mu + time_spinpol_mu)
-            self.spin_polarize()
+        time_sbc_start_mu = now_mu() # get new fiducial time
 
 
         '''FINISH'''
         # stop SBC beams
-        # at_mu(time_start_mu + self.time_spinpol_mu + 200 + self.time_sideband_cooling_mu)
-        at_mu(time_start_mu + self.time_sideband_cooling_mu)
+        at_mu(time_sbc_start_mu + self.time_sideband_cooling_mu)
         with parallel:
             # stop beams via RF switches
             self.qubit.off()
