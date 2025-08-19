@@ -89,7 +89,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                               group='fock_prep')
         self.fock_subsequence = AgilePulseGenerator(
             self, profile_agile=self.profile_729_fock, att_pulse_db=self.att_fock_db,
-            pulse_config=array(self.fock_pulse_config)
+            pulse_config=np.array(self.fock_pulse_config)
         )
         # instantiate motional overlap subsequences
         # note: this arg is going to show up with the rest of overlap_subsequence's arguments

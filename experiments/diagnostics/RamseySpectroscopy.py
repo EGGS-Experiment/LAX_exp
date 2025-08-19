@@ -128,7 +128,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         freq_ramsey_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                        for freq_mhz in list(self.freq_ramsey_mhz_list)])
         phase_ramsey_pow_list = array([self.qubit.turns_to_pow(phas_turn)
-                                       phas_turn in list(self.phase_ramsey_turns_list)])
+                                       for phas_turn in list(self.phase_ramsey_turns_list)])
 
         # linetrigger parameters
         time_linetrig_holdoff_mu_list = array([self.core.seconds_to_mu(time_ms * ms)

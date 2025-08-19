@@ -7,8 +7,6 @@ from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, Sid
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-from extensions.utilities import create_experiment_config
-
 
 class PSRSB(LAXExperiment, Experiment):
     """
@@ -196,7 +194,7 @@ class PSRSB(LAXExperiment, Experiment):
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence
-        _sequence_blocks = np.zeros((1, 3, 2), dtype=float)
+        _sequence_blocks = zeros((1, 3, 2), dtype=float)
 
         # set oscillator amplitudes
         _sequence_blocks[:, 0, 0] = self.ampl_qvsa_pct_config[0]
