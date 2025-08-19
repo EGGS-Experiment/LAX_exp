@@ -212,8 +212,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         )
         # record DMA sequences and get DMA handles to play subsequences
         _initialize_code += _initialize_load_DMA_code
-        # note: final line of kernel_from_string MUST NOT have a "\n" character
-        _initialize_code += "self.core.break_realtime()"
+        _initialize_code += "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
 
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
@@ -247,9 +246,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             if isinstance(obj, LAXDevice):
                 _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
                 _initialize_code += "self.core.break_realtime()\n"
-
-        # note: final line of kernel_from_string MUST NOT have a "\n" character
-        _cleanup_code += "self.core.break_realtime()"
+        _cleanup_code += "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
 
         # create kernel from code string and set as _cleanup_experiment
         cleanup_func = kernel_from_string(["self"], _cleanup_code)
@@ -259,28 +256,38 @@ class LAXExperiment(LAXEnvironment, ABC):
         '''COMPILE MAIN SEQUENCE'''
         # collate main sequence (i.e. everything in run) into a single function to speed up experiment compilation and execution
         _run_main_code = (
-            # initialize sequence
-            # todo: add error handling here, or move into run sequence
+            # run sequence with error handling and regular termination checks
             "self.core.break_realtime()\n"
-            "self._initialize_experiment(self)\n"
-            "self.core.break_realtime()\n"
-            
-            # run sequence with error handling
+
             "try:\n"
+            
+            # check termination & initialize experiment
+            "\tself.core.break_realtime()\n"
+            "\tself.check_termination()\n"
+            "\tself.core.break_realtime()\n"
+            "\tself._initialize_experiment(self)\n"
+            
+            # check termination & run_main
+            "\tself.core.break_realtime()\n"
+            "\tself.check_termination()\n"
+            "\tself.core.break_realtime()\n"
             "\tself.run_main()\n"
+            
+            # handle TerminationRequested exceptions
             "except TerminationRequested:\n"
             "\tself.core.break_realtime()\n"
             "\tprint('\tExperiment successfully terminated.')\n"
             "\tself.core.break_realtime()\n"
             "\tdelay_mu(1000000)\n"
+            
+            # add slack to default case
             "finally:\n"
             "\tself.core.break_realtime()\n"
             
             # cleanup sequence
             "self.core.break_realtime()\n"
             "self._cleanup_experiment(self)\n"
-            # note: final line of kernel_from_string MUST NOT have a "\n" character
-            "self.core.break_realtime()"
+            "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
         )
 
         # create kernel from code string and set as _cleanup_experiment
