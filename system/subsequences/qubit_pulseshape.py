@@ -66,7 +66,7 @@ class QubitPulseShape(LAXSubsequence):
         self.time_pulse_mu = int64(0)    # delay time (holder, for later use)
 
         # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
-        self.time_pulse_mu_to_ram_step = (self.qubit.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
+        self.time_pulse_mu_to_ram_step = (self.qubit.beam.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
 
         '''CALCULATE WAVEFORM'''
         # calculate pulse shape, then normalize and rescale to max amplitude

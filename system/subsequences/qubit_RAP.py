@@ -75,7 +75,7 @@ class QubitRAP(LAXSubsequence):
 
         '''SPECFIY RAM PARAMETERS FOR PULSE SHAPING'''
         # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
-        self.time_pulse_mu_to_ram_step = (self.qubit.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
+        self.time_pulse_mu_to_ram_step = (self.qubit.beam.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
         self.time_pulse_mu_to_drg_step = self.time_pulse_mu_to_ram_step / self.drg_steps_per_ram_step
 
         # prepare ram_writer (b/c only LAXExperiment classes call their own children)

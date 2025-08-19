@@ -17,7 +17,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     kernel_invariants = {
         # DDS & SBC config
         "profile_ram_729", "profile_ram_854", "_profile_854_default", "ram_addr_start_729",
-        "ram_addr_start_854", "num_samples", "sbc_cycles_cont", "sbc_config_list",
+        "ram_addr_start_854", "num_samples", "sbc_config_list",
 
         # beam parameters
         "ampl_qubit_asf", "freq_repump_qubit_ftw", "time_repump_qubit_mu", "time_spinpol_mu", "att_sbc_mu",
@@ -72,10 +72,10 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         '''PREPARE DATASET PARAMETERS'''
         # sideband cooling configuration parameters
         time_sbc_mu =           self.get_parameter('time_sbc_us', group='sbc', override=False,
-                                                   conversion_function=us_to_mu, units=us)
+                                                   conversion_function=us_to_mu)
         time_per_spinpol_mu =   self.get_parameter('time_per_spinpol_us', group='sbc', override=False,
-                                                   conversion_function=us_to_mu, units=us)
-        self.att_sbc_mu =       self.get_parameter('att_sbc_cont_db', group='sbc', override=False,
+                                                   conversion_function=us_to_mu)
+        self.att_sbc_mu =       self.get_parameter('att_sbc_db', group='sbc', override=False,
                                                    conversion_function=att_to_mu, units=dB)
 
         sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sbc', override=False)
@@ -101,7 +101,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.num_samples = sum(mode_time_steps)
 
         # convert timings to multiples of SYNC_CLK (i.e. waveform update clock) period
-        time_cycle_mu_to_ram_step = (self.qubit.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
+        time_cycle_mu_to_ram_step = (self.qubit.beam.sysclk_per_mu / 4) / self.num_samples # SYNC_CLK period is 4x AD9910's SYSCLK
         self.ram_timestep_val = round(time_sbc_mu / sbc_cycles_cont * time_cycle_mu_to_ram_step)
         if (self.ram_timestep_val > ((1 << 16) - 1)) or (self.ram_timestep_val < 1):
             raise ValueError("Invalid RAM timestep in SidebandCoolContinuousRAM. Change either num_samples or SBC time.")
@@ -253,14 +253,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         Run sideband cooling via RAM mode.
         """
         '''PREPARE HARDWARE FOR SBC '''
-        # # tmp remove
-        # # quick bugfix to make this subsequence happy (wrt write_ram issues)
-        # self.repump_qubit.on()
-        # delay_mu(50)
-        # self.repump_qubit.off()
-        # delay_mu(50)
-        # # tmp remove
-
         with parallel:
             # prepare beams for SBC - 729nm
             with sequential:
@@ -357,13 +349,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         """
         Run spin polarization for optical pumping into the correct Zeeman manifold.
         """
-        with parallel:
-            self.probe.on()
-            self.repump_cooling.on()
+        # note: making these parallel really triggers a sequence error
+        self.probe.on()
+        self.repump_cooling.on()
 
         delay_mu(self.time_spinpol_mu)
 
-        with parallel:
-            self.probe.off()
-            self.repump_cooling.off()
+        self.probe.off()
+        self.repump_cooling.off()
 
