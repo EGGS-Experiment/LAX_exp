@@ -272,10 +272,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 (len(self.freq_osc_khz_list) != self._num_phaser_oscs)):
             raise ValueError("Error: phaser oscillator frequency array must be list of length {:d}.".format(self._num_phaser_oscs))
 
-        max_osc_freq_hz = (np.max(list(self.freq_sweep_khz_list)) * kHz +
+        max_osc_freq_hz = (max(list(self.freq_sweep_khz_list)) * kHz +
                            max(self.freq_osc_khz_list) * kHz +
                            (self.freq_global_offset_mhz * MHz))
-        min_osc_freq_hz = (np.min(list(self.freq_sweep_khz_list)) * kHz +
+        min_osc_freq_hz = (min(list(self.freq_sweep_khz_list)) * kHz +
                            max(self.freq_osc_khz_list) * kHz +
                            (self.freq_global_offset_mhz * MHz))
         if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
@@ -299,9 +299,9 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             raise ValueError("Error: phaser oscillator on/off must be a list.")
         elif len(self.osc_ch1_sweep) != self._num_phaser_oscs:
             raise ValueError("Error: only {:d} oscillators to change phase.".format(self._num_phaser_oscs))
-        elif np.max(self.osc_ch1_sweep) > 1:
+        elif max(self.osc_ch1_sweep) > 1:
             raise ValueError("Error: can only turn oscillator on (1)/off (0)")
-        elif np.max(self.osc_ch1_sweep) < 0:
+        elif max(self.osc_ch1_sweep) < 0:
             raise ValueError("Error: can only turn oscillator on (1)/off (0)")
 
     def _prepare_waveform(self) -> TNone:
@@ -488,9 +488,12 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 else:
                     self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.resuscitate()
 
-                # update dataset
+                '''LOOP CLEANUP'''
+                # get results & update dataset
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -500,12 +503,6 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                     time_readout_mu,
                     att_phaser_mu
                 )
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion & detect deaths
-                self.core.break_realtime()
-                self.rescue_subsequence.resuscitate()
-                self.rescue_subsequence.detect_death(counts)
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 50 == 0:
