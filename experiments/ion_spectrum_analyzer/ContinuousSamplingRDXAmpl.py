@@ -197,7 +197,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         # check that phaser oscillator amplitude config is valid
         if (not isinstance(self.ampl_osc_frac_list, list)) or (len(self.ampl_osc_frac_list) != self._num_phaser_oscs):
             raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
-        elif np.sum(self.ampl_osc_frac_list) >= 100.:
+        elif sum(self.ampl_osc_frac_list) >= 100.:
             raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
 
         # check that phaser oscillator phase arrays are valid

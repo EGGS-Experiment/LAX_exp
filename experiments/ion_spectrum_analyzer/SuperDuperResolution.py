@@ -37,12 +37,16 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
-        '_num_phaser_oscs'
+        '_num_phaser_oscs', 'freq_readout_ftw_list',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=70, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config", BooleanValue(default=True))
+        self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500),
+                              tooltip="Loop over the same config for a given number of sub_repetitions."
+                                      "Readout values are swept over for each sub_repetition.")
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="Sideband Ratio"))
 
         self._num_phaser_oscs = 4   # number of phaser oscillators in use
@@ -127,13 +131,13 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                       "in this experiment.")
 
         # phaser - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.shape'.format(_argstr))
         self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
 
         # phaser - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr))
@@ -206,13 +210,12 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # configure readout method
         if self.readout_type == 'RAP':
             self.enable_RAP = True
-            freq_sideband_readout_ftw_list =    np.array([self.freq_rap_center_ftw], dtype=np.int32)
-            time_readout_mu_list =              np.array([self.time_rap_mu], dtype=np.int64)
+            self.freq_readout_ftw_list = np.array([self.freq_rap_center_ftw], dtype=np.int32)
+            time_readout_mu_list = [self.time_rap_mu]
         elif self.readout_type == 'Sideband Ratio':
             self.enable_RAP = False
-            freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-            time_readout_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                             for time_us in self.time_readout_us_list])
+            self.freq_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+            time_readout_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_readout_us_list]
         else:
             raise ValueError("Invalid readout type. Must be one of (Sideband Ratio, RAP).")
 
@@ -245,7 +248,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         '''EXPERIMENT CONFIGURATION'''
         self.config_experiment_list = create_experiment_config(
-            freq_sideband_readout_ftw_list, freq_eggs_carrier_hz_list, self.freq_superresolution_sweep_hz_list,
+            freq_eggs_carrier_hz_list, self.freq_superresolution_sweep_hz_list,
             waveform_num_list, list(self.phase_eggs_heating_ch1_turns_list),
             time_readout_mu_list,
             config_type=float, shuffle_config=True
@@ -425,11 +428,14 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_experiment_list),
+        return (self.repetitions * self.sub_repetitions *
+                len(self.config_experiment_list) * len(self.freq_readout_ftw_list),
                 8)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
@@ -457,18 +463,17 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.pulse_shaper.waveform_load() # load waveform DMA handles
         _loop_iter = 0  # used to check_termination more frequently
 
-        # MAIN LOOP
+        '''MAIN LOOP'''
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
                 # extract values from config list
-                freq_readout_ftw =  np.int32(config_vals[0])
-                carrier_freq_hz =   config_vals[1]
-                freq_sweep_hz =     config_vals[2]
-                waveform_num =      np.int32(config_vals[3])
-                phase_ch1_turns =   config_vals[4]
-                time_readout_mu =   np.int64(config_vals[5])
+                carrier_freq_hz =   config_vals[0]
+                freq_sweep_hz =     config_vals[1]
+                waveform_num =      np.int32(config_vals[2])
+                phase_ch1_turns =   config_vals[3]
+                time_readout_mu =   np.int64(config_vals[4])
 
                 # get corresponding waveform parameters and pulseshaper ID from the index
                 waveform_params = self._waveform_param_list[waveform_num]
@@ -483,52 +488,59 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                     # oscillator frequencies
                     [freq_update_list[0], freq_update_list[1],
                      freq_update_list[2], freq_update_list[3], 0.],
+                    # CH1 phase (via DUC)
                     phase_ch1_turns
                 )
 
-                # set qubit readout frequency
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                self.core.break_realtime()
 
-                '''STATE PREPARATION'''
-                # initialize ion in S-1/2 state & sideband cool
-                self.initialize_subsequence.run_dma()
-                self.sidebandcool_subsequence.run_dma()
+                '''SUB-REPETITION IMPLEMENTATION'''
+                for _subrep_num in range(self.sub_repetitions):
+                    # sub-repetitions requires we run a bunch of sub_reps at the same config
+                    # however, we still want to sweep the readout parameters
+                    for freq_readout_ftw in self.freq_readout_ftw_list:
 
-                '''QVSA PULSE'''
-                self.phaser_run(phaser_waveform)
+                        # configure readout
+                        self.core.break_realtime()
+                        if not self.enable_RAP:
+                            self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                              profile=self.profile_729_sb_readout,
+                                              phase_mode=PHASE_MODE_CONTINUOUS)
+                            delay_mu(25000)
 
-                '''READOUT'''
-                if self.enable_RAP:
-                    self.qubit.set_att_mu(self.att_rap_mu)
-                    self.rap_subsequence.run_rap(time_readout_mu)
-                else:
-                    self.sidebandreadout_subsequence.run_time(time_readout_mu)
-                self.readout_subsequence.run_dma()
+                        '''STATE PREPARATION'''
+                        self.initialize_subsequence.run_dma()
+                        self.sidebandcool_subsequence.run_dma()
 
-                '''LOOP CLEANUP'''
-                # resuscitate ion & store results
-                self.rescue_subsequence.resuscitate()
+                        '''QVSA PULSE'''
+                        self.phaser_run(phaser_waveform)
 
-                counts = self.readout_subsequence.fetch_count()
-                self.rescue_subsequence.detect_death(counts)
-                self.update_results(
-                    freq_readout_ftw,
-                    counts,
-                    carrier_freq_hz,
-                    freq_sweep_hz,
-                    # note: expand waveform_params manually b/c coredevice doesn't allow variadics
-                    waveform_params[0],
-                    waveform_params[1],
-                    phase_ch1_turns,
-                    time_readout_mu
-                )
+                        '''READOUT'''
+                        if self.enable_RAP:
+                            self.qubit.set_att_mu(self.att_rap_mu)
+                            self.rap_subsequence.run_rap(time_readout_mu)
+                        else:
+                            self.sidebandreadout_subsequence.run_time(time_readout_mu)
+                        self.readout_subsequence.run_dma()
+                        self.rescue_subsequence.resuscitate()
 
-                # check termination more frequently in case reps are low
-                if _loop_iter % 50 == 0:
-                    self.check_termination()
-                _loop_iter += 1
+                        '''LOOP CLEANUP'''
+                        counts = self.readout_subsequence.fetch_count()
+                        self.rescue_subsequence.detect_death(counts)
+                        self.update_results(
+                            freq_readout_ftw,
+                            counts,
+                            carrier_freq_hz,
+                            freq_sweep_hz,
+                            waveform_params[0], # note: manually expand waveform_params b/c no variadics in kernel
+                            waveform_params[1],
+                            phase_ch1_turns,
+                            time_readout_mu
+                        )
+
+                        # check termination more frequently in case reps are low
+                        if _loop_iter % 50 == 0:
+                            self.check_termination()
+                        _loop_iter += 1
 
             # rescue ion as needed & check termination
             self.core.break_realtime()
