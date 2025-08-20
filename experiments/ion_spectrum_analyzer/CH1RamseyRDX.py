@@ -11,8 +11,6 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper2 import PhaserPulseShaper2, PULSESHAPER_MAX_WAVEFORMS
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
-# todo: make att sweepable to simplify single channel diagnostics
-
 
 class CH1RamseyRDX(LAXExperiment, Experiment):
     """
@@ -28,7 +26,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         'waveform_index_to_pulseshaper_vals0', 'waveform_index_to_pulseshaper_vals1',
 
         # hardware values - readout
-        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
+        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu', 'freq_readout_ftw_list',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
@@ -36,12 +34,16 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
-        '_num_phaser_oscs'
+        '_num_phaser_oscs',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=60, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("randomize_config", BooleanValue(default=True))
+        self.setattr_argument("sub_repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=500),
+                              tooltip="Loop over the same config for a given number of sub_repetitions."
+                                      "Readout values are swept over for each sub_repetition.")
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
 
         self._num_phaser_oscs = 5   # number of phaser oscillators in use
@@ -121,13 +123,13 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                         group="{}.freq_phase_sweep".format(_argstr))
 
         # RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.shape'.format(_argstr))
         self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
-                              group='{}.pulse_shaping'.format(_argstr))
+                              group='{}.shape'.format(_argstr))
 
         # custom waveform specification - general
         self.setattr_argument("time_heating_us",   NumberValue(default=1e3, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
@@ -160,7 +162,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument('ampl_ch1_stage_1',   PYONValue([40., 40., 5, 0., 0.]), group="{}.waveform".format(_argstr),
                               tooltip="Amplitudes for CH1 oscillators during second stage of Ramsey.")
         self.setattr_argument('osc_ch1_sweep', PYONValue([0., 0., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
-                              tooltip="Sweep array when target_phase_sweep is set to 'ch1'. Each oscillator ")
+                              tooltip="Sweep array when target_phase_sweep is set to 'ch1'."
+                                      "The phase sweep value is multiplied by this array for each oscillator on CH1 only.")
 
         # get relevant devices
         self.setattr_device("qubit")
@@ -182,8 +185,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         '''SANITIZE & VALIDATE INPUTS'''
         self._prepare_argument_checks()
 
+
         '''SUBSEQUENCE PARAMETERS'''
-        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
@@ -198,18 +201,17 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # configure readout method
         if self.readout_type == 'RAP':
             self.enable_RAP = True
-            freq_sideband_readout_ftw_list =    np.array([self.freq_rap_center_ftw], dtype=np.int32)
-            time_readout_mu_list =              np.array([self.time_rap_mu], dtype=np.int64)
+            self.freq_readout_ftw_list = np.array([self.freq_rap_center_ftw], dtype=np.int32)
+            time_readout_mu_list = [self.time_rap_mu]
         elif self.readout_type == 'Sideband Ratio':
             self.enable_RAP = False
-            freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-            time_readout_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                             for time_us in self.time_readout_us_list])
+            self.freq_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+            time_readout_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_readout_us_list]
         else:
             raise ValueError("Invalid readout type. Must be one of (Sideband Ratio, RAP).")
 
+
         '''HARDWARE VALUES - CONFIG'''
-        # convert hardware values to convenient units
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
         # ensure att_heating_mu_list is rounded to 0.5dB (min step size of atts) to prevent unnecessary spamming
         att_heating_mu_list = set(att_to_mu(round(att_db * 2) / 2 * dB) for att_db in self.att_heating_db_list)
@@ -223,6 +225,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.osc_ch1_sweep = np.array(self.osc_ch1_sweep)
         self.freq_sweep_arr = np.array(self.freq_sweep_arr, dtype=float)
 
+
         '''CONFIGURE SWEEP BEHAVIOR'''
         # create pre-declared phase_offsets list as workaround for artiq stack memory issue
         # see: https://github.com/m-labs/artiq/issues/1520
@@ -230,13 +233,14 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         for i, phase_val_turns in enumerate(self.phase_sweep_turns_list):
             self.phase_offsets[i, :] = self.phase_osc_ch1_offset_turns + phase_val_turns * self.osc_ch1_sweep
 
+
         '''CREATE EXPERIMENT CONFIG'''
         # map phase to index to facilitate waveform recording
         self.waveform_index_to_phase_sweep_turns = np.arange(len(self.phase_sweep_turns_list))
 
         # create config data structure
         self.config_experiment_list = create_experiment_config(
-            freq_sideband_readout_ftw_list, freq_carrier_hz_list,
+            freq_carrier_hz_list,
             self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
             time_readout_mu_list, att_heating_mu_list,
             shuffle_config=True,
@@ -256,7 +260,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         if ampls_are_list:
             if any((len(ampl_arg) != self._num_phaser_oscs for ampl_arg in ampl_arg_tuple)):
                 raise ValueError("Error: phaser oscillator amplitude arrays must have length {:d}.".format(self._num_phaser_oscs))
-            elif any((np.sum(ampl_arg) >= 100. for ampl_arg in ampl_arg_tuple)):
+            elif any((sum(ampl_arg) >= 100. for ampl_arg in ampl_arg_tuple)):
                 raise ValueError("Error: phaser oscillator amplitudes must sum < 100.")
         else:
             raise ValueError("Error: phaser oscillator amplitude arrays must be lists.")
@@ -406,11 +410,14 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_experiment_list),
+        return (self.repetitions * self.sub_repetitions *
+                len(self.config_experiment_list) * len(self.freq_readout_ftw_list),
                 7)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record general subsequences onto DMA
@@ -438,18 +445,17 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.pulse_shaper.waveform_load() # load waveform DMA handles
         _loop_iter = 0 # used to check_termination more frequently
 
-        # MAIN LOOP
+        '''MAIN LOOP'''
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
                 # extract values from config list
-                freq_readout_ftw =  np.int32(config_vals[0])
-                carrier_freq_hz =   config_vals[1]
-                freq_sweep_hz =     config_vals[2]
-                phase_sweep_idx =   np.int32(config_vals[3])
-                time_readout_mu =   np.int64(config_vals[4])
-                att_phaser_mu =     config_vals[5]
+                carrier_freq_hz =   config_vals[0]
+                freq_sweep_hz =     config_vals[1]
+                phase_sweep_idx =   np.int32(config_vals[2])
+                time_readout_mu =   np.int64(config_vals[3])
+                att_phaser_mu =     config_vals[4]
 
                 # get corresponding phase and waveform ID from the index
                 phase_sweep_turns = self.phase_sweep_turns_list[phase_sweep_idx]
@@ -467,47 +473,56 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                     self.phase_global_ch1_duc_turns
                 )
 
-                # set qubit readout frequency
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_sb_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                self.core.break_realtime()
+
+                '''SUB-REPETITION IMPLEMENTATION'''
+                for _subrep_num in range(self.sub_repetitions):
+                    # sub-repetitions requires we run a bunch of sub_reps at the same config
+                    # however, we still want to sweep the readout parameters
+                    for freq_readout_ftw in self.freq_readout_ftw_list:
+
+                        # configure readout
+                        self.core.break_realtime()
+                        if not self.enable_RAP:
+                            self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                              profile=self.profile_729_sb_readout,
+                                              phase_mode=PHASE_MODE_CONTINUOUS)
+                            delay_mu(25000)
 
 
-                '''STATE PREPARATION'''
-                # initialize ion in S-1/2 state & sideband cool
-                self.initialize_subsequence.run_dma()
-                self.sidebandcool_subsequence.run_dma()
+                        '''STATE PREPARATION'''
+                        self.initialize_subsequence.run_dma()
+                        self.sidebandcool_subsequence.run_dma()
 
-                '''HEATING'''
-                self.phaser_run(waveform_id, att_phaser_mu)
+                        '''HEATING'''
+                        self.phaser_run(waveform_id, att_phaser_mu)
 
-                '''READOUT'''
-                if self.enable_RAP:
-                    self.qubit.set_att_mu(self.att_rap_mu)
-                    self.rap_subsequence.run_rap(time_readout_mu)
-                else:
-                    self.sidebandreadout_subsequence.run_time(time_readout_mu)
-                self.readout_subsequence.run_dma()
-                self.rescue_subsequence.resuscitate()
+                        '''READOUT'''
+                        if self.enable_RAP:
+                            self.qubit.set_att_mu(self.att_rap_mu)
+                            self.rap_subsequence.run_rap(time_readout_mu)
+                        else:
+                            self.sidebandreadout_subsequence.run_time(time_readout_mu)
+                        self.readout_subsequence.run_dma()
+                        self.rescue_subsequence.resuscitate()
 
-                '''LOOP CLEANUP'''
-                # get results & update dataset
-                counts = self.readout_subsequence.fetch_count()
-                self.rescue_subsequence.detect_death(counts)
-                self.update_results(
-                    freq_readout_ftw,
-                    counts,
-                    carrier_freq_hz,
-                    freq_sweep_hz,
-                    phase_sweep_turns,
-                    time_readout_mu,
-                    att_phaser_mu
-                )
+                        '''LOOP CLEANUP'''
+                        # get results & update dataset
+                        counts = self.readout_subsequence.fetch_count()
+                        self.rescue_subsequence.detect_death(counts)
+                        self.update_results(
+                            freq_readout_ftw,
+                            counts,
+                            carrier_freq_hz,
+                            freq_sweep_hz,
+                            phase_sweep_turns,
+                            time_readout_mu,
+                            att_phaser_mu
+                        )
 
-                # check termination more frequently in case reps are low
-                if _loop_iter % 50 == 0:
-                    self.check_termination()
-                _loop_iter += 1
+                        # check termination more frequently in case reps are low
+                        if _loop_iter % 50 == 0:
+                            self.check_termination()
+                        _loop_iter += 1
 
             # rescue ion as needed and support graceful termination
             self.core.break_realtime()
@@ -529,8 +544,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.phaser_eggs.phaser_setup(att_mu, att_mu)
 
         # RUN
-        # reset DUC phase to start DUC deterministically
-        self.phaser_eggs.reset_duc_phase()
+        self.phaser_eggs.reset_duc_phase() # reset DUC for deterministic start phase
         self.pulse_shaper.waveform_playback(waveform_id)
 
         # STOP
@@ -546,7 +560,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         """
         # record phaser sequences onto DMA for each RSB phase
         for i in range(len(self.phase_sweep_turns_list)):
-            # get waveform for given parameters
+            # get waveforms for given parameters
             # note: use sync RPC to reduce significant overhead of direct data transfer
             _wav_data_ampl0, _wav_data_phas0, _wav_data_time0 = self._get_compiled_waveform_ch0(i)
             _wav_data_ampl1, _wav_data_phas1, _wav_data_time1 = self._get_compiled_waveform_ch1(i)
@@ -568,7 +582,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         """
         Return compiled waveform values - CH0.
         By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
-            speeding up experiment compilation and transfer to kasli.s
+            speeding up experiment compilation and transfer to Kasli.
         :param wav_idx: the index of the compiled waveform to retrieve.
         """
         return self.waveform_index_to_pulseshaper_vals0[wav_idx]
