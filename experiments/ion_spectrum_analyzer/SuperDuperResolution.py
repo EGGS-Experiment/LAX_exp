@@ -249,7 +249,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             freq_eggs_carrier_hz_list, self.freq_superresolution_sweep_hz_list,
             waveform_num_list, list(self.phase_eggs_heating_ch1_turns_list),
             time_readout_mu_list,
-            config_type=float, shuffle_config=True
+            config_type=float, shuffle_config=self.randomize_config
         )
 
         # configure waveform via pulse shaper & spin echo wizard

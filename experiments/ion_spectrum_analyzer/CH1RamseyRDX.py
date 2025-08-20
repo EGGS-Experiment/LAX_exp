@@ -243,7 +243,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             freq_carrier_hz_list,
             self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
             time_readout_mu_list, att_heating_mu_list,
-            shuffle_config=True,
+            shuffle_config=self.randomize_config,
             config_type=np.int32
         )
 
