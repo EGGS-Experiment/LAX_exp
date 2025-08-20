@@ -92,8 +92,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                         ],
                                                                         global_min=0.005, global_max=4800, global_step=1,
                                                                         unit="MHz", scale=1, precision=6
-                                                                    ), group="{}.freq_phase_sweep".format(_argstr))
-        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]), group="{}.freq_phase_sweep".format(_argstr),
+                                                                    ), group="{}.freq_phase".format(_argstr))
+        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]), group="{}.freq_phase".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -105,8 +105,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                             ],
                                                                             global_min=-10000, global_max=10000, global_step=10,
                                                                             unit="kHz", scale=1, precision=6
-                                                                        ), group="{}.freq_phase_sweep".format(_argstr))
-        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]), group="{}.freq_phase_sweep".format(_argstr),
+                                                                        ), group="{}.freq_phase".format(_argstr))
+        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]), group="{}.freq_phase".format(_argstr),
                               tooltip="Defines how oscillator phases should be adjusted for each value in phase_superresolution_sweep_turns_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -117,7 +117,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                             ],
                                                                             global_min=0.0, global_max=1.0, global_step=1,
                                                                             unit="turns", scale=1, precision=3
-                                                                        ), group="{}.freq_phase_sweep".format(_argstr))
+                                                                        ), group="{}.freq_phase".format(_argstr))
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",  Scannable(
                                                                         default=[
                                                                             ExplicitScan([0.]),
@@ -125,7 +125,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                         ],
                                                                         global_min=0.0, global_max=1.0, global_step=1,
                                                                         unit="turns", scale=1, precision=3
-                                                                    ), group="{}.freq_phase_sweep".format(_argstr),
+                                                                    ), group="{}.freq_phase".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC."
                                       "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden"
                                       "in this experiment.")
@@ -228,22 +228,20 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         freq_eggs_carrier_hz_list = np.array(list(self.freq_eggs_heating_carrier_mhz_list)) * MHz
         self.freq_superresolution_sweep_hz_list = np.array(list(self.freq_superresolution_sweep_khz_list)) * kHz
         self.freq_superresolution_osc_base_hz_list = np.array(self.freq_superresolution_osc_khz_list) * kHz + self.freq_global_offset_hz
-        self.phase_superresolution_sweep_turns_list = np.array(list(self.phase_superresolution_sweep_turns_list))
-        self.time_psk_delay_us_list = np.array(list(self.time_psk_delay_us_list))
+        self.phase_superresolution_sweep_turns_list = list(self.phase_superresolution_sweep_turns_list)
         self.freq_sweep_arr = np.array(self.freq_sweep_arr, dtype=float)
         self.phase_sweep_arr = np.array(self.phase_sweep_arr, dtype=float)
 
-        # map waveform to index to facilitate waveform recording
+        # collate waveform sweep parameters into a list for later batch compilation
         if self.enable_phase_shift_keying and self.enable_psk_delay:
-            waveform_num_list = np.arange(len(self.phase_superresolution_sweep_turns_list) *
-                                          len(self.time_psk_delay_us_list))
-            self._waveform_param_list = create_experiment_config(self.phase_superresolution_sweep_turns_list,
-                                                                 self.time_psk_delay_us_list,
-                                                                 shuffle_config=False,
-                                                                 config_type=float)
+            time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
         else:
-            waveform_num_list = np.arange(len(self.phase_superresolution_sweep_turns_list))
-            self._waveform_param_list = self.phase_superresolution_sweep_turns_list
+            time_psk_delay_us_list_dj = [0]
+        self._waveform_param_list = create_experiment_config(self.phase_superresolution_sweep_turns_list,
+                                                             time_psk_delay_us_list_dj,
+                                                             shuffle_config=False,
+                                                             config_type=float)
+        waveform_num_list = np.arange(len(self._waveform_param_list))
 
 
         '''EXPERIMENT CONFIGURATION'''
@@ -332,8 +330,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         '''PREPARE WAVEFORM COMPILATION'''
         self.waveform_index_to_compiled_wav = list() # store compiled waveform values
         # note: waveform_index_to_pulseshaper_id is NOT kernel_invariant b/c gets updated in phaser_record
-        self.waveform_index_to_pulseshaper_id = np.zeros(len(self._waveform_param_list), dtype=np.int32)
-        # store waveform ID linked to DMA sequence
+        self.waveform_index_to_pulseshaper_id = np.zeros(len(self._waveform_param_list), dtype=np.int32) # store waveform ID linked to DMA sequence
 
         # calculate block timings and scale amplitudes for ramsey-ing
         num_psk_blocks = len(self.phase_osc0_psk_turns)

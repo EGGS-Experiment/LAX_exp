@@ -92,8 +92,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group="{}.freq_phase_sweep".format(_argstr))
-        self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]), group="{}.freq_phase_sweep".format(_argstr),
+                                                            ), group="{}.c".format(_argstr))
+        self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]), group="{}.freq_phase".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -104,10 +104,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                             ],
                                                             global_min=-10000, global_max=10000, global_step=10,
                                                             unit="kHz", scale=1, precision=6
-                                                        ), group = "{}.freq_phase_sweep".format(_argstr))
+                                                        ), group = "{}.freq_phase".format(_argstr))
 
         self.setattr_argument("target_phase_sweep", EnumerationValue(['osc0', 'osc1', 'osc2', 'osc3', 'osc4', 'ch1'], default='osc0'),
-                              group = "{}.freq_phase_sweep".format(_argstr),
+                              group = "{}.freq_phase".format(_argstr),
                               tooltip="Phase sweep is applied to BOTH Ramsey stages.")
         self.setattr_argument("phase_sweep_turns_list", Scannable(
                                                             default=[
@@ -117,10 +117,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                             ],
                                                             global_min=0.0, global_max=1.0, global_step=1,
                                                             unit="turns", scale=1, precision=3
-                                                        ), group = "{}.freq_phase_sweep".format(_argstr))
+                                                        ), group = "{}.freq_phase".format(_argstr))
         self.setattr_argument("phase_global_ch1_duc_turns", NumberValue(0., min=0.0, max=1.0, step=1,
                                                                         unit="turns", scale=1, precision=3),
-                                                                        group="{}.freq_phase_sweep".format(_argstr))
+                                                                        group="{}.freq_phase".format(_argstr))
 
         # RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.shape'.format(_argstr))
