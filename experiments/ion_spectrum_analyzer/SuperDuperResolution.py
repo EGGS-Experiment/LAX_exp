@@ -153,8 +153,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                       "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us_list", Scannable(
                                                       default=[
-                                                          ExplicitScan([26.11]),
-                                                          RangeScan(10, 1000, 100, randomize=True),
+                                                          ExplicitScan([1000.]),
+                                                          RangeScan(10, 1000, 20, randomize=True),
                                                       ],
                                                       global_min=1, global_max=100000, global_step=1,
                                                       unit="us", scale=1, precision=5
