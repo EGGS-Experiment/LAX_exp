@@ -16,7 +16,9 @@ class PhaserPulseShaper(LAXEnvironment):
     name = 'Phaser Pulse Shaper'
     kernel_invariants = {
         "t_max_phaser_update_rate_mu", "_phase_offsets_turns",
-        "_dma_names"
+        "_dma_names",
+
+        "phas_ch1_osc_turns_arr", "ampl_ch1_osc_scale_arr",
     }
 
     def build(self, phase_offsets_turns=array([0., 0., 0., 0., 0.])):
@@ -61,6 +63,23 @@ class PhaserPulseShaper(LAXEnvironment):
 
         # store number of waveforms recorded
         self._num_waveforms = 0
+
+        # get CH1 adjustment values per oscillator
+        self.phas_ch1_osc_turns_arr = self.get_parameter('phas_ch1_osc_turns_arr', group='eggs.ch1', override=False)
+        if not all((
+            isinstance(self.phas_ch1_osc_turns_arr, list),
+            len(self.phas_ch1_osc_turns_arr) == 5,
+            (isinstance(val, (int, float)) for val in self.phas_ch1_osc_turns_arr)
+        )):
+            raise ValueError("Invalid phas_ch1_osc_turns_arr specified in dataset manager ({:}).".format(self.phas_ch1_osc_turns_arr))
+
+        self.ampl_ch1_osc_scale_arr = array(self.get_parameter('ampl_ch1_osc_scale_arr', group='eggs.ch1', override=False))
+        if not all((
+            isinstance(self.ampl_ch1_osc_scale_arr, list),
+            len(self.ampl_ch1_osc_scale_arr) == 5,
+            (isinstance(val, (int, float)) for val in self.ampl_ch1_osc_scale_arr)
+        )):
+            raise ValueError("Invalid ampl_ch1_osc_scale_arr specified in dataset manager ({:}).".format(self.ampl_ch1_osc_scale_arr))
 
 
     '''
@@ -124,8 +143,7 @@ class PhaserPulseShaper(LAXEnvironment):
                 self._waveform_point(ampl_frac_list[i], phas_turns_list[i])
                 # set variable delay
                 delay_mu(sample_interval_mu_list[i])
-        # add slack after DMA recording
-        self.core.break_realtime()
+        self.core.break_realtime() # add slack after DMA recording
 
         # increment waveform counter and return waveform index
         self._num_waveforms += 1
@@ -161,7 +179,7 @@ class PhaserPulseShaper(LAXEnvironment):
                     clr=0
                 )
                 self.phaser_eggs.channel[1].oscillator[osc_num].set_amplitude_phase(
-                    amplitude=ampl_frac_list[osc_num],
+                    amplitude=ampl_frac_list[osc_num] * self.ampl_ch1_osc_scale_arr[osc_num], # adjust CH1 ampls
                     phase=phas_turns_list[osc_num] + self._phase_offsets_turns[osc_num],
                     clr=0
                 )
