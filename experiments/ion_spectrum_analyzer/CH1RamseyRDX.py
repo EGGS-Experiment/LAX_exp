@@ -92,7 +92,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group="{}.c".format(_argstr))
+                                                            ), group="{}.freq_phase".format(_argstr))
         self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]), group="{}.freq_phase".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
