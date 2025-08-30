@@ -466,17 +466,27 @@ class EGGSQLS(LAXExperiment, Experiment):
         Set up core phaser functionality and record the pulse-shaped waveforms.
         Should be run during initialize_experiment.
         """
-        # record phaser sequences onto DMA for each BSB phase
+        # record phaser sequences onto DMA for each waveform parameter
         for i in range(len(self.phase_eggs_qls_bsb_turns_list)):
-            # get waveform for given BSB phase
-            _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_index_to_pulseshaper_vals[i]
-            self.core.break_realtime()
+            # get waveform for given parameters
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(i)
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-            _wav_idx = self.pulse_shaper.waveform_record(_wav_data_ampl, _wav_data_phas, _wav_data_time)
-            self.waveform_index_to_pulseshaper_id[i] = _wav_idx
-            self.core.break_realtime()
+            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
+                _wav_data_ampl, _wav_data_phas, _wav_data_time
+            )
+
+    @rpc
+    def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                 TArray(TFloat, 2),
+                                                                 TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to Kasli.
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        """
+        return self.waveform_index_to_pulseshaper_vals[wav_idx]
 
 
     '''
