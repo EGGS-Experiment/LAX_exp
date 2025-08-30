@@ -1,5 +1,5 @@
 from artiq.experiment import *
-from numpy import zeros, int32, arange, array, nan
+from numpy import zeros, arange, array, nan
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.extensions import *
@@ -15,7 +15,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
     name = 'Imaging Alignment'
     kernel_invariants = {
         # conversions, counters etc.
-        "repetitions", "_iter_repetitions", "_iter_signal", "_iter_background",
+        "repetitions", "_iter_signal", "_iter_background",
 
         # timing
         "time_slack_us", "time_per_point_s", "time_per_point_mu", "time_slack_mu", "time_sample_mu",
@@ -41,9 +41,9 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_argument('time_sample_us',     NumberValue(default=3000, precision=1, step=500, min=100, max=100000, scale=1., unit="us"),
                               group='readout')
         self.setattr_argument("freq_readout_mhz",   NumberValue(default=108., precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
-                              group='cooling')
+                              group='readout')
         self.setattr_argument("ampl_readout_pct",   NumberValue(default=42., precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
-                              group='cooling')
+                              group='readout')
 
         # relevant devices
         self.setattr_device('pump')
@@ -51,9 +51,11 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
 
+        # magic numbers
+        self.time_slack_us = 2 # determined empirically
+
     def prepare_experiment(self):
         # convert relevant values to machine units
-        self.time_slack_us =    2   # determined empirically
         self.time_per_point_s = ((self.time_slack_us * us + self.time_sample_us * us) *
                                  (self.signal_samples_per_point + self.background_samples_per_point))
 
@@ -62,19 +64,13 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.time_per_point_mu =    self.core.seconds_to_mu(self.time_per_point_s)
 
         self.freq_readout_ftw = self.pump.frequency_to_ftw(self.freq_readout_mhz * MHz)
-        self.ampl_readout_asf = self.pump.frequency_to_ftw(self.ampl_readout_pct / 100.)
+        self.ampl_readout_asf = self.pump.amplitude_to_asf(self.ampl_readout_pct / 100.)
 
         # calculate number of repetitions
-        self.repetitions =          round(self.time_total_s / self.core.mu_to_seconds(self.time_per_point_mu))
-
-        # create holder variable to store averaged counts
-        self._counts_signal =       int32(0)
-        self._counts_background =   int32(0)
-
-        # declare the loop iterators ahead of time to reduce overhead
-        self._iter_repetitions =    arange(self.repetitions)
-        self._iter_signal =         arange(self.signal_samples_per_point)
-        self._iter_background =     arange(self.background_samples_per_point)
+        self.repetitions =      round(self.time_total_s / self.core.mu_to_seconds(self.time_per_point_mu))
+        # predeclare loop iterators to reduce overhead
+        self._iter_signal =     arange(self.signal_samples_per_point)
+        self._iter_background = arange(self.background_samples_per_point)
 
     @rpc
     def initialize_plotting(self) -> TNone:
@@ -122,8 +118,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # prepare plotting
-        # note: do it here instead of prepare to prevent overriding other experiments
+        # prepare plotting here to prevent interference with other experiments
         self.initialize_plotting()
         self.core.break_realtime()
 
@@ -140,7 +135,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # activate doppler repump beam
             self.repump_cooling.on()
 
-            # get signal counts
+            # batch signal counts
             for _ in self._iter_signal:
                 self.pmt.count(self.time_sample_mu)
                 delay_mu(self.time_slack_mu)
@@ -150,7 +145,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
             # disable doppler repump beam
             self.repump_cooling.off()
 
-            # get background counts
+            # batch background counts
             for _ in self._iter_background:
                 self.pmt.count(self.time_sample_mu)
                 delay_mu(self.time_slack_mu)
@@ -162,27 +157,25 @@ class ImagingAlignment(LAXExperiment, Experiment):
         _handle_alignment_background =  self.core_dma.get_handle('_PMT_ALIGNMENT_BACKGROUND')
 
         # MAIN LOOP
-        for num_rep in self._iter_repetitions:
+        for num_rep in range(self.repetitions):
             # clear holder variables
-            self._counts_signal =       0
-            self._counts_background =   0
-            self.core.break_realtime()
+            _counts_signal =       0
+            _counts_background =   0
 
-            # get signal
+            # run signal sequence then batch retrieve counts
+            self.core.break_realtime()
             self.core_dma.playback_handle(_handle_alignment_signal)
-            # retrieve signal counts
             for _ in self._iter_signal:
-                self._counts_signal += self.pmt.fetch_count()
-            self.core.break_realtime()
+                _counts_signal += self.pmt.fetch_count()
 
-            # get background
+            # run background sequence then batch retrieve counts
+            self.core.break_realtime()
             self.core_dma.playback_handle(_handle_alignment_background)
-            # retrieve background counts
             for _ in self._iter_background:
-                self._counts_background += self.pmt.fetch_count()
+                _counts_background += self.pmt.fetch_count()
 
             # update dataset & periodically check termination
-            self.update_results(num_rep, self._counts_signal, self._counts_background)
+            self.update_results(num_rep, _counts_signal, _counts_background)
             if (num_rep % 10) == 0:
                 self.check_termination()
 

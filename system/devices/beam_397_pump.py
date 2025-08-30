@@ -19,6 +19,7 @@ class Beam397Pump(LAXDevice):
     }
     kernel_invariants = {
         "sw", "cpld",
+
         "freq_cooling_ftw", "freq_readout_ftw", "freq_rescue_ftw",
         "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf",
 
@@ -55,11 +56,11 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # set waveforms for cooling, readout, and rescue
-        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=self.profile_cooling, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
-        self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf, profile=self.profile_readout, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
-        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=2, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.set_mu(self.freq_rescue_ftw, asf=self.ampl_rescue_asf, profile=self.profile_rescue, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
@@ -113,7 +114,6 @@ class Beam397Pump(LAXDevice):
     def rescue(self) -> TNone:
         """
         Set rescue profile.
-        todo: document
         """
         self.cpld.set_profile(self.profile_rescue)
         self.cpld.io_update.pulse_mu(8)

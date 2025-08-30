@@ -1,6 +1,6 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+from numpy import int32, int64, array, zeros, copy, arange, mean
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -192,7 +192,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
-        self.pulse_shaper = PhaserPulseShaper2(self, np.array(self.phase_osc_ch1_offset_turns))
+        self.pulse_shaper = PhaserPulseShaper2(self, array(self.phase_osc_ch1_offset_turns))
 
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
@@ -203,7 +203,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # configure readout method
         if self.readout_type == 'RAP':
             self.enable_RAP = True
-            self.freq_readout_ftw_list = np.array([self.freq_rap_center_ftw], dtype=np.int32)
+            self.freq_readout_ftw_list = array([self.freq_rap_center_ftw], dtype=int32)
             time_readout_mu_list = [self.time_rap_mu]
         elif self.readout_type == 'Sideband Ratio':
             self.enable_RAP = False
@@ -219,27 +219,27 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         att_heating_mu_list = set(att_to_mu(round(att_db * 2) / 2 * dB) for att_db in self.att_heating_db_list)
 
         # convert build arguments to appropriate values and format as numpy arrays
-        freq_carrier_hz_list = np.array(list(self.freq_heating_carrier_mhz_list)) * MHz
-        self.freq_sweep_hz_list = np.array(list(self.freq_sweep_khz_list)) * kHz
-        self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
+        freq_carrier_hz_list = array(list(self.freq_heating_carrier_mhz_list)) * MHz
+        self.freq_sweep_hz_list = array(list(self.freq_sweep_khz_list)) * kHz
+        self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.phase_sweep_turns_list = list(self.phase_sweep_turns_list)
-        self.phase_osc_ch1_offset_turns = np.array(self.phase_osc_ch1_offset_turns)
-        self.freq_sweep_arr = np.array(self.freq_sweep_arr, dtype=float)
-        self.phase_sweep_arr = np.array(self.phase_sweep_arr, dtype=float)
+        self.phase_osc_ch1_offset_turns = array(self.phase_osc_ch1_offset_turns)
+        self.freq_sweep_arr = array(self.freq_sweep_arr, dtype=float)
+        self.phase_sweep_arr = array(self.phase_sweep_arr, dtype=float)
 
 
         '''CONFIGURE SWEEP BEHAVIOR'''
         # workaround: pre-declare phase_offsets b/c stack memory issue (https://github.com/m-labs/artiq/issues/1520)
         if self.target_phase_sweep == "ch1":
-            self.phase_offsets = np.array([self.phase_osc_ch1_offset_turns + self.phase_sweep_arr * phase_val_turns
+            self.phase_offsets = array([self.phase_osc_ch1_offset_turns + self.phase_sweep_arr * phase_val_turns
                                            for phase_val_turns in self.phase_sweep_turns_list])
         elif self.target_phase_sweep == "ch0+ch1":
-            self.phase_offsets = np.array([self.phase_osc_ch1_offset_turns])
+            self.phase_offsets = array([self.phase_osc_ch1_offset_turns])
 
 
         '''CREATE EXPERIMENT CONFIG'''
         # map phase to index to facilitate waveform recording
-        self.waveform_index_to_phase_sweep_turns = np.arange(len(self.phase_sweep_turns_list))
+        self.waveform_index_to_phase_sweep_turns = arange(len(self.phase_sweep_turns_list))
 
         # create config data structure
         self.config_experiment_list = create_experiment_config(
@@ -247,7 +247,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
             time_readout_mu_list, att_heating_mu_list,
             shuffle_config=self.randomize_config,
-            config_type=np.int32
+            config_type=int32
         )
 
         self._prepare_waveform() # configure waveform via pulse shaper & spin echo wizard
@@ -288,7 +288,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_output_freqs_hz = np.array(list(self.freq_heating_carrier_mhz_list)) * MHz
+        phaser_output_freqs_hz = array(list(self.freq_heating_carrier_mhz_list)) * MHz
         phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
         phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
         if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
@@ -315,30 +315,30 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # create holding structures for pulse waveforms
         self.waveform_index_to_pulseshaper_vals0 =  list()      # store compiled waveforms
         self.waveform_index_to_pulseshaper_vals1 =  list()      # store compiled waveforms
-        self.waveform_index_to_pulseshaper_id =     np.zeros(len(self.phase_sweep_turns_list),
-                                                             dtype=np.int32) # store pulseshaper waveform ID
+        self.waveform_index_to_pulseshaper_id =     zeros(len(self.phase_sweep_turns_list),
+                                                             dtype=int32) # store pulseshaper waveform ID
         num_blocks = 2  # set up blocks for pulse sequence
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create separate bare waveform block sequences for CH0 and CH1
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        _osc_vals_ch0 = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_ch1 = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_ch0 = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_ch1 = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
 
         # update CH0 and CH1 sequences w/relevant amplitudes
-        _osc_vals_ch0[:, :, 0] = np.array([self.ampl_ch0_stage_0, self.ampl_ch0_stage_1])
-        _osc_vals_ch1[:, :, 0] = np.array([self.ampl_ch1_stage_0, self.ampl_ch1_stage_1])
+        _osc_vals_ch0[:, :, 0] = array([self.ampl_ch0_stage_0, self.ampl_ch0_stage_1])
+        _osc_vals_ch1[:, :, 0] = array([self.ampl_ch1_stage_0, self.ampl_ch1_stage_1])
 
         # phase track oscillator updates to account for 40ns sample period
-        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])
+        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list +
-                 self.freq_sweep_arr * np.mean(self.freq_sweep_hz_list)) *
+                 self.freq_sweep_arr * mean(self.freq_sweep_hz_list)) *
                 t_update_delay_s_list
         )
-        _osc_vals_ch0[:, :, 1] += np.array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
-        _osc_vals_ch1[:, :, 1] += np.array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
+        _osc_vals_ch0[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
+        _osc_vals_ch1[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
 
 
         '''COMPILE WAVEFORM SEQUENCE'''
@@ -346,8 +346,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             # create local copy of _sequence_blocks
             # note: no need to deep copy b/c it's filled w/immutables
             # note: have to obtain different copies so they don't point to same object and overwrite it
-            _osc_vals_local_ch0 = np.copy(_osc_vals_ch0)
-            _osc_vals_local_ch1 = np.copy(_osc_vals_ch1)
+            _osc_vals_local_ch0 = copy(_osc_vals_ch0)
+            _osc_vals_local_ch1 = copy(_osc_vals_ch1)
 
             # apply oscillator phase sweep
             if self.target_phase_sweep == "ch0+ch1":
@@ -436,8 +436,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                 # extract values from config list
                 carrier_freq_hz =   config_vals[0]
                 freq_sweep_hz =     config_vals[1]
-                phase_sweep_idx =   np.int32(config_vals[2])
-                time_readout_mu =   np.int64(config_vals[3])
+                phase_sweep_idx =   int32(config_vals[2])
+                time_readout_mu =   int64(config_vals[3])
                 att_phaser_mu =     config_vals[4]
 
                 # get corresponding phase and waveform ID from the index

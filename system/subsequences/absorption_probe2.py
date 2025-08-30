@@ -15,6 +15,8 @@ class AbsorptionProbe2(LAXSubsequence):
     kernel_invariants = {
         "time_doppler_cooling_mu",
         "time_probe_mu", "time_reset_mu", "_loop_iter",
+
+        "profile_397_spectroscopy",
     }
 
     def build_subsequence(self):
@@ -27,6 +29,9 @@ class AbsorptionProbe2(LAXSubsequence):
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('pmt')
+
+        # allocate profiles for later use
+        self.profile_397_spectroscopy = 1
 
     def prepare_subsequence(self):
         # get doppler cooling time
@@ -46,10 +51,10 @@ class AbsorptionProbe2(LAXSubsequence):
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         # prepare probe beam
-        self.pump.set_profile(1)
+        self.pump.set_profile(self.profile_397_spectroscopy)
 
         # get counts for multiple loops
-        for i in self._loop_iter:
+        for _ in self._loop_iter:
 
             # turn repump off
             self.repump_cooling.off()

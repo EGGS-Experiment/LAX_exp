@@ -85,9 +85,9 @@ class SidebandCooling(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             # scan over sideband readout frequencies
             for freq_ftw in self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list:
-                self.core.break_realtime()
 
                 # configure frequency
+                self.core.break_realtime()
                 self.qubit.set_mu(freq_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                   profile=self.profile_729_readout,
                                   phase_mode=PHASE_MODE_CONTINUOUS)

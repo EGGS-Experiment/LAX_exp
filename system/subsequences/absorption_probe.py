@@ -12,15 +12,22 @@ class AbsorptionProbe(LAXSubsequence):
     name = 'absorption_probe'
     kernel_invariants = {
         "time_doppler_cooling_mu", "time_probe_mu",
+
+        "profile_397_spectroscopy",
     }
 
     def build_subsequence(self):
+        # subsequence arguments
         self.setattr_argument('time_probe_us', NumberValue(default=50, step=0.1, precision=3, min=0, max=100000, scale=1., unit='us'),
                               group='{}'.format(self.name))
 
+        # get relevant devices
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
+
+        # allocate profiles for later use
+        self.profile_397_spectroscopy = 1
 
     def prepare_subsequence(self):
         self.time_doppler_cooling_mu = self.get_parameter('time_doppler_cooling_us', group='timing',
@@ -41,7 +48,7 @@ class AbsorptionProbe(LAXSubsequence):
         self.pump.off()
 
         # switch to probe waveform
-        self.pump.set_profile(1)
+        self.pump.set_profile(self.profile_397_spectroscopy)
 
         # record fluorescence
         self.pump.on()
