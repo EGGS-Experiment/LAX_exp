@@ -17,7 +17,7 @@ class SidebandReadout(LAXSubsequence):
     kernel_invariants = {
         "profile_dds",
         "ampl_sideband_readout_asf", "att_sideband_readout_mu", "time_sideband_readout_mu",
-        "freq_sideband_readout_ftw_list"
+        "freq_sideband_readout_ftw_list",
     }
 
     def build_subsequence(self, profile_dds: TInt32 = 0) -> TNone:

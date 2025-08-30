@@ -148,9 +148,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         # validate inputs
         self._prepare_argument_checks()
 
-        '''
-        CONVERT VALUES TO MACHINE UNITS
-        '''
+        '''CONVERT VALUES TO MACHINE UNITS'''
         self.att_sbc_mu =   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
 
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
@@ -225,9 +223,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                  for config_arr in self.sbc_config_list.values()])
 
 
-        '''
-        CREATE EXPERIMENT CONFIG
-        '''
+        '''CREATE EXPERIMENT CONFIG'''
         self.config_experiment_list = create_experiment_config(
             freq_readout_ftw_list,
             time_sbc_mu_list, time_per_spinpol_mu_list,
@@ -350,13 +346,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                     self.qubit.set_att_mu(self.att_rap_mu)
                     self.rap_subsequence.run_rap(self.time_rap_mu)
                 else:
-                    self.sidebandreadout_subsequence.run()
-
-                # clean up loop
+                    self.sidebandreadout_subsequence.run_dma()
                 self.readout_subsequence.run_dma()
-                self.rescue_subsequence.resuscitate()
 
-                # update dataset
+                # clean up loop & update dataset
+                self.rescue_subsequence.resuscitate()
                 self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
                                     time_sbc_mu, time_per_spinpol_mu, freq_sbc_scan_ftw, ampl_quench_scan_asf,
                                     freq_beam_ftw, ampl_beam_asf)
