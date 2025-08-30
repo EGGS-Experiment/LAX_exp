@@ -1,17 +1,12 @@
-import numpy as np
 from artiq.experiment import *
-
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
-from LAX_exp.system.subsequences import InitializeQubit, SidebandReadout, Readout, RescueIon
-
-from itertools import product
 from artiq.coredevice import ad9910
+from numpy import int32, int64, array, zeros, mean, copy
+
+from LAX_exp.language import *
+from LAX_exp.system.subsequences import InitializeQubit, SidebandReadout, Readout, RescueIon, QubitRAP
 
 _VALID_BEAM_SCANS = [
-    'doppler_397', 'doppler_866',
-    'readout_397'
+    'doppler_397', 'doppler_866', 'readout_397', 'rescue_397'
 ]
 
 
@@ -27,25 +22,30 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         # hardware values
         'att_sbc_mu', 'dds_beam', 'beam_update_profile',
         'num_modes', 'sbc_config_base_list', 'sbc_mode_time_frac_list',
+        'att_rap_mu', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         # subsequences
-        'initialize_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
+        'rescue_subsequence', 'rap_subsequence', 'enable_RAP',
 
         # configs
-        'profile_729_readout', 'profile_729_SBC', 'profile_854_SBC', 'config_experiment_list'
+        'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP',
+        'profile_854_SBC', 'config_experiment_list',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
 
         # allocate profiles on 729nm for different subsequences
-        self.profile_729_readout =  0
-        self.profile_729_SBC =      1
-        self.profile_854_SBC =      5
+        self.profile_729_sb_readout =   0
+        self.profile_729_SBC =          1
+        self.profile_729_RAP =          2
+        self.profile_854_SBC =          5
 
         # SBC - base config
-        self.setattr_argument("sideband_cooling_config_list", PYONValue({100.7555: [26., 5.], 100.455: [37., 5.], 100.315: [37., 5.]}),
+        self.setattr_argument("sbc_config_list", PYONValue({100.7555: [26., 5.], 100.455: [37., 5.], 100.315: [37., 5.]}),
                               tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}", group='SBC.base')
         self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000, unit="cycles", scale=1),
                               tooltip="number of times to loop over the SBC configuration sequence", group='SBC.base')
@@ -68,7 +68,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=50, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
-                                                    ), tooltip="time between spin polarization pulses (in us)", group='SBC.base')
+                                                    ), tooltip="Time between spin polarization pulses (in us)", group='SBC.base')
 
         # SBC - mode target sweep
         self.setattr_argument("sbc_mode_target",    NumberValue(default=0, precision=0, step=1, min=0, max=100), group='SBC.mode',
@@ -115,9 +115,16 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                             unit="%", scale=1, precision=3
                                                         ), group='SBC.beam', tooltip="Absolute amplitude for the beam parameter.")
 
+        # RAP-based readout
+        self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
+        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7394, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
+        self.setattr_argument("time_rap_us",            NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
+
         # get subsequences
         self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_readout)
+        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
 
@@ -127,6 +134,12 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('qubit')
+
+        # instantiate RAP here since it relies on experiment arguments
+        self.rap_subsequence = QubitRAP(
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
+            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+        )
 
     def prepare_experiment(self):
         """
@@ -138,73 +151,90 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         '''
         CONVERT VALUES TO MACHINE UNITS
         '''
-        # hardware values
         self.att_sbc_mu =   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
 
-        # scan - sbc base & sbc mode
-        time_sbc_mu_list =  np.array([self.core.seconds_to_mu(time_us * us)
-                                      for time_us in self.time_sbc_us_list])
-        time_per_spinpol_mu_list =  np.array([self.core.seconds_to_mu(time_us * us)
-                                              for time_us in self.time_per_spinpol_us_list])
-        freq_sbc_scan_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_khz * kHz)
-                                              for freq_khz in self.freq_sbc_scan_khz_list])
-        ampl_quench_scan_asf_list = np.array([self.repump_qubit.amplitude_to_asf(ampl_pct / 100.)
-                                              for ampl_pct in self.ampl_quench_scan_pct_list])
-        # scan - beam parameters
+        self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
+        self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
+        self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
+
+        # configure readout method
+        if self.readout_type == 'RAP':
+            self.enable_RAP = True
+            freq_readout_ftw_list = array([self.freq_rap_center_ftw], dtype=int32)
+        elif self.readout_type == 'Sideband Ratio':
+            self.enable_RAP = False
+            freq_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
+        else:
+            raise ValueError("Invalid readout type. Must be one of (Sideband Ratio, RAP).")
+
+        # scan prep: prepare base SBC values
+        time_sbc_mu_list =  array([self.core.seconds_to_mu(time_us * us)
+                                   for time_us in self.time_sbc_us_list])
+        time_per_spinpol_mu_list =  array([self.core.seconds_to_mu(time_us * us)
+                                           for time_us in self.time_per_spinpol_us_list])
+        freq_sbc_scan_ftw_list =    array([self.qubit.frequency_to_ftw(freq_khz * kHz)
+                                           for freq_khz in self.freq_sbc_scan_khz_list])
+        ampl_quench_scan_asf_list = array([self.repump_qubit.amplitude_to_asf(ampl_pct / 100.)
+                                           for ampl_pct in self.ampl_quench_scan_pct_list])
+
+        # scan prep: process beam parameters
         if self.enable_beam_sweep:
             # process target beam profile and device
             if self.beam_sweep_target == 'doppler_397':
                 self.dds_beam = self.get_device('pump')
-                self.beam_update_profile = 0
+                self.beam_update_profile = self.pump.profile_cooling
             elif self.beam_sweep_target == 'doppler_866':
                 self.dds_beam = self.get_device('repump_cooling')
                 self.beam_update_profile = 0
             elif self.beam_sweep_target == 'readout_397':
                 self.dds_beam = self.get_device('pump')
-                self.beam_update_profile = 1
+                self.beam_update_profile = self.pump.profile_readout
+            elif self.beam_sweep_target == 'rescue_397':
+                self.dds_beam = self.get_device('pump')
+                self.beam_update_profile = self.pump.profile_rescue
             else:
                 raise ValueError("Invalid beam sweep type.")
 
-            freq_beam_ftw_list = np.array([self.dds_beam.frequency_to_ftw(freq_mhz * MHz)
-                                           for freq_mhz in self.freq_beam_mhz_list])
-            ampl_beam_asf_list = np.array([self.dds_beam.amplitude_to_asf(ampl_pct / 100.)
-                                           for ampl_pct in self.ampl_beam_pct_list])
+            # collate sweep arrays
+            freq_beam_ftw_list = array([self.dds_beam.frequency_to_ftw(freq_mhz * MHz)
+                                        for freq_mhz in self.freq_beam_mhz_list])
+            ampl_beam_asf_list = array([self.dds_beam.amplitude_to_asf(ampl_pct / 100.)
+                                        for ampl_pct in self.ampl_beam_pct_list])
+        # still need to declare objects even if no scan
         else:
             self.dds_beam = self.get_device('qubit')
             self.beam_update_profile = 6
-            freq_beam_ftw_list = np.array([0x01], dtype=np.int32)
-            ampl_beam_asf_list = np.array([0x01], dtype=np.int32)
+            freq_beam_ftw_list = array([0x01], dtype=int32)
+            ampl_beam_asf_list = array([0x01], dtype=int32)
 
 
         '''PREPARE SBC CONFIG/SCHEDULES'''
         # create and fill SBC schedule
-        self.num_modes = len(self.sideband_cooling_config_list)
-        self.sbc_config_base_list = np.zeros((self.num_modes, 3), dtype=np.int64)
-        for i, params in enumerate(self.sideband_cooling_config_list.items()):
+        self.num_modes = len(self.sbc_config_list)
+        self.sbc_config_base_list = zeros((self.num_modes, 3), dtype=int64)
+        for i, params in enumerate(self.sbc_config_list.items()):
             self.sbc_config_base_list[i, 0] = self.qubit.frequency_to_ftw(params[0] * MHz)
             self.sbc_config_base_list[i, 1] = self.qubit.amplitude_to_asf(params[1][1] / 100.)
-            self.sbc_config_base_list[i, 2] = np.int64(np.mean(time_sbc_mu_list) * params[1][0] / 100. / self.sideband_cycles_continuous)
+            self.sbc_config_base_list[i, 2] = int64(mean(time_sbc_mu_list) * params[1][0] / 100. / self.sideband_cycles_continuous)
         # create working copy for main loop
-        self.sbc_config_update_list = np.copy(self.sbc_config_base_list)
+        self.sbc_config_update_list = copy(self.sbc_config_base_list)
 
         # create list of relative SBC times
-        self.sbc_mode_time_frac_list = np.array([config_arr[0] / 100. / self.sideband_cycles_continuous
-                                                 for config_arr in self.sideband_cooling_config_list.values()])
+        self.sbc_mode_time_frac_list = array([config_arr[0] / 100. / self.sideband_cycles_continuous
+                                                 for config_arr in self.sbc_config_list.values()])
+
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
-        # create an array of values for the experiment to sweep
-        self.config_experiment_list = np.array([
-            list(vals)
-            for vals in product(
-                self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list,
-                time_sbc_mu_list, time_per_spinpol_mu_list,
-                freq_sbc_scan_ftw_list, ampl_quench_scan_asf_list,
-                freq_beam_ftw_list, ampl_beam_asf_list
-            )
-        ], dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        self.config_experiment_list = create_experiment_config(
+            freq_readout_ftw_list,
+            time_sbc_mu_list, time_per_spinpol_mu_list,
+            freq_sbc_scan_ftw_list, ampl_quench_scan_asf_list,
+            freq_beam_ftw_list, ampl_beam_asf_list,
+            shuffle_config=True, config_type=int64
+        )
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -213,11 +243,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         pass
         # todo: actually do, and make it reasonable
         # # ensure a reasonable amount of modes (i.e. not too many)
-        # if len(self.sideband_cooling_config_list) > 20:
+        # if len(self.sbc_config_list) > 20:
         #     raise ValueError("Too many modes for SBC. Number of modes must be in [1, 20].")
         #
         # # ensure SBC config on all modes add up to 100%
-        # mode_total_pct = np.sum([config_arr[0] for config_arr in self.sideband_cooling_config_list.values()])
+        # mode_total_pct = sum([config_arr[0] for config_arr in self.sbc_config_list.values()])
         # if mode_total_pct > 100.:
         #     raise ValueError("Total sideband cooling mode percentages exceed 100%.")
 
@@ -232,7 +262,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 8)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
@@ -243,10 +275,16 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
         # update spinpol (and related) beam with SBC profile params
         self.probe.set_mu(self.probe.freq_spinpol_ftw, asf=self.probe.ampl_spinpol_asf,
-                          profile=self.profile_854_SBC, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                          profile=self.profile_854_SBC,
+                          phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         self.repump_cooling.set_mu(self.repump_cooling.freq_repump_cooling_ftw, asf=self.repump_cooling.ampl_repump_cooling_asf,
-                                   profile=self.profile_854_SBC, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                                   profile=self.profile_854_SBC,
+                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
+
+        # configure RAP pulse
+        if self.enable_RAP:
+            self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -255,44 +293,45 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
                 '''CONFIGURE & PREPARE'''
                 # extract values from config list
-                freq_readout_ftw =  np.int32(config_vals[0])
+                freq_readout_ftw =  int32(config_vals[0])
                 time_sbc_mu =           config_vals[1]
                 time_per_spinpol_mu =   config_vals[2]
                 freq_sbc_scan_ftw =     config_vals[3]
                 ampl_quench_scan_asf =  config_vals[4]
-                freq_beam_ftw =     np.int32(config_vals[5])
-                ampl_beam_asf =     np.int32(config_vals[6])
+                freq_beam_ftw =     int32(config_vals[5])
+                ampl_beam_asf =     int32(config_vals[6])
 
-                # create & update SBC config w/target params
+                # clear SBC config & update w/target params & new timing
                 self.sbc_config_update_list = self.sbc_config_base_list
-                # update sbc config with new timing
                 for i in range(self.num_modes):
-                    self.sbc_config_update_list[i, 2] = np.int64(time_sbc_mu * self.sbc_mode_time_frac_list[i])
+                    self.sbc_config_update_list[i, 2] = int64(time_sbc_mu * self.sbc_mode_time_frac_list[i])
                 # update sbc config with target freq/quench ampl
                 self.sbc_config_update_list[self.sbc_mode_target, 0] += freq_sbc_scan_ftw
                 self.sbc_config_update_list[self.sbc_mode_target, 1] = ampl_quench_scan_asf
 
                 # calculate penultimate mode & time
-                time_counter_mu = np.int64(0)
+                time_counter_mu = int64(0)
                 mode_counter = 0
-                time_remainder_mu = np.int64(8)
+                time_remainder_mu = int64(8)
                 while time_counter_mu <= time_sbc_mu:
                     time_counter_mu += self.sbc_config_update_list[mode_counter % self.num_modes, 2]
                     mode_counter += 1
                 if time_counter_mu > time_sbc_mu:
                     mode_counter -= 1
-                    time_remainder_mu = np.int64(
+                    time_remainder_mu = int64(
                         time_sbc_mu -
                         (time_counter_mu - self.sbc_config_update_list[mode_counter % self.num_modes, 2])
                     )
-                self.core.break_realtime()
 
-                # prepare relevant beams
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
-                                  profile=self.profile_729_readout, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                # prepare beams - general beam scan
+                self.core.break_realtime()
                 self.beam_update(freq_beam_ftw, ampl_beam_asf)
-                # add heavy slack in case SBC config takes a while to schedule
-                delay_mu(250000) # 250us
+                # prepare beams - readout
+                if not self.enable_RAP:
+                    self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                      profile=self.profile_729_sb_readout,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                delay_mu(250000) # add heavy slack in case SBC config takes a while to schedule
 
 
                 '''INITIALIZE & SBC'''
@@ -300,42 +339,43 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
 
                 # synchronize spinpol w/SBC-ing
-                # time_start_mu = now_mu()
-                # self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
-                # at_mu(time_start_mu)
-                # self.sbc_schedule(mode_counter, time_remainder_mu)
                 with parallel:
                     self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
+                    # note: SBC must be last in parallel block to ensure correct timeline exit
                     self.sbc_schedule(mode_counter, time_remainder_mu)
 
                 '''READOUT & SAVE RESULTS'''
-                # sideband readout & detect fluorescence
-                self.sidebandreadout_subsequence.run_dma()
+                # run readout
+                if self.enable_RAP:
+                    self.qubit.set_att_mu(self.att_rap_mu)
+                    self.rap_subsequence.run_rap(self.time_rap_mu)
+                else:
+                    self.sidebandreadout_subsequence.run()
+
+                # clean up loop
                 self.readout_subsequence.run_dma()
+                self.rescue_subsequence.resuscitate()
 
                 # update dataset
                 self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
                                     time_sbc_mu, time_per_spinpol_mu, freq_sbc_scan_ftw, ampl_quench_scan_asf,
                                     freq_beam_ftw, ampl_beam_asf)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
+
+    '''
+    HELPER FUNCTIONS
+    '''
     @kernel(flags={"fast-math"})
     def spin_polarize(self, time_sbc_mu: TInt64=1, time_per_spinpol_mu: TInt64=10000) -> TNone:
         """
         Run spin polarization with variable timing.
-        Arguments:
-            num_spinpols: number of overall spin polarizations
-            time_per_spinpol_mu: delay between successive spinpols
+        :param num_spinpols: number of overall spin polarizations
+        :param time_per_spinpol_mu: delay between successive spinpols
         """
         for _ in range(time_per_spinpol_mu, time_sbc_mu, time_per_spinpol_mu):
             delay_mu(time_per_spinpol_mu)
@@ -350,59 +390,66 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
     def sbc_schedule(self, num_updates: TInt32=1, time_last_mu: TInt64=1000) -> TNone:
         """
         Run spin polarization with variable timing.
-        Arguments:
-            num_updates: number of modes to toggle through
-            time_last_mu: amount of time to cool final mode
+        Note: we use write64 instead of set_mu to significantly reduce overhead.
+        :param num_updates: number of modes to toggle through
+        :param time_last_mu: amount of time to cool final mode
         """
-        # prepare waveforms for SBC
+        '''PREPARE BEAM WAVEFORMS FOR SBC'''
         self.qubit.set_att_mu(self.att_sbc_mu)
         self.qubit.set_profile(self.profile_729_SBC)
         self.qubit.cpld.io_update.pulse_mu(8)
+
         self.repump_qubit.set_profile(self.profile_854_SBC)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         self.qubit.on()
         self.repump_qubit.on()
 
+
+        '''SCHEDULE SBC'''
         for i in range(num_updates):
-            # update SBC beam parameters
+            # update SBC beam parameters - 729nm
             at_mu(now_mu() & ~7)
             self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
                                self.qubit.ampl_qubit_asf << 16, # asf
-                               np.int32(self.sbc_config_update_list[i % self.num_modes, 0])) # ftw
-            delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
+                               int32(self.sbc_config_update_list[i % self.num_modes, 0])) # ftw
+            delay_mu(int64(self.qubit.beam.sync_data.io_update_delay))
             self.qubit.cpld.io_update.pulse_mu(8)
 
+            # update SBC beam parameters - 854nm
             at_mu(now_mu() & ~7)
             delay_mu(16)
             self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
-                                      np.int32(self.sbc_config_update_list[i % self.num_modes, 1]) << 16, # asf
+                                      int32(self.sbc_config_update_list[i % self.num_modes, 1]) << 16, # asf
                                       self.repump_qubit.freq_repump_qubit_ftw) # ftw
-            delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
+            delay_mu(int64(self.repump_qubit.beam.sync_data.io_update_delay))
             self.repump_qubit.cpld.io_update.pulse_mu(8)
 
             # cool target mode
             delay_mu(self.sbc_config_update_list[i % self.num_modes, 2])
 
-        # update SBC beam parameters - final mode
+        # update SBC beam parameters - final mode - 729nm
         at_mu(now_mu() & ~7)
         self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_729_SBC,
                            self.qubit.ampl_qubit_asf << 16,  # asf
-                           np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 0]))  # ftw
-        delay_mu(np.int64(self.qubit.beam.sync_data.io_update_delay))
+                           int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 0]))  # ftw
+        delay_mu(int64(self.qubit.beam.sync_data.io_update_delay))
         self.qubit.cpld.io_update.pulse_mu(8)
 
+        # update SBC beam parameters - final mode - 854nm
         at_mu(now_mu() & ~7)
         delay_mu(16)
         self.repump_qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.profile_854_SBC,
-                                  np.int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 1] << 16),  # asf
+                                  int32(self.sbc_config_update_list[(num_updates + 1) % self.num_modes, 1] << 16),  # asf
                                   self.repump_qubit.freq_repump_qubit_ftw)  # ftw
-        delay_mu(np.int64(self.repump_qubit.beam.sync_data.io_update_delay))
+        delay_mu(int64(self.repump_qubit.beam.sync_data.io_update_delay))
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         # cool target mode - final mode
         delay_mu(time_last_mu)
 
+
+        '''CLEAN UP'''
         # turn off beams
         self.qubit.off()
         self.repump_qubit.off()
@@ -411,11 +458,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
     def beam_update(self, beam_freq_ftw: TInt32=0x01, beam_ampl_asf: TInt32=0x01) -> TNone:
         """
         Update target beam with parameters to enable scanning.
-        Arguments:
-            beam_freq_ftw: todo document
-            beam_ampl_asf: todo document
+        :param beam_freq_ftw: the beam frequency (in FTW).
+        :param beam_ampl_asf: the beam amplitude (in ASF).
         """
         if self.enable_beam_sweep:
-            self.dds_beam.set_mu(beam_freq_ftw, asf=beam_ampl_asf, profile=self.beam_update_profile,
+            self.dds_beam.set_mu(beam_freq_ftw, asf=beam_ampl_asf,
+                                 profile=self.beam_update_profile,
                                  phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
 
