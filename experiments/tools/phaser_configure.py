@@ -335,7 +335,7 @@ class PhaserConfigure(EnvExperiment):
         self.setattr_argument("phaser_target",      EnumerationValue(list(phaser_device_list), default='phaser0'))
 
         # frequency configuration
-        self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-400., max=400.))
+        self.setattr_argument("freq_nco_mhz",       NumberValue(default=0., precision=6, step=100, min=-400., max=400., scale=1., unit="MHz"))
         # self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239"], default="302.083853"))
         self.setattr_argument("freq_trf_mhz",       EnumerationValue(["N/A", "302.083853", "781.251239", "1000.003065"], default="302.083853"))
 

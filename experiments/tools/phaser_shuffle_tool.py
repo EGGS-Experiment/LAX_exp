@@ -20,7 +20,7 @@ class PhaserShuffleTool(LAXExperiment, Experiment):
         self.setattr_argument("randomize_config",   BooleanValue(default=True))
 
         # frequency configuration
-        self.setattr_argument("phaser_att_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5))
+        self.setattr_argument("phaser_att_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5, scale=1., unit="dB"))
         self.setattr_argument("phaser_config_list", PYONValue([
             [65., 99., 1000], [72., 99., 1000], [81., 99., 1000], [83., 99., 1000],
             [85., 99., 1000], [91., 99., 1000], [210., 99., 1000], [376., 99., 1000],

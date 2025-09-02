@@ -23,13 +23,13 @@ class CounterRead(EnvExperiment):
         self.setattr_device("core_dma")
 
         # timing
-        self.setattr_argument('time_total_s',                       NumberValue(default=5, precision=6, step=1, min=0, max=100000))
-        self.setattr_argument('time_bin_us',                        NumberValue(default=3000, precision=3, step=1, min=0.01, max=10000000))
-        self.setattr_argument("sample_rate_hz",                     NumberValue(default=300, precision=6, step=1, min=0.1, max=100000))
+        self.setattr_argument('time_total_s',       NumberValue(default=5, precision=6, step=1, min=0, max=100000, unit="s", scale=1.))
+        self.setattr_argument('time_bin_us',        NumberValue(default=3000, precision=3, step=1, min=0.01, max=10000000, scale=1., unit="us"))
+        self.setattr_argument("sample_rate_hz",     NumberValue(default=300, precision=6, step=1, min=0.1, max=100000, scale=1., unit="Hz"))
 
         # PMT
-        self.setattr_argument("pmt_input_channel",                  NumberValue(default=0, precision=0, step=1, min=0, max=7))
-        self.setattr_argument("pmt_gating_edge",                    EnumerationValue(["rising", "falling", "both"], default="rising"))
+        self.setattr_argument("pmt_input_channel",  NumberValue(default=0, precision=0, step=1, min=0, max=7))
+        self.setattr_argument("pmt_gating_edge",    EnumerationValue(["rising", "falling", "both"], default="rising"))
 
     def prepare(self):
         """

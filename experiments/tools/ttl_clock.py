@@ -18,12 +18,12 @@ class TTLClock(EnvExperiment):
         self.setattr_device("core_dma")
 
         # timing
-        self.setattr_argument('frequency_clock_khz',            NumberValue(default=1, precision=3, step=1, min=0.001, max=1000))
-        self.setattr_argument('time_total_ms',                  NumberValue(default=10000, precision=3, step=1, min=0.001, max=100000))
+        self.setattr_argument('frequency_clock_khz',    NumberValue(default=1, precision=3, step=1, min=0.001, max=1000, scale=1., unit="kHz"))
+        self.setattr_argument('time_total_ms',          NumberValue(default=10000, precision=3, step=1, min=0.001, max=100000, scale=1., unit="ms"))
         #self.setattr_argument('time_off_us', NumberValue(default=100, precision=3, step=1, min=0, max=100))
 
         # TTL channel
-        self.setattr_argument("ttl_channel",                    NumberValue(default=9, precision=0, step=1, min=4, max=23))
+        self.setattr_argument("ttl_channel", NumberValue(default=9, precision=0, step=1, min=4, max=23))
 
 
     def prepare(self):

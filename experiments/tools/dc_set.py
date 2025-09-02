@@ -16,7 +16,7 @@ class DCSet(EnvExperiment):
         # voltage values
         self.dc_channel_dict = dc_config.channeldict
         self.setattr_argument("dc_channel_name",    EnumerationValue(list(self.dc_channel_dict.keys()), default='V Shim'))
-        self.setattr_argument("dc_voltage_v",       NumberValue(default=10.0, precision=3, step=1, min=0, max=400))
+        self.setattr_argument("dc_voltage_v",       NumberValue(default=10.0, precision=3, step=1, min=0, max=400, scale=1., unit="V"))
 
     def prepare(self):
         # get voltage channel number
