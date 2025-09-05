@@ -66,11 +66,11 @@ class CalibrationDeshelving(LAXExperiment, Experiment):
 
         '''STATE PREPARATION - CONFIGURATION'''
         # RAP parameters: used to prepare D-5/2 dark state
-        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3977, precision=6, step=1, min=50., max=400.), group="RAP")
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=12.5, precision=3, step=5, min=0.01, max=1000), group="RAP")
-        self.setattr_argument("time_rap_us",            NumberValue(default=125, precision=2, step=5, min=0.1, max=10000), group="RAP")
-        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50), group="RAP")
-        self.setattr_argument("att_rap_db",             NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5), group="RAP")
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=101.3977, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'), group="RAP")
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=12.5, precision=3, step=5, min=0.01, max=1000, scale=1., unit='kHz'), group="RAP")
+        self.setattr_argument("time_rap_us",            NumberValue(default=125, precision=2, step=5, min=0.1, max=10000, scale=1., unit='us'), group="RAP")
+        self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, scale=1., unit='%'), group="RAP")
+        self.setattr_argument("att_rap_db",             NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'), group="RAP")
 
         # heralding parameters: used to ensure successful state preparation
         self.setattr_argument("enable_herald",          BooleanValue(default=False), group='herald')
