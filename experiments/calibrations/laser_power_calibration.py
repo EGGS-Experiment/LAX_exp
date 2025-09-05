@@ -20,8 +20,8 @@ class LaserPowerCalibration(EnvExperiment):
         "adc", "dds",
 
         # hardware values - DDS
-        "time_slack_mu", "dds_update_delay_us", "dds_update_delay_mu", "dds_freq_mhz_list",
-        "dds_freq_ftw_list", "dds_ampl_min_asf", "dds_ampl_max_asf",
+        "dds_update_delay_us", "dds_update_delay_mu", "dds_freq_mhz_list", "dds_freq_ftw_list",
+        "dds_ampl_min_asf", "dds_ampl_max_asf",
 
         # hardware values - ADC
         "adc_gain_mu", "adc_poll_delay_us", "adc_poll_delay_mu", "target_voltage_mu",
@@ -36,6 +36,7 @@ class LaserPowerCalibration(EnvExperiment):
         Set devices and arguments for the experiment.
         """
         self.setattr_device("core")
+        self.setattr_device("scheduler")
 
         # search parameters
         self.setattr_argument("target_voltage_mv",      NumberValue(default=55.1, precision=3, step=1, min=-10000, max=10000, scale=1., unit='mV'))
@@ -192,9 +193,11 @@ class LaserPowerCalibration(EnvExperiment):
                 if self.scheduler.check_termination():
                     raise TerminationRequested
 
-        except Exception as e:
+        except ValueError:
             self._error_flag = True
-            print(e)
+        except TerminationRequested:
+            self._error_flag = True
+            print("Received experiment termination signal. Stopping early.")
         finally:
             self.core.break_realtime()
 
@@ -216,8 +219,8 @@ class LaserPowerCalibration(EnvExperiment):
         # check recursion depth is OK (to prevent death spirals)
         self._num_recursions += 1
         if self._num_recursions > self.max_recursions:
-            raise ValueError("Unable to find target DDS amplitude at {:f} MHz."
-                             "Max recursion depth exceeded.".format(self.dds.ftw_to_frequency(freq_ftw) / MHz))
+            print("\n\tError: unable to find target DDS amplitude @ (MHz): ", self.dds.ftw_to_frequency(freq_ftw) / MHz)
+            raise ValueError("Max recursion depth exceeded.")
 
         # get mid-range value via bit-shift for fast divide by two & ensuring int
         ampl_center_asf = (ampl_min_asf + ampl_max_asf) >> 1
