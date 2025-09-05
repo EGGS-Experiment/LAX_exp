@@ -1,10 +1,12 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.urukul import DEFAULT_PROFILE
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 import labrad
-import numpy as np
 from os import environ
 from datetime import datetime
+# todo: implement interpolation search or some weighted search
 
 
 class LaserPowerCalibration(EnvExperiment):
@@ -14,12 +16,19 @@ class LaserPowerCalibration(EnvExperiment):
     Get amplitude scaling factors to compensate for frequency dependence.
     """
     kernel_invariants = {
+        # devices
         "adc", "dds",
-        "time_slack_mu", "dds_response_holdoff_mu",
-        "dds_freq_mhz_list", "dds_freq_ftw_list", "dds_ampl_min_asf", "dds_ampl_max_asf",
-        "adc_gain_num", "adc_v_to_mu", "adc_mu_to_v", "adc_gain_mu", "adc_poll_delay_mu",
-        "target_voltage_mu", "target_tolerance_mu",
-        "time_start"
+
+        # hardware values - DDS
+        "time_slack_mu", "dds_update_delay_us", "dds_update_delay_mu", "dds_freq_mhz_list",
+        "dds_freq_ftw_list", "dds_ampl_min_asf", "dds_ampl_max_asf",
+
+        # hardware values - ADC
+        "adc_gain_mu", "adc_poll_delay_us", "adc_poll_delay_mu", "target_voltage_mu",
+        "target_tolerance_mu",
+
+        # other
+        "time_start", '_iter_dataset', 'max_recursions',
     }
 
     def build(self):
@@ -29,80 +38,118 @@ class LaserPowerCalibration(EnvExperiment):
         self.setattr_device("core")
 
         # search parameters
-        self.setattr_argument("target_voltage_mv",          NumberValue(default=55.1, precision=3, step=1, min=-10000, max=10000))
-        self.setattr_argument("target_tolerance_mv",        NumberValue(default=5, precision=3, step=1, min=0, max=1000))
+        self.setattr_argument("target_voltage_mv",      NumberValue(default=55.1, precision=3, step=1, min=-10000, max=10000, scale=1., unit='mV'))
+        self.setattr_argument("target_tolerance_mv",    NumberValue(default=5, precision=3, step=1, min=0, max=1000, scale=1., unit='mV'))
 
         # DDS setup
-        self.setattr_argument("dds_freq_mhz_list",          Scannable(
-                                                                    default=RangeScan(70, 140, 351, randomize=True),
-                                                                    global_min=70, global_max=140, global_step=1,
-                                                                    unit="MHz", scale=1, precision=5
-                                                                ), group='DDS')
-        self.setattr_argument("dds_channel_num",            NumberValue(default=1, precision=0, step=1, min=0, max=3), group='DDS')
-        self.setattr_argument("dds_ampl_min_pct",           NumberValue(default=1, precision=2, step=1, min=1, max=40), group='DDS')
-        self.setattr_argument("dds_ampl_max_pct",           NumberValue(default=50, precision=2, step=1, min=5, max=50), group='DDS')
-        self.setattr_argument("dds_attenuation_db",         NumberValue(default=14, precision=1, step=0.5, min=14, max=31.5), group='DDS')
+        self.setattr_argument("dds_freq_mhz_list",  Scannable(
+                                                            default=[
+                                                                RangeScan(70, 140, 351, randomize=True),
+                                                            ],
+                                                            global_min=70, global_max=140, global_step=1,
+                                                            unit="MHz", scale=1, precision=5
+                                                        ), group='DDS')
+
+        dds_device_list = self._get_dds_devices()
+        self.setattr_argument("dds_target",         EnumerationValue(list(dds_device_list), default='urukul0_ch1'), group='DDS')
+        self.setattr_argument("dds_ampl_min_pct",   NumberValue(default=1, precision=2, step=1, min=0.1, max=50., scale=1., unit='%'), group='DDS')
+        self.setattr_argument("dds_ampl_max_pct",   NumberValue(default=50, precision=2, step=1, min=0.1, max=50., scale=1., unit='%'), group='DDS')
+        self.setattr_argument("dds_attenuation_db", NumberValue(default=14, precision=1, step=0.5, min=10, max=31.5, scale=1., unit='dB'), group='DDS')
 
         # sampler setup
-        self.setattr_argument("adc_channel_num",            NumberValue(default=2, precision=0, step=1, min=0, max=7), group='ADC')
-        self.setattr_argument("adc_gain_num",               EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
-        self.setattr_argument("adc_sample_num",             NumberValue(default=250, precision=0, step=1, min=1, max=5000), group='ADC')
+        self.setattr_argument("adc_channel_num",    NumberValue(default=2, precision=0, step=1, min=0, max=7), group='ADC')
+        self.setattr_argument("adc_gain_num",       EnumerationValue(['1', '10', '100', '1000'], default='100'), group='ADC')
+        self.setattr_argument("adc_sample_num",     NumberValue(default=250, precision=0, step=1, min=1, max=5000), group='ADC')
 
         # result storage
         self.setattr_argument("save_to_dataset_manager",    BooleanValue(default=True), group='dataset')
         self.setattr_argument("dataset_name",               StringValue(default='pump_beam'), group='dataset')
+
+        # MAGIC NUMBERS
+        self.dds_update_delay_us =  1000    # slack after DDS updates for beam & photodiode to respond
+        self.adc_poll_delay_us =    200     # slack between successive ADC reads
+        self.max_recursions =       14
+
+    def _get_dds_devices(self):
+        """
+        Get all valid DDS (AD9910) devices from the device_db.
+        """
+        is_local_dds_device = lambda v: (
+                isinstance(v, dict) and (v.get('type') == 'local')
+                and ('class' in v) and (v.get('class') == "AD9910")
+        )
+
+        # return sorted list of local DDS devices from device_db
+        return sorted(set([
+            k
+            for k, v in self.get_device_db().items()
+            if is_local_dds_device(v)
+        ]))
 
     def prepare(self):
         """
         Prepare things such that kernel functions have minimal overhead.
         """
         '''GENERAL'''
-        # todo: checks for ampl range, target val
+        # check arguments for validity
+        self._prepare_argument_checks()
 
         # get devices
         self.adc =  self.get_device("sampler0")
-        self.dds =  self.get_device("urukul2_ch{:d}".format(self.dds_channel_num))
+        # get target DDS device
+        try:
+            self.dds = self.get_device(self.dds_target)
+        except Exception as e:
+            raise e
 
-        # add extra slack before running a new frequency
-        self.time_slack_mu =            self.core.seconds_to_mu(250 * us)
-        # add holdoff period after changing amplitude to allow beam & photodiode to respond
-        self.dds_response_holdoff_mu =  self.core.seconds_to_mu(1000 * us)
+        # monitor error conditions
+        self._error_flag = False    # data does NOT upload to dataset manager in event of error
+        self._num_recursions = 0    # count recursion depth to prevent death loops
 
 
-        '''PREPARE DDS'''
+        '''PREPARE HARDWARE VALUES'''
+        # timings
+        self.dds_update_delay_mu =  self.core.seconds_to_mu(self.dds_update_delay_us * us) # slack after DDS updates for beam & photodiode to respond
+        self.adc_poll_delay_mu =    self.core.seconds_to_mu(self.adc_poll_delay_us * us)   # slack between successive ADC reads
+
         # convert DDS values
         self.dds_freq_mhz_list =    list(self.dds_freq_mhz_list)
         self.dds_freq_ftw_list =    np.array([self.dds.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.dds_freq_mhz_list])
         self.dds_ampl_min_asf =     self.dds.amplitude_to_asf(self.dds_ampl_min_pct / 100.)
         self.dds_ampl_max_asf =     self.dds.amplitude_to_asf(self.dds_ampl_max_pct / 100.)
 
-
-        '''PREPARE ADC'''
         # convert ADC values
-        self.adc_gain_num =         int(self.adc_gain_num)
-        self.adc_v_to_mu =          (2**15 * self.adc_gain_num) / 10
-        self.adc_mu_to_v =          10 / (2**15 * self.adc_gain_num)
-        self.adc_gain_mu =          np.int32(np.log10(self.adc_gain_num))
-        self.adc_poll_delay_mu =    self.core.seconds_to_mu(200 * us)
-
-        # convert target voltage values into ADC machine units
-        self.target_voltage_mu =    np.int32((self.target_voltage_mv / 1000) * self.adc_v_to_mu)
-        self.target_tolerance_mu =  np.int32((self.target_tolerance_mv / 1000) * self.adc_v_to_mu)
+        adc_v_to_mu =               (1<<15) * int(self.adc_gain_num) / 10
+        self.adc_gain_mu =          int(np.log10(int(self.adc_gain_num)))
+        self.target_voltage_mu =    np.int32((self.target_voltage_mv / 1000) * adc_v_to_mu)
+        self.target_tolerance_mu =  np.int32((self.target_tolerance_mv / 1000) * adc_v_to_mu)
 
 
         '''PREPARE DATASETS'''
-        # set up local datasets
         self._iter_dataset = 0
         self.set_dataset("results", np.zeros((len(self.dds_freq_mhz_list), 2)))
         self.setattr_dataset("results")
+        self.time_start = datetime.timestamp(datetime.now())    # record start time
 
-        # record start time
-        self.time_start = datetime.timestamp(datetime.now())
+    def _prepare_argument_checks(self):
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure amplitude search range is valid
+        if self.dds_ampl_min_pct > self.dds_ampl_max_pct:
+            raise ValueError("Invalid amplitude range: [{:f}, {:f}]."
+                             "dds_ampl_min_pct must be less than dds_ampl_max_pct.".format(self.dds_ampl_min_pct, self.dds_ampl_max_pct))
+
+        # ensure target voltage is in range and won't be saturated
+        if not abs(self.target_voltage_mv) <= 1e4:
+            raise ValueError("Invalid target voltage: {:f}. Must be in range [-10, 10]V.".format(self.target_voltage_mv))
+        elif not abs(self.target_voltage_mv) < (1e4 / int(self.adc_gain_num)):
+            raise ValueError("Selected target voltage and gain will cause saturation: {:f}, {:s}.".format(self.target_voltage_mv, self.adc_gain_num))
 
 
-    """
+    '''
     MAIN SEQUENCE
-    """
+    '''
     @kernel(flags={"fast-math"})
     def prepareDevices(self) -> TNone:
         """
@@ -114,18 +161,15 @@ class LaserPowerCalibration(EnvExperiment):
         self.dds.sw.off()
         self.dds.cpld.set_profile(DEFAULT_PROFILE)
         self.dds.cpld.io_update.pulse_mu(8)
-        self.core.break_realtime()
 
         # set DDS attenuator without affecting other DDSs on board
         self.dds.cpld.get_att_mu()
         self.core.break_realtime()
         self.dds.set_att(self.dds_attenuation_db * dB)
         self.dds.sw.on()
-        self.core.break_realtime()
 
-        # set up ADC
+        # configure ADC
         self.adc.set_gain_mu(self.adc_channel_num, self.adc_gain_mu)
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -135,46 +179,58 @@ class LaserPowerCalibration(EnvExperiment):
         self.prepareDevices()
 
         # MAIN LOOP
-        for freq_ftw in self.dds_freq_ftw_list:
+        try:
+            for freq_ftw in self.dds_freq_ftw_list:
+                self._num_recursions = 0    # clear recursion counter
 
-            # add slack
-            at_mu(now_mu() + self.time_slack_mu)
+                # search recursively for target amplitude
+                self.core.break_realtime()
+                ampl_calib_asf = self._recursion_search(freq_ftw, self.dds_ampl_min_asf, self.dds_ampl_max_asf)
 
-            # search recursively for target amplitude
-            ampl_calib_asf = self._recursion_search(freq_ftw, self.dds_ampl_min_asf, self.dds_ampl_max_asf)
+                # store results & check termination
+                self.update_dataset(freq_ftw, ampl_calib_asf)
+                if self.scheduler.check_termination():
+                    raise TerminationRequested
+
+        except Exception as e:
+            self._error_flag = True
+            print(e)
+        finally:
             self.core.break_realtime()
 
-            # store results
-            self.update_dataset(freq_ftw, ampl_calib_asf)
-            self.core.break_realtime()
+        # todo: cleanup
 
 
-    """
+    '''
     HELPER FUNCTIONS
-    """
+    '''
     @kernel(flags={"fast-math"})
-    def _recursion_search(self, freq_ftw: TInt32, ampl_min_asf: TInt32, ampl_max_asf: TInt32) -> TInt32:
+    def _recursion_search(self, freq_ftw: TInt32=0x0, ampl_min_asf: TInt32=0x0, ampl_max_asf: TInt32=0x0) -> TInt32:
         """
-        Use recursion to conduct a binary search.
-        Arguments:
-            freq_ftw        (TInt32): the frequency to set the DDS (in ftw).
-            ampl_min_asf    (TInt32): the lower bound on amplitude (in asf).
-            ampl_max_asf    (TInt32): the upper bound on amplitude (in asf).
-        Returns:
-            TInt32: the center amplitude (in asf).
+        Use recursion to conduct a binary search for the target amplitude.
+        :param freq_ftw: the frequency to set the DDS (in ftw).
+        :param ampl_min_asf: the lower bound on amplitude (in asf).
+        :param ampl_max_asf: the upper bound on amplitude (in asf).
+        :return: the center amplitude (in asf).
         """
-        # recursion: get mid-range value
-        # note: use bit-shift for fast divide by two & ensuring int
+        # check recursion depth is OK (to prevent death spirals)
+        self._num_recursions += 1
+        if self._num_recursions > self.max_recursions:
+            raise ValueError("Unable to find target DDS amplitude at {:f} MHz."
+                             "Max recursion depth exceeded.".format(self.dds.ftw_to_frequency(freq_ftw) / MHz))
+
+        # get mid-range value via bit-shift for fast divide by two & ensuring int
         ampl_center_asf = (ampl_min_asf + ampl_max_asf) >> 1
 
-        # set dds amplitude
-        self.dds.set_mu(freq_ftw, asf=ampl_center_asf, profile=DEFAULT_PROFILE)
-        # wait for beam-photodiode system to respond before reading voltage
-        delay_mu(self.dds_response_holdoff_mu)
+        # update DDS with target waveform
+        self.dds.set_mu(freq_ftw, asf=ampl_center_asf,
+                        profile=DEFAULT_PROFILE,
+                        phase_mode=PHASE_MODE_CONTINUOUS)
+        # wait for beam & photodiode to settle before reading voltage
+        delay_mu(self.dds_update_delay_mu)
         volt_mu = self._adc_read()
 
         # recursion: check if we meet criteria
-        # todo: does abs cause RPC? try doing explicit comparison
         if abs(volt_mu - self.target_voltage_mu) <= self.target_tolerance_mu:
             return ampl_center_asf
         # recursion: check if we should go low or high
@@ -190,15 +246,17 @@ class LaserPowerCalibration(EnvExperiment):
     def _adc_read(self) -> TInt32:
         """
         Read ADC inputs and return the averaged result.
+        :return: the averaged ADC reading.
         """
-        # create holding values
+        # create holder variables
         sampler_running_avg_mu =    np.int32(0)
         sampler_buffer_mu =         [0] * 8
         adc_input_tmp_mu =          np.int32(0)
 
         # sampling loop (running average)
+        self.core.break_realtime()
         for i in range(self.adc_sample_num):
-            # read samples into buffer and get channel reading
+            # read samples into buffer and acquire channel reading
             self.adc.sample_mu(sampler_buffer_mu)
             adc_input_tmp_mu = sampler_buffer_mu[self.adc_channel_num]
 
@@ -213,6 +271,8 @@ class LaserPowerCalibration(EnvExperiment):
     def update_dataset(self, freq_ftw: TInt32, ampl_asf: TInt32) -> TNone:
         """
         Records values via rpc to minimize kernel overhead.
+        :param freq_ftw: the frequency of the DDS (in ftw)
+        :param ampl_asf: the amplitude of the DDS (in asf).
         """
         # save data to dataset
         self.mutate_dataset('results', self._iter_dataset, np.array([freq_ftw, ampl_asf]))
@@ -220,14 +280,12 @@ class LaserPowerCalibration(EnvExperiment):
         self.set_dataset('management.dynamic.completion_pct',
                          round(100. * self._iter_dataset / len(self.results), 3),
                          broadcast=True, persist=True, archive=False)
-
-        # update dataset iterator
-        self._iter_dataset += 1
+        self._iter_dataset += 1 # update dataset iterator
 
 
-    """
+    '''
     ANALYZE
-    """
+    '''
     def analyze(self):
         """
         Analyze the results from the experiment.
@@ -249,7 +307,7 @@ class LaserPowerCalibration(EnvExperiment):
         print('\t\t\tRUN TIME: {:.2f}\n'.format(time_stop - self.time_start))
 
         # add calibration values to dataset manager
-        if self.save_to_dataset_manager:
+        if (not self._error_flag) and self.save_to_dataset_manager:
             _dataset_trunk = ['calibration', 'beam_power', self.dataset_name]
             self.set_dataset('.'.join(_dataset_trunk + ['calibration_timestamp']), time_stop, broadcast=True, persist=True)
             self.set_dataset('.'.join(_dataset_trunk + ['target_voltage_mv']), self.target_voltage_mv, broadcast=True, persist=True)
@@ -257,18 +315,17 @@ class LaserPowerCalibration(EnvExperiment):
 
 
         '''UPLOAD DATA TO LABRAD'''
-        # upload data to labrad for visualization in RealSimpleGrapher
         try:
             # create connections to labrad servers
-            cxn =                   labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
-            dv =                    cxn.data_vault
-            cr =                    cxn.context()
+            cxn =   labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
+            dv =    cxn.data_vault
+            cr =    cxn.context()
 
             # create labrad dataset title
-            date =                  datetime.now()
-            dataset_title =         'Laser Power Calibration'
-            trunk_time =            '{0:s}_{1:02d}:{2:02d}'.format(dataset_title, date.hour, date.minute)
-            trunk_dataset =         ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk_time]
+            date =          datetime.now()
+            dataset_title = 'Laser Power Calibration'
+            trunk_time =    '{0:s}_{1:02d}:{2:02d}'.format(dataset_title, date.hour, date.minute)
+            trunk_dataset = ['', 'labrad', str(date.year), '{:02d}'.format(date.month), '{0:02d}'.format(date.day), trunk_time]
 
             # create labrad dataset
             dv.cd(trunk_dataset, True, context=cr)
@@ -288,5 +345,5 @@ class LaserPowerCalibration(EnvExperiment):
             print("\tLabRAD upload successful.")
 
         except Exception as e:
-            print("Warning: unable to upload data to labrad.")
-            print(repr(e))
+            print("Warning - unable to upload data to labrad: {}".format(repr(e)))
+

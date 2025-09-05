@@ -63,6 +63,7 @@ class UrukulConfigure(EnvExperiment):
     def _get_dds_devices(self):
         """
         Get all valid DDS (AD9910) devices from the device_db.
+        :return: a set of all AD9910 devices.
         """
         is_local_dds_device = lambda v: (
                 isinstance(v, dict) and (v.get('type') == 'local')
@@ -76,6 +77,10 @@ class UrukulConfigure(EnvExperiment):
             if is_local_dds_device(v)
         ]))
 
+
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
         # reset & prepare
