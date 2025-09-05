@@ -12,8 +12,6 @@ from LAX_exp.system.subsequences import Readout
 
 from skimage.transform import hough_circle, hough_circle_peaks
 
-# todo: speed things up here and there
-
 
 class IonLoadAndAramp(LAXExperiment, Experiment):
     """
