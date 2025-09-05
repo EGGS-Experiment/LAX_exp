@@ -1,9 +1,10 @@
 import math
-import numpy as np
+from numpy import array
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice.edge_counter import (CONFIG_COUNT_RISING, CONFIG_COUNT_FALLING,
                                            CONFIG_SEND_COUNT_EVENT, CONFIG_RESET_TO_ZERO)
@@ -27,7 +28,7 @@ class ReadoutAdaptive(LAXSubsequence):
 
         # count rates & probabilities
         "max_counts_bin", "likelihood_bright_n",
-        "likelihood_dark_n", "error_threshold", "error_threshold_frac", "sigma_max", "_t_decay_const"
+        "likelihood_dark_n", "error_threshold", "error_threshold_frac", "sigma_max", "_t_decay_const",
     }
 
     def build_subsequence(self, time_bin_us: TFloat = 100, error_threshold: TFloat = 1e-2,
@@ -95,16 +96,14 @@ class ReadoutAdaptive(LAXSubsequence):
 
     @rpc
     def _prepare_likelihoods(self, count_rate_bright: TFloat, count_rate_dark: TFloat,
-                             max_counts_bin: TInt32) ->TTuple([TArray(TFloat, 1), TArray(TFloat, 1)]):
+                             max_counts_bin: TInt32) -> TTuple([TArray(TFloat, 1), TArray(TFloat, 1)]):
         """
         Precalculate the target likelihood distributions for all possible count values
-        to avoid expensive on-kernel calculation.
-        Arguments:
-            count_rate_bright: mean counts per bin for a bright state.
-            count_rate_dark: mean counts per bin for a dark state.
-            max_counts_bin: maximum number of counts to consider for likelihood calculation.
-        Returns:
-            array of likelihoods for all possible detected counts (until max_counts_bin) for
+            to avoid expensive on-kernel calculation.
+        :param count_rate_bright: mean counts per bin for a bright state.
+        :param count_rate_dark: mean counts per bin for a dark state.
+        :param max_counts_bin: maximum number of counts to consider for likelihood calculation.
+        :return: array of likelihoods for all possible detected counts (until max_counts_bin) for
             bright and dark states, separately.
         """
         # precalculate factorials & likelihood functions
@@ -117,12 +116,12 @@ class ReadoutAdaptive(LAXSubsequence):
         log_likelihood_poisson =    lambda ld, n: n * math.log(ld) - ld - log_factorial_stirling(n)
 
         # use log-likelihoods to reduce numerical errors b/c numbers are very large BEFORE division
-        likelihood_bright_n = np.array([
+        likelihood_bright_n = array([
             likelihood_poisson(count_rate_bright, n) if n <= 10
             else math.exp(log_likelihood_poisson(count_rate_bright, n))
             for n in range(0, max_counts_bin + 1)
         ])
-        likelihood_dark_n = np.array([
+        likelihood_dark_n = array([
             likelihood_poisson(count_rate_dark, n) if n <= 10
             else math.exp(log_likelihood_poisson(count_rate_dark, n))
             for n in range(0, max_counts_bin + 1)
@@ -137,14 +136,12 @@ class ReadoutAdaptive(LAXSubsequence):
     def run(self) -> TTuple([TInt32, TInt32, TInt64]):
         """
         Dynamically reads out the ion state using an adaptive maximum likelihood technique.
-        Returns: a tuple of (ion_state, total_counts, elapsed_bins, P_bright, P_dark).
-            ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e.
-                bright/dark discrimination criteria not met. 0 means "dark." 1 means "bright."
-            total_counts: the total number of counts detected during readout. This number will depend on the number
-                of bins that were required to determine the ion state.
-            elapsed_time: amount of time (in machine units) required to determine the ion state.
-            P_bright: likelihood that ion was bright, given the detected count "trajectory".
-            P_dark: likelihood that ion was dark, given the detected count "trajectory".
+        Returns a tuple of (ion_state, total_counts, elapsed_bins).
+        :return ion_state: the determined ion state - can be any of (-1, 0, 1). -1 means "indeterminate," i.e.
+            bright/dark discrimination criteria not met. 0 means "dark." 1 means "bright."
+        :return total_counts: the total number of counts detected during readout. This number will depend on the number
+            of bins that were required to determine the ion state.
+        :return elapsed_time: amount of time (in machine units) required to determine the ion state.
         """
         '''PREPARE'''
         # instantiate variables
@@ -225,5 +222,4 @@ class ReadoutAdaptive(LAXSubsequence):
         while count_events_remaining[0] != -1:
             count_events_remaining = self.pmt.fetch_timestamped_count(now_mu() + 10000)
             delay_mu(10000)
-        self.core.break_realtime()
 

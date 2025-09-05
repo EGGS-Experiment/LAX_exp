@@ -1,5 +1,5 @@
+from numpy import int32
 from artiq.experiment import *
-from numpy import int32, int64
 
 
 class MeanFilter(HasEnvironment):
@@ -20,23 +20,10 @@ class MeanFilter(HasEnvironment):
         Build the Mean filter object.
         :param filter_length: length of the moving average.
         """
-        # get relevant devices
-        # todo: is this necessary?
-        # self.setattr_device('core')
-
         # store build arguments
         self.filter_length = filter_length
-
         # hardcoded variables
         self.max_filter_length = 1000
-
-    def _prepare_argument_checks(self) -> TNone:
-        """
-        Check experiment arguments for validity.
-        """
-        # ensure filter_taps meets criteria
-        if not (1 <= self.filter_length <= self.max_filter_length):
-            raise ValueError("filter_length outside valid range. Must be in range [1, {:d}].".format(self.max_filter_length))
 
     def prepare(self):
         """
@@ -48,6 +35,15 @@ class MeanFilter(HasEnvironment):
         self._filter_hist = [int32(0)] * self.filter_length
         self._filter_idx =  int32(0)
         self._filter_out =  int32(0) # note: use int32 for speed since we probably don't need to process large numbers
+
+    def _prepare_argument_checks(self) -> TNone:
+        """
+        Check experiment arguments for validity.
+        """
+        # ensure filter_taps meets criteria
+        if not (1 <= self.filter_length <= self.max_filter_length):
+            raise ValueError("filter_length outside valid range."
+                             "Must be in range [1, {:d}].".format(self.max_filter_length))
 
 
     '''
@@ -67,7 +63,6 @@ class MeanFilter(HasEnvironment):
 
         # subtract history from running average (i.e. circular buffer) once we have stored enough counts
         # note: don't need to check for current index to exceed length since higher values should be all 0
-        # if self._filter_idx > self.filter_length:
         self._filter_out -= self._filter_hist[self._filter_idx % self.filter_length]
 
     @portable(flags={"fast-math"})
