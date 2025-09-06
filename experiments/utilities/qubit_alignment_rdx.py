@@ -84,20 +84,21 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
         elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
 
-        # calculate configuration and timings
-        self.repetitions =  round(self.time_total_s / (self.samples_per_point * self.time_per_point_us * us))
-        self.num_times =    len(self.time_qubit_mu_list)
-        self._state_array =         zeros(self.samples_per_point, dtype=int32) # todo: document
-        self._time_exp_shot_s =     int64(0)   # store time taken per shot
-        # get readout time for later conversion
-        self.time_readout_s =   self.get_parameter('time_readout_us', group='timing', override=False) * us
-
         # convert qubit parameters
         self.freq_qubit_ftw =   self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz)
         self.ampl_qubit_asf =   self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
         self.time_qubit_mu_list =   [self.core.seconds_to_mu(time_us * us)
                                      for time_us in self.time_qubit_us_list]
+
+        # calculate configuration and timings
+        time_per_point_us = 3000    # guess time per shot lol
+        self.repetitions =  round(self.time_total_s / (self.samples_per_point * time_per_point_us * us))
+        self.num_times =    len(self.time_qubit_mu_list)
+        self._state_array =         zeros(self.samples_per_point, dtype=int32) # todo: document
+        self._time_exp_shot_s =     0.   # store time taken per shot
+        # get readout time for later conversion
+        self.time_readout_s =   self.get_parameter('time_readout_us', group='timing', override=False) * us
 
         # create filter objects & prepare them (b/c only LAXExperiment classes call their own children)
         self._filter_arr = [MeanFilter(self, filter_length=self.samples_per_point)
@@ -122,11 +123,10 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
             self.set_dataset('temp.qubit_align.counts_y_{:d}'.format(i), state_y_arr,
                              broadcast=True, persist=False, archive=False)
             # initialize plotting applet
-            stra =  (
-                '${artiq_applet}'
+            stra = '${artiq_applet}' + (
                 'plot_xy temp.qubit_align.counts_y_{:d}'
-                '--x temp.qubit_align.counts_x'
-                '--title "Qubit Alignment - {:f}"'
+                ' --x temp.qubit_align.counts_x'
+                ' --title "Qubit Alignment - {:f}"'
             ).format(i, self.time_qubit_mu_list[i])
             self.ccb.issue(
                 # name of broadcast & applet name
@@ -214,18 +214,19 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
 
             # update dataset & clean up
             for idx_time in range(self.num_times):
-                self.update_results(num_rep,
+                self.update_results(num_rep * (self.samples_per_point * self._time_exp_shot_s),
                                     idx_time,
                                     self._filter_arr[idx_time].get_current() / self.samples_per_point)
             self.check_termination()    # check termination
 
     @rpc(flags={"async"})
-    def update_results(self, iter_num: TInt32, idx_time: TInt32, dstate_probability: TFloat) -> TNone:
+    def update_results(self, time_dj: TFloat, idx_time: TInt32, dstate_probability: TFloat) -> TNone:
         """
         Overload the update_results function to allow real-time plot updating.
+        :param time_dj: ***todo document***
+        :param idx_time: ***todo document***
+        :param dstate_probability: ***todo document***
         """
-        time_dj = iter_num * (self.samples_per_point * self._time_exp_shot_s)
-
         # update datasets for broadcast
         self.mutate_dataset('temp.qubit_align.counts_x', self._result_iter, time_dj)
         self.mutate_dataset('temp.qubit_align.counts_y_{:d}'.format(idx_time), self._result_iter, dstate_probability)
