@@ -47,7 +47,7 @@ class LaserPowerCalibration(EnvExperiment):
                                                             default=[
                                                                 RangeScan(70, 140, 351, randomize=True),
                                                             ],
-                                                            global_min=70, global_max=140, global_step=1,
+                                                            global_min=30, global_max=200, global_step=1,
                                                             unit="MHz", scale=1, precision=5
                                                         ), group='DDS')
 
