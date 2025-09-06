@@ -1,10 +1,10 @@
 from artiq.experiment import *
-from numpy import array, ndarray, int32, int64
+from numpy import array, int32, int64, ndarray
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
-PULSESHAPER_MAX_WAVEFORMS = 64
+PULSESHAPER_MAX_WAVEFORMS = 201
 
 
 class PhaserPulseShaper(LAXEnvironment):
@@ -51,8 +51,6 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         Prepare relevant values for waveform compilation.
         """
-        # set global variables
-        PULSESHAPER_MAX_WAVEFORMS = 64
         # note: max update rate should be a multiple of 5x the sample period
         # such that each oscillator is deterministically updated
         self.t_max_phaser_update_rate_mu = 5 * self.phaser_eggs.t_sample_mu
@@ -75,7 +73,7 @@ class PhaserPulseShaper(LAXEnvironment):
 
         self.ampl_ch1_osc_scale_arr = array(self.get_parameter('ampl_ch1_osc_scale_arr', group='eggs.ch1', override=False))
         if not all((
-            isinstance(self.ampl_ch1_osc_scale_arr, list),
+            isinstance(self.ampl_ch1_osc_scale_arr, (list, ndarray)),
             len(self.ampl_ch1_osc_scale_arr) == 5,
             (isinstance(val, (int, float)) for val in self.ampl_ch1_osc_scale_arr)
         )):

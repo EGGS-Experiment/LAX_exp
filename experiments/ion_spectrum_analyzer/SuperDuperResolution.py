@@ -139,6 +139,17 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
                               group='{}.shape'.format(_argstr))
 
+        # phaser - waveform - general
+        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+                              group="{}.waveform".format(_argstr),
+                              tooltip="")
+        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.waveform".format(_argstr))
+        self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702.687, 702.687, 0., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 10., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
+        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.5]), group="{}.waveform".format(_argstr))
+
         # phaser - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr))
         self.setattr_argument("phase_osc0_psk_turns", PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
@@ -162,17 +173,6 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                               group="{}.psk".format(_argstr),
                               tooltip="Delay time (in us) delay between PSK pulses. Used for ramsey-ing."
                                       "Note: enable_phase_shift_keying AND enable_psk_delay must be True.")
-
-        # phaser - waveform - general
-        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-                              group="{}.waveform".format(_argstr),
-                              tooltip="")
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.), group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.), group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_superresolution_osc_khz_list",      PYONValue([-702.687, 702.687, 0., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("ampl_superresolution_osc_frac_list",     PYONValue([40., 40., 10., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.5]), group="{}.waveform".format(_argstr))
 
         # get relevant devices
         self.setattr_device("qubit")
