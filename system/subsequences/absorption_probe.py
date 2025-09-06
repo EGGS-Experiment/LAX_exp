@@ -18,7 +18,7 @@ class AbsorptionProbe(LAXSubsequence):
 
     def build_subsequence(self):
         # subsequence arguments
-        self.setattr_argument('time_probe_us', NumberValue(default=50, step=0.1, precision=3, min=0, max=100000, scale=1., unit='us'),
+        self.setattr_argument('time_probe_us', NumberValue(default=35, step=0.1, precision=3, min=0, max=100000, scale=1., unit='us'),
                               group='{}'.format(self.name))
 
         # get relevant devices
