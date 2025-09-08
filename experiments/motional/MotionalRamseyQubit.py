@@ -132,7 +132,7 @@ class MotionalRamseyQubit(LAXExperiment, Experiment):
         # ramsey carrier parameters
         self.freq_carrier_ftw =  self.qubit.frequency_to_ftw(self.freq_carrier_mhz * MHz)
         self.ampl_carrier_asf =  self.qubit.amplitude_to_asf(self.ampl_carrier_pct / 100.)
-        self.phase_carrier_rev_pow = self.qubit.phase_to_pow(self.phase_carrier_rev_turns)
+        self.phase_carrier_rev_pow = self.qubit.turns_to_pow(self.phase_carrier_rev_turns)
         self.time_carrier_mu =    self.core.seconds_to_mu(self.time_carrier_us * us)
 
         # ramsey RSB parameters
