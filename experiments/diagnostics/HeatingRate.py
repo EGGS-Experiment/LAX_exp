@@ -27,7 +27,14 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
     def build_experiment(self):
         # heating rate: special arguments
-        self.setattr_argument("time_heating_rate_ms_list", PYONValue([1, 10, 20]))
+        self.setattr_argument("time_heating_rate_ms_list",  Scannable(
+                                                            default=[
+                                                                ExplicitScan([1, 10, 20]),
+                                                                RangeScan(1, 1000, 200, randomize=True),
+                                                            ],
+                                                            global_min=0.001, global_max=10000., global_step=10,
+                                                            unit="ms", scale=1, precision=3
+                                                        ))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
 
         # run regular sideband cooling build
@@ -169,7 +176,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
             results_yzde = groupBy(results_tmp, column_num=2)
             self._tmp_data = results_yzde.copy()
             # tmp remove
-            num_subplots = 2 * len(self.time_heating_rate_ms_list) + 1
+            num_subplots = 2 * len(list(self.time_heating_rate_ms_list)) + 1
 
             # convert column 0 (frequency) from frequency tuning word (FTW) to MHz (in absolute units),
             # and convert column 2 (time) from machine units to seconds
