@@ -48,7 +48,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=1, precision=0, step=1, min=1, max=10000))
 
         # explicitly specify AD9910 profiles
-        self.profile_397_parametric = 6
+        self.profile_397_parametric = 0 # note: has to be [0, 3] since 854 & 866 share same profile lol
         self.profile_dds_parametric = 6
 
         # modulation
@@ -78,7 +78,7 @@ class ParametricSweep(LAXExperiment, Experiment):
                                                     ), group='voltage')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
+        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=100, scale=1., unit='%'),
                               group='cooling')
         self.setattr_argument("freq_cooling_mhz",   NumberValue(default=112, precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
                               group='cooling')
