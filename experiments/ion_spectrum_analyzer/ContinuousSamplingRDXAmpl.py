@@ -245,7 +245,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
                 max(self.osc_num_target_list) <= self._num_phaser_oscs,
                 min(self.osc_num_target_list) >= 0,
                 len(self.osc_num_target_list) <= self._num_phaser_oscs,
-                len(set(self.osc_num_target_list)) == len(self._num_phaser_oscs)
+                len(set(self.osc_num_target_list)) == self._num_phaser_oscs
         )):
             raise ValueError("Invalid osc_num_target_list."
                              "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self.num_phaser_oscs, self.num_phaser_oscs-1))
