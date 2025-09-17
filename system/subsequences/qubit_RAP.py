@@ -212,6 +212,49 @@ class QubitRAP(LAXSubsequence):
         # return relevant values
         return int64(time_ram_step / self.time_pulse_mu_to_ram_step)
 
+    @portable(flags={"fast-math"})
+    def configure_dry(self, time_mu: TInt64, freq_center_ftw: TInt32, freq_dev_ftw: TInt32) -> TTuple([]):
+        """
+        Set the overall pulse time for the shaped pulse.
+        This is achieved by adjusting the sample rate of the pulse shape updates.
+        Arguments:
+            time_mu: pulse time in mu.
+            freq_center_ftw: chirp center freq in 32b Frequency Tuning Word (ftw).
+            freq_dev_ftw: chirp deviation (both directions) in 32b Frequency Tuning Word (ftw).
+        Returns:
+            actual pulse time (in mu).
+        """
+        '''CALCULATE VALUES'''
+        # calculate step size/timing for RAM
+        time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
+        if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
+            raise ValueError("Invalid RAM timestep in qubitRAP.configure. Change either pulse time or num_samples.")
+
+        # calculate step size/timing for DRG
+        time_drg_step = round(time_mu * self.time_pulse_mu_to_drg_step)
+        if (time_drg_step > (1 << 16)) or (time_drg_step < 1):
+            raise ValueError("Invalid DRG timestep in qubitRAP.configure. Change either pulse time or num_samples.")
+        # note: freq_dev_ftw << 1 to make it double-sided
+        freq_drg_ftw = int32(round((freq_dev_ftw << 1) / (self.num_samples * self.drg_steps_per_ram_step)))
+
+
+        '''CONFIGURE HARDWARE - PULSE SHAPING'''
+        # todo: return _AD9910_REG_PROFILE0+profile 64b word => data_hi=freq_center_ftw + freq_dev_ftw, lo=freq_center_ftw-freq_dev_ftw
+        # ram_hi = (time_ram_step << 8) | (end >> 2)
+        # ram_lo = ((self.ram_addr_stop << 30) | (self.ram_addr_start << 14) | (0 << 5) | (0 << 3) | ad9910.RAM_MODE_RAMPUP)
+
+
+        '''CONFIGURE HARDWARE - FREQUENCY RAMP/CHIRP'''
+        # todo: return _AD9910_REG_RAMP_LIMIT 64b word => data_hi=freq_center_ftw + freq_dev_ftw, lo=freq_center_ftw-freq_dev_ftw
+        # drg_lim_hi = freq_center_ftw + freq_dev_ftw
+        # drg_lim_lo = freq_center_ftw - freq_dev_ftw
+        # todo: return _AD9910_REG_RAMP_RATE 32b word => (time_drg_step << 16) | (time_drg_step << 0)
+        # todo: return _AD9910_REG_RAMP_STEP 64b word => data_hi=-freq_drg_ftw, lo=freq_drg_ftw
+
+        # return relevant values
+        # todo: return actual pulse time (i.e. int64(time_ram_step / self.time_pulse_mu_to_ram_step))
+        return int64(0)
+
     @kernel(flags={"fast-math"})
     def run_rap(self, time_pulse_mu: TInt64) -> TNone:
         """
@@ -269,6 +312,66 @@ class QubitRAP(LAXSubsequence):
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.set_cfr2(matched_latency_enable=1)
         self.qubit.cpld.io_update.pulse_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def run_from_config(self, time_pulse_mu: TInt64) -> TNone:
+        """
+        Fire pulse-shaped RAM pulse.
+        Arguments:
+            time_pulse_mu: the total pulse time. Doesn't have to be the
+                same as the RAP pulse length (i.e. can cut off the pulse early).
+        """
+        # todo: make it accept configs and run directly
+        pass
+        # '''PRIME RAM + DRG'''
+        # # set target DDS profile
+        # self.qubit.cpld.set_profile(self.ram_profile)
+        # self.qubit.cpld.io_update.pulse_mu(8)
+        #
+        # # enable RAM mode and clear DDS phase accumulator
+        # self.qubit.write32(ad9910._AD9910_REG_CFR1,
+        #                    (1 << 31) |  # ram_enable
+        #                    (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
+        #                    (1 << 13) |  # phase_autoclear
+        #                    (1 << 15) |  # load_lrr
+        #                    (1 << 14) |  # drg_autoclear
+        #                    2 # sdio_input_only + msb_first
+        #                 )
+        # # enable digital ramp generation
+        # # note: DRG nodwell low is necessary to allow negative slopes
+        # # since DRG accumulator is always initialized to the lower limit
+        # self.qubit.write32(ad9910._AD9910_REG_CFR2,
+        #                  (1 << 24) |  # asf_profile_enable
+        #                  (1 << 16) |  # effective_ftw
+        #                  (1 << 7) |  # matched_latency_enable
+        #                  (DRG_DEST_FTW << 20) |  # digital_ramp_destination
+        #                  (1 << 19) |  # digital_ramp_enable
+        #                  (1 << 17) |  # digital_ramp_nodwell_low
+        #                  (1 << 18)  # digital_ramp_nodwell_high
+        #                  )
+        # self.qubit.cpld.io_update.pulse_mu(8)
+        # delay_mu(256)   # necessary to prevent RTIO collisions
+        #
+        #
+        # '''FIRE PULSE'''
+        # time_start_mu = now_mu() & ~7
+        #
+        # # start ramp-up when coarse aligned to SYNC_CLK for determinacy
+        # at_mu(time_start_mu)
+        # self.qubit.cpld.io_update.pulse_mu(8)
+        #
+        # # open and close switch to synchronize with RAM pulse
+        # at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        # self.qubit.on()
+        # delay_mu(time_pulse_mu)
+        # self.qubit.off()
+        #
+        #
+        # '''CLEANUP'''
+        # # disable RAM and DRG
+        # self.qubit.set_cfr1(ram_enable=0)
+        # self.qubit.set_cfr2(matched_latency_enable=1)
+        # self.qubit.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:

@@ -398,7 +398,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # ensure shot period is valid and that we have sufficient buffer between shots
-        if self.sample_period_mu - self._time_exp_shot_mu < 1000000:
+        if self.sample_period_mu - self._time_exp_shot_mu < 125000: # 125us (i.e. a break_realtime)
             print("\n\t\tError: actual shot period exceeds allotted sample period.\n")
             self.core.break_realtime()
             return
