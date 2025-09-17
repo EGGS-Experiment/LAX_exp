@@ -238,7 +238,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
         # ensure osc_num_target_list is a valid list
         if not (isinstance(self.osc_num_target_list, list)):
             raise ValueError("Invalid osc_num_target_list."
-                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self.num_phaser_oscs, self.num_phaser_oscs-1))
+                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self._num_phaser_oscs, self._num_phaser_oscs-1))
         # ensure that osc_num_target_list contains a valid selection of oscillators
         elif (len(self.osc_num_target_list) != 0) and not all((
                 all(isinstance(val, int) for val in self.osc_num_target_list),
@@ -248,7 +248,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
                 len(set(self.osc_num_target_list)) == self._num_phaser_oscs
         )):
             raise ValueError("Invalid osc_num_target_list."
-                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self.num_phaser_oscs, self.num_phaser_oscs-1))
+                             "Must be a list of fewer than {:d} numbers in [0, {:d}].".format(self._num_phaser_oscs, self._num_phaser_oscs-1))
 
     def _prepare_waveform(self) -> TNone:
         """
