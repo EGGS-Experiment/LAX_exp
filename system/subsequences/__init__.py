@@ -33,18 +33,18 @@ from LAX_exp.system.subsequences.tickle_fast_phaser import TickleFastPhaser
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
 from LAX_exp.system.subsequences.QVSA_pulse import QVSAPulse
 from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
-from LAX_exp.system.subsequences.fock_overlap import FockOverlap
 __all__.extend(['Squeeze', 'SqueezeConfigurable',
                 'Displace', 'TickleDDS', 'TickleFastDDS', 'TickleFastPhaser',
-                'ParametricExcite', 'QVSAPulse', 'FockStateGenerator',
-                'FockOverlap'])
+                'ParametricExcite', 'QVSAPulse', 'FockStateGenerator'])
 
 # spin state manipulation
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.ramsey import Ramsey
 from LAX_exp.system.subsequences.qubit_pulseshape import QubitPulseShape
 from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
-__all__.extend(['RabiFlop', 'Ramsey', 'QubitPulseShape', 'QubitRAP'])
+# note: FockOverlap imports QubitRAP, so must be import after it
+from LAX_exp.system.subsequences.fock_overlap import FockOverlap
+__all__.extend(['RabiFlop', 'Ramsey', 'QubitPulseShape', 'QubitRAP', 'FockOverlap'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout

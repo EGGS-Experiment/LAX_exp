@@ -80,7 +80,7 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
 
         # fock state amplification
         self.fock_subsequence = FockOverlap(
-            self, ram_profile=self.profile_729_RAP, profile_shelve=self.profile_729_RAP,
+            self, ram_profile=self.profile_729_RAP,
             ram_addr_start=250, num_samples=200, pulse_shape="blackman"
         )
 
@@ -199,8 +199,8 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
         self.enable_RAP, self.enable_SBR = (False, False) # default to false for both
         if 'RAP' in self.readout_type:
             self.enable_RAP = True
-            self.freq_readout_ftw_list = np.array([self.freq_rap_center_ftw], dtype=np.int32)
-            time_readout_mu_list = [self.time_rap_mu]
+            self.freq_readout_ftw_list = np.array([-1], dtype=np.int32)
+            time_readout_mu_list = [256]
         # note: SBR check has to be 2nd, since otherwise RAP overrides SBR's freq and time list
         if 'SBR' in self.readout_type:
             self.enable_SBR = True
@@ -431,7 +431,10 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
 
         # record fock subsequences
-
+        with self.core_dma.record('_FOCK_GEN_HANDLE'):
+            self.fock_subsequence.run_fock_generate()
+        with self.core_dma.record('_FOCK_READ_HANDLE'):
+            self.fock_subsequence.run_fock_read()
 
         ### PHASER INITIALIZATION ###
         self.phaser_record()
@@ -505,7 +508,7 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
 
                         '''READOUT'''
                         if self.enable_RAP:
-                            self.fock_subsequence.run_fock_read()
+                            self.core_dma.playback_handle(fock_read_handle)
                         if self.enable_SBR:
                             self.sidebandreadout_subsequence.run_time(time_readout_mu)
                         self.readout_subsequence.run_dma()

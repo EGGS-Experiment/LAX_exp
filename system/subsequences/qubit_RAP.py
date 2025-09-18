@@ -99,18 +99,21 @@ class QubitRAP(LAXSubsequence):
 
         '''PREPARE CFR CONFIGURATION WORDS'''
         # CFR1: enable RAM mode and clear phase accumulator
-        self._CFR1_RAM_CONFIG = int32(
+        # note: has to be int64 b/c numpy won't take it as int32
+        self._CFR1_RAM_CONFIG = int64(
             (1 << 31) | # ram_enable
             (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
             (1 << 13) | # phase_autoclear
             (1 << 15) | # load_lrr
             (1 << 14) | # drg_autoclear
             2 # sdio_input_only + msb_first
-        )
+        ) & 0xFFFFFFFF
+
         # CFR2: enable digital ramp generation
+        # note: has to be int64 b/c numpy won't take it as int32
         # note: DRG nodwell low necessary for negative slopes b/c DRG
         #   accumulator always initialized to the lower limit
-        self._CFR2_DRG_CONFIG = int32(
+        self._CFR2_DRG_CONFIG = int64(
             (1 << 24) | # asf_profile_enable
             (1 << 16) | # effective_ftw
             (1 << 7) |  # matched_latency_enable
@@ -118,7 +121,7 @@ class QubitRAP(LAXSubsequence):
             (1 << 19) | # digital_ramp_enable
             (1 << 17) | # digital_ramp_nodwell_low
             (1 << 18)   # digital_ramp_nodwell_high
-        )
+        ) & 0xFFFFFFFF
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -250,8 +253,8 @@ class QubitRAP(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # prepare CFRs
-        self.qubit.write32(ad9910._AD9910_REG_CFR1, self._CFR1_RAM_CONFIG) # enable RAM & clear phase accumulator
-        self.qubit.write32(ad9910._AD9910_REG_CFR2, self._CFR2_RAM_CONFIG) # enable digital ramp generation
+        self.qubit.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG)) # enable RAM & clear phase accumulator
+        self.qubit.write32(ad9910._AD9910_REG_CFR2, int32(self._CFR2_DRG_CONFIG)) # enable digital ramp generation
         self.qubit.cpld.io_update.pulse_mu(8)
         delay_mu(256)   # necessary to prevent RTIO collisions
 
@@ -359,8 +362,8 @@ class QubitRAP(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # prepare CFRs
-        self.qubit.write32(ad9910._AD9910_REG_CFR1, self._CFR1_RAM_CONFIG) # enable RAM & clear phase accumulator
-        self.qubit.write32(ad9910._AD9910_REG_CFR2, self._CFR2_RAM_CONFIG) # enable digital ramp generation
+        self.qubit.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG)) # enable RAM & clear phase accumulator
+        self.qubit.write32(ad9910._AD9910_REG_CFR2, int32(self._CFR2_DRG_CONFIG)) # enable digital ramp generation
         self.qubit.cpld.io_update.pulse_mu(8)
         delay_mu(256)   # necessary to prevent RTIO collisions
 

@@ -57,20 +57,22 @@ class FockOverlap(QubitRAP):
 
         # fock state: generation
         self.setattr_argument("fock_num_prep", NumberValue(default=0, precision=0, step=1, min=0, max=10),
-                              group='{}.prep'.format(_argstr),
-                              tooltip="todo: document")
+                              group='{}.config'.format(_argstr),
+                              tooltip="Fock state number to generate.")
 
         # fock state: readout
         self.setattr_argument("fock_num_read",  EnumerationValue(["0", "1", "2", "3"], default="0"),
-                              group="{}.read".format(_argstr),
-                              tooltip="todo: document")
+                              group="{}.config".format(_argstr),
+                              tooltip="Fock state number to read. Limited by available number of auxiliary states.")
         self.setattr_argument("enable_final_rap", BooleanValue(default=True),
-                              group="{}.read".format(_argstr),
-                              tooltip="todo: document")
+                              group="{}.config".format(_argstr),
+                              tooltip="Enable final RAP pulse (which is almost always necessary). "
+                                      "This should be ON by default. "
+                                      "This option is used for state diagnostics via BSB Rabi divination.")
         self.setattr_argument("config_shelve",  PYONValue({0: (112.9415, 43., 20., 8.),
                                                            1: (104.1461, 43., 20., 8.),
                                                            2: (110.2433, 43., 20., 8.)}),
-                              group="{}.read".format(_argstr),
+                              group="{}.config".format(_argstr),
                               tooltip="{fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
 
         # build parent subsequence (QubitRAP)
@@ -102,18 +104,23 @@ class FockOverlap(QubitRAP):
         # note: separate 32b config word list and 32b att from 64b time to avoid conversion & b/c
         #   elements in artiq list must all be of same type
         self.rap_conf_words_list, self.rap_conf_time_list, self.rap_conf_att_list = zip(
-            (
-                *self.configure_values(self.core.seconds_to_mu(conf_dj[2] * us),
-                                   self.qubit.frequency_to_ftw(conf_dj[0] * MHz),
-                                   self.qubit.frequency_to_ftw(conf_dj[1] * kHz)),
-                att_to_mu(conf_dj[3] * dB)
+            *tuple(
+                (*self.configure_values(self.core.seconds_to_mu(conf_dj[2] * us),
+                                        self.qubit.frequency_to_ftw(conf_dj[0] * MHz),
+                                        self.qubit.frequency_to_ftw(conf_dj[1] * kHz)),
+                 att_to_mu(conf_dj[3] * dB))
+                for conf_dj in config_core_all.values()
             )
-            for conf_dj in config_core_all.values()
         )
+
+        # note: convert to list b/c artiq doesn't allow tuples to be indexed by variables in-kernel
+        self.rap_conf_words_list = list(self.rap_conf_words_list)
+        self.rap_conf_time_list = list(self.rap_conf_time_list)
+        self.rap_conf_att_list = list(self.rap_conf_att_list)
 
         # get conversion from sequence keys to index (for later compilation/batch sequencing)
         # config_idx = tuple(range(len(config_core_all)))
-        config_idx = dict(zip(config_core_all.keys(), range(len(config_core_all))))
+        config_idx = dict(zip(tuple(str(i) for i in config_core_all.keys()), range(len(config_core_all))))
 
 
         '''COMPILE PULSE SEQUENCES'''
@@ -125,10 +132,9 @@ class FockOverlap(QubitRAP):
         
         # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
         if len(seq_generate_str) != 0:
-            self.sequence_generate = tuple(config_idx[rap_key] for rap_key in seq_generate_str)
+            self.sequence_generate = [config_idx[rap_key] for rap_key in seq_generate_str]
         # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else:
-            self.sequence_generate = tuple((-1,))
+        else:   self.sequence_generate = [-1]
 
         ### compile readout sequence
         # specify pulses for each shelving operation (RSB => shelve_<num> => carrier) with final RSB for fluorescence readout
@@ -138,11 +144,9 @@ class FockOverlap(QubitRAP):
         
         # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
         if len(seq_read_str) != 0:
-            self.sequence_readout = tuple(config_idx[rap_key] for rap_key in seq_read_str)
+            self.sequence_readout = [config_idx[rap_key] for rap_key in seq_read_str]
         # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else:
-            self.sequence_readout = tuple((-1,))
-
+        else:   self.sequence_readout = [-1]
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -153,7 +157,7 @@ class FockOverlap(QubitRAP):
         '''RAP CONFIGS'''
         # check all configs for validity
         config_shelve_tmp = {} if self.fock_num_read == 0 else self.config_shelve
-        configs_all = (self.config_rsb, self.config_bsb, self.config_carr, *(config_shelve_tmp.keys()))
+        configs_all = (self.config_rsb, self.config_bsb, self.config_carr, *(config_shelve_tmp.values()))
 
         for conf_dj in configs_all:
             # check config values are stored correctly
@@ -174,13 +178,13 @@ class FockOverlap(QubitRAP):
             elif conf_dj[2] <= 5.:  # RAP time
                 raise ValueError("Invalid RAP config time: {:}. "
                                  "Value must be >5 us.".format(conf_dj[2]))
-            elif not (8. <= conf_dj[2] <= 31.5): # RAP attenuation
+            elif not (7.9 <= conf_dj[3] <= 31.6): # RAP attenuation
                 raise ValueError("Invalid RAP config attenuation: {:}. "
                                  "Value must be in range [8, 31.5] dB.".format(conf_dj[3]))
 
         '''READOUT'''
         # ensure fock_num_read is valid
-        if self.fock_num_read not in ("0", "1", "2", "3"):
+        if int(self.fock_num_read) not in (0, 1, 2, 3):
             raise ValueError("Invalid fock_num_read: {:}. "
                              "Must be in ['0', '1', '2', '3'].".format(self.fock_num_read))
 
@@ -191,11 +195,11 @@ class FockOverlap(QubitRAP):
             # check config keys valid
             if not all((isinstance(k, int) and (0 <= k <= 2) for k in shelving_keys)):
                 raise ValueError("Invalid shelving config keys: {:}. "
-                                 "Must be dict with keys as ints.".format(shelving_keys))
+                                 "Must be dict with keys as contiguous ints in [0, 2].".format(shelving_keys))
             # ensure shelving config keys are correctly numbered
             elif not ((max(shelving_keys) + 1 == len(shelving_keys)) and (len(set(shelving_keys)) == len(shelving_keys))):
                 raise ValueError("Invalid shelving config keys: {:}. "
-                                 "Must be contiguous ints in [0, 2].".format(shelving_keys))
+                                 "Must be contiguous ints starting in [0, 2].".format(shelving_keys))
 
             # ensure enough shelving for fock state readout
             if max(shelving_keys) + 1 < int(self.fock_num_read):
@@ -248,8 +252,8 @@ class FockOverlap(QubitRAP):
         """
         Run a batch of RAP pulses in succession.
             Used for both fock generation and fock readout b/c all primitives are RAP-based.
-        :param sequence_list: list of RAP configurations (denoted by index within the RAP dict ***todo document***)
-            to be run in sequential order.
+        :param sequence_list: list of RAP configurations (denoted by index within the RAP configuration holders,
+            e.g. rap_conf_words_list) to be run in sequential order.
         """
         for rap_conf_idx in sequence_list:
             # todo: sanitize input?
