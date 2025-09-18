@@ -16,9 +16,6 @@ class FockOverlap(QubitRAP):
     """
     name = 'fock_overlap'
     kernel_invariants = {
-        # general
-        "profile_shelve",
-
         # RAP configuration lists
         "rap_conf_words_list", "rap_conf_att_list", "rap_conf_time_list",
 
@@ -26,14 +23,11 @@ class FockOverlap(QubitRAP):
         "sequence_generate", "sequence_readout",
     }
 
-    def build_subsequence(self, ram_profile: TInt32 = -1, profile_shelve: TInt32 = -1,
-                          ram_addr_start: TInt32 = 0x00, num_samples: TInt32 = 200,
-                          pulse_shape: TStr = "blackman"):
+    def build_subsequence(self, ram_profile: TInt32 = -1, ram_addr_start: TInt32 = 0x00,
+                          num_samples: TInt32 = 200, pulse_shape: TStr = "blackman"):
         """
-
         Defines the main interface for the subsequence.
         :param ram_profile: the AD9910 RAM profile to use for RAP + pulse shaping.
-        :param profile_shelve: the AD9910 profile (non-RAM) to use for shelving.
         :param ram_addr_start: the beginning RAM register address for pulse shaping.
             Must be in [0, 923].
         :param num_samples: the number of samples to use for the pulse shape.
@@ -44,7 +38,6 @@ class FockOverlap(QubitRAP):
         kernel_invariants_parent = getattr(super(), "kernel_invariants", set())
         self.kernel_invariants = self.kernel_invariants | kernel_invariants_parent
 
-        self.profile_shelve = profile_shelve # extract desired args before pass on to parent (i.e. QubitRAP)
         _argstr = "fock" # create short string for argument grouping
 
         # general configuration
@@ -156,12 +149,6 @@ class FockOverlap(QubitRAP):
         Check experiment arguments for validity.
         """
         super()._prepare_argument_checks()
-
-        '''GENERAL'''
-        # ensure target AD9910 profile is valid
-        if self.profile_shelve not in range(0, 7):
-            raise ValueError("Invalid AD9910 profile for overlap_readout: {:d}. "
-                             "Must be in [0, 7].".format(self.profile_shelve))
 
         '''RAP CONFIGS'''
         # check all configs for validity

@@ -9,6 +9,7 @@ from LAX_exp.system.subsequences import QubitRAP
 class OverlapReadout(QubitRAP):
     """
     Subsequence: Overlap Readout
+
     Inherits from QubitRAP class.
     Use the motional overlap technique from F.Wolf (P.O. Schmidt group) to directly interrogate
         the population of a given fock state (https://www.nature.com/articles/s41467-019-10576-4).

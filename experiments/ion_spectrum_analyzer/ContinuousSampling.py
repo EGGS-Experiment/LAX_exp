@@ -11,9 +11,9 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 
-class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
+class ContinuousSampling(LAXExperiment, Experiment):
     """
-    Experiment: Continuous Sampling RDX Ampl
+    Experiment: Continuous Sampling
 
     Synchronized/correlation spectroscopy using a dynamical-decoupling protocol w/QVSA
     for arbitrary frequency sensing.
@@ -21,7 +21,7 @@ class ContinuousSamplingRDXAmpl(LAXExperiment, Experiment):
     Uses burst sequencing/readout to reduce latency/improve sample rate.
     Uses fock state-based quantum amplification (following https://www.nature.com/articles/s41467-019-10576-4).
     """
-    name = 'Continuous Sampling RDX Ampl'
+    name = 'Continuous Sampling'
     kernel_invariants = {
         # hardware values
         'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu',
