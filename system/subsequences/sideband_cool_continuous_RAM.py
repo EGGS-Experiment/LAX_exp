@@ -389,6 +389,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
 
+        # tmp remove
+        # add final spinpol
+        self.spin_polarize()
+        # tmp remove
+
+
     @kernel(flags={"fast-math"})
     def spin_polarize(self) -> TNone:
         """
