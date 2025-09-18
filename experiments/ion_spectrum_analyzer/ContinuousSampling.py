@@ -1,5 +1,5 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import int32, int64, array, zeros
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -127,7 +127,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
                               group='fock_prep')
         self.fock_subsequence = AgilePulseGenerator(
             self, profile_agile=self.profile_729_fock, att_pulse_db=self.att_fock_db,
-            pulse_config=np.array(self.fock_pulse_config)
+            pulse_config=array(self.fock_pulse_config)
         )
         # instantiate motional overlap subsequence
         # todo: ampl_max_pct for overlap?
@@ -151,25 +151,25 @@ class ContinuousSampling(LAXExperiment, Experiment):
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
-        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_osc_ch1_offset_turns))
+        self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
         ### BURST DMA PREPARATION: for convenience/speed, rigidly group shots into a "burst" ###
         # for our own convenience, ensure num_samples is integer multiple of bursts
         self._num_bursts = round(self.num_samples / self._burst_samples)
         self.num_samples = self._num_bursts * self._burst_samples # NOTE: REDEFINITION of num_samples
         # protected variables for coredevice use
-        self._counts_burst = np.zeros(self._burst_samples, dtype=np.int32)      # store burst counts
-        self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64) # store burst start times
-        self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)  # store burst stop times
-        self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)        # store sequence DMA handle
-        self._t_start_mu = np.int64(0)
+        self._counts_burst = zeros(self._burst_samples, dtype=int32)      # store burst counts
+        self._times_start_burst = zeros(self._burst_samples, dtype=int64) # store burst start times
+        self._times_stop_burst = zeros(self._burst_samples, dtype=int64)  # store burst stop times
+        self._sequence_dma_handle = (0, int64(0), int32(0), False)        # store sequence DMA handle
+        self._t_start_mu = int64(0)
         self._idx_burst_samples = list(range(self._burst_samples))
-        self._time_exp_shot_mu = np.int64(0)    # measure actual shot period to prevent user errors
+        self._time_exp_shot_mu = int64(0)    # measure actual shot period to prevent user errors
 
         '''HARDWARE VALUES - CONFIG'''
         # convert argument units to whatever is most convenient
         # ensure sample interval is a multiple of the phaser frame period
-        self.sample_period_mu = np.int64(
+        self.sample_period_mu = int64(
             round(self.core.seconds_to_mu(self.sample_period_ms * ms) / self.phaser_eggs.t_frame_mu) *
             self.phaser_eggs.t_frame_mu
         )
@@ -177,7 +177,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_phaser_carrier_hz = (self.freq_phaser_carrier_mhz - self.freq_global_offset_mhz) * MHz
-        self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
+        self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -258,7 +258,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         '''PREPARE WAVEFORM COMPILATION'''
         # create holding structures for EGGS pulse waveforms
         self.pulseshaper_vals = None  # store compiled waveforms from pulseshaper
-        self.pulseshaper_id = np.int32(0)  # store waveform ID for pulseshaper
+        self.pulseshaper_id = int32(0)  # store waveform ID for pulseshaper
 
         # calculate block timings and scale amplitudes for ramsey-ing
         num_psk_blocks = len(self.phase_osc0_psk_turns)
@@ -279,27 +279,27 @@ class ContinuousSampling(LAXExperiment, Experiment):
 
         '''PROGRAM & COMPILE WAVEFORM'''
         # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_blocks[:, :, 0] = np.array(self.ampl_osc_frac_list)
-        _osc_vals_blocks[:, :, 0] *= np.array([block_ampl_scale_list]).transpose()
+        _osc_vals_blocks = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)
+        _osc_vals_blocks[:, :, 0] *= array([block_ampl_scale_list]).transpose()
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
-        _osc_vals_blocks[:, :, 1] += (np.array(self.phase_osc_turns_list) +
+        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
+        _osc_vals_blocks[:, :, 1] += (array(self.phase_osc_turns_list) +
                                       self.freq_osc_base_hz_list * t_update_delay_s_list)
 
         # set PSK phase update schedule
         if self.enable_phase_shift_keying:
             if self.enable_psk_delay:
                 # note: use ::2 since we only update to non-delay blocks
-                _osc_vals_blocks[::2, :, 1] += np.array([
+                _osc_vals_blocks[::2, :, 1] += array([
                                                             self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                                                             self.phase_osc2_psk_turns,
                                                             self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
                                                         ][:self._num_phaser_oscs]).transpose()
             else:
-                _osc_vals_blocks[:, :, 1] += np.array([
+                _osc_vals_blocks[:, :, 1] += array([
                                                           self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                                                           self.phase_osc2_psk_turns,
                                                           self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
@@ -369,7 +369,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
             '''READOUT - MOTIONAL OVERLAP'''
             self.overlap_subsequence.run()
             self.readout_subsequence.run()
-            t1 = now_mu()   # record exp shot period - start time
+            t1 = now_mu()   # record exp shot period - stop time
         self.core.break_realtime()
 
         # record exp shot period
@@ -468,12 +468,12 @@ class ContinuousSampling(LAXExperiment, Experiment):
         Records data from the main sequence in the experiment dataset.
         """
         # store results in main dataset
-        res_arr = np.array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
+        res_arr = array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
         num_values = len(res_arr)
         self.mutate_dataset('results', (self._result_iter, self._result_iter + num_values), res_arr)
 
         # get select values for count monitoring
-        counts_tmp = np.array([
+        counts_tmp = array([
             count_val
             for idx, count_val in enumerate(count_arr)
             if (idx + self._result_iter) % self._dynamic_reduction_factor == 0

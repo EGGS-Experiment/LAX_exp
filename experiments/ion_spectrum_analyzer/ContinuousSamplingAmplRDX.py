@@ -1,41 +1,36 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import int32, int64, array, zeros
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, SidebandCoolContinuousRAM, OverlapReadout,
-    AgilePulseGenerator
-)
+from LAX_exp.system.subsequences import InitializeQubit, Readout, SidebandCoolContinuousRAM, FockOverlap
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 
-class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
+class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
     """
     Experiment: Continuous Sampling Ampl RDX
 
     Synchronized/correlation spectroscopy using a dynamical-decoupling protocol w/QVSA
-    for arbitrary frequency sensing.
-
+        for arbitrary frequency sensing.
     Uses burst sequencing/readout to reduce latency/improve sample rate.
-    Uses fock state-based quantum amplification (following https://www.nature.com/articles/s41467-019-10576-4).
-    todo: document
+    Uses fock state-based quantum amplification (following https://www.nature.com/articles/s41467-019-10576-4)
+        with only RAP-based primitives (to mitigate pulse errors).
     """
-    name = 'Continuous Sampling Ampl 2'
+    name = 'Continuous Sampling Ampl'
     kernel_invariants = {
         # hardware values
-        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu',
-        'pulseshaper_vals', 'sample_period_mu',
+        'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals',
+        'sample_period_mu',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'fock_subsequence', 'overlap_subsequence', 'spinecho_wizard', 'pulse_shaper',
+        'fock_subsequence', 'spinecho_wizard', 'pulse_shaper',
 
         # configs
-        'profile_729_SBC', 'profile_729_RAP', 'profile_729_overlap', 'profile_729_fock',
-        '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts',
-        '_idx_burst_samples'
+        'profile_729_SBC', 'profile_729_RAP', 'profile_729_fock',
+        '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts', '_idx_burst_samples',
     }
 
     def build_experiment(self):
@@ -45,14 +40,13 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         self._burst_samples =   50  # num experiment shots in a "burst" - must be <100 b/c EdgeCounter limits
 
         # core arguments
-        self.setattr_argument("num_samples", NumberValue(default=10000, precision=0, step=1, min=1, max=10000000))
+        self.setattr_argument("num_samples", NumberValue(default=2000, precision=0, step=1, min=1, max=10000000))
         self.setattr_argument("sample_period_ms", NumberValue(default=11., precision=6, min=5, max=1e5, step=1, unit="ms", scale=1.))
 
         # allocate relevant beam profiles
         self.profile_729_SBC =      1
         self.profile_729_RAP =      2
-        self.profile_729_overlap =  3
-        self.profile_729_fock =     4
+        self.profile_729_fock =     3
 
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
@@ -64,7 +58,7 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
 
         # waveform - global config
         self.setattr_argument("att_phaser_db",
-                              NumberValue(default=20., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
+                              NumberValue(default=28., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.global".format(_argstr))
         self.setattr_argument("freq_phaser_carrier_mhz",
                               NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz",
@@ -75,7 +69,7 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_phaser_ch1_global_turns",
                               NumberValue(default=0., precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.),
                               group="{}.global".format(_argstr))
-        self.setattr_argument("osc_num_target_list", PYONValue([0, 1]), group="{}.global".format(_argstr))
+        self.setattr_argument("osc_num_target_list", PYONValue([]), group="{}.global".format(_argstr))
 
         # waveform - custom specification
         self.setattr_argument("time_osc_pulse_us",
@@ -83,17 +77,17 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
                               group="{}.waveform".format(_argstr),
                               tooltip="Time for a SINGLE SEGMENT of the pulse."
                                       "e.g. a time_osc_pulse_us of 500us with 2 segments => total time of 1ms.")
-        self.setattr_argument("freq_osc_khz_list", PYONValue([702.687, 0.005, -0.005, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, -702.687, 0.005, 0., 0.]),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("ampl_osc_frac_list", PYONValue([50., 20., 20., 0., 0.]),
+        self.setattr_argument("ampl_osc_frac_list", PYONValue([25., 25., 49., 0., 0.]),
                               group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_osc_turns_list", PYONValue([0., 0., 0., 0., 0.]),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0.5, 0.5, 0.5, 0.5]),
+        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.5]),
                               group="{}.waveform".format(_argstr))
 
         # waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=True), group='{}.pulse_shaping'.format(_argstr))
         self.setattr_argument("type_pulse_shape",
                               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
                               group='{}.pulse_shaping'.format(_argstr))
@@ -101,11 +95,11 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
                               NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
         self.setattr_argument("freq_pulse_shape_sample_khz",
-                              NumberValue(default=1000, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
+                              NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
 
         # waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying", BooleanValue(default=True), group="{}.psk".format(_argstr))
+        self.setattr_argument("enable_phase_shift_keying", BooleanValue(default=False), group="{}.psk".format(_argstr))
         self.setattr_argument("enable_psk_delay", BooleanValue(default=False), group="{}.psk".format(_argstr))
         self.setattr_argument("time_psk_delay_us",
                               NumberValue(default=200., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.),
@@ -119,21 +113,15 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('phaser_eggs')
+        # tmp remove
+        self.setattr_device('pump')
+        self.setattr_device('repump_cooling')
+        self.setattr_device('repump_qubit')
+        # tmp remove
 
-        # fock state generation: arguments
-        self.setattr_argument("enable_fock_prep", BooleanValue(default=False), group='fock_prep')
-        self.setattr_argument("fock_pulse_config", PYONValue([[101.4081, 25., 50.80], [100.7528, 25., 3.], [101.0781, 50., 2.05]]),
-                              group='fock_prep', tooltip="List of [freq_mhz, ampl_pct, time_us].")
-        self.setattr_argument("att_fock_db", NumberValue(default=8., precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
-                              group='fock_prep')
-        self.fock_subsequence = AgilePulseGenerator(
-            self, profile_agile=self.profile_729_fock, att_pulse_db=self.att_fock_db,
-            pulse_config=np.array(self.fock_pulse_config)
-        )
-        # instantiate motional overlap subsequence
-        # todo: ampl_max_pct for overlap?
-        self.overlap_subsequence = OverlapReadout(
-            self, ram_profile=self.profile_729_RAP, profile_shelve=self.profile_729_overlap,
+        # quantum amplification: fock overlap
+        self.fock_subsequence = FockOverlap(
+            self, ram_profile=self.profile_729_RAP,
             ram_addr_start=202, num_samples=250, pulse_shape="blackman"
         )
 
@@ -152,25 +140,25 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
-        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_osc_ch1_offset_turns))
+        self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
         ### BURST DMA PREPARATION: for convenience/speed, rigidly group shots into a "burst" ###
         # for our own convenience, ensure num_samples is integer multiple of bursts
         self._num_bursts = round(self.num_samples / self._burst_samples)
         self.num_samples = self._num_bursts * self._burst_samples # NOTE: REDEFINITION of num_samples
         # protected variables for coredevice use
-        self._counts_burst = np.zeros(self._burst_samples, dtype=np.int32)      # store burst counts
-        self._times_start_burst = np.zeros(self._burst_samples, dtype=np.int64) # store burst start times
-        self._times_stop_burst = np.zeros(self._burst_samples, dtype=np.int64)  # store burst stop times
-        self._sequence_dma_handle = (0, np.int64(0), np.int32(0), False)        # store sequence DMA handle
-        self._t_start_mu = np.int64(0)
+        self._counts_burst = zeros(self._burst_samples, dtype=int32)      # store burst counts
+        self._times_start_burst = zeros(self._burst_samples, dtype=int64) # store burst start times
+        self._times_stop_burst = zeros(self._burst_samples, dtype=int64)  # store burst stop times
+        self._sequence_dma_handle = (0, int64(0), int32(0), False)        # store sequence DMA handle
+        self._t_start_mu = int64(0)
         self._idx_burst_samples = list(range(self._burst_samples))
-        self._time_exp_shot_mu = np.int64(0)    # measure actual shot period to prevent user errors
+        self._time_exp_shot_mu = int64(0)    # measure actual shot period to prevent user errors
 
         '''HARDWARE VALUES - CONFIG'''
         # convert argument units to whatever is most convenient
         # ensure sample interval is a multiple of the phaser frame period
-        self.sample_period_mu = np.int64(
+        self.sample_period_mu = int64(
             round(self.core.seconds_to_mu(self.sample_period_ms * ms) / self.phaser_eggs.t_frame_mu) *
             self.phaser_eggs.t_frame_mu
         )
@@ -178,7 +166,7 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
 
         # convert build arguments to appropriate values and format as numpy arrays
         self.freq_phaser_carrier_hz = (self.freq_phaser_carrier_mhz - self.freq_global_offset_mhz) * MHz
-        self.freq_osc_base_hz_list = np.array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
+        self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -259,7 +247,7 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         '''PREPARE WAVEFORM COMPILATION'''
         # create holding structures for EGGS pulse waveforms
         self.pulseshaper_vals = None  # store compiled waveforms from pulseshaper
-        self.pulseshaper_id = np.int32(0)  # store waveform ID for pulseshaper
+        self.pulseshaper_id = int32(0)  # store waveform ID for pulseshaper
 
         # calculate block timings and scale amplitudes for ramsey-ing
         num_psk_blocks = len(self.phase_osc0_psk_turns)
@@ -280,27 +268,27 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
 
         '''PROGRAM & COMPILE WAVEFORM'''
         # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_blocks[:, :, 0] = np.array(self.ampl_osc_frac_list)
-        _osc_vals_blocks[:, :, 0] *= np.array([block_ampl_scale_list]).transpose()
+        _osc_vals_blocks = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)
+        _osc_vals_blocks[:, :, 0] *= array([block_ampl_scale_list]).transpose()
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
-        _osc_vals_blocks[:, :, 1] += (np.array(self.phase_osc_turns_list) +
+        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
+        _osc_vals_blocks[:, :, 1] += (array(self.phase_osc_turns_list) +
                                       self.freq_osc_base_hz_list * t_update_delay_s_list)
 
         # set PSK phase update schedule
         if self.enable_phase_shift_keying:
             if self.enable_psk_delay:
                 # note: use ::2 since we only update to non-delay blocks
-                _osc_vals_blocks[::2, :, 1] += np.array([
+                _osc_vals_blocks[::2, :, 1] += array([
                                                             self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                                                             self.phase_osc2_psk_turns,
                                                             self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
                                                         ][:self._num_phaser_oscs]).transpose()
             else:
-                _osc_vals_blocks[:, :, 1] += np.array([
+                _osc_vals_blocks[:, :, 1] += array([
                                                           self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                                                           self.phase_osc2_psk_turns,
                                                           self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
@@ -348,14 +336,14 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         # record full sequence for burst reasons
         delay_mu(1000000)  # add slack - 1ms
         # align to phaser frame for later deterministic playback
+        # note: only need to align to frame b/c frame is multiple of coarse RTIO
         at_mu(self.phaser_eggs.get_next_frame_mu())
         with self.core_dma.record('_SEQUENCE_SHOT'):
             '''STATE PREPARATION - MOTIONAL FOCK STATE'''
             t0 = now_mu()   # record exp shot period - start time
-            self.initialize_subsequence.run()
-            self.sidebandcool_subsequence.run()
-            if self.enable_fock_prep:
-                self.fock_subsequence.run()
+            self.initialize_subsequence.run()   # doppler cool & prep spin into |S-1/2, mJ=-1/2>
+            self.sidebandcool_subsequence.run() # multimode cont. SBC w/854nm quenching
+            self.fock_subsequence.run_fock_generate() # generate higher fock state
 
             '''WAVEFORM SEQUENCE'''
             # prepare phaser for output
@@ -368,10 +356,16 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
             self.phaser_stop_rdx()
 
             '''READOUT - MOTIONAL OVERLAP'''
-            self.overlap_subsequence.run()
-            self.readout_subsequence.run()
-            t1 = now_mu()   # record exp shot period - start time
-        self.core.break_realtime()
+            self.fock_subsequence.run_fock_read() # higher fock overlap readout
+            self.readout_subsequence.run() # state-selective fluorescence readout
+
+            '''CLEAN UP - SET RESCUE UNTIL NEXT SHOT'''
+            # tmp remove
+            self.pump.rescue()
+            self.repump_qubit.on()
+            # tmp remove
+
+            t1 = now_mu()   # record exp shot period - stop time
 
         # record exp shot period
         self._time_exp_shot_mu = t1 - t0
@@ -469,12 +463,12 @@ class ContinuousSamplingRDXAmplRDX(LAXExperiment, Experiment):
         Records data from the main sequence in the experiment dataset.
         """
         # store results in main dataset
-        res_arr = np.array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
+        res_arr = array([time_start_arr_mu, count_arr, time_stop_arr_mu]).transpose()
         num_values = len(res_arr)
         self.mutate_dataset('results', (self._result_iter, self._result_iter + num_values), res_arr)
 
         # get select values for count monitoring
-        counts_tmp = np.array([
+        counts_tmp = array([
             count_val
             for idx, count_val in enumerate(count_arr)
             if (idx + self._result_iter) % self._dynamic_reduction_factor == 0
