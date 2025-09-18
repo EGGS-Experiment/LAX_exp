@@ -33,9 +33,11 @@ from LAX_exp.system.subsequences.tickle_fast_phaser import TickleFastPhaser
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
 from LAX_exp.system.subsequences.QVSA_pulse import QVSAPulse
 from LAX_exp.system.subsequences.fock_state_generator import FockStateGenerator
+from LAX_exp.system.subsequences.fock_overlap import FockOverlap
 __all__.extend(['Squeeze', 'SqueezeConfigurable',
                 'Displace', 'TickleDDS', 'TickleFastDDS', 'TickleFastPhaser',
-                'ParametricExcite', 'QVSAPulse', 'FockStateGenerator'])
+                'ParametricExcite', 'QVSAPulse', 'FockStateGenerator',
+                'FockOverlap'])
 
 # spin state manipulation
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
