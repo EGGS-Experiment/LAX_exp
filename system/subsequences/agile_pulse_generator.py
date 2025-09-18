@@ -1,4 +1,4 @@
-import numpy as np
+from numpy import zeros
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
@@ -17,13 +17,12 @@ class AgilePulseGenerator(LAXSubsequence):
     }
 
     def build_subsequence(self, profile_agile: TInt32 = 2, att_pulse_db: TFloat = 31.5,
-                          pulse_config: TArray(TFloat, 2) = np.zeros((1, 3))):
+                          pulse_config: TArray(TFloat, 2) = zeros((1, 3))):
         """
         Defines the main interface for the subsequence.
-        Arguments:
-            profile_agile: the AD9910 RAM profile to use.
-            att_pulse_db: the DDS attenuation to set during the pulses.
-            pulse_config: the pulse configuration - an array of [freq_mhz, ampl_pct, time_us].
+        :param profile_agile: the AD9910 RAM profile to use.
+        :param att_pulse_db: the DDS attenuation to set during the pulses.
+        :param pulse_config: the pulse configuration - an array of [freq_mhz, ampl_pct, time_us].
         """
         # set subsequence parameters
         self.profile_agile =    profile_agile
