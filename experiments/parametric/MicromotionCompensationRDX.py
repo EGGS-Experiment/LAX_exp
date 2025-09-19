@@ -108,6 +108,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                                       "improve the SNR, but makes the ion prone to death.")
 
         # get relevant devices
+        self.setattr_device('pmt')
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
