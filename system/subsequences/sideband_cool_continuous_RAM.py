@@ -389,10 +389,9 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         delay_mu(self.time_repump_qubit_mu)
         self.repump_qubit.off()
 
-        # tmp remove
         # add final spinpol
+        # note: don't remove - verified this was v importat for hi-fidelity (2025/09/18)
         self.spin_polarize()
-        # tmp remove
 
 
     @kernel(flags={"fast-math"})
