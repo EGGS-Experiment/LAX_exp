@@ -53,7 +53,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # get DC channel configuration dictionary
         self.dc_config_channeldict =    dc_config.channeldict
         # explicitly specify AD9910 profiles
-        self.profile_397_parametric = 6
+        self.profile_397_parametric = 0
         self.profile_dds_parametric = 6
 
         # core arguments
