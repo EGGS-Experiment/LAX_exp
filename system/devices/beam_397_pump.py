@@ -22,8 +22,9 @@ class Beam397Pump(LAXDevice):
 
         "freq_cooling_ftw", "freq_readout_ftw", "freq_rescue_ftw",
         "ampl_cooling_asf", "ampl_readout_asf", "ampl_rescue_asf",
+        "att_pump_mu",
 
-        "profile_cooling", "profile_readout", "profile_rescue"
+        "profile_cooling", "profile_readout", "profile_rescue",
     }
 
     def prepare_device(self):
@@ -36,6 +37,11 @@ class Beam397Pump(LAXDevice):
         self.profile_cooling =  0
         self.profile_readout =  1
         self.profile_rescue =   2
+
+        # get attenuations
+        # todo: check that attenuation is valid
+        self.att_pump_mu =  self.get_parameter('att_pump_db', group='beams.att_db',
+                                               override=False, conversion_function=att_to_mu)
 
         # get frequency parameters
         self.freq_cooling_ftw = self.get_parameter('freq_pump_cooling_mhz', group='beams.freq_mhz',
@@ -56,8 +62,8 @@ class Beam397Pump(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # get CPLD attenuations so we don't override them
-        # self.cpld.get_att_mu()
-        # self.core.break_realtime()
+        self.cpld.get_att_mu()
+        self.core.break_realtime()
 
         # set waveforms for cooling, readout, and rescue
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=self.profile_cooling, phase_mode=PHASE_MODE_CONTINUOUS)
@@ -68,6 +74,9 @@ class Beam397Pump(LAXDevice):
         delay_mu(8000)
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=3, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
+
+        # set attenuation
+        self.set_att_mu(self.att_pump_mu)
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
