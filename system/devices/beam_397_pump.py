@@ -55,6 +55,10 @@ class Beam397Pump(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
+        # get CPLD attenuations so we don't override them
+        self.cpld.get_att_mu()
+        self.core.break_realtime()
+
         # set waveforms for cooling, readout, and rescue
         self.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=self.profile_cooling, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)

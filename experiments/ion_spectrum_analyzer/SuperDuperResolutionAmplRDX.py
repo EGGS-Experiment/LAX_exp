@@ -22,7 +22,7 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
     Supports lots of easily configurable parameter scanning for phaser.
     Experiment name inspired by Sam Crary.
     """
-    name = 'Super Duper Resolution'
+    name = 'Super Duper Resolution Ampl'
     kernel_invariants = {
         # hardware values
         'att_eggs_heating_mu', 'freq_superresolution_sweep_hz_list', 'freq_global_offset_hz',

@@ -43,13 +43,13 @@ class FockOverlap(QubitRAP):
         # general configuration
         self.setattr_argument("config_rsb",     PYONValue([100.7658, 400., 72., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+                              tooltip="RSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("config_bsb",     PYONValue([101.4291, 400., 72., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+                              tooltip="BSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("config_carr",    PYONValue([101.0959, 350., 30., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+                              tooltip="Carrier RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("ampl_fock_pct",  NumberValue(default=50., precision=3, step=5., min=0.001, max=50., unit="%", scale=1.),
                               group="{}.general".format(_argstr),
                               tooltip="Same amplitude will be used for all of overlap generation & readout - "
@@ -73,7 +73,7 @@ class FockOverlap(QubitRAP):
                                                            1: (104.1451, 60., 274., 8.),
                                                            2: (110.2436, 36., 420., 8.)}),
                               group="{}.config".format(_argstr),
-                              tooltip="{fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
+                              tooltip="Shelving RAP config: {fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
 
         # build parent subsequence (QubitRAP)
         super().build_subsequence(
@@ -105,9 +105,9 @@ class FockOverlap(QubitRAP):
         #   elements in artiq list must all be of same type
         self.rap_conf_words_list, self.rap_conf_time_list, self.rap_conf_att_list = zip(
             *tuple(
-                (*self.configure_values(self.core.seconds_to_mu(conf_dj[2] * us),
+                (*self.configure_values(self.core.seconds_to_mu(conf_dj[1] * us),
                                         self.qubit.frequency_to_ftw(conf_dj[0] * MHz),
-                                        self.qubit.frequency_to_ftw(conf_dj[1] * kHz)),
+                                        self.qubit.frequency_to_ftw(conf_dj[2] * kHz)),
                  att_to_mu(conf_dj[3] * dB))
                 for conf_dj in config_core_all.values()
             )
