@@ -92,8 +92,8 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
                                                                         ],
                                                                         global_min=0.005, global_max=4800, global_step=1,
                                                                         unit="MHz", scale=1, precision=6
-                                                                    ), group="{}.freq_phase".format(_argstr))
-        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]), group="{}.freq_phase".format(_argstr),
+                                                                    ), group="{}.freq".format(_argstr))
+        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]), group="{}.freq".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -105,8 +105,8 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
                                                                             ],
                                                                             global_min=-10000, global_max=10000, global_step=10,
                                                                             unit="kHz", scale=1, precision=6
-                                                                        ), group="{}.freq_phase".format(_argstr))
-        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]), group="{}.freq_phase".format(_argstr),
+                                                                        ), group="{}.freq".format(_argstr))
+        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]), group="{}.phase".format(_argstr),
                               tooltip="Defines how oscillator phases should be adjusted for each value in phase_superresolution_sweep_turns_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -117,7 +117,7 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
                                                                             ],
                                                                             global_min=0.0, global_max=1.0, global_step=1,
                                                                             unit="turns", scale=1, precision=3
-                                                                        ), group="{}.freq_phase".format(_argstr))
+                                                                        ), group="{}.phase".format(_argstr))
         self.setattr_argument("phase_eggs_heating_ch1_turns_list",  Scannable(
                                                                         default=[
                                                                             ExplicitScan([0.]),
@@ -125,7 +125,7 @@ class SuperDuperResolutionAmplRDX(LAXExperiment, Experiment):
                                                                         ],
                                                                         global_min=0.0, global_max=1.0, global_step=1,
                                                                         unit="turns", scale=1, precision=3
-                                                                    ), group="{}.freq_phase".format(_argstr),
+                                                                    ), group="{}.phase".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC."
                                       "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden"
                                       "in this experiment.")
