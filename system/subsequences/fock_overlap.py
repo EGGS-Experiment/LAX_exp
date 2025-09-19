@@ -41,10 +41,10 @@ class FockOverlap(QubitRAP):
         _argstr = "fock" # create short string for argument grouping
 
         # general configuration
-        self.setattr_argument("config_rsb",     PYONValue([100.7658, 400., 72., 8.]),
+        self.setattr_argument("config_rsb",     PYONValue([100.7658, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
                               tooltip="RSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_bsb",     PYONValue([101.4291, 400., 72., 8.]),
+        self.setattr_argument("config_bsb",     PYONValue([101.4291, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
                               tooltip="BSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("config_carr",    PYONValue([101.0959, 350., 30., 8.]),
@@ -105,9 +105,9 @@ class FockOverlap(QubitRAP):
         #   elements in artiq list must all be of same type
         self.rap_conf_words_list, self.rap_conf_time_list, self.rap_conf_att_list = zip(
             *tuple(
-                (*self.configure_values(self.core.seconds_to_mu(conf_dj[1] * us),
+                (*self.configure_values(self.core.seconds_to_mu(conf_dj[2] * us),
                                         self.qubit.frequency_to_ftw(conf_dj[0] * MHz),
-                                        self.qubit.frequency_to_ftw(conf_dj[2] * kHz)),
+                                        self.qubit.frequency_to_ftw(conf_dj[1] * kHz)),
                  att_to_mu(conf_dj[3] * dB))
                 for conf_dj in config_core_all.values()
             )
@@ -169,9 +169,9 @@ class FockOverlap(QubitRAP):
                 raise ValueError("Invalid config values: {:}. Values must all be floats.".format(conf_dj))
             
             # check specific RAP values in range
-            elif not (30 <= conf_dj[0] <= 400.): # RAP freq
+            elif not (20. <= conf_dj[0] <= 400.): # RAP freq
                 raise ValueError("Invalid RAP config freq: {:}. "
-                                 "Value must be in range [30, 400] MHz.".format(conf_dj[0]))
+                                 "Value must be in range [20, 400] MHz.".format(conf_dj[0]))
             elif conf_dj[1] <= 1.:  # RAP ss freq dev
                 raise ValueError("Invalid RAP config freq dev: {:}. "
                                  "Value must be >1 kHz.".format(conf_dj[1]))
