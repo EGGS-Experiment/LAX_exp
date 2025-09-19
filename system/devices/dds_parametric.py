@@ -35,8 +35,8 @@ class DDSParametric(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # get CPLD attenuations so we don't override them
-        self.cpld.get_att_mu()
-        self.core.break_realtime()
+        # self.cpld.get_att_mu()
+        # self.core.break_realtime()
 
         # close rf switches to kill any modulation signal leakage
         self.mod_switch.off()
