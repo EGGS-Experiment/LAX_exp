@@ -334,11 +334,14 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                 # doppler cool & initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # synchronize spinpol w/SBC-ing
                 with parallel:
-                    self.spin_polarize(time_sbc_mu, time_per_spinpol_mu)
+                    # synchronize spinpol w/SBC-ing
+                    self.spin_polarize_schedule(time_sbc_mu, time_per_spinpol_mu)
                     # note: SBC must be last in parallel block to ensure correct timeline exit
                     self.sbc_schedule(mode_counter, time_remainder_mu)
+
+                # run a spin polarization at the end
+                self._spin_polarize()
 
                 '''READOUT & SAVE RESULTS'''
                 # run readout
@@ -365,7 +368,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
     @kernel(flags={"fast-math"})
-    def spin_polarize(self, time_sbc_mu: TInt64=1, time_per_spinpol_mu: TInt64=10000) -> TNone:
+    def spin_polarize_schedule(self, time_sbc_mu: TInt64=1, time_per_spinpol_mu: TInt64=10000) -> TNone:
         """
         Run spin polarization with variable timing.
         :param num_spinpols: number of overall spin polarizations
@@ -373,12 +376,18 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         """
         for _ in range(time_per_spinpol_mu, time_sbc_mu, time_per_spinpol_mu):
             delay_mu(time_per_spinpol_mu)
+            self._spin_polarize()
 
-            self.probe.on()
-            self.repump_cooling.on()
-            delay_mu(self.initialize_subsequence.time_spinpol_mu)
-            self.probe.off()
-            self.repump_cooling.off()
+    @kernel(flags={"fast-math"})
+    def _spin_polarize(self) -> TNone:
+        """
+        Run a single spin polarization pulse.
+        """
+        self.probe.on()
+        self.repump_cooling.on()
+        delay_mu(self.initialize_subsequence.time_spinpol_mu)
+        self.probe.off()
+        self.repump_cooling.off()
 
     @kernel(flags={"fast-math"})
     def sbc_schedule(self, num_updates: TInt32=1, time_last_mu: TInt64=1000) -> TNone:
