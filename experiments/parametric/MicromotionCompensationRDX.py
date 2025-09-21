@@ -169,7 +169,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.freq_mode_ftw_list =   np.array([self.freq_mode_0_ftw, self.freq_mode_1_ftw], dtype=np.int32)
         self.mode_list_idx =        list(range(len(self.freq_mode_ftw_list)))
         # get attenuation bounds from dataset
-        max_parametric_att_db = self.get_parameter('max_att_db', group='parametric', override=False)
+        max_parametric_att_db = self.get_parameter('att_parametric_max_db', group='beams.att_db', override=False)
         if not (0. <= max_parametric_att_db <= 31.5):
             raise ValueError("Max parametric DDS attenuation set incorrectly in dataset manager: {:}.".format(max_parametric_att_db))
         self.att_db_bounds_list = np.array([max_parametric_att_db, 31.5])

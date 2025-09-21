@@ -28,7 +28,7 @@ class DDSParametric(LAXDevice):
         self.cpld = self.dds.cpld
 
         # get relevant parameters
-        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='parametric',
+        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='beams.ampl_pct',
                                                        override=False, conversion_function=pct_to_asf)
         self.freq_cleanup_ftw = self.dds.frequency_to_ftw(150 * MHz) # set far, far detuned freq to really remove any leakage
 
