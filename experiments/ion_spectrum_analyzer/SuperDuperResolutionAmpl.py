@@ -119,7 +119,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                         RangeScan(0, 1.0, 26, randomize=True),
                                                                     ],
                                                                     global_min=0.0, global_max=1.0, global_step=1,
-                                                                    unit="turns", scale=1, precision=3
+                                                                    unit="turns", scale=1, precision=5
                                                                 ), group="{}.phase".format(_argstr))
         self.setattr_argument("phase_global_ch1_turns_list",  Scannable(
                                                                     default=[
@@ -127,7 +127,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                         RangeScan(0, 1.0, 26, randomize=True),
                                                                     ],
                                                                     global_min=0.0, global_max=1.0, global_step=1,
-                                                                    unit="turns", scale=1, precision=3
+                                                                    unit="turns", scale=1, precision=5
                                                                 ), group="{}.phase".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC. "
                                       "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden "

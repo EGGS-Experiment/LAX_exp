@@ -122,10 +122,10 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                 ExplicitScan([0.]),
                                                             ],
                                                             global_min=0.0, global_max=1.0, global_step=1,
-                                                            unit="turns", scale=1, precision=3
+                                                            unit="turns", scale=1, precision=5
                                                         ), group = "{}.phase".format(_argstr))
         self.setattr_argument("phase_global_ch1_duc_turns", NumberValue(0., min=0.0, max=1.0, step=1,
-                                                                        unit="turns", scale=1, precision=3),
+                                                                        unit="turns", scale=1, precision=5),
                                                                         group="{}.phase".format(_argstr))
 
         # RF - waveform - pulse shaping
