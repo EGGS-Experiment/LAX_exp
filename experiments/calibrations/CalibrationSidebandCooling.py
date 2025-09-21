@@ -7,6 +7,8 @@ from LAX_exp.system.subsequences import InitializeQubit, SidebandReadout, Readou
 
 _VALID_BEAM_SCANS = [
     'doppler_397', 'doppler_866', 'readout_397', 'rescue_397'
+    # todo: add 397nm spinpol value
+    # todo: add 854nm
 ]
 
 
@@ -34,6 +36,8 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
     }
 
     def build_experiment(self):
+        _argstr = "SBC"  # string to use for argument grouping
+
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type",   EnumerationValue(["Sideband Ratio", "RAP"], default="RAP"))
@@ -46,11 +50,14 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
         # SBC - base config
         self.setattr_argument("sbc_config_list", PYONValue({100.7555: [26., 5.], 100.455: [37., 5.], 100.315: [37., 5.]}),
-                              tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}", group='SBC.base')
-        self.setattr_argument("sideband_cycles_continuous", NumberValue(default=10, precision=0, step=1, min=1, max=10000, unit="cycles", scale=1),
-                              tooltip="number of times to loop over the SBC configuration sequence", group='SBC.base')
-        self.setattr_argument("att_sidebandcooling_continuous_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1),
-                              group='SBC.base', tooltip="Attenuation of 729nm beam for SBC.")
+                              tooltip="{freq_mode_mhz: [sbc_mode_pct_per_cycle, ampl_quench_mode_pct]}",
+                              group='{}.base'.format(_argstr))
+        self.setattr_argument("sbc_cycles_cont", NumberValue(default=10, precision=0, step=1, min=1, max=10000, unit="cycles", scale=1),
+                              group='{}.base'.format(_argstr),
+                              tooltip="number of times to loop over the SBC configuration sequence")
+        self.setattr_argument("att_sbc_db",  NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1),
+                              group='{}.base'.format(_argstr),
+                              tooltip="Attenuation of 729nm beam for SBC.")
         self.setattr_argument("time_sbc_us_list",   Scannable(
                                                         default=[
                                                             ExplicitScan([4000, 5000]),
@@ -59,7 +66,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=50, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
-                                                    ), group="SBC.base")
+                                                    ),
+                              group='{}.base'.format(_argstr),
+                              tooltip="Total SBC time. "
+                                      "Note: due to SBC compilation/scheduling issues, "
+                                      "true value in experiment may be different by up to 50us.")
         self.setattr_argument("time_per_spinpol_us_list",   Scannable(
                                                         default=[
                                                             RangeScan(400, 2000, 5, randomize=True),
@@ -68,10 +79,13 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=50, global_max=100000, global_step=1,
                                                         unit="us", scale=1, precision=5
-                                                    ), tooltip="Time between spin polarization pulses (in us)", group='SBC.base')
+                                                    ),
+                              group='{}.base'.format(_argstr),
+                              tooltip="Time between spin polarization pulses (in us)")
 
         # SBC - mode target sweep
-        self.setattr_argument("sbc_mode_target",    NumberValue(default=0, precision=0, step=1, min=0, max=100), group='SBC.mode',
+        self.setattr_argument("sbc_mode_target",    NumberValue(default=0, precision=0, step=1, min=0, max=100),
+                              group='{}.mode'.format(_argstr),
                               tooltip="The mode on which to sweep mode-specific SBC parameters.")
         self.setattr_argument("freq_sbc_scan_khz_list",  Scannable(
                                                         default=[
@@ -81,7 +95,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=-10000, global_max=10000, global_step=1.,
                                                         unit="kHz", scale=1, precision=3
-                                                    ), group="SBC.mode", tooltip="Relative frequency for scanning the target 729nm mode.")
+                                                    ),
+                              group='{}.mode'.format(_argstr),
+                              tooltip="Relative frequency for scanning the target 729nm mode.")
         self.setattr_argument("ampl_quench_scan_pct_list",   Scannable(
                                                             default=[
                                                                 ExplicitScan([3.5]),
@@ -90,12 +106,17 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                             ],
                                                             global_min=0.01, global_max=50., global_step=1,
                                                             unit="%", scale=1, precision=3
-                                                        ), group="SBC.mode", tooltip="Absolute amplitude to set for the target 729nm mode.")
+                                                        ),
+                              group='{}.mode'.format(_argstr),
+                              tooltip="Absolute amplitude to set for the target 729nm mode.")
 
         # beam parameters
-        self.setattr_argument("enable_beam_sweep",  BooleanValue(default=False), group='SBC.beam', tooltip="Enable scanning of some beam's parameter.")
+        self.setattr_argument("enable_beam_sweep",  BooleanValue(default=False),
+                              group='{}.beam'.format(_argstr),
+                              tooltip="Enable scanning of some beam's parameter.")
         self.setattr_argument("beam_sweep_target",  EnumerationValue(_VALID_BEAM_SCANS, default=_VALID_BEAM_SCANS[0]),
-                              group='SBC.beam', tooltip="Beam parameter to scan.")
+                              group='{}.beam'.format(_argstr),
+                              tooltip="Beam parameter to scan.")
         self.setattr_argument("freq_beam_mhz_list",  Scannable(
                                                         default=[
                                                             ExplicitScan([115.]),
@@ -104,7 +125,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=60, global_max=400, global_step=1.,
                                                         unit="MHz", scale=1, precision=6
-                                                    ), group='SBC.beam', tooltip="Absolute frequency for the beam parameter.")
+                                                    ),
+                              group='{}.beam'.format(_argstr),
+                              tooltip="Absolute frequency for the beam parameter.")
         self.setattr_argument("ampl_beam_pct_list",   Scannable(
                                                             default=[
                                                                 ExplicitScan([15]),
@@ -113,7 +136,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
                                                             ],
                                                             global_min=0.01, global_max=50., global_step=1,
                                                             unit="%", scale=1, precision=3
-                                                        ), group='SBC.beam', tooltip="Absolute amplitude for the beam parameter.")
+                                                        ),
+                              group='{}.beam'.format(_argstr),
+                              tooltip="Absolute DDS amplitude for the beam parameter.")
 
         # RAP-based readout
         self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
@@ -149,7 +174,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self._prepare_argument_checks()
 
         '''CONVERT VALUES TO MACHINE UNITS'''
-        self.att_sbc_mu =   att_to_mu(self.att_sidebandcooling_continuous_db * dB)
+        self.att_sbc_mu =   att_to_mu(self.att_sbc_db * dB)
 
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
         self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
@@ -214,12 +239,12 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         for i, params in enumerate(self.sbc_config_list.items()):
             self.sbc_config_base_list[i, 0] = self.qubit.frequency_to_ftw(params[0] * MHz)
             self.sbc_config_base_list[i, 1] = self.qubit.amplitude_to_asf(params[1][1] / 100.)
-            self.sbc_config_base_list[i, 2] = int64(mean(time_sbc_mu_list) * params[1][0] / 100. / self.sideband_cycles_continuous)
+            self.sbc_config_base_list[i, 2] = int64(mean(time_sbc_mu_list) * params[1][0] / 100. / self.sbc_cycles_cont)
         # create working copy for main loop
         self.sbc_config_update_list = copy(self.sbc_config_base_list)
 
         # create list of relative SBC times
-        self.sbc_mode_time_frac_list = array([config_arr[0] / 100. / self.sideband_cycles_continuous
+        self.sbc_mode_time_frac_list = array([config_arr[0] / 100. / self.sbc_cycles_cont
                                                  for config_arr in self.sbc_config_list.values()])
 
 
