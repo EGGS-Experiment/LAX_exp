@@ -16,7 +16,7 @@ class ADC(LAXDevice):
     }
 
     def prepare_device(self):
-        self.gating_edge = self.get_parameter('gating_edge', group='pmt', override=False)
+        self.gating_edge = self.get_parameter('gating_edge', group='devices.pmt', override=False)
 
         # get default gating edge for counting
         self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))

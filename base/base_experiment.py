@@ -280,6 +280,8 @@ class LAXExperiment(LAXEnvironment, ABC):
             "\tself.core.break_realtime()\n"
             "\tdelay_mu(1000000)\n"
             
+            # todo: handle RTIOUnderflow safely
+            
             # add slack to default case
             "finally:\n"
             "\tself.core.break_realtime()\n"

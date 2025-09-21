@@ -20,9 +20,9 @@ class TriggerLine(LAXDevice):
 
     def prepare_device(self):
         # get triggering parameters
-        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='linetrigger',
+        self.time_timeout_mu = self.get_parameter('time_timeout_ms', group='devices.linetrigger',
                                                   override=False, conversion_function=seconds_to_mu, units=ms)
-        self.time_holdoff_mu = self.get_parameter('time_holdoff_ms', group='linetrigger',
+        self.time_holdoff_mu = self.get_parameter('time_holdoff_ms', group='devices.linetrigger',
                                                   override=False, conversion_function=seconds_to_mu, units=ms)
 
     @kernel(flags={"fast-math"})

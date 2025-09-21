@@ -61,9 +61,9 @@ class ReadoutAdaptive(LAXSubsequence):
         '''PREPARE PARAMETERS'''
         time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
         # rescale count rates for given bin times
-        count_rate_bright_bin = (self.get_parameter('count_rate_bright_3ms', group='pmt', override=False) *
+        count_rate_bright_bin = (self.get_parameter('count_rate_bright_3ms', group='sequences.adaptive_readout', override=False) *
                                  (self.time_bin_us * us) / (3. * ms))
-        count_rate_dark_bin =   (self.get_parameter('count_rate_dark_3ms', group='pmt', override=False) *
+        count_rate_dark_bin =   (self.get_parameter('count_rate_dark_3ms', group='sequences.adaptive_readout', override=False) *
                                  (self.time_bin_us * us) / (3. * ms))
 
         '''PREPARE HARDWARE'''

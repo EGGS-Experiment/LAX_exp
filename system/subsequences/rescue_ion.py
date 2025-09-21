@@ -79,8 +79,10 @@ class RescueIon(LAXSubsequence):
 
         # calculate state discrimination threshold
         time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
-        count_rate_bright = self.get_parameter('count_rate_bright_3ms', group='pmt', override=False) * (time_readout_us / 3000.)
-        count_rate_dark =   self.get_parameter('count_rate_dark_3ms', group='pmt', override=False) * (time_readout_us / 3000.)
+        count_rate_bright = self.get_parameter('count_rate_bright_3ms', group='sequences.adaptive_readout',
+                                               override=False) * (time_readout_us / 3000.)
+        count_rate_dark =   self.get_parameter('count_rate_dark_3ms', group='sequences.adaptive_readout',
+                                               override=False) * (time_readout_us / 3000.)
         self.count_threshold = count_rate_bright / np.log(1 + count_rate_bright / count_rate_dark)
 
         # process input type
