@@ -1,6 +1,6 @@
 import numpy as np
 from artiq.experiment import *
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import imsave
 
 import os
 from time import time, sleep
@@ -378,7 +378,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
-        plt.imsave(os.path.join(self.data_path, filepath1), data)
+        imsave(os.path.join(self.data_path, filepath1), data)
 
         # threshold & rescale data
         # todo: set 1000 as some parameter for min scatter value
@@ -386,7 +386,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data))) * 255)
         # use only upper 1% quantile of data
         data *= data > np.quantile(data, 0.99)
-        plt.imsave(os.path.join(self.data_path, filepath2), data)
+        imsave(os.path.join(self.data_path, filepath2), data)
 
         # extract ion positions
         guess_radii = np.arange(1, 8)

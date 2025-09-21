@@ -28,7 +28,7 @@ class DDSDipole(LAXDevice):
         self.cpld = self.dds.cpld
 
         # get relevant parameters
-        self.ampl_modulation_asf =  self.get_parameter('ampl_dipole_pct', group='dds.ampl_pct', override=False,
+        self.ampl_modulation_asf =  self.get_parameter('ampl_dipole_pct', group='beams.ampl_pct', override=False,
                                                        conversion_function=pct_to_asf)
         self.freq_cleanup_ftw =     self.dds.frequency_to_ftw(100 * MHz)
 
