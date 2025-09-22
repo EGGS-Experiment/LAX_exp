@@ -59,18 +59,30 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         '''DEFAULT CONFIG ARGUMENTS'''
         # defaults - beam values
         self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
-        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 31.5]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]),
+                              group='defaults.beams',
+                              tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]),
+                              group='defaults.beams',
+                              tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 31.5]),
+                              group='defaults.beams',
+                              tooltip="[rsb_db, bsb_db]")
 
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="defaults.beams")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="defaults.beams")
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group="defaults.beams")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="defaults.beams")
 
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"), group="defaults.sigmax")
-        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="defaults.sigmax")
-        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="defaults.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"), group="defaults.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1054, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
+                              group="defaults.sigmax")
+        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group="defaults.sigmax")
+        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="defaults.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.4, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"),
+                              group="defaults.sigmax")
 
         # defaults - cat
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
@@ -180,6 +192,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                  for ampl_asf in self.ampl_singlepass_default_pct_list]
         self.ampl_doublepass_default_asf =     self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
 
+        # tmp remove
+        self.doublepass_inj = self.get_device("urukul0_ch3")
+        # todo: get parameters from dataset manager
+        self.freq_doublepass_inj_default_ftw = self.doublepass_inj.frequency_to_ftw(200. * MHz)
+        self.ampl_doublepass_inj_default_asf = self.doublepass_inj.amplitude_to_asf(50. / 100.)
+        self.att_doublepass_inj_default_mu =     self.doublepass_inj.cpld.att_to_mu(6. * dB)
+        # tmp remove
+
         # defaults - sigma_x pulses
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
@@ -244,22 +264,43 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                  for att_db in self.att_singlepass_default_db_list]
         atts_cat_mu = [att_to_mu(att_db * dB) for att_db in self.atts_cat_db]
 
+        # # create attenuation registers
+        # self.att_reg_sigmax = 0x00000000 | (
+        #         (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+        #         (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+        #         (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+        # )
+        # self.att_reg_bichromatic = 0x00000000 | (
+        #         (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+        #         (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+        #         (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
+        # )
+        # self.att_reg_readout = 0x00000000 | (
+        #         (att_to_mu(self.att_729_readout_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+        #         (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
+        #         (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+        # )
+        # tmp remove
         # create attenuation registers
         self.att_reg_sigmax = 0x00000000 | (
                 (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
-                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8)) |
+                (self.att_doublepass_inj_default_mu << ((self.doublepass_inj.chip_select - 4) * 8))
         )
         self.att_reg_bichromatic = 0x00000000 | (
                 (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
-                (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
+                (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8)) |
+                (self.att_doublepass_inj_default_mu << ((self.doublepass_inj.chip_select - 4) * 8))
         )
         self.att_reg_readout = 0x00000000 | (
                 (att_to_mu(self.att_729_readout_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
-                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8)) |
+                (self.att_doublepass_inj_default_mu << ((self.doublepass_inj.chip_select - 4) * 8))
         )
+        # tmp remove
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -308,6 +349,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.qubit.set_cfr1()
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
+        # tmp remove
+        self.doublepass_inj.set_cfr1()
+        # tmp remove
         self.qubit.cpld.io_update.pulse_mu(8)
         delay_mu(25000)
 
@@ -325,6 +369,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
+        # tmp remove
+        self.doublepass_inj.sw.on()
+        # tmp remove
         delay_mu(25000)
 
         # record general subsequences onto DMA
@@ -467,19 +514,36 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Clean up the experiment.
         """
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
+        # todo: state phase mode
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
                                     asf=self.ampl_singlepass_default_asf_list[0],
-                                    profile=i)
+                                    profile=i,
+                                    phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(128) # add slack to ensure set_mu doesn't roll back timeline
             self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
                                     asf=self.ampl_singlepass_default_asf_list[1],
-                                    profile=i)
-            delay_mu(8000)
+                                    profile=i,
+                                    phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(128) # add slack to ensure set_mu doesn't roll back timeline
+            # tmp remove
+            self.doublepass_inj.set_mu(self.freq_doublepass_inj_default_ftw,
+                                       asf=self.ampl_doublepass_inj_default_asf,
+                                       profile=i,
+                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            # tmp remove
+            delay_mu(25000)
 
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
+        # tmp remove
+        self.doublepass_inj.set_att_mu(self.att_doublepass_inj_default_mu)
+        # tmp remove
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
+        # tmp remove
+        self.doublepass_inj.sw.on()
+        # tmp remove
         delay_mu(10000)
 
 

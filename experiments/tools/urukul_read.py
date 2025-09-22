@@ -3,6 +3,7 @@ from artiq.coredevice import ad9910
 from numpy import int32, int64
 
 from enum import Enum
+# todo: make usable for multiple profiles a la urukul_configure
 
 
 class RAM_MODE(Enum):
@@ -42,12 +43,19 @@ class UrukulRead(EnvExperiment):
     def _get_dds_devices(self):
         """
         Get all valid DDS (AD9910) devices from the device_db.
+        :return: a set of all AD9910 devices.
         """
-        def is_local_dds_device(v):
-            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
+        is_local_dds_device = lambda v: (
+                isinstance(v, dict) and (v.get('type') == 'local')
+                and ('class' in v) and (v.get('class') == "AD9910")
+        )
 
-        # get only local DDS devices from device_db
-        return set([k for k, v in self.get_device_db().items() if is_local_dds_device(v)])
+        # return sorted list of local DDS devices from device_db
+        return sorted(set([
+            k
+            for k, v in self.get_device_db().items()
+            if is_local_dds_device(v)
+        ]))
 
     def prepare(self):
         """

@@ -62,6 +62,7 @@ class Beam397Probe(LAXDevice):
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
+        self.core.break_realtime() # note: necessary for RTIOUnderflow??? 2025/09/22
         self.sw.off()
         delay_mu(5000)
 
