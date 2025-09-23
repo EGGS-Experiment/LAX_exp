@@ -213,10 +213,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         ### MAGIC NUMBERS ###
         # extra slack after heralding to prevent RTIOUnderflow errors
         self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)
-        self.max_herald_attempts =  200
+        self.max_herald_attempts =  200 # max number of herald attempts before config is skipped
 
 
-        '''CONVERT VALUES TO MACHINE UNITS - DEFAULTS'''
+        '''
+        CONVERT VALUES TO MACHINE UNITS - DEFAULTS
+        '''
         # defaults - main doublepass (near chamber)
         self.ampl_doublepass_default_asf = self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
 
@@ -234,7 +236,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                        for ampl_pct in self.ampls_cat_pct])
 
 
-        '''CONVERT VALUES TO MACHINE UNITS - PULSES'''
+        '''
+        CONVERT VALUES TO MACHINE UNITS - PULSES
+        '''
         # cat1 values
         self.time_cat1_bichromatic_mu = self.core.seconds_to_mu(self.time_cat1_bichromatic_us * us)
         self.phases_pulse1_cat_pow =    [self.qubit.singlepass0.turns_to_pow(phas_pow)
@@ -284,8 +288,10 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             time_729_readout_mu_list =   array([0], dtype=int64)
 
 
-        '''CREATE ATTENUATION REGISTERS'''
-        # attenuation register - readout: singlepasses set to default
+        '''
+        CREATE ATTENUATION REGISTERS
+        '''
+        # attenuation register - sigma_x: singlepasses set to default
         self.att_reg_sigmax = 0x00000000 | (
                 (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
@@ -310,7 +316,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
 
 
-        '''CREATE EXPERIMENT CONFIG'''
+        '''
+        CREATE EXPERIMENT CONFIG
+        '''
         self.config_experiment_list = create_experiment_config(
             freq_cat_center_ftw_list, freq_cat_secular_ftw_list,
             time_cat2_cat_mu_list, phase_cat2_cat_pow_list,
@@ -357,8 +365,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        self.core.break_realtime()
-
         # predeclare variables ahead of time
         time_start_mu = now_mu() & ~0x7     # store reference time for device synchronization
         ion_state = (-1, 0, int64(0))       # store ion state for adaptive readout
@@ -498,6 +504,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     # return -1 so user knows booboo happened
                     counts_res = -1
                     self.check_termination() # check termination b/c we haven't in a while
+                    self.core.break_realtime()
 
                 # store results
                 self.rescue_subsequence.resuscitate()
@@ -514,13 +521,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             self.core.break_realtime()
             self.rescue_subsequence.run(trial_num)
             self.check_termination()
-
-    @kernel(flags={"fast-math"})
-    def cleanup_experiment(self) -> TNone:
-        """
-        Clean up the experiment.
-        """
-        pass
 
 
     '''

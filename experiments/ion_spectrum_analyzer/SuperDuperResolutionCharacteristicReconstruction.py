@@ -1,5 +1,6 @@
-import numpy as np
 from artiq.experiment import *
+from artiq.coredevice import ad9910
+from numpy import int32, int64, array, zeros, ceil, arctan2, sum, pi, sqrt
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -8,13 +9,8 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
-from itertools import product
-from collections.abc import Iterable
-from artiq.coredevice import ad9910
-
-# todo: replace numpy with specific imports
 # todo: rename things from e.g. "pulse4" to e.g. "grid"
-# todo: migrate to use create_experiment_config
+# todo: make sure to unify names with characteristicreconstruction exp
 
 
 class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment):
@@ -25,23 +21,22 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
     """
     name = 'SuperRes Char Read'
     kernel_invariants = {
-        # hardware objects
-        'singlepass0', 'singlepass1',
-
         # hardware values - superresolution
-        'att_eggs_heating_mu', 'freq_superresolution_osc_base_hz_list', 'freq_phaser_center_hz', 'pulseshaper_vals',
-        'time_superresolution_stop_mu',
+        'att_phaser_mu', 'freq_osc_base_hz_list', 'freq_phaser_center_hz', 'pulseshaper_vals',
+        'time_phaser_stop_mu',
 
-        # hardware values - characteristic readout - default
-        'freq_singlepass_default_ftw_list', 'ampl_singlepass_default_asf_list', 'att_singlepass_default_mu_list',
-        'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu', 'att_reg_sigmax',
+        # hardware values - characteristic - default
+        'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
+        'att_reg_sigmax',
 
-        # hardware values - characteristic readout - characteristic actual
+        # hardware values - characteristic - characteristic actual
         'ampls_cat_asf', 'phase_characteristic_axis_pow', 'phases_pulse4_cat_pow',
-        'phases_pulse4_cat_update_dir', 'freq_cat_center_ftw', 'freq_cat_secular_ftw', 'att_reg_bichromatic',
+        'phases_pulse4_cat_update_dir', 'freq_cat_center_ftw', 'freq_cat_secular_ftw',
+        'att_reg_bichromatic',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        
         # configs
         'profile_729_SBC', 'profile_729_target', 'config_experiment_list', '_num_phaser_oscs'
     }
@@ -65,17 +60,16 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence =       RescueIon(self, input_type="probability")
 
-        # set arguments for different experiment bases
-        self._build_arguments_superresolution()
-        self._build_arguments_characteristic_reconstruction()
-
         # get relevant devices
         self.setattr_device("qubit")
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('phaser_eggs')
-        self.singlepass0 = self.get_device("urukul0_ch1")
-        self.singlepass1 = self.get_device("urukul0_ch2")
+
+        # set arguments for different experiment bases
+        self._build_arguments_superresolution()
+        self._build_arguments_defaults()
+        self._build_arguments_characteristic_reconstruction()
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
@@ -91,9 +85,9 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         self.setattr_argument("enable_cutoff", BooleanValue(default=False))
 
         # superresolution - configurable freq & sweeps
-        self.setattr_argument("freq_eggs_heating_carrier_mhz", NumberValue(default=86.0, precision=6, step=0.001, min=1., max=200., unit="MHz", scale=1.),
+        self.setattr_argument("freq_heating_carrier_mhz_list", NumberValue(default=86.0, precision=6, step=0.001, min=1., max=200., unit="MHz", scale=1.),
                               group="{}.freq_phase".format(_argstr))
-        self.setattr_argument("phase_eggs_heating_ch1_turns", NumberValue(default=0.2, precision=5, step=0.1, min=-1., max=1., unit="turns", scale=1.),
+        self.setattr_argument("phase_global_ch1_turns", NumberValue(default=0.2, precision=5, step=0.1, min=-1., max=1., unit="turns", scale=1.),
                               group="{}.freq_phase".format(_argstr))
 
         # EGGS RF - waveform - pulse shaping
@@ -108,30 +102,72 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # EGGS RF - waveform - PSK (Phase-shift Keying)
         self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr))
         self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=1, precision=0, step=10, min=1, max=200), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_superresolution_rsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_superresolution_bsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
-        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc0_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc1_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc2_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_osc3_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
 
         # superresolution - custom waveform specification
-        self.setattr_argument("time_eggs_heating_us",   NumberValue(default=200, precision=2, step=500, min=0.04, max=10000000, unit="us", scale=1.),
+        self.setattr_argument("time_heating_us",   NumberValue(default=200, precision=2, step=500, min=0.04, max=10000000, unit="us", scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("att_eggs_heating_db",    NumberValue(default=17., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
+        self.setattr_argument("att_phaser_db",    NumberValue(default=17., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
+        self.setattr_argument("freq_global_offset_mhz",     NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("freq_superresolution_osc_khz_list",  PYONValue([-702.6, 702.6, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list",          PYONValue([-702.6, 702.6, 0., 0.]),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("ampl_superresolution_osc_frac_list", PYONValue([0., 40., 12., 0.]),
+        self.setattr_argument("ampl_osc_frac_list",         PYONValue([0., 40., 12., 0.]),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0.5, 0.5]),
+        self.setattr_argument("phase_osc_turns_list",       PYONValue([0., 0., 0.5, 0.5]),
                               group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]),
+        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.]),
                               group="{}.waveform".format(_argstr))
 
         # superresolution - characteristic function special
-        self.setattr_argument("time_superresolution_stop_us", NumberValue(default=500, precision=2, step=500, min=0.04, max=1000000, unit="us", scale=1.),
+        self.setattr_argument("time_phaser_stop_us", NumberValue(default=500, precision=2, step=500, min=0.04, max=1000000, unit="us", scale=1.),
                               group="{}.waveform".format(_argstr))
+
+    def _build_arguments_defaults(self):
+        """
+        Set specific arguments for beam defaults.
+        """
+        _argstr = "default"  # create short string for argument grouping
+
+        # defaults - beam values
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
+                              group="{}.beams".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
+                              group="{}.beams".format(_argstr),
+                              tooltip="todo: document")
+
+        # defaults - sigma_x
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0962, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
+                              group="{}.sx".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
+                              group="{}.sx".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
+                              group="{}.sx".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.49, precision=3, step=5, min=0.1, max=10000, unit="us", scale=1.),
+                              group="{}.sx".format(_argstr),
+                              tooltip="todo: document")
+
+        # defaults - bichromatic
+        self.setattr_argument("freq_cat_center_mhz",    NumberValue(default=101.0962, precision=6, step=0.001, min=50., max=400., unit="MHz", scale=1.),
+                              group="{}.bichro".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("freq_cat_secular_khz",   NumberValue(default=702.6, precision=4, step=1, min=0., max=4e5, unit="kHz", scale=1.),
+                              group="{}.bichro".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 54.]),
+                              group="{}.bichro".format(_argstr),
+                              tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]),
+                              group="{}.bichro".format(_argstr),
+                              tooltip="[rsb_db, bsb_db]")
 
     def _build_arguments_characteristic_reconstruction(self):
         """
@@ -139,40 +175,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         """
         _argstr = "char"  # create short string for argument grouping
 
-        # defaults - beam values
-        self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (60., 7.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='default.beams', tooltip="[rsb_mhz, bsb_mhz]")
-        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='default.beams', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 7.]), group='default.beams', tooltip="[rsb_db, bsb_db]")
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
-                              group="default.beams")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
-                              group="default.beams")
-
-        # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0962, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
-                              group="default.sx")
-        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
-                              group="default.sx")
-        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
-                              group="default.sx")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.49, precision=3, step=5, min=0.1, max=10000, unit="us", scale=1.),
-                              group="default.sx")
-
-        # defaults - bichromatic
-        self.setattr_argument("freq_cat_center_mhz",    NumberValue(default=101.0962, precision=6, step=0.001, min=50., max=400., unit="MHz", scale=1.),
-                              group="default.bichro")
-        self.setattr_argument("freq_cat_secular_khz",   NumberValue(default=702.6, precision=4, step=1, min=0., max=4e5, unit="kHz", scale=1.),
-                              group="default.bichro")
-        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 54.]), group='default.bichro', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='default.bichro', tooltip="[rsb_db, bsb_db]")
-
         # characteristic readout: configuration
         self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'),
                               group='{}'.format(_argstr),
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
-        self.setattr_argument("phase_characteristic_axis_turns",  NumberValue(default=0.125, precision=5, step=0.1, min=-1.0, max=1.0, unit='turns', scale=1.),
+        self.setattr_argument("phase_char_axis_turns",  NumberValue(default=0.125, precision=5, step=0.1, min=-1.0, max=1.0, unit='turns', scale=1.),
                               group='{}'.format(_argstr),
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
         self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]),
@@ -188,7 +196,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                       "'Phase Sweep' option reads out on a 1D phase sweep at a single time radius.")
 
         # characteristic readout: readout grid
-        self.setattr_argument("time_pulse4_cat_x_us_list",  Scannable(
+        self.setattr_argument("time_char_cat_x_us_list",  Scannable(
                                                             default=[
                                                                 RangeScan(-45, 45, 15, randomize=True),
                                                                 ExplicitScan([50]),
@@ -197,7 +205,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                                             unit="us", scale=1, precision=5),
                               group='{}.grid'.format(_argstr),
                               tooltip="todo: document")
-        self.setattr_argument("time_pulse4_cat_y_us_list", Scannable(
+        self.setattr_argument("time_char_cat_y_us_list", Scannable(
                                                             default=[
                                                                 RangeScan(-45, 45, 15, randomize=True),
                                                                 ExplicitScan([50]),
@@ -244,34 +252,29 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
-        self.pulse_shaper = PhaserPulseShaper(self, np.array(self.phase_oscillators_ch1_offset_turns))
+        # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
+        self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
         '''HARDWARE VALUES - CONFIG'''
-        self.att_eggs_heating_mu = att_to_mu(self.att_eggs_heating_db * dB)
-        self.freq_phaser_center_hz = (self.freq_eggs_heating_carrier_mhz - self.freq_global_offset_mhz) * MHz
-        self.freq_superresolution_osc_base_hz_list = (np.array(self.freq_superresolution_osc_khz_list) * kHz +
-                                                      self.freq_global_offset_mhz * MHz)
+        self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
+        self.freq_phaser_center_hz = (self.freq_heating_carrier_mhz - self.freq_global_offset_mhz) * MHz
+        self.freq_osc_base_hz_list = (array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz)
 
         # superresolution/characteristic reconstruction special
-        self.time_superresolution_stop_mu = self.core.seconds_to_mu(self.time_superresolution_stop_us * us)
+        self.time_phaser_stop_mu = self.core.seconds_to_mu(self.time_phaser_stop_us * us)
         # ensure pre-emptive stop time is multiple of phaser frame period
-        self.time_superresolution_stop_mu = ((self.time_superresolution_stop_mu // self.phaser_eggs.t_frame_mu) *
-                                             self.phaser_eggs.t_frame_mu)
+        self.time_phaser_stop_mu = ((self.time_phaser_stop_mu // self.phaser_eggs.t_frame_mu) *
+                                    self.phaser_eggs.t_frame_mu)
 
     def _prepare_characteristic_reconstruction(self):
         """
         Prepare values for Characteristic Reconstruction.
         """
         '''
-        CONVERT VALUES TO MACHINE UNITS - BEAMS
+        CONVERT VALUES TO MACHINE UNITS
         '''
-        # default parameters
-        self.freq_singlepass_default_ftw_list = [self.singlepass0.frequency_to_ftw(freq_mhz * MHz)
-                                                 for freq_mhz in self.freq_singlepass_default_mhz_list]
-        self.ampl_singlepass_default_asf_list = [self.singlepass0.amplitude_to_asf(ampl_asf / 100.)
-                                                 for ampl_asf in self.ampl_singlepass_default_pct_list]
-        self.ampl_doublepass_default_asf =  self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
+        # default values for doublepass (main, chamber)
+        self.ampl_doublepass_default_asf = self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
 
         # sigma_x waveforms
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
@@ -281,82 +284,72 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         # bichromatic waveforms
         self.freq_cat_center_ftw =  self.qubit.frequency_to_ftw(self.freq_cat_center_mhz * MHz)
         self.freq_cat_secular_ftw = self.qubit.frequency_to_ftw(self.freq_cat_secular_khz * kHz)
-        self.ampls_cat_asf =    np.array([self.singlepass0.amplitude_to_asf(ampl_pct / 100.)
-                                          for ampl_pct in self.ampls_cat_pct], dtype=np.int32)
+        self.ampls_cat_asf =    array([self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+                                       for ampl_pct in self.ampls_cat_pct], dtype=int32)
 
-        # create attenuation registers
-        atts_cat_mu = [att_to_mu(att_db * dB) for att_db in self.atts_cat_db]
-        self.att_singlepass_default_mu_list = [att_to_mu(att_db * dB)
-                                               for att_db in self.att_singlepass_default_db_list]
+        # attenuation register - sigma_x: singlepasses set to default
         self.att_reg_sigmax = 0x00000000 | (
                 (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
-                (self.att_singlepass_default_mu_list[0] << ((self.singlepass0.chip_select - 4) * 8)) |
-                (self.att_singlepass_default_mu_list[1] << ((self.singlepass1.chip_select - 4) * 8))
+                (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
         )
+
+        # attenuation register - bichromatic: main doublepass set to specified experiment argument value
         self.att_reg_bichromatic = 0x00000000 | (
                 (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
-                (atts_cat_mu[0] << ((self.singlepass0.chip_select - 4) * 8)) |
-                (atts_cat_mu[1] << ((self.singlepass1.chip_select - 4) * 8))
+                (att_to_mu(self.atts_cat_db[0] * dB) << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                (att_to_mu(self.atts_cat_db[1] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
         )
 
         '''
-        CONVERT VALUES TO MACHINE UNITS - PULSES/TIMINGS
+        CONFIGURE GRID READOUT
         '''
         # define real/imag part of characteristic axis to read out (via a sigma_x pi/2 pulse)
-        self.phase_characteristic_axis_pow =  self.qubit.turns_to_pow(self.phase_characteristic_axis_turns)
+        self.phase_characteristic_axis_pow =  self.qubit.turns_to_pow(self.phase_char_axis_turns)
         # configure whether real/imag/both axes of the characteristic function are to be measured
         if self.characteristic_axis == "Real":          characteristic_axis_list = [False]
         elif self.characteristic_axis == "Imaginary":   characteristic_axis_list = [True]
         elif self.characteristic_axis == "Both":        characteristic_axis_list = [True, False]
 
         # define relative axis for characteristic readout
-        self.phases_pulse4_cat_pow = np.array([self.singlepass0.turns_to_pow(phas_pow)
-                                               for phas_pow in self.phases_pulse4_cat_turns], dtype=np.int32)
+        self.phases_pulse4_cat_pow = array([self.qubit.singlepass0.turns_to_pow(phas_pow)
+                                               for phas_pow in self.phases_pulse4_cat_turns], dtype=int32)
         if self.target_pulse4_cat_phase == 'RSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, 0], dtype=np.int32)
+            self.phases_pulse4_cat_update_dir = array([1, 0], dtype=int32)
         elif self.target_pulse4_cat_phase == 'BSB':
-            self.phases_pulse4_cat_update_dir = np.array([0, 1], dtype=np.int32)
+            self.phases_pulse4_cat_update_dir = array([0, 1], dtype=int32)
         elif self.target_pulse4_cat_phase == 'RSB-BSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, -1], dtype=np.int32)
+            self.phases_pulse4_cat_update_dir = array([1, -1], dtype=int32)
         elif self.target_pulse4_cat_phase == 'RSB+BSB':
-            self.phases_pulse4_cat_update_dir = np.array([1, 1], dtype=np.int32)
+            self.phases_pulse4_cat_update_dir = array([1, 1], dtype=int32)
 
         # create sampling grid in radial coordinates for "Grid" readout type
         if self.characteristic_readout_sweep == "Grid":
-            vals_pulse4_mu_pow_list = np.array([
+            vals_char_mu_pow_list = array([
                 [
-                    self.core.seconds_to_mu(np.sqrt(x_us ** 2. + y_us ** 2.) * us),
-                    self.singlepass0.turns_to_pow(np.arctan2(y_us, x_us) / (2. * np.pi))
+                    self.core.seconds_to_mu(sqrt(x_us ** 2. + y_us ** 2.) * us),
+                    self.qubit.singlepass0.turns_to_pow(arctan2(y_us, x_us) / (2. * pi))
                 ]
                 for x_us in self.time_pulse4_cat_x_us_list
-                for y_us in self.time_pulse4_cat_y_us_list
-            ], dtype=np.int64)
+                for y_us in self.time_char_cat_y_us_list
+            ], dtype=int64)
         # create phase-sweep array at single time value for "Phase Sweep" readout type (to save time)
         elif self.characteristic_readout_sweep == "Phase Sweep":
-            vals_pulse4_mu_pow_list = np.array([
+            vals_char_mu_pow_list = array([
                 [
                     self.core.seconds_to_mu(self.time_char_phase_sweep_us * us),
-                    self.singlepass0.turns_to_pow(phase_turns)
+                    self.qubit.singlepass0.turns_to_pow(phase_turns)
                 ]
                 for phase_turns in self.phases_char_phase_sweep_turns
-            ], dtype=np.int64)
-
-        # use generator to flatten list with some tuples
-        def flatten(xs):
-            for x in xs:
-                if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-                    yield from flatten(x)
-                else:
-                    yield x
+            ], dtype=int64)
 
         # create an array of values for the experiment to sweep
-        self.config_experiment_list = np.array([
-            list(flatten(vals))
-            for vals in product(
-                vals_pulse4_mu_pow_list, characteristic_axis_list
-            )
-        ], dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        self.config_experiment_list = create_experiment_config(
+            vals_char_mu_pow_list, characteristic_axis_list,
+            config_type=int64, shuffle_config=True
+        )
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -364,39 +357,39 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         """
         '''SUPERRESOLUTION - ARGUMENT CHECKS'''
         # check that input amplitude/phase arrays are valid
-        if isinstance(self.ampl_superresolution_osc_frac_list, list):
-            if len(self.ampl_superresolution_osc_frac_list) != self._num_phaser_oscs:
+        if isinstance(self.ampl_osc_frac_list, list):
+            if len(self.ampl_osc_frac_list) != self._num_phaser_oscs:
                 raise ValueError("Error: phaser oscillator amplitude array must have length {:d}.".format(self._num_phaser_oscs))
-            elif np.sum(self.ampl_superresolution_osc_frac_list) >= 100.:
+            elif sum(self.ampl_osc_frac_list) >= 100.:
                 raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
         else:
             raise ValueError("Error: phaser oscillator amplitude array must be a list.")
 
-        if isinstance(self.phase_superresolution_osc_turns_list, list):
-            if len(self.phase_superresolution_osc_turns_list) != self._num_phaser_oscs:
+        if isinstance(self.phase_osc_turns_list, list):
+            if len(self.phase_osc_turns_list) != self._num_phaser_oscs:
                 raise ValueError("Error: phaser oscillator phase array must have length {:d}.".format(self._num_phaser_oscs))
         else:
             raise ValueError("Error: phaser oscillator phase array must be a list.")
 
         # check that phaser oscillator frequencies are valid
-        if not isinstance(self.freq_superresolution_osc_khz_list, list):
+        if not isinstance(self.freq_osc_khz_list, list):
             raise ValueError("Error: phaser oscillator frequency array must be a list.")
-        elif len(self.freq_superresolution_osc_khz_list) != self._num_phaser_oscs:
+        elif len(self.freq_osc_khz_list) != self._num_phaser_oscs:
             raise ValueError("Error: phaser oscillator frequency array must have length {:d}.".format(self._num_phaser_oscs))
         max_osc_freq_hz = (
-                max(self.freq_superresolution_osc_khz_list) * kHz +
+                max(self.freq_osc_khz_list) * kHz +
                 (self.freq_global_offset_mhz * MHz)
         )
         min_osc_freq_hz = (
-                max(self.freq_superresolution_osc_khz_list) * kHz +
+                max(self.freq_osc_khz_list) * kHz +
                 (self.freq_global_offset_mhz * MHz)
         )
         if (max_osc_freq_hz > 10. * MHz) or (min_osc_freq_hz < -10. * MHz):
             raise ValueError("Error: phaser oscillator frequencies outside valid range of [-10, 10] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_eggs_heating_carrier_mhz * MHz)
-        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_eggs_heating_carrier_mhz * MHz)
+        phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_heating_carrier_mhz * MHz)
+        phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_heating_carrier_mhz * MHz)
         if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
@@ -404,8 +397,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         psk_schedule_invalid = self.enable_phase_shift_keying and any([
             (not isinstance(psk_schedule, list)) or (len(psk_schedule) != self.num_psk_phase_shifts + 1)
             for psk_schedule in (
-                self.phase_superresolution_rsb_psk_turns, self.phase_superresolution_bsb_psk_turns,
-                self.phase_subharmonic_carrier_0_psk_turns, self.phase_subharmonic_carrier_1_psk_turns
+                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
+                self.phase_osc2_psk_turns, self.phase_osc3_psk_turns
             )
         ])
         if psk_schedule_invalid:
@@ -413,18 +406,8 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # check that cutoff time happens before end of pulse - otherwise no point
         if (self.enable_phaser and self.enable_cutoff and
-                (self.time_superresolution_stop_us > self.time_eggs_heating_us)):
-            raise ValueError("Invalid cutoff time. Must happen before time_superresolution_stop_us.")
-
-        '''CHARACTERISTIC RECONSTRUCTION - ARGUMENT CHECKS'''
-        # ensure single pass values are safe and valid
-        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
-                for ampl_pct in self.ampl_singlepass_default_pct_list)):
-            raise ValueError("Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
-
-        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
-                for att_db in self.att_singlepass_default_db_list)):
-            raise ValueError("Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+                (self.time_phaser_stop_us > self.time_heating_us)):
+            raise ValueError("Invalid cutoff time. Must happen before time_phaser_stop_us.")
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -434,11 +417,11 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         '''PREPARE WAVEFORM COMPILATION'''
         # create holding structures for EGGS pulse waveforms
         self.pulseshaper_vals = None        # store compiled waveforms from pulseshaper
-        self.pulseshaper_id =   np.int32(0) # store waveform ID for pulseshaper
+        self.pulseshaper_id =   int32(0) # store waveform ID for pulseshaper
 
         # calculate block timings
         if self.enable_phase_shift_keying:
-            time_block_us = self.time_eggs_heating_us / (self.num_psk_phase_shifts + 1)
+            time_block_us = self.time_heating_us / (self.num_psk_phase_shifts + 1)
 
             if not self.enable_cutoff:
                 num_blocks = self.num_psk_phase_shifts + 1
@@ -446,35 +429,35 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
             # implement QVSA pulse cutoffs by modifying waveform itself
             else:
-                num_blocks = round(np.ceil(self.time_superresolution_stop_us / time_block_us))
+                num_blocks = round(ceil(self.time_phaser_stop_us / time_block_us))
                 block_time_list_us = [time_block_us] * num_blocks
-                if self.time_superresolution_stop_us % time_block_us != 0:
-                    block_time_list_us[-1] = self.time_superresolution_stop_us % time_block_us
+                if self.time_phaser_stop_us % time_block_us != 0:
+                    block_time_list_us[-1] = self.time_phaser_stop_us % time_block_us
         else:
             num_blocks = 1
             if not self.enable_cutoff:
-                block_time_list_us = [self.time_eggs_heating_us]
+                block_time_list_us = [self.time_heating_us]
             # implement QVSA pulse cutoffs by modifying waveform itself
             else:
-                block_time_list_us = [self.time_superresolution_stop_us]
+                block_time_list_us = [self.time_phaser_stop_us]
 
 
         '''PROGRAM & COMPILE WAVEFORM'''
         # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = np.zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_blocks[:, :, 0] = np.array(self.ampl_superresolution_osc_frac_list)
+        _osc_vals_blocks = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)
 
         # set oscillator phases and account for oscillator update delays
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        t_update_delay_s_list = np.array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
-        _osc_vals_blocks[:, :, 1] += (np.array(self.phase_superresolution_osc_turns_list) +
-                                      self.freq_superresolution_osc_base_hz_list * t_update_delay_s_list)
+        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
+        _osc_vals_blocks[:, :, 1] += (array(self.phase_osc_turns_list) +
+                                      self.freq_osc_base_hz_list * t_update_delay_s_list)
 
         # set PSK phase update schedule
         if self.enable_phase_shift_keying:
-            _osc_vals_blocks[:, :, 1] += np.array([
-                self.phase_superresolution_rsb_psk_turns[:num_blocks], self.phase_superresolution_bsb_psk_turns[:num_blocks],
-                self.phase_subharmonic_carrier_0_psk_turns[:num_blocks], self.phase_subharmonic_carrier_1_psk_turns[:num_blocks]
+            _osc_vals_blocks[:, :, 1] += array([
+                self.phase_osc0_psk_turns[:num_blocks], self.phase_osc1_psk_turns[:num_blocks],
+                self.phase_osc2_psk_turns[:num_blocks], self.phase_osc3_psk_turns[:num_blocks]
             ][:self._num_phaser_oscs]).transpose()
 
         # specify sequence as a list of blocks, where each block is a dict
@@ -505,38 +488,14 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 4)
 
 
-    # MAIN SEQUENCE
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         """
         Initialize experiment hardware immediately before kernel.
         """
-        '''CHARACTERISTIC FUNCTION INITIALIZATION'''
-        # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
-        # enable RAM mode and clear DDS phase accumulator
-        self.qubit.set_cfr1()
-        self.singlepass0.set_cfr1()
-        self.singlepass1.set_cfr1()
-        self.qubit.cpld.io_update.pulse_mu(8)
-        delay_mu(25000)
-
-        # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
-        for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
-                                      asf=self.ampl_singlepass_default_asf_list[0],
-                                      profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
-                                      asf=self.ampl_singlepass_default_asf_list[1],
-                                      profile=i)
-            delay_mu(8000) # 8us
-
-        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
-        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
-        delay_mu(25000) # 25us
-
-        '''SUPERRESOLUTION INITIALIZATION'''
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -553,25 +512,23 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load waveform DMA handles
-        self.pulse_shaper.waveform_load()
-        delay_mu(250000) # 250us
+        self.pulse_shaper.waveform_load()   # load waveform DMA handles
 
         # create local variables for use
         _loop_iter = 0  # used to check_termination more frequently
-        ion_state = (-1, 0, np.int64(0))    # store ion state
-
+        ion_state = (-1, 0, int64(0))    # store ion state
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-
             # sweep experiment configurations
             for config_vals in self.config_experiment_list:
 
-                '''CONFIGURE'''
+                '''
+                CONFIGURE
+                '''
                 # extract values from config list
                 time_char_read_mu =         config_vals[0]
-                phase_char_read_pow =       np.int32(config_vals[1])
+                phase_char_read_pow =       int32(config_vals[1])
                 characteristic_axis_bool =  bool(config_vals[2])
 
                 # set phases for characteristic readout
@@ -586,13 +543,16 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                     # carrier frequency (via DUC): freq_eggs_heating_carrier_hz - freq_global_offset_hz
                     self.freq_phaser_center_hz,
                     # oscillator frequencies
-                    [self.freq_superresolution_osc_base_hz_list[0], self.freq_superresolution_osc_base_hz_list[1],
-                     self.freq_superresolution_osc_base_hz_list[2], self.freq_superresolution_osc_base_hz_list[3], 0.],
-                    self.phase_eggs_heating_ch1_turns
+                    [self.freq_osc_base_hz_list[0], self.freq_osc_base_hz_list[1],
+                     self.freq_osc_base_hz_list[2], self.freq_osc_base_hz_list[3], 0.],
+                    self.phase_global_ch1_turns
                 )
                 delay_mu(20000)
 
-                '''MOTIONAL STATE PREPARATION'''
+
+                '''
+                MOTIONAL STATE PREPARATION
+                '''
                 # get current time
                 t_phaser_start_mu = now_mu()
 
@@ -608,7 +568,10 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 if self.enable_phaser:
                     t_phaser_start_mu = self.phaser_run(self.pulseshaper_id)
 
-                '''CHARACTERISTIC RECONSTRUCTION'''
+
+                '''
+                CHARACTERISTIC RECONSTRUCTION
+                '''
                 # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
                 self.pulse_sigmax(t_phaser_start_mu, self.phase_characteristic_axis_pow, characteristic_axis_bool)
 
@@ -617,50 +580,26 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                        self.freq_cat_center_ftw, self.freq_cat_secular_ftw)
                 ion_state = self.readout_subsequence.run()
 
-                '''LOOP CLEANUP'''
-                # retrieve results & update dataset
-                self.update_results(characteristic_axis_bool, ion_state[0],
-                                    time_char_read_mu, phase_char_read_pow)
-                self.core.break_realtime()
 
+                '''
+                LOOP CLEANUP
+                '''
                 # resuscitate ion & detect deaths
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(ion_state[0])
-                self.core.break_realtime()
+                
+                # update dataset
+                self.update_results(characteristic_axis_bool, ion_state[0],
+                                    time_char_read_mu, phase_char_read_pow)
 
                 # check termination more frequently in case reps are low
-                if _loop_iter % 50 == 0:
-                    self.check_termination()
-                    self.core.break_realtime()
+                if _loop_iter % 50 == 0: self.check_termination()
                 _loop_iter += 1
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
-
-    @kernel(flags={"fast-math"})
-    def cleanup_experiment(self) -> TNone:
-        """
-        Clean up the experiment.
-        """
-        # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
-        for i in range(8):
-            self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
-                                    asf=self.ampl_singlepass_default_asf_list[0],
-                                    profile=i)
-            self.singlepass1.set_mu(self.freq_singlepass_default_ftw_list[1],
-                                    asf=self.ampl_singlepass_default_asf_list[1],
-                                    profile=i)
-            delay_mu(8000)
-
-        self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
-        self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        self.singlepass0.sw.on()
-        self.singlepass1.sw.off()
-        delay_mu(25000)
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''
@@ -670,14 +609,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
     def phaser_run(self, waveform_id: TInt32) -> TInt64:
         """
         Run the main QVSA pulse together with supporting functionality.
-        Arguments:
-            waveform_id     (TInt32)    : the ID of the waveform to run.
-        Returns:
-            the start time of the phaser oscillator waveform (in machine units, 64b int).
-            Useful to synchronize device operation.
+        :param waveform_id: 32b ID of the waveform to run.
+        :return: the start time of the phaser oscillator waveform (in machine units, 64b int).
+            Useful for synchronizing device operation.
         """
         # EGGS - START/SETUP
-        self.phaser_eggs.phaser_setup(self.att_eggs_heating_mu, self.att_eggs_heating_mu)
+        self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
 
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
@@ -716,48 +653,46 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
     def pulse_sigmax(self, time_start_mu: TInt64 = -1, phas_pow: TInt32 = 0x0, is_real: TBool = False) -> TNone:
         """
         Run a phase-coherent sigma_x pulse on the qubit.
-        Arguments:
-            time_start_mu: fiducial timestamp for initial start reference (in machine units).
-            phas_pow: relative phase offset for the beam.
-            is_real: whether to actually run the pulse (True) or a dummy pulse (False).
+        :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
+        :param phas_pow: relative phase offset for the beam.
+        :param is_real: whether to actually run the pulse (True) or a dummy pulse (False).
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.singlepass0.set_mu(
-            self.freq_singlepass_default_ftw_list[0], asf=self.ampl_singlepass_default_asf_list[0], pow_=0,
+        self.qubit.singlepass0.set_mu(
+            self.qubit.freq_singlepass0_default_ftw, asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.singlepass1.set_mu(
-            self.freq_singlepass_default_ftw_list[1], asf=self.ampl_singlepass_default_asf_list[1], pow_=0,
+        self.qubit.singlepass1.set_mu(
+            self.qubit.freq_singlepass1_default_ftw, asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
         # run pulse
-        self.singlepass0.sw.on()
-        self.singlepass1.sw.on()
+        self.qubit.singlepass0.sw.on()
+        self.qubit.singlepass1.sw.on()
         if is_real:
             self.qubit.on()
         else:
             self.qubit.off()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
-        self.singlepass1.sw.off()
+        self.qubit.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
     def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
                           freq_carrier_ftw: TInt32, freq_secular_ftw: TInt32) -> TNone:
         """
         Run a phase-coherent bichromatic pulse on the qubit.
-        Arguments:
-            time_start_mu: fiducial timestamp for initial start reference (in machine units).
-            time_pulse_mu: length of pulse (in machine units).
-            phas_pow_list: relative phase offset for the beams (RSB, BSB) (in pow).
-            freq_carrier_ftw: carrier frequency (set by the double pass) in FTW.
-            freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
+        :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
+        :param time_pulse_mu: length of pulse (in machine units).
+        :param phas_pow_list: relative phase offset for the beams (RSB, BSB) (in pow).
+        :param freq_carrier_ftw: carrier frequency (set by the double pass) in FTW.
+        :param freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
@@ -765,23 +700,23 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
             pow_=0, profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.singlepass0.set_mu(
-            self.freq_singlepass_default_ftw_list[0]-freq_secular_ftw, asf=self.ampls_cat_asf[0],
+        self.qubit.singlepass0.set_mu(
+            self.qubit.freq_singlepass0_default_ftw - freq_secular_ftw, asf=self.ampls_cat_asf[0],
             pow_=phas_pow_list[0], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.singlepass1.set_mu(
-            self.freq_singlepass_default_ftw_list[1]+freq_secular_ftw, asf=self.ampls_cat_asf[1],
+        self.qubit.singlepass1.set_mu(
+            self.qubit.freq_singlepass1_default_ftw + freq_secular_ftw, asf=self.ampls_cat_asf[1],
             pow_=phas_pow_list[1], profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
 
         # run bichromatic pulse
-        self.singlepass0.sw.on()
-        self.singlepass1.sw.on()
+        self.qubit.singlepass0.sw.on()
+        self.qubit.singlepass1.sw.on()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
-        self.singlepass1.sw.off()
+        self.qubit.singlepass1.sw.off()
 
