@@ -514,7 +514,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Clean up the experiment.
         """
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
-        # todo: state phase mode
         for i in range(8):
             self.singlepass0.set_mu(self.freq_singlepass_default_ftw_list[0],
                                     asf=self.ampl_singlepass_default_asf_list[0],
@@ -526,24 +525,19 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                     profile=i,
                                     phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
             delay_mu(128) # add slack to ensure set_mu doesn't roll back timeline
-            # tmp remove
             self.doublepass_inj.set_mu(self.freq_doublepass_inj_default_ftw,
                                        asf=self.ampl_doublepass_inj_default_asf,
                                        profile=i,
                                        phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            # tmp remove
             delay_mu(25000)
 
+        # reset beams for normal operation
         self.singlepass0.set_att_mu(self.att_singlepass_default_mu_list[0])
         self.singlepass1.set_att_mu(self.att_singlepass_default_mu_list[1])
-        # tmp remove
         self.doublepass_inj.set_att_mu(self.att_doublepass_inj_default_mu)
-        # tmp remove
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        # tmp remove
         self.doublepass_inj.sw.on()
-        # tmp remove
         delay_mu(10000)
 
 
@@ -595,8 +589,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(
-            freq_carrier_ftw, asf=self.ampl_sigmax_asf, pow_=0,
-            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+            freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
+            pow_=0, profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.singlepass0.set_mu(
             self.freq_singlepass_default_ftw_list[0] - freq_secular_ftw, asf=self.ampls_cat_asf[0],
