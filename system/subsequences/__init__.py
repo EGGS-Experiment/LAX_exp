@@ -24,7 +24,6 @@ from LAX_exp.system.subsequences.initialize_qubit import InitializeQubit
 __all__.extend(['SpinPolarization', 'InitializeQubit'])
 
 # motional state manipulation
-from LAX_exp.system.subsequences.squeeze import Squeeze
 from LAX_exp.system.subsequences.squeeze_configurable import SqueezeConfigurable
 from LAX_exp.system.subsequences.displace import Displace
 from LAX_exp.system.subsequences.parametric_excite import ParametricExcite
@@ -37,7 +36,6 @@ __all__.extend(['SqueezeConfigurable', 'Displace', 'ParametricExcite',
 from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.qubit_pulseshape import QubitPulseShape
 from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
-# note: FockOverlap imports QubitRAP, so must be imported after it
 from LAX_exp.system.subsequences.fock_overlap import FockOverlap
 __all__.extend(['RabiFlop', 'QubitPulseShape', 'QubitRAP', 'FockOverlap'])
 

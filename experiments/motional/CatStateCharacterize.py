@@ -4,8 +4,7 @@ from numpy import array, int32, int64
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout,
-    ReadoutAdaptive, RescueIon
+    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon
 )
 
 # todo: add tooltips
@@ -28,7 +27,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         'readout_adaptive_subsequence', 'rescue_subsequence',
 
         # hardware values - default
-        'ampl_doublepass_default_asf', 'att_doublepass_default_db',
+        'ampl_doublepass_default_asf',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
         'time_herald_slack_mu',
 
@@ -75,12 +74,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         Build arguments for default beam parameters.
         """
-        # defaults - beam values - doublepass (main)
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
-                              group="default.beams")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
-                              group="default.beams")
-
         # defaults - sigma_x
         self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0918, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
                               group="default.sigmax")
@@ -92,6 +85,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group="default.sigmax")
 
         # defaults - cat
+        # defaults - beam values - doublepass (main)
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group="default.cat")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="default.cat")
         self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='default.cat', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='default.cat', tooltip="[rsb_db, bsb_db]")
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
@@ -219,6 +217,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
 
         '''CONVERT VALUES TO MACHINE UNITS - DEFAULTS'''
+        # defaults - main doublepass (near chamber)
+        self.ampl_doublepass_default_asf = self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
+
         # defaults - sigma_x pulses
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
@@ -322,18 +323,20 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
-        self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
-
-        # ensure single pass values are safe and valid
-        if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
-                for ampl_pct in self.ampl_singlepass_default_pct_list)):
-            raise ValueError(
-                "Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
-
-        if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
-                for att_db in self.att_singlepass_default_db_list)):
-            raise ValueError(
-                "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+        # todo
+        pass
+        # self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
+        #
+        # # ensure single pass values are safe and valid
+        # if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
+        #         for ampl_pct in self.ampl_singlepass_default_pct_list)):
+        #     raise ValueError(
+        #         "Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
+        #
+        # if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
+        #         for att_db in self.att_singlepass_default_db_list)):
+        #     raise ValueError(
+        #         "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
 
     @property
     def results_shape(self):
@@ -388,7 +391,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 while True:
                     # check heralding OK (otherwise execution is blocked
                     if herald_counter >= self.max_herald_attempts:
-                        print("\n\tWarning: too many heralds. Moving onto next configuration.")
+                        print("\t\tWarning: too many heralds. Moving onto next configuration.")
                         self.core.break_realtime()  # add slack
                         break
 
@@ -482,6 +485,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
 
                 '''READ OUT & STORE RESULTS'''
+                # only read out if no boooboo
                 if herald_counter < self.max_herald_attempts:
                     # 729nm based readout (sideband ratio, rabi flopping)
                     if self.enable_729_readout:
@@ -493,6 +497,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 else:
                     # return -1 so user knows booboo happened
                     counts_res = -1
+                    self.check_termination() # check termination b/c we haven't in a while
 
                 # store results
                 self.rescue_subsequence.resuscitate()
@@ -606,17 +611,20 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_729_readout_asf,
-                          pow_=0, profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                          pow_=0, profile=self.profile_729_target,
+                          phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
                                       asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
-                                      profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                                      profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
                                       asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-                                      profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                                      profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         self.qubit.cpld.set_all_att_mu(self.att_reg_readout)
 
         # run readout pulse
-        self.qubitsinglepass0.sw.on()
+        self.qubit.singlepass0.sw.on()
         self.qubit.singlepass1.sw.on()
         self.qubit.on()
         delay_mu(time_pulse_mu)

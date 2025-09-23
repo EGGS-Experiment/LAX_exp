@@ -62,18 +62,14 @@ class Beam729(LAXDevice):
                                                                conversion_function=hz_to_ftw, units=MHz)
 
         self.ampl_singlepass0_default_asf = self.get_parameter('ampl_729_singlepass0_pct', group='beams.ampl_pct',
-                                                               override=False,
-                                                               conversion_function=pct_to_asf, units=MHz)
+                                                               override=False, conversion_function=pct_to_asf)
         self.ampl_singlepass1_default_asf = self.get_parameter('ampl_729_singlepass1_pct', group='beams.ampl_pct',
-                                                               override=False,
-                                                               conversion_function=pct_to_asf, units=MHz)
+                                                               override=False, conversion_function=pct_to_asf)
 
         self.att_singlepass0_default_mu = self.get_parameter('att_729_singlepass0_db', group='beams.att_db',
-                                                             override=False,
-                                                             conversion_function=att_to_mu, units=MHz)
+                                                             override=False, conversion_function=att_to_mu)
         self.att_singlepass1_default_mu = self.get_parameter('att_729_singlepass1_db', group='beams.att_db',
-                                                             override=False,
-                                                             conversion_function=att_to_mu, units=MHz)
+                                                             override=False, conversion_function=att_to_mu)
 
         # get doublepass (injection lock) parameters
         self.freq_doublepass_inj_default_ftw =  self.get_parameter('freq_729_doublepass_inj_mhz',
@@ -81,10 +77,10 @@ class Beam729(LAXDevice):
                                                                    conversion_function=hz_to_ftw, units=MHz)
         self.ampl_doublepass_inj_default_asf =  self.get_parameter('ampl_729_doublepass_inj_pct',
                                                                    group='beams.ampl_pct', override=False,
-                                                                   conversion_function=pct_to_asf, units=MHz)
+                                                                   conversion_function=pct_to_asf)
         self.att_doublepass_inj_default_mu =    self.get_parameter('att_729_doublepass_inj_db',
                                                                    group='beams.att_db', override=False,
-                                                                   conversion_function=att_to_mu, units=MHz)
+                                                                   conversion_function=att_to_mu)
 
     def _prepare_device_values(self):
         """
