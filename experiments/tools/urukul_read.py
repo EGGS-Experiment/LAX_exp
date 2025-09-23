@@ -4,11 +4,13 @@ from numpy import int32, int64
 
 from enum import Enum
 # todo: make usable for multiple profiles a la urukul_configure
+# todo: also read attenuation register
+# todo: also read urukul status register
 
 
 class RAM_MODE(Enum):
     """
-    Enum class to convert the RAM mode bits to a string
+    Enum class to convert the RAM mode bits to a string.
     """
     RAM_MODE_DIRECTSWITCH =     ad9910.RAM_MODE_DIRECTSWITCH
     RAM_MODE_RAMPUP =           ad9910.RAM_MODE_RAMPUP
