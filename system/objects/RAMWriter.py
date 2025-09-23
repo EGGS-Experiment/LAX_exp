@@ -2,6 +2,7 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, RAM_MODE_RAMPUP
 
 from numpy import ceil, int32
+# todo: add RTIOUnderflow error handling
 
 
 class RAMWriter(HasEnvironment):
@@ -51,7 +52,7 @@ class RAMWriter(HasEnvironment):
         Prepare hardcoded values ahead of time.
         """
         self._prepare_argument_checks()
-        self.time_block_write_slack_mu = self.core.seconds_to_mu(5 * us)
+        self.time_block_write_slack_mu = self.core.seconds_to_mu(100 * us)
 
         # predeclare a holder array to store reversed ram values
         self._ram_arr_rev = [int32(0)] * self.block_size

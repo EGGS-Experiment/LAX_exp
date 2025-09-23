@@ -393,7 +393,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # note: don't remove - verified this was v importat for hi-fidelity (2025/09/18)
         self.spin_polarize()
 
-
     @kernel(flags={"fast-math"})
     def spin_polarize(self) -> TNone:
         """

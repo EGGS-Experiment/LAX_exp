@@ -580,14 +580,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
         self.qubit.singlepass0.set_mu(
             self.qubit.freq_singlepass0_default_ftw - freq_secular_ftw,
-            asf=self.qubit.ampl_singlepass0_default_asf,
+            asf=self.ampls_cat_asf[0],
             pow_=phas_pow_list[0],
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.singlepass1.set_mu(
             self.qubit.freq_singlepass1_default_ftw + freq_secular_ftw,
-            asf=self.qubit.ampl_singlepass1_default_asf,
+            asf=self.ampls_cat_asf[1],
             pow_=phas_pow_list[1],
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
