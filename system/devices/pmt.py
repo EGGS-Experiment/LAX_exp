@@ -22,8 +22,8 @@ class PMTCounter(LAXDevice):
     }
 
     def prepare_device(self):
-        self.gating_edge = self.get_parameter('gating_edge', group='pmt', override=False)
-        # self.time_pmt_gating_mu = self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu)
+        self.gating_edge = self.get_parameter('gating_edge', group='devices.pmt', override=False)
+        # self.time_pmt_gating_mu = self.get_parameter('time_pmt_gating_us', group='devices.pmt', override=False, conversion_function=seconds_to_mu)
 
         # get default gating edge for counting
         self.counting_method = getattr(self.pmt, 'gate_{:s}_mu'.format(self.gating_edge))

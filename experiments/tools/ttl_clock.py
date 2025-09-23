@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 # todo: duty cycle
-# todo: set kernel invariants
+# todo: make ttl_channel gettable from a list - check only outputtable TTLs
 
 
 class TTLClock(EnvExperiment):
@@ -9,6 +9,9 @@ class TTLClock(EnvExperiment):
     Tool: TTL Clock
     Use the DIO-BNC TTLs to create a square-wave clock signal.
     """
+    kernel_invariants = {
+        "ttl_clock", "time_trigger_delay_mu", "time_delay_mu", "num_repetitions",
+    }
 
     def build(self):
         """
@@ -25,7 +28,6 @@ class TTLClock(EnvExperiment):
         # TTL channel
         self.setattr_argument("ttl_channel", NumberValue(default=9, precision=0, step=1, min=4, max=23))
 
-
     def prepare(self):
         """
         Set up the dataset and prepare values to minimize kernel overhead.
@@ -38,7 +40,6 @@ class TTLClock(EnvExperiment):
         self.time_delay_mu =            self.core.seconds_to_mu(0.5 / (self.frequency_clock_khz * kHz))
         self.num_repetitions =          int(self.frequency_clock_khz * self.time_total_ms)
         # self.time_off_mu = self.core.seconds_to_mu(self.time_reset_us * us)
-
 
     @kernel
     def run(self):
@@ -61,3 +62,4 @@ class TTLClock(EnvExperiment):
             with parallel:
                 self.ttl_clock.off()
                 delay_mu(self.time_delay_mu)
+

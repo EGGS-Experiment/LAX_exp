@@ -1,4 +1,6 @@
 from artiq.experiment import *
+# todo: set kernel_invariants
+# todo: make fastino device gettable
 
 
 class FastinoSet(EnvExperiment):

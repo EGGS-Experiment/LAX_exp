@@ -12,6 +12,10 @@ from itertools import product
 from collections.abc import Iterable
 from artiq.coredevice import ad9910
 
+# todo: replace numpy with specific imports
+# todo: rename things from e.g. "pulse4" to e.g. "grid"
+# todo: migrate to use create_experiment_config
+
 
 class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment):
     """
@@ -80,97 +84,105 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         """
         Set specific arguments for superresolution.
         """
+        _argstr = "SDR"  # create short string for argument grouping
+
         # superresolution - general config
         self.setattr_argument("enable_phaser", BooleanValue(default=True))
         self.setattr_argument("enable_cutoff", BooleanValue(default=False))
 
         # superresolution - configurable freq & sweeps
         self.setattr_argument("freq_eggs_heating_carrier_mhz", NumberValue(default=86.0, precision=6, step=0.001, min=1., max=200., unit="MHz", scale=1.),
-                              group="{}.freq_phase_sweep".format("SDR"))
+                              group="{}.freq_phase".format(_argstr))
         self.setattr_argument("phase_eggs_heating_ch1_turns", NumberValue(default=0.2, precision=5, step=0.1, min=-1., max=1., unit="turns", scale=1.),
-                              group="{}.freq_phase_sweep".format("SDR"))
+                              group="{}.freq_phase".format(_argstr))
 
         # EGGS RF - waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.pulse_shaping'.format("SDR"))
+        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.shape'.format(_argstr))
         self.setattr_argument("type_pulse_shape",       EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='{}.pulse_shaping'.format("SDR"))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
-                              group='{}.pulse_shaping'.format("SDR"))
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
-                              group='{}.pulse_shaping'.format("SDR"))
+                              group='{}.shape'.format(_argstr))
 
         # EGGS RF - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format("SDR"))
-        self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=1, precision=0, step=10, min=1, max=200), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_superresolution_rsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_superresolution_bsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format("SDR"))
-        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format("SDR"))
+        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr))
+        self.setattr_argument("num_psk_phase_shifts",       NumberValue(default=1, precision=0, step=10, min=1, max=200), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_superresolution_rsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_superresolution_bsb_psk_turns",    PYONValue([0., 0.5]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_subharmonic_carrier_0_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
+        self.setattr_argument("phase_subharmonic_carrier_1_psk_turns",  PYONValue([0., 0.]), group="{}.psk".format(_argstr))
 
         # superresolution - custom waveform specification
         self.setattr_argument("time_eggs_heating_us",   NumberValue(default=200, precision=2, step=500, min=0.04, max=10000000, unit="us", scale=1.),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("att_eggs_heating_db",    NumberValue(default=17., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=2., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("freq_superresolution_osc_khz_list",  PYONValue([-702.6, 702.6, 0., 0.]),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("ampl_superresolution_osc_frac_list", PYONValue([0., 40., 12., 0.]),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_superresolution_osc_turns_list",   PYONValue([0., 0., 0.5, 0.5]),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
         self.setattr_argument("phase_oscillators_ch1_offset_turns",     PYONValue([0., 0., 0.5, 0.5, 0.]),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
 
         # superresolution - characteristic function special
         self.setattr_argument("time_superresolution_stop_us", NumberValue(default=500, precision=2, step=500, min=0.04, max=1000000, unit="us", scale=1.),
-                              group="{}.waveform".format("SDR"))
+                              group="{}.waveform".format(_argstr))
 
     def _build_arguments_characteristic_reconstruction(self):
         """
         Set specific arguments for Characteristic Reconstruction.
         """
+        _argstr = "char"  # create short string for argument grouping
+
         # defaults - beam values
         self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (60., 7.)
-        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='defaults.beams', tooltip="[rsb_mhz, bsb_mhz]")
-        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='defaults.beams', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 7.]), group='defaults.beams', tooltip="[rsb_db, bsb_db]")
+        self.setattr_argument("freq_singlepass_default_mhz_list",   PYONValue([120.339, 120.339]), group='default.beams', tooltip="[rsb_mhz, bsb_mhz]")
+        self.setattr_argument("ampl_singlepass_default_pct_list",   PYONValue([50., 0.01]), group='default.beams', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("att_singlepass_default_db_list",     PYONValue([7., 7.]), group='default.beams', tooltip="[rsb_db, bsb_db]")
         self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
-                              group="defaults.beams")
+                              group="default.beams")
         self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
-                              group="defaults.beams")
+                              group="default.beams")
 
         # defaults - sigma_x
         self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0962, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
-                              group="defaults.sigmax")
+                              group="default.sx")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
-                              group="defaults.sigmax")
+                              group="default.sx")
         self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
-                              group="defaults.sigmax")
+                              group="default.sx")
         self.setattr_argument("time_sigmax_us",     NumberValue(default=1.49, precision=3, step=5, min=0.1, max=10000, unit="us", scale=1.),
-                              group="defaults.sigmax")
+                              group="default.sx")
 
         # defaults - bichromatic
         self.setattr_argument("freq_cat_center_mhz",    NumberValue(default=101.0962, precision=6, step=0.001, min=50., max=400., unit="MHz", scale=1.),
-                              group="defaults.bichromatic")
+                              group="default.bichro")
         self.setattr_argument("freq_cat_secular_khz",   NumberValue(default=702.6, precision=4, step=1, min=0., max=4e5, unit="kHz", scale=1.),
-                              group="defaults.bichromatic")
-        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 54.]), group='defaults.bichromatic', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='defaults.bichromatic', tooltip="[rsb_db, bsb_db]")
+                              group="default.bichro")
+        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 54.]), group='default.bichro', tooltip="[rsb_pct, bsb_pct]")
+        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='default.bichro', tooltip="[rsb_db, bsb_db]")
 
         # characteristic readout: configuration
-        self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'), group='characteristic',
+        self.setattr_argument("characteristic_axis", EnumerationValue(['Both', 'Real', 'Imaginary'], default='Both'),
+                              group='{}'.format(_argstr),
                               tooltip="Selects the real/imag component of the characteristic function by either applying a sigma_x operation (Imag), or not (Real)."
                                       "The 'Both' option enables measurement of both real and imag components within a single experiment.")
         self.setattr_argument("phase_characteristic_axis_turns",  NumberValue(default=0.125, precision=5, step=0.1, min=-1.0, max=1.0, unit='turns', scale=1.),
-                              group='characteristic',
+                              group='{}'.format(_argstr),
                               tooltip="Sets the relative phase of the sigma_x operation used to define the real/imag axis of the characteristic function.")
-        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]), group='characteristic', tooltip="[rsb_turns, bsb_turns]")
+        self.setattr_argument("phases_pulse4_cat_turns",    PYONValue([0., 0.]),
+                              group='{}'.format(_argstr),
+                              tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'),
                               group="characteristic",
                               tooltip="Configures how the phases of the bichromatic tones are adjusted to measure the characteristic function.")
-        self.setattr_argument("characteristic_readout_sweep", EnumerationValue(['Grid', 'Phase Sweep'], default='Grid'), group='characteristic',
+        self.setattr_argument("characteristic_readout_sweep", EnumerationValue(['Grid', 'Phase Sweep'], default='Grid'),
+                              group='{}'.format(_argstr),
                               tooltip="Choose sweep type when reading out the characteristic function."
                                       "'Grid' option reads out on a 2D rectangular grid."
                                       "'Phase Sweep' option reads out on a 1D phase sweep at a single time radius.")
@@ -182,25 +194,32 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                                                                 ExplicitScan([50]),
                                                             ],
                                                             global_min=-100000, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5), group="characteristic.grid")
+                                                            unit="us", scale=1, precision=5),
+                              group='{}.grid'.format(_argstr),
+                              tooltip="todo: document")
         self.setattr_argument("time_pulse4_cat_y_us_list", Scannable(
                                                             default=[
                                                                 RangeScan(-45, 45, 15, randomize=True),
                                                                 ExplicitScan([50]),
                                                             ],
                                                             global_min=-100000, global_max=100000, global_step=1,
-                                                            unit="us", scale=1, precision=5), group="characteristic.grid")
+                                                            unit="us", scale=1, precision=5),
+                              group='{}.grid'.format(_argstr),
+                              tooltip="todo: document")
 
         # characteristic readout: single-radius measurement (alternative to 2D grid)
         self.setattr_argument("time_char_phase_sweep_us",  NumberValue(default=10., precision=3, step=5, min=0.1, max=10000, unit="us", scale=1.),
-                              group="characteristic.ph_sweep")
+                              group='{}.ph_sweep'.format(_argstr),
+                              tooltip="todo: document")
         self.setattr_argument("phases_char_phase_sweep_turns", Scannable(
                                                                 default=[
                                                                     RangeScan(-1., 1., 42, randomize=True),
                                                                     ExplicitScan([0.]),
                                                                 ],
                                                                 global_min=-1., global_max=1., global_step=0.1,
-                                                                unit="turns", scale=1., precision=5), group="characteristic.ph_sweep")
+                                                                unit="turns", scale=1., precision=5),
+                              group='{}.ph_sweep'.format(_argstr),
+                              tooltip="todo: document")
 
     def prepare_experiment(self):
         """

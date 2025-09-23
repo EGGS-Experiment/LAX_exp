@@ -60,15 +60,23 @@ class RAMWriter(HasEnvironment):
     def write(self, ram_data: TList(TInt32), start_addr: TInt32) -> TNone:
         """
         todo: document
+        :param ram_data: todo: document
+        :param start_addr: the RAM address to start writing at - must be in [0, 1024].
         """
         # stop DDS output and disable RAM mode before writing
         self.dds.sw.off()
         self.dds.set_cfr1(ram_enable=0)
         self.dds.cpld.io_update.pulse_mu(8)
-        delay_mu(50000) # 50us
 
         # precalculate array length for convenience
         num_vals = len(ram_data)
+
+        # ensure all prior events complete execution prior to starting & add slack
+        # note: necessary to fix other object methods from filling up the event buffer before us
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        delay_mu(500000) # 500us
 
         # write RAM data to AD9910 in small blocks
         # num_write_operations = num_vals // self.block_size + min(num_vals % self.block_size, 0)

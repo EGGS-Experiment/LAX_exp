@@ -10,10 +10,9 @@ class SamplerRead(EnvExperiment):
     Read Sampler values over time.
     """
     kernel_invariants = {
-        'time_delay_mu',
-        'repetitions'
+        'adc', 'time_delay_mu', 'repetitions',
+        'channel_list', 'channel_iter', 'gain_list_mu', 'adc_mu_to_v_list',
     }
-
 
     def build(self):
         # devices
@@ -26,29 +25,27 @@ class SamplerRead(EnvExperiment):
         self.setattr_argument("sample_rate_hz",     NumberValue(default=5000, precision=3, step=1, min=1, max=5100, scale=1., unit="Hz"))
         self.setattr_argument("time_total_s",       NumberValue(default=1, precision=0, step=1, min=1, max=100000, scale=1., unit="s"))
 
-
     def prepare(self):
         # general
-        self.channel_list =                             list(self.channel_gain_dict.keys())
-        self.channel_iter =                             list(range(len(self.channel_gain_dict)))
-        self.gain_list_mu =                             [int(np.log10(gain_mu)) for gain_mu in self.channel_gain_dict.values()]
-        self.adc_mu_to_v_list =                         np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
+        self.channel_list =     list(self.channel_gain_dict.keys())
+        self.channel_iter =     list(range(len(self.channel_gain_dict)))
+        self.gain_list_mu =     [int(np.log10(gain_mu)) for gain_mu in self.channel_gain_dict.values()]
+        self.adc_mu_to_v_list = np.array([10 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
 
         # ADC
-        self.adc =                                      self.get_device("sampler0")
+        self.adc = self.get_device("sampler0")
 
         # timing
-        self.time_delay_mu =                            self.core.seconds_to_mu(1 / self.sample_rate_hz)
-        self.repetitions =                              np.int32(self.time_total_s * self.sample_rate_hz)
+        self.time_delay_mu =    self.core.seconds_to_mu(1 / self.sample_rate_hz)
+        self.repetitions =      np.int32(self.time_total_s * self.sample_rate_hz)
 
         # datasets
-        self.set_dataset('results',                 np.zeros([self.repetitions, len(self.channel_list)]))
+        self.set_dataset('results', np.zeros([self.repetitions, len(self.channel_list)]))
         self.setattr_dataset('results')
 
         # save parameters
-        self.set_dataset('sample_rate_hz',          self.sample_rate_hz)
-        self.set_dataset('time_total_s',            self.time_total_s)
-
+        self.set_dataset('sample_rate_hz', self.sample_rate_hz)
+        self.set_dataset('time_total_s', self.time_total_s)
 
     @kernel(flags={"fast-math"})
     def run(self):
@@ -79,7 +76,6 @@ class SamplerRead(EnvExperiment):
         data = np.array(volts_mu_arr)[self.channel_list] * self.adc_mu_to_v_list
         self.mutate_dataset("results", i, data)
 
-
     def analyze(self):
         # print out statistics of results
         print('\tResults:')
@@ -87,3 +83,4 @@ class SamplerRead(EnvExperiment):
             print('\t\tCH{:d}:\t{:.3f} +/- {:.3f} mV'.format(self.channel_list[i],
                                                              np.mean(self.results[:, i]) * 1000,
                                                              np.std(self.results[:, i]) * 1000))
+

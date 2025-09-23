@@ -16,8 +16,8 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
     Excite a dark-state qubit transition for a short, fixed time
         to examine alignment of the qubit beam.
     Note: uses Adaptive Readout to speed up readout procedure, which requires
-        knowledge of bright/dark count rates. These are set in the dataset manager under
-        "pmt.count_rate_bright_3ms" and "pmt.count_rate_dark_3ms".
+        knowledge of bright/dark count rates. These are "count_rate_bright_3ms" and "count_rate_dark_3ms,"
+        and are set in the dataset manager under "sequences.adaptive_readout."
     """
     name = 'Qubit Alignment RDX'
     kernel_invariants = {

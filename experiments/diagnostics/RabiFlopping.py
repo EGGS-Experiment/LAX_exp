@@ -32,9 +32,11 @@ class RabiFlopping(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=False))
+        self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
+                              tooltip="todo: document")
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
-                                                               default="SBC - Continuous"))
+                                                               default="SBC - Continuous"),
+                              tooltip="todo: document")
 
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list", Scannable(
@@ -43,8 +45,8 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                         ExplicitScan([6.05]),
                                                         CenterScan(3.05, 5., 0.1, randomize=True),
                                                     ],
-                                                    global_min=1, global_max=100000, global_step=1,
-                                                    unit="us", scale=1, precision=5
+                                                    global_min=0.01, global_max=100000, global_step=1,
+                                                    unit="us", scale=1, precision=3
                                                 ), group=self.name)
         self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.1072, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'),
                               group=self.name)
@@ -52,9 +54,11 @@ class RabiFlopping(LAXExperiment, Experiment):
                               group=self.name)
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
                               group=self.name)
-        self.setattr_argument("equalize_delays", BooleanValue(default=False), group=self.name,
+        self.setattr_argument("equalize_delays", BooleanValue(default=False),
+                              group=self.name,
                               tooltip="Ensure each shot takes the same overall time by adding a dummy delay.")
-        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name,
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False),
+                              group=self.name,
                               tooltip="Shape the rabiflop pulse to reduce spectral leakage. Uses a Hann (sine-squared) envelope.")
 
         # allocate relevant beam profiles

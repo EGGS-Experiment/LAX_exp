@@ -340,20 +340,20 @@ class QubitRAP(LAXSubsequence):
         '''CONFIGURE REGISTERS'''
         # set RAM profile parameters for amplitude pulse shaping
         self.qubit.write64(ad9910._AD9910_REG_PROFILE0 + self.ram_profile,
-                           data_high=register_words[0],
-                           data_low=register_words[1])
+                           data_high=register_words[0], # ram_prof_hi
+                           data_low=register_words[1])  # ram_prof_lo
         self.qubit.cpld.io_update.pulse_mu(8)   # ensure profile is latched
         # set Digital Ramp Generator ramp limits
         self.qubit.write64(ad9910._AD9910_REG_RAMP_LIMIT,
-                           data_high=register_words[2],  # max freq
-                           data_low=register_words[3])   # min freq
+                           data_high=register_words[2],  # drg_lim_hi: max freq
+                           data_low=register_words[3])   # drg_lim_lo: min freq
         # set Digital Ramp Generator frequency step size
         self.qubit.write64(ad9910._AD9910_REG_RAMP_STEP,
-                           data_high=register_words[4], # ramp down step size
-                           data_low=register_words[5])  # ramp up step size
+                           data_high=register_words[4], # drg_ramp_step_hi: ramp down step size
+                           data_low=register_words[5])  # drg_ramp_step_lo: ramp up step size
         # set Digital Ramp Generator update interval
         self.qubit.write32(ad9910._AD9910_REG_RAMP_RATE,
-                           register_words[6])           # ramp up [16:8] & ramp down [7:0]
+                           register_words[6])           # drg_ramp_rate: ramp up [16:8] & ramp down [7:0]
         self.qubit.cpld.io_update.pulse_mu(8)
 
         '''PRIME RAM + DRG'''

@@ -54,16 +54,24 @@ class ReadoutAdaptive(LAXSubsequence):
         """
         Prepare & precompute experimental values.
         """
-        '''SANITIZE INPUT'''
+        '''GENERAL SETUP/SANITIZE INPUT'''
         # timing/latencies become challenging below/near 5us bin times
-        if self.time_bin_us <= 5: raise ValueError("Invalid bin timing for ReadoutAdaptive. time_bin_us must be >5us.")
+        if self.time_bin_us <= 5:
+            raise ValueError("Invalid bin timing for ReadoutAdaptive. time_bin_us must be >5us.")
+
+        # print/log warning notifying user to set PMT count rates properly
+        print("\n"
+              "\tWarning: parent experiment uses ReadoutAdaptive, which requires Bright/Dark count rates be set.\n"
+              "\t\tEnsure sequences.adaptive_readout.count_rate_bright_3ms and "
+              "sequences.adaptive_readout.count_rate_dark_3ms are set in dataset manager."
+              "\n")
 
         '''PREPARE PARAMETERS'''
         time_readout_us =   self.get_parameter('time_readout_us', group='timing', override=False)
         # rescale count rates for given bin times
-        count_rate_bright_bin = (self.get_parameter('count_rate_bright_3ms', group='pmt', override=False) *
+        count_rate_bright_bin = (self.get_parameter('count_rate_bright_3ms', group='sequences.adaptive_readout', override=False) *
                                  (self.time_bin_us * us) / (3. * ms))
-        count_rate_dark_bin =   (self.get_parameter('count_rate_dark_3ms', group='pmt', override=False) *
+        count_rate_dark_bin =   (self.get_parameter('count_rate_dark_3ms', group='sequences.adaptive_readout', override=False) *
                                  (self.time_bin_us * us) / (3. * ms))
 
         '''PREPARE HARDWARE'''

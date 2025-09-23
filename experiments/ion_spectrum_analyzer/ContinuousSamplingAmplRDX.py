@@ -7,6 +7,8 @@ from LAX_exp.system.subsequences import InitializeQubit, Readout, SidebandCoolCo
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
+# todo: add tooltips
+
 
 class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
     """
@@ -67,7 +69,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                               NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
                               group="{}.global".format(_argstr))
         self.setattr_argument("phase_phaser_ch1_global_turns",
-                              NumberValue(default=0., precision=3, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.),
+                              NumberValue(default=0., precision=5, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.),
                               group="{}.global".format(_argstr))
         self.setattr_argument("osc_num_target_list", PYONValue([]), group="{}.global".format(_argstr))
 

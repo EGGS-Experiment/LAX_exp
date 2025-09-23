@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import QubitRAP
+from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
 
 
 class FockOverlap(QubitRAP):
@@ -41,15 +41,15 @@ class FockOverlap(QubitRAP):
         _argstr = "fock" # create short string for argument grouping
 
         # general configuration
-        self.setattr_argument("config_rsb",     PYONValue([100.7684, 43., 500., 8.]),
+        self.setattr_argument("config_rsb",     PYONValue([100.7658, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_bsb",     PYONValue([101.4304, 43., 500., 8.]),
+                              tooltip="RSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+        self.setattr_argument("config_bsb",     PYONValue([101.4291, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_carr",    PYONValue([101.0968, 43., 125., 8.]),
+                              tooltip="BSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+        self.setattr_argument("config_carr",    PYONValue([101.0959, 350., 30., 8.]),
                               group="{}.general".format(_argstr),
-                              tooltip="[freq_mhz, freq_dev_ss_khz, time_us, att_db].")
+                              tooltip="Carrier RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("ampl_fock_pct",  NumberValue(default=50., precision=3, step=5., min=0.001, max=50., unit="%", scale=1.),
                               group="{}.general".format(_argstr),
                               tooltip="Same amplitude will be used for all of overlap generation & readout - "
@@ -69,11 +69,11 @@ class FockOverlap(QubitRAP):
                               tooltip="Enable final RAP pulse (which is almost always necessary). "
                                       "This should be ON by default. "
                                       "This option is used for state diagnostics via BSB Rabi divination.")
-        self.setattr_argument("config_shelve",  PYONValue({0: (112.9415, 43., 20., 8.),
-                                                           1: (104.1461, 43., 20., 8.),
-                                                           2: (110.2433, 43., 20., 8.)}),
+        self.setattr_argument("config_shelve",  PYONValue({0: (113.2929, 117., 66., 8.),
+                                                           1: (104.1451, 60., 274., 8.),
+                                                           2: (110.2436, 36., 420., 8.)}),
                               group="{}.config".format(_argstr),
-                              tooltip="{fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
+                              tooltip="Shelving RAP config: {fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
 
         # build parent subsequence (QubitRAP)
         super().build_subsequence(
@@ -169,9 +169,9 @@ class FockOverlap(QubitRAP):
                 raise ValueError("Invalid config values: {:}. Values must all be floats.".format(conf_dj))
             
             # check specific RAP values in range
-            elif not (30 <= conf_dj[0] <= 400.): # RAP freq
+            elif not (20. <= conf_dj[0] <= 400.): # RAP freq
                 raise ValueError("Invalid RAP config freq: {:}. "
-                                 "Value must be in range [30, 400] MHz.".format(conf_dj[0]))
+                                 "Value must be in range [20, 400] MHz.".format(conf_dj[0]))
             elif conf_dj[1] <= 1.:  # RAP ss freq dev
                 raise ValueError("Invalid RAP config freq dev: {:}. "
                                  "Value must be >1 kHz.".format(conf_dj[1]))

@@ -27,8 +27,10 @@ class DopplerRecooling(LAXSubsequence):
 
     def prepare_subsequence(self):
         # get timing parameters
-        self.time_readout_mu =      self.get_parameter('time_readout_us', group='timing', override=True, conversion_function=seconds_to_mu, units=us)
-        self.time_pmt_gating_mu =   self.get_parameter('time_pmt_gating_us', group='pmt', override=False, conversion_function=seconds_to_mu, units=us)
+        self.time_readout_mu =      self.get_parameter('time_readout_us', group='timing', override=True,
+                                                       conversion_function=seconds_to_mu, units=us)
+        self.time_pmt_gating_mu =   self.get_parameter('time_pmt_gating_us', group='devices.pmt', override=False,
+                                                       conversion_function=seconds_to_mu, units=us)
 
         # create holder array to store PMT counts
         self.timestamp_mu_list =    np.zeros(self.num_counts, dtype=np.int64)

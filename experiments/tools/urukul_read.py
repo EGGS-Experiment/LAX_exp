@@ -1,8 +1,9 @@
-import numpy as np
-from enum import Enum
-
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from numpy import int32, int64
+
+from enum import Enum
+# todo: make usable for multiple profiles a la urukul_configure
 
 
 class RAM_MODE(Enum):
@@ -42,12 +43,19 @@ class UrukulRead(EnvExperiment):
     def _get_dds_devices(self):
         """
         Get all valid DDS (AD9910) devices from the device_db.
+        :return: a set of all AD9910 devices.
         """
-        def is_local_dds_device(v):
-            return isinstance(v, dict) and (v.get('type') == 'local') and ('class' in v) and (v.get('class') == "AD9910")
+        is_local_dds_device = lambda v: (
+                isinstance(v, dict) and (v.get('type') == 'local')
+                and ('class' in v) and (v.get('class') == "AD9910")
+        )
 
-        # get only local DDS devices from device_db
-        return set([k for k, v in self.get_device_db().items() if is_local_dds_device(v)])
+        # return sorted list of local DDS devices from device_db
+        return sorted(set([
+            k
+            for k, v in self.get_device_db().items()
+            if is_local_dds_device(v)
+        ]))
 
     def prepare(self):
         """
@@ -79,10 +87,10 @@ class UrukulRead(EnvExperiment):
 
         '''PREPARE DATA STRUCTURES'''
         # set up data structure to get data for tone and ram profile
-        self._profile_word =    np.int64(0)
+        self._profile_word =    int64(0)
 
         # set up dataset to store data for ram read
-        self._ram_data_array =  [np.int32(0)] * 1024
+        self._ram_data_array =  [int32(0)] * 1024
 
 
     """
@@ -129,7 +137,7 @@ class UrukulRead(EnvExperiment):
         self.core.break_realtime()
 
         # todo: need to read directly from register (instead of using get_mu) since profile may be RAM
-        self._profile_word = np.int64(self.dds.read64(ad9910._AD9910_REG_PROFILE0 + self.dds_profile))
+        self._profile_word = int64(self.dds.read64(ad9910._AD9910_REG_PROFILE0 + self.dds_profile))
         self.core.break_realtime()
 
         # # read data from RAM
@@ -159,7 +167,7 @@ class UrukulRead(EnvExperiment):
     #     self.core.break_realtime()
     #
     #     # note: need to read directly from register (instead of using get_mu) since profile may be RAM
-    #     _profile_word = np.int64(dds_dev.read64(ad9910._AD9910_REG_PROFILE0 + profile_num))
+    #     _profile_word = int64(dds_dev.read64(ad9910._AD9910_REG_PROFILE0 + profile_num))
     #     self.core.break_realtime()
     #
     #     return _profile_word
@@ -221,9 +229,9 @@ class UrukulRead(EnvExperiment):
         Extract single-tone waveform from DDS profile word.
         """
         # extract values from profile word
-        ftw = np.int32(profile_word & 0xFFFFFFFF)
-        pow = np.int32((profile_word >> 32) & 0xFFFF)
-        asf = np.int32((profile_word >> 48) & 0x3FFF)
+        ftw = int32(profile_word & 0xFFFFFFFF)
+        pow = int32((profile_word >> 32) & 0xFFFF)
+        asf = int32((profile_word >> 48) & 0x3FFF)
 
         # convert values to human units
         freq_mhz =      self.dds.ftw_to_frequency(ftw) / MHz
@@ -239,10 +247,10 @@ class UrukulRead(EnvExperiment):
         Extract RAM waveform from DDS profile word.
         """
         # extract values from profile word
-        ram_mode_val =      np.int32(profile_word & (0xFFFF << 40))       # 16b is 0xFFFF
-        start_reg =         np.int32(profile_word & (0b1111111111 << 14)) # 10b is 0x3FF
-        stop_reg =          np.int32(profile_word & (0b1111111111 << 30)) # 10b is 0x3FF
-        step_interval_mu =  np.int32(profile_word & 0xFFFFFFFF)
+        ram_mode_val =      int32(profile_word & (0xFFFF << 40))       # 16b is 0xFFFF
+        start_reg =         int32(profile_word & (0b1111111111 << 14)) # 10b is 0x3FF
+        stop_reg =          int32(profile_word & (0b1111111111 << 30)) # 10b is 0x3FF
+        step_interval_mu =  int32(profile_word & 0xFFFFFFFF)
         nodwell_high =      bool(profile_word & (1 << 5))
         zero_crossing =     bool(profile_word & (1 << 3))
 

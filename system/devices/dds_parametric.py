@@ -28,12 +28,16 @@ class DDSParametric(LAXDevice):
         self.cpld = self.dds.cpld
 
         # get relevant parameters
-        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='parametric',
+        self.ampl_modulation_asf = self.get_parameter('ampl_parametric_pct', group='beams.ampl_pct',
                                                        override=False, conversion_function=pct_to_asf)
         self.freq_cleanup_ftw = self.dds.frequency_to_ftw(150 * MHz) # set far, far detuned freq to really remove any leakage
 
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
+        # get CPLD attenuations so we don't override them
+        self.cpld.get_att_mu()
+        self.core.break_realtime()
+
         # close rf switches to kill any modulation signal leakage
         self.mod_switch.off()
         self.sw.off()
@@ -95,17 +99,19 @@ class DDSParametric(LAXDevice):
     @kernel(flags={"fast-math"})
     def reset_phase(self) -> TNone:
         """
-        todo: document
+        Reset the DDS output phase via the phase_autoclear bit in CFR1.
         """
         # ensure signal is output as a sine with 0 phase
         self.dds.write32(_AD9910_REG_CFR1,
                          (1 << 16) |    # select_sine_output
                          (1 << 13) |    # phase_autoclear
                          2)             # default serial I/O configs
+
         # pulse io_update to clear phase
         at_mu(now_mu() & ~0x7)
         self.cpld.io_update.pulse_mu(8)
         delay_mu(TIME_AD9910_PHASE_AUTOCLEAR_DELAY_MU)
+        # todo: should we unset CFR1?
 
     @kernel(flags={"fast-math"})
     def io_update(self) -> TNone:
