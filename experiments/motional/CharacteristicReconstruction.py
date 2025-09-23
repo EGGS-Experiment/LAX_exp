@@ -69,6 +69,10 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         """
         Build arguments for default beam parameters.
         """
+        # defaults - main doublepass (near chamber)
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="default.cat")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="default.cat")
+
         # defaults - sigma_x
         self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"), group="default.sigmax")
         self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="default.sigmax")
@@ -96,8 +100,6 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                                             ), group='default.bichromatic')
         self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='default.bichromatic', tooltip="[rsb_pct, bsb_pct]")
         self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='default.bichromatic', tooltip="[rsb_db, bsb_db]")
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="default.bichromatic")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="default.bichromatic")
 
     def _build_arguments_stateprep(self):
         """
@@ -134,7 +136,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                               tooltip="todo: document")
         self.setattr_argument("time_char_cat_x_us_list",    Scannable(
                                                                 default=[
-                                                                    RangeScan(-500, 500, 10, randomize=True),
+                                                                    RangeScan(-50, 50, 11, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
@@ -144,7 +146,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                               tooltip="todo: document")
         self.setattr_argument("time_char_cat_y_us_list",    Scannable(
                                                                 default=[
-                                                                    RangeScan(-500, 500, 10, randomize=True),
+                                                                    RangeScan(-50, 50, 11, randomize=True),
                                                                     ExplicitScan([100]),
                                                                 ],
                                                                 global_min=-100000, global_max=100000, global_step=1,
@@ -171,6 +173,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
         '''
+        # defaults - main doublepass (near chamber)
+        self.ampl_doublepass_default_asf = self.qubit.amplitude_to_asf(self.ampl_doublepass_default_pct / 100.)
+
         # defaults - sigma_x waveform
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
@@ -425,11 +430,11 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.singlepass0.set_mu(
-            self.qubit.freq_singlepass0_default_ftw, asf=self.ampl_singlepass1_default_asf, pow_=0,
+            self.qubit.freq_singlepass0_default_ftw, asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.singlepass1.set_mu(
-            self.qubit.freq_singlepass1_default_ftw, asf=self.ampl_singlepass1_default_asf, pow_=0,
+            self.qubit.freq_singlepass1_default_ftw, asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
         self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)

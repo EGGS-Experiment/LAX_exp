@@ -1,15 +1,14 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 from numpy import int32, int64, array
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape,
-    Readout, RescueIon, NoOperation
+    InitializeQubit, SidebandCoolContinuousRAM, QubitPulseShape, Readout,
+    RescueIon, NoOperation
 )
 
-# todo: implement detect death
+# todo: implement death detection
 
 
 class CalibrationBichromatic(LAXExperiment, Experiment):
@@ -117,12 +116,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         '''
         CONVERT VALUES TO MACHINE UNITS
         '''
-        # beam parameters
+        # beam parameters - main doublepass (chamber)
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_singlepass0_mu =   att_to_mu(self.att_singlepass_db * dB)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
-        # create ampl sweep
+        # beam parameters - singlepass0 (inj lock)
+        self.att_singlepass0_mu =   att_to_mu(self.att_singlepass_db * dB)
         ampl_singlepass_asf_list =  [self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
                                      for ampl_pct in self.ampl_singlepass_pct_list]
 
@@ -138,7 +137,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         ])
 
         # convert time to machine units
-        max_time_us = np.max(list(self.time_rabi_us_list))
+        max_time_us = max(list(self.time_rabi_us_list))
         # create timing list such that all shots have same length
         time_rabiflop_mu_list = array([
             [self.core.seconds_to_mu((max_time_us - time_us) * us),
@@ -178,8 +177,6 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
             # sweep exp config
             for config_vals in self.config_experiment_list:
 
