@@ -189,6 +189,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                     self.qubit.off()
 
                 # do readout & clean up loop
+                # do readout & clean up loop
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.resuscitate()

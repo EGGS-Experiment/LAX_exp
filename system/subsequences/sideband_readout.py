@@ -32,7 +32,7 @@ class SidebandReadout(LAXSubsequence):
         # sideband cooling readout
         self.setattr_argument("freq_rsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        CenterScan(100.7048, 0.03, 0.0006, randomize=True),
+                                                                        CenterScan(100.7, 0.03, 0.0006, randomize=True),
                                                                         ExplicitScan([100.7044]),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,
@@ -40,7 +40,7 @@ class SidebandReadout(LAXSubsequence):
                                                                 ), group=self.name)
         self.setattr_argument("freq_bsb_readout_mhz_list",      Scannable(
                                                                     default=[
-                                                                        CenterScan(101.4081, 0.03, 0.0006, randomize=True),
+                                                                        CenterScan(101.45, 0.03, 0.0006, randomize=True),
                                                                         ExplicitScan([101.3901]),
                                                                     ],
                                                                     global_min=30, global_max=200, global_step=1,

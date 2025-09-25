@@ -22,12 +22,12 @@ class RabiflopReadout(LAXSubsequence):
     def build_subsequence(self, profile_dds: TInt32 = 0):
         # timing
         self.setattr_argument("time_readout_us_list",       Scannable(
-                                                                default=RangeScan(0, 50, 51, randomize=True),
+                                                                default=RangeScan(0, 50, 1, randomize=True),
                                                                 global_min=1, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
                                                             ), group=self.name)
         # readout waveform parameters
-        self.setattr_argument("freq_rabiflop_readout_mhz",  NumberValue(default=103.3455, precision=5, step=1, min=1, max=10000), group=self.name)
+        self.setattr_argument("freq_rabiflop_readout_mhz",  NumberValue(default=101.4253, precision=5, step=1, min=1, max=10000), group=self.name)
         self.setattr_argument("att_rabiflop_readout_db",    NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5), group=self.name)
         self.setattr_device('qubit')
 
