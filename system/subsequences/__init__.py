@@ -20,7 +20,6 @@ __all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous', '
 
 # state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization
-from LAX_exp.system.subsequences.spin_polarization_re import SpinPolarizationRE
 from LAX_exp.system.subsequences.initialize_qubit import InitializeQubit
 __all__.extend(['SpinPolarization', 'InitializeQubit'])
 
