@@ -4,7 +4,7 @@ from LAX_exp.extensions import *
 from LAX_exp.language import *
 from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import InitializeQubit, Readout, RabiflopReadout, SpinPolarizationRE, SidebandReadout
-from numpy import tanh, sqrt, round, array
+import numpy as np
 from artiq.coredevice import ad9910
 
 
@@ -20,15 +20,16 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         'repetitions',
 
         # 729 multi-chromatic
-        'dsp_phase_bsb_turns', 'dsp_freq_carrier_MHz', 'dsp_freq_secular_kHz', 'dsp_chromatic_att_dB',
+        'dsp_phase_bsb_turns', 'dsp_freq_carrier_MHz', 'dsp_freq_secular_kHz_list', 'dsp_chromatic_att_dB',
         'dsp_ampl_rsb_pct', 'dsp_freq_rsb_MHz', 'dsp_freq_bsb_MHz', 'dsp_ampl_bsb_pct', 'dsp_squeeze_r',
 
         # 729 multi-chromatic machine unit params
-        'dsp_freq_carrier_ftw', 'dsp_freq_secular_ftw', 'dsp_freq_rsb_ftw', 'dsp_freq_bsb_ftw', 'dsp_chromatic_att_mu',
+        'dsp_freq_carrier_ftw', 'dsp_freq_secular_ftw_list', 'dsp_freq_rsb_ftw', 'dsp_freq_bsb_ftw',
+        'dsp_chromatic_att_mu',
         'dsp_phase_bsb_pow', 'dsp_phase_rsb_pow', 'dsp_ampl_bsb_asf', 'dsp_ampl_rsb_asf',
 
         # 729 multi-chromatic default values
-        'singlepass0_default_amp_asf', 'singlepass1_default_amp_asf','singlepass0_default_att_mu',
+        'singlepass0_default_amp_asf', 'singlepass1_default_amp_asf', 'singlepass0_default_att_mu',
         'singlepass1_default_att_mu', 'singlepass0_default_freq_MHz', 'singlepass1_default_freq_MHz',
 
         # timing
@@ -47,11 +48,15 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
 
     def build_experiment(self):
 
+        # allocate profiles
+        self.profile_readout = 0
+        self.profile_dsp = 1
+
         # get arguments
         self.setattr_argument('repetitions',
-                              NumberValue(default=30., precision=0, step=1, min=0.,
+                              NumberValue(default=30., precision=0, step=1, min=1.,
                                           max=1e6), group=self.name,
-                              tooltip='parameter determining amount of squeeze after reservoir engineering')
+                              tooltip='parameter determining level of squeezing after reservoir engineering')
 
         # dissipative state preparation parameters
         self.setattr_argument('dsp_squeeze_r',
@@ -61,14 +66,14 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
 
         self.setattr_argument('dsp_time_us', NumberValue(default=10000, precision=3, step=10, min=1,
                                                          max=1000000), group=self.name,
-                              tooltip='How long to apply bichromatic beams for reservoir engineering')
+                              tooltip='How long to apply multi-chromatic beams for reservoir engineering')
 
         # AOM frequenices
         self.setattr_argument('dsp_freq_carrier_MHz', NumberValue(default=101.093, precision=3, step=1e-3, max=120.,
                                                                   min=80., unit="MHz"), group=self.name,
-                              tooltip='frequency of the urukul channel used to drive the red sideband')
+                              tooltip='Frequency of the carrier transition in the calcium ion')
 
-        self.setattr_argument('dsp_freq_secular_kHz', Scannable(
+        self.setattr_argument('dsp_freq_secular_kHz_list', Scannable(
             default=[
                 CenterScan(701.6, 10, 0.5, randomize=True),
                 RangeScan(1, 200, 200, randomize=True),
@@ -76,9 +81,8 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             ],
             global_min=0.1, global_max=5000, global_step=1e-3,
             unit=kHz, scale=1, precision=5
-        ), tooltip='frequency of the urukul channel used to drive the blue sideband',
+        ), tooltip='half the difference in frequency between the red and blue sideband',
                               group=self.name)
-
 
         # AOM attenuations
         self.setattr_argument('dsp_chromatic_att_dB', NumberValue(default=7., precision=1, step=1e-3, max=31.5,
@@ -93,19 +97,19 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
 
         # AOM amplitudes
         self.setattr_argument('dsp_ampl_rsb_pct',
-                              NumberValue(default=50., step=5., min=0.01, max=50., precision=1,  unit="%", scale=1),
+                              NumberValue(default=50., step=5., min=0.01, max=50., precision=1, unit="%", scale=1),
                               group=self.name,
                               tooltip='amplitude of drive of urukul channel driving red sideband. Blue sideband amplitude will be '
                                       'calculated from this value')
 
-        #sideband readout
+        # sideband readout
         self.setattr_argument('sideband_readout_time_us', NumberValue(default=30, precision=3, step=10, min=1,
-                                                         max=1000), group=self.name,
+                                                                      max=1000), group=self.name,
                               tooltip='how long to readout readout sidebands')
 
-
-        # rabi flopping readout timing
-        self.setattr_argument('enable_rabiflop_readout', BooleanValue(False))
+        # rabi flopp readout
+        self.setattr_argument('enable_rabiflop_readout', BooleanValue(False),
+                              tooltip='True/False value indicating if rabi flopping should be down after reservoir engineering')
         self.setattr_argument("rabiflop_readout_times_us_list", Scannable(
             default=[
                 RangeScan(1, 200, 200, randomize=True),
@@ -114,11 +118,17 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             ],
             global_min=1, global_max=100000, global_step=1,
             unit="us", scale=1, precision=5
-        ), group=self.name)
+        ), group=self.name, tooltip='times to rabiflop')
+
+        self.setattr_argument('rabiflop_readout_freq_MHz', NumberValue(default=101.09, min=80., max=120.,
+                                                                       precision=5, step=0.0001, unit='MHz'),
+                              group=self.name,
+                              tooltip='AOM frequency to rabi flop at')
 
         # use as placeholder
         self.dsp_ampl_bsb_pct = 0.
 
+        # get all necessary devices
         self.setattr_device('qubit')
         self.setattr_device('repump_qubit')
         self.setattr_device('repump_cooling')
@@ -126,27 +136,32 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.singlepass0 = self.get_device('urukul0_ch1')
         self.singlepass1 = self.get_device('urukul0_ch2')
 
-        self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds= 0)
+        # get all necessary subsequences
+        self.sidebandreadout_subsequence = SidebandReadout(self, profile_dds=self.profile_readout)
         self.readout_subsequence = Readout(self)
         self.initialize_subsequence = InitializeQubit(self)
         self.rabiflop_readout_subsequence = RabiflopReadout(self)
         self.spin_polarization_re_subsequence = SpinPolarizationRE(self)
 
     def prepare_experiment(self):
-        #
+
+        # retrieve parameters that we typically use for the single pass
         self.get_singlepass_default_values()
 
         # get red and blue sideband values
-        self.dsp_freq_rsb_MHz = (self.singlepass0_default_freq_MHz * MHz - self.dsp_freq_secular_kHz * kHz) / MHz
-        self.dsp_freq_bsb_MHz = (self.singlepass1_default_freq_MHz * MHz + self.dsp_freq_secular_kHz * kHz) / MHz
+        # self.dsp_freqs_rsb_MHz = (self.singlepass0_default_freq_MHz * MHz - np.array(list(self.dsp_freq_secular_kHz * kHz))) / MHz
+        # self.dsp_freqs_bsb_MHz = (self.singlepass1_default_freq_MHz * MHz + np.array(list(self.dsp_freq_secular_kHz * kHz))) / MHz
 
         # convert parameters to machine units
         self.dsp_freq_carrier_ftw = self.qubit.frequency_to_ftw(self.dsp_freq_carrier_MHz * MHz)
-        self.dsp_freq_secular_ftw = self.singlepass1.frequency_to_ftw(self.dsp_freq_secular_kHz * kHz)
-        self.dsp_freq_rsb_ftw = self.singlepass0.frequency_to_ftw(self.dsp_freq_rsb_MHz * MHz)
-        self.dsp_freq_bsb_ftw = self.singlepass1.frequency_to_ftw(self.dsp_freq_bsb_MHz * MHz)
+        self.dsp_freq_secular_ftw_list = np.array([self.singlepass1.frequency_to_ftw(dsp_freq_secular_kHz * kHz)
+                                                   for dsp_freq_secular_kHz in self.dsp_freq_secular_khZ_list])
+        # self.dsp_freq_rsb_ftw = [self.singlepass0.frequency_to_ftw(dsp_freq_rsb_MHz * MHz) for
+        #                          dsp_freq_rsb_MHz in self.dsp_freqs_rsb_MHz]
+        # self.dsp_freq_bsb_ftw = [self.singlepass1.frequency_to_ftw(dsp_freq_bsb_MHz * MHz) for
+        #                          dsp_freq_bsb_MHz in self.dsp_freqs_bsb_MHz]
 
-        self.readout_freq_bsb_ftw = self.qubit.frequency_to_ftw(101.423*MHz)
+        self.rabiflop_readout_freq_ftw = self.qubit.frequency_to_ftw(self.rabiflop_readout_freq_MHz * MHz)
 
         self.dsp_time_mu = self.core.seconds_to_mu(self.dsp_time_us * us)
 
@@ -162,43 +177,45 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         # todo: implement interpolation functions to scale difference in power from channels
 
         # find bsb amplitude from rsb amplitude
-        self.dsp_ampl_bsb_pct = round(tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct,2)
+        self.dsp_ampl_bsb_pct = np.round(np.tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct, 2)
 
-
+        # convert amplitudes into machine units
         self.dsp_ampl_rsb_asf = pct_to_asf(self.dsp_ampl_rsb_pct)
-        self.dsp_ampl_bsb_asf = pct_to_asf(0.)
+        self.dsp_ampl_bsb_asf = pct_to_asf(self.dsp_ampl_bsb_pct)
         # todo: see if can use a parameter???
         self.dsp_douplepass_carrier_asf = pct_to_asf(50.)
 
-        # get time values
-        self.rabiflop_readout_times_mu_list = [self.core.seconds_to_mu(rabiflop_readout_time_us*us)
-                                               for rabiflop_readout_time_us in self.rabiflop_readout_times_us_list]
+        # get rabi flop time values
+        self.rabiflop_readout_times_mu_list = np.array([self.core.seconds_to_mu(rabiflop_readout_time_us * us)
+                                               for rabiflop_readout_time_us in self.rabiflop_readout_times_us_list])
 
         self.cycle_time_us = self.dsp_time_us / 20
         self.spinpol_time_us = 20
 
-        self.sideband_readout_time_mu  = self.core.seconds_to_mu(self.sideband_readout_time_us*us)
+        self.sideband_readout_time_mu = self.core.seconds_to_mu(self.sideband_readout_time_us * us)
 
-        self.cycle_time_mu =self.core.seconds_to_mu(self.cycle_time_us*us)
-        self.spinpol_time_mu = self.core.seconds_to_mu(self.spinpol_time_us*us)
+        self.cycle_time_mu = self.core.seconds_to_mu(self.cycle_time_us * us)
+        self.spinpol_time_mu = self.core.seconds_to_mu(self.spinpol_time_us * us)
         self.asf_854 = pct_to_asf(9.28)
 
         self.freq_sideband_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
 
         self.config_experiment_list = np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
                                                            self.rabiflop_readout_times_mu_list,
-                                               -1, dtype=float).reshape(-1, 2))
+                                                           self.dsp_freq_secular_ftw_list
+                                                           - 1, dtype=float).reshape(-1, 3))
         np.random.shuffle(self.config_experiment_list)
-
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_experiment_list),4)
+        return (self.repetitions * len(self.config_experiment_list), 4)
 
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
 
         self.core.break_realtime()
+
+        # ensure we are not autoclearing the phase accumulator
         self.qubit.set_cfr1()
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
@@ -220,22 +237,9 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.singlepass0.set_att_mu(self.singlepass0_default_att_mu)
         self.singlepass1.set_att_mu(self.singlepass1_default_att_mu)
 
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
         delay_mu(25000)
-        #
-        # self.qubit.set_profile(0)
-        # self.qubit.set_att_mu(self.dsp_douplepass_carrier_att_mu)
-        # self.qubit.set_mu(ftw=self.dsp_freq_carrier_ftw, asf=self.dsp_douplepass_carrier_asf, profile =0)
-        # self.qubit.set_att_mu(self.dsp_douplepass_carrier_att_mu)
-        # self.qubit.off()
-        #
-        # self.singlepass0.set_att_mu(self.dsp_chromatic_att_mu)
-        # self.singlepass1.set_att_mu(self.dsp_chromatic_att_mu)
-        # self.configure_singlepass(now_mu())
-        # self.singlepass1.sw.on()
-        # delay(10.)
 
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
@@ -253,29 +257,16 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                 self.core.break_realtime()
                 freq_readout_ftw = config_vals[0]
                 rabiflop_readout_time_mu = config_vals[1]
+                secular_freq_ftw = config_vals[2]
 
                 # Doppler cool and optically pump 40Ca+ to |S_1/2, mj=-1/2>
                 self.initialize_subsequence.run_dma()
 
                 # get a reference time so all subsequent pulses are phase coherent
                 ref_time_mu = now_mu() & ~0x7
+
                 # # configure the single pass values
                 self.configure_singlepass(ref_time_mu)
-
-                # delay_mu(1000000)
-                # ftw, pow, asf = self.singlepass0.get_mu(1)
-                # print("singlepass0")
-                # delay_mu(10000000)
-                # print(self.singlepass0.ftw_to_frequency(ftw), self.singlepass0.pow_to_turns(pow),
-                #       self.singlepass0.asf_to_amplitude(asf))
-                # delay_mu(10000000)
-                #
-                # delay_mu(10000000)
-                # ftw, pow, asf = self.singlepass1.get_mu(1)
-                # print("singlepass1")
-                # delay_mu(1000000)
-                # print(self.singlepass1.ftw_to_frequency(ftw), self.singlepass1.pow_to_turns(pow), self.singlepass1.asf_to_amplitude(asf))
-                # delay_mu(10000000)
 
                 # # # execute the dissipative state preparation
                 self.pulse_dsp()
@@ -291,41 +282,22 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                     self.rabiflop_readout_subsequence.run_time(rabiflop_readout_time_mu)
 
                 else:
+                    # todo: do we need these delays
                     delay_mu(25000)
                     self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                       profile=0)
                     delay_mu(8000)
                     self.sidebandreadout_subsequence.run_time(self.sidebandreadout_time_mu)
 
-                # delay_mu(1000000)
-                # print("after rabi flop")
-                # delay_mu(1000000)
-                # ftw, pow, asf = self.singlepass0.get_mu(1)
-                # print("singlepass0")
-                # delay_mu(10000000)
-                # print(self.singlepass0.ftw_to_frequency(ftw), self.singlepass0.pow_to_turns(pow),
-                #       self.singlepass0.asf_to_amplitude(asf))
-                # delay_mu(10000000)
-                #
-                # delay_mu(10000000)
-                # ftw, pow, asf = self.singlepass1.get_mu(1)
-                # print("singlepass1")
-                # delay_mu(1000000)
-                # print(self.singlepass1.ftw_to_frequency(ftw), self.singlepass1.pow_to_turns(pow),
-                #       self.singlepass1.asf_to_amplitude(asf))
-                # delay_mu(10000000)
-
-
-
                 # # # scatter photons off |S_1/2> -> |P_1/2>  transition
                 self.readout_subsequence.run_dma()
                 counts = self.readout_subsequence.fetch_count()
 
-
+                # # # store results
                 self.update_results(rabiflop_readout_time_mu,
                                     counts,
                                     freq_readout_ftw,
-                                    0)
+                                    secular_freq_ftw)
                 self.check_termination()  # check termination b/c we haven't in a while
                 self.core.break_realtime()
 
@@ -333,20 +305,20 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
     def cleanup_experiment(self) -> TNone:
 
         for i in range(8):
-        # reset singlepass values
+            # reset singlepass values
             self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw,
                                     asf=self.singlepass0_default_amp_asf,
-                                    profile = i)
+                                    profile=i)
 
             self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw,
                                     asf=self.singlepass1_default_amp_asf,
-                                    profile = i)
+                                    profile=i)
 
             delay_mu(8000)
 
+        # reset singlepass to normal configuration
         self.singlepass0.set_att_mu(self.singlepass0_default_att_mu)
         self.singlepass1.set_att_mu(self.singlepass1_default_att_mu)
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
         delay_mu(25000)
@@ -358,62 +330,66 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.repump_qubit.on()
 
     @kernel(flags={"fast-math"})
-    def configure_singlepass(self, ref_time_mu: TInt64):
+    def configure_singlepass(self, ref_time_mu: TInt64, dsp_freq_secular_ftw: TInt32):
 
-        self.singlepass0.set_mu(ftw=self.dsp_freq_rsb_ftw,
+        # set singlepass to values for DSP
+        self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw - dsp_freq_secular_ftw,
                                 pow_=self.dsp_phase_rsb_pow,
                                 asf=self.dsp_ampl_rsb_asf,
                                 phase_mode=ad9910.PHASE_MODE_TRACKING,
                                 ref_time_mu=ref_time_mu,
-                                profile = 1
+                                profile=self.profile_dsp
                                 )
 
-        self.singlepass1.set_mu(ftw=self.dsp_freq_bsb_ftw,
+        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw + dsp_freq_secular_ftw,
                                 pow_=self.dsp_phase_bsb_pow,
                                 asf=self.dsp_ampl_bsb_asf,
                                 phase_mode=ad9910.PHASE_MODE_TRACKING,
                                 ref_time_mu=ref_time_mu,
-                                profile = 1
+                                profile=self.profile_dsp
                                 )
-
-        delay_mu(8000)
 
         self.singlepass0.set_att_mu(self.dsp_chromatic_att_mu)
         self.singlepass1.set_att_mu(self.dsp_chromatic_att_mu)
 
-        self.singlepass0.cpld.set_profile(1)
+        self.singlepass0.cpld.set_profile(self.profile_dsp)
+        self.singlepass0.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def set_default_singlepass_values(self):
-        self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw ,
+
+        # reset singlepass to normal configuration
+        self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw,
                                 asf=self.singlepass0_default_amp_asf,
-                                profile = 0
+                                profile=self.profile_readout
                                 )
 
-        self.singlepass1.set_mu(ftw=self.singlepass0_default_freq_ftw ,
-                                asf= self.singlepass1_default_amp_asf,
-                                profile = 0)
+        self.singlepass1.set_mu(ftw=self.singlepass0_default_freq_ftw,
+                                asf=self.singlepass1_default_amp_asf,
+                                profile=self.profile_readout)
 
         self.singlepass0.set_att_mu(self.singlepass0_default_att_mu)
         self.singlepass1.set_att_mu(self.singlepass1_default_att_mu)
 
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
-        self.singlepass0.cpld.set_profile(0)
-
+        self.singlepass0.cpld.set_profile(self.profile_readout)
+        self.singlepass0.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def pulse_dsp(self) -> TNone:
+
         # ensure doublepass is on
         self.qubit.on()
 
-        # turn on dissipation lasers
+        # turn on dissipation lasers (leave 397 off)
         self.repump_cooling.on()
         self.repump_qubit.on()
         self.repump_qubit.set_asf(self.asf_854)
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         for i in range(20):
+            # ensure spin pol laser is off to prevent AC stark shifts
             self.probe.off()
 
             # turn on single pass
@@ -421,53 +397,45 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             self.singlepass1.sw.on()
 
             delay_mu(self.cycle_time_mu)
-            # delay_mu(self.dsp_time_mu)
 
             # turn off singlepass
             self.singlepass0.sw.off()
             self.singlepass1.sw.off()
-            delay_mu(self.cycle_time_mu)
 
+            # repump to |S1/2, mj=-1/2>
             self.probe.on()
             delay_mu(self.spinpol_time_mu)
 
-        # turn off all the lasers
+        # turn off tjhe 729 and 397 sigma
         self.qubit.off()
-        # self.repump_cooling.off()
-        # self.repump_qubit.off()
         self.probe.off()
 
     def get_singlepass_default_values(self) -> TNone:
-            # get default values for the 729 single pass
-            self.singlepass0_default_amp_asf = self.get_parameter('ampl_729_singlepass0_pct',
-                                                                  group='beams.ampl_pct', override=True,
-                                                                  conversion_function=pct_to_asf)
+        # get default values for the 729 single pass
+        self.singlepass0_default_amp_asf = self.get_parameter('ampl_729_singlepass0_pct',
+                                                              group='beams.ampl_pct', override=True,
+                                                              conversion_function=pct_to_asf)
 
-            self.singlepass1_default_amp_asf = self.get_parameter('ampl_729_singlepass1_pct',
-                                                                  group='beams.ampl_pct', override=True,
-                                                                  conversion_function=pct_to_asf)
+        self.singlepass1_default_amp_asf = self.get_parameter('ampl_729_singlepass1_pct',
+                                                              group='beams.ampl_pct', override=True,
+                                                              conversion_function=pct_to_asf)
 
-            self.singlepass0_default_att_mu = self.get_parameter('att_729_singlepass0_db',
-                                                                 group='beams.att_db', override=True,
-                                                                 conversion_function=att_to_mu)
+        self.singlepass0_default_att_mu = self.get_parameter('att_729_singlepass0_db',
+                                                             group='beams.att_db', override=True,
+                                                             conversion_function=att_to_mu)
 
-            self.singlepass1_default_att_mu = self.get_parameter('att_729_singlepass1_db',
-                                                                 group='beams.att_db', override=True,
-                                                                 conversion_function=att_to_mu)
+        self.singlepass1_default_att_mu = self.get_parameter('att_729_singlepass1_db',
+                                                             group='beams.att_db', override=True,
+                                                             conversion_function=att_to_mu)
 
-            self.singlepass0_default_freq_MHz = self.get_parameter('freq_729_singlepass0_mhz',
-                                                                   group='beams.freq_mhz', override=True,
-                                                                   )
+        self.singlepass0_default_freq_MHz = self.get_parameter('freq_729_singlepass0_mhz',
+                                                               group='beams.freq_mhz', override=True,
+                                                               )
 
-            self.singlepass1_default_freq_MHz = self.get_parameter('freq_729_singlepass1_mhz',
-                                                                   group='beams.freq_mhz', override=True,
-                                                                   )
+        self.singlepass1_default_freq_MHz = self.get_parameter('freq_729_singlepass1_mhz',
+                                                               group='beams.freq_mhz', override=True,
+                                                               )
 
-            # self.singlepass0_default_freq_MHz = 120.339
-            # self.singlepass1_default_freq_MHz = 120.339
-            self.singlepass0_default_freq_ftw = self.singlepass0.frequency_to_ftw(self.singlepass0_default_freq_MHz*MHz)
-            self.singlepass1_default_freq_ftw = self.singlepass1.frequency_to_ftw(self.singlepass1_default_freq_MHz*MHz)
-            # self.singlepass1_default_amp_asf = pct_to_asf(50.)
-            # self.singlepass0_default_amp_asf = pct_to_asf(0.01)
-            # self.singlepass1_default_att_mu = att_to_mu(7.*dB)
-            # self.singlepass0_default_att_mu = att_to_mu(31.5*dB)
+        self.singlepass0_default_freq_ftw = self.singlepass0.frequency_to_ftw(self.singlepass0_default_freq_MHz * MHz)
+        self.singlepass1_default_freq_ftw = self.singlepass1.frequency_to_ftw(self.singlepass1_default_freq_MHz * MHz)
+
