@@ -1,4 +1,4 @@
-from artiq.coredevice.ad9914 import PHASE_MODE_CONTINUOUS
+from artiq.coredevice.ad9914 import PHASE_MODE_CONTINUOUS, PHASE_MODE_TRACKING
 from artiq.experiment import *
 
 from LAX_exp.extensions import *
@@ -396,7 +396,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw - dsp_freq_secular_ftw,
                                 pow_=self.dsp_phase_rsb_pow,
                                 asf=self.dsp_ampl_rsb_asf,
-                                phase_mode=ad9910.PHASE_MODE_TRACKING,
+                                phase_mode=PHASE_MODE_TRACKING,
                                 ref_time_mu=ref_time_mu,
                                 profile=self.profile_dsp
                                 )
@@ -404,7 +404,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw + dsp_freq_secular_ftw,
                                 pow_=self.dsp_phase_bsb_pow,
                                 asf=self.dsp_ampl_bsb_asf,
-                                phase_mode=ad9910.PHASE_MODE_TRACKING,
+                                phase_mode=PHASE_MODE_TRACKING,
                                 ref_time_mu=ref_time_mu,
                                 profile=self.profile_dsp
                                 )
