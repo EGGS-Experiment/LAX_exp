@@ -30,7 +30,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence', 'readout_subsequence',
-        'rescue_subsequence', 'rap_subsequence', 'enable_RAP', 'spinecho_wizard', 'pulse_shaper',
+        'rescue_subsequence', 'rap_subsequence', 'enable_RAP',
+        'spinecho_wizard', 'pulse_shaper',
 
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',

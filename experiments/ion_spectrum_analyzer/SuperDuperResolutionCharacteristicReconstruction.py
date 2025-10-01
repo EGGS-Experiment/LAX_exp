@@ -11,6 +11,8 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 # todo: rename things from e.g. "pulse4" to e.g. "grid"
 # todo: make sure to unify names with characteristicreconstruction exp
+# todo: get tooltips from catchar
+# todo: add anti sigma_x
 
 
 class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment):
@@ -34,11 +36,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
         'phases_pulse4_cat_update_dir', 'freq_cat_center_ftw', 'freq_cat_secular_ftw',
         'att_reg_bichromatic',
 
-        # subsequences
+        # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'spinecho_wizard', 'pulse_shaper',
         
         # configs
-        'profile_729_SBC', 'profile_729_target', 'config_experiment_list', '_num_phaser_oscs'
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list', '_num_phaser_oscs',
     }
 
     def build_experiment(self):

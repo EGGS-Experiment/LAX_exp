@@ -6,6 +6,7 @@ from LAX_exp.system.subsequences import InitializeQubit, Readout, SidebandCoolCo
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 # todo: add tooltips
 
@@ -89,10 +90,9 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                               group="{}.waveform".format(_argstr))
 
         # waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=True), group='{}.pulse_shaping'.format(_argstr))
-        self.setattr_argument("type_pulse_shape",
-                              EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'),
-                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=True), group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
+                              group='{}.shape'.format(_argstr))
         self.setattr_argument("time_pulse_shape_rolloff_us",
                               NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
                               group='{}.pulse_shaping'.format(_argstr))
