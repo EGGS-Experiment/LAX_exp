@@ -64,14 +64,14 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
 
         # dissipative state preparation parameters
         self.setattr_argument('dsp_squeeze_r',
-                              NumberValue(default=.5, precision=3, step=0.01, min=0.,
+                              NumberValue(default=1., precision=3, step=0.01, min=0.,
                                           max=5.), group=self.name,
                               tooltip='parameter determining amount of squeeze after reservoir engineering')
 
         self.setattr_argument('dsp_time_us_list', Scannable(default =[
             # CenterScan(101.079, 0.012, 0.0025, randomize=True),
             # RangeScan(1, 12000, 150, randomize=True),
-            ExplicitScan([7000])
+            ExplicitScan([10000])
             ],
             precision=3, global_step=1, global_min=1, global_max=1000000), group=self.name,
                               tooltip='How long to apply multi-chromatic beams for reservoir engineering')
@@ -81,7 +81,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         (default=[
             # CenterScan(101.07, 0.05, 0.0005, randomize=True),
             # RangeScan(, 200, 200, randomize=True),
-            ExplicitScan([101.075]),
+            ExplicitScan([101.1]),
             ],
             global_min=80, global_max=120, global_step=1e-3,
             unit=MHz, scale=1, precision=5
@@ -123,7 +123,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                                                             group=self.name)
 
         self.setattr_argument('dsp_quench_amp_pct',
-                                                            NumberValue(default=10., step=0.01, min=0.01, max=50.,
+                                                            NumberValue(default=12., step=0.01, min=0.01, max=50.,
                                                                         precision=3, unit="%", scale=1),
                                                             group=self.name)
 
@@ -165,7 +165,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             unit="us", scale=1, precision=5
         ), group='rabiflop_readout', tooltip='times to rabiflop')
 
-        self.setattr_argument('rabiflop_readout_freq_MHz', NumberValue(default=101.431, min=80., max=120.,
+        self.setattr_argument('rabiflop_readout_freq_MHz', NumberValue(default=101.4281, min=80., max=120.,
                                                                        precision=5, step=0.0001, unit='MHz'),
                               group='rabiflop_readout',
                               tooltip='AOM frequency to rabi flop at')
@@ -234,7 +234,11 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         # todo: implement interpolation functions to scale difference in power from channels
 
         # find bsb amplitude from rsb amplitude
-        self.dsp_ampl_bsb_pct = np.tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct
+        # for squeezing
+        # self.dsp_ampl_bsb_pct = np.tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct
+        # for coherent operations
+        eta = 0.09
+        self.dsp_ampl_bsb_pct = self.dsp_squeeze_r  * eta* self.dsp_ampl_rsb_pct
 
         # convert amplitudes into machine units
         self.dsp_ampl_rsb_asf = pct_to_asf(self.dsp_ampl_rsb_pct)
@@ -442,7 +446,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                                 profile=self.profile_dsp
                                 )
 
-        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw + dsp_freq_secular_ftw,
+        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw,
                                 pow_=self.dsp_phase_bsb_pow,
                                 asf=self.dsp_ampl_bsb_asf,
                                 phase_mode=PHASE_MODE_TRACKING,
