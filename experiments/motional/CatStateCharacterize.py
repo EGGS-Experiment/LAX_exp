@@ -158,7 +158,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
         self.setattr_argument("enable_cat1_quench",         BooleanValue(default=True), group='cat1.config',
-                              tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state. "
+                              tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
         self.setattr_argument("time_cat1_bichromatic_us",   NumberValue(default=100, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"),
@@ -206,7 +206,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "odd or even superposition is associated with the dark state.")
         self.setattr_argument("phase_cat2_antisigmax_turns",    NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"),
                               group='cat2.config',
-                              tooltip="Relative phase applied for the anti-sigma_x pulse. "
+                              tooltip="Relative phase applied for the anti-sigma_x pulse.\n"
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # cat2 - config
@@ -218,9 +218,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               tooltip="Enables spin-state heralding via state-selective fluorescence. "
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
-                                      "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager. ")
+                                      "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
         self.setattr_argument("enable_cat2_quench",   BooleanValue(default=True), group='cat2.config',
-                              tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state. "
+                              tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n")
 
@@ -271,7 +271,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "This is applied via the main doublepass.")
         self.setattr_argument("att_729_readout_db", NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
                               group="readout_729",
-                              tooltip="729nm DDS attenuation (in dB) to use for readout.\n"
+                              tooltip="729nm DDS attenuation (in dB) to use for readout. "
                                       "This is applied via the main doublepass.")
         self.setattr_argument("freq_729_readout_mhz_list",   Scannable(
                                                                 default=[
@@ -282,7 +282,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="readout_729",
-                              tooltip="729nm DDS frequencies to use for readout.\n"
+                              tooltip="729nm DDS frequencies to use for readout. "
                                       "This is applied via the main doublepass.")
         self.setattr_argument("time_729_readout_us_list",    Scannable(
                                                                 default=[
