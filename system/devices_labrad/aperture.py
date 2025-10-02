@@ -39,8 +39,7 @@ class Aperture(LAXDevice):
     def pulse_aperture_open(self, wait_time_s: TFloat) -> TNone:
         """
         Pulse Aperture Open
-        Args:
-            wait_time_s: seconds to wait before closing aperture
+        :param wait_time_s: seconds to wait before closing aperture
         """
         self.aperture.move_home()
         sleep(wait_time_s)
@@ -50,8 +49,7 @@ class Aperture(LAXDevice):
     def pulse_aperture_close(self, wait_time_s: TFloat) -> TNone:
         """
         Pulse Aperture Close
-        Args:
-            wait_time_s: seconds to before reopening aperture
+        :param wait_time_s: seconds to before reopening aperture
         """
         self.aperture.move_absolute(self.position_close)
         sleep(wait_time_s)

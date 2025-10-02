@@ -3,6 +3,7 @@ from LAX_exp.base import LAXDevice
 
 import labrad
 from os import environ
+# todo: move magic/hardcoded configs to device_db_ext
 
 
 class Oven(LAXDevice):
@@ -12,16 +13,18 @@ class Oven(LAXDevice):
     name = "oven"
 
     def prepare_device(self):
+        # establish labrad connection
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.oven = self.cxn.gpp3060_server
+
+        # MAGIC NUMBERS
         self.ovenChannel = 1
 
     @rpc
     def toggle(self, status: TBool) -> TNone:
         """
         Toggle Oven on/off.
-        Args:
-            status (TBool): on/off status of oven.
+        :param status: on/off status of oven.
         """
         self.oven.channel_toggle(self.ovenChannel, status)
 
@@ -29,9 +32,10 @@ class Oven(LAXDevice):
     def set_oven_voltage(self, voltage: TFloat) -> TNone:
         """
         Set the oven voltage.
+        :param voltage: The oven voltage to set (in volts).
         """
         if not 0. <= voltage <= 5.0:
-            raise Exception(f"voltage must be between 0V and 5V")
+            raise Exception("voltage must be between 0V and 5V")
 
         self.oven.channel_voltage(self.ovenChannel, voltage)
 
@@ -39,6 +43,7 @@ class Oven(LAXDevice):
     def set_oven_current(self, current: TFloat) -> TNone:
         """
         Set the oven voltage.
+        :param current: The oven current to set (in amps).
         """
         if not 0. <= current <= 4.0:
             raise Exception("current must be between 0A and 4A")

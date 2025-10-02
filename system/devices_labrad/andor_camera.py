@@ -16,13 +16,11 @@ class AndorCamera(LAXDevice):
         self.camera = self.cxn.andor_server
 
     @rpc
-    def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat = None):
+    def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat=None) -> TNone:
         """
         Acquire a single image from the camera and then reset to previous setting
-
-        Args:
-            image_region: area of ion trap to take picture of
-            identify_exposure_time: exposure time of camera
+        :param image_region: area of ion trap to take picture of
+        :param identify_exposure_time: exposure time of camera
         """
         ### acquire a single image
         self.camera.acquisition_stop()
@@ -46,13 +44,12 @@ class AndorCamera(LAXDevice):
         self.camera.acquisition_stop()
 
     @rpc
-    def continually_acquire_images(self, image_region=None, identify_exposure_time: TFloat = None):
+    def continually_acquire_images(self, image_region=None, identify_exposure_time: TFloat=None) -> TNone:
         """
         Acquire many images from the camera
-
-        Args:
-            image_region: area of ion trap to take picture of
-            identify_exposure_time: exposure time of camera
+        todo: type annotation for arguments
+        :param image_region: area of ion trap to take picture of
+        :param identify_exposure_time: exposure time of camera
         """
         ### acquire many images
         self.camera.acquisition_stop()
@@ -91,8 +88,7 @@ class AndorCamera(LAXDevice):
     def get_most_recent_image(self) -> TArray(TInt32, 1):
         """
         Retrieve most recent image camera took
-        Returns:
-            TArray(TFloat): the most recent image the camera took
+        :return: TArray(TFloat): the most recent image the camera took
         """
         return self.camera.acquire_image_recent()
 
@@ -100,8 +96,7 @@ class AndorCamera(LAXDevice):
     def get_all_acquired_images(self) -> TArray(TFloat, 1):
         """
         Retrieve all images in camera's data buffer
-        Returns:
-            TArray(TFloat): the images in camera's data buffer
+        :return: TArray(TFloat): the images in camera's data buffer
         """
         self.stop_acquisition()
         data = self.camera.acquire_data()
@@ -111,7 +106,7 @@ class AndorCamera(LAXDevice):
     def set_exposure_time(self, exposure_time: TFloat):
         """
         Set exposure time (in seconds) for image acquisition
-        Args:
+        :param exposure_time: the exposure time (in seconds) to set.
         """
         self.stop_acquisition()
         self.camera.setup_exposure_time(exposure_time)
@@ -121,6 +116,7 @@ class AndorCamera(LAXDevice):
     def get_exposure_time(self) -> TFloat:
         """
         Get exposure time (in seconds) for image acquisition
+        :return: exposure time in seconds
         """
         self.stop_acquisition()
         return self.camera.setup_exposure_time()
@@ -129,8 +125,7 @@ class AndorCamera(LAXDevice):
     def set_image_region(self, image_region: TTuple) -> TNone:
         """
         Set image region
-        Args:
-            image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
+        :return: image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
         self.stop_acquisition()
         self.camera.image_region_set(*image_region)
@@ -140,8 +135,7 @@ class AndorCamera(LAXDevice):
     def get_image_region(self) -> TTuple:
         """
         Get image region
-        Returns:
-            image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
+        :return: image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
         self.stop_acquisition()
         return self.camera.image_region_get()
