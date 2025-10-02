@@ -4,8 +4,20 @@ from numpy import array, int32, zeros
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM
+
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+
+# todo: migrate to spinechowizardrdx
+# todo: add wsec sweep + phase sweep
+
+# todo: osc freq/ampl/phases
+# todo: CH1 rel phase per osc
+# todo: global offset
+# todo: CH1 global (via DUC)
+# todo: share names with contsamp
+# todo: add tooltips
 
 
 class PSRSB(LAXExperiment, Experiment):
@@ -18,7 +30,7 @@ class PSRSB(LAXExperiment, Experiment):
     name = 'PSRSB'
     kernel_invariants = {
         # config/sweep
-        'profile_729_SBC', 'profile_729_psrsb', 'config_experiment_list',
+        'profile_729_SBC', 'profile_729_psrsb', 'config_experiment_list', '_num_phaser_oscs',
 
         # QVSA/phaser related
         'freq_qvsa_carrier_hz', 'freq_qvsa_secular_hz', 'att_qvsa_mu', 'waveform_qvsa_pulseshape_vals',
@@ -28,46 +40,87 @@ class PSRSB(LAXExperiment, Experiment):
         'time_psrsb_carrier_mu',
 
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'spinecho_wizard', 'pulse_shaper',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=100000))
 
-        # reserver hardware profiles for qubit
+        # reserve hardware profiles for qubit
         self.profile_729_SBC =      5
         self.profile_729_psrsb =    6
+
+        self._num_phaser_oscs = 4   # number of phaser oscillators in use
 
         # get subsequences
         self.initialize_subsequence =   InitializeQubit(self)
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=500
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
         )
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
+        # get relevant devices
+        self.setattr_device("qubit")
+        self.setattr_device('phaser_eggs')
+
+        # set arguments for different experiment bases
+        self._build_arguments_QVSA()
+        self._build_arguments_PSRSB()
+
+        # instantiate helper objects
+        self.spinecho_wizard = SpinEchoWizard(self)
+
+    def _build_arguments_QVSA(self):
+        """
+        Set specific arguments for phaser-based QVSA.
+        """
+        _argstr = "QVSA"    # string to use for arguments
+
         # QVSA configuration - pulse
-        self.setattr_argument("freq_qvsa_carrier_mhz",      NumberValue(default=80., precision=6, step=10., min=0., max=1000., scale=1., unit="MHz"), group='QVSA')
-        self.setattr_argument("freq_qvsa_secular_khz",      NumberValue(default=1281., precision=3, step=1., min=0., max=5000., scale=1., unit="kHz"), group='QVSA')
-        self.setattr_argument("time_qvsa_us",               NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, scale=1., unit="us"), group='QVSA')
-        self.setattr_argument("ampl_qvsa_pct_config",       PYONValue([1., 1., 1.]), group='QVSA', tooltip="[rsb_qvsa_pct, bsb_qvsa_pct, carrier_qvsa_pct]")
-        self.setattr_argument("phase_qvsa_turns_config",    PYONValue([0., 0., 0.]), group='QVSA', tooltip="[rsb_qvsa_turns, bsb_qvsa_turns, carrier_qvsa_turns]")
-        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"), group='QVSA')
+        # todo: break into QVSA global, osc, pulse shaping
+        self.setattr_argument("freq_qvsa_carrier_mhz",      NumberValue(default=80., precision=6, step=10., min=0., max=1000., scale=1., unit="MHz"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("freq_qvsa_secular_khz",      NumberValue(default=1281., precision=3, step=1., min=0., max=5000., scale=1., unit="kHz"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("time_qvsa_us",               NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, scale=1., unit="us"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("ampl_qvsa_pct_config",       PYONValue([1., 1., 1.]),
+                              group='{}'.format(_argstr),
+                              tooltip="[rsb_qvsa_pct, bsb_qvsa_pct, carrier_qvsa_pct]")
+        self.setattr_argument("phase_qvsa_turns_config",    PYONValue([0., 0., 0.]),
+                              group='{}'.format(_argstr),
+                              tooltip="[rsb_qvsa_turns, bsb_qvsa_turns, carrier_qvsa_turns]")
+        self.setattr_argument("att_qvsa_db",                NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
+                              group='{}'.format(_argstr))
 
         # QVSA configuration - pulse shaping
-        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False), group='QVSA.pulse_shaping')
-        self.setattr_argument("type_pulse_shape",               EnumerationValue(['sine_squared', 'error_function', 'slepian'], default='sine_squared'), group='QVSA.pulse_shaping')
-        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, scale=1., unit="us"), group='QVSA.pulse_shaping')
-        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000, scale=1., unit="kHz"), group='QVSA.pulse_shaping')
+        self.setattr_argument("enable_pulse_shaping",           BooleanValue(default=False),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("type_pulse_shape",               EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, scale=1., unit="us"),
+                              group='{}.pulse_shaping'.format(_argstr))
+        self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=1000, precision=0, step=100, min=100, max=5000, scale=1., unit="kHz"),
+                              group='{}.pulse_shaping'.format(_argstr))
+
+    def _build_arguments_PSRSB(self):
+        """
+        Set specific arguments for PSRSB beam configuration.
+        """
+        _argstr = "PSRSB"    # string to use for arguments
+        # tood: allow sweeping of BOTH rsb and carrier values
 
         # PSRSB - RSB pulse
-        self.setattr_argument("att_qubit_db",               NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"), group=self.name)
-        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group=self.name)
-        self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000, scale=1., unit="us"), group=self.name)
+        self.setattr_argument("att_qubit_db",               NumberValue(default=31.5, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"),
+                              group='{}.RSB'.format(_argstr))
+        self.setattr_argument("ampl_psrsb_rsb_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group='{}.RSB'.format(_argstr))
+        self.setattr_argument("time_psrsb_rsb_us",          NumberValue(default=148.57, precision=3, step=5, min=1, max=10000000, scale=1., unit="us"),
+                              group='{}.RSB'.format(_argstr))
         self.setattr_argument("freq_psrsb_rsb_mhz_list",    Scannable(
                                                                 default=[
                                                                     CenterScan(100.7947, 0.01, 0.0001, randomize=True),
@@ -75,10 +128,13 @@ class PSRSB(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=60., global_max=200., global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group=self.name)
+                                                            ), group='{}.RSB'.format(_argstr))
 
-        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group=self.name)
-        self.setattr_argument("time_psrsb_carrier_us",          NumberValue(default=8.51, precision=3, step=1, min=1, max=10000000, scale=1., unit="us"), group=self.name)
+        # PSRSB - carrier pulse
+        self.setattr_argument("ampl_psrsb_carrier_pct",         NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group='{}.carr'.format(_argstr))
+        self.setattr_argument("time_psrsb_carrier_us",          NumberValue(default=8.51, precision=3, step=1, min=1, max=10000000, scale=1., unit="us"),
+                              group='{}.carr'.format(_argstr))
         self.setattr_argument("freq_psrsb_carrier_mhz_list",    Scannable(
                                                                     default=[
                                                                         ExplicitScan([101.4181]),
@@ -86,7 +142,7 @@ class PSRSB(LAXExperiment, Experiment):
                                                                     ],
                                                                     global_min=60., global_max=200., global_step=1,
                                                                     unit="MHz", scale=1, precision=6
-                                                                ), group=self.name)
+                                                                ), group='{}.carr'.format(_argstr))
         self.setattr_argument("phas_psrsb_carrier_turns_list",  Scannable(
                                                                     default=[
                                                                         RangeScan(0, 1.0, 21, randomize=True),
@@ -94,16 +150,7 @@ class PSRSB(LAXExperiment, Experiment):
                                                                     ],
                                                                     global_min=-1.0, global_max=1.0, global_step=0.1,
                                                                     unit="turns", scale=1, precision=3
-                                                                ), group=self.name)
-
-        # get relevant devices
-        self.setattr_device("qubit")
-        self.setattr_device('phaser_eggs')
-
-        # instantiate helper objects
-        self.spinecho_wizard = SpinEchoWizard(self)
-        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        self.pulse_shaper = PhaserPulseShaper(self, array([0., 0., 0.5, 0., 0.]))
+                                                                ), group='{}.carr'.format(_argstr))
 
     def prepare_experiment(self):
         """
@@ -111,6 +158,12 @@ class PSRSB(LAXExperiment, Experiment):
         """
         '''SANITIZE/VALIDATE INPUTS & CHECK ERRORS'''
         self._prepare_argument_checks()
+
+        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
+        # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
+        # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
+        # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
+        self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
         '''CONVERT VALUES TO MACHINE UNITS - QVSA'''
         # convert frequencies to Hz
@@ -143,8 +196,7 @@ class PSRSB(LAXExperiment, Experiment):
             freq_psrsb_rsb_ftw_list,
             freq_psrsb_carrier_ftw_list,
             phas_psrsb_carrier_pow_list,
-            shuffle_config=True,
-            config_type=int32
+            shuffle_config=True, config_type=int32
         )
 
         # configure waveform via pulse shaper & spin echo wizard
@@ -260,13 +312,11 @@ class PSRSB(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load waveform DMA handles
-        self.pulse_shaper.waveform_load()
+        self.pulse_shaper.waveform_load()   # load waveform DMA handles
         _loop_iter = 0 # used to check_termination more frequently
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
-            # sweep experiment configurations
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
@@ -321,11 +371,10 @@ class PSRSB(LAXExperiment, Experiment):
                   phas_carrier_pow: TInt32 = 0, time_ref_mu: TInt64 = -1) -> TNone:
         """
         Run the phase-sensitive red-sideband detection sequence.
-        Arguments:
-            freq_rsb_ftw: RSB frequency in FTW.
-            freq_carrier_ftw: Carrier frequency in FTW.
-            phas_carrier_pow: Carrier phase (relative) in POW.
-            time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
+        :param freq_rsb_ftw: RSB frequency in FTW.
+        :param freq_carrier_ftw: Carrier frequency in FTW.
+        :param phas_carrier_pow: Carrier phase (relative) in POW.
+        :param time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
         """
         # set target profile and attenuation
         self.qubit.set_profile(self.profile_729_psrsb)
@@ -333,8 +382,7 @@ class PSRSB(LAXExperiment, Experiment):
         self.qubit.set_att_mu(self.att_qubit_mu)
 
         # synchronize start time to coarse RTIO clock
-        if time_ref_mu < 0:
-            time_ref_mu = now_mu() & ~0x7
+        if time_ref_mu < 0: time_ref_mu = now_mu() & ~0x7
 
         # run RSB pulse
         self.qubit.set_mu(freq_rsb_ftw, pow_=0, asf=self.ampl_psrsb_rsb_asf,
@@ -356,11 +404,9 @@ class PSRSB(LAXExperiment, Experiment):
     def phaser_run(self, waveform_id: TInt32) -> TInt64:
         """
         Run the main EGGS pulse together with supporting functionality.
-        Arguments:
-            waveform_id: the ID of the waveform to run.
-        Returns:
-            the start time of the phaser oscillator waveform (in machine units, 64b int).
-            Useful to synchronize device operation.
+        :param waveform_id: the ID of the waveform to run.
+        :return:the start time of the phaser oscillator waveform (in machine units, 64b int).
+            Useful for phase-coherent device synchronization.
         """
         # EGGS - START/SETUP
         self.phaser_eggs.phaser_setup(self.att_qvsa_mu, self.att_qvsa_mu)
@@ -391,3 +437,4 @@ class PSRSB(LAXExperiment, Experiment):
         """
         # todo: implement
         pass
+
