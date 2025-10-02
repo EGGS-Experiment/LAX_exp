@@ -1,16 +1,14 @@
-import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from numpy import int32, int64
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, SidebandCoolContinuousRAM, QVSAPulse, QubitRAP,
     ReadoutAdaptive, RabiflopReadout, RescueIon
 )
 
-from itertools import product
+# todo: make fast RSB a real configurable option
 
 
 class PuttermanPuzzle(LAXExperiment, Experiment):
@@ -51,8 +49,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # ram-based continuous sideband cooling
         self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         # QVSA pulse
         self.motional_subsequence = QVSAPulse(self)
@@ -115,31 +112,30 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # RAP values
-        freq_rap_center_ftw_list =  np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                              for freq_mhz in self.freq_rap_center_mhz_list], dtype=np.int32)
         self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
         self.ampl_rap_asf =     self.qubit.amplitude_to_asf(self.ampl_rap_pct / 100.)
         self.time_rap_mu =      self.core.seconds_to_mu(self.time_rap_us * us)
-        self.att_rap_mu =       att_to_mu(self.att_rap_db * dB)
+        self.att_rap_mu =       self.qubit.cpld.att_to_mu(self.att_rap_db * dB)
+        freq_rap_center_ftw_list =  [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                     for freq_mhz in self.freq_rap_center_mhz_list]
 
         # heralding/readout
         self.time_force_herald_slack_mu =   self.core.seconds_to_mu(150 * us)
-        freq_rabiflop_readout_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_rabiflop_readout_mhz_list], dtype=np.int32)
+        freq_rabiflop_readout_ftw_list =    [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                             for freq_mhz in self.freq_rabiflop_readout_mhz_list]
+
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
-        # create an array of values for the experiment to sweep
-        self.config_experiment_list = np.array([
-            vals
-            for vals in product(
-                freq_rap_center_ftw_list,
-                self.rabiflop_subsequence.time_readout_mu_list,
-                freq_rabiflop_readout_ftw_list
-            )
-        ], dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
+        # create experiment config
+        self.config_experiment_list = create_experiment_config(
+            freq_rap_center_ftw_list,
+            self.rabiflop_subsequence.time_readout_mu_list,
+            freq_rabiflop_readout_ftw_list,
+            config_type=int64,
+            shuffle_config=True
+        )
 
         # tmp remove - fast RSB
         time_frsb_us = 6.22
@@ -161,7 +157,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.core.break_realtime()
 
         # configure RAP & record onto DMA
         with self.core_dma.record('RAP_SUBSEQUENCE'):
@@ -171,40 +166,37 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # instantiate relevant variables
-        ion_state = (-1, 0, np.int64(0))
+        ion_state = (-1, 0, int64(0)) # store ion state from ReadoutAdaptive
 
         # retrieve relevant DMA sequences.handles
         self.motional_subsequence.pulse_shaper.waveform_load()
         self.core.break_realtime()
         dma_handle_rap = self.core_dma.get_handle('RAP_SUBSEQUENCE')
-        self.core.break_realtime()
 
-        # MAIN EXECUTION LOOP
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
-            # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 '''PREPARE & CONFIGURE'''
                 # extract values from config list
-                freq_rap_center_ftw =       np.int32(config_vals[0])
+                freq_rap_center_ftw =       int32(config_vals[0])
                 time_rabiflop_readout_mu =  config_vals[1]
-                freq_rabiflop_readout_ftw = np.int32(config_vals[2])
+                freq_rabiflop_readout_ftw = int32(config_vals[2])
                 self.core.break_realtime()
 
                 # configure adag pulse
                 if self.enable_rap:
                     self.rap_subsequence.configure(self.time_rap_mu, freq_rap_center_ftw, self.freq_rap_dev_ftw)
                 else:
-                    self.qubit.set_mu(freq_rap_center_ftw, asf=self.ampl_rap_asf, profile=self.profile_729_frsb,
+                    self.qubit.set_mu(freq_rap_center_ftw, asf=self.ampl_rap_asf,
+                                      profile=self.profile_729_frsb,
                                       phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(50000)
                 # configure rabiflop readout frequency
                 self.qubit.set_mu(freq_rabiflop_readout_ftw, asf=self.qubit.ampl_qubit_asf,
-                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                delay_mu(8000)
+                                  profile=self.profile_729_readout,
+                                  phase_mode=PHASE_MODE_CONTINUOUS)
+                delay_mu(25000)
 
                 '''PREPARE TARGET MOTIONAL STATE'''
                 while True:
@@ -213,7 +205,6 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     # initialize ion in S-1/2 state, then SBC to ground motional state
                     self.initialize_subsequence.run_dma()
                     self.sidebandcool_subsequence.run_dma()
-
                     # use QVSA to generate motional excitation
                     self.motional_subsequence.run_pulse()
 
@@ -255,17 +246,13 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                                     ion_state[0],
                                     time_rabiflop_readout_mu,
                                     freq_rabiflop_readout_ftw)
-                self.core.break_realtime()
-
                 # resuscitate ion
                 self.rescue_subsequence.resuscitate()
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''

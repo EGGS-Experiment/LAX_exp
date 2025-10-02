@@ -1,12 +1,14 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import array, zeros
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXSubsequence
+from LAX_exp.language import *
 
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.SpinEchoWizard import SpinEchoWizard
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
+
+# todo: migrate to SpinEchoWizardRDX
+# todo: modernize
 
 
 class QVSAPulse(LAXSubsequence):
@@ -20,6 +22,7 @@ class QVSAPulse(LAXSubsequence):
     kernel_invariants = {
         # values
         'freq_qvsa_carrier_hz', 'freq_qvsa_secular_hz', 'att_qvsa_mu', 'waveform_qvsa_pulseshape_vals',
+
         # objects
         'spinecho_wizard', 'pulse_shaper'
     }
@@ -46,7 +49,7 @@ class QVSAPulse(LAXSubsequence):
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizard(self)
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0.5, 0., 0.]))
+        self.pulse_shaper = PhaserPulseShaper(self, array([0., 0., 0.5, 0., 0.]))
 
     def prepare_subsequence(self):
         """
@@ -108,7 +111,7 @@ class QVSAPulse(LAXSubsequence):
 
         '''DESIGN WAVEFORM SEQUENCE'''
         # create bare waveform block sequence
-        _sequence_blocks = np.zeros((1, 3, 2), dtype=float)
+        _sequence_blocks = zeros((1, 3, 2), dtype=float)
 
         # set oscillator amplitudes
         _sequence_blocks[:, 0, 0] = self.ampl_qvsa_pct_config[0]
