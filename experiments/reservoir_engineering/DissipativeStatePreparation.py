@@ -123,7 +123,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                                                             group=self.name)
 
         self.setattr_argument('dsp_quench_amp_pct',
-                                                            NumberValue(default=12., step=0.01, min=0.01, max=50.,
+                                                            NumberValue(default=10., step=0.01, min=0.01, max=50.,
                                                                         precision=3, unit="%", scale=1),
                                                             group=self.name)
 
@@ -135,7 +135,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                                                                                                         unit='dB'),
                                                                    group=self.name)
 
-        self.setattr_argument('num_spinpol_cycles', NumberValue(50, min=0, max=100,
+        self.setattr_argument('num_spinpol_cycles', NumberValue(25, min=0, max=100,
                                                                                           step=1, precision=0),
                                                         group=self.name,
                                                         tooltip='how many times to perform spin polarization during dissipative state prep')
@@ -158,7 +158,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.setattr_argument("rabiflop_readout_times_us_list", Scannable(
             default=[
                 RangeScan(1, 1000, 250, randomize=True),
-                # ExplicitScan([1]),
+                ExplicitScan([1]),
                 # CenterScan(3.05, 5., 0.1, randomize=True),
             ],
             global_min=1, global_max=100000, global_step=1,
@@ -235,10 +235,10 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
 
         # find bsb amplitude from rsb amplitude
         # for squeezing
-        # self.dsp_ampl_bsb_pct = np.tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct
+        self.dsp_ampl_bsb_pct = np.tanh(self.dsp_squeeze_r) * self.dsp_ampl_rsb_pct
         # for coherent operations
-        eta = 0.09
-        self.dsp_ampl_bsb_pct = self.dsp_squeeze_r  * eta* self.dsp_ampl_rsb_pct
+        # eta = 0.09
+        # self.dsp_ampl_bsb_pct = self.dsp_squeeze_r  * eta* self.dsp_ampl_rsb_pct
 
         # convert amplitudes into machine units
         self.dsp_ampl_rsb_asf = pct_to_asf(self.dsp_ampl_rsb_pct)
@@ -306,6 +306,8 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
         self.qubit.cpld.io_update.pulse_mu(8)
+        self.singlepass0.cpld.io_update.pulse_mu(8)
+        self.singlepass1.cpld.io_update.pulse_mu(8)
         delay_mu(25000)
 
         # set up singlepass AOMs to default values (b/c AOM thermal drift) on ALL profiles
@@ -446,7 +448,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
                                 profile=self.profile_dsp
                                 )
 
-        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw,
+        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw + dsp_freq_secular_ftw,
                                 pow_=self.dsp_phase_bsb_pow,
                                 asf=self.dsp_ampl_bsb_asf,
                                 phase_mode=PHASE_MODE_TRACKING,
@@ -501,6 +503,7 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             # turn on dissipation lasers (leave 397 off)
             self.repump_cooling.on()
             self.repump_qubit.on()
+            self.probe.off()
 
         for i in range(self.num_spinpol_cycles):
 
@@ -511,17 +514,20 @@ class DissipativeStatePreparation(LAXExperiment, Experiment):
             delay_mu(cycle_time_mu)
 
             # turn off singlepass
-            self.singlepass0.sw.off()
-            self.singlepass1.sw.off()
+            # self.singlepass0.sw.off()
+            # self.singlepass1.sw.off()
 
             # # repump to |S1/2, mj=-1/2>
-            self.probe.on()
-            delay_mu(self.time_spinpol_mu)
-            # ensure spin pol laser is off to prevent AC stark shifts
-            self.probe.off()
+            # self.probe.on()
+            # delay_mu(self.time_spinpol_mu)
+            # # ensure spin pol laser is off to prevent AC stark shifts
+            # self.probe.off()
             # self.spin_polarization_re_subsequence.run_dma()
 
         # turn off the 729 and 397 sigma
+
+        self.singlepass0.sw.off()
+        self.singlepass1.sw.off()
 
         self.probe.on()
         delay_mu(self.time_spinpol_mu)

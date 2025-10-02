@@ -48,7 +48,7 @@ class LaserScan(LAXExperiment, Experiment):
         # scan parameters
         self.setattr_argument("freq_qubit_scan_mhz", Scannable(
                                                         default=[
-                                                            CenterScan(101.07, 0.5, 0.0005, randomize=True),
+                                                            CenterScan(101.1, 0.5, 0.001, randomize=True),
                                                             ExplicitScan([101.1349]),
                                                             RangeScan(1, 50, 200, randomize=True),
                                                         ],
@@ -71,7 +71,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.setattr_argument('singlepass1_default_freq_MHz', NumberValue(default=120.3339, min=100, max=140,
         step=1e-4, precision=5, unit='MHz'))
 
-        self.setattr_argument('squeeze_r', NumberValue(default=0, max = 10, min=0, precision=2, step=0.01))
+        self.setattr_argument('squeeze_r', NumberValue(default=1., max = 10, min=0, precision=2, step=0.01))
 
         # relevant devices
         self.setattr_device('qubit')
@@ -132,7 +132,7 @@ class LaserScan(LAXExperiment, Experiment):
         self.dsp_ampl_bsb_asf = pct_to_asf(self.dsp_ampl_bsb_pct)
 
         self.singlepass0_default_freq_ftw = self.singlepass0.frequency_to_ftw(self.singlepass0_default_freq_MHz*MHz)
-        self.singlepass1_default_freq_ftw = self.singlepass1.frequency_to_ftw(self.singlepass1_default_freq_ftw *MHz)
+        self.singlepass1_default_freq_ftw = self.singlepass1.frequency_to_ftw(self.singlepass1_default_freq_MHz *MHz)
         self.singlepass_att_mu = att_to_mu(self.chromatic_att_dB*dB)
 
         '''
@@ -197,13 +197,13 @@ class LaserScan(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
 
-        self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw - self.freq_secular_ftw,
+        self.singlepass0.set_mu(ftw=self.singlepass0_default_freq_ftw,
                                 pow_=0,
                                 asf=self.dsp_ampl_rsb_asf,
                                 profile=self.profile_729_readout
                                 )
 
-        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw + self.freq_secular_ftw,
+        self.singlepass1.set_mu(ftw=self.singlepass1_default_freq_ftw,
                                 pow_=0,
                                 asf=self.dsp_ampl_bsb_asf,
                                 profile=self.profile_729_readout
