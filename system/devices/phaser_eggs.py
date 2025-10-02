@@ -37,14 +37,14 @@ class PhaserEGGS(LAXDevice):
         self.channel = self.phaser.channel
 
         # get frequency parameters
-        self.freq_center_hz = self.get_parameter('freq_center_mhz', group='eggs', override=False) * MHz
+        self.freq_center_hz = self.get_parameter('freq_center_mhz', group='devices.phaser', override=False) * MHz
 
         # get phase delay parameters
-        self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='eggs.ch1', override=False)
-        self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='eggs.ch1', override=False)
+        self.phase_inherent_ch1_turns =     self.get_parameter('phas_ch1_inherent_turns', group='devices.phaser.ch1', override=False)
+        self.time_latency_ch1_system_ns =   self.get_parameter('time_latency_ch1_system_ns', group='devices.phaser.ch1', override=False)
 
         # holdoff delay before & after phaser pulses (e.g. to allow RF servo to re-lock, to account for switch rise times)
-        self.time_phaser_holdoff_mu = self.get_parameter("time_phaser_holdoff_us", group="eggs", conversion_function=us_to_mu)
+        self.time_phaser_holdoff_mu = self.get_parameter("time_phaser_holdoff_us", group="devices.phaser", conversion_function=us_to_mu)
         # ensure delays are multiples of phaser frame period
         self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.t_frame_mu) * self.t_frame_mu)
 

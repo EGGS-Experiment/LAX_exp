@@ -63,7 +63,7 @@ class PhaserPulseShaper(LAXEnvironment):
         self._num_waveforms = 0
 
         # get CH1 adjustment values per oscillator
-        self.phas_ch1_osc_turns_arr = self.get_parameter('phas_ch1_osc_turns_arr', group='eggs.ch1', override=False)
+        self.phas_ch1_osc_turns_arr = self.get_parameter('phas_ch1_osc_turns_arr', group='devices.phaser.ch1', override=False)
         if not all((
             isinstance(self.phas_ch1_osc_turns_arr, list),
             len(self.phas_ch1_osc_turns_arr) == 5,
@@ -71,7 +71,7 @@ class PhaserPulseShaper(LAXEnvironment):
         )):
             raise ValueError("Invalid phas_ch1_osc_turns_arr specified in dataset manager ({:}).".format(self.phas_ch1_osc_turns_arr))
 
-        self.ampl_ch1_osc_scale_arr = array(self.get_parameter('ampl_ch1_osc_scale_arr', group='eggs.ch1', override=False))
+        self.ampl_ch1_osc_scale_arr = array(self.get_parameter('ampl_ch1_osc_scale_arr', group='devices.phaser.ch1', override=False))
         if not all((
             isinstance(self.ampl_ch1_osc_scale_arr, (list, ndarray)),
             len(self.ampl_ch1_osc_scale_arr) == 5,

@@ -103,7 +103,7 @@ class PhaserSet(EnvExperiment):
 
         ### FREQUENCIES ###
         self.freq_carrier_hz =      self.freq_carrier_mhz * MHz
-        self.freq_center_hz =       self.get_dataset('eggs.freq_center_mhz') * MHz
+        self.freq_center_hz =       self.get_dataset('devices.phaser.freq_center_mhz') * MHz
 
     def _prepare_oscillators(self):
         """

@@ -171,7 +171,7 @@ class PSRSB_RDX(LAXExperiment, Experiment):
         self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 10., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser oscillator amplitudes. Applied to both CH0 and CH1.\n"
-                                      "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in eggs.ch1.ampl_ch1_osc_scale_arr.")
+                                      "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in devices.phaser.ch1.ampl_ch1_osc_scale_arr.")
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
