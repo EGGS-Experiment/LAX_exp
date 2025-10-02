@@ -1,7 +1,3 @@
-import labrad
-from os import environ
-from EGGS_labrad.config.dc_config import dc_config
-
 import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
@@ -9,12 +5,14 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import ParametricExcite
 
+from EGGS_labrad.config.dc_config import dc_config
+
 
 class InsufficientCounts(Exception):
     """
     Raised when the PMT is not getting sufficient counts for some reason.
     Prevents fixed PMT count-type experiments (e.g. ParametricSweep) from
-    blocking due to insufficient PMT counts.
+        blocking due to insufficient PMT counts.
     """
     pass
 
@@ -31,16 +29,15 @@ class ParametricSweep(LAXExperiment, Experiment):
         # hardware parameters
         "dc_channel_num", "dc_voltages_v_list", "time_dc_synchronize_delay_mu",
         "ampl_cooling_asf", "freq_cooling_ftw", "att_modulation_mu", "freq_modulation_list_mu",
-        "profile_397_parametric", "profile_dds_parametric",
 
-        # labrad objects
-        "cxn", "dc",
+        # configs
+        "profile_397_parametric", "profile_dds_parametric",
 
         # fluorescence calibration
         "fluorescence_calibration_time_mu", "fluorescence_calibration_threshold_counts",
 
         # subsequences
-        "parametric_subsequence"
+        "parametric_subsequence",
     }
 
     def build_experiment(self):
@@ -89,75 +86,34 @@ class ParametricSweep(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('dds_parametric')
         self.setattr_device('pmt')
+        self.setattr_device('trap_dc')
 
         # get relevant subsequences
         self.parametric_subsequence =   ParametricExcite(self)
 
     def prepare_experiment(self):
         # get voltage parameters
-        self.dc_channel_num =               self.dc_channeldict[self.dc_channel]['num']
-        self.dc_voltages_v_list =           np.array(list(self.dc_voltages_v_list))
+        self.dc_channel_num = self.dc_channeldict[self.dc_channel]['num']
+        self.dc_voltages_v_list = np.array(list(self.dc_voltages_v_list))
         self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(888 * ms)
 
         # convert cooling parameters to machine units
-        self.ampl_cooling_asf =         self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
-        self.freq_cooling_ftw =         self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
+        self.ampl_cooling_asf = self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100)
+        self.freq_cooling_ftw = self.pump.frequency_to_ftw(self.freq_cooling_mhz * MHz)
 
         # modulation control and synchronization
-        self.att_modulation_mu =        att_to_mu(self.mod_att_db * dB)
-        self.freq_modulation_list_mu =  np.array([
-                                            self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
-                                            for freq_mhz in self.mod_freq_khz_list
-                                        ])
-
-        # connect to labrad
-        self.cxn = labrad.connect(environ['LABRADHOST'],
-                                  port=7682, tls_mode='off',
-                                  username='', password='lab')
-        self.dc = self.cxn.dc_server
+        self.att_modulation_mu = att_to_mu(self.mod_att_db * dB)
+        self.freq_modulation_list_mu =  [self.dds_parametric.frequency_to_ftw(freq_mhz * kHz)
+                                         for freq_mhz in self.mod_freq_khz_list]
 
         # set up variables for ensuring PMT counts are above some threshold
-        self.fluorescence_calibration_time_mu =             np.int64(30000000)  # 30ms
-        self.fluorescence_calibration_threshold_counts =    400
+        self.fluorescence_calibration_time_mu = self.core.seconds_to_mu(30 * ms)  # 30ms
+        self.fluorescence_calibration_threshold_counts = 400
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.dc_voltages_v_list) * len(self.mod_freq_khz_list),
                 5)
-
-
-    '''
-    LABRAD FUNCTIONS
-    '''
-    @rpc
-    def voltage_set(self, channel: TInt32, voltage_v: TFloat) -> TNone:
-        """
-        Set the channel to the desired voltage.
-        """
-        self.dc.voltage_fast(channel, voltage_v)
-        # print('\tvoltage set: {}'.format(voltage_set_v))
-
-    @rpc
-    def voltage_get(self, channel: TInt32) -> TFloat:
-        """
-        Get voltage of desired channel.
-        Returns:
-            voltage of desired channel.
-        """
-        voltage_v = self.dc.voltage(channel)
-        # print('\tvoltage get: {}'.format(voltage_set_v))
-        return voltage_v
-
-    @rpc(flags={"async"})
-    def prepareDevicesLabrad(self) -> TNone:
-        """
-        Prepare LabRAD devices for the experiment via RPC.
-        """
-        # set up amo8 to prevent device communication from being interrupted
-        self.dc.polling(False)
-        self.dc.alarm(False)
-        self.dc.serial_write('remote.w 1\r\n')
-        self.dc.serial_read('\n')
 
 
     '''
@@ -168,20 +124,16 @@ class ParametricSweep(LAXExperiment, Experiment):
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
 
-        # set up labrad devices via RPC
-        self.prepareDevicesLabrad()
-        self.core.break_realtime()
-
         # prepare cooling beams
         self.pump.rescue()
         self.pump.on()
         self.repump_cooling.on()
         self.repump_qubit.on()
         # store 397nm waveform for modulation
-        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf, profile=self.profile_397_parametric,
+        self.pump.set_mu(self.freq_cooling_ftw, asf=self.ampl_cooling_asf,
+                         profile=self.profile_397_parametric,
                          phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(10000)
-
 
         # set up DDS for modulation
         self.dds_parametric.set_att_mu(self.att_modulation_mu)
@@ -196,28 +148,12 @@ class ParametricSweep(LAXExperiment, Experiment):
         # tmp remove: fix
 
     @kernel(flags={"fast-math"})
-    def _check_PMT_counting(self) -> TNone:
-        """
-        Check that everything is set up to ensure the ion is fluorescing correctly.
-        Runs a given number of PMT readout sequences and compares the average fluorescence
-        against some given number.
-        """
-        # todo: get counts with 397nm on vs off to see if flipped, rather than just raw counts
-        # count fluorescence
-        self.pmt.count(self.fluorescence_calibration_time_mu)
-
-        # ensure fluorescence exceeds threshold
-        counts_calibration = self.pmt.fetch_count()
-        if counts_calibration < self.fluorescence_calibration_threshold_counts:
-            raise InsufficientCounts("Error: PMT not receiving sufficient counts.")
-
-    @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
-
-            # sweep voltage
             for voltage_v in self.dc_voltages_v_list:
-                self.voltage_set(self.dc_channel_num, voltage_v)
+                # set trap voltages
+                self.trap_dc.trap_dc.voltage_fast(self.dc_channel_num, voltage_v)
 
                 # synchronize hardware clock with timeline, then add delay for voltages to settle
                 # note: delay has added advantage of recooling the ion
@@ -245,14 +181,33 @@ class ParametricSweep(LAXExperiment, Experiment):
                     self.check_termination()
                     self._process_results(freq_mu, voltage_v, pmt_timestamp_list)
 
+
+    '''
+    HELPER FUNCTIONS
+    '''
+    @kernel(flags={"fast-math"})
+    def _check_PMT_counting(self) -> TNone:
+        """
+        Check that everything is set up to ensure the ion is fluorescing correctly.
+        Runs a given number of PMT readout sequences and compares the average fluorescence
+            against some given number.
+        """
+        # todo: get counts with 397nm on vs off to see if flipped, rather than just raw counts
+        # count fluorescence
+        self.pmt.count(self.fluorescence_calibration_time_mu)
+
+        # ensure fluorescence exceeds threshold
+        counts_calibration = self.pmt.fetch_count()
+        if counts_calibration < self.fluorescence_calibration_threshold_counts:
+            raise InsufficientCounts("Error: PMT not receiving sufficient counts.")
+
     @rpc(flags={"async"})
     def _process_results(self, freq_mu: TInt32, voltage_v: TFloat, timestamp_mu_list: TArray(TInt64, 1)) -> TNone:
         """
         Convert modulation frequency and timestamps from machine units and demodulate.
-        Arguments:
-            freq_ftw            (int32)         : the modulation frequency (as a 32-bit frequency tuning word).
-            voltage_v           (float)         : the current shim voltage (in volts).
-            timestamp_mu_list   (list(int64))   : the list of timestamps (in machine units) to demodulate.
+        :param freq_ftw: the modulation frequency (as a 32-bit frequency tuning word).
+        :param voltage_v: the current shim voltage (in volts).
+        :param timestamp_mu_list: the list of timestamps (in machine units) to demodulate.
         """
         # convert frequency to mhz
         freq_mhz = self.dds_parametric.ftw_to_frequency(freq_mu) / MHz
@@ -345,7 +300,8 @@ class ParametricSweep(LAXExperiment, Experiment):
 
             # if more than one repetition, calculate error as stderr of voltage_optima instead of fit err
             if self.repetitions > 1:
-                voltage_optima_vals[:, 2] = np.array([np.std(sublist[:, 1]) / np.sqrt(len(sublist)) for sublist in voltage_optima_grouped])
+                voltage_optima_vals[:, 2] = np.array([np.std(sublist[:, 1]) / np.sqrt(len(sublist))
+                                                      for sublist in voltage_optima_grouped])
 
             # if lots of frequencies (within a single wsec) are swept, then average over freqs
             freq_range_khz = np.max(voltage_optima_vals[:, 0]) - np.min(voltage_optima_vals[:, 0])
@@ -360,7 +316,7 @@ class ParametricSweep(LAXExperiment, Experiment):
 
             # set voltage to optimal val if val is in range
             mean_voltage_optimum = np.mean(voltage_optima_vals[:, 1])
-            if (mean_voltage_optimum > np.min(self.dc_voltages_v_list)) & (mean_voltage_optimum < np.max(self.dc_voltages_v_list)):
+            if (mean_voltage_optimum > min(self.dc_voltages_v_list)) & (mean_voltage_optimum < max(self.dc_voltages_v_list)):
                 self.voltage_set(self.dc_channel_num, mean_voltage_optimum)
 
 
