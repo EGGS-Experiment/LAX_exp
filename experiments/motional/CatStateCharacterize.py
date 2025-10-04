@@ -603,9 +603,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     # return -1 so user knows booboo happened
                     counts_res = -1
                     self.check_termination() # check termination b/c we haven't in a while
-                    self.core.break_realtime()
 
                 # store results
+                self.core.break_realtime()
                 self.rescue_subsequence.resuscitate()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,

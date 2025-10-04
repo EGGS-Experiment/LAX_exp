@@ -443,9 +443,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     # return -1 so user knows booboo happened
                     ion_state = (-1, -1, int64(0))
                     self.check_termination() # check termination b/c we haven't in a while
-                    self.core.break_realtime()
 
                 # save results
+                self.core.break_realtime()
                 self.rescue_subsequence.resuscitate()
                 self.update_results(freq_cat_center_ftw,
                                     ion_state[0],
