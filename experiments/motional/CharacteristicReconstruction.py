@@ -3,9 +3,7 @@ from artiq.coredevice import ad9910
 from numpy import int32, int64, array, arctan2
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon
-)
+from LAX_exp.system.subsequences import InitializeQubit, SidebandCoolContinuousRAM, ReadoutAdaptive, RescueIon
 
 import math
 # todo: support 1D phase sweep for speed (a la SDR charread)
@@ -21,20 +19,20 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
     name = 'Characteristic Reconstruction'
     kernel_invariants = {
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'readout_adaptive_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence', 'rescue_subsequence',
 
         # hardware parameters
         'ampl_doublepass_default_asf',
-        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
-        'time_herald_slack_mu', 'att_reg_bichromatic', 'att_reg_sigmax',
+        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu', 'phase_antisigmax_pow',
+        'time_herald_slack_mu', 'max_herald_attempts', 'time_adapt_read_slack_mu',
+        'att_reg_bichromatic', 'att_reg_sigmax',
 
         # cat state parameters
         'ampls_cat_asf', 'time_motion_cat_mu', 'phases_motion_cat_pow', 'phase_char_axis_pow',
         'phases_char_cat_pow', 'phases_char_cat_update_dir',
 
         # experiment parameters
-        'profile_729_SBC', 'profile_729_target', 'config_experiment_list'
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list',
     }
 
     def build_experiment(self):
@@ -51,8 +49,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      Readout(self)
-        self.readout_adaptive_subsequence = ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
+        self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence =       RescueIon(self)
 
         # get relevant devices
@@ -69,17 +66,35 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         """
         Build arguments for default beam parameters.
         """
-        # defaults - main doublepass (near chamber)
-        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50), group="default.cat")
-        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5), group="default.cat")
-
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"), group="default.sigmax")
-        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"), group="default.sigmax")
-        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"), group="default.sigmax")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.59, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"), group="default.sigmax")
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.1013, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
+                              group="default.sigmax")
+        self.setattr_argument("ampl_sigmax_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group="default.sigmax")
+        self.setattr_argument("att_sigmax_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="default.sigmax")
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.59, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"),
+                              group="default.sigmax")
+        self.setattr_argument("phase_antisigmax_turns",    NumberValue(default=0.25, precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"),
+                              group='default.sigmax',
+                              tooltip="Relative phase applied for the anti-sigma_x pulse.\n"
+                                      "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # defaults - bichromatic
+        self.setattr_argument("ampl_doublepass_default_pct",    NumberValue(default=50., precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group="default.bichromatic",
+                              tooltip="DDS amplitude for the main doublepass during the bichromatic pulse.")
+        self.setattr_argument("att_doublepass_default_db",      NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group="default.bichromatic",
+                              tooltip="DDS attenuation for the main doublepass during the bichromatic pulse.")
+        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]),
+                              group='default.bichromatic',
+                              tooltip="DDS amplitudes for the singlepass DDSs during the bichromatic pulses.\n"
+                                      "Should be a list of [rsb_ampl_pct, bsb_ampl_pct], which are applied to [singlepass0, singlepass1].")
+        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]),
+                              group='default.bichromatic',
+                              tooltip="DDS attenuations for the singlepass DDSs during the bichromatic pulses.\n"
+                                      "Should be a list of [rsb_att_db, bsb_att_db], which are applied to [singlepass0, singlepass1].")
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
                                                                     ExplicitScan([101.1013]),
@@ -88,7 +103,12 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group='default.bichromatic')
+                                                            ),
+                              group='default.bichromatic',
+                              tooltip="Center frequency for the bichromatic pulses.\n"
+                                      "Note: this is applied via the main doublepass DDS.\n"
+                                      "The singlepass DDSs center frequencies are set as their default values from the dataset manager "
+                                      "(e.g. beams.freq_mhz.freq_singlepass0_mhz).")
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
                                                                     ExplicitScan([703.101]),
@@ -97,20 +117,46 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
                                                                 unit="kHz", scale=1, precision=3
-                                                            ), group='default.bichromatic')
-        self.setattr_argument("ampls_cat_pct",  PYONValue([50., 50.]), group='default.bichromatic', tooltip="[rsb_pct, bsb_pct]")
-        self.setattr_argument("atts_cat_db",    PYONValue([13., 13.]), group='default.bichromatic', tooltip="[rsb_db, bsb_db]")
+                                                            ),
+                              group='default.bichromatic',
+                              tooltip="Single-sided detuning frequency for the bichromatic pulses, applied via singlepass DDSs.\n"
+                                      "The singlepass0 DDS is treated as the RSB, and will thus have its frequency DECREASED by this amount.\n"
+                                      "Similarly, the singlepass1 DDS is treated as the BSB, and will thus have its frequency INCREASED by this amount.\n"
+                                      "i.e. frequencies for [singlepass0, singlepass1] is set as [beams.freq_mhz.freq_singlepass0_mhz - freq_cat_secular_khz, "
+                                      "beams.freq_mhz.freq_singlepass1_mhz + freq_cat_secular_khz].")
 
     def _build_arguments_stateprep(self):
         """
         Build arguments for motional state preparation.
         """
         self.setattr_argument("enable_motion_sigmax",   BooleanValue(default=False), group='motion.config',
-                              tooltip='sigma_x selects whether motional state is coherent (True), or cat (False).')
-        self.setattr_argument("enable_motion_cat",      BooleanValue(default=False), group='motion.config')
-        self.setattr_argument("enable_motion_herald",   BooleanValue(default=True), group='motion.config')
-        self.setattr_argument("time_motion_cat_us",     NumberValue(default=100, precision=2, step=5, min=0.1, max=10000), group="motion.config")
-        self.setattr_argument("phases_motion_cat_turns",    PYONValue([0., 0.]), group='motion.config', tooltip="[rsb_turns, bsb_turns]")
+                              tooltip="Applies a sigma_x pulse BEFORE the 1st bichromatic pulse.\n"
+                                      "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
+                                      "If sigma_x is disabled (i.e. False), the bichromatic pulse creates a superposition state (e.g. cat state).")
+        self.setattr_argument("enable_motion_cat",      BooleanValue(default=False), group='motion.config',
+                              tooltip="Enables application of the 1st bichromatic pulse.\n"
+                                      "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
+        self.setattr_argument("enable_motion_antisigmax", BooleanValue(default=False), group='motion.config',
+                              tooltip="Applies a sigma_x pulse AFTER the bichromatic pulse.\n"
+                                      "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
+                                      "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
+                                      "odd or even superposition is associated with the dark state.")
+
+        self.setattr_argument("enable_motion_herald",   BooleanValue(default=True),
+                              group='motion.config',
+                              tooltip="Enables spin-state heralding via state-selective fluorescence. "
+                                      "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
+                                      "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
+                                      "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
+        self.setattr_argument("time_motion_cat_us",     NumberValue(default=100, precision=2, step=5, min=0.1, max=10000),
+                              group="motion.config",
+                              tooltip="Pulse time for the bichromatic pulse.")
+        self.setattr_argument("phases_motion_cat_turns",    PYONValue([0., 0.]),
+                              group='motion.config',
+                              tooltip="Relative phases for the singlepass DDSs during the bichromatic pulse.\n"
+                                      "Should be a list of [rsb_phase_turns, bsb_phase_turns].\n"
+                                      "Note: these phases are applied to the singlepass DDSs, so do not need to be halved, "
+                                      "unlike phases applied to the main doublepass.")
 
     def _build_arguments_char(self):
         """
@@ -166,9 +212,9 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         ### MAGIC NUMBERS ###
         # extra slack after heralding to prevent RTIOUnderflow errors
-        self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+        self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us) # always add slack immediately after adaptive readout
+        self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)   # add slack to RTIOCounter only if heralding succeeds
         self.max_herald_attempts =  200 # max number of herald attempts before config is skipped
-
 
         '''
         CONVERT VALUES TO MACHINE UNITS - DEFAULTS
@@ -180,6 +226,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         self.freq_sigmax_ftw =  self.qubit.frequency_to_ftw(self.freq_sigmax_mhz * MHz)
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
+        self.phase_antisigmax_pow = self.qubit.turns_to_pow(self.phase_antisigmax_turns)
 
         # defaults - cat
         freq_cat_center_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
@@ -207,7 +254,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         # characteristic readout - bichromatic
         self.phases_char_cat_pow = array([self.qubit.singlepass0.turns_to_pow(phas_pow)
-                                             for phas_pow in self.phases_char_cat_turns], dtype=int32)
+                                          for phas_pow in self.phases_char_cat_turns], dtype=int32)
         if self.target_char_cat_phase == 'RSB':
             self.phases_char_cat_update_dir = array([1, 0], dtype=int32)
         elif self.target_char_cat_phase == 'BSB':
@@ -286,15 +333,14 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
-        self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # instantiate relevant variables
-        time_start_mu = now_mu() & ~0x7     # store reference time for device synchronization
-        ion_state = (-1, 0, int64(0))    # store ion state for adaptive readout
-        herald_counter = 0                  # store herald attempts
+        time_start_mu = now_mu() & ~0x7 # store reference time for device synchronization
+        ion_state = (-1, 0, int64(0))   # store ion state for adaptive readout
+        herald_counter = 0              # store herald attempts
 
         # main loop
         for trial_num in range(self.repetitions):
@@ -319,7 +365,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 herald_counter = 0
 
                 while True:
-                    # check heralding OK (otherwise execution is blocked
+                    # check heralding OK (otherwise execution is blocked)
                     if herald_counter >= self.max_herald_attempts:
                         print("\t\tWarning: too many heralds. Moving onto next configuration.")
                         self.core.break_realtime()  # add slack
@@ -327,6 +373,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
                     # add slack for execution
                     self.core.break_realtime()
+
 
                     '''INITIALIZE ION'''
                     # initialize ion in S-1/2 state & SBC to ground state
@@ -345,17 +392,19 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     # sigma_x: select cat vs coherent state
                     if self.enable_motion_sigmax:
                         self.pulse_sigmax(time_start_mu, 0, True)
-
                     # bichromatic interaction to generate motional state
                     if self.enable_motion_cat:
                         self.pulse_bichromatic(time_start_mu, self.time_motion_cat_mu,
                                                self.phases_motion_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
+                    # anti-sigma_x: return to S-state
+                    if self.enable_motion_antisigmax:
+                        self.pulse_sigmax(time_start_mu, self.phase_antisigmax_pow, True)
 
                     # herald ion via state-dependent fluorescence (to projectively disentangle spin/motion)
                     if self.enable_motion_herald:
-                        ion_state = self.readout_adaptive_subsequence.run()
-                        delay_mu(20000)
+                        ion_state = self.readout_subsequence.run()
+                        delay_mu(self.time_adapt_read_slack_mu)
                         self.pump.off()
 
                         # ensure dark state (flag is 0)
@@ -369,39 +418,37 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                     break
 
 
-                '''DIRECT CHARACTERISTIC MEASUREMENT'''
-                # prepare spin state for characteristic readout
-                # note: need to set correct profile for normal quenching
-                # otherwise might be stuck in SBC quench params)
-                self.pump.readout()
-                self.repump_qubit.on()
-                delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                self.repump_qubit.off()
-
-                # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
-                self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow, characteristic_axis_bool)
-
-                # char read: bichromatic
-                self.pulse_bichromatic(time_start_mu, time_char_cat_mu,
-                                       char_read_phases,
-                                       freq_cat_center_ftw, freq_cat_secular_ftw)
-
-                '''READOUT'''
-                # only read out if no boooboo
+                '''READOUT: DIRECT CHARACTERISTIC MEASUREMENT'''
+                # only bother continuing with readout if no boooboo
                 if herald_counter < self.max_herald_attempts:
+                    # prepare spin state for characteristic readout
+                    # note: need to set correct profile for normal quenching
+                    # otherwise might be stuck in SBC quench params)
+                    self.pump.readout()
+                    self.repump_qubit.on()
+                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                    self.repump_qubit.off()
+
+                    # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
+                    self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow, characteristic_axis_bool)
+
+                    # char read: bichromatic
+                    self.pulse_bichromatic(time_start_mu, time_char_cat_mu,
+                                           char_read_phases,
+                                           freq_cat_center_ftw, freq_cat_secular_ftw)
+
                     # read out fluorescence & clean up loop
-                    self.readout_subsequence.run_dma()
-                    counts_res = self.readout_subsequence.fetch_count()
+                    ion_state = self.readout_subsequence.run()
                 else:
                     # return -1 so user knows booboo happened
-                    counts_res = -1
+                    ion_state = (-1, -1, int64(0))
                     self.check_termination() # check termination b/c we haven't in a while
                     self.core.break_realtime()
 
                 # save results
                 self.rescue_subsequence.resuscitate()
                 self.update_results(freq_cat_center_ftw,
-                                    counts_res,
+                                    ion_state[0],
                                     freq_cat_secular_ftw,
                                     time_char_cat_mu,
                                     phase_char_cat_pow,

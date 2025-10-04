@@ -25,7 +25,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         # hardware values - default
         'ampl_doublepass_default_asf',
         'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
-        'time_herald_slack_mu',
+        'time_herald_slack_mu', 'time_adapt_read_slack_mu', 'max_herald_attempts',
 
         # hardware values - cat & readout
         'ampls_cat_asf', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phase_cat1_antisigmax_pow',
@@ -33,8 +33,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         'ampl_729_readout_asf', 'att_reg_sigmax', 'att_reg_bichromatic', 'att_reg_readout',
 
         # configs
-        'profile_729_SBC', 'profile_729_target',
-        'config_experiment_list', 'max_herald_attempts',
+        'profile_729_SBC', 'profile_729_target', 'config_experiment_list',
     }
 
     def build_experiment(self):
@@ -143,7 +142,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
                                       "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
                                       "odd or even superposition is associated with the dark state.")
-        self.setattr_argument("phase_cat1_antisigmax_turns",    NumberValue(default=0., precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"),
+        self.setattr_argument("phase_cat1_antisigmax_turns",    NumberValue(default=0.25, precision=3, step=0.1, min=-1.0, max=1.0, scale=1., unit="turns"),
                               group='cat1.config',
                               tooltip="Relative phase applied for the anti-sigma_x pulse.\n"
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
@@ -303,7 +302,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         ### MAGIC NUMBERS ###
         # extra slack after heralding to prevent RTIOUnderflow errors
-        self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)
+        self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us) # always add slack immediately after adaptive readout
+        self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)   # add slack to RTIOCounter only if heralding succeeds
         self.max_herald_attempts =  200 # max number of herald attempts before config is skipped
 
 
@@ -529,7 +529,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
                         ion_state = self.readout_adaptive_subsequence.run()
-                        delay_mu(20000) # add slack following completion
+                        delay_mu(self.time_adapt_read_slack_mu) # add slack following completion
                         self.pump.off()
 
                         # ensure dark state (flag is 0)
@@ -568,7 +568,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     # cat2 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat2_herald:
                         ion_state = self.readout_adaptive_subsequence.run()
-                        delay_mu(20000) # add slack following completion
+                        delay_mu(self.time_adapt_read_slack_mu) # add slack following completion
                         self.pump.off()
 
                         # ensure dark state (flag is 0)
