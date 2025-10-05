@@ -6,6 +6,7 @@ from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon
 )
+# todo: migrate readout to adaptive for speed lol
 
 
 class CatStateCharacterize(LAXExperiment, Experiment):
@@ -13,8 +14,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     Experiment: Cat State Characterize
 
     Create and characterize cat states with projective state preparation.
-    Uses adaptive MLE readout to reduce state determination times and
-        extend available coherence times.
+    Uses adaptive readout to reduce timing overheads and extend available coherence times.
     """
     name = 'Cat State Characterize'
     kernel_invariants = {
@@ -318,8 +318,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.ampl_sigmax_asf =  self.qubit.amplitude_to_asf(self.ampl_sigmax_pct / 100.)
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
 
-        # tmp remove - sigma_x phases
-
         # defaults - cat
         freq_cat_center_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                               for freq_mhz in self.freq_cat_center_mhz_list])
@@ -465,9 +463,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         ion_state = (-1, 0, int64(0))       # store ion state for adaptive readout
         herald_counter = 0                  # store herald attempts
 
-        # main loop
+        # MAIN LOOP
         for trial_num in range(self.repetitions):
-            # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 '''PREPARE & CONFIGURE'''
