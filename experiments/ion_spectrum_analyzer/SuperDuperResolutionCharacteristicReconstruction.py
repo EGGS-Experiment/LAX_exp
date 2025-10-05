@@ -674,6 +674,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # run pulse
         self.qubit.singlepass0.sw.on()
+        # todo: should singlepass1 be off?
         self.qubit.singlepass1.sw.on()
         if is_real:
             self.qubit.on()

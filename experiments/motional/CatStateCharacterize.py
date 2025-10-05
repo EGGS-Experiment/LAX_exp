@@ -70,7 +70,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for default beam parameters.
         """
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0918, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0978, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
                               group="default.sigmax",
                               tooltip="Frequency for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
@@ -82,7 +82,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group="default.sigmax",
                               tooltip="DDS attenuation for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=1.21, precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=2.24, precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
                               group="default.sigmax",
                               tooltip="Pulse time for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
@@ -133,7 +133,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for bichromatic/cat pulse #1.
         """
         # cat #1 config (sigma_x only)
-        self.setattr_argument("enable_cat1_sigmax",     BooleanValue(default=False), group='cat1.config',
+        self.setattr_argument("enable_cat1_sigmax",     BooleanValue(default=True), group='cat1.config',
                               tooltip="Applies a sigma_x pulse BEFORE the 1st bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
                                       "If sigma_x is disabled (i.e. False), the bichromatic pulse creates a superposition state (e.g. cat state).")
@@ -156,7 +156,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
-        self.setattr_argument("enable_cat1_quench",         BooleanValue(default=True), group='cat1.config',
+        self.setattr_argument("enable_cat1_quench",         BooleanValue(default=False), group='cat1.config',
                               tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
@@ -189,7 +189,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for bichromatic/cat pulse #2.
         """
         # cat #2 config (sigma_x only)
-        self.setattr_argument("enable_cat2_sigmax",       BooleanValue(default=True),
+        self.setattr_argument("enable_cat2_sigmax",       BooleanValue(default=False),
                               group='cat2.config',
                               tooltip="Applies a sigma_x pulse BEFORE the 2nd bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
@@ -209,16 +209,16 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # cat2 - config
-        self.setattr_argument("enable_cat2_bichromatic",  BooleanValue(default=True),
+        self.setattr_argument("enable_cat2_bichromatic",  BooleanValue(default=False),
                               group='cat2.config',
                               tooltip="Enables application of the 2nd bichromatic pulse.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
-        self.setattr_argument("enable_cat2_herald",   BooleanValue(default=True), group='cat2.config',
+        self.setattr_argument("enable_cat2_herald",   BooleanValue(default=False), group='cat2.config',
                               tooltip="Enables spin-state heralding via state-selective fluorescence. "
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
-        self.setattr_argument("enable_cat2_quench",   BooleanValue(default=True), group='cat2.config',
+        self.setattr_argument("enable_cat2_quench",   BooleanValue(default=False), group='cat2.config',
                               tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n")
@@ -274,7 +274,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "This is applied via the main doublepass.")
         self.setattr_argument("freq_729_readout_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.9851]),
+                                                                    ExplicitScan([101.4308]),
                                                                     CenterScan(101.9851, 0.01, 0.0002, randomize=True),
                                                                     RangeScan(101.9801, 101.9901, 50, randomize=True),
                                                                 ],
@@ -285,8 +285,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "This is applied via the main doublepass.")
         self.setattr_argument("time_729_readout_us_list",    Scannable(
                                                                 default=[
-                                                                    ExplicitScan([122.9]),
-                                                                    RangeScan(0, 1000, 100, randomize=True),
+                                                                    # ExplicitScan([122.9]),
+                                                                    RangeScan(0, 200, 200, randomize=True),
                                                                 ],
                                                                 global_min=1, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
@@ -297,7 +297,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
-        '''GENERAL SETUP'''
+        '''
+        GENERAL SETUP
+        '''
         self._prepare_argument_checks()
 
         ### MAGIC NUMBERS ###
@@ -320,11 +322,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # defaults - cat
         freq_cat_center_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                              for freq_mhz in self.freq_cat_center_mhz_list])
+                                           for freq_mhz in self.freq_cat_center_mhz_list])
         freq_cat_secular_ftw_list = array([self.qubit.singlepass0.frequency_to_ftw(freq_khz * kHz)
                                            for freq_khz in self.freq_cat_secular_khz_list])
-        self.ampls_cat_asf =    array([self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
-                                       for ampl_pct in self.ampls_cat_pct])
+        self.ampls_cat_asf =        array([self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+                                           for ampl_pct in self.ampls_cat_pct])
 
 
         '''
@@ -344,14 +346,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             time_ramsey_delay_mu_list = array([0], dtype=int64)
 
         # cat2 values
-        self.phase_cat2_sigmax_pow =    self.qubit.turns_to_pow(self.phase_cat2_sigmax_turns)
-        self.phase_cat2_antisigmax_pow = self.qubit.turns_to_pow(self.phase_cat2_antisigmax_turns)
+        self.phase_cat2_sigmax_pow =        self.qubit.turns_to_pow(self.phase_cat2_sigmax_turns)
+        self.phase_cat2_antisigmax_pow =    self.qubit.turns_to_pow(self.phase_cat2_antisigmax_turns)
         self.phases_cat2_cat_pow =    [self.qubit.singlepass0.turns_to_pow(phas_pow)
                                        for phas_pow in self.phases_cat2_cat_turns]
 
         if self.enable_cat2_bichromatic:
             time_cat2_cat_mu_list =   array([self.core.seconds_to_mu(time_us * us)
-                                                 for time_us in self.time_cat2_cat_us_list], dtype=int64)
+                                             for time_us in self.time_cat2_cat_us_list], dtype=int64)
             phase_cat2_cat_pow_list = array([self.qubit.singlepass0.turns_to_pow(phas_pow)
                                              for phas_pow in self.phase_cat2_cat_turns_list], dtype=int32)
         else:
@@ -534,6 +536,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                             herald_counter += 1 # increment herald counter to check for errors
                             continue
                         # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
+                        # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
                         at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
 
                     # cat1 - quench spin-up to spin-down; can be used to create mixed state
@@ -563,6 +566,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                         self.pulse_sigmax(time_start_mu, self.phase_cat2_antisigmax_pow)
 
                     # cat2 - force herald (to projectively disentangle spin/motion)
+                    # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
                     if self.enable_cat2_herald:
                         ion_state = self.readout_adaptive_subsequence.run()
                         delay_mu(self.time_adapt_read_slack_mu) # add slack following completion
@@ -630,6 +634,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param phas_pow: relative phase offset for the beam.
         """
         # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
             profile=self.profile_729_target,
@@ -669,6 +674,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
         """
         # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
             pow_=0, profile=self.profile_729_target,
@@ -706,6 +712,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_729_readout_asf,
                           pow_=0, profile=self.profile_729_target,
                           phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
@@ -721,6 +728,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # run readout pulse
         self.qubit.singlepass0.sw.on()
+        # todo: this should be off, right???
         self.qubit.singlepass1.sw.on()
         self.qubit.on()
         delay_mu(time_pulse_mu)

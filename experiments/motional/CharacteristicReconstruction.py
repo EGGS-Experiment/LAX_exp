@@ -488,6 +488,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
 
         # run pulse
         self.qubit.singlepass0.sw.on()
+        # todo: should sp1 be off???
         self.qubit.singlepass1.sw.on()
 
         # only fire sigma_x pulse if measuring Re[\chi(\beta)]

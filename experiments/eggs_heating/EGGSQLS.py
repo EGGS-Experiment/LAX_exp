@@ -3,11 +3,10 @@ from sipyco import pyon
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout, QubitRAP
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM,
+    SidebandReadout, QubitRAP
 )
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
@@ -53,8 +52,7 @@ class EGGSQLS(LAXExperiment, Experiment):
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.sidebandreadout_subsequence = SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.initialize_subsequence = InitializeQubit(self)
