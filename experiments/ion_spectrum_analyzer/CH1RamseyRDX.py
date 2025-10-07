@@ -80,8 +80,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
         self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
         self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7394, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
-        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=100., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
-        self.setattr_argument("time_rap_us",            NumberValue(default=500., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
+        self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=72., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
+        self.setattr_argument("time_rap_us",            NumberValue(default=400., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
         # configurable freq & sweeps
         self.setattr_argument("freq_heating_carrier_mhz_list", Scannable(

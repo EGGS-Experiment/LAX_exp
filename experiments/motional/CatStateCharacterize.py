@@ -4,7 +4,7 @@ from numpy import array, int32, int64
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon
+    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive, RescueIon, QubitRAP
 )
 # todo: migrate readout to adaptive for speed lol
 
@@ -20,34 +20,44 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     kernel_invariants = {
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'readout_adaptive_subsequence', 'rescue_subsequence',
+        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence',
 
         # hardware values - default
-        'ampl_doublepass_default_asf',
-        'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
+        'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
         'time_herald_slack_mu', 'time_adapt_read_slack_mu', 'max_herald_attempts',
 
-        # hardware values - cat & readout
+        # hardware values - cat
         'ampls_cat_asf', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phase_cat1_antisigmax_pow',
         'phase_cat2_sigmax_pow', 'phase_cat2_antisigmax_pow', 'phases_cat2_cat_pow', 'phases_cat2_cat_update_dir',
-        'ampl_729_readout_asf', 'att_reg_sigmax', 'att_reg_bichromatic', 'att_reg_readout',
+
+        # hardware values - readout
+        'readout_config', 'ampl_729_readout_asf',
+        'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         # configs
-        'profile_729_SBC', 'profile_729_target', 'config_experiment_list',
+        'profile_729_SBC', 'profile_729_RAP', 'profile_729_target',
+        'att_reg_sigmax', 'att_reg_bichromatic', 'att_reg_readout_sbr', 'att_reg_readout_rap',
+        'config_experiment_list',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("readout_type",   EnumerationValue(["None", "SBR", "RAP"], default="RAP"),
+                              tooltip="None: NO 729nm pulses are applied before state-selective readout.\n"
+                                      "SBR (Sideband Ratio): compares RSB and BSB amplitudes.\n"
+                                      "RAP (Rapid Adiabatic Passage): Does RAP to measure fock state overlap.\n"
+                                      "Note: readout pulses are NOT phase coherent with any bichromatic/sigma_x pulses.")
 
         # allocate relevant beam profiles
         self.profile_729_SBC =      1
+        self.profile_729_RAP =      2
         self.profile_729_target =   6
 
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
@@ -64,6 +74,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self._build_arguments_cat1()
         self._build_arguments_cat2()
         self._build_arguments_readout()
+
+        # instantiate RAP here since it relies on experiment arguments
+        self.rap_subsequence = QubitRAP(
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
+            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+        )
 
     def _build_arguments_default(self):
         """
@@ -260,38 +276,49 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         Build arguments for readout pulse.
         """
-        self.setattr_argument("enable_729_readout",     BooleanValue(default=True), group="readout_729",
-                              tooltip="Enables 729nm-based readout (e.g. sideband ratio, BSB rabi).\n"
-                                      "If this is disabled, then NO 729nm pulses are applied before state-selective readout.\n"
-                                      "Note: readout pulses are NOT phase coherent with any bichromatic/sigma_x pulses.")
+        # sideband-type readout (SBR)
         self.setattr_argument("ampl_729_readout_pct",   NumberValue(default=50., precision=3, step=5, min=0.01, max=50, unit="%", scale=1.),
-                              group="readout_729",
+                              group="read.SBR",
                               tooltip="729nm DDS amplitude (in percent of full scale) to use for readout.\n"
                                       "This is applied via the main doublepass.")
         self.setattr_argument("att_729_readout_db", NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
-                              group="readout_729",
+                              group="read.SBR",
                               tooltip="729nm DDS attenuation (in dB) to use for readout. "
                                       "This is applied via the main doublepass.")
         self.setattr_argument("freq_729_readout_mhz_list",   Scannable(
                                                                 default=[
                                                                     ExplicitScan([101.4308]),
-                                                                    CenterScan(101.9851, 0.01, 0.0002, randomize=True),
-                                                                    RangeScan(101.9801, 101.9901, 50, randomize=True),
+                                                                    CenterScan(101.4308, 0.01, 0.0002, randomize=True),
+                                                                    RangeScan(101.4288, 101.4328, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
-                                                            ), group="readout_729",
+                                                            ),
+                              group="read.SBR",
                               tooltip="729nm DDS frequencies to use for readout. "
                                       "This is applied via the main doublepass.")
         self.setattr_argument("time_729_readout_us_list",    Scannable(
                                                                 default=[
-                                                                    # ExplicitScan([122.9]),
-                                                                    RangeScan(0, 200, 200, randomize=True),
+                                                                    ExplicitScan([27.35]),
+                                                                    RangeScan(1, 800, 200, randomize=True),
                                                                 ],
                                                                 global_min=1, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
-                                                            ), group="readout_729",
+                                                            ),
+                              group="read.SBR",
                               tooltip="729nm readout pulse times.")
+
+        # RAP-based readout
+        self.setattr_argument("att_rap_db",     NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.),
+                              group="read.RAP")
+        self.setattr_argument("ampl_rap_pct",   NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.),
+                              group="read.RAP")
+        self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7673, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.),
+                              group='read.RAP')
+        self.setattr_argument("freq_rap_dev_khz",   NumberValue(default=72., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.),
+                              group='read.RAP')
+        self.setattr_argument("time_rap_us",        NumberValue(default=400., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.),
+                              group="read.RAP")
 
     def prepare_experiment(self):
         """
@@ -307,6 +334,38 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us) # always add slack immediately after adaptive readout
         self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)   # add slack to RTIOCounter only if heralding succeeds
         self.max_herald_attempts =  200 # max number of herald attempts before config is skipped
+
+        # configure readout method
+        if 'SBR' in self.readout_type:      # 1 is SBR
+            self.readout_config = 1
+            freq_729_readout_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                for freq_mhz in self.freq_729_readout_mhz_list], dtype=int32)
+            time_729_readout_mu_list =   array([self.core.seconds_to_mu(time_us * us)
+                                                for time_us in self.time_729_readout_us_list], dtype=int64)
+        elif 'RAP' in self.readout_type:    # 2 is RAP
+            self.readout_config = 2
+            freq_729_readout_ftw_list = array([1], dtype=int32)
+            time_729_readout_mu_list = array([256], dtype=int64)
+        elif 'None' in self.readout_type:   # -1 is None
+            self.readout_config = -1
+            freq_729_readout_ftw_list = array([1], dtype=int32)
+            time_729_readout_mu_list = array([256], dtype=int64)
+
+        # do a final check of the readout_type argument
+        if not any(kw in self.readout_type for kw in ('None', 'RAP', 'SBR')):
+            raise ValueError("Invalid readout type. Must be one of (None, SBR, RAP).")
+
+
+        '''
+        CONVERT VALUES TO MACHINE UNITS - READOUT
+        '''
+        # prepare RAP arguments
+        self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
+        self.freq_rap_dev_ftw = self.qubit.frequency_to_ftw(self.freq_rap_dev_khz * kHz)
+        self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us * us)
+
+        # readout ampl for SBR
+        self.ampl_729_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_729_readout_pct / 100.)
 
 
         '''
@@ -370,18 +429,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         elif self.target_cat2_cat_phase == 'RSB+BSB':
             self.phases_cat2_cat_update_dir = array([1, 1], dtype=int32)
 
-        # readout pulse
-        self.ampl_729_readout_asf =  self.qubit.amplitude_to_asf(self.ampl_729_readout_pct / 100.)
-
-        if self.enable_729_readout:
-            freq_729_readout_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                for freq_mhz in self.freq_729_readout_mhz_list], dtype=int32)
-            time_729_readout_mu_list =   array([self.core.seconds_to_mu(time_us * us)
-                                                for time_us in self.time_729_readout_us_list], dtype=int64)
-        else:
-            freq_729_readout_ftw_list =  array([0], dtype=int32)
-            time_729_readout_mu_list =   array([0], dtype=int64)
-
 
         '''
         CREATE ATTENUATION REGISTERS
@@ -402,9 +449,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
         )
 
-        # attenuation register - readout: singlepasses set to default
-        self.att_reg_readout = 0x00000000 | (
+        # attenuation register - readout (SBR): singlepasses set to default
+        self.att_reg_readout_sbr = 0x00000000 | (
                 (att_to_mu(self.att_729_readout_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+        )
+
+        # attenuation register - readout (RAP): singlepasses set to default
+        self.att_reg_readout_rap = 0x00000000 | (
+                (att_to_mu(self.att_rap_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
                 (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
@@ -457,6 +512,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+        self.core.break_realtime()
+
+        # configure RAP pulse
+        if self.readout_config == 2:
+            self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
+            delay_mu(50000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -485,8 +546,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
                 ]
 
-                # clear herald counter
-                herald_counter = 0
+                herald_counter = 0  # clear herald counter
 
                 while True:
                     # check heralding OK (otherwise execution is blocked
@@ -495,8 +555,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                         self.core.break_realtime()  # add slack
                         break
 
-                    # add slack for execution
-                    self.core.break_realtime()
+                    self.core.break_realtime()  # add slack for execution
+                    delay_mu(125000)    # add even more slack lol
 
 
                     '''INITIALIZE ION STATE'''
@@ -594,8 +654,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 # only read out if no boooboo
                 if herald_counter < self.max_herald_attempts:
                     # 729nm based readout (sideband ratio, rabi flopping)
-                    if self.enable_729_readout:
-                        self.pulse_readout(time_729_readout_mu, freq_729_readout_ftw)
+                    if self.readout_config == 1:
+                        self.pulse_readout_sbr(time_729_readout_mu, freq_729_readout_ftw)
+                    # RAP based readout
+                    elif self.readout_config == 2:
+                        self.pulse_readout_rap()
 
                     # read out fluorescence & clean up loop
                     self.readout_subsequence.run_dma()
@@ -705,9 +768,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.qubit.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
-    def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
+    def pulse_readout_sbr(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
-        Run a readout pulse.
+        Run a sideband readout pulse.
         :param time_pulse_mu: length of pulse (in machine units).
         :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
@@ -724,7 +787,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
                                       profile=self.profile_729_target,
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-        self.qubit.cpld.set_all_att_mu(self.att_reg_readout)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_sbr)
 
         # run readout pulse
         self.qubit.singlepass0.sw.on()
@@ -734,6 +797,25 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         delay_mu(time_pulse_mu)
         self.qubit.off()
         self.qubit.singlepass1.sw.off()
+
+    @kernel(flags={"fast-math"})
+    def pulse_readout_rap(self) -> TNone:
+        """
+        Run a RAP readout pulse.
+        """
+        # set up relevant beam waveforms
+        self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
+                                      asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
+                                      asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
+
+        # run RAP readout pulse
+        self.rap_subsequence.run_rap(self.time_rap_mu)
 
 
     '''
