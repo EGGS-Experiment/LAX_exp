@@ -8,14 +8,14 @@ import LAX_exp.experiments.parametric.ParametricSweep as ParametricSweep
 from random import shuffle
 from itertools import groupby
 from numpy.linalg import norm
-from numpy import array, int32, zeros, mean, argsort, linspace, abs, angle, exp, pi
+from numpy import array, zeros, mean, argsort, linspace, abs, angle, exp, pi
 
 from EGGS_labrad.config.dc_config import dc_config
 
-# todo: implement adaptive option
-# todo: improve use of INITIAL_MODE_VECTORS/integrate with adaptive option
-# todo: reduce/simplify operation, reduce host-kernel stuff, make less spiderweb
-# todo: store current values in different place then the global storage to allow rejection/redo
+# todo: implement adaptive option, and improve use of INITIAL_MODE_VECTORS
+# todo: need to create a "running store"/queue for host operations that's NOT used for storage - this will simplify host/kernel interactions
+# todo: create a "mode config" of [[mode0_att, mode0_freq], [mode1_att, mode1_freq], ...]; also allows freq updating
+# todo: similarly create like a dict for "axis config"
 
 
 class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
@@ -31,8 +31,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # modulation & modes
         "freq_mode_ftw_list", "mode_list_idx", "att_db_bounds",
 
-        # voltages
-        'dc_config_channeldict', "dc_scan_range_volts_list", "dc_channel_axes_nums", "dc_channel_axes_names",
+        # voltages & scan axes
+        'dc_config_channeldict', "dc_channel_axes_nums", "dc_channel_axes_names", "dc_scan_range_volts_list",
         "time_dc_synchronize_delay_mu",
 
         # beam values
@@ -197,6 +197,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.setattr_dataset('sweep_results')
 
         # _host_sweep_counter: index iterator for ALMOST ALL of these data structures
+        #   basically used to keep track of time/number of scans we've done
         # note: used by almost ALL functions (i.e. wherever global_optima or sweep_results datasets are used)
         self._host_sweep_counter =  0
 
@@ -207,8 +208,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # create data structures to hold the demodulated signal at each voltage position
         # note: used only by _demodulate counts (to store results) and process_optimum (to get results)
-        self._host_demod_holder =       zeros((2, 100, 4), dtype=float)
-        self._host_demod_holder_idx =   array([0, 0])   # needed to support scans with variable number of steps
+        # note: yes, appending to array is inefficient, but reduces complexity of management
+        self._host_demod_holder = [[], []]
 
         # guess initial mode vectors
         # todo: improve & generalize
@@ -281,6 +282,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     def predict_optimum(self) -> TBool:
         """
         Predicts location of global micromotion optimum using linear fits to measured optima of each mode.
+        NOTE: interacts with _host_sweep_counter, sweep_results, _host_voltage_optima_current, global_optima
         :return: whether we have converged on the global optimum.
         """
         print("\tBEGIN SWEEP #{:d}: {:}".format(
@@ -310,7 +312,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             opt_v_axis_0 = (m1 * b0 - m0 * b1) / (m1 - m0)
             opt_v_axis_1 = - (b1 - b0) / (m1 - m0)
 
-        # if we have no data, simply use the current voltages
+        # simply use current voltages if no previous data exists
         else:
             opt_v_axis_0 = self.trap_dc.trap_dc.voltage(self.dc_channel_axes_nums[0])
             opt_v_axis_1 = self.trap_dc.trap_dc.voltage(self.dc_channel_axes_nums[1])
@@ -330,22 +332,24 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         self.mutate_dataset('global_optima', self._host_sweep_counter, opt_v_arr)
 
         # check successive optima for convergence
-        if self._host_sweep_counter >= 2:
-            if norm(opt_v_arr - self.global_optima[self._host_sweep_counter - 1]) < self.CONVERGENCE_VOLTAGE_V:
-                print('STOPPING EARLY - CONVERGED ON VOLTAGE OPTIMUM (distance < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
-                return True
+        if ((self._host_sweep_counter >= 2) and
+                (norm(opt_v_arr - self.global_optima[self._host_sweep_counter - 1]) < self.CONVERGENCE_VOLTAGE_V)):
+            print('STOPPING EARLY - CONVERGED ON VOLTAGE OPTIMUM (distance < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
+            return True
         return False
 
     @rpc
     def prepare_voltage_scan(self, voltage_axis: TInt32) -> TArray(TFloat, 1):
         """
         Use existing data to generate the voltage list for the sweep.
+        NOTE: interacts with sweep_results, _host_voltage_optima_current, _host_sweep_counter
         :param voltage_axis: the voltage axis to be swept.
         :return: an array of voltages to scan.
         """
         # if we have data, use relative difference between previous optima to set the scan range
         if self._host_sweep_counter >= 1:
             # get previous optima
+            # todo: do
             opt_prev_mode0 = self.sweep_results[self._host_sweep_counter - 1, 0, 0:2]
             opt_prev_mode1 = self.sweep_results[self._host_sweep_counter - 1, 1, 0:2]
 
@@ -380,6 +384,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         """
         Adjust attenuations for a given scan range to maximize the detected signal.
         This function aims to keep the correlated amplitude at ~0.2 (i.e. 20% correlation).
+        NOTE: interacts with sweep_results
         :param voltage_scan_v_arr: the list of voltages to scan.
         :return: the ideal attenuations to use for each mode.
         """
@@ -451,6 +456,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                           timestamp_mu_list: TArray(TInt64, 1)) -> TNone:
         """
         Demodulate PMT timestamps with respect to the modulation frequency.
+        NOTE: interacts with _host_demod_holder
         :param mode_idx: the mode being interrogated.
         :param freq_ftw: the modulation frequency (as a 32-bit frequency tuning word).
         :param voltage_v: the current electrode voltage (in volts).
@@ -468,11 +474,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         count_rate_hz =     len(timestamps_s) / (timestamps_s[-1] - timestamps_s[0])
 
         # store results in global parent dataset for post-processing
-        res_arr = array([freq_khz, voltage_v, correlated_ampl, correlated_phase])
+        res_arr = [freq_khz, voltage_v, correlated_ampl, correlated_phase]
         self.update_results(*res_arr, count_rate_hz)
-        # store results in holder for immediate processing
-        self._host_demod_holder[mode_idx, self._host_demod_holder_idx[mode_idx]] = res_arr
-        self._host_demod_holder_idx[mode_idx] += 1
+        self._host_demod_holder[mode_idx].append(res_arr) # store demodulated counts in holder for optimum extraction
 
     @rpc
     def process_optimum(self, voltage_axis: TInt32) -> TNone:
@@ -481,17 +485,17 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         This function simplifies host-kernel interactions since raw data is store on host-side.
         Note: this should only be called at the end of a voltage scan, since this updates internal
             counters/iterators (i.e. this function defines the end of a voltage scan).
+        NOTE: interacts with _host_demod_holder, _host_sweep_counter, _host_voltage_optima_current
         # todo: check results to ensure max corr ampl is above a given threshold
         :param voltage_axis: the voltage axis that was swept.
         """
         opt_res_store = []  # store processed optima
 
         # process optima separately for each mode
-        for mode_idx in self.mode_list_idx:
-            # get all recent mode data
-            res_arr = self._host_demod_holder[mode_idx, :self._host_demod_holder_idx[mode_idx]]
+        for mode_idx, demod_results in enumerate(self._host_demod_holder):
             # sort & group array by voltage (column 1), then average demodulated signal
             # note: sort is necessary here since groupby requires key/values to be contiguous
+            res_arr = array(demod_results)
             res_arr_tmp = res_arr[argsort(res_arr[:, 1])]
             res_arr_tmp = array([
                 mean(array([val for val in group]), axis=0)
@@ -527,17 +531,12 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
                     mode_idx, opt_voltage_err))
 
             # get full optima vector and store
-            if voltage_axis == 0:
-                opt_v_vector = [opt_voltage_v, self._host_voltage_optima_current[1]]
-            elif voltage_axis == 1:
-                opt_v_vector = [self._host_voltage_optima_current[0], opt_voltage_v]
+            opt_v_vector = self._host_voltage_optima_current
+            opt_v_vector[voltage_axis] = opt_voltage_v  # only update the voltage axis we just scanned
             opt_res_store.append([*opt_v_vector, opt_voltage_err, slope_ampl_mag])
 
-        # store results in dataset
+        # store results, clear holders, and update iterators
         self.mutate_dataset('sweep_results', self._host_sweep_counter, opt_res_store)
-
-        # clear stored demodulated counts (in _host_demod_holder) and update indices
-        self._host_demod_holder[:] = 0.
-        self._host_demod_holder_idx[:] = 0
+        self._host_demod_holder = [[], []]
         self._host_sweep_counter += 1
 
