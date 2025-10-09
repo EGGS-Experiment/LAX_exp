@@ -60,6 +60,10 @@ class DDSParametric(LAXDevice):
         self.off()
         delay_mu(5000)
 
+
+    '''
+    DEVICE FUNCTIONS
+    '''
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
         with parallel:
