@@ -197,32 +197,45 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # phaser - waveform - general
         self.setattr_argument("time_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Total MAIN pulse time per phaser pulse. "
                                       "This time is split among all PSK blocks and does not include any PSK delays.\n"
                                       "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
                                       "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of "
                                       "1ms + 21 * (100us * 2) = 5.2ms.")
         self.setattr_argument("att_phaser_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Apply a frequency offset via the phaser oscillators to avoid any DUC/NCO/TRF output spurs.\n"
                                       "Range is limited by the phaser oscillator freq range, i.e. [-10, 10] MHz (includes the frequencies in freq_osc_khz_list).")
         self.setattr_argument("freq_osc_khz_list",      PYONValue([-702.687, 702.687, 0., 0.]),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
         self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 10., 0.]),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Phaser oscillator amplitudes. Applied to both CH0 and CH1.\n"
                                       "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in devices.phaser.ch1.ampl_ch1_osc_scale_arr.")
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0.]),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
         self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.5]),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Sets the relative CH1 phase via the phaser oscillators.")
+        self.setattr_argument("ampl_osc_scale_list",    Scannable(
+                                                            default=[
+                                                                ExplicitScan([1.]),
+                                                                CenterScan(0.5, 0.5, 0.02, randomize=True),
+                                                                RangeScan(0., 1.0, 26, randomize=True),
+                                                            ],
+                                                            global_min=0., global_max=1., global_step=0.05,
+                                                            unit="kHz", scale=1, precision=3
+                                                        ),
+                              group="{}.wav".format(_argstr),
+                              tooltip="Amplitude scaling factor applied to ampl_osc_frac_list.\n"
+                                      "Enables the amplitude to be scanned when e.g. optimizing powers.\n"
+                                      "Scaling factor is applied equally to BOTH phaser output channels.")
 
     def _build_arguments_PSK(self):
         """
@@ -297,6 +310,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
         self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.phase_osc_sweep_turns_list = list(self.phase_osc_sweep_turns_list)
+        self.ampl_osc_scale_list = list(self.ampl_osc_scale_list)
         self.freq_sweep_arr = array(self.freq_sweep_arr, dtype=float)
         self.phase_sweep_arr = array(self.phase_sweep_arr, dtype=float)
 
@@ -309,6 +323,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             time_psk_delay_us_list_dj = [0]
         self._waveform_param_list = create_experiment_config(self.phase_osc_sweep_turns_list,
                                                              time_psk_delay_us_list_dj,
+                                                             self.ampl_osc_scale_list,
                                                              shuffle_config=False,
                                                              config_type=float)
         waveform_num_list = arange(len(self._waveform_param_list))
@@ -335,6 +350,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
         elif sum(self.ampl_osc_frac_list) >= 100.:
             raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
+        # todo: account for ampl_osc_scale_list
 
         # check that phaser oscillator phase arrays are valid
         if ((not isinstance(self.phase_osc_turns_list, list)) or
@@ -385,11 +401,13 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # check that waveforms are not too many/not sweeping too hard
         num_waveforms_to_record = (len(list(self.phase_osc_sweep_turns_list)) *
-                                   len(list(self.time_psk_delay_us_list)))
+                                   len(list(self.time_psk_delay_us_list)) *
+                                   len(list(self.ampl_osc_scale_list)))
         if num_waveforms_to_record > PULSESHAPER_MAX_WAVEFORMS:
             raise ValueError("Too many waveforms to record ({:d}) - must be fewer than {:d}. "
-                             "Reduce length of either phase_osc_sweep_turns_list or "
-                             "time_psk_delay_us_list.".format(num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
+                             "Reduce length of any of [phase_osc_sweep_turns_list, "
+                             "time_psk_delay_us_list, ampl_osc_scale_list].".format(
+                num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -456,16 +474,18 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             # extract waveform params
             phase_sweep_turns = waveform_params[0]
             time_us_delay = waveform_params[1]
+            ampl_osc_scale_list = waveform_params[2]
 
             # case - PSK + ramsey: create block_time_list_us with target delay time
             if self.enable_phase_shift_keying and self.enable_psk_delay:
                 block_time_list_us = riffle([self.time_heating_us / num_psk_blocks] * num_psk_blocks,
                                             [time_us_delay] * (num_psk_blocks - 1))
 
-            # create local copy of _osc_vals_blocks and update with target phase
+            # create local copy of _osc_vals_blocks and update with waveform parameters
             # note: no need to deep copy b/c it's filled w/immutables
             _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
             _osc_vals_blocks_local[:, :, 1] += self.phase_sweep_arr * phase_sweep_turns
+            _osc_vals_blocks_local[:, :, 0] *= ampl_osc_scale_list
 
             # specify sequence as a list of blocks, where each block is a dict
             # note: have to instantiate locally each loop b/c dicts aren't deep copied
@@ -571,7 +591,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                         # configure readout
                         self.core.break_realtime()
                         if self.enable_SBR:
-                            self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                            self.qubit.set_mu(freq_readout_ftw,
+                                              asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                               profile=self.profile_729_sb_readout,
                                               phase_mode=PHASE_MODE_CONTINUOUS)
                             delay_mu(25000)
@@ -602,6 +623,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                             freq_sweep_hz,
                             waveform_params[0], # note: manually expand waveform_params b/c no variadics in kernel
                             waveform_params[1],
+                            waveform_params[2],
                             phase_ch1_turns,
                             time_readout_mu
                         )
@@ -646,14 +668,14 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         Should be run during initialize_experiment.
         """
         # record phaser sequences onto DMA for each waveform parameter
-        for i in range(len(self._waveform_param_list)):
+        for _wav_idx in range(len(self._waveform_param_list)):
             # get waveform for given parameters
             # note: use sync RPC to reduce significant overhead of direct data transfer
-            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(i)
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(_wav_idx)
 
             # record phaser pulse sequence and save returned waveform ID
             # note: no need to add slack b/c waveform_record does it for us
-            self.waveform_index_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
+            self.waveform_index_to_pulseshaper_id[_wav_idx] = self.pulse_shaper.waveform_record(
                 _wav_data_ampl, _wav_data_phas, _wav_data_time
             )
 
