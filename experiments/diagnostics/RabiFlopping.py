@@ -26,7 +26,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         'pulseshape_subsequence',
 
         # configs
-        'profile_729_readout', 'profile_729_SBC'
+        'profile_729_readout', 'profile_729_SBC',
     }
 
     def build_experiment(self):

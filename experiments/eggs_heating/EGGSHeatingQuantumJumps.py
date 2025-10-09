@@ -1,12 +1,9 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (InitializeQubit, Readout, RescueIon,
-                                         SidebandCoolContinuous, SidebandReadout,
-                                         SidebandCoolContinuousRAM)
+                                         SidebandReadout, SidebandCoolContinuousRAM)
 from sipyco import pyon
 
 
@@ -51,18 +48,15 @@ class EGGSHeatingQuantumJumps(LAXExperiment, Experiment):
         self.setattr_argument("count_threshold",                NumberValue(default=85, precision=0, step=10, min=0, max=250), group='EGGS_Heating.quantum_jumps')
         self.setattr_argument("quantum_jump_threshold_phonon",  NumberValue(default=0.75, precision=2, step=0.1, min=0., max=1.2), group='EGGS_Heating.quantum_jumps')
 
-        # get subsequences
-        self.initialize_subsequence =           InitializeQubit(self)
-        # self.sidebandcool_subsequence =         SidebandCoolContinuous(self)
-
+        # declare profiles for subsequences
         self.profile_729_readout = 0
         self.profile_729_SBC = 1
 
         # get subsequences
+        self.initialize_subsequence =           InitializeQubit(self)
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=200
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
         self.sidebandreadout_subsequence = SidebandReadout(self, profile_dds=self.profile_729_readout)
         self.readout_subsequence =              Readout(self)

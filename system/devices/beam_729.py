@@ -118,15 +118,21 @@ class Beam729(LAXDevice):
             self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
                                     asf=self.ampl_singlepass0_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(25000)
             self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
                                     asf=self.ampl_singlepass1_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(25000)
             self.doublepass_inj.set_mu(self.freq_doublepass_inj_default_ftw,
                                     asf=self.ampl_doublepass_inj_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(25000)
+
+        # ensure events finish completion (since they're pretty heavy tbh)
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        delay_mu(500000)
 
         # set AOMs for normal output/operation
         self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)

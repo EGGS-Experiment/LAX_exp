@@ -3,16 +3,13 @@ from artiq.coredevice import ad9910
 from numpy import int32, int64, array, zeros, ceil, arctan2, sum, pi, sqrt
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import (
-    InitializeQubit, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
-)
+from LAX_exp.system.subsequences import InitializeQubit, RescueIon, SidebandCoolContinuousRAM, ReadoutAdaptive
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 
 # todo: rename things from e.g. "pulse4" to e.g. "grid"
 # todo: make sure to unify names with characteristicreconstruction exp
 # todo: get tooltips from catchar
-# todo: add anti sigma_x
 
 
 class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment):
@@ -677,6 +674,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # run pulse
         self.qubit.singlepass0.sw.on()
+        # todo: should singlepass1 be off?
         self.qubit.singlepass1.sw.on()
         if is_real:
             self.qubit.on()

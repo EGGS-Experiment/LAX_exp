@@ -2,13 +2,13 @@ from artiq.experiment import *
 
 import os
 import h5py
-import socket
 import logging
 from time import localtime, strftime
 
 from datetime import datetime
-from numpy import array, zeros, int32, nan
+from socket import gethostname
 from abc import ABC, abstractmethod
+from numpy import array, zeros, int32, nan
 
 logger = logging.getLogger("artiq.master.experiments")
 
@@ -157,7 +157,20 @@ class LAXExperiment(LAXEnvironment, ABC):
         Mainly used to compile the initialize_, run_, and cleanup_ methods.
         Called at the end of LAXExperiment.prepare().
         """
-        '''COMPILE INITIALIZATION SEQUENCE'''
+        # create synchronization snippet
+        # note: timeline synchronization generally necessary to prevent e.g. RTIOUnderflows
+        _synchronize_timeline_code = (
+            "self.core.break_realtime()\n"          # ensure now_mu() is in the future
+            "self.core.wait_until_mu(now_mu())\n"   # synchronize timelines!
+            # note: final line of kernel_from_string MUST NOT have an "\n" character
+            #   since _synchronize_timeline_code is at end of e.g. initialize_ and cleanup_,
+            #   this final line has no \newline character
+            "delay_mu(1000000)"                     # add more slack (1ms)
+        )
+
+        '''
+        COMPILE INITIALIZATION SEQUENCE
+        '''
         # collate LAX objects to speed up experiment compilation and execution
         # note: objects should be initialized in the following order: devices, subsequences, sequences, then experiment
         _compile_device_list =      [obj
@@ -212,14 +225,19 @@ class LAXExperiment(LAXEnvironment, ABC):
         )
         # record DMA sequences and get DMA handles to play subsequences
         _initialize_code += _initialize_load_DMA_code
-        _initialize_code += "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
+
+        # force synchronization after initialize_
+        # note: final line of kernel_from_string MUST NOT have an "\n" character
+        _initialize_code += _synchronize_timeline_code
 
         # create kernel from code string and set as _initialize_experiment
         initialize_func = kernel_from_string(["self"], _initialize_code)
         setattr(self, '_initialize_experiment', initialize_func)
 
 
-        '''COMPILE CLEANUP SEQUENCE'''
+        '''
+        COMPILE CLEANUP SEQUENCE
+        '''
         # collate cleanup functions to speed up experiment compilation and execution
         # note: objects should be cleaned up in the following order: experiments, sequences, subsequences, then devices
         # i.e. reverse order of initialization
@@ -233,27 +251,31 @@ class LAXExperiment(LAXEnvironment, ABC):
         for i, obj in enumerate(_compile_sequence_list):
             if isinstance(obj, LAXSequence):
                 _cleanup_code += "self._LAXSequence_{}.cleanup_sequence()\n".format(i)
-                _initialize_code += "self.core.break_realtime()\n"
+                _cleanup_code += "self.core.break_realtime()\n"
 
         # code to cleanup subsequences
         for i, obj in enumerate(_compile_subsequence_list):
             if isinstance(obj, LAXSubsequence):
                 _cleanup_code += "self._LAXSubsequence_{}.cleanup_subsequence()\n".format(i)
-                _initialize_code += "self.core.break_realtime()\n"
+                _cleanup_code += "self.core.break_realtime()\n"
 
         # code to cleanup devices
         for i, obj in enumerate(_compile_device_list):
             if isinstance(obj, LAXDevice):
                 _cleanup_code += "self._LAXDevice_{}.cleanup_device()\n".format(i)
-                _initialize_code += "self.core.break_realtime()\n"
-        _cleanup_code += "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
+                _cleanup_code += "self.core.break_realtime()\n"
+
+        # force synchronization after cleanup_
+        _cleanup_code += _synchronize_timeline_code
 
         # create kernel from code string and set as _cleanup_experiment
         cleanup_func = kernel_from_string(["self"], _cleanup_code)
         setattr(self, '_cleanup_experiment', cleanup_func)
 
 
-        '''COMPILE MAIN SEQUENCE'''
+        '''
+        COMPILE MAIN SEQUENCE
+        '''
         # collate main sequence (i.e. everything in run) into a single function to speed up experiment compilation and execution
         _run_main_code = (
             # run sequence with error handling and regular termination checks
@@ -285,6 +307,11 @@ class LAXExperiment(LAXEnvironment, ABC):
             # add slack to default case
             "finally:\n"
             "\tself.core.break_realtime()\n"
+            
+            # synchronize timeline
+            "self.core.break_realtime()\n"
+            "self.core.wait_until_mu(now_mu())\n"
+            "delay_mu(1000000)\n"
             
             # cleanup sequence
             "self.core.break_realtime()\n"
@@ -443,7 +470,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             @inlineCallbacks
             def create_connection(msg):
                 self.cxn_async = yield connectAsync(
-                    os.environ["LABRADHOST"], port=7682, name="{:s} ({:s})".format("ARTIQ_EXP", socket.gethostname()),
+                    os.environ["LABRADHOST"], port=7682, name="{:s} ({:s})".format("ARTIQ_EXP", gethostname()),
                     username="", password=os.environ["LABRADPASSWORD"]
                 )
                 self.ws_async = self.cxn_async.warning_server
@@ -655,11 +682,11 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # create a synchronous connection to labrad
             # cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
-            cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
+            cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
 
             # create a synchronous connection to wavemeter labrad
             from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
-            cxn_wm = labrad.connect(multiplexer_config.ip, name="{:s}_({:s})".format("ARTIQ_EXP", socket.gethostname()), username="", password=LABRADPASSWORD)
+            cxn_wm = labrad.connect(multiplexer_config.ip, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
 
             # get relevant system values
             sys_vals.update(self._save_labrad_rf(cxn))
