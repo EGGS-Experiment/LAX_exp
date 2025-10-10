@@ -3,7 +3,6 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import ParametricExcite
-import LAX_exp.experiments.parametric.ParametricSweep as ParametricSweep
 
 from random import shuffle
 from itertools import groupby
@@ -15,9 +14,10 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: implement adaptive option, and improve use of INITIAL_MODE_VECTORS
 # todo: need to create a "running store"/queue for host operations that's NOT used for storage - this will simplify host/kernel interactions
 # todo: create a dict for "axis config"
+# todo: create function called reset_initial_voltages so we can reset upon error condition
 
 
-class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
+class MicromotionCompensation(LAXExperiment, Experiment):
     """
     Experiment: Micromotion Compensation
 
@@ -28,8 +28,8 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
     kernel_invariants = {
         # voltages & scan axes
-        'dc_config_channeldict', "dc_channel_axes_nums", "dc_channel_axes_names", "dc_scan_range_volts_list",
-        "time_dc_synchronize_delay_mu",
+        'dc_config_channeldict', "dc_channel_axes_nums", "dc_channel_axes_names",
+        "dc_scan_range_volts_list", "time_dc_synchronize_delay_mu",
 
         # DDS values
         "ampl_cooling_asf", "freq_cooling_ftw", "att_db_bounds",
@@ -165,8 +165,9 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # get attenuation bounds from dataset manager
         max_parametric_att_db = self.get_parameter('att_parametric_max_db', group='beams.att_db', override=False)
         if not (0. <= max_parametric_att_db <= 31.5):
-            raise ValueError("Max parametric DDS attenuation set incorrectly in dataset manager: {:}.".format(max_parametric_att_db))
-        self.att_db_bounds = array([max_parametric_att_db, 31.5])
+            raise ValueError("Max parametric DDS attenuation set incorrectly in dataset manager: {:}.".format(
+                max_parametric_att_db))
+        self.att_db_bounds = [max_parametric_att_db, 31.5]
 
         # convert cooling parameters to machine units
         self.ampl_cooling_asf = self.pump.amplitude_to_asf(self.ampl_cooling_pct / 100.)
@@ -222,6 +223,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
     def initialize_experiment(self):
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
+        self.core.break_realtime()
 
         # prepare cooling beams
         self.pump.rescue()
@@ -304,17 +306,17 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
         # simply use current voltages if no previous data exists
         else:
-            opt_v_axis_0 = self.trap_dc.trap_dc.voltage(self.dc_channel_axes_nums[0])
-            opt_v_axis_1 = self.trap_dc.trap_dc.voltage(self.dc_channel_axes_nums[1])
-        print('\t\tPredicted Optimum: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
+            opt_v_axis_0 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
+            opt_v_axis_1 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
+        print('\t\tPredicted Opt.: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds, then update
-        if (opt_v_axis_0 < self.dc_scan_range_volts_list[0, 0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0, 1])\
-                or (opt_v_axis_1 < self.dc_scan_range_volts_list[1, 0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1, 1]):
+        if (opt_v_axis_0 < self.dc_scan_range_volts_list[0][0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0][1])\
+                or (opt_v_axis_1 < self.dc_scan_range_volts_list[1][0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1][1]):
             raise ValueError("Error: predicted global optimum outside valid scan range.")
             # todo: reset to starting voltages upon error condition
-        self.trap_dc.trap_dc.voltage_fast(self.dc_channel_axes_nums[0], opt_v_axis_0)
-        self.trap_dc.trap_dc.voltage_fast(self.dc_channel_axes_nums[1], opt_v_axis_1)
+        self.trap_dc.voltage_fast(self.dc_channel_axes_nums[0], opt_v_axis_0)
+        self.trap_dc.voltage_fast(self.dc_channel_axes_nums[1], opt_v_axis_1)
 
         # store results
         opt_v_arr = array([opt_v_axis_0, opt_v_axis_1])
@@ -325,7 +327,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # check successive optima for convergence
         if ((self._host_sweep_counter >= 2) and
                 (norm(opt_v_arr - self.global_optima[self._host_sweep_counter - 1]) < self.CONVERGENCE_VOLTAGE_V)):
-            print('STOPPING EARLY - CONVERGED ON VOLTAGE OPTIMUM (distance < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
+            print('\tSTOP EARLY - CONVERGED ON VOLTAGE OPTIMUM (dist. < {:.2f}).'.format(self.CONVERGENCE_VOLTAGE_V))
             return True
         return False
 
@@ -360,11 +362,10 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
             voltage_range = 0.5 * (voltage_max_v - voltage_min_v)
 
         # set voltage ranges and ensure within bounds
-        voltage_min_v = max(voltage_center - 0.5 * voltage_range, self.dc_scan_range_volts_list[voltage_axis, 0])
-        voltage_max_v = min(voltage_center + 0.5 * voltage_range, self.dc_scan_range_volts_list[voltage_axis, 1])
-        print('\t\tVoltage Scan Range (Axis {:d}, {:}): [{:.2f}, {:.2f}]'.format(voltage_axis,
-                                                                                 self.dc_channel_axes_names[voltage_axis],
-                                                                                 voltage_min_v, voltage_max_v))
+        voltage_min_v = max(voltage_center - 0.5 * voltage_range, self.dc_scan_range_volts_list[voltage_axis][0])
+        voltage_max_v = min(voltage_center + 0.5 * voltage_range, self.dc_scan_range_volts_list[voltage_axis][1])
+        print("\t\tScan Range (Axis {:d}, {:}): [{:.2f}, {:.2f}]".format(
+            voltage_axis, self.dc_channel_axes_names[voltage_axis], voltage_min_v, voltage_max_v))
 
         # create voltage scan array
         voltage_scan_arr = linspace(voltage_min_v, voltage_max_v, self.num_steps)
@@ -383,19 +384,19 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         :return: the ideal attenuations to use for each mode.
         """
         # extract starting att list from the mode config holder
-        att_list_db = [mode_config[0] for mode_config in mode_configs_all]
+        att_list_db = [mode_config[1] for mode_config in mode_configs_all]
 
         # if we have data, use complex fit parameters to guess the optimal attenuation
         if self._host_sweep_counter >= 1:
             # get range of target voltage scan to calculate ideal complex slope magnitude
-            voltage_range = 0.5 * (max(voltage_scan_v_arr) - min(voltage_scan_v_arr))
+            voltage_range = (max(voltage_scan_v_arr) - min(voltage_scan_v_arr)) / 2.
             slope_mag_ideal = self.OPT_CORR_AMPL_FRAC / norm((voltage_range, self.GUESS_CORR_AMPL_GAMMA))
             # get most recent fitted complex slope values
             slope_mag_prev = self.sweep_results[self._host_sweep_counter - 1, :, 3]
 
             # guess ideal attenuations for both modes
             att_db_change = (slope_mag_ideal - slope_mag_prev) / self.CORR_AMPL_ATT_SLOPE
-            att_list_db = [val + att_db_change for val in att_list_db]
+            att_list_db = [val + att_db_change[i] for i, val in enumerate(att_list_db)]
 
         # otherwise, simply set attenuations to input values
         else:   att_list_db = [self.att_mode_0_db, self.att_mode_1_db]
@@ -403,11 +404,11 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # ensure attenuations within bounds before returning
         att_list_db = [min(self.att_db_bounds[1], max(self.att_db_bounds[0], att_db)) for att_db in att_list_db]
         print('\t\tAttenuations:\n'
-              '\t\t\tMode 0 ({:.1f} kHz): {:.1f} dB\n\t\t\tMode 1 ({:.1f} kHz): {:.1f} dB'.format(
-            mode_configs_all[0, 1], att_list_db[0], mode_configs_all[1, 1], att_list_db[1]))
+              '\t\t  Mode 0 ({:.1f} kHz): {:.1f} dB\n\t\t  Mode 1 ({:.1f} kHz): {:.1f} dB'.format(
+            mode_configs_all[0, 0], att_list_db[0], mode_configs_all[1, 0], att_list_db[1]))
 
         # modify original mode_config with updated attenuations
-        mode_configs_all[:, 0] = att_list_db
+        mode_configs_all[:, 1] = att_list_db
         return mode_configs_all
 
     @kernel(flags={"fast-math"})
@@ -422,7 +423,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
         # scan voltage configurations
         for voltage_v in voltage_scan_v_arr:
             # set DC voltage and synchronize hardware clock with timeline
-            self.trap_dc.trap_dc.voltage_fast(dc_channel_num, voltage_v)
+            self.trap_dc.voltage_fast(dc_channel_num, voltage_v)
             self.core.break_realtime() # add slack to guarantee now_mu() in future
             self.core.wait_until_mu(now_mu())
             delay_mu(self.time_dc_synchronize_delay_mu) # add extra delay for voltages to settle
@@ -441,7 +442,7 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
                     # prepare hardware for parametric demodulation
                     self.core.break_realtime()
-                    self.dds_parametric.set_att(att_mode_mu)
+                    self.dds_parametric.set_att_mu(att_mode_mu)
                     self.dds_parametric.set_mu(freq_mode_ftw,
                                                asf=self.dds_parametric.ampl_modulation_asf,
                                                profile=self.profile_dds_parametric,
@@ -523,14 +524,14 @@ class MicromotionCompensation(ParametricSweep.ParametricSweep, Experiment):
 
             # extract minimum mode voltage
             opt_voltage_v, opt_voltage_err = complexLinearFitMinimize(results_tmp)
-            print("\t\tMode {:d} Opt. (Axis {:d}, {:}): {:.2f} +/- {:.3f} V".format(
+            print("\t\tMode {:d} Opt. (Axis {:d}, {:}): {:.2f} +/- {:.2f} V".format(
                 mode_idx, voltage_axis, self.dc_channel_axes_names[voltage_axis],
                 opt_voltage_v, opt_voltage_err)
             )
 
             # check optima for errors
-            if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis, 0]) or
-                    (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis, 1])):
+            if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis][0]) or
+                    (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis][1])):
                 raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(
                     mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:

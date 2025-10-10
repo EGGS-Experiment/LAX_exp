@@ -33,12 +33,35 @@ class TrapDC(LAXDevice):
     @rpc
     def initialize_device(self) -> TNone:
         """
-        Set up amo8 to prevent device communication from being interrupted.
+        Set up the AMO8 box to prevent device communication from being interrupted.
         """
         self.trap_dc.polling(False)
         self.trap_dc.alarm(False)
         self.trap_dc.serial_write('remote.w 1\r\n')
         self.trap_dc.serial_read('\n')
+
+
+    """
+    Generic functions
+    """
+    @rpc
+    def voltage_fast(self, channel_num: TInt32, voltage: TFloat) -> TNone:
+        """
+        Generic fast voltage update.
+        Warning: for speed, does not emit any signals to any clients.
+        :param channel_num: the AMO8 DAC channel to update
+        :param voltage: the voltage to set on the channel
+        """
+        self.trap_dc.voltage_fast(channel_num, voltage)
+
+    @rpc
+    def voltage_get(self, channel_num: TInt32) -> TFloat:
+        """
+        Generic voltage read.
+        :param channel_num: the AMO8 DAC channel to read
+        :return: the channel's voltage
+        """
+        return self.trap_dc.voltage(channel_num)
 
 
     """

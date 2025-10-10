@@ -123,6 +123,7 @@ class ParametricSweep(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
+        self.core.break_realtime()
 
         # prepare cooling beams
         self.pump.rescue()
@@ -153,7 +154,7 @@ class ParametricSweep(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             for voltage_v in self.dc_voltages_v_list:
                 # set trap voltages
-                self.trap_dc.trap_dc.voltage_fast(self.dc_channel_num, voltage_v)
+                self.trap_dc.voltage_fast(self.dc_channel_num, voltage_v)
 
                 # synchronize hardware clock with timeline, then add delay for voltages to settle
                 # note: delay has added advantage of recooling the ion
