@@ -223,6 +223,15 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.5]),
                               group="{}.wav".format(_argstr),
                               tooltip="Sets the relative CH1 phase via the phaser oscillators.")
+
+
+        # phase - waveform - sweep
+        self.setattr_argument("enable_ampl_scale",   BooleanValue(default=False),
+                              group='{}.wav_sweep'.format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("type_ampl_scale",    EnumerationValue(['Linear', 'Displacement', 'Phonon'], default='Linear'),
+                              group='{}.wav_sweep'.format(_argstr),
+                              tooltip="todo: document")
         self.setattr_argument("ampl_osc_scale_list",    Scannable(
                                                             default=[
                                                                 ExplicitScan([1.]),
@@ -230,9 +239,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                 RangeScan(0., 1.0, 26, randomize=True),
                                                             ],
                                                             global_min=0., global_max=1., global_step=0.05,
-                                                            unit="kHz", scale=1, precision=3
+                                                            scale=1, precision=5
                                                         ),
-                              group="{}.wav".format(_argstr),
+                              group="{}.wav_sweep".format(_argstr),
                               tooltip="Amplitude scaling factor applied to ampl_osc_frac_list.\n"
                                       "Enables the amplitude to be scanned when e.g. optimizing powers.\n"
                                       "Scaling factor is applied equally to BOTH phaser output channels.")
@@ -310,7 +319,6 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
         self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.phase_osc_sweep_turns_list = list(self.phase_osc_sweep_turns_list)
-        self.ampl_osc_scale_list = list(self.ampl_osc_scale_list)
         self.freq_sweep_arr = array(self.freq_sweep_arr, dtype=float)
         self.phase_sweep_arr = array(self.phase_sweep_arr, dtype=float)
 
@@ -321,14 +329,22 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
         else:
             time_psk_delay_us_list_dj = [0]
-        self._waveform_param_list = create_experiment_config(self.phase_osc_sweep_turns_list,
-                                                             time_psk_delay_us_list_dj,
-                                                             self.ampl_osc_scale_list,
-                                                             shuffle_config=False,
-                                                             config_type=float)
+
+        if self.enable_ampl_scale:
+            ampl_osc_scale_list = list(self.ampl_osc_scale_list)
+        else:
+            ampl_osc_scale_list = [1.]
+
+        # create waveform parameter sweep config (for use by _prepare_waveform)
+        self._waveform_param_list = create_experiment_config(
+            self.phase_osc_sweep_turns_list,
+            time_psk_delay_us_list_dj,
+            ampl_osc_scale_list,
+            shuffle_config=False, config_type=float
+        )
         waveform_num_list = arange(len(self._waveform_param_list))
 
-        # create experiment config
+        # create actual experiment config
         self.config_experiment_list = create_experiment_config(
             freq_heating_carrier_hz_list, self.freq_osc_sweep_hz_list,
             waveform_num_list, list(self.phase_global_ch1_turns_list),
@@ -474,9 +490,17 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             # extract waveform params
             phase_sweep_turns = waveform_params[0]
             time_us_delay = waveform_params[1]
-            ampl_osc_scale_list = waveform_params[2]
+            ampl_osc_scale_val = waveform_params[2]
 
-            # case - PSK + ramsey: create block_time_list_us with target delay time
+            # waveform sweep: scale ampl osc scale value according to linear/displacement/phonon
+            if self.enable_ampl_scale and (0 <= ampl_osc_scale_val <= 1.):
+                if self.type_ampl_scale == "Linear":    ampl_osc_scale_val = ampl_osc_scale_val
+                elif self.type_ampl_scale == "Displacement":    ampl_osc_scale_val = ampl_osc_scale_val ** 0.5
+                elif self.type_ampl_scale == "Phonon":  ampl_osc_scale_val = ampl_osc_scale_val ** 0.25
+            elif not (0 <= ampl_osc_scale_val <= 1.):
+                raise ValueError("Invalid ampl_osc_scale - must be in [0., 1.]).")
+
+            # waveform sweep (case - PSK + ramsey): create block_time_list_us with target delay time
             if self.enable_phase_shift_keying and self.enable_psk_delay:
                 block_time_list_us = riffle([self.time_heating_us / num_psk_blocks] * num_psk_blocks,
                                             [time_us_delay] * (num_psk_blocks - 1))
@@ -484,8 +508,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             # create local copy of _osc_vals_blocks and update with waveform parameters
             # note: no need to deep copy b/c it's filled w/immutables
             _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
-            _osc_vals_blocks_local[:, :, 1] += self.phase_sweep_arr * phase_sweep_turns
-            _osc_vals_blocks_local[:, :, 0] *= ampl_osc_scale_list
+            _osc_vals_blocks_local[:, :, 1] += self.phase_sweep_arr * phase_sweep_turns # apply phase sweep
+            _osc_vals_blocks_local[:, :, 0] *= ampl_osc_scale_val   # rescale amplitudes
 
             # specify sequence as a list of blocks, where each block is a dict
             # note: have to instantiate locally each loop b/c dicts aren't deep copied
@@ -515,7 +539,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.repetitions * self.sub_repetitions *
                 len(self.config_experiment_list) * len(self.freq_readout_ftw_list),
-                8)
+                9)
 
 
     '''

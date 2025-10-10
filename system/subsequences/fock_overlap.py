@@ -41,13 +41,13 @@ class FockOverlap(QubitRAP):
         _argstr = "fock" # create short string for argument grouping
 
         # general configuration
-        self.setattr_argument("config_rsb",     PYONValue([100.7658, 72., 400., 8.]),
+        self.setattr_argument("config_rsb",     PYONValue([100.76971, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
                               tooltip="RSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_bsb",     PYONValue([101.4291, 72., 400., 8.]),
+        self.setattr_argument("config_bsb",     PYONValue([101.42681, 72., 400., 8.]),
                               group="{}.general".format(_argstr),
                               tooltip="BSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_carr",    PYONValue([101.0959, 350., 30., 8.]),
+        self.setattr_argument("config_carr",    PYONValue([101.09641, 350., 30., 8.]),
                               group="{}.general".format(_argstr),
                               tooltip="Carrier RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("ampl_fock_pct",  NumberValue(default=50., precision=3, step=5., min=0.001, max=50., unit="%", scale=1.),
@@ -69,9 +69,9 @@ class FockOverlap(QubitRAP):
                               tooltip="Enable final RAP pulse (which is almost always necessary). "
                                       "This should be ON by default. "
                                       "This option is used for state diagnostics via BSB Rabi divination.")
-        self.setattr_argument("config_shelve",  PYONValue({0: (113.2929, 117., 66., 8.),
-                                                           1: (104.1451, 60., 274., 8.),
-                                                           2: (110.2436, 36., 420., 8.)}),
+        self.setattr_argument("config_shelve",  PYONValue({0: (113.2802, 117., 66., 8.),
+                                                           1: (104.1423, 60., 274., 8.),
+                                                           2: (110.2341, 36., 420., 8.)}),
                               group="{}.config".format(_argstr),
                               tooltip="Shelving RAP config: {fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
 
