@@ -19,7 +19,6 @@ class LaserScan(LAXExperiment, Experiment):
     kernel_invariants = {
         # hardware parameters
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
-        'time_linetrig_holdoff_mu_list',
 
         # subsequences
         'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
@@ -78,8 +77,8 @@ class LaserScan(LAXExperiment, Experiment):
         # subsequences
         self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_readout, ram_addr_start=0, num_samples=500,
-            ampl_max_pct=self.ampl_qubit_pct,
+            self, ram_profile=self.profile_729_readout, ram_addr_start=0,
+            num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.readout_subsequence =      Readout(self)
@@ -94,30 +93,28 @@ class LaserScan(LAXExperiment, Experiment):
         '''
         # laser parameters
         self.freq_qubit_scan_ftw = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                             for freq_mhz in self.freq_qubit_scan_mhz])
+                                          for freq_mhz in self.freq_qubit_scan_mhz])
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
         # timing
         self.time_qubit_mu = self.core.seconds_to_mu(self.time_qubit_us * us)
 
-        '''
-        CONFIGURE LINETRIGGERING
-        '''
+        # configure linetriggering
         if self.enable_linetrigger:
-            self.time_linetrig_holdoff_mu_list = array([self.core.seconds_to_mu(time_ms * ms)
-                                                        for time_ms in self.time_linetrig_holdoff_ms_list])
+            time_linetrig_holdoff_mu_list = [self.core.seconds_to_mu(time_ms * ms)
+                                             for time_ms in self.time_linetrig_holdoff_ms_list]
         else:
-            self.time_linetrig_holdoff_mu_list = array([0])
+            time_linetrig_holdoff_mu_list = [0]
+
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create experiment configuration array
         self.config_experiment_list = create_experiment_config(
-            self.freq_qubit_scan_ftw, self.time_linetrig_holdoff_mu_list,
-            shuffle_config=True,
-            config_type=int64
+            self.freq_qubit_scan_ftw, time_linetrig_holdoff_mu_list,
+            shuffle_config=True, config_type=int64
         )
 
     @property

@@ -1,5 +1,5 @@
 from artiq.experiment import *
-from numpy import array, int32, int64
+from numpy import int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.language import *
@@ -8,6 +8,7 @@ from LAX_exp.system.subsequences import (
 )
 
 # todo: enable pi/2 pulse for motional stuff
+# todo: add tooltips
 
 
 class RamseySpectroscopy(LAXExperiment, Experiment):
@@ -123,16 +124,20 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.ampl_ramsey_asf =  self.qubit.amplitude_to_asf(self.ampl_ramsey_pct / 100.)
         self.att_ramsey_mu =    self.qubit.cpld.att_to_mu(self.att_ramsey_db * dB)
 
-        time_delay_mu_list =    array([self.core.seconds_to_mu(time_us * us)
-                                       for time_us in list(self.time_delay_us_list)])
-        freq_ramsey_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                       for freq_mhz in list(self.freq_ramsey_mhz_list)])
-        phase_ramsey_pow_list = array([self.qubit.turns_to_pow(phas_turn)
-                                       for phas_turn in list(self.phase_ramsey_turns_list)])
+        time_delay_mu_list =    [self.core.seconds_to_mu(time_us * us)
+                                 for time_us in list(self.time_delay_us_list)]
+        freq_ramsey_ftw_list =  [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                 for freq_mhz in list(self.freq_ramsey_mhz_list)]
+        phase_ramsey_pow_list = [self.qubit.turns_to_pow(phas_turn)
+                                 for phas_turn in list(self.phase_ramsey_turns_list)]
 
-        # linetrigger parameters
-        time_linetrig_holdoff_mu_list = array([self.core.seconds_to_mu(time_ms * ms)
-                                               for time_ms in self.time_linetrig_holdoff_ms_list])
+        # configure linetriggering
+        if self.enable_linetrigger:
+            time_linetrig_holdoff_mu_list = [self.core.seconds_to_mu(time_ms * ms)
+                                             for time_ms in self.time_linetrig_holdoff_ms_list]
+        else:
+            time_linetrig_holdoff_mu_list = [0]
+
 
         '''
         CREATE EXPERIMENT CONFIG
@@ -142,9 +147,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
             freq_ramsey_ftw_list,
             phase_ramsey_pow_list,
             time_linetrig_holdoff_mu_list,
-
-            shuffle_config=True,
-            config_type=int64
+            shuffle_config=True, config_type=int64
         )
 
     @property
