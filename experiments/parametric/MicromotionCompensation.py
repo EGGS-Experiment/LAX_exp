@@ -15,6 +15,7 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: need to create a "running store"/queue for host operations that's NOT used for storage - this will simplify host/kernel interactions
 # todo: create a dict for "axis config"
 # todo: create function called reset_initial_voltages so we can reset upon error condition
+# todo: finish documenting tooltips
 
 
 class MicromotionCompensation(LAXExperiment, Experiment):
