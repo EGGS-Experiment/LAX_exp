@@ -187,7 +187,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                               group='{}'.format(_argstr),
                               tooltip="[rsb_turns, bsb_turns]")
         self.setattr_argument("target_pulse4_cat_phase",    EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'),
-                              group="characteristic",
+                              group='{}'.format(_argstr),
                               tooltip="Configures how the phases of the bichromatic tones are adjusted to measure the characteristic function.")
         self.setattr_argument("characteristic_readout_sweep", EnumerationValue(['Grid', 'Phase Sweep'], default='Grid'),
                               group='{}'.format(_argstr),

@@ -29,9 +29,9 @@ class LaserScanMulti(LaserScan.LaserScan):
                               group="Multiscan")
         self.setattr_argument("freq_sideband_1_khz",    NumberValue(default=702.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3),
                               group="Multiscan")
-        self.setattr_argument("freq_sideband_2_khz",    NumberValue(default=1303.1, min=-4e5, max=4e5, step=10, unit="kHz", scale=1, precision=3),
+        self.setattr_argument("freq_sideband_2_khz",    NumberValue(default=1279.1, min=-4e5, max=4e5, step=10, unit="kHz", scale=1, precision=3),
                               group="Multiscan")
-        self.setattr_argument("freq_sideband_3_khz",    NumberValue(default=1592.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3),
+        self.setattr_argument("freq_sideband_3_khz",    NumberValue(default=1570.1, min=-4e5, max=4e5, step=1, unit="kHz", scale=1, precision=3),
                               group="Multiscan")
 
     def prepare_experiment(self):

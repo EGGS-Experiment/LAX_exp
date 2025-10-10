@@ -30,7 +30,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         # probe frequency scan
         self.setattr_argument("freq_probe_scan_mhz", Scannable(
             default=[
-                RangeScan(92, 139, 80, randomize=True),
+                RangeScan(81, 129, 80, randomize=True),
                 ExplicitScan([120.5]),
             ],
             global_min=70, global_max=200, global_step=1,

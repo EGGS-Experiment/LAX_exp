@@ -31,7 +31,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=80, precision=0, step=1, min=1, max=10000))
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
                               tooltip="todo: document")
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
@@ -41,14 +41,14 @@ class RabiFlopping(LAXExperiment, Experiment):
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list", Scannable(
                                                     default=[
-                                                        RangeScan(1, 100, 100, randomize=True),
+                                                        RangeScan(0.01, 20, 80, randomize=True),
                                                         ExplicitScan([6.05]),
                                                         CenterScan(3.05, 5., 0.1, randomize=True),
                                                     ],
                                                     global_min=0.01, global_max=100000, global_step=1,
                                                     unit="us", scale=1, precision=3
                                                 ), group=self.name)
-        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.1072, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'),
+        self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.0968, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'),
                               group=self.name)
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit='%'),
                               group=self.name)
