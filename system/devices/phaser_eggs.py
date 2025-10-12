@@ -79,7 +79,6 @@ class PhaserEGGS(LAXDevice):
         Stop any residual output from the phaser.
         """
         self.phaser_stop()
-        delay_mu(1000000)
 
 
     '''
@@ -111,12 +110,11 @@ class PhaserEGGS(LAXDevice):
                             phase_ch1_offset_turns: TFloat) -> TNone:
         """
         Configure oscillator frequencies on phaser for EGGS.
-        Arguments:
-            carrier_freq_hz: the output center frequency (in Hz).
-                center frequency is set identically on CH0 and CH1.
-            osc_freq_hz_list: list of frequencies to set each oscillator.
-                oscillators are set identically on CH0 and CH1.
-            phase_ch1_offset_turns: the phase offset for CH1 relative to CH0 (in turns).
+        :param carrier_freq_hz: the output center frequency (in Hz).
+            center frequency is set identically on CH0 and CH1.
+        :param osc_freq_hz_list: list of frequencies to set each oscillator.
+            oscillators are set identically on CH0 and CH1.
+        :param phase_ch1_offset_turns: the phase offset for CH1 relative to CH0 (in turns).
         """
         '''
         CALCULATE PHASE DELAYS
@@ -190,9 +188,8 @@ class PhaserEGGS(LAXDevice):
     def phaser_setup(self, att_mu_ch0: TInt32 = 0, att_mu_ch1: TInt32 = 0) -> TNone:
         """
         Set up hardware in preparation for an output pulse.
-        Arguments:
-            :param att_mu_ch0: phaser CH0 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
-            :param att_mu_ch1: phaser CH1 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
+        :param att_mu_ch0: phaser CH0 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
+        :param att_mu_ch1: phaser CH1 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
         """
         # EGGS - START/SETUP
         # set phaser attenuators - warning: creates turn on glitch, must do while switches are closed
@@ -258,6 +255,57 @@ class PhaserEGGS(LAXDevice):
         self.phaser.channel[0].set_att_mu(0x00)
         delay_mu(self.t_frame_mu)
         self.phaser.channel[1].set_att_mu(0x00)
+
+    @kernel(flags={"fast-math"})
+    def phase_osc_clear(self) -> TNone:
+        """
+        Clear oscillator phase accumulators.
+        Note: this function does not account for the 40ns-ish phaser sample periods.
+            Just sit and hope the phase delay isn't too bad lol.
+        """
+        # clear oscillator phases
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=1)
+            delay_mu(self.t_sample_mu)
+
+        # reenable oscillator phase accumulators
+        with parallel:
+            self.phaser.channel[0].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser.channel[1].oscillator[0].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser.channel[1].oscillator[1].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser.channel[1].oscillator[2].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser.channel[1].oscillator[3].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            delay_mu(self.t_sample_mu)
+        with parallel:
+            self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=0)
+            delay_mu(self.t_sample_mu)
 
 
     '''
