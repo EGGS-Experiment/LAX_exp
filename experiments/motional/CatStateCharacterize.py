@@ -14,7 +14,7 @@ from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
 
-# todo: migrate readout to adaptive for speed lol
+# todo: ensure phaser pulses are phase-tracking somehow
 
 
 class CatStateCharacterize(LAXExperiment, Experiment):
@@ -82,7 +82,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_device('qubit')
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
-        self.setattr_device('phaser_egs')
+        self.setattr_device('phaser_eggs')
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
@@ -92,6 +92,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self._build_arguments_cat1()
         self._build_arguments_cat2()
         self._build_arguments_qvsa_waveform()
+        self._build_arguments_qvsa_sweep()
         self._build_arguments_qvsa_modulation()
         self._build_arguments_readout()
 
@@ -118,7 +119,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group="default.sigmax",
                               tooltip="DDS attenuation for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
-        self.setattr_argument("time_sigmax_us",     NumberValue(default=2.24, precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
+        self.setattr_argument("time_sigmax_us",     NumberValue(default=15., precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
                               group="default.sigmax",
                               tooltip="Pulse time for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
@@ -173,7 +174,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               tooltip="Applies a sigma_x pulse BEFORE the 1st bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
                                       "If sigma_x is disabled (i.e. False), the bichromatic pulse creates a superposition state (e.g. cat state).")
-        self.setattr_argument("enable_cat1_antisigmax", BooleanValue(default=False), group='cat1.config',
+        self.setattr_argument("enable_cat1_antisigmax", BooleanValue(default=True), group='cat1.config',
                               tooltip="Applies a sigma_x pulse AFTER the 1st bichromatic pulse.\n"
                                       "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
                                       "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
@@ -184,7 +185,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # cat #1 config
-        self.setattr_argument("enable_cat1_bichromatic",    BooleanValue(default=False), group='cat1.config',
+        self.setattr_argument("enable_cat1_bichromatic",    BooleanValue(default=True), group='cat1.config',
                               tooltip="Enables application of the 1st bichromatic pulse.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
         self.setattr_argument("enable_cat1_herald",         BooleanValue(default=False), group='cat1.config',
@@ -192,7 +193,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
-        self.setattr_argument("enable_cat1_quench",         BooleanValue(default=False), group='cat1.config',
+        self.setattr_argument("enable_cat1_quench",         BooleanValue(default=True), group='cat1.config',
                               tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
@@ -225,7 +226,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for bichromatic/cat pulse #2.
         """
         # cat #2 config (sigma_x only)
-        self.setattr_argument("enable_cat2_sigmax",       BooleanValue(default=False),
+        self.setattr_argument("enable_cat2_sigmax",       BooleanValue(default=True),
                               group='cat2.config',
                               tooltip="Applies a sigma_x pulse BEFORE the 2nd bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
@@ -234,7 +235,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group='cat2.config',
                               tooltip="Relative phase applied for the sigma_x pulse.\n"
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
-        self.setattr_argument("enable_cat2_antisigmax", BooleanValue(default=False), group='cat2.config',
+        self.setattr_argument("enable_cat2_antisigmax", BooleanValue(default=True), group='cat2.config',
                               tooltip="Applies a sigma_x pulse AFTER the 2nd bichromatic pulse.\n"
                                       "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
                                       "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
@@ -245,7 +246,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # cat2 - config
-        self.setattr_argument("enable_cat2_bichromatic",  BooleanValue(default=False),
+        self.setattr_argument("enable_cat2_bichromatic",  BooleanValue(default=True),
                               group='cat2.config',
                               tooltip="Enables application of the 2nd bichromatic pulse.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
@@ -254,7 +255,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
-        self.setattr_argument("enable_cat2_quench",   BooleanValue(default=False), group='cat2.config',
+        self.setattr_argument("enable_cat2_quench",   BooleanValue(default=True), group='cat2.config',
                               tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n")
@@ -320,9 +321,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("time_729_readout_us_list",    Scannable(
                                                                 default=[
                                                                     ExplicitScan([27.35]),
-                                                                    RangeScan(1, 800, 200, randomize=True),
+                                                                    RangeScan(0.01, 800, 200, randomize=True),
                                                                 ],
-                                                                global_min=1, global_max=100000, global_step=1,
+                                                                global_min=0.01, global_max=100000, global_step=1,
                                                                 unit="us", scale=1, precision=5
                                                             ),
                               group="read.SBR",
@@ -346,12 +347,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         _argstr = "QVSA"  # string to use for arguments
 
-
         # waveform - parameter sweeps
         self.setattr_argument("freq_osc_sweep_arr", PYONValue([-1., 1., 0., 0., 0.]),
                               group="{}.sweep".format(_argstr),
                               tooltip="Defines how oscillator freqs should be scaled for values in freq_osc_sweep_khz_list.\n"
-                                      "Indices of freq_sweep_arr correspond to the oscillator number. "
+                                      "Indices of freq_osc_sweep_arr correspond to the oscillator number. "
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
         self.setattr_argument("freq_osc_sweep_khz_list",    Scannable(
@@ -365,7 +365,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                                 ),
                               group="{}.sweep".format(_argstr),
                               tooltip="Frequency sweep applied via the phaser oscillators.\n"
-                                      "Values for each oscillator are adjusted by the array in freq_sweep_arr.")
+                                      "Values for each oscillator are adjusted by the array in freq_osc_sweep_arr.")
 
         # phaser - phase configuration
         self.setattr_argument("phase_osc_sweep_arr", PYONValue([1., 0., 0., 0., 0.]),
@@ -383,7 +383,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                                                 ),
                               group="{}.sweep".format(_argstr),
                               tooltip="Phase sweep applied via the phaser oscillators.\n"
-                                      "Values for each oscillator are adjusted by the array in phase_sweep_arr.")
+                                      "Values for each oscillator are adjusted by the array in phase_osc_sweep_arr.")
 
     def _build_arguments_qvsa_waveform(self):
         """
@@ -392,8 +392,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         _argstr = "QVSA"  # string to use for arguments
 
         # waveform - global config
-        self.setattr_argument("enable_QVSA_pulse", BooleanValue(default=False),
-                              group='{}.shape'.format(_argstr),
+        self.setattr_argument("enable_QVSA_pulse", BooleanValue(default=True),
+                              group='{}.global'.format(_argstr),
                               tooltip="Enables the QVSA pulse.")
         self.setattr_argument("freq_phaser_carrier_mhz",
                               NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.),
@@ -417,21 +417,21 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # waveform - custom specification
         self.setattr_argument("time_heating_us",
-                              NumberValue(default=500, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+                              NumberValue(default=100, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip="Time for the total pulse (excluding pulse shaping)."
                                       "e.g. a time_heating_us of 1ms with 2 segments => a segment time of 500us.")
-        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, -702.687, 0.005, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, 702.687, 0.000, 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
         self.setattr_argument("phase_osc_turns_list", PYONValue([0., 0., 0., 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
         self.setattr_argument("att_phaser_db",
-                              NumberValue(default=28., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
+                              NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
-        self.setattr_argument("ampl_osc_frac_list", PYONValue([25., 25., 49., 0., 0.]),
+        self.setattr_argument("ampl_osc_frac_list", PYONValue([40., 40., 15., 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser oscillator amplitudes. Applied to both CH0 and CH1.\n"
                                       "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in devices.phaser.ch1.ampl_ch1_osc_scale_arr.")
@@ -479,7 +479,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
                               group="{}.psk".format(_argstr),
                               tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence. "
+                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
                                       "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
                                       "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us",
@@ -603,11 +603,10 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                          for phas_pow in self.phases_pulse1_cat_turns]
 
         # inter-cat ramsey delay
-        if self.enable_cat2_bichromatic:
+        if self.enable_ramsey_delay:
             time_ramsey_delay_mu_list = [self.core.seconds_to_mu(time_delay_us * us)
                                          for time_delay_us in self.time_ramsey_delay_us_list]
-        else:
-            time_ramsey_delay_mu_list = array([0], dtype=int64)
+        else:   time_ramsey_delay_mu_list = array([0], dtype=int64)
 
         # cat2 values
         self.phase_cat2_sigmax_pow =        self.qubit.turns_to_pow(self.phase_cat2_sigmax_turns)
@@ -703,7 +702,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
         waveform_num_list = arange(len(self._waveform_param_list))
 
-        return freq_osc_sweep_hz_list, waveform_num_list
+        # don't apply sweep if QVSA is disabled
+        if self.enable_QVSA_pulse:  return freq_osc_sweep_hz_list, waveform_num_list
+        else:   return [-1], [0]
 
     def _prepare_experiment_qvsa_waveform(self) -> TNone:
         """
@@ -754,7 +755,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list +
-                 self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
+                 self.freq_osc_sweep_arr * freq_osc_sweep_avg_hz) *
                 t_update_delay_s_list
         )
         _osc_vals_blocks[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
@@ -788,7 +789,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             # create local copy of _osc_vals_blocks and update with waveform parameters
             # note: no need to deep copy b/c it's filled w/immutables
             _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
-            _osc_vals_blocks_local[:, :, 1] += self.phase_sweep_arr * phase_sweep_turns # apply phase sweep
+            _osc_vals_blocks_local[:, :, 1] += self.phase_osc_sweep_arr * phase_sweep_turns # apply phase sweep
 
             # specify sequence as a list of blocks, where each block is a dict
             # note: have to instantiate locally each loop b/c dicts aren't deep copied
@@ -819,7 +820,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Check experiment arguments for validity.
         """
         # todo
-        pass
+        '''
+        BICHROMATIC/CAT CHECKS
+        '''
         # self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 7.)
         #
         # # ensure single pass values are safe and valid
@@ -832,6 +835,71 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         #         for att_db in self.att_singlepass_default_db_list)):
         #     raise ValueError(
         #         "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
+
+        '''
+        CHECK PHASER BASE OSC CONFIG
+        '''
+        # check that phaser oscillator amplitude config is valid
+        if ((not isinstance(self.ampl_osc_frac_list, list)) or
+                (len(self.ampl_osc_frac_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
+        elif sum(self.ampl_osc_frac_list) >= 100.:
+            raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
+
+        # check that phaser oscillator phase arrays are valid
+        if ((not isinstance(self.phase_osc_turns_list, list)) or
+                (len(self.phase_osc_turns_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator phase array must be list of length {:d}.".format(self._num_phaser_oscs))
+
+        # check that phaser oscillator frequencies are valid
+        if ((not isinstance(self.freq_osc_khz_list, list)) or
+                (len(self.freq_osc_khz_list) != self._num_phaser_oscs)):
+            raise ValueError("Error: phaser oscillator frequency array must be list of length {:d}.".format(self._num_phaser_oscs))
+        max_osc_freq_hz = (max(list(self.freq_osc_sweep_khz_list)) * kHz +
+                           max(self.freq_osc_khz_list) * kHz +
+                           (self.freq_global_offset_mhz * MHz))
+        min_osc_freq_hz = (min(list(self.freq_osc_sweep_khz_list)) * kHz +
+                           min(self.freq_osc_khz_list) * kHz +
+                           (self.freq_global_offset_mhz * MHz))
+        if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
+            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
+
+        # ensure phaser output frequency falls within valid DUC bandwidth
+        phaser_carrier_freq_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_phaser_carrier_mhz * MHz)
+        if phaser_carrier_freq_dev_hz >= 300. * MHz:
+            raise ValueError("Invalid argument: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
+
+
+        '''
+        CHECK PHASER WAVEFORM CONFIG
+        '''
+        # check that PSK schedule is valid
+        num_psk_blocks = len(self.phase_osc0_psk_turns)
+        psk_schedule_invalid = self.enable_phase_shift_keying and any([
+            (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_psk_blocks)
+            for psk_schedule in (
+                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
+                self.phase_osc2_psk_turns, self.phase_osc3_psk_turns
+            )
+        ])
+        if psk_schedule_invalid:
+            raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
+
+        # ensure that sweep targets are lists of appropriate length
+        if not (isinstance(self.phase_osc_sweep_arr, list) and (len(self.phase_osc_sweep_arr) == self._num_phaser_oscs)):
+            raise ValueError("Invalid phase_osc_sweep_arr: {:}.\nphase_osc_sweep_arr must be list of length {:d}.".format(
+                self.phase_osc_sweep_arr, self._num_phaser_oscs))
+        if not (isinstance(self.freq_osc_sweep_arr, list) and (len(self.freq_osc_sweep_arr) == self._num_phaser_oscs)):
+            raise ValueError("Invalid freq_osc_sweep_arr: {:}.\nfreq_osc_sweep_arr must be list of length {:d}.".format(
+                self.freq_osc_sweep_arr, self._num_phaser_oscs))
+
+        # check that waveforms are not too many/not sweeping too hard
+        num_waveforms_to_record = (len(list(self.phase_osc_sweep_turns_list)))
+        if num_waveforms_to_record > PULSESHAPER_MAX_WAVEFORMS:
+            raise ValueError("Too many waveforms to record ({:d}) - must be fewer than {:d}.\n"
+                             "Reduce length of any of [phase_osc_sweep_turns_list].".format(
+                num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
+
 
     @property
     def results_shape(self):
@@ -873,11 +941,15 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         herald_counter = 0                  # store herald attempts
         _loop_iter = 0                      # used to check_termination more frequently
 
+        self.pulse_shaper.waveform_load()   # load phaser waveforms from DMA
+
         # MAIN LOOP
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
-                '''PREPARE & CONFIGURE'''
+                '''
+                PREPARE & CONFIGURE
+                '''
                 # extract values from config list
                 freq_cat_center_ftw =   int32(config_vals[0])
                 freq_cat_secular_ftw =  int32(config_vals[1])
@@ -886,8 +958,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 freq_729_readout_ftw =  int32(config_vals[4])
                 time_729_readout_mu =   int64(config_vals[5])
                 time_ramsey_delay_mu =  int64(config_vals[6])
-                freq_sweep_hz =         config_vals[1]
-                waveform_num =          int32(config_vals[7])
+                freq_sweep_hz =         config_vals[7]
+                waveform_num =          int32(config_vals[8])
 
                 herald_counter = 0  # clear herald counter
 
@@ -901,20 +973,24 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 waveform_params = self._waveform_param_list[waveform_num]
                 phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
 
-                # create frequency update list for phaser oscs and set phaser frequencies
-                freq_update_list = self.freq_osc_base_hz_list + (freq_sweep_hz * self.freq_sweep_arr)
+                # configure phaser
+                if self.enable_QVSA_pulse:
+                    # create frequency update list for phaser oscs and set phaser frequencies
+                    freq_update_list = self.freq_osc_base_hz_list + (freq_sweep_hz * self.freq_osc_sweep_arr)
+                    # set phaser frequency/phases
+                    self.core.break_realtime()
+                    self.phaser_eggs.frequency_configure(
+                        self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
+                        # oscillator frequencies
+                        [freq_update_list[0], freq_update_list[1], freq_update_list[2],
+                         freq_update_list[3], freq_update_list[4]],
+                        self.phase_global_ch1_turns  # global CH1 phase
+                    )
 
-                # configure global phaser configs (e.g. DUC)
-                self.core.break_realtime()
-                self.phaser_eggs.frequency_configure(
-                    self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
-                    # oscillator frequencies
-                    [freq_update_list[0], freq_update_list[1], freq_update_list[2],
-                     freq_update_list[3], freq_update_list[4]],
-                    self.phase_global_ch1_turns  # global CH1 phase
-                )
 
-
+                '''
+                BEGIN MAIN SEQUENCE
+                '''
                 while True:
                     # check heralding OK (otherwise execution is blocked
                     if herald_counter >= self.max_herald_attempts:
@@ -927,7 +1003,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     delay_mu(125000)    # add even more slack lol
 
 
-                    '''INITIALIZE ION STATE'''
+                    '''
+                    INITIALIZE ION STATE
+                    '''
                     # initialize ion in S-1/2 state & SBC to ground state
                     self.initialize_subsequence.run_dma()
                     self.sidebandcool_subsequence.run_dma()
@@ -936,8 +1014,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     self.qubit.set_profile(self.profile_729_target)
                     self.qubit.io_update()
 
-                    # synchronize start time to coarse RTIO clock
-                    time_start_mu = now_mu() & ~0x7
+                    # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
+                    time_start_mu = self.phaser_eggs.get_next_frame_mu()
+                    # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
+                    #   b/c DDSs are phase-tracked wrt time_start_mu
+                    self.phaser_eggs.phase_osc_clear()
+                    # unimportant: clear DUC phase (b/c why not)
+                    self.phaser_eggs.reset_duc_phase()
 
 
                     '''
@@ -1058,10 +1141,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                     freq_729_readout_ftw,
                                     time_729_readout_mu,
                                     time_ramsey_delay_mu,
+                                    freq_sweep_hz,
                                     waveform_params[0])
 
                 # check termination more frequently in case reps are low
-                if _loop_iter % 50 == 0:
+                if _loop_iter % 200 == 0:
                     self.check_termination()
                 _loop_iter += 1
 
