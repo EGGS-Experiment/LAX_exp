@@ -122,7 +122,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                               group="{}.waveform".format(_argstr),
                               tooltip="Time for a SINGLE SEGMENT of the pulse."
                                       "e.g. a time_osc_pulse_us of 500us with 2 segments => total time of 1ms.")
-        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, -702.687, 0.005, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, 702.687, 0.005, 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
         self.setattr_argument("ampl_osc_frac_list", PYONValue([25., 25., 49., 0., 0.]),
@@ -173,7 +173,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
                               group="{}.psk".format(_argstr),
                               tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence. "
+                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
                                       "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
                                       "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us",
@@ -239,8 +239,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         if len(self.osc_num_target_list) == 0:
             self.osc_num_target_list = [-1]
             self._enable_osc_clr = False
-        else:
-            self._enable_osc_clr = True
+        else:   self._enable_osc_clr = True
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -459,7 +458,6 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
              self.freq_osc_base_hz_list[3], self.freq_osc_base_hz_list[4]],
             self.phase_global_ch1_turns  # global CH1 phase
         )
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:

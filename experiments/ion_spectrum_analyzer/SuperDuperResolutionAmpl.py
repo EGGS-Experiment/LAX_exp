@@ -11,8 +11,8 @@ from LAX_exp.system.subsequences import (
 )
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
-from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
 
 
 class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
@@ -25,8 +25,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
     name = 'Super Duper Resolution Ampl'
     kernel_invariants = {
         # hardware values
-        'att_phaser_mu', 'freq_osc_sweep_hz_list', 'freq_global_offset_hz',
-        'freq_osc_base_hz_list', 'waveform_index_to_compiled_wav', '_waveform_param_list',
+        'att_phaser_mu', 'freq_global_offset_hz', 'freq_osc_base_hz_list',
+        'waveform_index_to_compiled_wav', '_waveform_param_list',
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'sidebandreadout_subsequence',
@@ -166,7 +166,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                 ),
                               group="{}.phase".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC.\n"
-                                      "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden "
+                                      "Note: the devices.phaser.phas_ch1_inherent_turns dataset argument is overridden "
                                       "in this experiment.")
 
     def _build_arguments_waveform(self):
@@ -267,7 +267,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
                               group="{}.psk".format(_argstr),
                               tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence. "
+                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
                                       "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
                                       "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us_list", Scannable(
@@ -286,10 +286,14 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         """
         Prepare experimental values.
         """
-        '''SANITIZE & VALIDATE INPUTS'''
+        '''
+        GENERAL SETUP
+        '''
         self._prepare_argument_checks()
 
-        '''SUBSEQUENCE PARAMETERS'''
+        '''
+        SUBSEQUENCE PARAMETERS
+        '''
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
@@ -310,21 +314,25 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         if not any(kw in self.readout_type for kw in ('RAP', 'SBR')):
             raise ValueError("Invalid readout type. Must be one of (SBR, RAP, RAP + SBR).")
 
-        '''HARDWARE VALUES - CONFIG'''
+        '''
+        HARDWARE VALUES - CONFIG
+        '''
         # convert values to convenience units
         self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
 
         # format build arguments as numpy arrays with appropriate units
         freq_phaser_carrier_hz_list = array(list(self.freq_phaser_carrier_mhz_list)) * MHz
-        self.freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
+        freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
         self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.phase_osc_sweep_turns_list = list(self.phase_osc_sweep_turns_list)
         self.freq_sweep_arr = array(self.freq_sweep_arr, dtype=float)
         self.phase_sweep_arr = array(self.phase_sweep_arr, dtype=float)
 
 
-        '''EXPERIMENT CONFIGURATION'''
+        '''
+        EXPERIMENT CONFIGURATION
+        '''
         # collate waveform sweep parameters into a list for later batch compilation
         if self.enable_phase_shift_keying and self.enable_psk_delay:
             time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
@@ -347,7 +355,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # create actual experiment config
         self.config_experiment_list = create_experiment_config(
-            freq_phaser_carrier_hz_list, self.freq_osc_sweep_hz_list,
+            freq_phaser_carrier_hz_list, freq_osc_sweep_hz_list,
             waveform_num_list, list(self.phase_global_ch1_turns_list),
             time_readout_mu_list,
             config_type=float, shuffle_config=self.randomize_config
@@ -432,10 +440,12 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
     def _prepare_waveform(self) -> TNone:
         """
-        Calculate waveforms and timings for the EGGS pulse.
+        Calculate waveforms and timings for the QVSA/phaser pulse.
         Uses SpinEchoWizard and PhaserPulseShaper objects to simplify waveform compilation.
         """
-        '''PREPARE WAVEFORM COMPILATION'''
+        '''
+        PREPARE WAVEFORM COMPILATION
+        '''
         self.waveform_index_to_compiled_wav = list() # store compiled waveform values
         # note: waveform_index_to_pulseshaper_id is NOT kernel_invariant b/c gets updated in phaser_record
         self.waveform_index_to_pulseshaper_id = zeros(len(self._waveform_param_list), dtype=int32) # store waveform ID linked to DMA sequence
@@ -460,7 +470,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             block_ampl_scale_list = [1]
 
 
-        '''DESIGN WAVEFORM SEQUENCE'''
+        '''
+        DESIGN WAVEFORM SEQUENCE
+        '''
         # create bare waveform block sequence & set amplitudes
         _osc_vals_blocks = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
         _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)
@@ -468,10 +480,11 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # set bsb phase and account for oscillator delay time
         # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
+        freq_osc_sweep_avg_hz = mean(list(self.freq_osc_sweep_khz_list)) * kHz
         t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list +
-                 self.freq_sweep_arr * mean(self.freq_osc_sweep_hz_list)) *
+                 self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
                 t_update_delay_s_list
         )
         _osc_vals_blocks[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
@@ -489,7 +502,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                     self.phase_osc4_psk_turns][:self._num_phaser_oscs]).transpose()
 
 
-        '''COMPILE WAVEFORMS SPECIFIC TO EACH PARAMETER'''
+        '''
+        COMPILE WAVEFORMS SPECIFIC TO EACH PARAMETER
+        '''
         # record phaser waveforms - one for each phase
         for waveform_params in self._waveform_param_list:
             # extract waveform params
@@ -585,7 +600,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
-                '''CONFIGURE'''
+                '''
+                CONFIGURE
+                '''
                 # extract values from config list
                 carrier_freq_hz =   config_vals[0]
                 freq_sweep_hz =     config_vals[1]
@@ -599,6 +616,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_osc_base_hz_list + freq_sweep_hz * self.freq_sweep_arr
+
                 self.core.break_realtime()
                 self.phaser_eggs.frequency_configure(
                     # carrier frequency (via DUC)
@@ -611,7 +629,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                 )
 
 
-                '''SUB-REPETITION IMPLEMENTATION'''
+                '''
+                SUB-REPETITION IMPLEMENTATION
+                '''
                 for _subrep_num in range(self.sub_repetitions):
                     # sub-repetitions requires we run a bunch of sub_reps at the same config
                     # however, we still want to sweep the readout parameters
@@ -677,16 +697,16 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         Run the main phaser pulse together with supporting functionality.
         :param waveform_id: the ID of the waveform to run.
         """
-        # EGGS - START/SETUP
+        # QVSA - START/SETUP
         self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
 
-        # EGGS - RUN
+        # QVSA - RUN
         # reset DUC phase to start DUC deterministically
         self.phaser_eggs.reset_duc_phase()
         self.pulse_shaper.waveform_playback(waveform_id)
 
-        # EGGS - STOP
-        # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
+        # QVSA - STOP
+        # stop all output & clean up hardware (e.g. phaser amp switches, RF integrator hold)
         # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
         self.phaser_eggs.phaser_stop()
 

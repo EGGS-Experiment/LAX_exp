@@ -91,14 +91,12 @@ class PhaserPulseShaper(LAXEnvironment):
         ampl_frac_list, phas_turns_list, and sample_interval_mu_list must have the same overall length (i.e. axis 0 length).
         ampl_frac_list and phas_turns_list must also be specified for the same number of oscillators (i.e. axis 1 length).
         Can specify updates for anywhere between [1, 5] oscillators, but the oscillator numbers must be contiguous.
-        Arguments:
-            ampl_frac_list: 2D array of amplitudes (fractional) for each oscillator.
-                Axis 0 is list of updates for each timestamp, axis 1 is ampl for each osc.
-            phas_turns_list: 2D array of phases (in turns) for each oscillator.
-                Axis 0 is list of updates for each timestamp, axis 1 is phase for each osc.
-            sample_interval_mu_list: 1D array of timestamps (in machine units) for each ampl/phase update.
-        Returns:
-                the index of the recorded waveform (for later playback).
+        :param ampl_frac_list: 2D array of amplitudes (fractional) for each oscillator.
+            Axis 0 is list of updates for each timestamp, axis 1 is ampl for each osc.
+        :param phas_turns_list: 2D array of phases (in turns) for each oscillator.
+            Axis 0 is list of updates for each timestamp, axis 1 is phase for each osc.
+        :param sample_interval_mu_list: 1D array of timestamps (in machine units) for each ampl/phase update.
+        :return: the index of the recorded waveform (for later playback).
         """
         '''PREPARE INPUTS'''
         # get total lengths of arrays
@@ -154,6 +152,10 @@ class PhaserPulseShaper(LAXEnvironment):
         """
         Save waveform as dataset.
         In case a question is later raised about waveforms etc.
+        :param wav_idx: todo: document
+        :param ampl_frac_list: todo: document
+        :param phas_turns_list: todo: document
+        :param sample_interval_mu_list: todo: document
         """
         self.set_dataset("_phaser_wav_{:d}_ampls".format(wav_idx), ampl_frac_list)
         self.set_dataset("_phaser_wav_{:d}_phases".format(wav_idx), phas_turns_list)
@@ -163,9 +165,8 @@ class PhaserPulseShaper(LAXEnvironment):
     def _waveform_point(self, ampl_frac_list: TArray(TFloat, 1), phas_turns_list: TArray(TFloat, 1)) -> TNone:
         """
         Records update for all oscillators for a single "update" event.
-        Arguments:
-            ampl_frac_list: 1D array of amplitudes (fractional) for each oscillator.
-            phas_turns_list: 1D array of phases (in turns) for each oscillator.
+        :param ampl_frac_list: 1D array of amplitudes (fractional) for each oscillator.
+        :param phas_turns_list: 1D array of phases (in turns) for each oscillator.
         """
         # loop over input array (guided by ampl_frac_list)
         for osc_num in range(len(ampl_frac_list)):
@@ -198,8 +199,7 @@ class PhaserPulseShaper(LAXEnvironment):
     def waveform_playback(self, waveform_num: TInt32) -> TNone:
         """
         Play back a previously recorded waveform.
-        Arguments:
-            waveform_num    (TInt32): The waveform index to play back.
+        :param waveform_num: The waveform index to play back.
         """
         # note: don't synchronize to frame - let user do this since user may also need to reset DUC
         self.core_dma.playback_handle(self._dma_handles[waveform_num])

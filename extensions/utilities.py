@@ -50,9 +50,9 @@ def create_experiment_config(*args, config_type=int64, shuffle_config=True):
     Creates a 2D array of experiment configuration values.
     Each row represents a different experiment configuration to run.
     :param args: parameter lists to merge into an experiment config.
-    :param dtype_: data type of
+    :param config_type: data type of output dataset
     :param shuffle_config: whether to shuffle the configuration list.
-    :return: todo document
+    :return: the configured experiment config as a 2D numpy array.
     """
     # create an array of values for the experiment to sweep
     exp_config = array([
