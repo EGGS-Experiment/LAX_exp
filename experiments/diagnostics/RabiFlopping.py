@@ -1,7 +1,8 @@
-import numpy as np
 from sipyco import pyon
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+
+from numpy import array, linspace, zeros, int64, where, mean, pi
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -13,7 +14,7 @@ from LAX_exp.system.subsequences import (
 class RabiFlopping(LAXExperiment, Experiment):
     """
     Experiment: Rabi Flopping
-    Measures ion fluorescence vs 729nm pulse time and frequency.
+    Characterize coherent evolution by flopping on a narrow-line transition.
     """
     name = 'Rabi Flopping'
     kernel_invariants = {
@@ -33,10 +34,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=80, precision=0, step=1, min=1, max=10000))
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
-                              tooltip="todo: document")
-        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
-                                                               default="SBC - Continuous"),
-                              tooltip="todo: document")
+                              tooltip="Trigger the beginning of each shot from the AC line.")
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"], default="SBC - Continuous"),
+                              tooltip="Select the cooling type to use.")
 
         # rabi flopping arguments
         self.setattr_argument("time_rabi_us_list", Scannable(
@@ -56,10 +56,11 @@ class RabiFlopping(LAXExperiment, Experiment):
                               group=self.name)
         self.setattr_argument("equalize_delays", BooleanValue(default=False),
                               group=self.name,
-                              tooltip="Ensure each shot takes the same overall time by adding a dummy delay.")
+                              tooltip="Adds a dummy delay to each rabi pulse to equalize the time taken for each shot.")
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False),
                               group=self.name,
-                              tooltip="Shape the rabiflop pulse to reduce spectral leakage. Uses a Hann (sine-squared) envelope.")
+                              tooltip="Shape the rabiflop pulse to reduce spectral leakage. "
+                                      "Uses a Hann (sine-squared) envelope.")
 
         # allocate relevant beam profiles
         self.profile_729_readout =  0
@@ -83,11 +84,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         # get devices
         self.setattr_device('qubit')
         self.setattr_device('trigger_line')
-        # tmp remove
         self.setattr_device('pump')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
-        # tmp remove
 
     def prepare_experiment(self):
         """
@@ -106,15 +105,14 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
 
-        # convert time to machine units
-        max_time_us = np.max(list(self.time_rabi_us_list))
         # create timing list such that all shots have same length
-        self.time_rabiflop_mu_list = np.array([
+        max_time_us = max(list(self.time_rabi_us_list))
+        self.time_rabiflop_mu_list = array([
             [self.core.seconds_to_mu((max_time_us - time_us) * us), self.core.seconds_to_mu(time_us * us)]
             for time_us in self.time_rabi_us_list
         ])
         # turn off delay equalization based on input
-        if not self.equalize_delays: self.time_rabiflop_mu_list[:, 0] = np.int64(8)
+        if not self.equalize_delays: self.time_rabiflop_mu_list[:, 0] = int64(8)
 
     @property
     def results_shape(self):
@@ -150,14 +148,15 @@ class RabiFlopping(LAXExperiment, Experiment):
             # sweep rabi flopping times
             for time_rabi_pair_mu in self.time_rabiflop_mu_list:
 
-                # tmp remove
+                '''
+                PREPARE SHOT
+                '''
                 # turn on rescue beams while waiting
                 self.core.break_realtime()
                 self.pump.rescue()
                 self.repump_cooling.on()
                 self.repump_qubit.on()
                 self.pump.on()
-                # tmp remove
 
                 # configure qubit pulse
                 if self.enable_pulseshaping:
@@ -170,6 +169,10 @@ class RabiFlopping(LAXExperiment, Experiment):
                 if self.enable_linetrigger:
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
+
+                '''
+                RUN SHOT
+                '''
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
                 self.cooling_subsequence.run_dma()
@@ -178,7 +181,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_readout_mu)
 
-                # add delay to ensure each shot takes same time
+                # add delay to equalize shot time
                 delay_mu(time_rabi_pair_mu[0])
                 # rabi flop & read out
                 if self.enable_pulseshaping:
@@ -189,13 +192,10 @@ class RabiFlopping(LAXExperiment, Experiment):
                     self.qubit.off()
 
                 # do readout & clean up loop
-                # do readout & clean up loop
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.resuscitate()
+                counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.detect_death(counts)
-
-                # update dataset
                 self.update_results(time_rabi_actual_mu, counts)
 
             # rescue ion as needed & support graceful termination
@@ -212,27 +212,26 @@ class RabiFlopping(LAXExperiment, Experiment):
         Fit rabi flopping data with an exponentially damped sine curve.
         """
         # get results
-        results_tmp = np.array(self.results)
-        probability_vals = np.zeros(len(results_tmp))
-        counts_arr = np.array(results_tmp[:, 1])
+        results_tmp = array(self.results)
+        probability_vals = zeros(len(results_tmp))
+        counts_arr = array(results_tmp[:, 1])
         # convert x-axis (time) from machine units to seconds
-        results_tmp[:, 0] = np.array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
+        results_tmp[:, 0] = array([self.core.mu_to_seconds(time_mu) for time_mu in results_tmp[:, 0]])
 
         # calculate fluorescence detection threshold
         threshold_list = findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
-            probability_vals[np.where(counts_arr > threshold_val)] += 1.
+            probability_vals[where(counts_arr > threshold_val)] += 1.
         # normalize probabilities and convert from D-state probability to S-state probability
         results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
         # process dataset into x, y, with y being averaged probability
-        results_tmp = groupBy(results_tmp, column_num=0, reduce_func=np.mean)
-        results_tmp = np.array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
+        results_tmp = groupBy(results_tmp, column_num=0, reduce_func=mean)
+        results_tmp = array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
         # fit rabi flopping using damped harmonic oscillator
-        results_plotting_x, results_plotting_y = np.array(results_tmp).transpose()
-        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), 1000)
+        results_plotting_x, results_plotting_y = array(results_tmp).transpose()
+        fit_x = linspace(min(results_plotting_x), max(results_plotting_x), 1000)
         try:
-            # fit rabi flopping data
             fitter = fitDampedOscillator()
             fit_params, fit_err = fitter.fit(results_tmp)
             fit_y = fitter.fit_func(fit_x, *fit_params)
@@ -240,7 +239,7 @@ class RabiFlopping(LAXExperiment, Experiment):
             # todo: note: we fit using roos' eqn(A.5) instead of eqn(A.3) for simplicity
 
             # process fit parameters to give values of interest
-            fit_period_us = (2 * np.pi * 1.e6) / fit_params[2]
+            fit_period_us = (2 * pi * 1.e6) / fit_params[2]
             fit_period_err_us = fit_period_us * (fit_err[2] / fit_params[2])
             # todo: extract phonon number from fit
 
@@ -269,8 +268,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'subplot_titles': f'Rabi Flopping',
                             'subplot_x_labels': 'Time (us)',
                             'subplot_y_labels': 'S State Population',
-                            'rid': self.scheduler.rid,
-                            }
+                            'rid': self.scheduler.rid,}
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
         # create applet
@@ -279,3 +277,4 @@ class RabiFlopping(LAXExperiment, Experiment):
                        ' --num-subplots 1',
                        group = ['plotting', 'diagnostics'])
         return results_tmp
+

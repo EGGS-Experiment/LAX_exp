@@ -106,7 +106,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         _argstr = "SDR"  # create short string for argument grouping
 
         # phaser - frequency configuration
-        self.setattr_argument("freq_heating_carrier_mhz_list", Scannable(
+        self.setattr_argument("freq_phaser_carrier_mhz_list", Scannable(
                                                                         default=[
                                                                             ExplicitScan([86.]),
                                                                             CenterScan(86., 0.002, 0.0005, randomize=True),
@@ -116,7 +116,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                     ),
                               group="{}.freq".format(_argstr),
                               tooltip="Phaser output center frequency.\n"
-                                      "Note: actual center frequency depends on the eggs.freq_center_mhz dataset argument, "
+                                      "Note: actual center frequency depends on the devices.phaser.freq_center_mhz dataset argument, "
                                       "which should be manually entered into the dataset manager by the user after "
                                       "configuring the TRF and NCO via e.g. the phaser_configure tool.\n"
                                       "Ensure all values are set correctly.")
@@ -264,7 +264,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.setattr_argument("phase_osc4_psk_turns", PYONValue([0., 0.]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc4.")
 
         # phaser - waveform - PSK (i.e. ramsey-style) delay
-        self.setattr_argument("enable_psk_delay", BooleanValue(default=False), group="{}.psk".format(_argstr),
+        self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
+                              group="{}.psk".format(_argstr),
                               tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
                                       "Can be used to create e.g. a Ramsey or DD-type pulse sequence. "
                                       "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
@@ -315,7 +316,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
 
         # format build arguments as numpy arrays with appropriate units
-        freq_heating_carrier_hz_list = array(list(self.freq_heating_carrier_mhz_list)) * MHz
+        freq_phaser_carrier_hz_list = array(list(self.freq_phaser_carrier_mhz_list)) * MHz
         self.freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
         self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_hz
         self.phase_osc_sweep_turns_list = list(self.phase_osc_sweep_turns_list)
@@ -346,7 +347,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # create actual experiment config
         self.config_experiment_list = create_experiment_config(
-            freq_heating_carrier_hz_list, self.freq_osc_sweep_hz_list,
+            freq_phaser_carrier_hz_list, self.freq_osc_sweep_hz_list,
             waveform_num_list, list(self.phase_global_ch1_turns_list),
             time_readout_mu_list,
             config_type=float, shuffle_config=self.randomize_config
@@ -359,7 +360,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
-        '''CHECK PHASER BASE OSC CONFIG'''
+        '''
+        CHECK PHASER BASE OSC CONFIG
+        '''
         # check that phaser oscillator amplitude config is valid
         if ((not isinstance(self.ampl_osc_frac_list, list)) or
                 (len(self.ampl_osc_frac_list) != self._num_phaser_oscs)):
@@ -381,18 +384,22 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                            max(self.freq_osc_khz_list) * kHz +
                            (self.freq_global_offset_mhz * MHz))
         min_osc_freq_hz = (min(list(self.freq_osc_sweep_khz_list)) * kHz +
-                           max(self.freq_osc_khz_list) * kHz +
+                           min(self.freq_osc_khz_list) * kHz +
                            (self.freq_global_offset_mhz * MHz))
         if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
             raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_output_freqs_hz = array(list(self.freq_heating_carrier_mhz_list)) * MHz
+        phaser_output_freqs_hz = array(list(self.freq_phaser_carrier_mhz_list)) * MHz
         phaser_carrier_lower_dev_hz = abs(self.phaser_eggs.freq_center_hz - min(phaser_output_freqs_hz))
         phaser_carrier_upper_dev_hz = abs(self.phaser_eggs.freq_center_hz - max(phaser_output_freqs_hz))
-        if (phaser_carrier_upper_dev_hz >= 200. * MHz) or (phaser_carrier_lower_dev_hz >= 200. * MHz):
+        if (phaser_carrier_upper_dev_hz >= 300. * MHz) or (phaser_carrier_lower_dev_hz >= 300. * MHz):
             raise ValueError("Error: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
 
+
+        '''
+        CHECK PHASER WAVEFORM CONFIG
+        '''
         # check that PSK schedule is valid
         num_psk_blocks = len(self.phase_osc0_psk_turns)
         psk_schedule_invalid = self.enable_phase_shift_keying and any([
@@ -403,24 +410,22 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             )
         ])
         if psk_schedule_invalid:
-            raise ValueError("Invalid PSK schedule. All PSK schedules must be of same length.")
+            raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
 
         # ensure that sweep targets are lists of appropriate length
         if not (isinstance(self.phase_sweep_arr, list) and (len(self.phase_sweep_arr) == self._num_phaser_oscs)):
-            raise ValueError("Invalid phase_sweep_arr: {:}."
-                             "phase_sweep_arr must be list of length {:d}.".format(self.phase_sweep_arr,
-                                                                                      self._num_phaser_oscs))
+            raise ValueError("Invalid phase_sweep_arr: {:}.\nphase_sweep_arr must be list of length {:d}.".format(
+                self.phase_sweep_arr, self._num_phaser_oscs))
         if not (isinstance(self.freq_sweep_arr, list) and (len(self.freq_sweep_arr) == self._num_phaser_oscs)):
-            raise ValueError("Invalid freq_sweep_arr: {:}."
-                             "freq_sweep_arr must be list of length {:d}.".format(self.freq_sweep_arr,
-                                                                                      self._num_phaser_oscs))
+            raise ValueError("Invalid freq_sweep_arr: {:}.\nfreq_sweep_arr must be list of length {:d}.".format(
+                self.freq_sweep_arr, self._num_phaser_oscs))
 
         # check that waveforms are not too many/not sweeping too hard
         num_waveforms_to_record = (len(list(self.phase_osc_sweep_turns_list)) *
                                    len(list(self.time_psk_delay_us_list)) *
                                    len(list(self.ampl_osc_scale_list)))
         if num_waveforms_to_record > PULSESHAPER_MAX_WAVEFORMS:
-            raise ValueError("Too many waveforms to record ({:d}) - must be fewer than {:d}. "
+            raise ValueError("Too many waveforms to record ({:d}) - must be fewer than {:d}.\n"
                              "Reduce length of any of [phase_osc_sweep_turns_list, "
                              "time_psk_delay_us_list, ampl_osc_scale_list].".format(
                 num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
