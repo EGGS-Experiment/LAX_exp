@@ -1,13 +1,14 @@
 from artiq.experiment import *
+from artiq.coredevice.exceptions import RTIOUnderflow
 
 import os
 import h5py
 import logging
 from time import localtime, strftime
 
+from abc import ABC, abstractmethod
 from datetime import datetime
 from socket import gethostname
-from abc import ABC, abstractmethod
 from numpy import array, zeros, int32, nan
 
 logger = logging.getLogger("artiq.master.experiments")
@@ -86,7 +87,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         General construction of the experiment object.
         Called right before run (unlike build, which is called upon instantiation).
         """
-        '''BEGIN PREPARE'''
+        '''
+        BEGIN PREPARE
+        '''
         # get kernel invariants (if any)
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants
@@ -138,14 +141,18 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.kernel_invariants.add("save_dir_list")
 
 
-        '''SUBSCRIBE TO LABRAD FOR WARNINGS'''
+        '''
+        SUBSCRIBE TO LABRAD FOR WARNINGS
+        '''
         # get monitoring status from dataset manager
         monitor_status = self.get_dataset('management.safe_mode', default=False)
         if monitor_status:
             self.labrad_subscribe()
 
 
-        '''COMPILE FIXED KERNEL_FROM_STRING SEQUENCES'''
+        '''
+        COMPILE FIXED KERNEL_FROM_STRING SEQUENCES
+        '''
         self._prepare_compile_code()
 
     def _prepare_compile_code(self):
@@ -204,6 +211,7 @@ class LAXExperiment(LAXEnvironment, ABC):
                 self.kernel_invariants.add("_LAXSubsequence_{}".format(i))
                 _initialize_code += "self._LAXSubsequence_{}.initialize_subsequence()\n".format(i)
                 _initialize_code += "self.core.break_realtime()\n"
+
                 # for LAXSubsequences only: get DMA handle for sequences recorded onto DMA
                 _initialize_load_DMA_code += "self._LAXSubsequence_{}._load_dma()\n".format(i)
 
@@ -282,14 +290,13 @@ class LAXExperiment(LAXEnvironment, ABC):
             "self.core.break_realtime()\n"
 
             "try:\n"
-            
             # check termination & initialize experiment
             "\tself.core.break_realtime()\n"
             "\tself.check_termination()\n"
             "\tself.core.break_realtime()\n"
             "\tself._initialize_experiment(self)\n"
             
-            # check termination & run_main
+            # check termination again (before we start) & run_main
             "\tself.core.break_realtime()\n"
             "\tself.check_termination()\n"
             "\tself.core.break_realtime()\n"
@@ -301,22 +308,18 @@ class LAXExperiment(LAXEnvironment, ABC):
             "\tprint('\tExperiment successfully terminated.')\n"
             "\tself.core.break_realtime()\n"
             "\tdelay_mu(1000000)\n"
-            
-            # todo: handle RTIOUnderflow safely
-            
-            # add slack to default case
+                        
+            # default case: ensure we always synchronize & clean up
             "finally:\n"
-            "\tself.core.break_realtime()\n"
-            
             # synchronize timeline
-            "self.core.break_realtime()\n"
-            "self.core.wait_until_mu(now_mu())\n"
-            "delay_mu(1000000)\n"
+            "\tself.core.break_realtime()\n"
+            "\tself.core.wait_until_mu(now_mu())\n"
+            "\tself.core.break_realtime()\n"
+            "\tdelay_mu(1000000)\n" # add 1ms slack
             
-            # cleanup sequence
-            "self.core.break_realtime()\n"
-            "self._cleanup_experiment(self)\n"
-            "self.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
+            # cleanup experiment
+            "\tself._cleanup_experiment(self)\n"
+            "\tself.core.break_realtime()" # note: final line of kernel_from_string MUST NOT have an "\n" character
         )
 
         # create kernel from code string and set as _cleanup_experiment
@@ -340,9 +343,10 @@ class LAXExperiment(LAXEnvironment, ABC):
     '''
 
     @kernel
-    def run(self):
+    def run(self) -> TNone:
         """
         Main sequence of the experiment.
+        Should NOT be overloaded by users, since this handles all key LAX functionality.
         """
         self._run_main(self)
 
@@ -363,13 +367,6 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         # record start time
         self.time_global_start = datetime.timestamp(datetime.now())
-
-    @kernel(flags={"fast-math"})
-    def _initialize_experiment(self) -> TNone:
-        """
-        Call the initialize functions of devices and sub/sequences (in that order).
-        """
-        pass
 
     def initialize_experiment(self) -> TNone:
         """
@@ -395,13 +392,6 @@ class LAXExperiment(LAXEnvironment, ABC):
             # check if user requests experiment termination
             self.check_termination()
 
-    @kernel
-    def _run_main(self) -> TNone:
-        """
-        todo: document
-        """
-        pass
-
     def run_loop(self):
         """
         To be subclassed.
@@ -417,13 +407,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         Provided for convenience.
         """
         delay_mu(0)
-
-    @kernel(flags={"fast-math"})
-    def _cleanup_experiment(self) -> TNone:
-        """
-        Call the cleanup functions of sequences, subsequence, and devices and (in that order).
-        """
-        pass
 
     @kernel(flags={"fast-math"})
     def cleanup_experiment(self) -> TNone:
@@ -609,14 +592,14 @@ class LAXExperiment(LAXEnvironment, ABC):
         Define the array shape of the "results" dataset used to store data.
         e.g. (100, 3) sets the "results" dataset to be 100 rows long and 3 columns wide.
         Note (2025/08/01): made it NOT an abstractmethod and added a default return
-            to reduce overhead for non-experiment type LAXExps,
+            to reduce overhead for non-experiment type LAXExperiments.
         """
         return (1, 1)
 
     def write_results(self, exp_params):
         """
         Write arguments, datasets, and parameters in a well-structured format
-        that uses the capabilities of HDF5.
+        that uses the capabilities of the HDF5 format.
         """
         # set variables
         rid =           exp_params["rid"]
@@ -682,11 +665,14 @@ class LAXExperiment(LAXEnvironment, ABC):
 
             # create a synchronous connection to labrad
             # cxn = labrad.connect(LABRADHOST, port=LABRADPORT, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
-            cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
+            cxn = labrad.connect(name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()),
+                                 username="", password=LABRADPASSWORD)
 
             # create a synchronous connection to wavemeter labrad
             from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
-            cxn_wm = labrad.connect(multiplexer_config.ip, name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()), username="", password=LABRADPASSWORD)
+            cxn_wm = labrad.connect(multiplexer_config.ip,
+                                    name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()),
+                                    username="", password=LABRADPASSWORD)
 
             # get relevant system values
             sys_vals.update(self._save_labrad_rf(cxn))
@@ -709,10 +695,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def _save_labrad_rf(self, cxn):
         """
         Extract system RF parameters from LabRAD.
-        Arguments:
-            cxn     labrad_cxn  : a labrad connection object.
-        Returns:
-                    dict        : a dict of relevant system values.
+        :param cxn: a labrad connection object.
+        :return: a dict of relevant system values.
         """
         # create holding dict
         sys_vals_rf = {}
@@ -739,10 +723,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def _save_labrad_dc(self, cxn):
         """
         Extract system DC parameters from LabRAD.
-        Arguments:
-            cxn     labrad_cxn  : a labrad connection object.
-        Returns:
-                    dict        : a dict of relevant system values.
+        :param cxn: a labrad connection object.
+        :return: a dict of relevant system values.
         """
         # create holding dict
         sys_vals_dc = {}
@@ -777,11 +759,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def _save_labrad_temp(self, cxn):
         """
         Extract system temperature/cryo parameters from LabRAD.
-        Arguments:
-            cxn     labrad_cxn  : a labrad connection object.
-
-        Returns:
-                    dict        : a dict of relevant system values.
+        :param cxn: a labrad connection object.
+        :return: a dict of relevant system values.
         """
         # create holding dict
         sys_vals_temp = {}
@@ -800,10 +779,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def _save_labrad_wm(self, cxn):
         """
         Extract system wavemeter parameters from LabRAD.
-        Arguments:
-            cxn     labrad_cxn  : a labrad connection object.
-        Returns:
-                    dict        : a dict of relevant system values.
+        :param cxn: a labrad connection object.
+        :return: a dict of relevant system values.
         """
         # create holding dict
 
@@ -836,10 +813,8 @@ class LAXExperiment(LAXEnvironment, ABC):
     def _save_labrad_bfield(self, cxn):
         """
         Extract system B-field parameters from LabRAD.
-        Arguments:
-            cxn     labrad_cxn  : a labrad connection object.
-        Returns:
-                    dict        : a dict of relevant system values.
+        :param cxn: a labrad connection object.
+        :return: a dict of relevant system values.
         """
         # create holding dict
         sys_vals_bfield = {}

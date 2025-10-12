@@ -21,7 +21,7 @@ from skimage.filters import threshold_multiotsu, threshold_minimum
 from LAX_exp.extensions.conversions import *
 
 # from scipy.stats import iqr
-# from skimage.filters import threshold_otsu, threshold_multiotsu, threshold_minimum, threshold_yen, threshold_isodata, threshold_triangle
+# from skimage.filters import threshold_otsu, threshold_yen, threshold_isodata, threshold_triangle
 
 
 '''
@@ -29,14 +29,12 @@ Thresholding
 '''
 def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None):
     """
-    Get the binary discrimination threshold for a dataset
-    by using thresholding methods from scikit-image.
-
-    Arguments:
-        ***todo
-
-    Returns:
-        ***todo
+    Get the binary discrimination threshold for a dataset by using thresholding methods from scikit-image.
+    :param count_arr: todo: document
+    :param thresh_dist: todo: document
+    :param num_bins: todo: document
+    :param num_ions: todo: document
+    :return: todo: document
     """
     # todo: implement error handling somehow
     # calculate num_bins if no value is provided
@@ -91,13 +89,9 @@ def findThresholdScikit(counts_arr, thresh_dist=50, num_bins=None, num_ions=None
 def findThresholdPeaks(counts_arr):
     """
     Get the binary discrimination threshold for a dataset
-    by finding histogram peaks and applying minimum error thresholding.
-
-    Arguments:
-        ***todo
-
-    Returns:
-        ***todo
+        by finding histogram peaks and applying minimum error thresholding.
+    :param counts_arr: todo: document
+    :return: todo: document
     """
     # calculate histogram bin width using freedman diaconis rule (bin width = 2 * iqr * n^(-1/3))
     # bin_width = np.round(2 * iqr(counts_arr) / np.power(len(counts_arr), 1./3.))
@@ -135,11 +129,10 @@ Dataset Processing
 def groupBy(dataset, column_num=0, reduce_func=lambda x: x):
     """
     Groups a 2-D array by a given column.
-    Arguments:
-        ***todo
-
-    Returns:
-        ***todo
+    :param dataset: todo: document
+    :param column_num: todo: document
+    :param reduce_func: todo: document
+    :return: todo: document
     """
     # ensure dataset is a numpy array for ease of use
     dataset = np.array(dataset)
@@ -159,11 +152,10 @@ def groupBy(dataset, column_num=0, reduce_func=lambda x: x):
 def groupBy2(dataset, column_nums=0, reduce_func=lambda x: x):
     """
     Groups a 2-D array by a given column.
-    Arguments:
-        ***todo
-
-    Returns:
-        ***todo
+    :param dataset: todo: document
+    :param column_nums: todo: document
+    :param reduce_func: todo: document
+    :return: todo: document
     """
     # ensure dataset is a numpy array for ease of use
     dataset = np.array(dataset)
