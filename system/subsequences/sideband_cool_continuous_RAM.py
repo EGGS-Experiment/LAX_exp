@@ -282,6 +282,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
     def run(self) -> TNone:
         """
         Run sideband cooling via RAM mode.
+        Note: this subsequence uses a lot of parallel blocks without any concern for overhead
+            b/c intended use is via DMA. Use without DMA may be challenging.
         """
         '''PREPARE HARDWARE FOR SBC '''
         with parallel:
@@ -341,12 +343,9 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         '''BEGIN SBC'''
         time_sbc_init_mu = now_mu()    # get start reference time
 
-        # run spin polarizations according to schedule
-        for time_spinpol_mu in self.time_spinpolarization_mu_list:
-            at_mu(time_sbc_init_mu + time_spinpol_mu)
-            self.spin_polarize()
-
         # turn on SBC beams (after first spinpol)
+        # note (2025/10/11): this MUST be SCHEDULED before spinpol otherwise RTIOUnderflow thrown
+        #   if we have >33 spinpol events; likely due to SED lane stuff (?)
         at_mu(time_sbc_init_mu + self.time_spinpol_mu + 10000)
         with parallel:
             with sequential:
@@ -357,8 +356,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 # begin RAM mode and switch on DDS - 854nm
                 self.repump_qubit.cpld.io_update.pulse_mu(8)
                 self.repump_qubit.on()
-
         time_sbc_start_mu = now_mu() # get new fiducial time
+
+        # run spin polarizations according to schedule
+        # note (2025/10/11): this MUST be SCHEDULED AFTER SBC beam enable otherwise RTIOUnderflow thrown
+        #   if we have >33 spinpol events; likely due to SED lane stuff (?)
+        for time_spinpol_mu in self.time_spinpolarization_mu_list:
+            at_mu(time_sbc_init_mu + time_spinpol_mu)
+            self.spin_polarize()
 
 
         '''CLEAN UP'''
@@ -390,7 +395,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.repump_qubit.off()
 
         # add final spinpol
-        # note: don't remove - verified this was v importat for hi-fidelity (2025/09/18)
+        # note: don't remove - verified this is v important for hi-fidelity state prep (2025/09/18)
         self.spin_polarize()
 
     @kernel(flags={"fast-math"})
@@ -413,10 +418,12 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # set beam waveforms
         delay_mu(64)  # avoid RTIO collisions w/ prev DDS updates
         with parallel:
-            self.qubit.set_mu(self.freq_polish_ftw, asf=self.ampl_polish_asf,
+            self.qubit.set_mu(self.freq_polish_ftw,
+                              asf=self.ampl_polish_asf,
                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
                               profile=self.profile_ram_729)
-            self.repump_qubit.set_mu(self.repump_qubit.freq_repump_qubit_ftw, asf=self.ampl_quench_polish_asf,
+            self.repump_qubit.set_mu(self.repump_qubit.freq_repump_qubit_ftw,
+                                     asf=self.ampl_quench_polish_asf,
                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
                                      profile=self.profile_ram_854)
 
