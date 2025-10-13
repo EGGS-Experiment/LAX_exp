@@ -12,7 +12,7 @@ from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHA
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 
 
-class PSRSB_RDX(LAXExperiment, Experiment):
+class PSRSB(LAXExperiment, Experiment):
     """
     Experiment: Phase-Sensitive Red Sideband (PSRSB) RDX
 
