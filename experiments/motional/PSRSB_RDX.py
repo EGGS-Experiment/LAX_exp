@@ -74,7 +74,7 @@ class PSRSB_RDX(LAXExperiment, Experiment):
 
         # phaser - frequency configuration
         self.setattr_argument("freq_phaser_carrier_mhz",    NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.),
-                              group="{}.global".format(_argstr))
+                              group="{}.freq".format(_argstr))
         self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]),
                               group="{}.freq".format(_argstr),
                               tooltip="Defines how oscillator freqs should be scaled for values in freq_osc_sweep_khz_list.\n"
@@ -585,7 +585,7 @@ class PSRSB_RDX(LAXExperiment, Experiment):
                     waveform_params[0], # note: manually expand waveform_params b/c no variadics in kernel
                     phase_ch1_turns,
                     freq_psrsb_carr_ftw,
-                    phas_psrsb_carr_pow,
+                    phas_psrsb_rsb_pow,
                     phas_psrsb_carr_pow
                 )
 
