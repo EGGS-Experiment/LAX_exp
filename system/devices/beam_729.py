@@ -18,7 +18,8 @@ class Beam729(LAXDevice):
         'rf_switch':        'ttl14',
         'singlepass0':      'urukul0_ch1',
         'singlepass1':      'urukul0_ch2',
-        'doublepass_inj':   'urukul0_ch3',
+        'single_pass2':     'urukul0_ch3',
+        'doublepass_inj':   'urukul1_ch3',
     }
 
     kernel_invariants = {
