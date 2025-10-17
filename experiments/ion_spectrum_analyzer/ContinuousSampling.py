@@ -1,4 +1,6 @@
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_TRACKING
+
 from numpy import int32, int64, array, zeros
 
 from LAX_exp.language import *
@@ -7,6 +9,8 @@ from LAX_exp.system.subsequences import InitializeQubit, Readout, SidebandCoolCo
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+
+# todo: add cat ampl
 
 
 class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
@@ -33,6 +37,11 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         'profile_729_SBC', 'profile_729_RAP', 'profile_729_fock',
         '_num_phaser_oscs', '_enable_osc_clr', '_burst_samples', '_num_bursts', '_idx_burst_samples',
         'TIME_SAMPLE_PERIOD_MIN_SLACK_MU',
+
+        # PSRSB extra
+        'protocol_type_num', 'profile_729_PSRSB', 'att_psrsb_mu',
+        'ampl_psrsb_rsb_asf', 'ampl_psrsb_carr_asf', 'time_psrsb_rsb_mu', 'time_psrsb_carr_mu',
+        'freq_psrsb_rsb_ftw', 'freq_psrsb_carr_ftw', 'phas_psrsb_rsb_pow', 'phas_psrsb_carr_pow',
     }
 
     def build_experiment(self):
@@ -47,11 +56,13 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self.setattr_argument("sample_period_ms",   NumberValue(default=11., precision=6, min=5, max=1e5, step=1, unit="ms", scale=1.),
                               tooltip="Overall time for each sample."
                                       "Must be greater than the actual pulse time by some minimum slack.")
+        self.setattr_argument("protocol_type", EnumerationValue(["FOCK", "PSRSB"], default="FOCK"))
 
         # allocate relevant beam profiles
         self.profile_729_SBC =      1
         self.profile_729_RAP =      2
         self.profile_729_fock =     3
+        self.profile_729_PSRSB =    4
 
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
@@ -75,11 +86,42 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
 
         # set build arguments
+        self._build_arguments_PSRSB()
         self._build_arguments_waveform()
         self._build_arguments_modulation()
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
+
+    def _build_arguments_PSRSB(self):
+        """
+        Set specific arguments for PSRSB beam configuration.
+        """
+        _argstr = "PSRSB"    # string to use for arguments
+
+        # PSRSB - general
+        self.setattr_argument("att_psrsb_db", NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              group='{}'.format(_argstr))
+
+        # PSRSB - RSB pulse
+        self.setattr_argument("ampl_psrsb_rsb_pct", NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("time_psrsb_rsb_us",  NumberValue(default=25.41, precision=3, step=5, min=1, max=10000000, scale=1., unit="us"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("freq_psrsb_rsb_mhz", NumberValue(default=100.7594, precision=6, step=5, min=60., max=200., scale=1., unit="MHz"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("phas_psrsb_rsb_turns",   NumberValue(default=0., precision=5, step=0.05, min=-1.1, max=1.1, scale=1., unit="turns"),
+                              group='{}'.format(_argstr))
+
+        # PSRSB - carrier pulse
+        self.setattr_argument("ampl_psrsb_carr_pct",    NumberValue(default=50, precision=3, step=5, min=0.01, max=50, scale=1., unit="%"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("time_psrsb_carr_us",     NumberValue(default=1.21, precision=3, step=1, min=1, max=10000000, scale=1., unit="us"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("freq_psrsb_carr_mhz",    NumberValue(default=101.0881, precision=6, step=5, min=60., max=200., scale=1., unit="MHz"),
+                              group='{}'.format(_argstr))
+        self.setattr_argument("phas_psrsb_carr_turns",  NumberValue(default=0., precision=5, step=0.05, min=-1.1, max=1.1, scale=1., unit="turns"),
+                              group='{}'.format(_argstr))
 
     def _build_arguments_waveform(self):
         """
@@ -193,8 +235,14 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         """
         Prepare experimental values.
         """
-        '''GENERAL SETUP'''
+        '''
+        GENERAL SETUP
+        '''
         self._prepare_argument_checks() # check input arguments for safety
+
+        # process protocol type (b/c don't want to compare str in kernel)
+        if self.protocol_type == "FOCK":    self.protocol_type_num = 0
+        elif self.protocol_type == "PSRSB": self.protocol_type_num = 1
 
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks stored as [block_num, osc_num] and store [ampl_pct, phase_turns]
@@ -203,7 +251,9 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
 
-        '''BURST DMA PREPARATION'''
+        '''
+        BURST DMA PREPARATION
+        '''
         ### for convenience/speed, rigidly group shots into a "burst" ###
         self._num_bursts = round(self.num_samples / self._burst_samples)    # for convenience, ensure num_samples is integer multiple of bursts
         self.num_samples = self._num_bursts * self._burst_samples # NOTE: REDEFINITION of the num_samples argument
@@ -219,7 +269,28 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self._time_exp_shot_mu = int64(0)   # measure actual shot period (during DMA recording) to ensure user-specified sample period is viable
 
 
-        '''HARDWARE VALUES - CONFIG'''
+        '''
+        HARDWARE VALUES - READOUT
+        '''
+        # PSRSB DDS waveform params
+        self.att_psrsb_mu = self.qubit.cpld.att_to_mu(self.att_psrsb_db * dB)
+
+        self.ampl_psrsb_rsb_asf =   self.qubit.amplitude_to_asf(self.ampl_psrsb_rsb_pct / 100.)
+        self.ampl_psrsb_carr_asf =  self.qubit.amplitude_to_asf(self.ampl_psrsb_carr_pct / 100.)
+
+        self.time_psrsb_rsb_mu =    self.core.seconds_to_mu(self.time_psrsb_rsb_us * us)
+        self.time_psrsb_carr_mu =   self.core.seconds_to_mu(self.time_psrsb_carr_us * us)
+
+        self.freq_psrsb_rsb_ftw =   self.qubit.frequency_to_ftw(self.freq_psrsb_rsb_mhz * MHz)
+        self.freq_psrsb_carr_ftw =  self.qubit.frequency_to_ftw(self.freq_psrsb_carr_mhz * MHz)
+
+        self.phas_psrsb_rsb_pow =   self.qubit.turns_to_pow(self.phas_psrsb_rsb_turns)
+        self.phas_psrsb_carr_pow =  self.qubit.turns_to_pow(self.phas_psrsb_carr_turns)
+
+
+        '''
+        HARDWARE VALUES - CONFIG
+        '''
         # ensure sample interval is multiple of phaser frame period (320ns)
         self.sample_period_mu = int64(
             round(
@@ -409,29 +480,44 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         # note: only need to align to frame b/c frame is multiple of coarse RTIO
         at_mu(self.phaser_eggs.get_next_frame_mu())
         with self.core_dma.record('_SEQUENCE_SHOT'):
-            '''STATE PREPARATION - MOTIONAL FOCK STATE'''
+
+            '''INITIALIZE ION'''
             t0 = now_mu()   # record exp shot period - start time
             self.initialize_subsequence.run()   # doppler cool & prep spin into |S-1/2, mJ=-1/2>
             self.sidebandcool_subsequence.run() # multimode cont. SBC w/854nm quenching
-            self.fock_subsequence.run_fock_generate() # generate higher fock state
+
+            '''PREPARE MOTIONAL STATE/AMPLIFICATION'''
+            if self.protocol_type_num == 0:
+                self.fock_subsequence.run_fock_generate() # generate higher fock state
 
             '''WAVEFORM SEQUENCE'''
             # prepare phaser for output
             self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
+            t_phaser_start_mu = self.phaser_eggs.get_next_frame_mu()   # get fiducial time for PSRSB
+
             # run oscillator waveform
+            at_mu(t_phaser_start_mu)
             for i in range(len(ampl_frac_list)):
                 self.pulse_shaper._waveform_point(ampl_frac_list[i], phas_turns_list[i])
                 delay_mu(sample_interval_mu_list[i])
             # stop phaser output
             self._phaser_stop_rdx()
 
-            '''READOUT - MOTIONAL OVERLAP'''
-            self.fock_subsequence.run_fock_read() # higher fock overlap readout
+            '''READOUT'''
+            # higher fock overlap readout
+            if self.protocol_type_num == 0:
+                self.fock_subsequence.run_fock_read()
+            # PSRSB readout
+            elif self.protocol_type_num == 2:
+                self.psrsb_run(t_phaser_start_mu)
+
             self.readout_subsequence.run() # state-selective fluorescence readout
 
             '''CLEAN UP - SET RESCUE UNTIL NEXT SHOT'''
             # tmp remove
             self.pump.rescue()
+            self.pump.on()
+            self.repump_cooling.on()
             self.repump_qubit.on()
             # tmp remove
 
@@ -596,6 +682,38 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         self.phaser_eggs.channel[0].set_att_mu(0x00)
         delay_mu(self.phaser_eggs.t_frame_mu)
         self.phaser_eggs.channel[1].set_att_mu(0x00)
+
+    @kernel(flags={"fast-math"})
+    def psrsb_run(self, time_ref_mu: TInt64=-1) -> TNone:
+        """
+        Run the phase-sensitive red-sideband detection sequence.
+        :param time_ref_mu: Fiducial time used to compute coherent/tracking phase updates.
+        """
+        # set target profile and attenuation
+        self.qubit.set_profile(self.profile_729_PSRSB)
+        self.qubit.cpld.io_update.pulse_mu(8)
+        self.qubit.set_att_mu(self.att_psrsb_mu)
+
+        # synchronize start time to coarse RTIO clock
+        if time_ref_mu < 0: time_ref_mu = now_mu() & ~0x7
+
+        # run RSB pulse
+        self.qubit.set_mu(self.freq_psrsb_rsb_ftw, asf=self.ampl_psrsb_rsb_asf,
+                          pow_=self.phas_psrsb_rsb_pow,
+                          profile=self.profile_729_PSRSB,
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
+        self.qubit.on()
+        delay_mu(self.time_psrsb_rsb_mu)
+        self.qubit.off()
+
+        # run carrier pulse
+        self.qubit.set_mu(self.freq_psrsb_carr_ftw, asf=self.ampl_psrsb_carr_asf,
+                          pow_=self.phas_psrsb_carr_pow,
+                          profile=self.profile_729_PSRSB,
+                          phase_mode=PHASE_MODE_TRACKING, ref_time_mu=time_ref_mu)
+        self.qubit.on()
+        delay_mu(self.time_psrsb_carr_mu)
+        self.qubit.off()
 
 
     '''
