@@ -60,13 +60,17 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
-
         self.sidebandreadout_subsequence =  SidebandReadout(self, profile_dds=self.profile_729_sb_readout)
         self.initialize_subsequence =       InitializeQubit(self)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
 
-        # Sideband Readout - extra argument
+        # get relevant devices
+        self.setattr_device("qubit")
+        self.setattr_device('phaser_eggs')
+
+        # build experiment arguments
+        # extra argument for SBR
         self.setattr_argument("time_readout_us_list", Scannable(
                                                             default=[
                                                                 ExplicitScan([26.11]),
@@ -75,15 +79,36 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                             global_min=1, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group='sideband_readout')
+        self._build_arguments_RAP()
+        self._build_arguments_freq_phase()
+        self._build_arguments_waveform()
 
-        # RAP-based readout
+        # instantiate RAP here since it relies on experiment arguments
+        self.rap_subsequence = QubitRAP(
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
+            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
+        )
+
+        # instantiate helper objects
+        self.spinecho_wizard = SpinEchoWizardRDX(self)
+
+    def _build_arguments_RAP(self):
+        """
+        Set experiment arguments for RAP.
+        """
         self.setattr_argument("att_rap_db",             NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, unit="dB", scale=1.), group="RAP")
         self.setattr_argument("ampl_rap_pct",           NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.), group="RAP")
         self.setattr_argument("freq_rap_center_mhz",    NumberValue(default=100.7394, precision=6, step=1e-2, min=60, max=200, unit="MHz", scale=1.), group='RAP')
         self.setattr_argument("freq_rap_dev_khz",       NumberValue(default=72., precision=2, step=0.01, min=1, max=1e4, unit="kHz", scale=1.), group='RAP')
         self.setattr_argument("time_rap_us",            NumberValue(default=400., precision=3, min=1, max=1e5, step=1, unit="us", scale=1.), group="RAP")
 
-        # configurable freq & sweeps
+    def _build_arguments_freq_phase(self):
+        """
+        Set specific arguments for the phaser's frequency & phase.
+        """
+        _argstr = "CH1Ram"  # string to use for argument grouping
+
+        # configurable freqs
         self.setattr_argument("freq_heating_carrier_mhz_list", Scannable(
                                                                 default=[
                                                                     ExplicitScan([86.]),
@@ -94,7 +119,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                 global_min=0.005, global_max=4800, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
                                                             ), group="{}.freq".format(_argstr))
-        self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]), group="{}.freq".format(_argstr),
+        self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]),
+                              group="{}.freq".format(_argstr),
                               tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -107,6 +133,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                             unit="kHz", scale=1, precision=6
                                                         ), group = "{}.freq".format(_argstr))
 
+        # configurable phases
         self.setattr_argument("target_phase_sweep", EnumerationValue(['ch0+ch1', 'ch1'], default='ch0+ch1'),
                               group="{}.phase".format(_argstr),
                               tooltip="Choose whether phase sweep is applied uniformly to oscillators on both channels,"
@@ -129,6 +156,12 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                                         unit="turns", scale=1, precision=5),
                                                                         group="{}.phase".format(_argstr))
 
+    def _build_arguments_waveform(self):
+        """
+        Set specific arguments for the phaser waveform.
+        """
+        _argstr = "CH1Ram"  # string to use for argument grouping
+
         # RF - waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False), group='{}.shape'.format(_argstr))
         self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
@@ -140,7 +173,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         # custom waveform specification - general
         self.setattr_argument("time_heating_us",   NumberValue(default=1e3, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-                              group="{}.waveform".format(_argstr))
+                              group="{}.wav".format(_argstr))
         self.setattr_argument("att_heating_db_list", Scannable(
                                                         default=[
                                                             ExplicitScan([31.5]),
@@ -148,53 +181,42 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                         ],
                                                         global_min=0.0, global_max=31.5, global_step=0.5,
                                                         unit="dB", scale=1, precision=1
-                                                    ), group = "{}.waveform".format(_argstr))
+                                                    ), group = "{}.wav".format(_argstr))
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
-                              group="{}.waveform".format(_argstr),
+                              group="{}.wav".format(_argstr),
                               tooltip="Attempt to move NCO/TRF leakage outside of target band by shifting DUC and oscillators to compensate.")
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([702.581, 0., 0., 0., 0.]), group="{}.waveform".format(_argstr))
-        self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument("freq_osc_khz_list",      PYONValue([702.581, 0., 0., 0., 0.]), group="{}.wav".format(_argstr))
+        self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0., 0.]), group="{}.wav".format(_argstr),
                               tooltip="Relative phases between each oscillator. Applies equally to CH0 and CH1.")
-        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.wav".format(_argstr),
                               tooltip="Individual CH1 offsets for each oscillator. Obviously, applies only to CH1."
                                       "This is in addition to the CH1 global offset, as well as any CH1 sweeps.")
 
         # custom waveform specification - CH1 Ramsey-specific
-        self.setattr_argument('ampl_ch0_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch0_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.wav".format(_argstr),
                               tooltip="Amplitudes for CH0 oscillators during first stage of Ramsey.")
-        self.setattr_argument('ampl_ch0_stage_1',   PYONValue([40., 40., 0., 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch0_stage_1',   PYONValue([40., 40., 0., 0., 0.]), group="{}.wav".format(_argstr),
                               tooltip="Amplitudes for CH0 oscillators during second stage of Ramsey.")
-        self.setattr_argument('ampl_ch1_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch1_stage_0',   PYONValue([40., 40., 0., 0., 0.]), group= "{}.wav".format(_argstr),
                               tooltip="Amplitudes for CH1 oscillators during first stage of Ramsey.")
-        self.setattr_argument('ampl_ch1_stage_1',   PYONValue([40., 40., 5, 0., 0.]), group="{}.waveform".format(_argstr),
+        self.setattr_argument('ampl_ch1_stage_1',   PYONValue([40., 40., 5, 0., 0.]), group="{}.wav".format(_argstr),
                               tooltip="Amplitudes for CH1 oscillators during second stage of Ramsey.")
 
-        # get relevant devices
-        self.setattr_device("qubit")
-        self.setattr_device('phaser_eggs')
-
-        # instantiate RAP here since it relies on experiment arguments
-        self.rap_subsequence = QubitRAP(
-            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
-            ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
-        )
-
-        # instantiate helper objects
-        self.spinecho_wizard = SpinEchoWizardRDX(self)
 
     def prepare_experiment(self):
         """
         Prepare experimental values.
         """
-        '''SANITIZE & VALIDATE INPUTS'''
+        '''GENERAL SETUP'''
         self._prepare_argument_checks()
 
-        '''SUBSEQUENCE PARAMETERS'''
         # note: sequence blocks are stored as [block_num, osc_num] and hold [ampl_pct, phase_turns]
         # e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
         # note: create object here instead of build since phase_oscillators_ch1_offset_turns isn't well-defined until prepare
         self.pulse_shaper = PhaserPulseShaper2(self, array(self.phase_osc_ch1_offset_turns))
 
+
+        '''SUBSEQUENCE PARAMETERS'''
         # prepare RAP arguments
         self.att_rap_mu = att_to_mu(self.att_rap_db * dB)
         self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
