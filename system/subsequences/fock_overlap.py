@@ -41,19 +41,10 @@ class FockOverlap(QubitRAP):
         _argstr = "fock" # create short string for argument grouping
 
         # general configuration
-        self.setattr_argument("config_rsb",     PYONValue([100.76971, 72., 400., 8.]),
-                              group="{}.general".format(_argstr),
-                              tooltip="RSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_bsb",     PYONValue([101.42681, 72., 400., 8.]),
-                              group="{}.general".format(_argstr),
-                              tooltip="BSB RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
-        self.setattr_argument("config_carr",    PYONValue([101.09641, 350., 30., 8.]),
-                              group="{}.general".format(_argstr),
-                              tooltip="Carrier RAP config: [freq_mhz, freq_dev_ss_khz, time_us, att_db].")
         self.setattr_argument("ampl_fock_pct",  NumberValue(default=50., precision=3, step=5., min=0.001, max=50., unit="%", scale=1.),
-                              group="{}.general".format(_argstr),
-                              tooltip="Same amplitude will be used for all of overlap generation & readout - "
-                                      "i.e. RAP, shelving, and carrier pulses.")
+                              group="{}.config".format(_argstr),
+                              tooltip="Same amplitude will be used for all of overlap generation & readout.\n"
+                                      "i.e. for RAP, carrier, and shelving pulses.")
 
         # fock state: generation
         self.setattr_argument("fock_num_prep", NumberValue(default=0, precision=0, step=1, min=0, max=10),
@@ -69,11 +60,6 @@ class FockOverlap(QubitRAP):
                               tooltip="Enable final RAP pulse (which is almost always necessary). "
                                       "This should be ON by default. "
                                       "This option is used for state diagnostics via BSB Rabi divination.")
-        self.setattr_argument("config_shelve",  PYONValue({0: (113.2802, 117., 66., 8.),
-                                                           1: (104.1423, 60., 274., 8.),
-                                                           2: (110.2341, 36., 420., 8.)}),
-                              group="{}.config".format(_argstr),
-                              tooltip="Shelving RAP config: {fock_num: (freq_mhz, freq_dev_ss_khz, time_us, att_db).")
 
         # build parent subsequence (QubitRAP)
         super().build_subsequence(
@@ -85,22 +71,31 @@ class FockOverlap(QubitRAP):
         """
         Prepare and precompute experiment values for speedy evaluation.
         """
+        '''
+        GENERAL SETUP
+        '''
+        # get relevant configs from dataset manager
+        # note: has to happen before super().prepare_subsequence since
+        self.setattr_parameter('config_shelve', group='subsequences.fock_overlap')
+        self.setattr_parameter('config_rsb', group='subsequences.fock_overlap')
+        self.setattr_parameter('config_bsb', group='subsequences.fock_overlap')
+        self.setattr_parameter('config_carrier', group='subsequences.fock_overlap')
+
         # call parent prepare_subsequence
+        # note: parent prepare_subsequence runs MY _prepare_argument_checks (reasonably)
         super().prepare_subsequence()
-        # question: if I do super().prepare_subsequence, does it call their _prepare_argument_checks,
-        #  or MY _prepare_argument_checks?
-        # answer: it runs MY _prepare_argument_checks (reasonably)
 
 
-        '''CONVERT RAP CONFIGURATIONS'''
-        # need to convert to int since EnumerationValue only allows str
-        self.fock_num_read = int(self.fock_num_read)
+        '''
+        CONVERT RAP CONFIGURATIONS
+        '''
+        self.fock_num_read = int(self.fock_num_read)    # need to convert to int since EnumerationValue only allows str
 
         # note: handle n=0 case this way b/c idc rubbish params if not fock-ing
         config_shelve_tmp = self.config_shelve if self.fock_num_read != 0 else {0: (85., 43., 20., 8.)} # some dummy config
 
         # convert all RAP configs
-        config_core_all = {'r': self.config_rsb, 'b': self.config_bsb, 'c': self.config_carr, **config_shelve_tmp}
+        config_core_all = {'r': self.config_rsb, 'b': self.config_bsb, 'c': self.config_carrier, **config_shelve_tmp}
         # note: separate 32b config word list and 32b att from 64b time to avoid conversion & b/c
         #   elements in artiq list must all be of same type
         self.rap_conf_words_list, self.rap_conf_time_list, self.rap_conf_att_list = zip(
@@ -117,13 +112,13 @@ class FockOverlap(QubitRAP):
         self.rap_conf_words_list = list(self.rap_conf_words_list)
         self.rap_conf_time_list = list(self.rap_conf_time_list)
         self.rap_conf_att_list = list(self.rap_conf_att_list)
-
         # get conversion from sequence keys to index (for later compilation/batch sequencing)
-        # config_idx = tuple(range(len(config_core_all)))
         config_idx = dict(zip(tuple(str(i) for i in config_core_all.keys()), range(len(config_core_all))))
 
 
-        '''COMPILE PULSE SEQUENCES'''
+        '''
+        COMPILE PULSE SEQUENCES
+        '''
         ### compile generation sequence
         # specify pulses for each n - alternate between RSB and BSB
         seq_generate_str = str.join('r', 'b' * self.fock_num_prep)[: self.fock_num_prep]
@@ -134,7 +129,7 @@ class FockOverlap(QubitRAP):
         if len(seq_generate_str) != 0:
             self.sequence_generate = [config_idx[rap_key] for rap_key in seq_generate_str]
         # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else:   self.sequence_generate = [-1]
+        else: self.sequence_generate = [-1]
 
         ### compile readout sequence
         # specify pulses for each shelving operation (RSB => shelve_<num> => carrier) with final RSB for fluorescence readout
@@ -146,7 +141,7 @@ class FockOverlap(QubitRAP):
         if len(seq_read_str) != 0:
             self.sequence_readout = [config_idx[rap_key] for rap_key in seq_read_str]
         # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else:   self.sequence_readout = [-1]
+        else: self.sequence_readout = [-1]
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -157,7 +152,7 @@ class FockOverlap(QubitRAP):
         '''RAP CONFIGS'''
         # check all configs for validity
         config_shelve_tmp = {} if self.fock_num_read == 0 else self.config_shelve
-        configs_all = (self.config_rsb, self.config_bsb, self.config_carr, *(config_shelve_tmp.values()))
+        configs_all = (self.config_rsb, self.config_bsb, self.config_carrier, *(config_shelve_tmp.values()))
 
         for conf_dj in configs_all:
             # check config values are stored correctly
