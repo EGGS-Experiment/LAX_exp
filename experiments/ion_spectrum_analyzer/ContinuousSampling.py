@@ -164,7 +164,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                               group="{}.waveform".format(_argstr),
                               tooltip="Time for a SINGLE SEGMENT of the pulse."
                                       "e.g. a time_osc_pulse_us of 500us with 2 segments => total time of 1ms.")
-        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, 702.687, 0.005, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list", PYONValue([-701.479, 701.479, 0.005, 0., 0.]),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
         self.setattr_argument("ampl_osc_frac_list", PYONValue([25., 25., 49., 0., 0.]),

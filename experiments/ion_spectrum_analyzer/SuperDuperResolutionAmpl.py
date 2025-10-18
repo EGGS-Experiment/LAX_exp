@@ -212,7 +212,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                               group="{}.wav".format(_argstr),
                               tooltip="Apply a frequency offset via the phaser oscillators to avoid any DUC/NCO/TRF output spurs.\n"
                                       "Range is limited by the phaser oscillator freq range, i.e. [-10, 10] MHz (includes the frequencies in freq_osc_khz_list).")
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([-702.687, 702.687, 0., 0.]),
+        self.setattr_argument("freq_osc_khz_list",      PYONValue([-701.479, 701.479, 0., 0.]),
                               group="{}.wav".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
         self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 10., 0.]),

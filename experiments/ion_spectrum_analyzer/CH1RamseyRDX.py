@@ -174,7 +174,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # custom waveform specification - general
         self.setattr_argument("time_heating_us",   NumberValue(default=1e3, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
                               group="{}.wav".format(_argstr))
-        self.setattr_argument("att_heating_db_list", Scannable(
+        self.setattr_argument("att_phaser_db_list", Scannable(
                                                         default=[
                                                             ExplicitScan([31.5]),
                                                             RangeScan(15., 31.5, 33, randomize=True),
@@ -238,8 +238,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
 
         '''HARDWARE VALUES - CONFIG'''
         self.freq_global_offset_hz = self.freq_global_offset_mhz * MHz
-        # ensure att_heating_mu_list rounded to 0.5dB (min att step size) to prevent spamming
-        att_heating_mu_list = set(att_to_mu(round(att_db * 2) / 2 * dB) for att_db in self.att_heating_db_list)
+        # ensure att_phaser_mu_list rounded to 0.5dB (min att step size) to prevent spamming
+        att_phaser_mu_list = set(att_to_mu(round(att_db * 2) / 2 * dB) for att_db in self.att_phaser_db_list)
 
         # convert build arguments to appropriate values and format as numpy arrays
         freq_carrier_hz_list = array(list(self.freq_heating_carrier_mhz_list)) * MHz
@@ -268,9 +268,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.config_experiment_list = create_experiment_config(
             freq_carrier_hz_list,
             self.freq_sweep_hz_list, self.waveform_index_to_phase_sweep_turns,
-            time_readout_mu_list, att_heating_mu_list,
-            shuffle_config=self.randomize_config,
-            config_type=int32
+            time_readout_mu_list, att_phaser_mu_list,
+            shuffle_config=self.randomize_config, config_type=int32
         )
 
         self._prepare_waveform() # configure waveform via pulse shaper & spin echo wizard

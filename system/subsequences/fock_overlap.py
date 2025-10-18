@@ -76,10 +76,10 @@ class FockOverlap(QubitRAP):
         '''
         # get relevant configs from dataset manager
         # note: has to happen before super().prepare_subsequence since
-        self.setattr_parameter('config_shelve', group='subsequences.fock_overlap')
-        self.setattr_parameter('config_rsb', group='subsequences.fock_overlap')
-        self.setattr_parameter('config_bsb', group='subsequences.fock_overlap')
-        self.setattr_parameter('config_carrier', group='subsequences.fock_overlap')
+        self.setattr_parameter('config_shelve', group='sequences.fock_overlap')
+        self.setattr_parameter('config_rsb', group='sequences.fock_overlap')
+        self.setattr_parameter('config_bsb', group='sequences.fock_overlap')
+        self.setattr_parameter('config_carrier', group='sequences.fock_overlap')
 
         # call parent prepare_subsequence
         # note: parent prepare_subsequence runs MY _prepare_argument_checks (reasonably)
