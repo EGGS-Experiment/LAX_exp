@@ -479,7 +479,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         DESIGN WAVEFORM SEQUENCE
         '''
         # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = zeros((len(block_time_list_us), self._num_phaser_oscs, 2), dtype=float)
+        _osc_vals_blocks = zeros((len(block_ampl_scale_list), self._num_phaser_oscs, 2), dtype=float)
         _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)  # set oscillator amplitudes
         # use block_ampl_scale_list to disable output (by setting amplitudes to zero) during delay blocks
         _osc_vals_blocks[:, :, 0] *= array([block_ampl_scale_list]).transpose()
