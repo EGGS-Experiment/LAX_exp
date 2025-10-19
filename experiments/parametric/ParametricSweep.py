@@ -318,7 +318,7 @@ class ParametricSweep(LAXExperiment, Experiment):
             # set voltage to optimal val if val is in range
             mean_voltage_optimum = np.mean(voltage_optima_vals[:, 1])
             if (mean_voltage_optimum > min(self.dc_voltages_v_list)) & (mean_voltage_optimum < max(self.dc_voltages_v_list)):
-                self.voltage_set(self.dc_channel_num, mean_voltage_optimum)
+                self.trap_dc.voltage_fast(self.dc_channel_num, mean_voltage_optimum)
 
 
         # PROCESS SECULAR FREQUENCY SWEEP: only one voltage used
