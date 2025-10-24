@@ -82,13 +82,13 @@ class BatchSubmission(EnvExperiment):
                 "enable_pulse_shaping": True,
                 "type_pulse_shape": "sine_squared",
                 "time_pulse_shape_rolloff_us": 10.0,
-                "freq_pulse_shape_sample_khz": 200.,
+                "freq_pulse_shape_sample_khz": 250.,
 
 
                 "time_heating_us": 100.0,
                 "att_phaser_db": 24.,
                 "freq_global_offset_mhz": 0.0,
-                "freq_osc_khz_list": "[-1284.895, 1284.895, 0.0, 0.0]",
+                "freq_osc_khz_list": "[-1284.697, 1284.697, 0.0, 0.0]",
                 "ampl_osc_frac_list": "[5.94, 9.27, 11.89, 0.0]",
                 "phase_osc_turns_list": "[0.3257, 0.0, 0., 0.0]",
                 "phase_osc_ch1_offset_turns": "[0.0, 0.0, 0.5, 0.5, 0.5]",
@@ -127,13 +127,15 @@ class BatchSubmission(EnvExperiment):
         base_arr = np.array([5, 7.8, 10, 0.])
         base_att_db = 31.5
 
-        base_nbar_ref = 0.398
+        base_nbar_ref = 0.322
         base_time_us = 500.
         base_freq_span_khz = 8.
         base_freq_step_khz = 0.2
 
         fock_range = (0, 1, 2, 3)
-        time_us_arr = [4000, 5000, 6000, 7000, 8000, 9000]
+        time_us_arr = [250]
+        # time_us_arr = [4000, 5000, 6000, 7000, 8000, 9000]
+
         # target_nbar_arr = np.array([0.71136, 0.395536, 0.35568, 0.318154]) ** 2.
         target_nbar_arr = np.array([0.4, 0.4, 0.4, 0.4]) ** 2.
 
@@ -141,7 +143,11 @@ class BatchSubmission(EnvExperiment):
         '''
         PREPARE SCAN ARR
         '''
+        # calculate ampl scaling array for each fock state
         ampl_scale_factor_arr = (target_nbar_arr / base_nbar_ref) ** (1. / 4.)
+
+        # shuffle the time array
+        shuffle(time_us_arr)
 
 
         '''
@@ -159,6 +165,8 @@ class BatchSubmission(EnvExperiment):
             # calculate new timings
             time_shape_rolloff_us = (base_time_us / 10.) / time_scale_factor
 
+            # create temporary list so we can shuffle the fock_range
+            dict_holder_list_tmp = []
             for fock_num in fock_range:
                 # calculate new amplitude scale
                 osc_ampl_arr = (base_arr * ampl_scale_factor_arr[fock_num]) * (time_scale_factor**0.5)
@@ -182,10 +190,14 @@ class BatchSubmission(EnvExperiment):
                     'arguments.ampl_osc_frac_list': str(list(osc_ampl_arr)),
                 }
 
-                scan_config.append(dict_dj)
+                dict_holder_list_tmp.append(dict_dj)
 
-        # randomize the submitted configs before returning
-        shuffle(scan_config)
+            # shuffle the fock ordering and update main scan_config
+            shuffle(dict_holder_list_tmp)
+            scan_config.extend(dict_holder_list_tmp)
+
+        # # randomize the submitted configs before returning
+        # shuffle(scan_config)
         return scan_config
 
     def run(self):
