@@ -48,7 +48,7 @@ class Beam729(LAXDevice):
         todo: document
         """
         # re-alias relevant base devices
-        self.sw =   self.beam.sw
+        self.sw = self.beam.sw
         self.cpld = self.beam.cpld
 
         self.dds_devices = ['singlepass0', 'singlepass1', 'singlepass2', 'doublepass_inj']
@@ -71,6 +71,17 @@ class Beam729(LAXDevice):
 
             setattr(self, f'att_{device}_default_mu', self.get_parameter(f'att_729_{device}_db', group='beams.att_db',
                                                                          override=False, conversion_function=att_to_mu))
+
+        self.device_list =  []
+        self.freq_ftw_list = []
+        self.ampl_asf_list =  []
+        self.att_mu_list =  []
+        for idx, device in enumerate(self.dds_devices):
+            self.device_list.append(getattr(self, device))
+            self.freq_ftw_list.append(getattr(self, f'freq_{device}_default_ftw'))
+            self.ampl_asf_list.append(getattr(self, f'ampl_{device}_default_asf'))
+            self.att_mu_list.append(getattr(self, f'att_{device}_default_mu'))
+
 
     def _check_device_values(self):
         """
@@ -96,6 +107,7 @@ class Beam729(LAXDevice):
     '''
     LAXDEVICE METHODS
     '''
+
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         """
@@ -108,8 +120,8 @@ class Beam729(LAXDevice):
 
         self.set_cfr1()
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
-        for device in self.dds_devices:
-            device_attr = getattr(self, device)
+        for idx in range(len(self.device_list)):
+            device_attr = self.device_list[idx]
             device_attr.set_cfr1()
         self.io_update()
         delay_mu(25000)
@@ -125,11 +137,11 @@ class Beam729(LAXDevice):
 
         # set up relevant AOMs to default values on ALL profiles
         # necessary b/c not all AOMs are configured/used for each experiment
-        for device in self.dds_devices:
-            device_attr = getattr(self, device)
-            freq_attr = getattr(self, f'freq_{device}_default_ftw')
-            ampl_attr = getattr(self, f'ampl_{device}_default_asf')
-            att_attr = getattr(self, f'att_{device}_default_mu')
+        for idx in range(len(self.device_list)):
+            device_attr = self.device_list[idx]
+            freq_attr = self.freq_ftw_list[idx]
+            ampl_attr = self.ampl_asf_list[idx]
+            att_attr = self.att_mu_list[idx]
             device_attr.set_att_mu(att_attr)
             delay_mu(25000)
             for i in range(8):
@@ -165,11 +177,11 @@ class Beam729(LAXDevice):
         """
         # set up relevant AOMs to default values on ALL profiles
         # necessary b/c not all AOMs are configured/used for each experiment
-        for device in self.dds_devices:
-            device_attr = getattr(self, device)
-            freq_attr = getattr(f'freq_{device}_default_ftw')
-            ampl_attr = getattr(self, f'ampl_{device}_default_asf')
-            att_attr = getattr(self, f'att_{device}_default_mu')
+        for idx in range(len(self.device_list)):
+            device_attr = self.device_list[idx]
+            freq_attr = self.freq_ftw_list[idx]
+            ampl_attr = self.ampl_asf_list[idx]
+            att_attr = self.att_mu_list[idx]
             device_attr.set_att_mu(att_attr)
             delay_mu(25000)
             for i in range(8):
@@ -194,6 +206,7 @@ class Beam729(LAXDevice):
     '''
     HARDWARE METHODS
     '''
+
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
         """
