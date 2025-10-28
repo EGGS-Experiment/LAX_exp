@@ -191,8 +191,8 @@ class PhaserEGGS(LAXDevice):
         :param att_mu_ch0: phaser CH0 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
         :param att_mu_ch1: phaser CH1 attenuator value in machine units. 0x00 is 31.5 dB, 0xFF is 0 dB.
         """
-        # EGGS - START/SETUP
-        # set phaser attenuators - warning: creates turn on glitch, must do while switches are closed
+        # # EGGS - START/SETUP
+        # # set phaser attenuators - warning: creates turn on glitch, must do while switches are closed
         at_mu(self.phaser.get_next_frame_mu())
         self.phaser.channel[0].set_att_mu(att_mu_ch0)
         delay_mu(self.t_frame_mu)
@@ -200,8 +200,8 @@ class PhaserEGGS(LAXDevice):
 
         # add extra delay to ensure turn-on glitches are suppressed by switches
         delay_mu(1920)  # 6 frame periods
-
-        # open phaser amp switches and activate integrator hold
+        #
+        # # open phaser amp switches and activate integrator hold
         with parallel:
             self.ch0_amp_sw.on()
             self.ch1_amp_sw.on()
