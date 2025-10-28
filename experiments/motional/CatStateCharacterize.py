@@ -48,9 +48,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         'readout_config', 'ampl_729_readout_asf', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
 
         #   hardware values - dynamical decoupling
-        'freq_dynamical_decoupling_ftw_list','ampl_dynamical_decoupling_asf',
-        'att_dynamical_decoupling_mu', 'phase_dynamical_decoupling_cat1_pow_list',
-        'phase_dynamical_decoupling_cat2_pow_list'
+        'ampl_dynamical_decoupling_asf',
+        'att_dynamical_decoupling_mu',
 
         # configs
         'profile_729_SBC', 'profile_729_RAP',
@@ -64,7 +63,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self._num_phaser_oscs = 5  # number of phaser oscillators in use
 
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=2, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("readout_type", EnumerationValue(["None", "SBR", "RAP"], default="RAP"),
                               tooltip="None: NO 729nm pulses are applied before state-selective readout.\n"
                                       "SBR (Sideband Ratio): compares RSB and BSB amplitudes.\n"
@@ -117,7 +116,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         """
         # defaults - sigma_x
         self.setattr_argument("freq_sigmax_mhz",
-                              NumberValue(default=101.0978, precision=6, step=1, min=50., max=400., scale=1.,
+                              NumberValue(default=101.08388, precision=6, step=1, min=50., max=400., scale=1.,
                                           unit="MHz"),
                               group="default.sigmax",
                               tooltip="Frequency for both the sigma_x and anti-sigma_x pulses. "
@@ -133,7 +132,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               tooltip="DDS attenuation for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
         self.setattr_argument("time_sigmax_us",
-                              NumberValue(default=15., precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
+                              NumberValue(default=2.38, precision=3, step=0.1, min=0.01, max=10000, scale=1., unit="us"),
                               group="default.sigmax",
                               tooltip="Pulse time for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
@@ -144,18 +143,18 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group="default.cat",
                               tooltip="DDS amplitude for the main doublepass during the bichromatic pulse.")
         self.setattr_argument("att_doublepass_default_db",
-                              NumberValue(default=8., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
+                              NumberValue(default=16., precision=1, step=0.5, min=8., max=31.5, scale=1., unit="dB"),
                               group="default.cat",
                               tooltip="DDS attenuation for the main doublepass during the bichromatic pulse.")
         self.setattr_argument("ampls_cat_pct", PYONValue([50., 50.]), group='default.cat',
                               tooltip="DDS amplitudes for the singlepass DDSs during the bichromatic pulses.\n"
                                       "Should be a list of [rsb_ampl_pct, bsb_ampl_pct], which are applied to [singlepass0, singlepass1].")
-        self.setattr_argument("atts_cat_db", PYONValue([13., 13.]), group='default.cat',
+        self.setattr_argument("atts_cat_db", PYONValue([11., 11.]), group='default.cat',
                               tooltip="DDS attenuations for the singlepass DDSs during the bichromatic pulses.\n"
                                       "Should be a list of [rsb_att_db, bsb_att_db], which are applied to [singlepass0, singlepass1].")
         self.setattr_argument("freq_cat_center_mhz_list", Scannable(
             default=[
-                ExplicitScan([101.0918]),
+                ExplicitScan([101.08388]),
                 CenterScan(101.0918, 0.01, 0.0001, randomize=True),
                 RangeScan(101.0818, 101.1018, 50, randomize=True),
             ],
@@ -168,7 +167,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "(e.g. beams.freq_mhz.freq_singlepass0_mhz).")
         self.setattr_argument("freq_cat_secular_khz_list", Scannable(
             default=[
-                ExplicitScan([702.01]),
+                ExplicitScan([701.8485]),
                 CenterScan(702.01, 4, 0.1, randomize=True),
                 RangeScan(699.0, 704.2, 50, randomize=True),
             ],
@@ -191,29 +190,34 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group='default.dynamical_decoupling')
 
         self.setattr_argument('freq_dynamical_decoupling_mhz_list',
-                              Scannable(default=[ExplicitScan([101.089]), RangeScan(101.05, 101.1, 10),
-                                                 CenterScan(101.089, 0.01, 0.001)], unit='MHz',
+                              Scannable(default=[ExplicitScan([120.339]), RangeScan(120.1, 120.5, 10),
+                                                 CenterScan(120.339, 0.01, 0.001)], unit='MHz',
                                         global_min=80., global_max=120., global_step=0.001, precision=4, scale=1.0),
                               group='default.dynamical_decoupling',
                               tooltip='Frequency of third rf tone to apply to the 729 single pass AOM. This frequency '
                                       '\n'
                                       'should be configured to drive the carrier transition between S1/2 and D5/2 \n'
-                                      'and produce a c1*sigma_x + c2*sigma_y operator.')
+                                      'and produce a c1*sigma_x + c2*sigma_y operator. \n'
+                                      'NOTE WELL: this tone is going to the singlepass so generating a carrier tone \n'
+                                      'means outputting a tone at the singlepass default freq listed in the parameter \n'
+                                      'settings (\pm any shifts or detunings)')
 
-        self.setattr_argument('ampl_dynamical_decoupling_pct', NumberValue(default=10., max=50., min=0.01,
+        self.setattr_argument('ampl_dynamical_decoupling_pct', NumberValue(default=50., max=50., min=0.01,
                                                                            step=5, precision=0, scale=1., unit='%'),
                               tooltip='Amplitude of third rf tone applied to the 729 single pass AOM. \n'
                                       'Stronger tones will further weaken any sigma_z errors BUT \n'
                                       'NOTE: Changing the strength will change AC stark shifts to the sidebands.',
                               group='default.dynamical_decoupling')
 
-        self.setattr_argument('att_dynamical_decoupling_dB', NumberValue(default=31., max=31.5, min=7.,
+        self.setattr_argument('att_dynamical_decoupling_dB', NumberValue(default=28., max=31.5, min=7.,
                                                                          step=0.5, precision=1., scale=1., unit='dB'),
                               tooltip='Attenuation applied to the third rf tone applied to the 729 single pass AOM.',
                               group='default.dynamical_decoupling')
 
         self.setattr_argument('phase_dynamical_decoupling_cat1_turns_list',
-                              Scannable(default=[ExplicitScan([0.]), RangeScan(0, 1, 10),
+                              Scannable(default=[
+                                                # ExplicitScan([0.]),
+                                                 RangeScan(0, 1, 11),
                                                  CenterScan(0.5, 1, 0.1)], unit='turns',
                                         global_min=0., global_max=2., global_step=0.1, precision=3, scale=1.0),
                               tooltip='Phase of the third rf tone applied to the 729 single pass AOM during the '
@@ -242,17 +246,17 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for bichromatic/cat pulse #1.
         """
         # cat #1 config (sigma_x only)
-        self.setattr_argument("enable_cat1_sigmax", BooleanValue(default=True), group='cat1.config',
+        self.setattr_argument("enable_cat1_sigmax", BooleanValue(default=False), group='cat1.config',
                               tooltip="Applies a sigma_x pulse BEFORE the 1st bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
                                       "If sigma_x is disabled (i.e. False), the bichromatic pulse creates a superposition state (e.g. cat state).")
-        self.setattr_argument("enable_cat1_antisigmax", BooleanValue(default=True), group='cat1.config',
+        self.setattr_argument("enable_cat1_antisigmax", BooleanValue(default=False), group='cat1.config',
                               tooltip="Applies a sigma_x pulse AFTER the 1st bichromatic pulse.\n"
                                       "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
                                       "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
                                       "odd or even superposition is associated with the dark state.")
         self.setattr_argument("phase_cat1_antisigmax_turns",
-                              NumberValue(default=0.25, precision=3, step=0.1, min=-1.0, max=1.0, scale=1.,
+                              NumberValue(default=0.0, precision=3, step=0.1, min=-1.0, max=1.0, scale=1.,
                                           unit="turns"),
                               group='cat1.config',
                               tooltip="Relative phase applied for the anti-sigma_x pulse.\n"
@@ -267,12 +271,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Heralding only progresses if the state is dark, since otherwise, the motional state is destroyed.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].\n"
                                       "Note: uses adaptive readout - ensure adaptive readout arguments are correctly set in the dataset manager.")
-        self.setattr_argument("enable_cat1_quench", BooleanValue(default=True), group='cat1.config',
+        self.setattr_argument("enable_cat1_quench", BooleanValue(default=False), group='cat1.config',
                               tooltip="Enables quenching via 854nm to return the spin-state to the S-1/2 state.\n"
                                       "Note: if quench is applied to a superposition state, then the result is a mixed state, not a pure state.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
         self.setattr_argument("time_cat1_bichromatic_us",
-                              NumberValue(default=100, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"),
+                              NumberValue(default=5e6, precision=2, step=5, min=0.1, max=10000, scale=1., unit="us"),
                               group="cat1.config",
                               tooltip="Pulse time for the 1st bichromatic pulse.")
         self.setattr_argument("phases_pulse1_cat_turns", PYONValue([0., 0.]), group='cat1.config',
@@ -301,7 +305,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for bichromatic/cat pulse #2.
         """
         # cat #2 config (sigma_x only)
-        self.setattr_argument("enable_cat2_sigmax", BooleanValue(default=True),
+        self.setattr_argument("enable_cat2_sigmax", BooleanValue(default=False),
                               group='cat2.config',
                               tooltip="Applies a sigma_x pulse BEFORE the 2nd bichromatic pulse.\n"
                                       "If sigma_x is applied (i.e. True), the bichromatic pulse creates a pure eigenstate (e.g. coherent state).\n"
@@ -311,7 +315,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group='cat2.config',
                               tooltip="Relative phase applied for the sigma_x pulse.\n"
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
-        self.setattr_argument("enable_cat2_antisigmax", BooleanValue(default=True), group='cat2.config',
+        self.setattr_argument("enable_cat2_antisigmax", BooleanValue(default=False), group='cat2.config',
                               tooltip="Applies a sigma_x pulse AFTER the 2nd bichromatic pulse.\n"
                                       "If the sigma_x pulse is APPLIED, then this pulse disentangles spin from motion.\n"
                                       "If the sigma_x pulse is DISABLED, then this pulse simply selects whether an "
@@ -323,7 +327,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Note: this phase is applied via the main doublepass DDS, so values should be halved.")
 
         # cat2 - config
-        self.setattr_argument("enable_cat2_bichromatic", BooleanValue(default=True),
+        self.setattr_argument("enable_cat2_bichromatic", BooleanValue(default=False),
                               group='cat2.config',
                               tooltip="Enables application of the 2nd bichromatic pulse.\n"
                                       "Pulses are applied as [sigma_x, bichromatic, antisigma_x, herald, quench].")
@@ -417,7 +421,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               NumberValue(default=50., precision=3, step=5, min=1, max=50, unit="%", scale=1.),
                               group="read.RAP")
         self.setattr_argument("freq_rap_center_mhz",
-                              NumberValue(default=100.7673, precision=6, step=1e-2, min=60, max=200, unit="MHz",
+                              NumberValue(default=100.755, precision=6, step=1e-2, min=60, max=200, unit="MHz",
                                           scale=1.),
                               group='read.RAP')
         self.setattr_argument("freq_rap_dev_khz",
@@ -478,7 +482,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         _argstr = "QVSA"  # string to use for arguments
 
         # waveform - global config
-        self.setattr_argument("enable_QVSA_pulse", BooleanValue(default=True),
+        self.setattr_argument("enable_QVSA_pulse", BooleanValue(default=False),
                               group='{}.global'.format(_argstr),
                               tooltip="Enables the QVSA pulse.")
         self.setattr_argument("freq_phaser_carrier_mhz",
@@ -603,13 +607,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # run component preparation
         freq_729_readout_ftw_list, time_729_readout_mu_list = self._prepare_experiment_readout()
+        (freq_dynamical_decoupling_ftw_list, phase_dynamical_decoupling_cat1_pow_list,
+         phase_dynamical_decoupling_cat2_pow_list) = self._prepare_experiment_dynamical_decoupling()
         (freq_cat_center_ftw_list, freq_cat_secular_ftw_list, time_cat2_cat_mu_list,
          phase_cat2_cat_pow_list, time_ramsey_delay_mu_list) = self._prepare_experiment_cat_general()
         freq_osc_sweep_hz_list, waveform_num_list = self._prepare_experiment_qvsa_general()
         self._prepare_experiment_qvsa_waveform()
-
-        (freq_dynamical_decoupling_ftw_list, phase_dynamical_decoupling_cat1_pow_list,
-         phase_dynamical_decoupling_cat2_pow_list) = self._prepare_experiment_dynamical_decoupling()
 
         # create experiment config
         self.config_experiment_list = create_experiment_config(
@@ -633,7 +636,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             [self.qubit.singlepass2.frequency_to_ftw(freq_dynamical_decoupling_mhz * MHz) for
              freq_dynamical_decoupling_mhz in self.freq_dynamical_decoupling_mhz_list])
 
-        self.ampl_dynamical_decoupling_asf = self.qubit.singlepass2.ampltiude_to_asf(
+        self.ampl_dynamical_decoupling_asf = self.qubit.singlepass2.amplitude_to_asf(
             self.ampl_dynamical_decoupling_pct / 100.)
 
         if self.enable_dynamical_decoupling:
@@ -643,11 +646,11 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             self.att_dynamical_decoupling_mu = self.qubit.att_singlepass2_default_mu
 
         phase_dynamical_decoupling_cat1_pow_list = array(
-            [self.qubit.singlepass2.turns_to_pows(phase_dynamical_decoupling_turns) for
+            [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
              phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat1_turns_list])
 
         phase_dynamical_decoupling_cat2_pow_list = array(
-            [self.qubit.singlepass2.turns_to_pows(phase_dynamical_decoupling_turns) for
+            [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
              phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat2_turns_list])
 
         return (freq_dynamical_decoupling_ftw_list, phase_dynamical_decoupling_cat1_pow_list,
@@ -884,7 +887,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (self.freq_osc_base_hz_list +
                  self.freq_osc_sweep_arr * freq_osc_sweep_avg_hz) *
                 t_update_delay_s_list
-        )
         _osc_vals_blocks[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
 
         # set PSK phase update schedule
@@ -1039,485 +1041,487 @@ class CatStateCharacterize(LAXExperiment, Experiment):
     MAIN SEQUENCE
     '''
 
-    # @kernel(flags={"fast-math"})
-    # def initialize_experiment(self) -> TNone:
-    #     # note: no need to remove phase_autoclear from CFR1 b/c PHASE_MODE_TRACKING does it for us
-    #     # record general subsequences onto DMA
-    #     self.initialize_subsequence.record_dma()
-    #     self.sidebandcool_subsequence.record_dma()
-    #     self.readout_subsequence.record_dma()
-    #     self.core.break_realtime()
-    #
-    #     # configure RAP pulse
-    #     if self.readout_config == 2:
-    #         self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
-    #         delay_mu(50000)
-    #
-    #     # record phaser waveforms
-    #     self.phaser_record()
-    #
-    #     # set maximum attenuations for phaser outputs to prevent leakage during configuration
-    #     at_mu(self.phaser_eggs.get_next_frame_mu())
-    #     self.phaser_eggs.channel[0].set_att_mu(0x00)
-    #     delay_mu(self.phaser_eggs.t_sample_mu)
-    #     self.phaser_eggs.channel[1].set_att_mu(0x00)
-    #
-    # @kernel(flags={"fast-math"})
-    # def run_main(self) -> TNone:
-    #     # predeclare variables ahead of time
-    #     time_start_mu = now_mu() & ~0x7  # store reference time for device synchronization
-    #     ion_state = (-1, 0, int64(0))  # store ion state for adaptive readout
-    #     herald_counter = 0  # store herald attempts
-    #     _loop_iter = 0  # used to check_termination more frequently
-    #
-    #     self.pulse_shaper.waveform_load()  # load phaser waveforms from DMA
-    #
-    #     # MAIN LOOP
-    #     for trial_num in range(self.repetitions):
-    #         for config_vals in self.config_experiment_list:
-    #
-    #             '''
-    #             PREPARE & CONFIGURE
-    #             '''
-    #             # extract values from config list
-    #             freq_cat_center_ftw = int32(config_vals[0])
-    #             freq_cat_secular_ftw = int32(config_vals[1])
-    #             time_cat2_cat_mu = int64(config_vals[2])
-    #             phase_cat2_cat_pow = int32(config_vals[3])
-    #             freq_729_readout_ftw = int32(config_vals[4])
-    #             time_729_readout_mu = int64(config_vals[5])
-    #             time_ramsey_delay_mu = int64(config_vals[6])
-    #             freq_sweep_hz = config_vals[7]
-    #             waveform_num = int32(config_vals[8])
-    #             freq_dynamical_decoupling_ftw = int32(config_vals[9])
-    #             phase_dynamical_decoupling_cat1_pow = int32(config_vals[10])
-    #             phase_dynamical_decoupling_cat2_pow = int32(config_vals[11])
-    #
-    #             herald_counter = 0  # clear herald counter
-    #
-    #             # prepare phase arrays for bichromatic
-    #             cat4_phases = [
-    #                 self.phases_cat2_cat_pow[0] + self.phases_cat2_cat_update_dir[0] * phase_cat2_cat_pow,
-    #                 self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
-    #             ]
-    #
-    #             # get corresponding waveform parameters and pulseshaper ID from the index
-    #             waveform_params = self._waveform_param_list[waveform_num]
-    #             phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
-    #
-    #             # configure phaser
-    #             if self.enable_QVSA_pulse:
-    #                 # create frequency update list for phaser oscs and set phaser frequencies
-    #                 freq_update_list = self.freq_osc_base_hz_list + (freq_sweep_hz * self.freq_osc_sweep_arr)
-    #                 # set phaser frequency/phases
-    #                 self.core.break_realtime()
-    #                 self.phaser_eggs.frequency_configure(
-    #                     self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
-    #                     # oscillator frequencies
-    #                     [freq_update_list[0], freq_update_list[1], freq_update_list[2],
-    #                      freq_update_list[3], freq_update_list[4]],
-    #                     self.phase_global_ch1_turns  # global CH1 phase
-    #                 )
-    #
-    #             '''
-    #             BEGIN MAIN SEQUENCE
-    #             '''
-    #             while True:
-    #                 # check heralding OK (otherwise execution is blocked)
-    #                 if herald_counter >= self.max_herald_attempts:
-    #                     print("\t\tWarning: too many heralds. Moving onto next configuration.")
-    #                     self.check_termination()  # check termination b/c we haven't in a while
-    #                     self.core.break_realtime()  # add slack
-    #                     break
-    #
-    #                 self.core.break_realtime()  # add slack for execution
-    #                 delay_mu(125000)  # add even more slack lol
-    #
-    #                 '''
-    #                 INITIALIZE ION STATE
-    #                 '''
-    #                 # initialize ion in S-1/2 state & SBC to ground state
-    #                 self.initialize_subsequence.run_dma()
-    #                 self.sidebandcool_subsequence.run_dma()
-    #
-    #                 # set target profile to ensure we run correctly
-    #                 self.qubit.set_profile(self.profile_729_target)
-    #                 self.qubit.io_update()
-    #
-    #                 # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
-    #                 time_start_mu = self.phaser_eggs.get_next_frame_mu()
-    #                 # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
-    #                 #   b/c DDSs are phase-tracked wrt time_start_mu
-    #                 self.phaser_eggs.phase_osc_clear()
-    #                 # unimportant: clear DUC phase (b/c why not)
-    #                 self.phaser_eggs.reset_duc_phase()
-    #
-    #                 '''
-    #                 CAT #1
-    #                 '''
-    #                 # cat1 - sigma_x (displacement vs cat)
-    #                 if self.enable_cat1_sigmax:
-    #                     self.pulse_sigmax(time_start_mu, 0)
-    #                 # cat1 - bichromatic cat pulse
-    #                 if self.enable_cat1_bichromatic:
-    #                     if self.enable_dynamical_decoupling:
-    #                         self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw, phase_dynamical_decoupling_cat1_pow,
-    #                                                       time_start_mu)
-    #                     self.pulse_bichromatic(time_start_mu, self.time_cat1_bichromatic_mu,
-    #                                            self.phases_pulse1_cat_pow,
-    #                                            freq_cat_center_ftw, freq_cat_secular_ftw)
-    #                     self.stop_dynamical_decoupling()
-    #                 # cat1 - anti-sigma_x (return to S-state)
-    #                 if self.enable_cat1_antisigmax:
-    #                     self.pulse_sigmax(time_start_mu, self.phase_cat1_antisigmax_pow)
-    #
-    #                 # cat1 - force herald (to projectively disentangle spin/motion)
-    #                 if self.enable_cat1_herald:
-    #                     ion_state = self.readout_adaptive_subsequence.run()
-    #                     delay_mu(self.time_adapt_read_slack_mu)  # add slack following completion
-    #                     self.pump.off()
-    #
-    #                     # ensure dark state (flag is 0)
-    #                     if ion_state[0] != 0:
-    #                         herald_counter += 1  # increment herald counter to check for errors
-    #                         continue
-    #                     # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
-    #                     # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
-    #                     at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
-    #
-    #                 # cat1 - quench spin-up to spin-down; can be used to create mixed state
-    #                 if self.enable_cat1_quench:
-    #                     self.pump.readout()
-    #                     self.repump_qubit.on()
-    #                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-    #                     self.repump_qubit.off()
-    #
-    #                 '''
-    #                 RAMSEY DELAY
-    #                 '''
-    #                 if self.enable_dynamical_decoupling:
-    #                     self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw, phase_dynamical_decoupling_cat1_pow,
-    #                                               time_start_mu)
-    #                 if self.enable_ramsey_delay:
-    #                     delay_mu(time_ramsey_delay_mu)
-    #
-    #                 '''
-    #                 QVSA PULSE
-    #                 '''
-    #                 if self.enable_QVSA_pulse:
-    #                     self.phaser_run(phaser_waveform)
-    #                 self.stop_dynamical_decoupling()
-    #
-    #                 '''
-    #                 CAT #2
-    #                 '''
-    #                 # cat2 - sigma_x (displacement vs cat)
-    #                 if self.enable_cat2_sigmax:
-    #                     self.pulse_sigmax(time_start_mu, self.phase_cat2_sigmax_pow)
-    #                 # cat2 - bichromatic cat pulse
-    #                 if self.enable_cat2_bichromatic:
-    #                     if self.enable_dynamical_decoupling:
-    #                         self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw,
-    #                                                   phase_dynamical_decoupling_cat2_pow,
-    #                                                   time_start_mu)
-    #                     self.pulse_bichromatic(time_start_mu, time_cat2_cat_mu,
-    #                                            cat4_phases,
-    #                                            freq_cat_center_ftw, freq_cat_secular_ftw)
-    #                     self.stop_dynamical_decoupling()
-    #                 # cat2 - anti-sigma_x (return to S-state)
-    #                 if self.enable_cat2_antisigmax:
-    #                     self.pulse_sigmax(time_start_mu, self.phase_cat2_antisigmax_pow)
-    #
-    #                 # cat2 - force herald (to projectively disentangle spin/motion)
-    #                 # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
-    #                 if self.enable_cat2_herald:
-    #                     ion_state = self.readout_adaptive_subsequence.run()
-    #                     delay_mu(self.time_adapt_read_slack_mu)  # add slack following completion
-    #                     self.pump.off()
-    #
-    #                     # ensure dark state (flag is 0)
-    #                     if ion_state[0] != 0:
-    #                         herald_counter += 1  # increment herald counter to check for errors
-    #                         continue
-    #                     # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
-    #                     at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
-    #
-    #                 # cat2 - quench spin-up to spin-down; can be used to create mixed state
-    #                 if self.enable_cat2_quench:
-    #                     self.pump.readout()
-    #                     self.repump_qubit.on()
-    #                     delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-    #                     self.repump_qubit.off()
-    #
-    #                 # force break loop by default
-    #                 break
-    #
-    #             '''
-    #             READ OUT & STORE RESULTS
-    #             '''
-    #             # only read out if no boooboo
-    #             if herald_counter < self.max_herald_attempts:
-    #                 # 729nm based readout (sideband ratio, rabi flopping)
-    #                 if self.readout_config == 1:
-    #                     self.pulse_readout_sbr(time_729_readout_mu, freq_729_readout_ftw)
-    #                 # RAP based readout
-    #                 elif self.readout_config == 2:
-    #                     self.pulse_readout_rap()
-    #
-    #                 # read out fluorescence & clean up loop
-    #                 self.readout_subsequence.run_dma()
-    #                 counts_res = self.readout_subsequence.fetch_count()
-    #             else:
-    #                 # return -1 so user knows booboo happened
-    #                 counts_res = -1
-    #
-    #             # store results
-    #             self.rescue_subsequence.resuscitate()
-    #             self.update_results(freq_cat_center_ftw,
-    #                                 counts_res,
-    #                                 freq_cat_secular_ftw,
-    #                                 time_cat2_cat_mu,
-    #                                 phase_cat2_cat_pow,
-    #                                 freq_729_readout_ftw,
-    #                                 time_729_readout_mu,
-    #                                 time_ramsey_delay_mu,
-    #                                 freq_sweep_hz,
-    #                                 freq_dynamical_decoupling_ftw,
-    #                                 phase_dynamical_decoupling_pow,
-    #                                 waveform_params[0])
-    #
-    #             # check termination more frequently in case reps are low
-    #             if _loop_iter % 200 == 0:
-    #                 self.check_termination()
-    #             _loop_iter += 1
-    #
-    #         # rescue ion as needed & support graceful termination
-    #         self.core.break_realtime()
-    #         self.rescue_subsequence.run(trial_num)
-    #         self.check_termination()
-    #
-    # '''
-    # HELPER FUNCTIONS
-    # '''
-    #
-    # @kernel(flags={"fast-math"})
-    # def pulse_sigmax(self, time_start_mu: TInt64, phas_pow: TInt32) -> TNone:
-    #     """
-    #     Run a phase-coherent sigma_x pulse on the qubit.
-    #     :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
-    #     :param phas_pow: relative phase offset for the beam.
-    #     """
-    #     # set up relevant beam waveforms
-    #     # todo: maybe add like 32ns between these? so we don't booboo?
-    #     self.qubit.set_mu(
-    #         self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.singlepass0.set_mu(
-    #         self.qubit.freq_singlepass0_default_ftw,
-    #         asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.singlepass1.set_mu(
-    #         self.qubit.freq_singlepass1_default_ftw,
-    #         asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
-    #
-    #     # run sigmax pulse
-    #     self.qubit.singlepass0.sw.on()
-    #     self.qubit.singlepass1.sw.off()
-    #     self.qubit.on()
-    #     delay_mu(self.time_sigmax_mu)
-    #     self.qubit.off()
-    #     self.qubit.singlepass1.sw.off()
-    #
-    # @kernel(flags={"fast-math"})
-    # def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
-    #                       freq_carrier_ftw: TInt32, freq_secular_ftw: TInt32) -> TNone:
-    #     """
-    #     Run a phase-coherent bichromatic pulse on the qubit.
-    #     :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
-    #     :param time_pulse_mu: length of pulse (in machine units).
-    #     :param phas_pow_list: relative phase offset for the beams (RSB, BSB) (in pow).
-    #     :param freq_carrier_ftw: carrier frequency (set by the double pass) in FTW.
-    #     :param freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
-    #     """
-    #     # set up relevant beam waveforms
-    #     # todo: maybe add like 32ns between these? so we don't booboo?
-    #     self.qubit.set_mu(
-    #         freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
-    #         pow_=0, profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.singlepass0.set_mu(
-    #         self.qubit.freq_singlepass0_default_ftw - freq_secular_ftw,
-    #         asf=self.ampls_cat_asf[0],
-    #         pow_=phas_pow_list[0],
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.singlepass1.set_mu(
-    #         self.qubit.freq_singlepass1_default_ftw + freq_secular_ftw,
-    #         asf=self.ampls_cat_asf[1],
-    #         pow_=phas_pow_list[1],
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
-    #
-    #     # run bichromatic pulse
-    #     self.qubit.singlepass0.sw.on()
-    #     self.qubit.singlepass1.sw.on()
-    #     self.qubit.on()
-    #     delay_mu(time_pulse_mu)
-    #     self.qubit.off()
-    #     self.qubit.singlepass1.sw.off()
-    #
-    # @kernel(flags={"fast-math"})
-    # def pulse_readout_sbr(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
-    #     """
-    #     Run a sideband readout pulse.
-    #     :param time_pulse_mu: length of pulse (in machine units).
-    #     :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
-    #     """
-    #     # set up relevant beam waveforms
-    #     # todo: maybe add like 32ns between these? so we don't booboo?
-    #     self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_729_readout_asf,
-    #                       pow_=0, profile=self.profile_729_target,
-    #                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
-    #                                   profile=self.profile_729_target,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-    #                                   profile=self.profile_729_target,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass2_default_asf, pow_=0,
-    #                                   profile=self.profile_729_RAP,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.cpld.set_all_att_mu(self.att_reg_readout_sbr)
-    #
-    #     # run readout pulse
-    #     self.qubit.singlepass0.sw.on()
-    #     # todo: this should be off, right???
-    #     self.qubit.singlepass1.sw.on()
-    #     self.qubit.singlepass2.sw.off()
-    #     self.qubit.on()
-    #     delay_mu(time_pulse_mu)
-    #     self.qubit.off()
-    #     self.qubit.singlepass1.sw.off()
-    #
-    # @kernel(flags={"fast-math"})
-    # def pulse_readout_rap(self) -> TNone:
-    #     """
-    #     Run a RAP readout pulse.
-    #     """
-    #     # set up relevant beam waveforms
-    #     self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
-    #                                   profile=self.profile_729_RAP,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-    #                                   profile=self.profile_729_RAP,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
-    #                                   asf=self.qubit.ampl_singlepass2_default_asf, pow_=0,
-    #                                   profile=self.profile_729_RAP,
-    #                                   phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-    #     self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
-    #
-    #     # run RAP readout pulse
-    #     self.rap_subsequence.run_rap(self.time_rap_mu)
-    #
-    # @kernel(flags={'fast-math'})
-    # def run_dynamical_decoupling(self, freq_dynamical_decoupling_ftw: TInt32, phase_pow: TInt32,
-    #                              time_start_mu: TInt64) -> TNone:
-    #     self.qubit.singlepass2.set_mu(
-    #         freq_dynamical_decoupling_ftw,
-    #         asf=self.ampl_dynamical_decoupling_asf, pow=phase_pow,
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-    #     )
-    #     # ensure we are at the right attenuation in case it has been overwritten by other sequences
-    #     self.qubit.singlepass2.set_att_mu(self.att_dynamical_decoupling_mu)
-    #     self.qubit.singlepass2.sw.on()
-    #
-    # @kernel(flags={'fast-math'})
-    # def stop_dynamical_decoupling(self) -> TNone:
-    #     self.qubit.singlepass2.set_mu(
-    #         self.qubit.freq_singlepass2_default_ftw,
-    #         asf=self.qubit.ampl_singlepass2_default_asf, pow=0.,
-    #         profile=self.profile_729_target,
-    #         phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
-    #     )
-    #     self.qubit.singlepass2.set_att_mu(self.qubit.att_singlepass2_default_mu)
-    #     self.qubit.singlepass2.sw.off()
-    #
-    # '''
-    # HELPER FUNCTIONS - PHASER
-    # '''
-    #
-    # @kernel(flags={"fast-math"})
-    # def phaser_run(self, waveform_id: TInt32) -> TNone:
-    #     """
-    #     Run the main phaser pulse together with supporting functionality.
-    #     :param waveform_id: the ID of the waveform to run.
-    #     """
-    #     # EGGS - START/SETUP
-    #     self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
-    #
-    #     # EGGS - RUN
-    #     # reset DUC phase to start DUC deterministically
-    #     self.phaser_eggs.reset_duc_phase()
-    #     self.pulse_shaper.waveform_playback(waveform_id)
-    #
-    #     # EGGS - STOP
-    #     # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
-    #     # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
-    #     self.phaser_eggs.phaser_stop()
-    #
-    # @kernel(flags={"fast-math"})
-    # def phaser_record(self) -> TNone:
-    #     """
-    #     Set up core phaser functionality and record the pulse-shaped waveforms.
-    #     Should be run during initialize_experiment.
-    #     """
-    #     # record phaser sequences onto DMA for each waveform parameter
-    #     for _wav_idx in range(len(self._waveform_param_list)):
-    #         # get waveform for given parameters
-    #         # note: use sync RPC to reduce significant overhead of direct data transfer
-    #         _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(_wav_idx)
-    #
-    #         # record phaser pulse sequence and save returned waveform ID
-    #         # note: no need to add slack b/c waveform_record does it for us
-    #         self.waveform_index_to_pulseshaper_id[_wav_idx] = self.pulse_shaper.waveform_record(
-    #             _wav_data_ampl, _wav_data_phas, _wav_data_time
-    #         )
-    #
-    # @rpc
-    # def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
-    #                                                              TArray(TFloat, 2),
-    #                                                              TArray(TInt64, 1)]):
-    #     """
-    #     Return compiled waveform values.
-    #     By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
-    #         speeding up experiment compilation and transfer to Kasli.
-    #     :param wav_idx: the index of the compiled waveform to retrieve.
-    #     :return: the compiled waveform corresponding to the waveform index.
-    #     """
-    #     return self.waveform_index_to_compiled_wav[wav_idx]
-    #
-    # '''
-    # ANALYSIS
-    # '''
-    #
-    # def analyze_experiment(self):
-    #     pass
+    @kernel(flags={"fast-math"})
+    def initialize_experiment(self) -> TNone:
+        # note: no need to remove phase_autoclear from CFR1 b/c PHASE_MODE_TRACKING does it for us
+        # record general subsequences onto DMA
+        self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
+        self.core.break_realtime()
+
+        # configure RAP pulse
+        if self.readout_config == 2:
+            self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
+            delay_mu(50000)
+
+        # record phaser waveforms
+        self.phaser_record()
+
+        # set maximum attenuations for phaser outputs to prevent leakage during configuration
+        at_mu(self.phaser_eggs.get_next_frame_mu())
+        self.phaser_eggs.channel[0].set_att_mu(0x00)
+        delay_mu(self.phaser_eggs.t_sample_mu)
+        self.phaser_eggs.channel[1].set_att_mu(0x00)
+
+    @kernel(flags={"fast-math"})
+    def run_main(self) -> TNone:
+        # predeclare variables ahead of time
+        time_start_mu = now_mu() & ~0x7  # store reference time for device synchronization
+        ion_state = (-1, 0, int64(0))  # store ion state for adaptive readout
+        herald_counter = 0  # store herald attempts
+        _loop_iter = 0  # used to check_termination more frequently
+
+        self.pulse_shaper.waveform_load()  # load phaser waveforms from DMA
+
+        # MAIN LOOP
+        for trial_num in range(self.repetitions):
+            for config_vals in self.config_experiment_list:
+
+                '''
+                PREPARE & CONFIGURE
+                '''
+                # extract values from config list
+                freq_cat_center_ftw = int32(config_vals[0])
+                freq_cat_secular_ftw = int32(config_vals[1])
+                time_cat2_cat_mu = int64(config_vals[2])
+                phase_cat2_cat_pow = int32(config_vals[3])
+                freq_729_readout_ftw = int32(config_vals[4])
+                time_729_readout_mu = int64(config_vals[5])
+                time_ramsey_delay_mu = int64(config_vals[6])
+                freq_sweep_hz = config_vals[7]
+                waveform_num = int32(config_vals[8])
+                freq_dynamical_decoupling_ftw = int32(config_vals[9])
+                phase_dynamical_decoupling_cat1_pow = int32(config_vals[10])
+                phase_dynamical_decoupling_cat2_pow = int32(config_vals[11])
+
+                herald_counter = 0  # clear herald counter
+
+                # prepare phase arrays for bichromatic
+                cat4_phases = [
+                    self.phases_cat2_cat_pow[0] + self.phases_cat2_cat_update_dir[0] * phase_cat2_cat_pow,
+                    self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
+                ]
+
+                # get corresponding waveform parameters and pulseshaper ID from the index
+                waveform_params = self._waveform_param_list[waveform_num]
+                phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
+
+                # configure phaser
+                if self.enable_QVSA_pulse:
+                    # create frequency update list for phaser oscs and set phaser frequencies
+                    freq_update_list = self.freq_osc_base_hz_list + (freq_sweep_hz * self.freq_osc_sweep_arr)
+                    # set phaser frequency/phases
+                    self.core.break_realtime()
+                    self.phaser_eggs.frequency_configure(
+                        self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
+                        # oscillator frequencies
+                        [freq_update_list[0], freq_update_list[1], freq_update_list[2],
+                         freq_update_list[3], freq_update_list[4]],
+                        self.phase_global_ch1_turns  # global CH1 phase
+                    )
+
+                '''
+                BEGIN MAIN SEQUENCE
+                '''
+                while True:
+                    # check heralding OK (otherwise execution is blocked)
+                    if herald_counter >= self.max_herald_attempts:
+                        print("\t\tWarning: too many heralds. Moving onto next configuration.")
+                        self.check_termination()  # check termination b/c we haven't in a while
+                        self.core.break_realtime()  # add slack
+                        break
+
+                    self.core.break_realtime()  # add slack for execution
+                    delay_mu(125000)  # add even more slack lol
+
+                    '''
+                    INITIALIZE ION STATE
+                    '''
+                    # initialize ion in S-1/2 state & SBC to ground state
+                    self.initialize_subsequence.run_dma()
+                    self.sidebandcool_subsequence.run_dma()
+
+                    # set target profile to ensure we run correctly
+                    self.qubit.set_profile(self.profile_729_target)
+                    self.qubit.io_update()
+
+                    # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
+                    time_start_mu = self.phaser_eggs.get_next_frame_mu()
+                    # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
+                    #   b/c DDSs are phase-tracked wrt time_start_mu
+                    self.phaser_eggs.phase_osc_clear()
+                    # unimportant: clear DUC phase (b/c why not)
+                    self.phaser_eggs.reset_duc_phase()
+
+                    '''
+                    CAT #1
+                    '''
+                    # cat1 - sigma_x (displacement vs cat)
+                    if self.enable_cat1_sigmax:
+                        self.pulse_sigmax(time_start_mu, 0)
+                    # cat1 - bichromatic cat pulse
+                    if self.enable_cat1_bichromatic:
+                        if self.enable_dynamical_decoupling:
+                            self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw,
+                                                          phase_dynamical_decoupling_cat1_pow,
+                                                          time_start_mu)
+                        self.pulse_bichromatic(time_start_mu, self.time_cat1_bichromatic_mu,
+                                               self.phases_pulse1_cat_pow,
+                                               freq_cat_center_ftw, freq_cat_secular_ftw)
+                        self.stop_dynamical_decoupling()
+                    # cat1 - anti-sigma_x (return to S-state)
+                    if self.enable_cat1_antisigmax:
+                        self.pulse_sigmax(time_start_mu, self.phase_cat1_antisigmax_pow)
+
+                    # cat1 - force herald (to projectively disentangle spin/motion)
+                    if self.enable_cat1_herald:
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(self.time_adapt_read_slack_mu)  # add slack following completion
+                        self.pump.off()
+
+                        # ensure dark state (flag is 0)
+                        if ion_state[0] != 0:
+                            herald_counter += 1  # increment herald counter to check for errors
+                            continue
+                        # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
+                        # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
+                        at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
+
+                    # cat1 - quench spin-up to spin-down; can be used to create mixed state
+                    if self.enable_cat1_quench:
+                        self.pump.readout()
+                        self.repump_qubit.on()
+                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                        self.repump_qubit.off()
+
+                    '''
+                    RAMSEY DELAY
+                    '''
+                    if self.enable_dynamical_decoupling:
+                        self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw, phase_dynamical_decoupling_cat1_pow,
+                                                  time_start_mu)
+                    if self.enable_ramsey_delay:
+                        delay_mu(time_ramsey_delay_mu)
+
+                    '''
+                    QVSA PULSE
+                    '''
+                    if self.enable_QVSA_pulse:
+                        self.phaser_run(phaser_waveform)
+                    self.stop_dynamical_decoupling()
+
+                    '''
+                    CAT #2
+                    '''
+                    # cat2 - sigma_x (displacement vs cat)
+                    if self.enable_cat2_sigmax:
+                        self.pulse_sigmax(time_start_mu, self.phase_cat2_sigmax_pow)
+                    # cat2 - bichromatic cat pulse
+                    if self.enable_cat2_bichromatic:
+                        self.pulse_bichromatic(time_start_mu, time_cat2_cat_mu,
+                                               cat4_phases,
+                                               freq_cat_center_ftw, freq_cat_secular_ftw)
+                        if self.enable_dynamical_decoupling:
+                            self.run_dynamical_decoupling(freq_dynamical_decoupling_ftw,
+                                                          phase_dynamical_decoupling_cat2_pow,
+                                                          time_start_mu)
+                        self.stop_dynamical_decoupling()
+                    # cat2 - anti-sigma_x (return to S-state)
+                    if self.enable_cat2_antisigmax:
+                        self.pulse_sigmax(time_start_mu, self.phase_cat2_antisigmax_pow)
+
+                    # cat2 - force herald (to projectively disentangle spin/motion)
+                    # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
+                    if self.enable_cat2_herald:
+                        ion_state = self.readout_adaptive_subsequence.run()
+                        delay_mu(self.time_adapt_read_slack_mu)  # add slack following completion
+                        self.pump.off()
+
+                        # ensure dark state (flag is 0)
+                        if ion_state[0] != 0:
+                            herald_counter += 1  # increment herald counter to check for errors
+                            continue
+                        # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
+                        at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
+
+                    # cat2 - quench spin-up to spin-down; can be used to create mixed state
+                    if self.enable_cat2_quench:
+                        self.pump.readout()
+                        self.repump_qubit.on()
+                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
+                        self.repump_qubit.off()
+
+                    # force break loop by default
+                    break
+
+                '''
+                READ OUT & STORE RESULTS
+                '''
+                # only read out if no boooboo
+                if herald_counter < self.max_herald_attempts:
+                    # 729nm based readout (sideband ratio, rabi flopping)
+                    if self.readout_config == 1:
+                        self.pulse_readout_sbr(time_729_readout_mu, freq_729_readout_ftw)
+                    # RAP based readout
+                    elif self.readout_config == 2:
+                        self.pulse_readout_rap()
+
+                    # read out fluorescence & clean up loop
+                    self.readout_subsequence.run_dma()
+                    counts_res = self.readout_subsequence.fetch_count()
+                else:
+                    # return -1 so user knows booboo happened
+                    counts_res = -1
+
+                # store results
+                self.rescue_subsequence.resuscitate()
+                self.update_results(freq_cat_center_ftw,
+                                    counts_res,
+                                    freq_cat_secular_ftw,
+                                    time_cat2_cat_mu,
+                                    phase_cat2_cat_pow,
+                                    freq_729_readout_ftw,
+                                    time_729_readout_mu,
+                                    time_ramsey_delay_mu,
+                                    freq_sweep_hz,
+                                    freq_dynamical_decoupling_ftw,
+                                    phase_dynamical_decoupling_cat1_pow,
+                                    phase_dynamical_decoupling_cat2_pow,
+                                    waveform_params[0])
+
+                # check termination more frequently in case reps are low
+                if _loop_iter % 200 == 0:
+                    self.check_termination()
+                _loop_iter += 1
+
+            # rescue ion as needed & support graceful termination
+            self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
+
+    '''
+    HELPER FUNCTIONS
+    '''
+
+    @kernel(flags={"fast-math"})
+    def pulse_sigmax(self, time_start_mu: TInt64, phas_pow: TInt32) -> TNone:
+        """
+        Run a phase-coherent sigma_x pulse on the qubit.
+        :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
+        :param phas_pow: relative phase offset for the beam.
+        """
+        # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
+        self.qubit.set_mu(
+            self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.singlepass0.set_mu(
+            self.qubit.freq_singlepass0_default_ftw,
+            asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.singlepass1.set_mu(
+            self.qubit.freq_singlepass1_default_ftw,
+            asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
+
+        # run sigmax pulse
+        self.qubit.singlepass0.sw.on()
+        self.qubit.singlepass1.sw.off()
+        self.qubit.on()
+        delay_mu(self.time_sigmax_mu)
+        self.qubit.off()
+        self.qubit.singlepass1.sw.off()
+
+    @kernel(flags={"fast-math"})
+    def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
+                          freq_carrier_ftw: TInt32, freq_secular_ftw: TInt32) -> TNone:
+        """
+        Run a phase-coherent bichromatic pulse on the qubit.
+        :param time_start_mu: fiducial timestamp for initial start reference (in machine units).
+        :param time_pulse_mu: length of pulse (in machine units).
+        :param phas_pow_list: relative phase offset for the beams (RSB, BSB) (in pow).
+        :param freq_carrier_ftw: carrier frequency (set by the double pass) in FTW.
+        :param freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
+        """
+        # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
+        self.qubit.set_mu(
+            freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
+            pow_=0, profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.singlepass0.set_mu(
+            self.qubit.freq_singlepass0_default_ftw - freq_secular_ftw,
+            asf=self.ampls_cat_asf[0],
+            pow_=phas_pow_list[0],
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.singlepass1.set_mu(
+            self.qubit.freq_singlepass1_default_ftw + freq_secular_ftw,
+            asf=self.ampls_cat_asf[1],
+            pow_=phas_pow_list[1],
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
+
+        # run bichromatic pulse
+        self.qubit.singlepass0.sw.on()
+        self.qubit.singlepass1.sw.on()
+        self.qubit.on()
+        delay_mu(time_pulse_mu)
+        self.qubit.off()
+        self.qubit.singlepass1.sw.off()
+
+    @kernel(flags={"fast-math"})
+    def pulse_readout_sbr(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
+        """
+        Run a sideband readout pulse.
+        :param time_pulse_mu: length of pulse (in machine units).
+        :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
+        """
+        # set up relevant beam waveforms
+        # todo: maybe add like 32ns between these? so we don't booboo?
+        self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_729_readout_asf,
+                          pow_=0, profile=self.profile_729_target,
+                          phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
+                                      asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
+                                      profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
+                                      asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
+                                      profile=self.profile_729_target,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
+                                      asf=self.qubit.ampl_singlepass2_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_sbr)
+
+        # run readout pulse
+        self.qubit.singlepass0.sw.on()
+        # todo: this should be off, right???
+        self.qubit.singlepass1.sw.on()
+        self.qubit.singlepass2.sw.off()
+        self.qubit.on()
+        delay_mu(time_pulse_mu)
+        self.qubit.off()
+        self.qubit.singlepass1.sw.off()
+
+    @kernel(flags={"fast-math"})
+    def pulse_readout_rap(self) -> TNone:
+        """
+        Run a RAP readout pulse.
+        """
+        # set up relevant beam waveforms
+        self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
+                                      asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
+                                      asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
+                                      asf=self.qubit.ampl_singlepass2_default_asf, pow_=0,
+                                      profile=self.profile_729_RAP,
+                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
+
+        # run RAP readout pulse
+        self.rap_subsequence.run_rap(self.time_rap_mu)
+
+    @kernel(flags={'fast-math'})
+    def run_dynamical_decoupling(self, freq_dynamical_decoupling_ftw: TInt32, phase_pow: TInt32,
+                                 time_start_mu: TInt64) -> TNone:
+        self.qubit.singlepass2.set_mu(
+            freq_dynamical_decoupling_ftw,
+            asf=self.ampl_dynamical_decoupling_asf, pow_=phase_pow,
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+        )
+        # ensure we are at the right attenuation in case it has been overwritten by other sequences
+        self.qubit.singlepass2.set_att_mu(self.att_dynamical_decoupling_mu)
+        self.qubit.singlepass2.sw.on()
+
+    @kernel(flags={'fast-math'})
+    def stop_dynamical_decoupling(self) -> TNone:
+        self.qubit.singlepass2.set_mu(
+            self.qubit.freq_singlepass2_default_ftw,
+            asf=self.qubit.ampl_singlepass2_default_asf, pow_=0,
+            profile=self.profile_729_target,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+        )
+        self.qubit.singlepass2.set_att_mu(self.qubit.att_singlepass2_default_mu)
+        self.qubit.singlepass2.sw.off()
+
+    '''
+    HELPER FUNCTIONS - PHASER
+    '''
+
+    @kernel(flags={"fast-math"})
+    def phaser_run(self, waveform_id: TInt32) -> TNone:
+        """
+        Run the main phaser pulse together with supporting functionality.
+        :param waveform_id: the ID of the waveform to run.
+        """
+        # EGGS - START/SETUP
+        self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
+
+        # EGGS - RUN
+        # reset DUC phase to start DUC deterministically
+        self.phaser_eggs.reset_duc_phase()
+        self.pulse_shaper.waveform_playback(waveform_id)
+
+        # EGGS - STOP
+        # stop all output & clean up hardware (e.g. eggs amp switches, RF integrator hold)
+        # note: DOES unset attenuators (beware turn-on glitch if no filters/switches)
+        self.phaser_eggs.phaser_stop()
+
+    @kernel(flags={"fast-math"})
+    def phaser_record(self) -> TNone:
+        """
+        Set up core phaser functionality and record the pulse-shaped waveforms.
+        Should be run during initialize_experiment.
+        """
+        # record phaser sequences onto DMA for each waveform parameter
+        for _wav_idx in range(len(self._waveform_param_list)):
+            # get waveform for given parameters
+            # note: use sync RPC to reduce significant overhead of direct data transfer
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(_wav_idx)
+
+            # record phaser pulse sequence and save returned waveform ID
+            # note: no need to add slack b/c waveform_record does it for us
+            self.waveform_index_to_pulseshaper_id[_wav_idx] = self.pulse_shaper.waveform_record(
+                _wav_data_ampl, _wav_data_phas, _wav_data_time
+            )
+
+    @rpc
+    def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                 TArray(TFloat, 2),
+                                                                 TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to Kasli.
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        :return: the compiled waveform corresponding to the waveform index.
+        """
+        return self.waveform_index_to_compiled_wav[wav_idx]
+
+    '''
+    ANALYSIS
+    '''
+
+    def analyze_experiment(self):
+        pass
