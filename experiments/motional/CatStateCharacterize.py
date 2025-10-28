@@ -428,7 +428,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                               group="{}.waveform".format(_argstr),
                               tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
         self.setattr_argument("att_phaser_db",
-                              NumberValue(default=5., precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
+                              NumberValue(default=25., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
         self.setattr_argument("ampl_osc_frac_list", PYONValue([40., 40., 15., 0., 0.]),
