@@ -1,5 +1,3 @@
-from turtledemo.sorting_animate import randomize
-
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
@@ -644,26 +642,27 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         )
 
     def _prepare_experiment_dynamical_decoupling(self):
-        freq_dynamical_decoupling_detuning_ftw_list = array(
-            [self.qubit.singlepass2.frequency_to_ftw(freq_dynamical_decoupling_detuning_khz * kHz) for
-             freq_dynamical_decoupling_detuning_khz in self.freq_dynamical_decoupling_detuning_khz_list])
-
-        self.ampl_dynamical_decoupling_asf = self.qubit.singlepass2.amplitude_to_asf(
-            self.ampl_dynamical_decoupling_pct / 100.)
 
         if self.enable_dynamical_decoupling:
+            self.ampl_dynamical_decoupling_asf = self.qubit.singlepass2.amplitude_to_asf(
+                self.ampl_dynamical_decoupling_pct / 100.)
             self.att_dynamical_decoupling_mu = self.qubit.singlepass2.cpld.att_to_mu(
                 self.att_dynamical_decoupling_dB)
+            phase_dynamical_decoupling_cat1_pow_list = array(
+                [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
+                 phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat1_turns_list])
+            phase_dynamical_decoupling_cat2_pow_list = array(
+                [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
+                 phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat2_turns_list])
+            freq_dynamical_decoupling_detuning_ftw_list = array(
+                [self.qubit.singlepass2.frequency_to_ftw(freq_dynamical_decoupling_detuning_khz * kHz) for
+                 freq_dynamical_decoupling_detuning_khz in self.freq_dynamical_decoupling_detuning_khz_list])
         else:
             self.att_dynamical_decoupling_mu = self.qubit.att_singlepass2_default_mu
-
-        phase_dynamical_decoupling_cat1_pow_list = array(
-            [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
-             phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat1_turns_list])
-
-        phase_dynamical_decoupling_cat2_pow_list = array(
-            [self.qubit.singlepass2.turns_to_pow(phase_dynamical_decoupling_turns) for
-             phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat2_turns_list])
+            phase_dynamical_decoupling_cat1_pow_list = array([0])
+            phase_dynamical_decoupling_cat2_pow_list = array([0])
+            freq_dynamical_decoupling_detuning_ftw_list = array([0])
+            self.ampl_dynamical_decoupling_asf = self.qubit.ampl_singlepass2_default_asf
 
         return (freq_dynamical_decoupling_detuning_ftw_list, phase_dynamical_decoupling_cat1_pow_list,
                 phase_dynamical_decoupling_cat2_pow_list,)
