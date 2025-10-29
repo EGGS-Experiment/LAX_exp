@@ -33,11 +33,11 @@ class SamplerReadFast(EnvExperiment):
                               tooltip="The ADC sample rate.\n"
                                       "This is limited to 5kHz for long-term measurement.\n"
                                       "For shorter timescales (e.g. ~1s), a sample rate of up to 20kHz can be achieved.")
-        self.setattr_argument("time_total_s",   NumberValue(default=1, precision=0, step=1, min=1, max=100000, scale=1., unit="s")
-                              tooltip=("The total length of time to record for.\n"
-                                       "Note: once this experiment begins, it can not be cancelled without loss of data, "
-                                       "and termination CANNOT be requested.\n"
-                                       "If possible, a long run should be broken up into multiple smaller runs.")
+        self.setattr_argument("time_total_s",   NumberValue(default=1, precision=0, step=1, min=1, max=100000, scale=1., unit="s"),
+                              tooltip="The total length of time to record for.\n"
+                                      "Note: once this experiment begins, it can not be cancelled without loss of data, "
+                                      "and termination CANNOT be requested.\n"
+                                      "If possible, a long run should be broken up into multiple smaller runs.")
 
     def prepare(self):
         # general
