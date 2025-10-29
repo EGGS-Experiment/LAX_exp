@@ -273,7 +273,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # attenuation register - bichromatic: main doublepass set to specified experiment argument value
@@ -281,7 +281,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[0]) << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[1]) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
 

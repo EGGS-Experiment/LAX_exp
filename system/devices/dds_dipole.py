@@ -13,7 +13,7 @@ class DDSDipole(LAXDevice):
     Uses the DDS channel to apply a dipole field on the EGGS-side.
     """
     name = "dds_dipole"
-    core_device = ('dds', 'urukul1_ch3')
+    core_device = ('dds', 'urukul1_ch2')
     devices = {
         'rf_switch': 'ttl15'
     }

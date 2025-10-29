@@ -30,13 +30,13 @@ class TickleFastDDS(LAXSubsequence):
 
         # get relevant devices
         self.dds_ch0 = self.get_device('urukul0_ch3')
-        self.dds_ch1 = self.get_device('urukul1_ch3')
+        self.dds_ch1 = self.get_device('urukul1_ch0')
 
     def prepare_subsequence(self):
         # get DDS configuration parameters from dataset manager
         self.ampl_ticklefast_asf = self.get_parameter('ampl_ticklefast_pct', group='dds.ampl_pct', override=False,
                                                       conversion_function=pct_to_asf)
-        self.time_latency_ch1_system_ns = self.get_parameter('time_urukul0_urukul1_ch3_latency_ns',
+        self.time_latency_ch1_system_ns = self.get_parameter('time_urukul0_urukul1_ch0_latency_ns',
                                                              group='dds.delay', override=False)
 
         # prepare parameters for tickle pulse

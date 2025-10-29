@@ -642,7 +642,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (att_to_mu(self.att_sigmax_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # attenuation register - bichromatic: main doublepass set to specified experiment argument value
@@ -650,7 +650,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[0] * dB) << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[1] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # attenuation register - readout (SBR): singlepasses set to default
@@ -658,7 +658,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (att_to_mu(self.att_729_readout_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # attenuation register - readout (RAP): singlepasses set to default
@@ -666,7 +666,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (att_to_mu(self.att_rap_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (self.qubit.att_doublepass_inj_default_mu << ((self.qubit.doublepass_inj.chip_select - 4) * 8))
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # return sweep lists required for

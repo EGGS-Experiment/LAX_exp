@@ -28,7 +28,8 @@ class Cleanup(LAXSubsequence):
         self.setattr_device('ttl14')
 
         # specific device cases
-        self.setattr_device('urukul1_ch3')      # tickle DDS
+        self.setattr_device('urukul1_ch1')      # parametric DDS
+        self.setattr_device('urukul1_ch2')      # tickle DDS
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
@@ -57,10 +58,12 @@ class Cleanup(LAXSubsequence):
         self.urukul1_cpld.set_profile(0)
         self.urukul1_cpld.io_update.pulse_mu(8)
         self.urukul1_cpld.cfg_switches(0b0000)
-        # set maximum attenuation for motional board to prevent leakage
-        self.urukul1_cpld.set_all_att_mu(0)
+        # set maximum attenuation for motional DDSs to prevent leakage
+        self.urukul1_ch1.set_att_mu(0)
+        self.urukul1_ch2.set_att_mu(0)
+        # self.urukul1_cpld.set_all_att_mu(0)
         # set clean waveform for tickle DDS to prevent leakage
-        self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
+        # self.urukul1_ch3.set_mu(0x01, asf=0x01, profile=0)
         delay_mu(50000)
         # todo: ensure urukul1 TTL switches are also closed
 
