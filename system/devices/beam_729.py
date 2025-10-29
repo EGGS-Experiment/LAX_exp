@@ -18,7 +18,8 @@ class Beam729(LAXDevice):
         'rf_switch':        'ttl14',
         'singlepass0':      'urukul0_ch1',
         'singlepass1':      'urukul0_ch2',
-        'doublepass_inj':   'urukul0_ch3',
+        'singlepass2':      'urukul0_ch3',
+        'doublepass_inj':   'urukul1_ch3',
     }
 
     kernel_invariants = {
@@ -60,15 +61,22 @@ class Beam729(LAXDevice):
         self.freq_singlepass1_default_ftw = self.get_parameter('freq_729_singlepass1_mhz', group='beams.freq_mhz',
                                                                override=False,
                                                                conversion_function=hz_to_ftw, units=MHz)
+        self.freq_singlepass2_default_ftw = self.get_parameter('freq_729_singlepass2_mhz', group='beams.freq_mhz',
+                                                               override=False,
+                                                               conversion_function=hz_to_ftw, units=MHz)
 
         self.ampl_singlepass0_default_asf = self.get_parameter('ampl_729_singlepass0_pct', group='beams.ampl_pct',
                                                                override=False, conversion_function=pct_to_asf)
         self.ampl_singlepass1_default_asf = self.get_parameter('ampl_729_singlepass1_pct', group='beams.ampl_pct',
                                                                override=False, conversion_function=pct_to_asf)
+        self.ampl_singlepass2_default_asf = self.get_parameter('ampl_729_singlepass2_pct', group='beams.ampl_pct',
+                                                               override=False, conversion_function=pct_to_asf)
 
         self.att_singlepass0_default_mu = self.get_parameter('att_729_singlepass0_db', group='beams.att_db',
                                                              override=False, conversion_function=att_to_mu)
         self.att_singlepass1_default_mu = self.get_parameter('att_729_singlepass1_db', group='beams.att_db',
+                                                             override=False, conversion_function=att_to_mu)
+        self.att_singlepass2_default_mu = self.get_parameter('att_729_singlepass2_db', group='beams.att_db',
                                                              override=False, conversion_function=att_to_mu)
 
         # get doublepass (injection lock) parameters
@@ -102,12 +110,14 @@ class Beam729(LAXDevice):
         """
         # get CPLD attenuations so we don't override them
         self.cpld.get_att_mu()
+        self.doublepass_inj.cpld.get_att_mu()
         self.core.break_realtime()
 
         # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
         self.set_cfr1()
         self.singlepass0.set_cfr1()
         self.singlepass1.set_cfr1()
+        self.singlepass2.set_cfr1()
         self.doublepass_inj.set_cfr1()
         self.io_update()
         delay_mu(25000)
@@ -118,30 +128,35 @@ class Beam729(LAXDevice):
             self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
                                     asf=self.ampl_singlepass0_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(25000)
+            delay_mu(25000) # 25 us
             self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
                                     asf=self.ampl_singlepass1_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(25000)
+            delay_mu(25000) # 25 us
+            self.singlepass2.set_mu(self.freq_singlepass2_default_ftw,
+                                    asf=self.ampl_singlepass2_default_asf,
+                                    profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(25000) # 25 us
             self.doublepass_inj.set_mu(self.freq_doublepass_inj_default_ftw,
                                     asf=self.ampl_doublepass_inj_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(25000)
+            delay_mu(25000) # 25 us
 
         # ensure events finish completion (since they're pretty heavy tbh)
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
-        delay_mu(500000)
+        delay_mu(500000) # 500 us
 
         # set AOMs for normal output/operation
         self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
         self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
+        self.singlepass2.set_att_mu(self.att_singlepass2_default_mu)
         self.doublepass_inj.set_att_mu(self.att_doublepass_inj_default_mu)
         delay_mu(25000)
-
         self.singlepass0.sw.on()
         self.singlepass1.sw.off()
+        self.singlepass2.sw.off()
         self.doublepass_inj.sw.on()
         delay_mu(25000)
 
