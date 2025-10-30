@@ -1,6 +1,5 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
-from build.lib.artiq.test.coredevice.test_performance import time_start
 
 from numpy import copy as np_copy
 from numpy import array, int32, int64, arange, zeros, mean
@@ -530,7 +529,6 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
             150 * us)  # add slack to RTIOCounter only if heralding succeeds
         self.max_herald_attempts = 200  # max number of herald attempts before config is skipped
 
-        self.time_urukul_switch_delay=int64(8)
         # ensure delays are multiples of phaser frame period
         self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.t_frame_mu) * self.t_frame_mu)
 
@@ -1118,7 +1116,7 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
                             # set phaser attenuators to max attenuation
                             self.reset_phaser_atts()
                             # turn off phaser amp switches
-                            self.phaser_amp_switches_off()
+                            self.phaser_eggs.amp_sws_off()
                         if self.enable_cat2_bichromatic:
                             with sequential:
                                 # set up beams for second cat:
@@ -1219,13 +1217,9 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         """
         # ensure all beams are off
         self.qubit.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass0.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass1.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass2.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass0_off()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
         # set up relevant beam waveforms
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
@@ -1262,45 +1256,35 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def pulse_cat(self, time_pulse_mu) -> TNone:
         # turn on all beams
-        self.qubit.singlepass1.sw.on()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass2.sw.on()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass1_on()
+        self.qubit.singlepass2_on()
         if self.enable_dynamical_decoupling:
             self.turn_on_continuous_dynamical_decoupling()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         # turn off all beams
         self.qubit.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass0.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass1.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass2.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass0_off()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
 
     @kernel(flags={"fast-math"})
     def perform_dynamical_decoupling_pi_pulse(self, time_pi_pulse_mu) -> TNone:
         self.qubit.cpld.set_all_att_mu(self.att_reg_dynamical_decoupling_pi_pulse)
-        self.qubit.singlepass0.sw.on()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass0_on()
         self.qubit.on()
         delay_mu(time_pi_pulse_mu)
         self.qubit.off()
-        delay_mu(self.time_urukul_switch_delay)
-        self.qubit.singlepass0.sw.off()
+        self.qubit.singlepass0_off()
         self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
 
     @kernel(flags={"fast-math"})
     def turn_on_continuous_dynamical_decoupling(self) -> TNone:
-        self.qubit.singlepass0.sw.on()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass0_on()
 
     @kernel(flags={"fast-math"})
     def turn_off_continuous_dynamical_decoupling(self) -> TNone:
-        self.qubit.singlepass0.sw.off()
-        delay_mu(self.time_urukul_switch_delay)
+        self.qubit.singlepass0_off()
 
     @kernel(flags={'fast-math'})
     def setup_phaser(self) -> TNone:
@@ -1335,17 +1319,6 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         delay_mu(self.t_frame_mu)
         self.phaser_eggs.phaser.channel[1].set_att_mu(0x00)
 
-    @kernel(flags={'fast-math'})
-    def phaser_amp_switches_off(self) -> TNone:
-        # add 8ns delay between ttls firing so that events can be submitted to the same lane and lessens likelihood of sequence error
-        self.phaser_eggs.ch0_amp_sw.off()
-        delay_mu(int64(self.core.ref_multiplier))
-        self.phaser_eggs.ch1_amp_sw.off()
-        delay_mu(int64(self.core.ref_multiplier))
-        self.phaser_eggs.int_hold.off()
-
-        # add delay time after EGGS pulse to allow RF servo to re-lock
-        delay_mu(self.time_phaser_holdoff_mu)
 
     @kernel(flags={"fast-math"})
     def phaser_run(self, waveform_id: TInt32) -> TNone:
@@ -1408,13 +1381,13 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         self.qubit.cpld.set_all_att_mu(self.att_reg_readout_sbr)
 
         # run readout pulse
-        self.qubit.singlepass0.sw.on()
+        self.qubit.singlepass0_on()
         # todo: this should be off, right???
-        self.qubit.singlepass1.sw.on()
+        self.qubit.singlepass1_on()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
-        self.qubit.singlepass1.sw.off()
+        self.qubit.singlepass1_off()
 
     @kernel(flags={"fast-math"})
     def pulse_readout_rap(self) -> TNone:

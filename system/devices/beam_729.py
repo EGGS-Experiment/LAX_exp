@@ -5,6 +5,7 @@ from artiq.coredevice.urukul import DEFAULT_PROFILE
 from LAX_exp.language import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
+from numpy import int64
 
 
 class Beam729(LAXDevice):
@@ -42,6 +43,10 @@ class Beam729(LAXDevice):
         # DDS parameters - doublepass (injection lock)
         "freq_doublepass_inj_default_ftw", "ampl_doublepass_inj_default_asf",
         "att_doublepass_inj_default_mu",
+
+        # switch delay time
+        "switch_delay_time_mu"
+
     }
 
     def prepare_device(self):
@@ -82,6 +87,7 @@ class Beam729(LAXDevice):
             self.freq_ftw_list.append(getattr(self, f'freq_{device}_default_ftw'))
             self.ampl_asf_list.append(getattr(self, f'ampl_{device}_default_asf'))
             self.att_mu_list.append(getattr(self, f'att_{device}_default_mu'))
+        self.switch_delay_time_mu = int64(8)
 
 
     def _check_device_values(self):
@@ -209,6 +215,36 @@ class Beam729(LAXDevice):
         # disable external RF switch
         self.rf_switch.on()
         delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
+
+    @kernel(flags={'fast-math'})
+    def singlepass0_on(self) -> TNone:
+        self.singlepass0.sw.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def singlepass0_off(self) -> TNone:
+        self.singlepass0.sw.off()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def singlepass1_on(self) -> TNone:
+        self.singlepass1.sw.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def singlepass1_off(self) -> TNone:
+        self.singlepass1.sw.off()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def singlepass2_on(self) -> TNone:
+        self.singlepass2.sw.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def singlepass2_off(self) -> TNone:
+        self.singlepass2.sw.off()
+        delay_mu(self.switch_delay_time_mu)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
