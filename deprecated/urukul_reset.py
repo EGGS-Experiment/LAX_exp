@@ -41,7 +41,11 @@ class UrukulReset(EnvExperiment):
                     (v.get('arguments', {}).get('cpld_device') == cpld_name))
 
         # get only local urukul CPLD devices from device_db
-        return list([k for k, v in self.get_device_db().items() if is_local_dds_device(v)])
+        return sorted(set([
+            k
+            for k, v in self.get_device_db().items()
+            if is_local_dds_device(v)
+        ]))
 
     def prepare(self):
         """
