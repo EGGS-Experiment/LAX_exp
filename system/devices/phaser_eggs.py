@@ -31,6 +31,7 @@ class PhaserEGGS(LAXDevice):
         self.t_sample_mu =          int64(40)
         self.t_frame_mu =           int64(320)
         self.t_output_delay_mu =    int64(1953)
+        self.ttl_delay = int64(8)
 
     def prepare_device(self):
         # alias both phaser output channels
@@ -202,10 +203,12 @@ class PhaserEGGS(LAXDevice):
         delay_mu(1920)  # 6 frame periods
         #
         # # open phaser amp switches and activate integrator hold
-        with parallel:
-            self.ch0_amp_sw.on()
-            self.ch1_amp_sw.on()
-            self.int_hold.on()
+
+        self.ch0_amp_sw.on()
+        delay_mu(self.ttl_delay)
+        self.ch1_amp_sw.on()
+        delay_mu(self.ttl_delay)
+        self.int_hold.on()
 
         # add holdoff delay to account for integrator hold, switch rise/fall times (25us for ZSW2-272VDHR+)
         delay_mu(self.time_phaser_holdoff_mu)
@@ -242,10 +245,12 @@ class PhaserEGGS(LAXDevice):
         # add delay for oscillator updates to account for pipeline latency
         delay_mu(2560)  # 8 frame periods
         # stop phaser amp switches & deactivate integrator hold
-        with parallel:
-            self.ch0_amp_sw.off()
-            self.ch1_amp_sw.off()
-            self.int_hold.off()
+
+        self.ch0_amp_sw.off()
+        delay_mu(self.ttl_delay)
+        self.ch1_amp_sw.off()
+        delay_mu(self.ttl_delay)
+        self.int_hold.off()
 
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_phaser_holdoff_mu)
