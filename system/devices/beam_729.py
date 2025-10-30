@@ -212,28 +212,24 @@ class Beam729(LAXDevice):
         """
         todo: document
         """
-        with parallel:
-            # enable RF switch onboard Urukul
-            self.sw.on()
 
-            # enable external RF switch
-            with sequential:
-                self.rf_switch.off()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
+        self.sw.on()
+        delay_mu(8)
+        # enable external RF switch
+        self.rf_switch.off()
+        delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def off(self) -> TNone:
         """
         todo: document
         """
-        with parallel:
-            # disable RF switch onboard Urukul
-            self.sw.off()
-
-            # disable external RF switch
-            with sequential:
-                self.rf_switch.on()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
+        # disable RF switch onboard Urukul
+        self.sw.off()
+        delay_mu(8)
+        # disable external RF switch
+        self.rf_switch.on()
+        delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
