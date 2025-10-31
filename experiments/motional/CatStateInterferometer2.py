@@ -702,8 +702,8 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         self.att_reg_dynamical_decoupling_pi_pulse = 0x00000000 | (
                 (att_to_mu(8 * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_dynamical_decoupling_pi_pulse_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_cat_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_cat_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
+                (att_to_mu(31.5 * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
         # attenuation register - readout (SBR): singlepasses set to default
@@ -1217,7 +1217,7 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         """
         # ensure all beams are off
         self.qubit.off()
-        self.qubit.singlepass0_off()
+        self.qubit.singlepass0_on()
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
         # set up relevant beam waveforms
@@ -1228,8 +1228,8 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         )
         delay_mu(self.urukul_setup_time_mu)
         self.qubit.singlepass0.set_mu(
-            self.qubit.freq_singlepass1_default_ftw + freq_dynamical_decoupling_detuning_ftw,
-            asf=self.ampls_cat_asf[0],
+            self.qubit.freq_singlepass0_default_ftw + freq_dynamical_decoupling_detuning_ftw,
+            asf=self.ampl_dynamical_decoupling_asf,
             pow_= dynamical_decoupling_phase_pow,
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
@@ -1260,13 +1260,15 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         self.qubit.singlepass2_on()
         if self.enable_dynamical_decoupling:
             self.turn_on_continuous_dynamical_decoupling()
+        else:
+            self.turn_off_continuous_dynamical_decoupling()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         # turn off all beams
         self.qubit.off()
-        self.qubit.singlepass0_off()
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
+        self.qubit.singlepass0_on()
 
     @kernel(flags={"fast-math"})
     def perform_dynamical_decoupling_pi_pulse(self, time_pi_pulse_mu) -> TNone:
@@ -1275,7 +1277,6 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
         self.qubit.on()
         delay_mu(time_pi_pulse_mu)
         self.qubit.off()
-        self.qubit.singlepass0_off()
         self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
 
     @kernel(flags={"fast-math"})
@@ -1382,12 +1383,11 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
 
         # run readout pulse
         self.qubit.singlepass0_on()
-        # todo: this should be off, right???
-        self.qubit.singlepass1_on()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
-        self.qubit.singlepass1_off()
 
     @kernel(flags={"fast-math"})
     def pulse_readout_rap(self) -> TNone:
