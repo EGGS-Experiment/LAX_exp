@@ -50,6 +50,7 @@ class PhaserEGGS(LAXDevice):
         # ensure delays are multiples of phaser frame period
         self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.t_frame_mu) * self.t_frame_mu)
 
+        # note: make all delays self.core.coarse_ref_period instead of 8ns
         self.switch_delay_time_mu = int64(8)
 
     @kernel(flags={'fast-math'})
@@ -239,7 +240,6 @@ class PhaserEGGS(LAXDevice):
         # add delay for oscillator updates to account for pipeline latency
         delay_mu(self.t_setup_delay_mu - 16)  # 8 frame periods (minus coarse RTIO between switches)
         # stop phaser amp switches & deactivate integrator hold
-
         self.amp_sws_off()
 
         # add delay time after EGGS pulse to allow RF servo to re-lock

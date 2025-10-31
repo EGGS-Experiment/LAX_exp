@@ -44,8 +44,10 @@ class Beam729(LAXDevice):
         "att_doublepass_inj_default_mu",
 
         # switch delay time
-        "switch_delay_time_mu"
+        "switch_delay_time_mu",
 
+        # note: ensure objects used for programmatic initialization (e.g. device_list, freq_ftw_list) are
+        #   made kernel_invariant
     }
 
     def prepare_device(self):
@@ -86,8 +88,9 @@ class Beam729(LAXDevice):
             self.freq_ftw_list.append(getattr(self, f'freq_{device}_default_ftw'))
             self.ampl_asf_list.append(getattr(self, f'ampl_{device}_default_asf'))
             self.att_mu_list.append(getattr(self, f'att_{device}_default_mu'))
-        self.switch_delay_time_mu = int64(8)
 
+        # note: make all delays self.core.coarse_ref_period instead of 8ns
+        self.switch_delay_time_mu = int64(8)
 
     def _check_device_values(self):
         """
@@ -97,6 +100,8 @@ class Beam729(LAXDevice):
         # todo: check singlepass atts in [7, 31.5]
         # todo: check doublepass att in [6, 31.5]
 
+        # clayton note: move "magic numbers" to fixed declarations in build_ for transparency
+        #   and document clearly
         device_att_db = {'singlepass0': 7 * dB, 'singlepass1': 7 * dB, 'singlepass2': 7 * dB, 'doublepass_inj': 6 * dB}
 
         for device in self.dds_devices:
