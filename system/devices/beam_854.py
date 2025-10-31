@@ -57,29 +57,26 @@ class Beam854(LAXDevice):
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         self.on()
-        delay_mu(5000)
 
     @kernel(flags={"fast-math"})
     def on(self) -> TNone:
-        with parallel:
-            # enable RF switch onboard Urukul
-            self.sw.on()
+        # enable RF switch onboard Urukul
+        self.sw.on()
+        delay_mu(8)
 
-            # enable external RF switch
-            with sequential:
-                self.rf_switch.off()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
+        # enable external RF switch
+        self.rf_switch.off()
+        delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def off(self) -> TNone:
-        with parallel:
-            # disable RF switch onboard Urukul
-            self.sw.off()
+        # disable RF switch onboard Urukul
+        self.sw.off()
+        delay_mu(8)
 
-            # disable external RF switch
-            with sequential:
-                self.rf_switch.on()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
+        # disable external RF switch
+        self.rf_switch.on()
+        delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:

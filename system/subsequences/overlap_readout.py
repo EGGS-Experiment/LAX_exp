@@ -191,7 +191,7 @@ class OverlapReadout(QubitRAP):
     def initialize_subsequence(self) -> TNone:
         """
         Prepare the subsequence immediately before run.
-        note: we copy over parent QubitRAP's intialize_subsequence b/c
+        note: we copy over parent QubitRAP's initialize_subsequence b/c
             we need to also define our own, and ARTIQ doesn't support super()
             on coredevice.
         """

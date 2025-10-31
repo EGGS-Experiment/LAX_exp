@@ -421,13 +421,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
                 '''READOUT: DIRECT CHARACTERISTIC MEASUREMENT'''
                 # only bother continuing with readout if no boooboo
                 if herald_counter < self.max_herald_attempts:
-                    # prepare spin state for characteristic readout
-                    # note: need to set correct profile for normal quenching
-                    # otherwise might be stuck in SBC quench params)
-                    self.pump.readout()
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
+                    self.initialize_subsequence.quench() # quench spin back to S-1/2 for characteristic readout
 
                     # sigma_x to select axis (does dummy if characteristic_axis_bool is False)
                     self.pulse_sigmax(time_start_mu, self.phase_char_axis_pow, characteristic_axis_bool)
@@ -472,6 +466,7 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         :param is_real: whether to actually run the pulse (True) or a dummy pulse (False).
         """
         # set up relevant beam waveforms
+        # note: only set singlepass0 b/c singlepass1 unnecessary here
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
@@ -480,25 +475,19 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
             self.qubit.freq_singlepass0_default_ftw, asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.qubit.singlepass1.set_mu(
-            self.qubit.freq_singlepass1_default_ftw, asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-        )
         self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
-        # run pulse
+        # prepare singlepass AOMs (8ns delays relieve sequencing/SED)
         self.qubit.singlepass0.sw.on()
-        # todo: should sp1 be off???
-        self.qubit.singlepass1.sw.on()
-
-        # only fire sigma_x pulse if measuring Re[\chi(\beta)]
-        if is_real: self.qubit.on()
-        # otherwise, run dummy pulse to keep sequence as similar as possible
-        else:       self.qubit.off()
-        delay_mu(self.time_sigmax_mu)
-
-        self.qubit.off()
+        delay_mu(8)
         self.qubit.singlepass1.sw.off()
+        delay_mu(8)
+
+        # note: following logic is to equalize sequence timings for Re & Im (keep things as similar as possible)
+        if is_real: self.qubit.on()     # only fire sigma_x pulse if measuring Re[\chi(\beta)]
+        else:       self.qubit.off()    # otherwise, run dummy pulse
+        delay_mu(self.time_sigmax_mu)
+        self.qubit.off()
 
     @kernel(flags={"fast-math"})
     def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
@@ -528,11 +517,14 @@ class CharacteristicReconstruction(LAXExperiment, Experiment):
         )
         self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
 
-        # run bichromatic pulse
+        # run bichromatic pulse (8ns delays relieve sequencing/SED)
         self.qubit.singlepass0.sw.on()
+        delay_mu(8)
         self.qubit.singlepass1.sw.on()
+        delay_mu(8)
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
+        delay_mu(8)
         self.qubit.singlepass1.sw.off()
 
