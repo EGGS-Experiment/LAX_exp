@@ -3,7 +3,7 @@ from numpy import array, int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import InitializeQubit, RabiFlop, QubitPulseShape, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon
 
 from sipyco import pyon
 
@@ -21,7 +21,7 @@ class LaserScan(LAXExperiment, Experiment):
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
 
         # subsequences
-        'initialize_subsequence', 'rabiflop_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
         'pulseshape_subsequence',
 
         # configs
@@ -75,7 +75,6 @@ class LaserScan(LAXExperiment, Experiment):
         self.profile_729_readout = 0
 
         # subsequences
-        self.rabiflop_subsequence =     RabiFlop(self, time_rabiflop_us=self.time_qubit_us)
         self.pulseshape_subsequence =   QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=0,
             num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
@@ -88,9 +87,7 @@ class LaserScan(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
-        '''
-        CONVERT VALUES TO MACHINE UNITS
-        '''
+        ### CONVERT VALUES TO MACHINE UNITS ###
         # laser parameters
         self.freq_qubit_scan_ftw = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                           for freq_mhz in self.freq_qubit_scan_mhz])
@@ -108,9 +105,7 @@ class LaserScan(LAXExperiment, Experiment):
             time_linetrig_holdoff_mu_list = [0]
 
 
-        '''
-        CREATE EXPERIMENT CONFIG
-        '''
+        ### CREATE EXPERIMENT CONFIG ###
         # create experiment configuration array
         self.config_experiment_list = create_experiment_config(
             self.freq_qubit_scan_ftw, time_linetrig_holdoff_mu_list,
@@ -137,10 +132,10 @@ class LaserScan(LAXExperiment, Experiment):
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
-        self.core.break_realtime()
 
         # set up qubit pulse
         if self.enable_pulseshaping:
+            self.core.break_realtime()
             self.pulseshape_subsequence.configure(self.time_qubit_mu)
             delay_mu(25000)
 
@@ -178,19 +173,19 @@ class LaserScan(LAXExperiment, Experiment):
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
-                # rabi flop & read out
+                # fire spectroscopy pulse
                 if self.enable_pulseshaping:
                     self.pulseshape_subsequence.run()
                 else:
-                    self.rabiflop_subsequence.run()
+                    self.qubit.on()
+                    delay_mu(self.time_qubit_mu)
+                    self.qubit.off()
                 self.readout_subsequence.run_dma()
 
-                # get counts & clean up loop
+                # read out counts & clean up loop
                 counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.resuscitate()
                 self.rescue_subsequence.detect_death(counts)
-
-                # store results
                 self.update_results(freq_ftw, counts, time_holdoff_mu)
 
             # rescue ion as needed & support graceful termination

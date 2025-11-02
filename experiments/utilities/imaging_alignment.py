@@ -29,7 +29,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s', NumberValue(default=10, precision=0, step=100, min=5, max=100000, scale=1., unit="s"))
+        self.setattr_argument('time_total_s', NumberValue(default=800, precision=0, step=100, min=5, max=100000, scale=1., unit="s"))
 
         # sampling
         self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, precision=0, step=10, min=1, max=100),
@@ -40,9 +40,9 @@ class ImagingAlignment(LAXExperiment, Experiment):
         # readout
         self.setattr_argument('time_sample_us',     NumberValue(default=3000, precision=1, step=500, min=100, max=100000, scale=1., unit="us"),
                               group='readout')
-        self.setattr_argument("freq_readout_mhz",   NumberValue(default=108., precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
+        self.setattr_argument("freq_readout_mhz",   NumberValue(default=102., precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
                               group='readout')
-        self.setattr_argument("ampl_readout_pct",   NumberValue(default=42., precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
+        self.setattr_argument("ampl_readout_pct",   NumberValue(default=46., precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
                               group='readout')
 
         # relevant devices
@@ -197,9 +197,9 @@ class ImagingAlignment(LAXExperiment, Experiment):
         # update dataset for HDF5 storage
         self.mutate_dataset('results', self._result_iter,
                             array([iter_num * self.time_per_point_s,
-                                      _counts_avg_signal,
-                                      _counts_avg_background,
-                                      _counts_avg_signal - _counts_avg_background]))
+                                   _counts_avg_signal,
+                                   _counts_avg_background,
+                                   _counts_avg_signal - _counts_avg_background]))
 
         # update completion monitor
         self.set_dataset('management.dynamic.completion_pct',

@@ -4,9 +4,10 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, RabiFlop, QubitPulseShape, SidebandCoolContinuousRAM, NoOperation, ReadoutAdaptive
+    InitializeQubit, QubitPulseShape, SidebandCoolContinuousRAM, NoOperation, ReadoutAdaptive
 )
 from LAX_exp.system.objects.MeanFilter import MeanFilter
+# todo: finish implementing changes
 
 
 class QubitAlignmentRDX(LAXExperiment, Experiment):
@@ -101,8 +102,7 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         self.time_readout_s =   self.get_parameter('time_readout_us', group='timing', override=False) * us
 
         # create filter objects & prepare them (b/c only LAXExperiment classes call their own children)
-        self._filter_arr = [MeanFilter(self, filter_length=self.samples_per_point)
-                            for i in range(len(list(self.time_qubit_us_list)))]
+        self._filter_arr = [MeanFilter(self, filter_length=self.samples_per_point) for _ in self.time_qubit_us_list]
         for filter in self._filter_arr: filter.prepare()
 
     @rpc

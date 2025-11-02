@@ -33,11 +33,10 @@ __all__.extend(['SqueezeConfigurable', 'Displace', 'ParametricExcite',
                 'QVSAPulse', 'FockStateGenerator'])
 
 # spin state manipulation
-from LAX_exp.system.subsequences.rabi_flop import RabiFlop
 from LAX_exp.system.subsequences.qubit_pulseshape import QubitPulseShape
 from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
 from LAX_exp.system.subsequences.fock_overlap import FockOverlap
-__all__.extend(['RabiFlop', 'QubitPulseShape', 'QubitRAP', 'FockOverlap'])
+__all__.extend(['QubitPulseShape', 'QubitRAP', 'FockOverlap'])
 
 # readout
 from LAX_exp.system.subsequences.readout import Readout

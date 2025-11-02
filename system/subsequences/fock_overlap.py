@@ -1,5 +1,4 @@
 from artiq.experiment import *
-
 from LAX_exp.language import *
 from LAX_exp.system.subsequences.qubit_RAP import QubitRAP
 
