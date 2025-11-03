@@ -11,6 +11,15 @@ from LAX_exp.base import LAXExperiment
 from LAX_exp.system.subsequences import Readout
 
 from skimage.transform import hough_circle, hough_circle_peaks
+# todo: save image before anything
+# todo: save image after ready to load
+# todo: save image immediately before ion detected (store running holder of old data)
+# todo: save image after ion detected but not yet cleaned up
+# todo: save image after ion detected and after cleanup
+
+# todo: save image values to an artiq dataset so we can view via widget
+
+# todo: set camera region by center and width
 
 
 class IonLoadAndAramp(LAXExperiment, Experiment):
@@ -65,13 +74,19 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                 ), group='A-Ramp')
 
         # oven configuration
-        self.setattr_argument("oven_voltage",   NumberValue(default=1.25, min=0., max=2., precision=2, step=0.1, unit="V", scale=1.),
+        self.setattr_argument("oven_voltage",   NumberValue(default=1.50, min=0., max=2., precision=2, step=0.1, unit="V", scale=1.),
                               group='Oven')
         self.setattr_argument("oven_current",   NumberValue(default=3.25, min=0., max=4., precision=2, step=0.1, unit="A", scale=1.),
                               group='Oven')
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
         self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True), group = 'Camera')
+        self.setattr_argument('image_center_x', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Image center position (x).")
+        self.setattr_argument('image_center_y', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              group='Camera',
+                              tooltip="Image center position (y).")
         self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
                               group='Camera',
                               tooltip="Width of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
@@ -103,14 +118,29 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Prepare experimental values and precompute/preallocate
         to reduce kernel overheads.
         """
-        '''HARDWARE VALUES'''
+        '''
+        HARDWARE VALUES
+        '''
+        # magic numbers
         self.pmt_sample_num = 30
         self.pmt_dark_threshold_counts = 15
         self.time_runtime_max_s = 900.
-
         self.start_time_s = np.int64(0)
+        self.time_aramp_pulse_s = 2.
 
-        '''CAMERA SETUP'''
+        # set attenuations (per Josh's request)
+        # todo: get these from dataset manager
+        # todo: actually - maybe not necessary anymore
+        self.att_397_mu = att_to_mu(14 * dB)
+        self.att_854_mu = att_to_mu(14 * dB)
+        self.att_866_mu = att_to_mu(14 * dB)
+
+
+        '''
+        CAMERA SETUP
+        '''
+        # todo: process image x/y position
+        # todo: get image height and width from camera arguments (info_detector_dimensions)
         self.IMAGE_HEIGHT = 512
         self.IMAGE_WIDTH =  512
         border_x, border_y = ((self.IMAGE_WIDTH - self.image_width_pixels) / 2,
@@ -121,16 +151,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.image_region = (self.horizontal_binning, self.vertical_binning,
                              start_x, end_x, start_y, end_y)
 
-        '''BEAM SETUP'''
-        # set attenuations (per Josh's request)
-        self.att_397_mu = att_to_mu(14 * dB)
-        self.att_854_mu = att_to_mu(14 * dB)
-        self.att_866_mu = att_to_mu(14 * dB)
 
-        '''A-RAMP SETUP'''
-        self.time_aramp_pulse_s = 2.
-
-        '''FILEPATHS'''
+        '''
+        FILEPATHS
+        '''
+        # todo: save image data to a dataset as well so we can image dynamically
         # todo: migrate data storage to a dataset so we can re-process images later
         year_month =        datetime.today().strftime('%Y-%m')
         year_month_day =    datetime.today().strftime('%Y-%m-%d')
@@ -257,6 +282,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.cleanup_devices()
 
 
+    """
+    HELPER FUNCTIONS
+    """
     @rpc
     def load_ion(self) -> TInt32:
         """
@@ -375,6 +403,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Returns:
             TInt32: Number of ions in the trap
         """
+        # update completion monitor
+        self.update_completion_monitor(time() - self.start_time_s)
+
         # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
@@ -433,3 +464,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         if self.scheduler.check_termination():
             self.cleanup_devices()
             raise TerminationRequested
+
+    @rpc(flags={"async"})
+    def update_completion_monitor(self, elapsed_time_s: TFloat) -> TNone:
+        self.set_dataset('management.dynamic.completion_pct',
+                         round(elapsed_time_s / self.time_runtime_max_s * 100., 3),
+                         broadcast=True, persist=True, archive=False)
