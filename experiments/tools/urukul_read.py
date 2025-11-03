@@ -25,16 +25,18 @@ class UrukulRead(EnvExperiment):
     Warning: urukul profile will be set to target value and left there.
     """
     name = 'Urukul Read'
+    kernel_invariants = {
+        '_stored_profile_words', '_stored_ram_data_lists',
+    }
 
     def build(self):
         self.setattr_device("core")
 
         # DDS parameters
-        self.setattr_argument("dds_target",     EnumerationValue(list(self._get_dds_devices()), default='urukul2_ch1'),
+        self.setattr_argument("dds_target",     EnumerationValue(list(self._get_dds_devices()), default='urukul0_ch0'),
                               tooltip="DDS channel to read from.")
 
         # profile parameters
-        self.setattr_argument('dds_profile',    NumberValue(default=7, precision=0, step=1, min=0, max=7))
         self.setattr_argument('dds_profiles',   PYONValue([0, 1, 2, 3, 4, 5, 6, 7]), group="config",
                               tooltip="DDS profiles to configure with the selected parameters.")
 
@@ -42,7 +44,7 @@ class UrukulRead(EnvExperiment):
         self.setattr_argument("is_profile_ram", BooleanValue(default=False),
                               tooltip="Whether the DDS profile should be interpreted as a RAM profile.")
         self.setattr_argument("read_ram_data",  BooleanValue(default=False),
-                              tooltip="Whether the RAM data in the addresses specified by the RAM profile should be read")
+                              tooltip="Whether the RAM data in the addresses specified by the RAM profile should be read.")
 
     def _get_dds_devices(self):
         """
@@ -65,7 +67,10 @@ class UrukulRead(EnvExperiment):
         """
         Prepare values for speedy evaluation.
         """
-        # sanitize inputs
+        ### SANITIZE INPUTS ###
+        # ensure no duplicates in dds_profiles
+        self.dds_profiles = list(set(self.dds_profiles))
+
         # ensure profile number is valid, otherwise strange failure mode/dangerous overwrite
         if not isinstance(self.dds_profiles, list):
             raise ValueError("Invalid argument: dds_profiles must be a list.")
@@ -87,7 +92,6 @@ class UrukulRead(EnvExperiment):
             # add device names to kernel invariants
             kernel_invariants = getattr(self, "kernel_invariants", set())
             self.kernel_invariants = kernel_invariants | {'dds', 'dds_cpld'}
-
         except Exception as e:
             print("Error: invalid DDS channel.")
             raise e
@@ -95,7 +99,7 @@ class UrukulRead(EnvExperiment):
 
         # set up data structure to get data for tone and ram profile
         self._stored_att_db = float(0.) # store RAM data indicated by the profile
-        self._stored_profile_words = [int64(0)] * len(self.dds_profiles) # store retrieved profile data
+        self._stored_profile_words = [] # store retrieved profile data
         self._stored_ram_data_lists = [] # store RAM data indicated by the profile
 
 
@@ -143,38 +147,45 @@ class UrukulRead(EnvExperiment):
 
 
         # prepare DDS in desired profile (necessary since values are only taken from active profile)
-        for idx_profile in self.dds_profiles:
+        for idx_profile in range(len(self.dds_profiles)):
+            # get dds profile
+            profile_num = self.dds_profiles[idx_profile]
+
             # set target DDS profile
             self.core.break_realtime()
-            self.dds_cpld.set_profile(self.dds_profiles[idx_profile])
+            self.dds_cpld.set_profile(profile_num)
             self.dds_cpld.io_update.pulse_mu(8)
 
             # read directly from register (instead of using get_mu) since profile may be RAM
             self.core.break_realtime()
-            profile_word_tmp = int64(self.dds.read64(ad9910._AD9910_REG_PROFILE0 + self.dds_profile))
-            self._stored_profile_words[idx_profile] = profile_word_tmp
+            profile_word_tmp = int64(self.dds.read64(ad9910._AD9910_REG_PROFILE0 + profile_num))
+            self.store_profile_word(profile_word_tmp)
 
             # read data from RAM
             if self.read_ram_data:
                 # parse profile word for RAM begin/end addresses and create commensurate list for storage
-                _, addr_start, addr_stop, _, _, _ = self.process_profile_word_ram(profile_word_tmp)
-                addr_start, addr_stop = self.parse_ram_profile_addr(profile_word_tmp)
+                _tmp0, addr_start, addr_stop, _tmp1, _tmp2, _tmp3 = self.process_profile_word_ram(profile_word_tmp)
                 _ram_data_tmp = [int32(0)] * (addr_stop - addr_start + 1)
 
-                # retrieve RAM data (thankfully, coredevice.ad9910 handles it for us)
-                self.core.break_realtime()
-                delay_mu(1000000) # 10ms - heavy slack (full transfer is 1024 32b words @ 125/16 MHz => ~4.2ms)
-                self.dds.read_ram(_ram_data_tmp)
-                self.core.break_realtime()
+                # ensure RAM profile is valid before retrieving RAM data
+                if (addr_start < addr_stop) and (0 <= addr_start <= 1023) and (0 <= addr_stop <= 1023):
+                    # retrieve RAM data (thankfully, coredevice.ad9910 handles it for us)
+                    self.core.break_realtime()
+                    delay_mu(1000000)  # 10ms - heavy slack (full transfer is 1024 32b words @ 125/16 MHz => ~4.2ms)
+                    self.dds.read_ram(_ram_data_tmp)
+                    self.store_ram_data(_ram_data_tmp)  # store results in host via RPC
 
-                # store results in host via RPC
-                self.store_ram_data(idx_profile, _ram_data_tmp)
+                # otherwise, store dummy value and move on
+                else:
+                    self.store_ram_data([-1])  # store results in host via RPC
+                    continue
 
         # clean up by reverting to default profile
         self.core.break_realtime()
         self.dds_cpld.set_profile(ad9910.DEFAULT_PROFILE)
         self.dds_cpld.io_update.pulse_mu(8)
         self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
 
 
     """
@@ -184,17 +195,16 @@ class UrukulRead(EnvExperiment):
         """
         Process results to extract DDS data.
         """
-        print("\tDDS values:\t\t{}".format(self.dds_target))
-
+        print("DDS - {}".format(self.dds_target))
 
         # process global information
         self.set_dataset("dds_att_db", self._stored_att_db)
-        print("\t\tAtt.:\t{} dB".format(self._stored_att_db))
+        print("\tAtt.:\t{} dB".format(self._stored_att_db))
 
 
         # process all profile data
         for idx_profile, profile_num in enumerate(self.dds_profiles):
-            print("\tProfile:\t{}".format(profile_num))
+            print("\tProfile {:d}:".format(profile_num))
 
             # process profile data as single-tone waveform
             if not self.is_profile_ram:
@@ -208,7 +218,7 @@ class UrukulRead(EnvExperiment):
                 self.set_dataset("profile_{:d}_phas_turns".format(profile_num), phas_turns)
                 print("\t\tFreq.: {:.4f} MHz".format(freq_hz / MHz))
                 print("\t\tAmpl.: {:.4f} %".format(ampl_frac * 100.))
-                print("\t\tPhas.: {:.4f} turns\n".format(phas_turns))
+                print("\t\tPhas.: {:.4f} turns".format(phas_turns))
 
             # process profile data as RAM
             else:
@@ -274,21 +284,16 @@ class UrukulRead(EnvExperiment):
 
         # convert values to human units before returning
         ram_mode_str =      str(RAM_MODE(ram_mode_val))
-        step_interval_ns =  step_interval_mu * self.dds.sysclk_per_mu
+        step_interval_ns =  float(step_interval_mu * self.dds.sysclk_per_mu)
         return ram_mode_str, start_addr, stop_addr, step_interval_ns, nodwell_high, zero_crossing
 
-    @portable
-    def parse_ram_profile_addr(self, profile_word: TInt64) -> TTuple([TInt32, TInt32]):
+    @rpc(flags={"async"})
+    def store_profile_word(self, profile_word: TInt64) -> TNone:
         """
-        Extract RAM waveform from DDS profile word.
-        todo: maybe don't need
-        :param profile_word: 64b RAM profile word from the AD9910.
-        :return: tuple of (ram_addr_start, ram_addr_stop)
+        Store retrieved profile word on host-side.
+        :param profile_word: the profile word to store.
         """
-        # extract addresses from profile word
-        stop_addr = int32((profile_word >> 30) & 0x3FF) # 10b is 0x3FF
-        start_addr = int32((profile_word >> 14) & 0x3FF) # 10b is 0x3FF
-        return start_addr, stop_addr
+        self._stored_profile_words.append(profile_word)
 
     @rpc(flags={"async"})
     def store_ram_data(self, data_arr: TList(TInt32)) -> TNone:
