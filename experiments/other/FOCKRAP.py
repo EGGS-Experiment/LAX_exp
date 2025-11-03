@@ -1,13 +1,11 @@
-import numpy as np
 from artiq.experiment import *
+from numpy import int32, int64, array
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM,
-    QubitRAP, Readout, RescueIon, FockStateGenerator
+    InitializeQubit, SidebandCoolContinuousRAM, QubitRAP,
+    Readout, RescueIon, FockStateGenerator
 )
 
 
@@ -151,52 +149,48 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # beam parameters
-        self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
+        self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
 
         # frequency parameters
-        freq_rap_center_ftw_list = np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
-        freq_rap_dev_ftw_list =    np.array([self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
+        freq_rap_center_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list]
+        freq_rap_dev_ftw_list =    [self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list]
 
         # timing parameters
-        time_rap_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                     for time_us in self.time_rap_us_list])
+        time_rap_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rap_us_list]
         if self.enable_cutoff:
-            time_cutoff_mu_list = np.array([self.core.seconds_to_mu(time_us * us)
-                                            for time_us in self.time_cutoff_us_list])
+            time_cutoff_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_cutoff_us_list]
         else:
-            time_cutoff_mu_list = np.array([-1])
+            time_cutoff_mu_list = [-1]
 
         # rabiflop readout pulse
         self.ampl_pulse_readout_asf =   self.qubit.amplitude_to_asf(self.ampl_pulse_readout_pct / 100.)
         self.att_pulse_readout_mu =     att_to_mu(self.att_pulse_readout_db * dB)
 
         if self.enable_rabiflop_readout:
-            freq_pulse_readout_ftw_list =   np.array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_pulse_readout_mhz_list], dtype=np.int32)
-            time_pulse_readout_mu_list =    np.array([self.core.seconds_to_mu(time_us * us)
-                                                      for time_us in self.time_pulse_readout_us_list], dtype=np.int64)
+            freq_pulse_readout_ftw_list =   array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                                      for freq_mhz in self.freq_pulse_readout_mhz_list], dtype=int32)
+            time_pulse_readout_mu_list =    array([self.core.seconds_to_mu(time_us * us)
+                                                      for time_us in self.time_pulse_readout_us_list], dtype=int64)
         else:
-            freq_pulse_readout_ftw_list =   np.array([-1], dtype=np.int64)
-            time_pulse_readout_mu_list =    np.array([-1], dtype=np.int64)
+            freq_pulse_readout_ftw_list =   array([-1], dtype=int64)
+            time_pulse_readout_mu_list =    array([-1], dtype=int64)
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
         # (i.e. heating time & readout FTW)
-        self.config_experiment_list = np.stack(np.meshgrid(freq_rap_center_ftw_list,
-                                                           freq_rap_dev_ftw_list,
-                                                           time_rap_mu_list,
-                                                           time_cutoff_mu_list,
-                                                           freq_pulse_readout_ftw_list,
-                                                           time_pulse_readout_mu_list),
-                                               -1).reshape(-1, 6)
+        self.config_experiment_list = create_experiment_config(
+            freq_rap_center_ftw_list,
+            freq_rap_dev_ftw_list,
+            time_rap_mu_list,
+            time_cutoff_mu_list,
+            freq_pulse_readout_ftw_list, time_pulse_readout_mu_list,
+            shuffle_config=True, config_type=int64
+        )
         # if not sweeping cutoff times, set cutoff times same as RAP times
         if not self.enable_cutoff:
             self.config_experiment_list[:, 3] = self.config_experiment_list[:, 2]
-        # ensure correct type and shuffle
-        self.config_experiment_list = np.array(self.config_experiment_list, dtype=np.int64)
-        np.random.shuffle(self.config_experiment_list)
 
     @property
     def results_shape(self):
@@ -217,22 +211,20 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
-            self.core.break_realtime()
-
             # sweep exp config
             for config_vals in self.config_experiment_list:
 
                 '''CONFIGURE'''
                 # extract values from config list
-                freq_center_ftw =   np.int32(config_vals[0])
-                freq_dev_ftw =      np.int32(config_vals[1])
+                freq_center_ftw =   int32(config_vals[0])
+                freq_dev_ftw =      int32(config_vals[1])
                 time_rap_mu =       config_vals[2]
                 time_cutoff_mu =    config_vals[3]
-                freq_readout_ftw =  np.int32(config_vals[4])
+                freq_readout_ftw =  int32(config_vals[4])
                 time_readout_mu =   config_vals[5]
-                self.core.break_realtime()
 
                 # configure RAP pulse
+                self.core.break_realtime()
                 self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 delay_mu(50000)
 
@@ -254,24 +246,17 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
                 if self.enable_rabiflop_readout:
                     self.pulse_readout(time_readout_mu, freq_readout_ftw)
 
-                # read out fluorescence
+                # read out fluorescence & clean up
                 self.readout_subsequence.run_dma()
-
-                # update dataset
+                self.rescue_subsequence.resuscitate()
                 self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
                                     freq_dev_ftw, time_rap_mu, time_cutoff_mu,
                                     freq_readout_ftw, time_readout_mu)
-                self.core.break_realtime()
 
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''
@@ -281,14 +266,13 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
     def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
         Run a readout pulse.
-        Arguments:
-            time_pulse_mu: length of pulse (in machine units).
-            freq_readout_ftw: readout frequency (set by the double pass) in FTW.
+        :param time_pulse_mu: length of pulse (in machine units).
+        :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
         with parallel:
-            # ensure quench is using correct profile
-            self.pump.readout()
+            # quench spin back to S-1/2 to eliminate coherence problems
+            self.initialize_subsequence.quench()
 
             # set up qubit readout pulse
             with sequential:
@@ -297,11 +281,6 @@ class FockRapidAdiabaticPassage(LAXExperiment, Experiment):
                 self.qubit.set_att_mu(self.att_pulse_readout_mu)
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.cpld.io_update.pulse_mu(8)
-
-        # quench D-5/2 to eliminate coherence problems
-        self.repump_qubit.on()
-        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-        self.repump_qubit.off()
 
         # run readout pulse
         self.qubit.on()

@@ -1,5 +1,5 @@
 from artiq.experiment import *
-from numpy import array, int32, int64
+from numpy import int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
@@ -144,47 +144,38 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS
         '''
         # beam parameters
-        self.att_qubit_mu =     att_to_mu(self.att_qubit_db * dB)
-
-        # frequency parameters
-        freq_rap_center_ftw_list = array([self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list])
-        freq_rap_dev_ftw_list =    array([self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list])
+        self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
+        freq_rap_center_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list]
+        freq_rap_dev_ftw_list =    [self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list]
 
         # timing parameters
-        time_rap_mu_list = array([self.core.seconds_to_mu(time_us * us)
-                                     for time_us in self.time_rap_us_list])
+        time_rap_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rap_us_list]
         if self.enable_cutoff:
-            time_cutoff_mu_list = array([self.core.seconds_to_mu(time_us * us)
-                                            for time_us in self.time_cutoff_us_list])
-        else:
-            time_cutoff_mu_list = array([-1])
+            time_cutoff_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_cutoff_us_list]
+        else: time_cutoff_mu_list = [-1]
 
         # rabiflop readout pulse
-        self.ampl_pulse_readout_asf =   self.qubit.amplitude_to_asf(self.ampl_pulse_readout_pct / 100.)
-        self.att_pulse_readout_mu =     att_to_mu(self.att_pulse_readout_db * dB)
+        self.ampl_pulse_readout_asf = self.qubit.amplitude_to_asf(self.ampl_pulse_readout_pct / 100.)
+        self.att_pulse_readout_mu = att_to_mu(self.att_pulse_readout_db * dB)
 
         if self.enable_rabiflop_readout:
-            freq_pulse_readout_ftw_list =   array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                                      for freq_mhz in self.freq_pulse_readout_mhz_list], dtype=int32)
-            time_pulse_readout_mu_list =    array([self.core.seconds_to_mu(time_us * us)
-                                                      for time_us in self.time_pulse_readout_us_list], dtype=int64)
+            freq_pulse_readout_ftw_list =   [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                             for freq_mhz in self.freq_pulse_readout_mhz_list]
+            time_pulse_readout_mu_list =    [self.core.seconds_to_mu(time_us * us)
+                                             for time_us in self.time_pulse_readout_us_list]
         else:
-            freq_pulse_readout_ftw_list =   array([-1], dtype=int64)
-            time_pulse_readout_mu_list =    array([-1], dtype=int64)
+            freq_pulse_readout_ftw_list =   [-1]
+            time_pulse_readout_mu_list =    [-1]
 
         '''
         CREATE EXPERIMENT CONFIG
         '''
         # create an array of values for the experiment to sweep
         self.config_experiment_list = create_experiment_config(
-            freq_rap_center_ftw_list,
-            freq_rap_dev_ftw_list,
-            time_rap_mu_list,
-            time_cutoff_mu_list,
-            freq_pulse_readout_ftw_list,
-            time_pulse_readout_mu_list,
-            shuffle_config=True,
-            config_type=int64
+            freq_rap_center_ftw_list, freq_rap_dev_ftw_list,
+            time_rap_mu_list, time_cutoff_mu_list,
+            freq_pulse_readout_ftw_list, time_pulse_readout_mu_list,
+            shuffle_config=True, config_type=int64
         )
         # if not sweeping cutoff times, set cutoff times same as RAP times
         if not self.enable_cutoff:
@@ -244,8 +235,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 # read out fluorescence & clean up loop
                 self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
-
-                # update dataset
                 self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
                                     freq_dev_ftw, time_rap_mu, time_cutoff_mu,
                                     freq_readout_ftw, time_readout_mu)
@@ -264,14 +253,13 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     def pulse_readout(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
         """
         Run a readout pulse.
-        Arguments:
-            time_pulse_mu: length of pulse (in machine units).
-            freq_readout_ftw: readout frequency (set by the double pass) in FTW.
+        :param time_pulse_mu: length of pulse (in machine units).
+        :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
         with parallel:
-            # ensure quench is using correct profile
-            self.pump.readout()
+            # quench spin back to S-1/2 to eliminate coherence problems
+            self.initialize_subsequence.quench()
 
             # set up qubit readout pulse
             with sequential:
@@ -280,11 +268,6 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 self.qubit.set_att_mu(self.att_pulse_readout_mu)
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.cpld.io_update.pulse_mu(8)
-
-        # quench D-5/2 to eliminate coherence problems
-        self.repump_qubit.on()
-        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-        self.repump_qubit.off()
 
         # run readout pulse
         self.qubit.on()

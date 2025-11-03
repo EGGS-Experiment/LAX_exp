@@ -32,6 +32,10 @@ class InitializeQubit(LAXSubsequence):
 
     @kernel(flags={"fast-math"})
     def run(self) -> TNone:
+        """
+        Quench ion from D-5/2, doppler, then run spinpol.
+        Typical stateprep sequence sans SBC.
+        """
         # ensure 397nm spinpol beam is off before starting
         self.probe.off()
 
@@ -61,3 +65,39 @@ class InitializeQubit(LAXSubsequence):
 
         # 2025/03/27: ensure 854nm off
         self.repump_qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def quench(self) -> TNone:
+        """
+        Quick quench function to simplify quenching for other exps.
+        Note: 866nm is also on.
+        """
+        # set target profile
+        self.pump.readout()
+
+        # run quench
+        # note: no 8ns delays here b/c done judiciously
+        self.repump_qubit.on()
+        self.repump_cooling.on()
+        delay_mu(self.time_repump_qubit_mu)
+        self.repump_cooling.off()
+        self.repump_qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def spin_polarize(self) -> TNone:
+        """
+        Quick spinpol function to simplify spinpol for other exps.
+        """
+        # set target profile
+        self.pump.readout()
+
+        # run spinpol
+        # note: yes 8ns delays here b/c spinpol & 866 have no ext sw
+        self.probe.on()
+        delay_mu(8)
+        self.repump_cooling.on()
+        delay_mu(self.time_spinpol_mu)
+        self.probe.off()
+        delay_mu(8)
+        self.repump_cooling.off()
+        delay_mu(8)

@@ -208,7 +208,7 @@ class FockOverlap(QubitRAP):
     def initialize_subsequence(self) -> TNone:
         """
         Prepare the subsequence immediately before run.
-        note: copy over parent QubitRAP's intialize_subsequence b/c need to extend it
+        note: copy over parent QubitRAP's initialize_subsequence b/c need to extend it
             and ARTIQ doesn't support in-kernel super().
         """
         '''FROM PARENT (QubitRAP)'''

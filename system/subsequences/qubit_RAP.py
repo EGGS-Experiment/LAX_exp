@@ -13,7 +13,6 @@ DRG_DEST_POW =  0b01
 DRG_DEST_ASF =  0b10
 
 # todo: implement enable
-# todo: also enable etc on qubitpulseshape etc.
 
 
 class QubitRAP(LAXSubsequence):
@@ -107,7 +106,7 @@ class QubitRAP(LAXSubsequence):
             (1 << 15) | # load_lrr
             (1 << 14) | # drg_autoclear
             2 # sdio_input_only + msb_first
-        ) & 0xFFFFFFFF
+        ) & 0xFFFFFFFF # ensure 32b only
 
         # CFR2: enable digital ramp generation
         # note: has to be int64 b/c numpy won't take it as int32
@@ -121,7 +120,7 @@ class QubitRAP(LAXSubsequence):
             (1 << 19) | # digital_ramp_enable
             (1 << 17) | # digital_ramp_nodwell_low
             (1 << 18)   # digital_ramp_nodwell_high
-        ) & 0xFFFFFFFF
+        ) & 0xFFFFFFFF # ensure 32b only
 
     def _prepare_argument_checks(self) -> TNone:
         """

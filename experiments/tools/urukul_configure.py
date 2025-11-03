@@ -114,9 +114,9 @@ class UrukulConfigure(EnvExperiment):
             delay_mu(1000000) # 1ms
 
         if self.master_reset:
-            self.dds.cpld.cfg_write(self.urukul_cpld.cfg_reg | (1 << urukul.CFG_RST))
+            self.dds.cpld.cfg_write(self.dds.cpld.cfg_reg | (1 << urukul.CFG_RST))
             delay_mu(100000) # 100 us
-            self.dds.cpld.cfg_write(self.urukul_cpld.cfg_reg & ~(1 << urukul.CFG_RST))
+            self.dds.cpld.cfg_write(self.dds.cpld.cfg_reg & ~(1 << urukul.CFG_RST))
 
         if self.initialize_ad9910:
             self.dds.init()
@@ -145,7 +145,7 @@ class UrukulConfigure(EnvExperiment):
         # set parameters for DDS profiles
         for profile_num in self.dds_profiles:
             if profile_num != -1:
-                self.dds.set(self.freq_mhz * MHz, asf=self.ampl_pct / 100.,
+                self.dds.set(self.freq_mhz * MHz, amplitude=self.ampl_pct / 100.,
                              phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
                              profile=profile_num)
                 delay_mu(50000)
@@ -158,12 +158,10 @@ class UrukulConfigure(EnvExperiment):
 
         # set DDS output for use
         self.dds.set_att(self.att_db * dB)
-        if self.switch_on:
-            self.dds.sw.on()
-        else:
-            self.dds.sw.off()
+        if self.switch_on:  self.dds.sw.on()
+        else:   self.dds.sw.off()
 
-        # clean up
+        # ensure events complete submission
         self.core.wait_until_mu(now_mu())
-        self.core.reset()
+        self.core.break_realtime()
 

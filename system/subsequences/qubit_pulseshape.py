@@ -17,10 +17,10 @@ class QubitPulseShape(LAXSubsequence):
     name = 'qubit_pulseshape'
     kernel_invariants = {
         # waveform configs
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape", "_CFR1_RAM_CONFIG",
 
         # RAM-related configs
-        "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshape_list", "ram_writer"
+        "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshape_list", "ram_writer",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
@@ -28,14 +28,12 @@ class QubitPulseShape(LAXSubsequence):
                           pulse_shape: TStr = "sine_squared"):
         """
         Defines the main interface for the subsequence.
-        Arguments:
-            ram_profile: the AD9910 RAM profile to use for pulse shaping.
-            ram_addr_start: the beginning RAM register address for pulse shaping.
-                Must be in [0, 923].
-            num_samples: the number of samples to use for the pulse shape.
-                Must result in a final RAM address <= 1023.
-            ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
-            pulse_shape: the pulse shape to use.
+        :param ram_profile: the AD9910 RAM profile to use for pulse shaping.
+        :param ram_addr_start: the beginning RAM register address for pulse shaping. Must be in [0, 923].
+        :param num_samples: the number of samples to use for the pulse shape.
+            Must result in a final RAM address <= 1023.
+        :param ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
+        :param pulse_shape: the pulse shape to use.
         """
         # set subsequence parameters
         self.ram_profile =      ram_profile
@@ -54,9 +52,7 @@ class QubitPulseShape(LAXSubsequence):
         """
         Prepare values for speedy evaluation.
         """
-        '''
-        VALIDATE INPUTS
-        '''
+        # sanitize inputs
         self._prepare_argument_checks()
 
         '''SPECFIY RAM PARAMETERS'''
@@ -80,6 +76,16 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1] # pre-reverse list b/c write_ram reverses it
 
+        '''PREPARE CFR CONFIGURATION WORDS'''
+        # CFR1: enable RAM mode and clear phase accumulator
+        # note: has to be int64 b/c numpy won't take it as int32
+        self._CFR1_RAM_CONFIG = int64(
+            (1 << 31) | # ram_enable
+            (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
+            (1 << 16) |  # select_sine_output
+            2 # sdio_input_only + msb_first
+        ) & 0xFFFFFFFF # ensure 32b only
+
     def _prepare_argument_checks(self) -> TNone:
         """
         Check experiment arguments for validity.
@@ -87,9 +93,9 @@ class QubitPulseShape(LAXSubsequence):
         # note: validate inputs here to get around bugs where args are passed from setattr_argument
         if self.ram_profile not in range(0, 7):
             raise ValueError("Invalid AD9910 profile for qubit_pulseshape: {:d}. Must be in [0, 7].".format(self.ram_profile))
-        elif not (0 <= self.ram_addr_start <= 1023 - 100):
+        elif not (0 <= self.ram_addr_start <= (1023 - 100)):
             raise ValueError("Invalid RAM start address for qubit_pulseshape: {:d}. Must be in [0, 923].".format(self.ram_addr_start))
-        elif not (20 <= self.num_samples <= 1023 - self.ram_addr_start):
+        elif not (20 <= self.num_samples <= (1023 - self.ram_addr_start)):
             raise ValueError("Invalid num_samples for qubit_pulseshape: {:d}. Must be in [20, 1000].".format(self.num_samples))
         elif not (0. <= self.ampl_max_pct <= 50.):
             raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range [0., 50.].".format(self.ampl_max_pct))
@@ -145,10 +151,8 @@ class QubitPulseShape(LAXSubsequence):
         """
         Set the overall pulse time for the shaped pulse.
         This is achieved by adjusting the sample rate of the pulse shape updates.
-        Arguments:
-            time_pulse_mu: pulse time in mu.
-        Returns:
-            actual pulse time (in mu).
+        :param time_pulse_mu: pulse time in mu.
+        :return: actual pulse time (in mu).
         """
         # calculate step size/timing for RAM
         time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
@@ -179,13 +183,7 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit.write32(ad9910._AD9910_REG_CFR1,
-                           (1 << 31) |              # ram_enable
-                           (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
-                           (1 << 16) |              # select_sine_output
-                           (1 << 13) |              # phase_autoclear
-                           2 # sdio_input_only + msb_first
-                        )
+        self.qubit.write32(ad9910._AD9910_REG_CFR1, self._CFR1_RAM_CONFIG)
 
         '''FIRE PULSE'''
         time_start_mu = now_mu() & ~7
@@ -202,5 +200,64 @@ class QubitPulseShape(LAXSubsequence):
 
         '''CLEANUP'''
         # disable ram
+        self.qubit.set_cfr1(ram_enable=0)
+        self.qubit.cpld.io_update.pulse_mu(8)
+
+    @portable(flags={"fast-math"})
+    def configure_time(self, time_mu: TInt64) -> TTuple([TInt32, TInt64]):
+        """
+        Precalculate timings words for a RAM pulse.
+        :param time_mu: target pulse time in mu.
+        :return: a tuple of (time_ram_step (a 16b int), time_pulse_actual_mu (a 64b int))
+        """
+        # calculate step size/timing for RAM
+        time_ram_step = round(time_mu * self.time_pulse_mu_to_ram_step)
+        if (time_ram_step > (1 << 16)) or (time_ram_step < 1):
+            raise ValueError("Invalid RAM timestep in qubitPulseShape.configure. Change either pulse time or num_samples.")
+        time_pulse_actual = int64(time_ram_step / self.time_pulse_mu_to_ram_step) # actual pulse time in hardware
+
+        return time_ram_step, time_pulse_actual
+
+    @kernel(flags={"fast-math"})
+    def run_from_config(self, time_ram_step: TInt32, time_pulse_mu: TInt64) -> TNone:
+        """
+        Fire shaped RAM pulse using precalculated values.
+        :param time_ram_step: the timesteps for each RAM sample
+        :param time_pulse_mu: total pulse time.
+            Doesn't have to be same as target pulse length (i.e. can stop pulse early).
+        """
+        '''CONFIGURE HARDWARE'''
+        # set RAM profile parameters for amplitude pulse shaping
+        self.qubit.set_profile_ram(start=self.ram_addr_start, end=self.ram_addr_stop,
+                                   profile=self.ram_profile, mode=ad9910.RAM_MODE_RAMPUP,
+                                   step=time_ram_step)
+        self.qubit.cpld.io_update.pulse_mu(8)   # ensure profile is latched
+
+        # set target DDS profile
+        self.qubit.cpld.set_profile(self.ram_profile)
+        self.qubit.cpld.io_update.pulse_mu(8)
+
+        # prepare CFRs
+        self.qubit.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG)) # enable RAM
+        self.qubit.cpld.io_update.pulse_mu(8)
+        delay_mu(256)   # necessary to prevent RTIO collisions
+
+
+        '''FIRE PULSE'''
+        time_start_mu = now_mu() & ~7
+
+        # start ramp-up when coarse aligned to SYNC_CLK for determinacy
+        at_mu(time_start_mu)
+        self.qubit.cpld.io_update.pulse_mu(8)
+
+        # open and close switch to synchronize with RAM pulse
+        at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        self.qubit.on()
+        delay_mu(time_pulse_mu)
+        self.qubit.off()
+
+
+        '''CLEANUP'''
+        # disable RAM and DRG
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)

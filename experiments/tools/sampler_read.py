@@ -50,8 +50,8 @@ class SamplerReadFast(EnvExperiment):
         self.adc = self.get_device("sampler0")
 
         # timing
-        self.time_delay_mu =    self.core.seconds_to_mu(1 / self.sample_rate_hz)
-        self.repetitions =      np.int32(self.time_total_s * self.sample_rate_hz)
+        self.time_delay_mu = self.core.seconds_to_mu(1 / self.sample_rate_hz)
+        self.repetitions = np.int32(self.time_total_s * self.sample_rate_hz)
 
         # datasets
         self.set_dataset('results', np.zeros([self.repetitions, len(self.channel_list)]))
@@ -62,7 +62,7 @@ class SamplerReadFast(EnvExperiment):
         self.set_dataset('time_total_s', self.time_total_s)
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         self.core.reset()
 
         # set ADC channel gains
@@ -87,11 +87,11 @@ class SamplerReadFast(EnvExperiment):
         self.core.wait_until_mu(now_mu())
 
     @rpc(flags={"async"})
-    def update_dataset(self, i, volts_mu_arr):
+    def update_dataset(self, i: TInt32, volts_mu_arr: TList(TInt32)) -> TNone:
         """
         Records values via rpc to minimize kernel overhead.
-        :param i: todo: document
-        :param volts_mu_arr: todo: document
+        :param i: the shot number
+        :param volts_mu_arr: list of voltage readings from the ADC (in mu)
         """
         data = np.array(volts_mu_arr)[self.channel_list] * self.adc_mu_to_v_list
         self.mutate_dataset("results", i, data)

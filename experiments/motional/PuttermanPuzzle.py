@@ -231,11 +231,7 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                 '''READOUT & STORE RESULTS'''
                 # configurable quench: put spin state back into ground state
                 if self.enable_quench:
-                    # note: ensure DDS set to readout parameters in case we don't do herald
-                    self.pump.readout()
-                    self.repump_qubit.on()
-                    delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                    self.repump_qubit.off()
+                    self.initialize_subsequence.quench() # quench spin back to S-1/2 for characteristic readout
 
                 # rabi flop & readout for motional detection
                 self.rabiflop_subsequence.run_time(time_rabiflop_readout_mu)
