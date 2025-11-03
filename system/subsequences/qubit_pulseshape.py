@@ -183,7 +183,7 @@ class QubitPulseShape(LAXSubsequence):
         self.qubit.cpld.io_update.pulse_mu(8)
 
         # enable RAM mode and clear DDS phase accumulator
-        self.qubit.write32(ad9910._AD9910_REG_CFR1, self._CFR1_RAM_CONFIG)
+        self.qubit.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
 
         '''FIRE PULSE'''
         time_start_mu = now_mu() & ~7

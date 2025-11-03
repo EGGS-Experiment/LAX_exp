@@ -30,7 +30,7 @@ class UrukulConfigure(EnvExperiment):
         self.setattr_argument("initialize_cpld",    BooleanValue(default=False), group="initialize",
                               tooltip="Initialize the parent urukul's CPLD.")
         self.setattr_argument("master_reset",  BooleanValue(default=False), group="initialize",
-                              tooltip="Pulse the MASTER_RESET pin on the CPLD for ALL DDS outputs controlled by the CPLD."
+                              tooltip="Pulse the MASTER_RESET pin on the CPLD for ALL DDS outputs controlled by the CPLD.\n"
                                       "Clears all memory and resets registers to defaults for ALL AD9910s controlled by the Urukul CPLD.\n")
         self.setattr_argument("initialize_ad9910",  BooleanValue(default=False), group="initialize",
                               tooltip="Initialize the AD9910. Relocks the PLL, so relative DDS phases can be shuffled.")
