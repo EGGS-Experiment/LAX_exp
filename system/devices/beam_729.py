@@ -171,15 +171,16 @@ class Beam729(LAXDevice):
             self.singlepass0.set_mu(self.freq_singlepass0_default_ftw,
                                     asf=self.ampl_singlepass0_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(50000) # 50 us
             self.singlepass1.set_mu(self.freq_singlepass1_default_ftw,
                                     asf=self.ampl_singlepass1_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(50000) # 50 us
             self.doublepass_inj.set_mu(self.freq_doublepass_inj_default_ftw,
                                     asf=self.ampl_doublepass_inj_default_asf,
                                     profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-            delay_mu(8000)
+            delay_mu(50000) # 50 us
+        self.core.break_realtime()
 
         # set AOMs for normal output/operation
         self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
@@ -188,7 +189,9 @@ class Beam729(LAXDevice):
         delay_mu(25000)
 
         self.singlepass0.sw.on()
+        delay_mu(8)
         self.singlepass1.sw.off()
+        delay_mu(8)
         self.doublepass_inj.sw.on()
         delay_mu(25000)
 

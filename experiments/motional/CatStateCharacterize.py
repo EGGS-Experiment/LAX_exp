@@ -56,7 +56,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self._num_phaser_oscs = 5   # number of phaser oscillators in use
 
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=1000000))
         self.setattr_argument("readout_type",   EnumerationValue(["None", "SBR", "RAP"], default="RAP"),
                               tooltip="None: NO 729nm pulses are applied before state-selective readout.\n"
                                       "SBR (Sideband Ratio): compares RSB and BSB amplitudes.\n"
