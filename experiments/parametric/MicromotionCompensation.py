@@ -159,6 +159,11 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         # holdoff period after we set a voltage to allow it to settle
         self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(self.TIME_DC_SYNC_MS * ms)
 
+        # holder to store initial voltages in case of booboo
+        # note: this isn't kernel_invariant b/c want to grab in initialize_experiment
+        #   instead of prepare so that we take values closest to runtime
+        self.dc_voltages_initial = [0., 0.]
+
 
         '''
         MODULATION
@@ -222,6 +227,10 @@ class MicromotionCompensation(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
+        # retrieve initial voltages (store in case of booboo later)
+        self.dc_voltages_initial[0] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
+        self.dc_voltages_initial[1] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
+
         # get DDS CPLD att values so ARTIQ remembers them
         self.dds_parametric.cpld.get_att_mu()
         self.core.break_realtime()
@@ -254,7 +263,6 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         # run given number of iterations with interleaved optimization along each voltage axis
         for _iter_num in range(self.iterations):
             for scan_axis in range(len(self.dc_channel_axes_nums)):
-
                 # prepare adapted voltage vectors and attenuations for scan
                 voltage_scan_arr = self.prepare_voltage_scan(voltage_axis=scan_axis)
                 mode_config = self.prepare_att(mode_config, voltage_scan_arr)
@@ -307,15 +315,17 @@ class MicromotionCompensation(LAXExperiment, Experiment):
 
         # simply use current voltages if no previous data exists
         else:
-            opt_v_axis_0 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
-            opt_v_axis_1 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
+            # opt_v_axis_0 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
+            # opt_v_axis_1 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
+            opt_v_axis_0 = self.dc_voltages_initial[0]
+            opt_v_axis_1 = self.dc_voltages_initial[1]
         print('\t\tPredicted Opt.: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds, then update
         if (opt_v_axis_0 < self.dc_scan_range_volts_list[0][0]) or (opt_v_axis_0 > self.dc_scan_range_volts_list[0][1])\
                 or (opt_v_axis_1 < self.dc_scan_range_volts_list[1][0]) or (opt_v_axis_1 > self.dc_scan_range_volts_list[1][1]):
+            self.reset_initial_voltages()
             raise ValueError("Error: predicted global optimum outside valid scan range.")
-            # todo: reset to starting voltages upon error condition
         self.trap_dc.voltage_fast(self.dc_channel_axes_nums[0], opt_v_axis_0)
         self.trap_dc.voltage_fast(self.dc_channel_axes_nums[1], opt_v_axis_1)
 
@@ -533,9 +543,11 @@ class MicromotionCompensation(LAXExperiment, Experiment):
             # check optima for errors
             if ((opt_voltage_v < self.dc_scan_range_volts_list[voltage_axis][0]) or
                     (opt_voltage_v > self.dc_scan_range_volts_list[voltage_axis][1])):
+                self.reset_initial_voltages()
                 raise ValueError("Error: Mode {:d} voltage out of range: {:f} V.".format(
                     mode_idx, opt_voltage_v))
             elif abs(opt_voltage_err) > 2.0:
+                self.reset_initial_voltages()
                 raise ValueError("Error: Mode {:d} optimum uncertainty exceeds bounds: {:f} V.".format(
                     mode_idx, opt_voltage_err))
 
@@ -549,4 +561,15 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         self.mutate_dataset('sweep_results', self._host_sweep_counter, opt_res_store)
         self._host_demod_holder = [[], []]
         self._host_sweep_counter += 1
+
+    @rpc
+    def reset_initial_voltages(self) -> TNone:
+        """
+        Reset shim voltages to initial values.
+        Intended to be called in case of error (e.g. voltage optima outside of valid/safe range) to
+            return the experiment to a reasonably happy state.
+        This function is not async to ensure that it completes immediately.
+        """
+        self.trap_dc.voltage_set(self.dc_channel_axes_nums[0], self.dc_voltages_initial[0])
+        self.trap_dc.voltage_set(self.dc_channel_axes_nums[1], self.dc_voltages_initial[1])
 

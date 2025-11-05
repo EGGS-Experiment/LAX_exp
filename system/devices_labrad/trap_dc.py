@@ -63,6 +63,15 @@ class TrapDC(LAXDevice):
         """
         return self.trap_dc.voltage(channel_num)
 
+    @rpc
+    def voltage_set(self, channel_num: TInt32, voltage_v: TFloat) -> TFloat:
+        """
+        Generic voltage setter/getter.
+        :param channel_num: the AMO8 DAC channel to read
+        :param voltage_v: the voltage to set on the channel
+        """
+        return self.trap_dc.voltage(channel_num, voltage_v)
+
 
     """
     Toggle Channels
