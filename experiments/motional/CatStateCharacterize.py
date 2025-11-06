@@ -33,7 +33,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
 
         # hardware values - cat - default
         'ampl_doublepass_default_asf', 'freq_sigmax_ftw', 'ampl_sigmax_asf', 'time_sigmax_mu',
-        'time_herald_slack_mu', 'time_adapt_read_slack_mu', 'max_herald_attempts',
+        'time_herald_slack_mu', 'max_herald_attempts',
 
         # hardware values - cat - bichromatic
         'ampls_cat_asf', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phase_cat1_antisigmax_pow',
@@ -107,7 +107,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Build arguments for default beam parameters.
         """
         # defaults - sigma_x
-        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0978, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
+        self.setattr_argument("freq_sigmax_mhz",    NumberValue(default=101.0752, precision=6, step=1, min=50., max=400., scale=1., unit="MHz"),
                               group="default.sigmax",
                               tooltip="Frequency for both the sigma_x and anti-sigma_x pulses. "
                                       "Applied to main/chamber doublepass.")
@@ -139,9 +139,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "Should be a list of [rsb_att_db, bsb_att_db], which are applied to [singlepass0, singlepass1].")
         self.setattr_argument("freq_cat_center_mhz_list",   Scannable(
                                                                 default=[
-                                                                    ExplicitScan([101.0918]),
-                                                                    CenterScan(101.0918, 0.01, 0.0001, randomize=True),
-                                                                    RangeScan(101.0818, 101.1018, 50, randomize=True),
+                                                                    ExplicitScan([101.0752]),
+                                                                    CenterScan(101.0752, 0.01, 0.0001, randomize=True),
+                                                                    RangeScan(101.0702, 101.0802, 50, randomize=True),
                                                                 ],
                                                                 global_min=60., global_max=400, global_step=1,
                                                                 unit="MHz", scale=1, precision=6
@@ -152,9 +152,9 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       "(e.g. beams.freq_mhz.freq_singlepass0_mhz).")
         self.setattr_argument("freq_cat_secular_khz_list",  Scannable(
                                                                 default=[
-                                                                    ExplicitScan([702.01]),
-                                                                    CenterScan(702.01, 4, 0.1, randomize=True),
-                                                                    RangeScan(699.0, 704.2, 50, randomize=True),
+                                                                    ExplicitScan([701.891]),
+                                                                    CenterScan(701.891, 4, 0.1, randomize=True),
+                                                                    RangeScan(699.891, 703.891, 50, randomize=True),
                                                                 ],
                                                                 global_min=0, global_max=10000, global_step=1,
                                                                 unit="kHz", scale=1, precision=3
@@ -502,7 +502,6 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self._prepare_argument_checks()
 
         ### MAGIC NUMBERS ###
-        self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us) # post-adaptive readout (for heralding) slack to prevent RTIOUnderflow errors
         self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)   # add slack to RTIOCounter only if heralding succeeds
         self.max_herald_attempts =  200 # max number of herald attempts before config is skipped
 
@@ -531,30 +530,29 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         Prepare experiment values for state readout.
         :return: tuple of (freq_729_readout_ftw_list, time_729_readout_mu_list)
         """
+        # do a final check of the readout_type argument
+        if not any(kw in self.readout_type for kw in ('None', 'SBR', 'RAP')):
+            raise ValueError("Invalid readout type. Must be one of (None, SBR, RAP).")
+
         # configure readout method
         if 'SBR' in self.readout_type:      # 1 is SBR
             self.readout_config = 1
-            freq_729_readout_ftw_list = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                               for freq_mhz in self.freq_729_readout_mhz_list], dtype=int32)
-            time_729_readout_mu_list = array([self.core.seconds_to_mu(time_us * us)
-                                              for time_us in self.time_729_readout_us_list], dtype=int64)
+            freq_729_readout_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                         for freq_mhz in self.freq_729_readout_mhz_list]
+            time_729_readout_mu_list =  [self.core.seconds_to_mu(time_us * us)
+                                         for time_us in self.time_729_readout_us_list]
 
         elif 'RAP' in self.readout_type:    # 2 is RAP
             self.readout_config = 2
             # return dummy readout sweep arrays if using RAP
-            freq_729_readout_ftw_list = array([1], dtype=int32)
-            time_729_readout_mu_list = array([256], dtype=int64)
+            freq_729_readout_ftw_list = [int32(1)]
+            time_729_readout_mu_list = [int64(256)]
 
         elif 'None' in self.readout_type:   # -1 is None
             self.readout_config = -1
             # return dummy readout sweep arrays if no 729nm-based readout
-            freq_729_readout_ftw_list = array([1], dtype=int32)
-            time_729_readout_mu_list = array([256], dtype=int64)
-
-        # do a final check of the readout_type argument
-        if not any(kw in self.readout_type for kw in ('None', 'RAP', 'SBR')):
-            raise ValueError("Invalid readout type. Must be one of (None, SBR, RAP).")
-
+            freq_729_readout_ftw_list = [int32(1)]
+            time_729_readout_mu_list = [int64(256)]
 
         # prepare RAP arguments
         self.freq_rap_center_ftw = self.qubit.frequency_to_ftw(self.freq_rap_center_mhz * MHz)
@@ -585,19 +583,19 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         self.time_sigmax_mu =   self.core.seconds_to_mu(self.time_sigmax_us * us)
 
         # defaults - cat
-        freq_cat_center_ftw_list =  array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                           for freq_mhz in self.freq_cat_center_mhz_list])
-        freq_cat_secular_ftw_list = array([self.qubit.singlepass0.frequency_to_ftw(freq_khz * kHz)
-                                           for freq_khz in self.freq_cat_secular_khz_list])
-        self.ampls_cat_asf =        array([self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
-                                           for ampl_pct in self.ampls_cat_pct])
+        freq_cat_center_ftw_list =  [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                     for freq_mhz in self.freq_cat_center_mhz_list]
+        freq_cat_secular_ftw_list = [self.qubit.singlepass0.frequency_to_ftw(freq_khz * kHz)
+                                     for freq_khz in self.freq_cat_secular_khz_list]
+        self.ampls_cat_asf =        [self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+                                     for ampl_pct in self.ampls_cat_pct]
 
 
         '''
         CONVERT VALUES TO MACHINE UNITS - BICHROMATIC/CAT PULSES
         '''
         # cat1 values
-        self.phase_cat1_antisigmax_pow =    self.qubit.turns_to_pow(self.phase_cat1_antisigmax_turns)
+        self.phase_cat1_antisigmax_pow = self.qubit.turns_to_pow(self.phase_cat1_antisigmax_turns)
         self.time_cat1_bichromatic_mu = self.core.seconds_to_mu(self.time_cat1_bichromatic_us * us)
         self.phases_pulse1_cat_pow =    [self.qubit.singlepass0.turns_to_pow(phas_pow)
                                          for phas_pow in self.phases_pulse1_cat_turns]
@@ -606,7 +604,8 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         if self.enable_ramsey_delay:
             time_ramsey_delay_mu_list = [self.core.seconds_to_mu(time_delay_us * us)
                                          for time_delay_us in self.time_ramsey_delay_us_list]
-        else:   time_ramsey_delay_mu_list = array([0], dtype=int64)
+        # note: make this 8ns so we can do away with the if statement in main sequence
+        else:   time_ramsey_delay_mu_list = array([8], dtype=int64)
 
         # cat2 values
         self.phase_cat2_sigmax_pow =        self.qubit.turns_to_pow(self.phase_cat2_sigmax_turns)
@@ -615,13 +614,13 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                        for phas_pow in self.phases_cat2_cat_turns]
 
         if self.enable_cat2_bichromatic:
-            time_cat2_cat_mu_list =   array([self.core.seconds_to_mu(time_us * us)
-                                             for time_us in self.time_cat2_cat_us_list], dtype=int64)
-            phase_cat2_cat_pow_list = array([self.qubit.singlepass0.turns_to_pow(phas_pow)
-                                             for phas_pow in self.phase_cat2_cat_turns_list], dtype=int32)
+            time_cat2_cat_mu_list =   [self.core.seconds_to_mu(time_us * us)
+                                       for time_us in self.time_cat2_cat_us_list]
+            phase_cat2_cat_pow_list = [self.qubit.singlepass0.turns_to_pow(phas_pow)
+                                       for phas_pow in self.phase_cat2_cat_turns_list]
         else:
-            time_cat2_cat_mu_list =   array([0], dtype=int64)
-            phase_cat2_cat_pow_list = array([0], dtype=int32)
+            time_cat2_cat_mu_list =   [int64(0)]
+            phase_cat2_cat_pow_list = [int32(0)]
 
         # specify phase update array based on user arguments
         if self.target_cat2_cat_phase == 'RSB':
@@ -669,7 +668,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
-        # return sweep lists required for
+        # return sweep lists required for catting etc.
         return (freq_cat_center_ftw_list, freq_cat_secular_ftw_list, time_cat2_cat_mu_list,
                 phase_cat2_cat_pow_list, time_ramsey_delay_mu_list)
 
@@ -962,9 +961,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 waveform_num =          int32(config_vals[8])
 
                 herald_counter = 0  # clear herald counter
-
-                # prepare phase arrays for bichromatic
-                cat4_phases = [
+                cat4_phases = [ # prepare phase arrays for bichromatic
                     self.phases_cat2_cat_pow[0] + self.phases_cat2_cat_update_dir[0] * phase_cat2_cat_pow,
                     self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
                 ]
@@ -1027,86 +1024,75 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                     CAT #1
                     '''
                     # cat1 - sigma_x (displacement vs cat)
-                    if self.enable_cat1_sigmax:
-                        self.pulse_sigmax(time_start_mu, 0)
+                    if self.enable_cat1_sigmax: self.pulse_sigmax(time_start_mu, 0)
                     # cat1 - bichromatic cat pulse
                     if self.enable_cat1_bichromatic:
-                        self.pulse_bichromatic(time_start_mu, self.time_cat1_bichromatic_mu,
-                                               self.phases_pulse1_cat_pow,
+                        self.pulse_bichromatic(time_start_mu, self.time_cat1_bichromatic_mu, self.phases_pulse1_cat_pow,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
                     # cat1 - anti-sigma_x (return to S-state)
-                    if self.enable_cat1_antisigmax:
-                        self.pulse_sigmax(time_start_mu, self.phase_cat1_antisigmax_pow)
+                    if self.enable_cat1_antisigmax: self.pulse_sigmax(time_start_mu, self.phase_cat1_antisigmax_pow)
 
                     # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
-                        ion_state = self.readout_adaptive_subsequence.run()
-                        delay_mu(self.time_adapt_read_slack_mu) # add slack following completion
-                        self.pump.off()
-
                         # ensure dark state (flag is 0)
+                        ion_state = self.readout_adaptive_subsequence.run()
                         if ion_state[0] != 0:
                             herald_counter += 1 # increment herald counter to check for errors
                             continue
-                        # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
-                        # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
-                        at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
+
+                        # otherwise, add minor timeline slack and proceed
+                        delay_mu(self.time_herald_slack_mu)
+                        self.pump.off()
 
                     # cat1 - quench spin-up to spin-down; can be used to create mixed state
-                    if self.enable_cat1_quench:
-                        self.pump.readout()
-                        self.repump_qubit.on()
-                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                        self.repump_qubit.off()
+                    if self.enable_cat1_quench: self.initialize_subsequence.quench()
 
 
                     '''
                     RAMSEY DELAY
                     '''
-                    if self.enable_ramsey_delay:
-                        delay_mu(time_ramsey_delay_mu)
+                    # note: no need to use if statement b/c ramsey delay is 8ns if delay is disabled
+                    delay_mu(time_ramsey_delay_mu)
+
 
                     '''
                     QVSA PULSE
                     '''
                     if self.enable_QVSA_pulse:
+                        # reduce delays by allowing overlap with phaser_setup
+                        at_mu(now_mu() - self.phaser_eggs.time_phaser_holdoff_mu)
                         self.phaser_run(phaser_waveform)
+
+                        # reduce delays by allowing overlap with phaser_stop
+                        at_mu(now_mu() - self.phaser_eggs.time_phaser_holdoff_mu)
+
 
                     '''
                     CAT #2
                     '''
                     # cat2 - sigma_x (displacement vs cat)
-                    if self.enable_cat2_sigmax:
-                        self.pulse_sigmax(time_start_mu, self.phase_cat2_sigmax_pow)
+                    if self.enable_cat2_sigmax: self.pulse_sigmax(time_start_mu, self.phase_cat2_sigmax_pow)
                     # cat2 - bichromatic cat pulse
                     if self.enable_cat2_bichromatic:
-                        self.pulse_bichromatic(time_start_mu, time_cat2_cat_mu,
-                                               cat4_phases,
+                        self.pulse_bichromatic(time_start_mu, time_cat2_cat_mu, cat4_phases,
                                                freq_cat_center_ftw, freq_cat_secular_ftw)
                     # cat2 - anti-sigma_x (return to S-state)
-                    if self.enable_cat2_antisigmax:
-                        self.pulse_sigmax(time_start_mu, self.phase_cat2_antisigmax_pow)
+                    if self.enable_cat2_antisigmax: self.pulse_sigmax(time_start_mu, self.phase_cat2_antisigmax_pow)
 
                     # cat2 - force herald (to projectively disentangle spin/motion)
-                    # todo: should we be doing now_mu instead? get_rtio_counter isn't very deterministic ...
                     if self.enable_cat2_herald:
-                        ion_state = self.readout_adaptive_subsequence.run()
-                        delay_mu(self.time_adapt_read_slack_mu) # add slack following completion
-                        self.pump.off()
-
                         # ensure dark state (flag is 0)
+                        ion_state = self.readout_adaptive_subsequence.run()
                         if ion_state[0] != 0:
                             herald_counter += 1 # increment herald counter to check for errors
                             continue
-                        # otherwise, add minor slack TO RTIO COUNTER (not timeline) and proceed
-                        at_mu(self.core.get_rtio_counter_mu() + self.time_herald_slack_mu)
+
+                        # otherwise, add minor timeline slack and proceed
+                        delay_mu(self.time_herald_slack_mu)
+                        self.pump.off()
 
                     # cat2 - quench spin-up to spin-down; can be used to create mixed state
-                    if self.enable_cat2_quench:
-                        self.pump.readout()
-                        self.repump_qubit.on()
-                        delay_mu(self.initialize_subsequence.time_repump_qubit_mu)
-                        self.repump_qubit.off()
+                    if self.enable_cat2_quench: self.initialize_subsequence.quench()
 
                     # force break loop by default
                     break
@@ -1117,22 +1103,20 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                 '''
                 # only read out if no boooboo
                 if herald_counter < self.max_herald_attempts:
-                    # 729nm based readout (sideband ratio, rabi flopping)
-                    if self.readout_config == 1:
+                    if self.readout_config == 1:    # 729nm based readout (sideband ratio, rabi flopping)
                         self.pulse_readout_sbr(time_729_readout_mu, freq_729_readout_ftw)
-                    # RAP based readout
-                    elif self.readout_config == 2:
+                    elif self.readout_config == 2:  # RAP based readout
                         self.pulse_readout_rap()
 
                     # read out fluorescence & clean up loop
                     self.readout_subsequence.run_dma()
+                    self.rescue_subsequence.resuscitate()
                     counts_res = self.readout_subsequence.fetch_count()
                 else:
                     # return -1 so user knows booboo happened
                     counts_res = -1
 
                 # store results
-                self.rescue_subsequence.resuscitate()
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
                                     freq_cat_secular_ftw,
@@ -1166,29 +1150,26 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param phas_pow: relative phase offset for the beam.
         """
         # set up relevant beam waveforms
-        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(
             self.freq_sigmax_ftw, asf=self.ampl_sigmax_asf, pow_=phas_pow,
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
+        delay_mu(8)
         self.qubit.singlepass0.set_mu(
             self.qubit.freq_singlepass0_default_ftw,
             asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.qubit.singlepass1.set_mu(
-            self.qubit.freq_singlepass1_default_ftw,
-            asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-            profile=self.profile_729_target,
-            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-        )
+        delay_mu(8)
         self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
         # run sigmax pulse
         self.qubit.singlepass0.sw.on()
+        delay_mu(8)
         self.qubit.singlepass1.sw.off()
+        delay_mu(8)
         self.qubit.on()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
@@ -1206,12 +1187,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param freq_secular_ftw: bichromatic separation frequency (from central frequency) in FTW.
         """
         # set up relevant beam waveforms
-        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(
             freq_carrier_ftw, asf=self.ampl_doublepass_default_asf,
             pow_=0, profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
+        delay_mu(8)
         self.qubit.singlepass0.set_mu(
             self.qubit.freq_singlepass0_default_ftw - freq_secular_ftw,
             asf=self.ampls_cat_asf[0],
@@ -1219,6 +1200,7 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
+        delay_mu(8)
         self.qubit.singlepass1.set_mu(
             self.qubit.freq_singlepass1_default_ftw + freq_secular_ftw,
             asf=self.ampls_cat_asf[1],
@@ -1226,11 +1208,14 @@ class CatStateCharacterize(LAXExperiment, Experiment):
             profile=self.profile_729_target,
             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
+        delay_mu(8)
         self.qubit.cpld.set_all_att_mu(self.att_reg_bichromatic)
 
         # run bichromatic pulse
         self.qubit.singlepass0.sw.on()
+        delay_mu(8)
         self.qubit.singlepass1.sw.on()
+        delay_mu(8)
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
@@ -1244,24 +1229,21 @@ class CatStateCharacterize(LAXExperiment, Experiment):
         :param freq_readout_ftw: readout frequency (set by the double pass) in FTW.
         """
         # set up relevant beam waveforms
-        # todo: maybe add like 32ns between these? so we don't booboo?
         self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_729_readout_asf,
                           pow_=0, profile=self.profile_729_target,
                           phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        delay_mu(8)
         self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
                                       asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
                                       profile=self.profile_729_target,
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
-                                      asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-                                      profile=self.profile_729_target,
-                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        delay_mu(8)
         self.qubit.cpld.set_all_att_mu(self.att_reg_readout_sbr)
 
         # run readout pulse
         self.qubit.singlepass0.sw.on()
-        # todo: this should be off, right???
-        self.qubit.singlepass1.sw.on()
+        delay_mu(8)
+        self.qubit.singlepass1.sw.off()
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
@@ -1277,11 +1259,12 @@ class CatStateCharacterize(LAXExperiment, Experiment):
                                       asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
                                       profile=self.profile_729_RAP,
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
-                                      asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-                                      profile=self.profile_729_RAP,
-                                      phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        delay_mu(8)
         self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
+        delay_mu(8)
+        self.qubit.singlepass0.sw.on()
+        delay_mu(8)
+        self.qubit.singlepass1.sw.off()
 
         # run RAP readout pulse
         self.rap_subsequence.run_rap(self.time_rap_mu)
