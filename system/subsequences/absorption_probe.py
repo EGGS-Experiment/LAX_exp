@@ -19,7 +19,8 @@ class AbsorptionProbe(LAXSubsequence):
     def build_subsequence(self):
         # subsequence arguments
         self.setattr_argument('time_probe_us', NumberValue(default=35, step=0.1, precision=3, min=0, max=100000, scale=1., unit='us'),
-                              group='{}'.format(self.name))
+                              group='{}'.format(self.name),
+                              tooltip="Spectroscopy pulse time.")
 
         # get relevant devices
         self.setattr_device('pump')

@@ -229,9 +229,9 @@ class PuttermanPuzzle(LAXExperiment, Experiment):
                     break
 
                 '''READOUT & STORE RESULTS'''
-                # configurable quench: put spin state back into ground state
+                # configurable quench: quench spin back to S-1/2 for characteristic readout
                 if self.enable_quench:
-                    self.initialize_subsequence.quench() # quench spin back to S-1/2 for characteristic readout
+                    self.initialize_subsequence.quench()
 
                 # rabi flop & readout for motional detection
                 self.rabiflop_subsequence.run_time(time_rabiflop_readout_mu)

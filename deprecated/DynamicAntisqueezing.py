@@ -1,11 +1,12 @@
-import numpy as np
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from numpy import copy as np_copy
+from numpy import int32, int64, array, zeros
+
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon,
-    SidebandCoolContinuous, SidebandReadout
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
 )
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
@@ -22,8 +23,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
     name = 'Dynamic Antisqueezing'
     kernel_invariants = {
         # config/sweep
-        'config_experiment_list', 'freq_sideband_readout_ftw_list', 'time_readout_mu_list',
-        'freq_pulse_secular_hz_list',
+        'config_experiment_list', 'time_readout_mu_list', 'profile_729_readout', 'profile_729_SBC',
 
         # squeezing
         'freq_squeeze_carrier_hz', 'att_squeeze_mu', 'waveform_squeezing_compiled',
@@ -34,16 +34,23 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'sidebandreadout_subsequence', 'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper'
+        'sidebandreadout_subsequence', 'rescue_subsequence', 'spinecho_wizard', 'pulse_shaper',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=10000, precision=0, step=1, min=1, max=100000))
 
+        # allocate 729nm profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+
         # get subsequences
         self.initialize_subsequence =       InitializeQubit(self)
-        self.sidebandcool_subsequence =     SidebandCoolContinuous(self)
+        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
+        )
         self.sidebandreadout_subsequence =  SidebandReadout(self)
         self.readout_subsequence =          Readout(self)
         self.rescue_subsequence =           RescueIon(self)
@@ -118,7 +125,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
         # set correct phase delays for field geometries
-        self.pulse_shaper = PhaserPulseShaper(self, np.array([0., 0., 0., 0., 0.]))
+        self.pulse_shaper = PhaserPulseShaper(self, array([0., 0., 0., 0., 0.]))
 
     def prepare_experiment(self):
         """
@@ -128,15 +135,13 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         self._prepare_argument_checks()
 
         '''CONVERT VALUES TO MACHINE UNITS - 729nm READOUT'''
-        self.freq_sideband_readout_ftw_list =   self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
-        self.time_readout_mu_list =             np.array([self.core.seconds_to_mu(time_us * us)
-                                                          for time_us in self.time_readout_us_list])
+        time_readout_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_readout_us_list]
 
         '''CONVERT VALUES TO MACHINE UNITS - SQUEEZING/ANTISQUEEZING'''
         # convert frequencies to Hz
         self.freq_squeeze_carrier_hz = self.freq_squeeze_carrier_mhz * MHz
         self.freq_antisqueeze_carrier_hz = self.freq_antisqueeze_carrier_mhz * MHz
-        self.freq_pulse_secular_hz_list = np.array(list(self.freq_pulse_secular_khz_list)) * kHz
+        freq_pulse_secular_hz_list = array(list(self.freq_pulse_secular_khz_list)) * kHz
 
         # convert attenuation from dB to machine units
         self.att_squeeze_mu = att_to_mu(self.att_squeeze_db * dB)
@@ -148,20 +153,20 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         self.waveform_squeezing_id = -1
 
         # map antisqueezing waveform to array index for programmatic DMA recording/playback
-        self.phase_antisqueeze_offset_turns_list = np.array(list(self.phase_antisqueeze_offset_turns_list))
+        self.phase_antisqueeze_offset_turns_list = array(list(self.phase_antisqueeze_offset_turns_list))
         # used to map an index to the phase value (-ish)
-        self.waveform_idx_to_phase_turns =      np.arange(len(self.phase_antisqueeze_offset_turns_list))
+        waveform_idx_to_phase_turns =           list(range(len(self.phase_antisqueeze_offset_turns_list)))
         self.waveform_idx_to_compiled =         list()      # store compiled waveforms
-        self.waveform_idx_to_pulseshaper_id =   np.zeros(len(self.phase_antisqueeze_offset_turns_list),
-                                                         dtype=np.int32) # store pulse shaper waveform ID
+        self.waveform_idx_to_pulseshaper_id =   zeros(len(self.phase_antisqueeze_offset_turns_list),
+                                                         dtype=int32) # store pulse shaper waveform ID
 
         # create experiment config data structure
-        self.config_experiment_list = np.stack(np.meshgrid(self.freq_sideband_readout_ftw_list,
-                                                           self.freq_pulse_secular_hz_list,
-                                                           self.waveform_idx_to_phase_turns,
-                                                           self.time_readout_mu_list),
-                                               -1, dtype=float).reshape(-1, 4)
-        np.random.shuffle(self.config_experiment_list)
+        self.config_experiment_list = create_experiment_config(
+            self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list,
+            freq_pulse_secular_hz_list, waveform_idx_to_phase_turns,
+            time_readout_mu_list,
+            shuffle_config=True, config_type=float
+        )
 
         # configure waveform via pulse shaper & spin echo wizard
         self._prepare_waveform()
@@ -274,7 +279,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 }
             },
         ]
-        
+
         '''DESIGN WAVEFORM SEQUENCE'''
         # selectively disable by using 0 amplitude
         if not self.enable_antisqueezing:
@@ -295,7 +300,7 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         for i, phas_turns in enumerate(self.phase_antisqueeze_offset_turns_list):
             # create local copy of _sequence_blocks
             # note: no need to deep copy b/c it's filled w/immutables
-            _sequence_block_antisqueeze_local = np.copy(_sequence_block_antisqueeze)
+            _sequence_block_antisqueeze_local = np_copy(_sequence_block_antisqueeze)
 
             # update sequence block with target phase
             _sequence_block_antisqueeze_local[0]["oscillator_parameters"][0][1] += phas_update_arr[0] * phas_turns
@@ -357,10 +362,10 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
 
                 '''CONFIGURE'''
                 # extract values from config list
-                freq_readout_ftw =  np.int32(config_vals[0])
+                freq_readout_ftw =  int32(config_vals[0])
                 freq_sideband_hz =  config_vals[1]
-                phas_wav_idx =      np.int32(config_vals[2])
-                time_readout_mu =   np.int64(config_vals[3])
+                phas_wav_idx =      int32(config_vals[2])
+                time_readout_mu =   int64(config_vals[3])
 
                 # get corresponding RSB phase and waveform ID from the index
                 phas_offset_turns = self.phase_antisqueeze_offset_turns_list[phas_wav_idx]
@@ -372,7 +377,9 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                                                      [-freq_sideband_hz, freq_sideband_hz, 0., 0., 0.],
                                                      self.phaser_eggs.phase_inherent_ch1_turns)
                 delay_mu(25000)
-                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf, profile=0)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                                  phase_mode=PHASE_MODE_CONTINUOUS,
+                                  profile=self.profile_729_readout)
                 delay_mu(8000)
 
                 '''STATE PREPARATION'''
@@ -384,11 +391,14 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                 self.phaser_run(waveform_id)
 
                 '''READOUT'''
+                # run readout
                 self.sidebandreadout_subsequence.run_time(time_readout_mu)
                 self.readout_subsequence.run_dma()
-                counts = self.readout_subsequence.fetch_count()
 
-                # update dataset
+                # clean up loop & store results in dataset
+                self.rescue_subsequence.resuscitate()
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
                 self.update_results(
                     freq_readout_ftw,
                     counts,
@@ -396,28 +406,16 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
                     phas_offset_turns,
                     time_readout_mu
                 )
-                self.core.break_realtime()
-
-                '''LOOP CLEANUP'''
-                # resuscitate ion
-                self.rescue_subsequence.resuscitate()
-
-                # death detection
-                self.rescue_subsequence.detect_death(counts)
-                self.core.break_realtime()
 
                 # check termination more frequently in case reps are low
                 if (_loop_iter % 50) == 0:
                     self.check_termination()
-                    self.core.break_realtime()
                 _loop_iter += 1
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
-
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
 
     '''
@@ -475,22 +473,29 @@ class DynamicAntisqueezing(LAXExperiment, Experiment):
         """
         # record squeezing waveform onto DMA
         _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_squeezing_compiled
-        delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-        self.waveform_squeezing_id = self.pulse_shaper.waveform_record(_wav_data_ampl,
-                                                                       _wav_data_phas,
-                                                                       _wav_data_time)
-        self.core.break_realtime()
+        self.waveform_squeezing_id = self.pulse_shaper.waveform_record(
+            _wav_data_ampl, _wav_data_phas, _wav_data_time
+        )
 
         # record antisqueezing waveforms onto DMA
         for i in range(len(self.phase_antisqueeze_offset_turns_list)):
             # get waveform for given RSB phase
-            _wav_data_ampl, _wav_data_phas, _wav_data_time = self.waveform_idx_to_compiled[i]
-            self.core.break_realtime()
+            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(i)
 
             # record phaser pulse sequence and save returned waveform ID
-            delay_mu(1000000)  # add slack for recording DMA sequences (1000 us)
-            self.waveform_idx_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(_wav_data_ampl,
-                                                                                       _wav_data_phas,
-                                                                                       _wav_data_time)
-            self.core.break_realtime()
+            self.waveform_idx_to_pulseshaper_id[i] = self.pulse_shaper.waveform_record(
+                _wav_data_ampl, _wav_data_phas, _wav_data_time
+            )
+
+    @rpc
+    def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
+                                                                 TArray(TFloat, 2),
+                                                                 TArray(TInt64, 1)]):
+        """
+        Return compiled waveform values.
+        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
+            speeding up experiment compilation and transfer to Kasli.
+        :param wav_idx: the index of the compiled waveform to retrieve.
+        """
+        return self.waveform_idx_to_compiled[wav_idx]
 

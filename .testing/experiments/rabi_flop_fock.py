@@ -1,17 +1,12 @@
 import numpy as np
 from artiq.experiment import *
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, QubitPulseShape, RescueIon, NoOperation,
-    SidebandCoolContinuousRAM, SidebandCoolPulsed, FockStateGenerator
+    SidebandCoolContinuousRAM, FockStateGenerator
 )
 from sipyco import pyon
-
-
-# todo: add linetrigger
 
 
 class FockRabiFlopping(LAXExperiment, Experiment):
@@ -25,9 +20,8 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         'freq_rabiflop_ftw', 'ampl_qubit_asf', 'att_readout_mu', 'time_rabiflop_mu_list',
 
         # subsequences
-        'initialize_subsequence', 'doppler_subsequence', 'sidebandcool_pulsed_subsequence',
-        'sidebandcool_continuous_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'pulseshape_subsequence',
+        'initialize_subsequence', 'doppler_subsequence', 'sbc_subsequence',
+        'readout_subsequence', 'rescue_subsequence', 'pulseshape_subsequence',
 
         # configs
         'profile_729_readout', 'profile_729_SBC'
@@ -38,7 +32,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=100, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous", "SBC - Pulsed"],
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous"],
                                                                default="SBC - Continuous"))
         self.setattr_argument("time_rabi_us_list", Scannable(
             default=[
@@ -66,8 +60,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         self.profile_fock = 2
 
         # prepare sequences
-        self.sidebandcool_pulsed_subsequence = SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence = SidebandCoolContinuousRAM(
+        self.sbc_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0,
             num_samples=100
@@ -90,13 +83,9 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         Prepare values for speedy evaluation.
         """
         # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence = self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence = self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "SBC - Pulsed":
-            self.cooling_subsequence = self.sidebandcool_pulsed_subsequence
-
+        if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC - Continuous":   self.cooling_subsequence = self.sbc_subsequence
+            
         # convert input arguments to machine units
         self.freq_rabiflop_ftw = self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
         self.ampl_qubit_asf = self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
@@ -117,11 +106,12 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         return (self.repetitions * len(self.time_rabiflop_mu_list),
                 2)
 
-    # MAIN SEQUENCE
+
+    '''
+    MAIN SEQUENCE
+    '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        self.core.break_realtime()
-
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.cooling_subsequence.record_dma()
@@ -135,7 +125,6 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         else:
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
                               profile=self.profile_729_readout)
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -196,7 +185,10 @@ class FockRabiFlopping(LAXExperiment, Experiment):
             self.check_termination()
             self.core.break_realtime()
 
-    # ANALYSIS
+
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit rabi flopping data with an exponentially damped sine curve

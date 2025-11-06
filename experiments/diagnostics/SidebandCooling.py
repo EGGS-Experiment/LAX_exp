@@ -1,14 +1,12 @@
 import numpy as np
 from sipyco import pyon
+
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.analysis import *
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import LAXExperiment
 from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon,
-    SidebandCoolContinuousRAM, SidebandCoolPulsed, SidebandReadout
+    InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
 )
 
 
@@ -21,7 +19,7 @@ class SidebandCooling(LAXExperiment, Experiment):
     name = 'Sideband Cooling'
     kernel_invariants = {
         # subsequences
-        'initialize_subsequence', 'sidebandcool_continuous_subsequence', 'sidebandcool_pulsed_subsequence',
+        'initialize_subsequence', 'sidebandcool_subsequence',
         'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
 
         # configs
@@ -40,9 +38,8 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.profile_729_SBC =      1
 
         # get subsequences
-        self.initialize_subsequence =               InitializeQubit(self)
-        self.sidebandcool_pulsed_subsequence =      SidebandCoolPulsed(self)
-        self.sidebandcool_continuous_subsequence =  SidebandCoolContinuousRAM(
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
         )
@@ -54,12 +51,6 @@ class SidebandCooling(LAXExperiment, Experiment):
         self.setattr_device('qubit')
 
     def prepare_experiment(self):
-        # choose correct cooling subsequence
-        if self.cooling_type == "Continuous":
-            self.sidebandcool_subsequence = self.sidebandcool_continuous_subsequence
-        elif self.cooling_type == "Pulsed":
-            self.sidebandcool_subsequence = self.sidebandcool_pulsed_subsequence
-
         # shuffle sideband readout frequencies
         np.random.shuffle(self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list)
 

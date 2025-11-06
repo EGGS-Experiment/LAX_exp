@@ -11,17 +11,12 @@ from LAX_exp.system.subsequences.no_operation import NoOperation
 from LAX_exp.system.subsequences.agile_pulse_generator import AgilePulseGenerator
 __all__.extend(['RescueIon', 'Cleanup', 'NoOperation', 'AgilePulseGenerator'])
 
-# cooling
-from LAX_exp.system.subsequences.doppler_cool import DopplerCool
-from LAX_exp.system.subsequences.sideband_cool_pulsed import SidebandCoolPulsed
-from LAX_exp.system.subsequences.sideband_cool_continuous import SidebandCoolContinuous
-from LAX_exp.system.subsequences.sideband_cool_continuous_RAM import SidebandCoolContinuousRAM
-__all__.extend(['DopplerCool', 'SidebandCoolPulsed', 'SidebandCoolContinuous', 'SidebandCoolContinuousRAM'])
-
-# state preparation
+# general state preparation
 from LAX_exp.system.subsequences.spin_polarization import SpinPolarization
 from LAX_exp.system.subsequences.initialize_qubit import InitializeQubit
-__all__.extend(['SpinPolarization', 'InitializeQubit'])
+from LAX_exp.system.subsequences.doppler_cool import DopplerCool
+from LAX_exp.system.subsequences.sideband_cool_continuous_RAM import SidebandCoolContinuousRAM
+__all__.extend(['SpinPolarization', 'InitializeQubit', 'DopplerCool', 'SidebandCoolContinuousRAM'])
 
 # motional state manipulation
 from LAX_exp.system.subsequences.squeeze_configurable import SqueezeConfigurable

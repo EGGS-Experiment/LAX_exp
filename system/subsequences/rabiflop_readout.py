@@ -4,6 +4,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+# todo: deprecate
 
 
 class RabiflopReadout(LAXSubsequence):
