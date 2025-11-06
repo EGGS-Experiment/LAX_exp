@@ -111,7 +111,8 @@ class HeatingRate(SidebandCooling.SidebandCooling):
         # MAIN LOOP
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
-                '''PREPARE'''
+
+                ### PREPARE & CONFIGURE ###
                 # extract values from config list
                 time_heating_delay_mu = config_vals[0]
                 freq_readout_ftw =      np.int32(config_vals[1])
@@ -119,13 +120,14 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 # set frequency for readout
                 self.core.break_realtime()
                 if not self.enable_RAP:
-                    self.qubit.set_mu(freq_readout_ftw, asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
+                    self.qubit.set_mu(freq_readout_ftw,
+                                      asf=self.sidebandreadout_subsequence.ampl_sideband_readout_asf,
                                       profile=self.profile_729_readout,
                                       phase_mode=PHASE_MODE_CONTINUOUS)
                 delay_mu(10000)
 
 
-                '''INITIALIZE & DELAY'''
+                ### INITIALIZE & DELAY ###
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
@@ -134,7 +136,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 delay_mu(time_heating_delay_mu)
 
 
-                '''READ OUT'''
+                ### READOUT ###
                 # run readout
                 if self.enable_RAP:
                     self.qubit.set_att_mu(self.att_rap_mu)
@@ -146,10 +148,9 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 # clean up loop & update dataset
                 self.rescue_subsequence.resuscitate()
                 counts = self.readout_subsequence.fetch_count()
+                self.initialize_subsequence.slack_rescue()
                 self.rescue_subsequence.detect_death(counts)
-                self.update_results(freq_readout_ftw,
-                                    counts,
-                                    time_heating_delay_mu)
+                self.update_results(freq_readout_ftw, counts, time_heating_delay_mu)
 
             # rescue ion & support graceful termination
             self.core.break_realtime()

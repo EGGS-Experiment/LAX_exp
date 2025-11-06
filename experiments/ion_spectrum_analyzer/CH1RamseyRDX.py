@@ -425,6 +425,9 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
+        # set beams to rescue while we wait (long initialize for phaser-type exps)
+        self.initialize_subsequence.slack_rescue()
+
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -508,21 +511,22 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                         else:
                             self.sidebandreadout_subsequence.run_time(time_readout_mu)
                         self.readout_subsequence.run_dma()
-                        self.rescue_subsequence.resuscitate()
 
-                        '''LOOP CLEANUP'''
-                        # get results & update dataset
+                        '''CLEANUP'''
+                        # clean up
+                        self.rescue_subsequence.resuscitate()
+                        self.initialize_subsequence.slack_rescue()
+
+                        # retrieve results & update dataset
                         counts = self.readout_subsequence.fetch_count()
                         self.rescue_subsequence.detect_death(counts)
-                        self.update_results(
-                            freq_readout_ftw,
-                            counts,
-                            carrier_freq_hz,
-                            freq_sweep_hz,
-                            phase_sweep_turns,
-                            time_readout_mu,
-                            att_phaser_mu
-                        )
+                        self.update_results(freq_readout_ftw,
+                                            counts,
+                                            carrier_freq_hz,
+                                            freq_sweep_hz,
+                                            phase_sweep_turns,
+                                            time_readout_mu,
+                                            att_phaser_mu)
 
                         # check termination more frequently in case reps are low
                         if _loop_iter % 50 == 0:

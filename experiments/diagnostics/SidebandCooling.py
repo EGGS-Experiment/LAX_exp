@@ -4,7 +4,7 @@ from sipyco import pyon
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.language import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
 )
@@ -19,8 +19,8 @@ class SidebandCooling(LAXExperiment, Experiment):
     name = 'Sideband Cooling'
     kernel_invariants = {
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence',
-        'sidebandreadout_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sbc_subsequence', 'sidebandreadout_subsequence',
+        'readout_subsequence', 'rescue_subsequence',
 
         # configs
         'profile_729_readout', 'profile_729_SBC'
@@ -30,16 +30,13 @@ class SidebandCooling(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=70, precision=0, step=1, min=1, max=100000))
 
-        # sideband cooling type
-        self.setattr_argument("cooling_type",   EnumerationValue(["Continuous", "Pulsed"], default="Continuous"))
-
         # allocate profiles on 729nm for different subsequences
         self.profile_729_readout =  0
         self.profile_729_SBC =      1
 
         # get subsequences
         self.initialize_subsequence =   InitializeQubit(self)
-        self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
+        self.sbc_subsequence =          SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=500
         )
@@ -67,7 +64,7 @@ class SidebandCooling(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.sidebandcool_subsequence.record_dma()
+        self.sbc_subsequence.record_dma()
         self.sidebandreadout_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
@@ -86,7 +83,7 @@ class SidebandCooling(LAXExperiment, Experiment):
 
                 # initialize ion in S-1/2 state & SBC to the ground motional state
                 self.initialize_subsequence.run_dma()
-                self.sidebandcool_subsequence.run_dma()
+                self.sbc_subsequence.run_dma()
 
                 # sideband readout
                 self.sidebandreadout_subsequence.run_dma()
@@ -95,6 +92,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                 # clean up loop & store results
                 self.rescue_subsequence.resuscitate()
                 counts = self.readout_subsequence.fetch_count()
+                self.initialize_subsequence.slack_rescue()
                 self.rescue_subsequence.detect_death(counts)
                 self.update_results(freq_ftw, counts)
 

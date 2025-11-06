@@ -21,8 +21,8 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         'att_qubit_mu', 'ampl_pulse_readout_asf', 'att_pulse_readout_mu',
 
         # subsequences
-        'initialize_subsequence', 'sidebandcool_subsequence', 'rap_subsequence',
-        'readout_subsequence', 'rescue_subsequence',
+        'initialize_subsequence', 'sbc_subsequence', 'rap_subsequence', 'readout_subsequence',
+        'rescue_subsequence',
 
         # configs
         'profile_729_readout', 'profile_729_SBC', 'profile_729_RAP',
@@ -32,7 +32,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=10, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"], default="Doppler"))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC"], default="Doppler"))
 
         # allocate relevant beam profiles
         self.profile_729_readout =  0
@@ -40,7 +40,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         self.profile_729_RAP =      2
 
         # build SBC here so its arguments come first
-        self.sidebandcool_subsequence =     SidebandCoolContinuousRAM(
+        self.sbc_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=200
         )
@@ -115,8 +115,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
         # initialize other subsequences
         pulse_shape_str = 'blackman'
-        if self.enable_pulseshaping is False:
-            pulse_shape_str = 'square'
+        if self.enable_pulseshaping is False:   pulse_shape_str = 'square'
         self.rap_subsequence =          QubitRAP(
             self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=500,
             ampl_max_pct=self.ampl_qubit_pct, pulse_shape=pulse_shape_str
@@ -134,9 +133,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         """
         Prepare & precompute experimental values.
         """
-        '''
-        SANTIIZE & VERIFY INPUT
-        '''
+        # todo: sanitize & verify input
         # todo: verify freq dev values are valid
         # todo: only sweep time OR cutoff; never both
 
@@ -145,8 +142,10 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
         '''
         # beam parameters
         self.att_qubit_mu = att_to_mu(self.att_qubit_db * dB)
-        freq_rap_center_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz) for freq_mhz in self.freq_rap_center_mhz_list]
-        freq_rap_dev_ftw_list =    [self.qubit.frequency_to_ftw(freq_khz * kHz) for freq_khz in self.freq_rap_dev_khz_list]
+        freq_rap_center_ftw_list = [self.qubit.frequency_to_ftw(freq_mhz * MHz)
+                                    for freq_mhz in self.freq_rap_center_mhz_list]
+        freq_rap_dev_ftw_list =    [self.qubit.frequency_to_ftw(freq_khz * kHz)
+                                    for freq_khz in self.freq_rap_dev_khz_list]
 
         # timing parameters
         time_rap_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_rap_us_list]
@@ -178,8 +177,7 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
             shuffle_config=True, config_type=int64
         )
         # if not sweeping cutoff times, set cutoff times same as RAP times
-        if not self.enable_cutoff:
-            self.config_experiment_list[:, 3] = self.config_experiment_list[:, 2]
+        if not self.enable_cutoff:  self.config_experiment_list[:, 3] = self.config_experiment_list[:, 2]
 
     @property
     def results_shape(self):
@@ -194,9 +192,8 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
     def initialize_experiment(self) -> TNone:
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
-        self.sidebandcool_subsequence.record_dma()
+        self.sbc_subsequence.record_dma()
         self.readout_subsequence.record_dma()
-        self.core.break_realtime()
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -217,26 +214,33 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
                 self.rap_subsequence.configure(time_rap_mu, freq_center_ftw, freq_dev_ftw)
                 delay_mu(50000)
 
+
                 '''INITIALIZE ION'''
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
                 # optional: sideband cool
-                if self.cooling_type == "SBC - Continuous":
-                    self.sidebandcool_subsequence.run_dma()
+                if self.cooling_type == "SBC":  self.sbc_subsequence.run_dma()
 
                 # run RAP pulse
                 self.qubit.set_att_mu(self.att_qubit_mu)
                 self.rap_subsequence.run_rap(time_cutoff_mu)
 
+
                 '''READ OUT & STORE RESULTS'''
                 if self.enable_rabiflop_readout:
                     self.pulse_readout(time_readout_mu, freq_readout_ftw)
 
-                # read out fluorescence & clean up loop
+                # read out & clean up
                 self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
-                self.update_results(freq_center_ftw, self.readout_subsequence.fetch_count(),
-                                    freq_dev_ftw, time_rap_mu, time_cutoff_mu,
+                self.initialize_subsequence.slack_rescue()
+
+                # retrieve results and store in dataset
+                counts = self.readout_subsequence.fetch_count(),
+                self.rescue_subsequence.detect_death(counts)
+                self.update_results(freq_center_ftw, counts,
+                                    freq_dev_ftw, time_rap_mu,
+                                    time_cutoff_mu,
                                     freq_readout_ftw, time_readout_mu)
 
 
@@ -263,8 +267,10 @@ class RapidAdiabaticPassage(LAXExperiment, Experiment):
 
             # set up qubit readout pulse
             with sequential:
-                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf, pow_=0,
-                                  profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                self.qubit.set_mu(freq_readout_ftw, asf=self.ampl_pulse_readout_asf,
+                                  pow_=0,
+                                  phase_mode=PHASE_MODE_CONTINUOUS,
+                                  profile=self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_pulse_readout_mu)
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.cpld.io_update.pulse_mu(8)

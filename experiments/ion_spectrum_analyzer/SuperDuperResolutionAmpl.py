@@ -613,6 +613,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
+        # set beams to rescue while we wait (long initialize for phaser-type exps)
+        self.initialize_subsequence.slack_rescue()
+
         # record general subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.sidebandcool_subsequence.record_dma()
@@ -706,22 +709,24 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                         if self.enable_SBR:
                             self.sidebandreadout_subsequence.run_time(time_readout_mu)
                         self.readout_subsequence.run_dma()
-                        self.rescue_subsequence.resuscitate()
 
                         '''LOOP CLEANUP'''
+                        # clean up
+                        self.rescue_subsequence.resuscitate()
+                        self.initialize_subsequence.slack_rescue()
+
+                        # retrieve counts and store in dataset
                         counts = self.readout_subsequence.fetch_count()
                         self.rescue_subsequence.detect_death(counts)
-                        self.update_results(
-                            freq_readout_ftw,
-                            counts,
-                            carrier_freq_hz,
-                            freq_sweep_hz,
-                            waveform_params[0], # note: manually expand waveform_params b/c no variadics in kernel
-                            waveform_params[1],
-                            waveform_params[2],
-                            phase_ch1_turns,
-                            time_readout_mu
-                        )
+                        self.update_results(freq_readout_ftw,
+                                            counts,
+                                            carrier_freq_hz,
+                                            freq_sweep_hz,
+                                            waveform_params[0], # note: manually expand waveform_params b/c no variadics in kernel
+                                            waveform_params[1],
+                                            waveform_params[2],
+                                            phase_ch1_turns,
+                                            time_readout_mu)
 
                         # check termination more frequently in case reps are low
                         if _loop_iter % 50 == 0:

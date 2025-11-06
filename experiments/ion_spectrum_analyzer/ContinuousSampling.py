@@ -469,6 +469,10 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         """
         Initialize relevant components of the experiment in-kernel immediately before run.
         """
+        # set beams to rescue while we wait (long initialize for phaser-type exps)
+        self.initialize_subsequence.slack_rescue()
+
+        ### RECORD WAVEFORMS ONTO DMA ###
         # get phaser waveform for PulseShaper
         # note: we don't do any error checking here, so have to be really sure all OK
         ampl_frac_list, phas_turns_list, sample_interval_mu_list = self.pulseshaper_vals
@@ -512,14 +516,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                 self.psrsb_run(t_phaser_start_mu)
 
             self.readout_subsequence.run() # state-selective fluorescence readout
-
-            '''CLEAN UP - SET RESCUE UNTIL NEXT SHOT'''
-            # tmp remove
-            self.pump.rescue()
-            self.pump.on()
-            self.repump_cooling.on()
-            self.repump_qubit.on()
-            # tmp remove
+            self.initialize_subsequence.slack_rescue() # cleanup - set rescue while waiting until next shot
 
             t1 = now_mu()   # record exp shot period - stop time
 

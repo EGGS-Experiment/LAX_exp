@@ -6,6 +6,7 @@ from LAX_exp.language import *
 from LAX_exp.system.subsequences import AbsorptionProbe, RescueIon
 from sipyco import pyon
 # todo: unify temperature measurement
+# todo: allocate profiles
 
 
 class LinewidthMeasurement(LAXExperiment, Experiment):
