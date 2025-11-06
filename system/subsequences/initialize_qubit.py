@@ -101,3 +101,20 @@ class InitializeQubit(LAXSubsequence):
         delay_mu(8)
         self.repump_cooling.off()
         delay_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def slack_rescue(self) -> TNone:
+        """
+        Leave relevant beams on in rescue mode.
+        This function is intended to be called at the end of an experimental shot
+            (or whenever we have long, nondeterministic delays), such that any
+            extra time/slack can be used to rescue/cool the ion.
+        """
+        # set rescue profile
+        self.pump.rescue()
+        # turn on rescuing beams
+        self.pump.on()
+        self.repump_qubit.on()
+        self.repump_cooling.on()
+        delay_mu(8)
+
