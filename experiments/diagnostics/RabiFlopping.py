@@ -33,7 +33,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=80, precision=0, step=1, min=1, max=10000))
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
                               tooltip="Trigger the beginning of each shot from the AC line.")
-        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous"], default="SBC - Continuous"),
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC"], default="SBC"),
                               tooltip="Select the cooling type to use.")
 
         # rabi flopping arguments
@@ -81,19 +81,14 @@ class RabiFlopping(LAXExperiment, Experiment):
         # get devices
         self.setattr_device('qubit')
         self.setattr_device('trigger_line')
-        self.setattr_device('pump')
-        self.setattr_device('repump_cooling')
-        self.setattr_device('repump_qubit')
 
     def prepare_experiment(self):
         """
         Prepare values for speedy evaluation.
         """
         # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence = self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence = self.sbc_subsequence
+        if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
 
         # convert input arguments to machine units
         self.freq_rabiflop_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
@@ -132,7 +127,6 @@ class RabiFlopping(LAXExperiment, Experiment):
         else:
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-        delay_mu(10000)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -146,14 +140,8 @@ class RabiFlopping(LAXExperiment, Experiment):
                 '''
                 PREPARE SHOT
                 '''
-                # turn on rescue beams while waiting
-                self.core.break_realtime()
-                self.pump.rescue()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
-                self.pump.on()
-
                 # configure qubit pulse
+                self.core.break_realtime()
                 if self.enable_pulseshaping:
                     time_rabi_actual_mu = self.pulseshape_subsequence.configure(time_rabi_pair_mu[1])
                     delay_mu(50000)
@@ -190,6 +178,9 @@ class RabiFlopping(LAXExperiment, Experiment):
                 self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
                 counts = self.readout_subsequence.fetch_count()
+                self.initialize_subsequence.slack_rescue()
+
+                # retrieve results & store in dataset
                 self.rescue_subsequence.detect_death(counts)
                 self.update_results(time_rabi_actual_mu, counts)
 

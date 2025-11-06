@@ -6,6 +6,7 @@ from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon
 
 from sipyco import pyon
+# todo: tooltips
 
 
 class LaserScan(LAXExperiment, Experiment):
@@ -21,17 +22,35 @@ class LaserScan(LAXExperiment, Experiment):
         'freq_qubit_scan_ftw', 'ampl_qubit_asf', 'att_qubit_mu', 'time_qubit_mu',
 
         # subsequences
-        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'pulseshape_subsequence',
+        'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence', 'pulseshape_subsequence',
 
         # configs
-        'profile_729_readout', 'config_experiment_list'
+        'profile_729_readout', 'config_experiment_list',
     }
 
     def build_experiment(self):
+        ### SETUP ###
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=7, precision=0, step=1, min=1, max=100000))
 
+        # relevant devices
+        self.setattr_device('qubit')
+        self.setattr_device('trigger_line')
+
+        # allocate profiles on 729nm for different subsequences
+        self.profile_729_readout = 0
+
+        # subsequences
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_readout, ram_addr_start=0,
+            num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
+
+
+        ### EXPERIMENT ARGUMENTS ###
         # linetrigger
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False), group='linetrigger')
         self.setattr_argument("time_linetrig_holdoff_ms_list",  Scannable(
@@ -61,27 +80,6 @@ class LaserScan(LAXExperiment, Experiment):
                               group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
-        # relevant devices
-        self.setattr_device('qubit')
-        self.setattr_device('trigger_line')
-
-        # tmp remove
-        self.setattr_device('pump')
-        self.setattr_device('repump_cooling')
-        self.setattr_device('repump_qubit')
-        # tmp remove
-
-        # allocate profiles on 729nm for different subsequences
-        self.profile_729_readout = 0
-
-        # subsequences
-        self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_readout, ram_addr_start=0,
-            num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
-        )
-        self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      Readout(self)
-        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         """
@@ -101,8 +99,7 @@ class LaserScan(LAXExperiment, Experiment):
         if self.enable_linetrigger:
             time_linetrig_holdoff_mu_list = [self.core.seconds_to_mu(time_ms * ms)
                                              for time_ms in self.time_linetrig_holdoff_ms_list]
-        else:
-            time_linetrig_holdoff_mu_list = [0]
+        else:   time_linetrig_holdoff_mu_list = [0]
 
 
         ### CREATE EXPERIMENT CONFIG ###
@@ -144,20 +141,13 @@ class LaserScan(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
-                # tmp remove
-                # turn on rescue beams while waiting
-                self.core.break_realtime()
-                self.pump.rescue()
-                self.repump_cooling.on()
-                self.repump_qubit.on()
-                self.pump.on()
-                # tmp remove
-
+                ### PREPARE & CONFIGURE ###
                 # extract values from config list
                 freq_ftw = int32(config_vals[0])
                 time_holdoff_mu = config_vals[1]
 
-                # set frequency
+                # prepare relevant beams
+                self.core.break_realtime()
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_ftw)
                 else:
@@ -170,6 +160,8 @@ class LaserScan(LAXExperiment, Experiment):
                 if self.enable_linetrigger:
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, time_holdoff_mu)
 
+
+                ### MAIN SHOT ###
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
 
@@ -180,11 +172,14 @@ class LaserScan(LAXExperiment, Experiment):
                     self.qubit.on()
                     delay_mu(self.time_qubit_mu)
                     self.qubit.off()
-                self.readout_subsequence.run_dma()
 
                 # read out counts & clean up loop
-                counts = self.readout_subsequence.fetch_count()
+                self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
+                self.initialize_subsequence.slack_rescue()
+                counts = self.readout_subsequence.fetch_count()
+
+                # store results in dataset
                 self.rescue_subsequence.detect_death(counts)
                 self.update_results(freq_ftw, counts, time_holdoff_mu)
 

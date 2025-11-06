@@ -21,6 +21,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
     kernel_invariants = {
         # subsequences
         'initialize_subsequence', 'pulseshape_subsequence', 'readout_subsequence', 'rescue_subsequence',
+        'cooling_subsequence',
 
         # hardware values
         'ampl_qubit_asf', 'att_qubit_mu',
@@ -32,13 +33,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=88, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC - Continuous"],
-                                                                 default="SBC - Continuous"))
+        self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC"], default="SBC"))
 
         # subsequences - with arguments
         self.profile_729_SBC =      5
         self.profile_729_target =   6
-        self.sidebandcool_subsequence =  SidebandCoolContinuousRAM(
+        self.sbc_subsequence =  SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
             ram_addr_start_729=0, ram_addr_start_854=0, num_samples=250
         )
@@ -108,10 +108,8 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         Prepare & precompute experimental values.
         """
         # choose target cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence = self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence = self.sidebandcool_subsequence
+        if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -187,9 +185,9 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 ampl_singlepass_asf =   int32(config_vals[2])
                 time_equalize_mu =      config_vals[3]
                 time_pulse_mu =         config_vals[4]
-                self.core.break_realtime()
 
                 # configure pulse times
+                self.core.break_realtime()
                 if self.enable_pulseshaping:
                     self.pulseshape_subsequence.configure(time_pulse_mu)
                     delay_mu(50000)
@@ -232,8 +230,13 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 # read out & clean up loop
                 self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
+                self.initialize_subsequence.slack_rescue()
+
+                # retrieve results and store in dataset
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
                 self.update_results(freq_qubit_ftw,
-                                    self.readout_subsequence.fetch_count(),
+                                    counts,
                                     freq_singlepass_ftw,
                                     time_pulse_mu,
                                     ampl_singlepass_asf)

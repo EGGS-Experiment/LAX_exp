@@ -23,7 +23,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         'freq_rabiflop_ftw', 'ampl_qubit_asf', 'att_readout_mu', 'time_rabiflop_mu_list',
 
         # subsequences
-        'initialize_subsequence', 'doppler_subsequence', 'pulseshape_subsequence',
+        'initialize_subsequence', 'doppler_subsequence', 'pulseshape_subsequence', 'cooling_subsequence',
         'sbc_subsequence', 'readout_subsequence', 'rescue_subsequence',
 
         # configs
@@ -35,8 +35,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         self.setattr_argument("repetitions", NumberValue(default=40, precision=0, step=1, min=1, max=10000))
 
         # rabi flopping arguments
-        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC - Continuous"],
-                                                               default="SBC - Continuous"))
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC"], default="SBC"))
         self.setattr_argument("time_rabi_us_list", Scannable(
             default=[
                 RangeScan(1, 150, 150, randomize=True),
@@ -86,10 +85,8 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         Prepare values for speedy evaluation.
         """
         # choose correct cooling subsequence
-        if self.cooling_type == "Doppler":
-            self.cooling_subsequence = self.doppler_subsequence
-        elif self.cooling_type == "SBC - Continuous":
-            self.cooling_subsequence = self.sbc_subsequence
+        if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
+        elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
             
         # convert input arguments to machine units
         self.freq_rabiflop_ftw = self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
@@ -175,24 +172,25 @@ class FockRabiFlopping(LAXExperiment, Experiment):
                     delay_mu(time_rabi_actual_mu)
                     self.qubit.off()
 
-                # do readout
+                # read out and clean up
                 self.readout_subsequence.run_dma()
-
-                # update dataset
-                self.update_results(time_rabi_actual_mu, self.readout_subsequence.fetch_count())
-                self.core.break_realtime()
-
-                # resuscitate ion
                 self.rescue_subsequence.resuscitate()
+                self.initialize_subsequence.slack_rescue()
 
-            # rescue ion as needed
-            self.rescue_subsequence.run(trial_num)
+                # retrieve results and store in dataset
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
+                self.update_results(time_rabi_actual_mu, counts)
 
-            # support graceful termination
-            self.check_termination()
+            # rescue ion as needed & support graceful termination
             self.core.break_realtime()
+            self.rescue_subsequence.run(trial_num)
+            self.check_termination()
 
-    # ANALYSIS
+
+    '''
+    ANALYSIS
+    '''
     def analyze_experiment(self):
         """
         Fit rabi flopping data with an exponentially damped sine curve

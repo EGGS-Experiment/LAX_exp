@@ -10,6 +10,7 @@ _VALID_BEAM_SCANS = [
     # todo: add 397nm spinpol value
     # todo: add 854nm
 ]
+# todo: clean up
 
 
 class CalibrationSidebandCooling(LAXExperiment, Experiment):
@@ -379,8 +380,14 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
 
                 # clean up loop & update dataset
                 self.rescue_subsequence.resuscitate()
-                self.update_results(freq_readout_ftw, self.readout_subsequence.fetch_count(),
-                                    time_sbc_mu, time_per_spinpol_mu, freq_sbc_scan_ftw, ampl_quench_scan_asf,
+                self.initialize_subsequence.slack_rescue()
+
+                # retrieve results and store in dataset
+                counts = self.readout_subsequence.fetch_count()
+                self.rescue_subsequence.detect_death(counts)
+                self.update_results(freq_readout_ftw, counts,
+                                    time_sbc_mu, time_per_spinpol_mu,
+                                    freq_sbc_scan_ftw, ampl_quench_scan_asf,
                                     freq_beam_ftw, ampl_beam_asf)
 
             # rescue ion & support graceful termination
