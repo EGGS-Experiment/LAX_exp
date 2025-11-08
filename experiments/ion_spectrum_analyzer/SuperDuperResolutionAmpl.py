@@ -38,6 +38,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # configs
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
         '_num_phaser_oscs', 'freq_readout_ftw_list',
+
+        # tmp
+        '_fock_gen_handle_names', '_fock_read_handle_names',
     }
 
     def build_experiment(self):
@@ -88,6 +91,15 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                               tooltip="Sideband readout pulse times. Useful for rabiflop-type readout.")
 
         # fock state amplification
+        self.setattr_argument("fock_num_overlap", Scannable(
+                                                            default=[
+                                                                ExplicitScan([0]),
+                                                            ],
+                                                            global_min=0, global_max=3, global_step=1,
+                                                            unit="|n>", scale=1, precision=0
+                                                        ),
+                              group='fock.config',
+                              tooltip="Fock state to prepare & read out (via overlap).")
         self.fock_subsequence = FockOverlap(
             self, ram_profile=self.profile_729_RAP, ram_addr_start=250,
             num_samples=200, pulse_shape="blackman"
@@ -304,18 +316,29 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
 
         # configure readout method
-        self.enable_RAP, self.enable_SBR = (False, False) # default to false for both
+        self.enable_RAP, self.enable_SBR = (False, False)  # default to false for both
+
+        if not any(kw in self.readout_type for kw in ('RAP', 'SBR')):
+            raise ValueError("Invalid readout type. Must be one of (SBR, RAP, RAP + SBR).")
+
         if 'RAP' in self.readout_type:
             self.enable_RAP = True
             self.freq_readout_ftw_list = array([-1], dtype=int32)
             time_readout_mu_list = [256]
+            self.fock_num_overlap = [round(val) for val in self.fock_num_overlap]  # convert to list and ensure int
+            fock_readout_nums = list(range(len(self.fock_num_overlap)))
+        else:
+            self.fock_num_overlap = [0]
+            fock_readout_nums = [0]
+
+        self._fock_gen_handle_names = ['_FOCK_GEN_{}'.format(idx_fock) for idx_fock in fock_readout_nums]
+        self._fock_read_handle_names = ['_FOCK_READ_{}'.format(idx_fock) for idx_fock in fock_readout_nums]
+
         # note: SBR check has to be 2nd, since otherwise RAP overrides SBR's freq and time list
         if 'SBR' in self.readout_type:
             self.enable_SBR = True
             self.freq_readout_ftw_list = self.sidebandreadout_subsequence.freq_sideband_readout_ftw_list
             time_readout_mu_list = [self.core.seconds_to_mu(time_us * us) for time_us in self.time_readout_us_list]
-        if not any(kw in self.readout_type for kw in ('RAP', 'SBR')):
-            raise ValueError("Invalid readout type. Must be one of (SBR, RAP, RAP + SBR).")
 
 
         '''
@@ -359,7 +382,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.config_experiment_list = create_experiment_config(
             freq_phaser_carrier_hz_list, freq_osc_sweep_hz_list,
             waveform_num_list, list(self.phase_global_ch1_turns_list),
-            time_readout_mu_list,
+            time_readout_mu_list, fock_readout_nums,
             config_type=float, shuffle_config=self.randomize_config
         )
 
@@ -370,6 +393,12 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
+        '''
+        CHECK READOUT
+        '''
+        if not all(0 <= fock_num <= 3 for fock_num in self.fock_num_overlap):
+            raise ValueError("Invalid fock states in fock_num_overlap. Must be ints in [0, 3].")
+
         '''
         CHECK PHASER BASE OSC CONFIG
         '''
@@ -605,7 +634,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
     def results_shape(self):
         return (self.repetitions * self.sub_repetitions *
                 len(self.config_experiment_list) * len(self.freq_readout_ftw_list),
-                9)
+                10)
 
 
     '''
@@ -618,11 +647,21 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
-        # record fock subsequences
-        with self.core_dma.record('_FOCK_GEN_HANDLE'):
-            self.fock_subsequence.run_fock_generate()
-        with self.core_dma.record('_FOCK_READ_HANDLE'):
-            self.fock_subsequence.run_fock_read()
+        # programmatically record fock subsequences
+        for idx_fock in range(len(self.fock_num_overlap)):
+            self.core.break_realtime()
+
+            # compile and record waveform - fock state generation
+            _compilestring_gen = self.fock_subsequence.create_generate_sequence(self.fock_num_overlap[idx_fock])
+            self.core.break_realtime()
+            with self.core_dma.record(self._fock_gen_handle_names[idx_fock]):
+                self.fock_subsequence.run_sequence(_compilestring_gen)
+
+            # compile and record waveform - fock state overlap readout
+            _compilestring_read = self.fock_subsequence.create_read_sequence(self.fock_num_overlap[idx_fock])
+            self.core.break_realtime()
+            with self.core_dma.record(self._fock_read_handle_names[idx_fock]):
+                self.fock_subsequence.run_sequence(_compilestring_read)
 
         # record phaser waveforms
         self.phaser_record()
@@ -635,12 +674,20 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        # load extra DMA handles
-        self.pulse_shaper.waveform_load()
-        fock_gen_handle = self.core_dma.get_handle('_FOCK_GEN_HANDLE')
-        fock_read_handle = self.core_dma.get_handle('_FOCK_READ_HANDLE')
-
         _loop_iter = 0  # used to check_termination more frequently
+        self.pulse_shaper.waveform_load() # load phaser DMA handles
+
+        # programmatically retrieve fock state handles
+        # yes, i know it's not predeclared/slow/big overhead, but is better than declaring like 50
+        #   kernel variables just to predeclare
+        fock_gen_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
+        fock_read_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
+        for idx_fock in range(len(self.fock_num_overlap)):
+            self.core.break_realtime()
+            fock_gen_handles[idx_fock] = self.core_dma.get_handle(self._fock_gen_handle_names[idx_fock])
+            self.core.break_realtime()
+            fock_read_handles[idx_fock] = self.core_dma.get_handle(self._fock_read_handle_names[idx_fock])
+
 
         '''MAIN LOOP'''
         for trial_num in range(self.repetitions):
@@ -655,11 +702,11 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                 waveform_num =      int32(config_vals[2])
                 phase_ch1_turns =   config_vals[3]
                 time_readout_mu =   int64(config_vals[4])
+                idx_fock =          int32(config_vals[5])
 
                 # get corresponding waveform parameters and pulseshaper ID from the index
                 waveform_params = self._waveform_param_list[waveform_num]
                 phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
-
                 # create frequency update list for oscillators and set phaser frequencies
                 freq_update_list = self.freq_osc_base_hz_list + freq_sweep_hz * self.freq_sweep_arr
 
@@ -695,14 +742,14 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                         '''STATE PREPARATION'''
                         self.initialize_subsequence.run_dma()
                         self.sidebandcool_subsequence.run_dma()
-                        self.core_dma.playback_handle(fock_gen_handle) # generate higher fock states
+                        self.core_dma.playback_handle(fock_gen_handles[idx_fock]) # generate high fock states
 
                         '''QVSA PULSE'''
                         self.phaser_run(phaser_waveform)
 
                         '''READOUT'''
                         if self.enable_RAP:
-                            self.core_dma.playback_handle(fock_read_handle)
+                            self.core_dma.playback_handle(fock_read_handles[idx_fock])
                         if self.enable_SBR:
                             self.sidebandreadout_subsequence.run_time(time_readout_mu)
                         self.readout_subsequence.run_dma()
@@ -720,7 +767,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                             waveform_params[1],
                             waveform_params[2],
                             phase_ch1_turns,
-                            time_readout_mu
+                            time_readout_mu,
+                            self.fock_num_overlap[idx_fock]
                         )
 
                         # check termination more frequently in case reps are low

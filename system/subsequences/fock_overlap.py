@@ -19,7 +19,7 @@ class FockOverlap(QubitRAP):
         "rap_conf_words_list", "rap_conf_att_list", "rap_conf_time_list",
 
         # RAP sequence specifications
-        "sequence_generate", "sequence_readout",
+        "config_idx",
     }
 
     def build_subsequence(self, ram_profile: TInt32 = -1, ram_addr_start: TInt32 = 0x00,
@@ -33,27 +33,18 @@ class FockOverlap(QubitRAP):
             Must result in a final RAM address <= 1023.
         :param pulse_shape: the pulse shape to use. Must be supported by available_pulse_shapes.
         """
+        _argstr = "fock" # create short string for argument grouping
+        self._config_holder_gen = [] # store user-compiled sequence configs for state generation
+        self._config_holder_read = [] # store user-compiled sequence configs for state readout
+
         # extend our kernel_invariants with parent's kernel_invariants (since we redefine them here)
         kernel_invariants_parent = getattr(super(), "kernel_invariants", set())
         self.kernel_invariants = self.kernel_invariants | kernel_invariants_parent
 
-        _argstr = "fock" # create short string for argument grouping
-
-        # general configuration
         self.setattr_argument("ampl_fock_pct",  NumberValue(default=50., precision=3, step=5., min=0.001, max=50., unit="%", scale=1.),
                               group="{}.config".format(_argstr),
                               tooltip="Same amplitude will be used for all of overlap generation & readout.\n"
                                       "i.e. for RAP, carrier, and shelving pulses.")
-
-        # fock state: generation
-        self.setattr_argument("fock_num_prep", NumberValue(default=0, precision=0, step=1, min=0, max=10),
-                              group='{}.config'.format(_argstr),
-                              tooltip="Fock state number to generate.")
-
-        # fock state: readout
-        self.setattr_argument("fock_num_read",  EnumerationValue(["0", "1", "2", "3"], default="0"),
-                              group="{}.config".format(_argstr),
-                              tooltip="Fock state number to read. Limited by available number of auxiliary states.")
         self.setattr_argument("enable_final_rap", BooleanValue(default=True),
                               group="{}.config".format(_argstr),
                               tooltip="Enable final RAP pulse (which is almost always necessary). "
@@ -74,7 +65,7 @@ class FockOverlap(QubitRAP):
         GENERAL SETUP
         '''
         # get relevant configs from dataset manager
-        # note: has to happen before super().prepare_subsequence since
+        # note: has to happen before super().prepare_subsequence since (trailed off - need to figure out what I was going to write)
         self.setattr_parameter('config_shelve', group='sequences.fock_overlap')
         self.setattr_parameter('config_rsb', group='sequences.fock_overlap')
         self.setattr_parameter('config_bsb', group='sequences.fock_overlap')
@@ -88,15 +79,8 @@ class FockOverlap(QubitRAP):
         '''
         CONVERT RAP CONFIGURATIONS
         '''
-        self.fock_num_read = int(self.fock_num_read)    # need to convert to int since EnumerationValue only allows str
-
-        # note: handle n=0 case this way b/c idc rubbish params if not fock-ing
-        config_shelve_tmp = self.config_shelve if self.fock_num_read != 0 else {0: (85., 43., 20., 8.)} # some dummy config
-
-        # convert all RAP configs
-        config_core_all = {'r': self.config_rsb, 'b': self.config_bsb, 'c': self.config_carrier, **config_shelve_tmp}
-        # note: separate 32b config word list and 32b att from 64b time to avoid conversion & b/c
-        #   elements in artiq list must all be of same type
+        config_core_all = {'r': self.config_rsb, 'b': self.config_bsb, 'c': self.config_carrier, **self.config_shelve}
+        # note: separate 32b word list and 32b att from 64b time b/c artiq list elements must all be of same type
         self.rap_conf_words_list, self.rap_conf_time_list, self.rap_conf_att_list = zip(
             *tuple(
                 (*self.configure_values(self.core.seconds_to_mu(conf_dj[2] * us),
@@ -106,41 +90,18 @@ class FockOverlap(QubitRAP):
                 for conf_dj in config_core_all.values()
             )
         )
-
         # note: convert to list b/c artiq doesn't allow tuples to be indexed by variables in-kernel
         self.rap_conf_words_list = list(self.rap_conf_words_list)
         self.rap_conf_time_list = list(self.rap_conf_time_list)
         self.rap_conf_att_list = list(self.rap_conf_att_list)
+
         # get conversion from sequence keys to index (for later compilation/batch sequencing)
-        config_idx = dict(zip(tuple(str(i) for i in config_core_all.keys()), range(len(config_core_all))))
-
-
-        '''
-        COMPILE PULSE SEQUENCES
-        '''
-        ### compile generation sequence
-        # specify pulses for each n - alternate between RSB and BSB
-        seq_generate_str = str.join('r', 'b' * self.fock_num_prep)[: self.fock_num_prep]
-        # if odd number of pulses, do a carrier pulse to ensure bring back to S-1/2 to avoid decay event
-        seq_generate_str += 'c' if self.fock_num_prep % 2 == 1 else ''
-        
-        # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
-        if len(seq_generate_str) != 0:
-            self.sequence_generate = [config_idx[rap_key] for rap_key in seq_generate_str]
-        # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else: self.sequence_generate = [-1]
-
-        ### compile readout sequence
-        # specify pulses for each shelving operation (RSB => shelve_<num> => carrier) with final RSB for fluorescence readout
-        seq_read_str = ''.join(tuple('r{:d}c'.format(fock_n) for fock_n in range(self.fock_num_read)))
-        # configure final RAP according to experiment argument
-        seq_read_str += 'r' if self.enable_final_rap else ''
-        
-        # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
-        if len(seq_read_str) != 0:
-            self.sequence_readout = [config_idx[rap_key] for rap_key in seq_read_str]
-        # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
-        else: self.sequence_readout = [-1]
+        self.config_idx = dict(
+            zip(
+                tuple(str(i) for i in config_core_all.keys()),
+                range(len(config_core_all))
+            )
+        )
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -150,20 +111,20 @@ class FockOverlap(QubitRAP):
 
         '''RAP CONFIGS'''
         # check all configs for validity
-        config_shelve_tmp = {} if self.fock_num_read == 0 else self.config_shelve
+        config_shelve_tmp = self.config_shelve
         configs_all = (self.config_rsb, self.config_bsb, self.config_carrier, *(config_shelve_tmp.values()))
 
         for conf_dj in configs_all:
             # check config values are stored correctly
             if not isinstance(conf_dj, (tuple, list)) or (len(conf_dj) != 4):
                 raise ValueError("Invalid config: {:}. Must be list or tuple of length 4.".format(conf_dj))
-            
+
             # check config values are of correct type
             elif not all((isinstance(val, (int, float)) for val in conf_dj)):
                 raise ValueError("Invalid config values: {:}. Values must all be floats.".format(conf_dj))
-            
+
             # check specific RAP values in range
-            elif not (20. <= conf_dj[0] <= 400.): # RAP freq
+            elif not (20. <= conf_dj[0] <= 400.):  # RAP freq
                 raise ValueError("Invalid RAP config freq: {:}. "
                                  "Value must be in range [20, 400] MHz.".format(conf_dj[0]))
             elif conf_dj[1] <= 1.:  # RAP ss freq dev
@@ -172,33 +133,76 @@ class FockOverlap(QubitRAP):
             elif conf_dj[2] <= 5.:  # RAP time
                 raise ValueError("Invalid RAP config time: {:}. "
                                  "Value must be >5 us.".format(conf_dj[2]))
-            elif not (7.9 <= conf_dj[3] <= 31.6): # RAP attenuation
+            elif not (7.9 <= conf_dj[3] <= 31.6):  # RAP attenuation
                 raise ValueError("Invalid RAP config attenuation: {:}. "
                                  "Value must be in range [8, 31.5] dB.".format(conf_dj[3]))
 
         '''READOUT'''
-        # ensure fock_num_read is valid
-        if int(self.fock_num_read) not in (0, 1, 2, 3):
-            raise ValueError("Invalid fock_num_read: {:}. "
-                             "Must be in ['0', '1', '2', '3'].".format(self.fock_num_read))
-
         # only require further config_shelve checks if we actually need them for higher |n> detection
-        elif self.fock_num_read != "0":
-            shelving_keys = self.config_shelve.keys()
+        shelving_keys = self.config_shelve.keys()
 
-            # check config keys valid
-            if not all((isinstance(k, int) and (0 <= k <= 2) for k in shelving_keys)):
-                raise ValueError("Invalid shelving config keys: {:}. "
-                                 "Must be dict with keys as contiguous ints in [0, 2].".format(shelving_keys))
-            # ensure shelving config keys are correctly numbered
-            elif not ((max(shelving_keys) + 1 == len(shelving_keys)) and (len(set(shelving_keys)) == len(shelving_keys))):
-                raise ValueError("Invalid shelving config keys: {:}. "
-                                 "Must be contiguous ints starting in [0, 2].".format(shelving_keys))
+        # check config keys valid
+        if not all((isinstance(k, int) and (0 <= k <= 2) for k in shelving_keys)):
+            raise ValueError("Invalid shelving config keys: {:}. "
+                             "Must be dict with keys as contiguous ints in [0, 2].".format(shelving_keys))
+        # ensure shelving config keys are correctly numbered
+        elif not ((max(shelving_keys) + 1 == len(shelving_keys)) and (len(set(shelving_keys)) == len(shelving_keys))):
+            raise ValueError("Invalid shelving config keys: {:}. "
+                             "Must be contiguous ints starting in [0, 2].".format(shelving_keys))
 
-            # ensure enough shelving for fock state readout
-            if max(shelving_keys) + 1 < int(self.fock_num_read):
-                raise ValueError("Insufficient shelving configs ({:}) for target fock_num_read ({:}).".format(
-                    max(shelving_keys), self.fock_num_read))
+        # todo: reimplement some checks
+        # # ensure enough shelving for fock state readout
+        # if max(shelving_keys) + 1 < int(self.fock_num_read):
+        #     raise ValueError("Insufficient shelving configs ({:}) for target fock_num_read ({:}).".format(
+        #         max(shelving_keys), self.fock_num_read))
+
+
+    '''
+    USER INTERFACE
+    '''
+    @rpc
+    def create_generate_sequence(self, fock_num: TInt32) -> TList(TInt32):
+        """
+        Prepare compilation of a fock state generation sequence.
+        :param fock_num: the fock state number to generate.
+        """
+        # sanitize input: int from [0, N]
+        if not (0 <= fock_num <= 10):
+            raise ValueError("Invalid fock_num for create_generate_sequence. Must be int in [0, 10].")
+
+        ### compile generation sequence
+        # specify pulses for each n - alternate between RSB and BSB
+        seq_generate_str = str.join('r', 'b' * fock_num)[: fock_num]
+        # if odd number of pulses, do a carrier pulse to ensure bring back to S-1/2 to avoid decay event
+        seq_generate_str += 'c' if fock_num % 2 == 1 else ''
+
+        # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
+        if len(seq_generate_str) != 0:
+            return [self.config_idx[rap_key] for rap_key in seq_generate_str]
+        # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
+        else:   return [-1]
+
+    @rpc
+    def create_read_sequence(self, fock_num: TInt32) -> TList(TInt32):
+        """
+        Prepare compilation of a fock overlap readout sequence.
+        :param fock_num: the fock state number to generate.
+        """
+        # sanitize input: int from [0, 3]
+        if not (0 <= fock_num <= 3):
+            raise ValueError("Invalid fock_num for create_read_sequence. Must be int in [0, 3].")
+
+        ### compile readout sequence
+        # specify pulses for each shelving operation (RSB => shelve_<num> => carrier) with final RSB for fluorescence readout
+        seq_read_str = ''.join(tuple('r{:d}c'.format(fock_n) for fock_n in range(fock_num)))
+        # configure final RAP according to experiment argument
+        seq_read_str += 'r' if self.enable_final_rap else ''
+
+        # convert pulse string to parameter index (i.e. location in e.g. rap_conf_words_list)
+        if len(seq_read_str) != 0:
+            return [self.config_idx[rap_key] for rap_key in seq_read_str]
+        # account for case where sequence list is empty (artiq forbids empty lists in-kernel)
+        else: return [-1]
 
 
     '''
@@ -211,7 +215,7 @@ class FockOverlap(QubitRAP):
         note: copy over parent QubitRAP's initialize_subsequence b/c need to extend it
             and ARTIQ doesn't support in-kernel super().
         """
-        '''FROM PARENT (QubitRAP)'''
+        ### FROM PARENT (QubitRAP) ###
         # disable RAM + DRG and set matched latencies
         self.qubit.set_cfr1(ram_enable=0)
         self.qubit.cpld.io_update.pulse_mu(8)
@@ -224,25 +228,7 @@ class FockOverlap(QubitRAP):
         delay_mu(25000)
 
     @kernel(flags={"fast-math"})
-    def run_fock_generate(self) -> TNone:
-        """
-        Run fock state generation sequence.
-        All pulses are RAP-based.
-        For best performance, should be recorded onto DMA.
-        """
-        self._batch_sequence(self.sequence_generate)
-
-    @kernel(flags={"fast-math"})
-    def run_fock_read(self) -> TNone:
-        """
-        Run fock state generation sequence.
-        All pulses are RAP-based.
-        For best performance, should be recorded onto DMA.
-        """
-        self._batch_sequence(self.sequence_readout)
-
-    @kernel(flags={"fast-math"})
-    def _batch_sequence(self, sequence_list: TList(TInt32)) -> TNone:
+    def run_sequence(self, sequence_list: TList(TInt32)) -> TNone:
         """
         Run a batch of RAP pulses in succession.
             Used for both fock generation and fock readout b/c all primitives are RAP-based.
@@ -251,10 +237,8 @@ class FockOverlap(QubitRAP):
         """
         for rap_conf_idx in sequence_list:
             # todo: sanitize input?
-
             # exit if index value is -1 (workaround b/c we can't have empty lists)
-            if rap_conf_idx == -1:
-                return
+            if rap_conf_idx == -1: return
 
             # set qubit attenuation
             self.qubit.set_att_mu(self.rap_conf_att_list[rap_conf_idx])
