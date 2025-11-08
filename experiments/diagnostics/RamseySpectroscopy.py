@@ -21,7 +21,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
     name = 'Ramsey Spectroscopy'
     kernel_invariants = {
         # hardware values
-        'time_pulse_mu', 'ampl_ramsey_asf', 'att_ramsey_mu', 'ampl_spinecho_asf',
+        'time_pulse_mu', 'ampl_ramsey_asf', 'att_ramsey_mu', 'ampl_spinecho_asf', 'time_spinecho_mu',
+        'phas_spinecho_schedule_pow', 'num_spinecho_delays',
 
         # subsequences
         'cooling_subsequence', 'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
@@ -144,6 +145,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.time_spinecho_mu = self.core.seconds_to_mu(self.time_spinecho_us * us)
         self.phas_spinecho_schedule_pow = [self.qubit.turns_to_pow(phas_turns)
                                            for phas_turns in self.phas_spinecho_schedule_turns]
+        self.num_spinecho_delays = len(self.phas_spinecho_schedule_pow) + 1
 
         # ensure we can do enough spinechos in given delay
         t_min_inter_pulse_us = min(list(self.time_delay_us_list)) / len(list(self.phas_spinecho_schedule_turns))
@@ -153,14 +155,10 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                              "Minimum inter-spinecho delay is less than the spinecho pulse time.")
 
 
-        '''
-        CREATE EXPERIMENT CONFIG
-        '''
+        ### CREATE EXPERIMENT CONFIG ###
         self.config_experiment_list = create_experiment_config(
-            time_delay_mu_list,
-            freq_ramsey_ftw_list,
-            phase_ramsey_pow_list,
-            time_linetrig_holdoff_mu_list,
+            time_delay_mu_list, freq_ramsey_ftw_list,
+            phase_ramsey_pow_list, time_linetrig_holdoff_mu_list,
             shuffle_config=True, config_type=int64
         )
 
@@ -271,7 +269,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         :param time_delay_mu: the ramsey delay time (in machine units).
         :param freq_ftw: the frequency of the ramsey pulse (in ftw).
         """
-        t_inter_pulse_mu = time_delay_mu // (self.num_spinecho_pulses + 1)  # calculate inter-pulse delay
+        t_inter_pulse_mu = time_delay_mu // self.num_spinecho_delays  # calculate inter-pulse delay
 
         # schedule spin-echo pulsing
         for phas_pow in self.phas_spinecho_schedule_pow:

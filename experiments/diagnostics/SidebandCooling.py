@@ -91,8 +91,8 @@ class SidebandCooling(LAXExperiment, Experiment):
 
                 # clean up loop & store results
                 self.rescue_subsequence.resuscitate()
-                counts = self.readout_subsequence.fetch_count()
                 self.initialize_subsequence.slack_rescue()
+                counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.detect_death(counts)
                 self.update_results(freq_ftw, counts)
 

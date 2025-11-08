@@ -130,7 +130,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
                 ### INITIALIZE & DELAY ###
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
-                self.sidebandcool_subsequence.run_dma()
+                self.sbc_subsequence.run_dma()
 
                 # wait time to measure heating rate
                 delay_mu(time_heating_delay_mu)

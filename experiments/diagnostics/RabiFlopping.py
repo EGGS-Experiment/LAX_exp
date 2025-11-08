@@ -177,8 +177,8 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # do readout & clean up loop
                 self.readout_subsequence.run_dma()
                 self.rescue_subsequence.resuscitate()
-                counts = self.readout_subsequence.fetch_count()
                 self.initialize_subsequence.slack_rescue()
+                counts = self.readout_subsequence.fetch_count()
 
                 # retrieve results & store in dataset
                 self.rescue_subsequence.detect_death(counts)
