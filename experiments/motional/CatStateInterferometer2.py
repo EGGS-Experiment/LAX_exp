@@ -1003,11 +1003,11 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
                     self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
                 ]
 
-                offset_cat1_phases = [self.phases_pulse1_cat_pow[0] + self.phase_dynamical_decoupling_cat_shift_pow,
-                                      self.phases_pulse1_cat_pow[1] - self.phase_dynamical_decoupling_cat_shift_pow]
+                offset_cat1_phases = [self.phases_pulse1_cat_pow[0] + self.phases_cat2_cat_update_dir[0]* self.phase_dynamical_decoupling_cat_shift_pow,
+                                      self.phases_pulse1_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * self.phase_dynamical_decoupling_cat_shift_pow]
 
-                offset_cat2_phases = [cat4_phases[0] + self.phase_dynamical_decoupling_cat_shift_pow,
-                                      cat4_phases[1] - self.phase_dynamical_decoupling_cat_shift_pow]
+                offset_cat2_phases = [cat4_phases[0] + self.phases_cat2_cat_update_dir[0]*self.phase_dynamical_decoupling_cat_shift_pow,
+                                      cat4_phases[1] + self.phases_cat2_cat_update_dir[1]*self.phase_dynamical_decoupling_cat_shift_pow]
 
                 # prepare offset phases for dynamical decoupling
 
