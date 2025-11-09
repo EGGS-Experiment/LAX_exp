@@ -3,10 +3,7 @@ from numpy import int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import (
-    InitializeQubit, Readout, RescueIon, NoOperation,
-    SidebandCoolContinuousRAM
-)
+from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
 # todo: add pulse shaping
 # todo: add tooltips
 # todo: add processing
@@ -149,7 +146,8 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
         # ensure we can do enough spinechos in given delay
         t_min_inter_pulse_us = min(list(self.time_delay_us_list)) / len(list(self.phas_spinecho_schedule_turns))
-        t_pulse_overhead_us = 2.58 + 0.08 + 0.05 + 0.05
+        # note: the overhead is a coarse guess
+        t_pulse_overhead_us = 2.58 + 0.08 + 0.05 + 0.05 # set_mu_tracking + ad9910_latency_matched + 2x switch_delay
         if t_min_inter_pulse_us < (self.time_spinecho_us + t_pulse_overhead_us):
             raise ValueError("Invalid spinecho config. "
                              "Minimum inter-spinecho delay is less than the spinecho pulse time.")
@@ -275,10 +273,12 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         for phas_pow in self.phas_spinecho_schedule_pow:
             # configure beam while we wait
             with parallel:
-                self.qubit.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
+                self.qubit.set_mu(freq_ftw, asf=self.ampl_spinecho_asf,
                                   pow_=phas_pow,
                                   phase_mode=PHASE_MODE_CONTINUOUS,
                                   profile=self.profile_729_ramsey)
+                # note: delay MUST be the last command in the parallel block
+                #   so that timeline resumes AFTER delay
                 delay_mu(t_inter_pulse_mu)
 
             # fire pulse
