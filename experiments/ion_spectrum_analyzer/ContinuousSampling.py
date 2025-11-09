@@ -71,8 +71,12 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         )
         self.initialize_subsequence = InitializeQubit(self)
         self.readout_subsequence = Readout(self)
+
         # quantum amplification: fock overlap
         # note: FockOverlap handles the RAP pulse config for us
+        self.setattr_argument("fock_num_overlap", NumberValue(default=0, precision=0, step=1, min=0, max=3),
+                              group='fock.config',
+                              tooltip="Fock state to prepare & read out (via overlap).")
         self.fock_subsequence = FockOverlap(
             self, ram_profile=self.profile_729_RAP,
             ram_addr_start=202, num_samples=250, pulse_shape="blackman"
@@ -244,6 +248,8 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         if self.protocol_type == "FOCK":    self.protocol_type_num = 0
         elif self.protocol_type == "PSRSB": self.protocol_type_num = 1
 
+        self.fock_num_overlap = round(self.fock_num_overlap)    # ensure fock state is an int
+
         # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
         # note: sequence blocks stored as [block_num, osc_num] and store [ampl_pct, phase_turns]
         #   e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
@@ -316,6 +322,12 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         """
         Check experiment arguments for validity.
         """
+        '''
+        CHECK QUANTUM AMPLIFICATION CONFIGS
+        '''
+        if not 0 <= self.fock_num_overlap <= 3:
+            raise ValueError("Invalid fock state in fock_num_overlap. Must be int in [0, 3].")
+
         '''
         CHECK PHASER BASE OSC CONFIG
         '''
@@ -476,6 +488,10 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         # get phaser waveform for PulseShaper
         # note: we don't do any error checking here, so have to be really sure all OK
         ampl_frac_list, phas_turns_list, sample_interval_mu_list = self.pulseshaper_vals
+
+        # compile and get waveform - fock state generation
+        _compilestring_gen = self.fock_subsequence.create_generate_sequence(self.fock_num_overlap)
+        _compilestring_read = self.fock_subsequence.create_read_sequence(self.fock_num_overlap)
         self.core.break_realtime()
 
         # record full sequence for burst reasons
@@ -486,13 +502,14 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
         with self.core_dma.record('_SEQUENCE_SHOT'):
 
             '''INITIALIZE ION'''
+            # todo: should i be aligning to phaser frame inside as well???
             t0 = now_mu()   # record exp shot period - start time
             self.initialize_subsequence.run()   # doppler cool & prep spin into |S-1/2, mJ=-1/2>
             self.sidebandcool_subsequence.run() # multimode cont. SBC w/854nm quenching
 
             '''PREPARE MOTIONAL STATE/AMPLIFICATION'''
             if self.protocol_type_num == 0:
-                self.fock_subsequence.run_fock_generate() # generate higher fock state
+                self.fock_subsequence.run_sequence(_compilestring_gen)  # generate higher fock state
 
             '''WAVEFORM SEQUENCE'''
             # prepare phaser for output
@@ -510,11 +527,9 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
             '''READOUT'''
             # higher fock overlap readout
             if self.protocol_type_num == 0:
-                self.fock_subsequence.run_fock_read()
+                self.fock_subsequence.run_sequence(_compilestring_read)  # read fock state overlap
             # PSRSB readout
-            elif self.protocol_type_num == 2:
-                self.psrsb_run(t_phaser_start_mu)
-
+            elif self.protocol_type_num == 2:   self.psrsb_run(t_phaser_start_mu)
             self.readout_subsequence.run() # state-selective fluorescence readout
             self.initialize_subsequence.slack_rescue() # cleanup - set rescue while waiting until next shot
 
