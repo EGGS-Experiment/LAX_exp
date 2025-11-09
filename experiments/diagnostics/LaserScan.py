@@ -40,15 +40,6 @@ class LaserScan(LAXExperiment, Experiment):
         # allocate profiles on 729nm for different subsequences
         self.profile_729_readout = 0
 
-        # subsequences
-        self.pulseshape_subsequence =   QubitPulseShape(
-            self, ram_profile=self.profile_729_readout, ram_addr_start=0,
-            num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
-        )
-        self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      Readout(self)
-        self.rescue_subsequence =       RescueIon(self)
-
 
         ### EXPERIMENT ARGUMENTS ###
         # linetrigger
@@ -80,6 +71,16 @@ class LaserScan(LAXExperiment, Experiment):
                               group=self.name)
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False), group=self.name)
 
+
+        ### SUBSEQUENCES ###
+        # note: must be initialized last b/c it depends on arguments
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_readout, ram_addr_start=0,
+            num_samples=500, ampl_max_pct=self.ampl_qubit_pct,
+        )
+        self.initialize_subsequence =   InitializeQubit(self)
+        self.readout_subsequence =      Readout(self)
+        self.rescue_subsequence =       RescueIon(self)
 
     def prepare_experiment(self):
         """

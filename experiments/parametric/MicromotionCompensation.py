@@ -17,6 +17,8 @@ from EGGS_labrad.config.dc_config import dc_config
 # todo: create function called reset_initial_voltages so we can reset upon error condition
 # todo: finish documenting tooltips
 
+# todo: should we put all _host variables as kern_inv? they technically are...
+
 
 class MicromotionCompensation(LAXExperiment, Experiment):
     """
@@ -55,12 +57,12 @@ class MicromotionCompensation(LAXExperiment, Experiment):
                                       "If successive optima converge within some target value, then this experiment will stop early.")
 
         # general configuration
-        self.setattr_argument("repetitions_per_voltage", NumberValue(default=3, precision=0, step=1, min=1, max=100),
+        self.setattr_argument("repetitions_per_voltage", NumberValue(default=6, precision=0, step=1, min=1, max=100),
                               group='configuration',
                               tooltip="The number of repetitions on each mode for a single voltage point.\n"
                                       "All repetitions are executed at once for each point, but are alternated "
                                       "between modes (e.g. 2 reps => mode0, mode1, mode0, mode1).")
-        self.setattr_argument("num_steps", NumberValue(default=11, precision=0, step=1, min=5, max=100),
+        self.setattr_argument("num_steps", NumberValue(default=14, precision=0, step=1, min=5, max=100),
                               group='configuration',
                               tooltip="The number of steps for each voltage scan.")
         self.setattr_argument("adaptive", BooleanValue(default=True), group='configuration',
@@ -69,17 +71,17 @@ class MicromotionCompensation(LAXExperiment, Experiment):
                                       "This feature is currently always on (i.e. False will do nothing lol).")
 
         # modulation - mode #1
-        self.setattr_argument("freq_mode_0_khz",    NumberValue(default=1574.22, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
+        self.setattr_argument("freq_mode_0_khz",    NumberValue(default=1575.11, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
                               group='modulation')
-        self.setattr_argument("att_mode_0_db",      NumberValue(default=24., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
+        self.setattr_argument("att_mode_0_db",      NumberValue(default=21., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
                               group='modulation',
                               tooltip="The starting attenuation to use for mode 0.\n"
                                       "If the adaptive option is selected, the experiment will automatically adjust "
                                       "the attenuation to maximize signal.")
         # modulation - mode #2
-        self.setattr_argument("freq_mode_1_khz",    NumberValue(default=1279.81, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
+        self.setattr_argument("freq_mode_1_khz",    NumberValue(default=1287.55, precision=3, step=10, min=1, max=10000, scale=1., unit="kHz"),
                               group='modulation')
-        self.setattr_argument("att_mode_1_db",      NumberValue(default=27., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
+        self.setattr_argument("att_mode_1_db",      NumberValue(default=25., precision=1, step=0.5, min=0, max=31.5, scale=1., unit="dB"),
                               group='modulation',
                               tooltip="The starting attenuation to use for mode 1.\n"
                                       "If the adaptive option is selected, the experiment will automatically adjust "
@@ -88,18 +90,18 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         # shim voltages
         self.setattr_argument("dc_channel_axis_0",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='V Shim'),
                               group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([50, 90]),
+        self.setattr_argument("dc_scan_range_volts_axis_0", PYONValue([45, 85]),
                               group='voltages')
         self.setattr_argument("dc_channel_axis_1",          EnumerationValue(list(self.dc_config_channeldict.keys()), default='H Shim'),
                               group='voltages')
-        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([30, 70]), group='voltages')
+        self.setattr_argument("dc_scan_range_volts_axis_1", PYONValue([55, 95]), group='voltages')
 
         # cooling
-        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=18, precision=2, step=5, min=0.01, max=50, scale=1., unit="%"),
+        self.setattr_argument("ampl_cooling_pct",   NumberValue(default=17, precision=2, step=5, min=0.01, max=50, scale=1., unit="%"),
                               group='cooling',
                               tooltip="The DDS amplitude to use for the cooling beam. Lower amplitudes reduce background "
                                       "and improve SNR, but will take longer and makes the ion prone to death.")
-        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=102, precision=6, step=1, min=1, max=500, scale=1., unit="MHz"),
+        self.setattr_argument("freq_cooling_mhz",   NumberValue(default=103, precision=6, step=1, min=1, max=500, scale=1., unit="MHz"),
                               group='cooling',
                               tooltip="The DDS frequency to use for the cooling beam. Frequencies closer to resonance "
                                       "improve the SNR, but makes the ion prone to death.")
@@ -159,11 +161,6 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         # holdoff period after we set a voltage to allow it to settle
         self.time_dc_synchronize_delay_mu = self.core.seconds_to_mu(self.TIME_DC_SYNC_MS * ms)
 
-        # holder to store initial voltages in case of booboo
-        # note: this isn't kernel_invariant b/c want to grab in initialize_experiment
-        #   instead of prepare so that we take values closest to runtime
-        self.dc_voltages_initial = [0., 0.]
-
 
         '''
         MODULATION
@@ -183,6 +180,11 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         '''
         DATA STRUCTURES
         '''
+        # holder to store initial voltages in case of booboo
+        # note: this isn't kernel_invariant b/c want to grab in initialize_experiment
+        #   instead of prepare so that we take values closest to runtime
+        self._host_dc_voltages_initial = [0., 0.]
+
         # create data structure for storing predicted global optima
         # note: only used for convenience purposes (i.e. for later post-processing)
         self.set_dataset('global_optima', zeros((self.iterations * 2 + 1, 2), dtype=float))
@@ -210,10 +212,8 @@ class MicromotionCompensation(LAXExperiment, Experiment):
 
         # guess initial mode vectors
         # todo: improve & generalize
-        if self.freq_mode_0_khz < self.freq_mode_1_khz:
-            self.INITIAL_MODE_VECTORS = array([-1., 1.]) # [RF, EGGS]
-        else:
-            self.INITIAL_MODE_VECTORS = array([1., -1.]) # [EGGS, RF]
+        if self.freq_mode_0_khz < self.freq_mode_1_khz: self.INITIAL_MODE_VECTORS = array([-1., 1.]) # [RF, EGGS]
+        else:   self.INITIAL_MODE_VECTORS = array([1., -1.]) # [EGGS, RF]
 
     @property
     def results_shape(self):
@@ -227,15 +227,15 @@ class MicromotionCompensation(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self):
-        # retrieve initial voltages (store in case of booboo later)
-        self.dc_voltages_initial[0] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
-        self.dc_voltages_initial[1] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
+        # prepare host-side values IN AN RPC (b/c values only sync between host and kernel after kernel completion)
+        self._initialize_host_values()
 
         # get DDS CPLD att values so ARTIQ remembers them
-        self.dds_parametric.cpld.get_att_mu()
         self.core.break_realtime()
+        self.dds_parametric.cpld.get_att_mu()
 
         # prepare cooling beams
+        self.core.break_realtime()
         self.pump.rescue()
         self.pump.on()
         self.repump_cooling.on()
@@ -249,6 +249,16 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         # set up DDS for modulation
         self.dds_parametric.set_profile(self.profile_dds_parametric)
         delay_mu(8000)
+
+    @rpc
+    def _initialize_host_values(self) -> TNone:
+        """
+        Initialize host values (e.g. pull values from labrad) in an RPC.
+        This is necessary since variables are ONLY synchronized between host and kernel at completion.
+        """
+        # retrieve initial voltages (store in case of booboo later)
+        self._host_dc_voltages_initial[0] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
+        self._host_dc_voltages_initial[1] = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -315,10 +325,8 @@ class MicromotionCompensation(LAXExperiment, Experiment):
 
         # simply use current voltages if no previous data exists
         else:
-            # opt_v_axis_0 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[0])
-            # opt_v_axis_1 = self.trap_dc.voltage_get(self.dc_channel_axes_nums[1])
-            opt_v_axis_0 = self.dc_voltages_initial[0]
-            opt_v_axis_1 = self.dc_voltages_initial[1]
+            opt_v_axis_0 = self._host_dc_voltages_initial[0]
+            opt_v_axis_1 = self._host_dc_voltages_initial[1]
         print('\t\tPredicted Opt.: ({:.2f} V, {:.2f} V)'.format(opt_v_axis_0, opt_v_axis_1))
 
         # ensure voltages are within bounds, then update
@@ -448,6 +456,8 @@ class MicromotionCompensation(LAXExperiment, Experiment):
                     freq_mode_khz = mode_configs_all[mode_idx, 0]
                     att_mode_db =   mode_configs_all[mode_idx, 1]
                     # convert relevant values to machine units
+                    # note: yes, would be good to do in advance, but conversion is bothersome and requires keeping
+                    #   more global variables, and we're not timing-critical here
                     freq_mode_ftw = self.dds_parametric.frequency_to_ftw(freq_mode_khz * kHz)
                     att_mode_mu =   self.dds_parametric.cpld.att_to_mu(att_mode_db * dB)
 
@@ -570,6 +580,6 @@ class MicromotionCompensation(LAXExperiment, Experiment):
             return the experiment to a reasonably happy state.
         This function is not async to ensure that it completes immediately.
         """
-        self.trap_dc.voltage_set(self.dc_channel_axes_nums[0], self.dc_voltages_initial[0])
-        self.trap_dc.voltage_set(self.dc_channel_axes_nums[1], self.dc_voltages_initial[1])
+        self.trap_dc.voltage_set(self.dc_channel_axes_nums[0], self._host_dc_voltages_initial[0])
+        self.trap_dc.voltage_set(self.dc_channel_axes_nums[1], self._host_dc_voltages_initial[1])
 
