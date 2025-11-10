@@ -10,10 +10,17 @@ class AndorCamera(LAXDevice):
     High-level API functions for using the Andor Camera
     """
     name = "camera"
+    kernel_invariants = {
+        "cxn", "camera", "detector_dimensions",
+    }
 
     def prepare_device(self):
+        # create labrad connection
         self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.camera = self.cxn.andor_server
+
+        # retrieve camera info - tuple(dimensions_x, dimensions_y)
+        self.detector_dimensions = self.camera.info_detector_dimensions()
 
     @rpc
     def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat=None) -> TNone:
@@ -64,23 +71,24 @@ class AndorCamera(LAXDevice):
         self.camera.polling(True, 1.5)
 
     @rpc
-    def stop_acquisition(self):
+    def stop_acquisition(self) -> TNone:
         """
         Stop camera from taking new images
         """
         self.camera.acquisition_stop()
 
     @rpc
-    def start_acquisition(self):
+    def start_acquisition(self) -> TNone:
         """
         Let Camera take new image(s)
         """
         self.camera.acquisition_start()
 
     @rpc
-    def wait_for_acquisition(self):
+    def wait_for_acquisition(self) -> TNone:
         """
-        Wait until image is acquired
+        Wait until image is acquired.
+        Note: this function blocks until an image is acquired.
         """
         self.camera.acquisition_wait()
 
@@ -99,11 +107,10 @@ class AndorCamera(LAXDevice):
         :return: TArray(TFloat): the images in camera's data buffer
         """
         self.stop_acquisition()
-        data = self.camera.acquire_data()
-        return data
+        return self.camera.acquire_data()
 
     @rpc
-    def set_exposure_time(self, exposure_time: TFloat):
+    def set_exposure_time(self, exposure_time: TFloat) -> TNone:
         """
         Set exposure time (in seconds) for image acquisition
         :param exposure_time: the exposure time (in seconds) to set.
@@ -118,14 +125,13 @@ class AndorCamera(LAXDevice):
         Get exposure time (in seconds) for image acquisition
         :return: exposure time in seconds
         """
-        self.stop_acquisition()
         return self.camera.setup_exposure_time()
 
     @rpc
     def set_image_region(self, image_region: TTuple) -> TNone:
         """
         Set image region
-        :return: image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
+        :return: tuple(horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
         self.stop_acquisition()
         self.camera.image_region_set(*image_region)
@@ -135,9 +141,7 @@ class AndorCamera(LAXDevice):
     def get_image_region(self) -> TTuple:
         """
         Get image region
-        :return: image_region (tuple): (horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
+        :return: tuple(horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
-        self.stop_acquisition()
         return self.camera.image_region_get()
-        self.start_acquisition()
 

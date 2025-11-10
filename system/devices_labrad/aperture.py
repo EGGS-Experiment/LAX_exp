@@ -12,6 +12,7 @@ class Aperture(LAXDevice):
     """
     name = "aperture"
     kernel_invariants = {
+        "cxn", "aperture",
         "position_close"
     }
 

@@ -40,7 +40,7 @@ class ARampEjection(LAXExperiment, Experiment):
         self.setattr_argument('west_endcap_voltage',    NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='End Trap Params')
         self.setattr_argument('v_shim_voltage',         NumberValue(default=70.8, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
-                              group='Ending Trap Params')
+                              group='End Trap Params')
         self.setattr_argument('h_shim_voltage',         NumberValue(default=50.5, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                               group='End Trap Params')
         self.setattr_argument('final_aramp_voltage',    NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),

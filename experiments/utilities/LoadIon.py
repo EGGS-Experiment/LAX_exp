@@ -6,20 +6,14 @@ import os
 from time import time, sleep
 from datetime import datetime
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import Readout
-
 from skimage.transform import hough_circle, hough_circle_peaks
 # todo: save image before anything
 # todo: save image after ready to load
 # todo: save image immediately before ion detected (store running holder of old data)
 # todo: save image after ion detected but not yet cleaned up
 # todo: save image after ion detected and after cleanup
-
-# todo: save image values to an artiq dataset so we can view via widget
-
-# todo: set camera region by center and width
 
 
 class IonLoadAndAramp(LAXExperiment, Experiment):
@@ -29,74 +23,97 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     Automatically load ions via resistive oven and eject excess via A-ramp.
     """
     name = 'Ion Load and Aramp'
-    BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
     kernel_invariants = {
-        "pmt_sample_num", "pmt_dark_threshold_counts",
-        "att_397_mu", "att_866_mu", "att_854_mu",
+        # hardware values
 
-        "time_runtime_max_s", "start_time_s",
-        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
-        "time_aramp_pulse_s"
+        # magic numbers
+        "pmt_sample_num", "pmt_dark_threshold_counts", "pmt_flip_threshold_std",
+        "cam_sample_num", "cam_flip_threshold_avg",
+        "time_runtime_max_s", "start_time_s", "time_aramp_pulse_s",
+
+        # camera configuration
+        "image_region", "path_image_save", "data_path",
     }
 
     def build_experiment(self):
         # general arguments
-        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1))
+        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1),
+                              tooltip="Number of ions to load.\n"
+                                      "Ion number is determined by camera image recognition.")
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=19, precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                              group='Start Trap Params')
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=26., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
-                              group='Start Trap Params')
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=16, precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+                              group='Start Trap Params',
+                              tooltip="East endcap voltage to use for loading.\n"
+                                      "Lower voltages reduce the trap depth, making it easier to load.\n"
+                                      "However, too low a trap depth is unstable, hindering loading.")
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=35., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+                              group='Start Trap Params',
+                              tooltip="West endcap voltage to use for loading.\n"
+                                      "Lower voltages reduce the trap depth, making it easier to load.\n"
+                                      "However, too low a trap depth is unstable, hindering loading.")
 
         # ending trap arguments
-        self.setattr_argument('end_east_endcap_voltage',    NumberValue(default=205., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('end_east_endcap_voltage',    NumberValue(default=177., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='End Trap Params')
-        self.setattr_argument('end_west_endcap_voltage',    NumberValue(default=308., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('end_west_endcap_voltage',    NumberValue(default=353., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='End Trap Params')
-        self.setattr_argument('end_v_shim_voltage',         NumberValue(default=67.6, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
+        self.setattr_argument('end_v_shim_voltage',         NumberValue(default=62.8, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                               group='End Trap Params')
-        self.setattr_argument('end_h_shim_voltage',         NumberValue(default=48.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
+        self.setattr_argument('end_h_shim_voltage',         NumberValue(default=78.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                               group='End Trap Params')
         self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
                               group='End Trap Params')
 
         # aramping parameters
-        self.setattr_argument("enable_aramp",               BooleanValue(default=False), group='A-Ramp')
+        self.setattr_argument("enable_aramp",               BooleanValue(default=False),
+                              group='A-Ramp',
+                              tooltip="Enable automatic A-Ramp ejection of excess ions.\n"
+                                      "Ion number and ejection are determined by camera image recognition.")
         self.setattr_argument("aramp_ions_voltage_list",    Scannable(
                                                                     default=[
-                                                                        RangeScan(16, 17.5, 20, randomize=True),
+                                                                        RangeScan(16, 17.5, 20, randomize=False),
                                                                         ExplicitScan([19, 20, 21, 22, 23, 24]),
                                                                     ],
                                                                     global_min=0.0, global_max=30.0, global_step=1,
                                                                     unit="V", scale=1, precision=2
-                                                                ), group='A-Ramp')
+                                                                ),
+                              group='A-Ramp',
+                              tooltip="The list of voltages to scan when ejecting excess ions.")
 
         # oven configuration
         self.setattr_argument("oven_voltage",   NumberValue(default=1.50, min=0., max=2., precision=2, step=0.1, unit="V", scale=1.),
-                              group='Oven')
+                              group='Oven',
+                              tooltip="todo: document")
         self.setattr_argument("oven_current",   NumberValue(default=3.25, min=0., max=4., precision=2, step=0.1, unit="A", scale=1.),
-                              group='Oven')
+                              group='Oven',
+                              tooltip="todo: document")
 
         # image region parameters: MAX (450,450) TO PREVENT LASER SCATTER OFF ELECTRODES FROM CONFUSING ANALYSIS
-        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True), group = 'Camera')
-        self.setattr_argument('image_center_x', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument("set_to_pmt_after_loading", BooleanValue(True),
+                              group='Camera',
+                              tooltip="Set the flipper to the PMT after loading.\n"
+                                      "Useful for pipelining experiment operation.")
+        self.setattr_argument('image_center_x', NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
                               tooltip="Image center position (x).")
-        self.setattr_argument('image_center_y', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument('image_center_y', NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
                               tooltip="Image center position (y).")
-        self.setattr_argument('image_width_pixels',     NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument('image_width_pixels', NumberValue(default=350, min=100, max=450, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
-                              tooltip="Width of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
-        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              tooltip="Square width of the total 512x512 image region on camera.\n"
+                                      "Defined relative to (image_center_x, image_center_y).\n"
+                                      "Note: too large an image width (~450 pixels) may contain scatter and confuse the analysis.")
+        self.setattr_argument('horizontal_binning', NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
                               group='Camera',
-                              tooltip="Height of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
-        self.setattr_argument('horizontal_binning',     NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
-                              tooltip="Horizontal pixel bin size to set on camera.")
-        self.setattr_argument('vertical_binning',       NumberValue(default=1, min=1, max=5, step=1, scale=1, precision=0), group='Camera',
-                              tooltip="Vertical pixel bin size to set on camera.")
+                              tooltip="Horizontal pixel bin size to set on camera.\n"
+                                      "Note: this is software binning, as opposed to hardware binning.")
+        self.setattr_argument('vertical_binning',   NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
+                              group='Camera',
+                              tooltip="Vertical pixel bin size to set on camera.\n"
+                                      "Note: this is software binning, as opposed to hardware binning.")
 
         # relevant devices - sinara
         self.setattr_device('pump')
@@ -113,43 +130,44 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('camera')
         self.setattr_device('flipper')
 
+        # define magic numbers
+        # todo: document these
+        self.pmt_dark_threshold_counts = 15
+        self.time_runtime_max_s = 480.
+        self.time_aramp_pulse_s = 2.
+        self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
+
+        self.pmt_sample_num = 100
+        self.pmt_flip_threshold_std = 2
+        self.cam_sample_num = 10
+        self.cam_flip_threshold_avg = 0.15
+
     def prepare_experiment(self):
         """
-        Prepare experimental values and precompute/preallocate
-        to reduce kernel overheads.
+        Prepare experimental values and precompute/preallocate to reduce kernel overheads.
         """
         '''
         HARDWARE VALUES
         '''
-        # magic numbers
-        self.pmt_sample_num = 30
-        self.pmt_dark_threshold_counts = 15
-        self.time_runtime_max_s = 900.
-        self.start_time_s = np.int64(0)
-        self.time_aramp_pulse_s = 2.
-
-        # set attenuations (per Josh's request)
-        # todo: get these from dataset manager
-        # todo: actually - maybe not necessary anymore
-        self.att_397_mu = att_to_mu(14 * dB)
-        self.att_854_mu = att_to_mu(14 * dB)
-        self.att_866_mu = att_to_mu(14 * dB)
-
+        self.start_time_s = 0.  # store runtime to check timeout
 
         '''
         CAMERA SETUP
         '''
-        # todo: process image x/y position
-        # todo: get image height and width from camera arguments (info_detector_dimensions)
-        self.IMAGE_HEIGHT = 512
-        self.IMAGE_WIDTH =  512
-        border_x, border_y = ((self.IMAGE_WIDTH - self.image_width_pixels) / 2,
-                              (self.IMAGE_HEIGHT - self.image_height_pixels) / 2)
-        start_x, start_y =  (int(border_x), int(border_y))
-        end_x, end_y =      (int(self.IMAGE_WIDTH - border_x) - 1,
-                             int(self.IMAGE_WIDTH - border_y) - 1)
+        # get image height and width from camera arguments (info_detector_dimensions)
+        IMAGE_WIDTH, IMAGE_HEIGHT = self.camera.detector_dimensions
+        # process specified image region in terms of width and position
+        start_x, start_y = (
+            max(1, self.image_center_x - self.image_width_pixels / 2),
+            max(1, self.image_center_y - self.image_width_pixels / 2)
+        )
+        end_x, end_y = (
+            min(IMAGE_WIDTH, self.image_center_x + self.image_width_pixels/2 - 1),
+            min(IMAGE_HEIGHT, self.image_center_y + self.image_width_pixels/2 - 1)
+        )
         self.image_region = (self.horizontal_binning, self.vertical_binning,
-                             start_x, end_x, start_y, end_y)
+                             int(start_x), int(end_x), int(start_y), int(end_y))
+        self.set_dataset("camera_image_region", self.image_region, broadcast=False)
 
 
         '''
@@ -159,37 +177,24 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # todo: migrate data storage to a dataset so we can re-process images later
         year_month =        datetime.today().strftime('%Y-%m')
         year_month_day =    datetime.today().strftime('%Y-%m-%d')
-        self.data_path = os.path.join(self.BASE_PATH, year_month, year_month_day)
+        self.data_path = os.path.join(self.path_image_save, year_month, year_month_day)
         # ensure data folder exists; create it if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
 
 
     '''
-    MAIN SEQUENCE
+    INITIALIZATION & CLEANUP
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # store attenuations to prevent overriding
-        self.pump.beam.cpld.get_att_mu()
-        self.core.break_realtime()
-
-        # set readout profile for beams
+        # set readout profile for beams and turn them on
         self.pump.readout()
-        self.pump.set_att_mu(self.att_397_mu)
-        self.repump_qubit.set_att_mu(self.att_854_mu)
-        delay_mu(10000)
-        self.repump_cooling.set_att_mu(self.att_866_mu)
-        delay_mu(8000)
-        # turn on lasers
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
-        delay_mu(2000)
 
-        # deterministically set flipper to camera
+        # deterministically set flipper to camera and synchronize timeline
         self.set_flipper_to_camera()
-
-        # synchronize timeline
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
@@ -199,7 +204,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Initialize labrad devices via RPC.
         """
         print("\tINITIALIZE - BEGIN")
-        # note: need try/except block here b/c initialize_experiment can't have try/except
+        # note: try/except block must be here b/c initialize_experiment can't have
+        #   try/except (b/c it's a kernel_from_string, which makes try/except difficult)
         try:
             '''SET UP CAMERA'''
             # set camera region of interest and exposure time
@@ -237,122 +243,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("\tINITIALIZE - FINISH")
 
     @rpc
-    def run_main(self) -> TNone:
-        """
-        Run till ion is loaded or timeout.
-        """
-        # get start time to check if we exceed max time
-        self.start_time_s = time()
-
-        # run loading loop until we load desired_num_of_ions
-        num_ions = 0
-
-        try:
-            while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
-                self.check_termination()
-
-                # load ions if below desired count
-                if num_ions < self.desired_num_of_ions:
-                    self.initialize_labrad_devices()
-                    num_ions = self.load_ion()
-
-                # eject excess ions via A-ramping (if enabled)
-                elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
-                    self.cleanup_devices()
-                    num_ions = self.aramp_ions()
-
-                # otherwise, simply stop execution
-                elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
-                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
-                    break
-
-            print("\tLOADING COMPLETE - CLEANING UP.")
-
-        # note: no need to cleanup if TerminationRequested b/c check_termination does it automatically
-        except TerminationRequested:
-            print("Termination Requested - terminating.")
-
-        # catch all other errors
-        except Exception as e:
-            print("Error: {:}\nStopping execution & cleaning up.".format(repr(e)))
-            self.cleanup_devices()
-
-        # if no error, simply clean up
-        else:
-            self.cleanup_devices()
-
-
-    """
-    HELPER FUNCTIONS
-    """
-    @rpc
-    def load_ion(self) -> TInt32:
-        """
-        Function for loading an ion.
-        Returns:
-            TInt32: number of ions in trap
-        """
-        print("\tLOAD ION - BEGIN:")
-
-        # define some variables for later use
-        ion_spottings = 0
-
-        # run loop while we don't see ions
-        while True:
-            # extract number of ions on camera
-            num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_manipulated.png')
-
-            # check if we've reached a stop condition (e.g. max_time reached, termination_requested)
-            if (time() - self.start_time_s) > self.time_runtime_max_s:
-                print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
-                return -1
-            else:
-                self.check_termination()
-
-            # check to see if we have loaded enough ions
-            if num_ions >= self.desired_num_of_ions:
-                ion_spottings += 1
-                # ensure camera sees ion in 3 consecutive images to prevent singular false positive
-                if ion_spottings >= 3:
-                    print("\t\t{:d} ION(s) LOADED".format(num_ions))
-                    return num_ions
-            else:
-                ion_spottings = 0  # reset if image analysis shows no ions in trap
-
-        return 0
-
-    @rpc
-    def aramp_ions(self) -> TInt32:
-        """
-        Pulse A-ramp to get rid of excess ions.
-        Returns:
-            TInt32: Number of ions.
-        """
-        # todo: catch error conditions
-        self.aperture.open_aperture()
-
-        print("\tARAMP EJECTION - START")
-        for aramp_voltage in self.aramp_ions_voltage_list:
-            self.check_termination()
-
-            # pulse A-ramp for given period
-            print("\t\tARAMPING @ VOLTAGE: {:.1f} V".format(aramp_voltage))
-            self.trap_dc.set_aramp_voltage(aramp_voltage)
-            sleep(self.time_aramp_pulse_s)
-            self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-            sleep(self.time_aramp_pulse_s)
-
-            # get number of ions
-            num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
-            print("\t\tIONS REMAINING: {:d}".format(num_ions))
-            if num_ions <= self.desired_num_of_ions:
-                return num_ions
-
-        self.aperture.close_aperture()
-
-        return 0
-
-    @rpc
     def cleanup_devices(self) -> TNone:
         """
         Set all devices to states as if ion was loaded.
@@ -388,10 +278,121 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # note: do this last to keep ion happy during voltage adjustments
         self.aperture.close_aperture()
 
-        if self.set_to_pmt_after_loading:
-            self.flipper.flip()
-
+        if self.set_to_pmt_after_loading: self.flipper.flip()
         print("\tCLEANUP - FINISH")
+
+
+    """
+    MAIN LOGIC
+    """
+    @rpc
+    def run_main(self) -> TNone:
+        """
+        Run till ion is loaded or timeout.
+        """
+        num_ions = 0    # run loading loop until we load desired_num_of_ions
+        self.start_time_s = time()  # get start time so we know if we exceed max time
+
+        try:
+            while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
+                self.check_termination()    # periodically check termination
+
+                # load ions if below desired count
+                if num_ions < self.desired_num_of_ions:
+                    self.initialize_labrad_devices()
+                    num_ions = self.load_ion()
+
+                # eject excess ions via A-ramping (if enabled)
+                elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
+                    self.cleanup_devices()
+                    num_ions = self.aramp_ions()
+
+                # otherwise, simply stop execution
+                elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
+                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
+                    break
+
+            print("\tLOADING COMPLETE - CLEANING UP.")
+
+        # note: no need to cleanup if TerminationRequested b/c check_termination does it automatically
+        except TerminationRequested:
+            print("Termination Requested - terminating.")
+
+        # catch all other errors
+        except Exception as e:
+            print("Error: {:}\nStopping execution & cleaning up.".format(repr(e)))
+            self.cleanup_devices()
+
+        # if no error, simply clean up
+        else:   self.cleanup_devices()
+
+    @rpc
+    def load_ion(self) -> TInt32:
+        """
+        Function for loading an ion.
+        This function runs continuously and blocks, stopping only when either sufficient ions are loaded,
+            or until we time out.
+        Returns:
+            TInt32: number of detected ions in the trap
+        """
+        print("\tLOAD ION - BEGIN:")
+        ion_spottings = 0   # improve detection certainty by lowpass filtering detection events
+
+        # run loop while we don't see ions
+        while True:
+            # extract number of ions on camera
+            num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_manipulated.png')
+
+            # check if we've reached a stop condition (e.g. max_time reached, termination_requested)
+            if (time() - self.start_time_s) > self.time_runtime_max_s:
+                print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
+                return -1
+            else:   self.check_termination()
+
+            # check to see if we have loaded enough ions
+            if num_ions >= self.desired_num_of_ions:
+                ion_spottings += 1
+                # ensure camera sees ion in 3 consecutive images to prevent singular false positive
+                if ion_spottings >= 3:
+                    print("\t\t{:d} ION(s) LOADED".format(num_ions))
+                    return num_ions
+            else:   ion_spottings = 0  # reset if image analysis shows no ions in trap
+
+        return 0
+
+    @rpc
+    def aramp_ions(self) -> TInt32:
+        """
+        Pulse A-ramp to get rid of excess ions.
+        The A-ramp voltage progresses with aramp_ions_voltage_list until either the excess ions are ejected,
+            or we reach the end of the list.
+        This function runs continuously and blocks, stopping only when sufficient ions are jected,
+            or until we time out.
+        Returns:
+            TInt32: Number of ions.
+        """
+        # todo: catch error conditions
+        self.aperture.open_aperture()
+
+        print("\tARAMP EJECTION - START")
+        for aramp_voltage in self.aramp_ions_voltage_list:
+            self.check_termination()
+
+            # pulse A-ramp for given period
+            print("\t\tARAMPING @ VOLTAGE: {:.1f} V".format(aramp_voltage))
+            self.trap_dc.set_aramp_voltage(aramp_voltage)
+            sleep(self.time_aramp_pulse_s)
+            self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
+            sleep(self.time_aramp_pulse_s)
+
+            # get number of ions
+            num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
+            print("\t\tIONS REMAINING: {:d}".format(num_ions))
+            if num_ions <= self.desired_num_of_ions:
+                return num_ions
+
+        self.aperture.close_aperture()
+        return 0
 
     @rpc
     def process_image(self, filepath1: TStr="original.png", filepath2: TStr="manipulated.png") -> TInt32:
@@ -403,12 +404,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Returns:
             TInt32: Number of ions in the trap
         """
-        # update completion monitor
-        self.update_completion_monitor(time() - self.start_time_s)
+        self.update_completion_monitor(time() - self.start_time_s)  # update completion monitor
 
         # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
-        data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
+        data = np.reshape(image_arr, (self.image_width_pixels, self.image_width_pixels))
         imsave(os.path.join(self.data_path, filepath1), data)
 
         # threshold & rescale data
@@ -422,9 +422,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # extract ion positions
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
-        accums, cxs, cys, radii = hough_circle_peaks(circles, guess_radii,
-                                                     min_xdistance=1, min_ydistance=1,
-                                                     threshold=0.95)
+        accums, cxs, cys, radii = hough_circle_peaks(
+            circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
 
         # create unique list of cx, cy coordinates
         unique_locs = set(tuple(
@@ -433,32 +432,123 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         ))
         return len(unique_locs)
 
+
+    """
+    HELPER FUNCTIONS
+    """
     @kernel(flags={"fast-math"})
     def set_flipper_to_camera(self) -> TNone:
         """
         Set the flipper to send light to the camera.
         """
+        ### PREPARE 397nm (BEAM AND APERTURE TO CHARACTERIZE SCATTER ###
+        # ensure aperture is open w/397nm off to ensure camera/PMT configuration is successful
+        self.core.break_realtime()
+        self.pump.beam.set_att(31.5 * dB)   # have to set att b/c readout.run() turns on beams
+        self.aperture.open_aperture()
+        sleep(2)    # add delay to ensure aperture closes successfully
+
+
+        ### check PMT and camera status ###
+        # get PMT and camera counts with aperture open
+        self.core.wait_until_mu(now_mu())
+        pmt_start_avg, pmt_start_std = self._burst_pmt()
+        cam_start_avg, cam_start_std = self._burst_cam()
+        print('\t\tpmt w/AP OPEN:', pmt_start_avg, '\t', pmt_start_std)
+        print('\t\tcam w/AP OPEN:', cam_start_avg, '\t', cam_start_std)
+
+        # get PMT and camera counts with aperture closed
+        self.core.wait_until_mu(now_mu())
+        self.aperture.close_aperture()
+        sleep(2)    # add delay to ensure aperture closes successfully
+        self.core.wait_until_mu(now_mu())
+        pmt_stop_avg, pmt_stop_std = self._burst_pmt()
+        cam_stop_avg, cam_stop_std = self._burst_cam()
+        print('\t\tpmt w/397 ON:', pmt_stop_avg, '\t', pmt_stop_std)
+        print('\t\tcam w/397 ON:', cam_stop_avg, '\t', cam_stop_std)
+
+        # return 397nm att to normal
+        self.core.break_realtime()
+        self.pump.beam.set_att_mu(self.pump.att_pump_mu)
+
+
+        ### DETERMINE FLIPPER STATUS AND FLIP ACCORDINGLY ###
+        # determine whether flipper set to camera or PMT based on ability to register 397nm on/off
+        #   above some threshold (determined as a multiple of the stdev)
+        flip_status_pmt = (
+                abs(pmt_start_avg - pmt_stop_avg) >
+                self.pmt_flip_threshold_std * min(pmt_start_std, pmt_stop_std)
+        )
+        flip_status_cam = (
+                abs(cam_start_avg - cam_stop_avg) >
+                self.cam_flip_threshold_avg * min(cam_start_avg, cam_stop_avg)
+        )
+        # tmp remove
+        print('\t\tval pmt:', abs(pmt_start_avg - pmt_stop_avg))
+        print('\t\tthreshold pmt:', self.pmt_flip_threshold_std * min(pmt_start_std, pmt_stop_std))
+        print('\t\tval cam:', abs(cam_start_avg - cam_stop_avg))
+        print('\t\tthreshold cam:', self.cam_flip_threshold_avg * min(cam_start_avg, cam_stop_avg))
+        print('\t\tflip status pmt:', flip_status_pmt)
+        print('\t\tflip status cam:', flip_status_cam)
+        # tmp remove
+
+        # flip flipper according to status
+        if flip_status_pmt and (not flip_status_cam):   # flipper set to PMT => flip to cam
+            self.flipper.flip()
+        elif (not flip_status_pmt) and flip_status_cam: # flipper already on cam => flip to PMT
+            pass
+        elif flip_status_pmt == flip_status_cam:        # error condition
+            raise ValueError("PROBLEM: unable to determine whether flipper set to camera or PMT.")
+
+    @kernel(flags={"fast-math"})
+    def _burst_pmt(self) -> TTuple([TFloat, TFloat]):
+        """
+        Record PMT counts in a burst.
+        :return: avg and std of the PMT counts (i.e. tuple(counts_avg, counts_std))
+        """
+        counts = [0] * self.pmt_sample_num  # store counts
+
         # store PMT count events
+        self.core.break_realtime()
         for i in range(self.pmt_sample_num):
             self.readout_subsequence.run()
             delay_mu(128)
-        delay_mu(25000)
+        self.core.break_realtime()
 
         # retrieve counts from PMT
-        counts = 0
         for i in range(self.pmt_sample_num):
-            counts += self.readout_subsequence.fetch_count()
+            counts[i] = self.readout_subsequence.fetch_count()
             delay_mu(128)
 
-        # if PMT counts are below the dark count threshold flip again
-        if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
-            self.flipper.flip()
-        self.core.break_realtime()
+        # calculate count statistics - mean
+        counts_avg = 0.
+        for val in counts:
+            counts_avg += val
+        counts_avg /= self.pmt_sample_num
+
+        # calculate count statistics - stdev
+        counts_std = 0.
+        for val in counts:
+            counts_std += (val - counts_avg) ** 2
+        counts_std = np.sqrt(counts_std / (self.pmt_sample_num - 1))
+        return counts_avg, counts_std
+
+    @rpc
+    def _burst_cam(self) -> TTuple([TFloat, TFloat]):
+        """
+        Record camera counts in a burst.
+        :return: avg and std of the camera counts.
+        """
+        cam_vals = np.zeros(self.cam_sample_num)
+        for i in range(self.cam_sample_num):
+            cam_vals[i] = np.sum(self.camera.get_most_recent_image())
+
+        return np.mean(cam_vals), np.std(cam_vals)
 
     @rpc
     def check_termination(self) -> TNone:
         """
-        OVERRIDE base check_termination to ensure devices are always cleaned up
+        OVERRIDE base check_termination to ensure devices always clean up
         in case of termination.
         """
         if self.scheduler.check_termination():
@@ -467,6 +557,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     @rpc(flags={"async"})
     def update_completion_monitor(self, elapsed_time_s: TFloat) -> TNone:
+        """
+        Update the completion monitor to inform user of elapsed loading time.
+        :param elapsed_time_s: elapsed time in seconds.
+        """
         self.set_dataset('management.dynamic.completion_pct',
                          round(elapsed_time_s / self.time_runtime_max_s * 100., 3),
                          broadcast=True, persist=True, archive=False)
+
