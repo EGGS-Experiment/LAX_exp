@@ -8,15 +8,12 @@ from datetime import datetime
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import Readout
-
 from skimage.transform import hough_circle, hough_circle_peaks
 # todo: save image before anything
 # todo: save image after ready to load
 # todo: save image immediately before ion detected (store running holder of old data)
 # todo: save image after ion detected but not yet cleaned up
 # todo: save image after ion detected and after cleanup
-
-# todo: improve pmt/camera setting - currently check that PMT is dark, but also need to check that camera is bright
 
 
 class IonLoadAndAramp(LAXExperiment, Experiment):
@@ -31,7 +28,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # hardware values
 
         # magic numbers
-        "pmt_sample_num", "pmt_dark_threshold_counts",
+        "pmt_sample_num", "pmt_dark_threshold_counts", "pmt_flip_threshold_std",
+        "cam_sample_num", "cam_flip_threshold_avg",
         "time_runtime_max_s", "start_time_s", "time_aramp_pulse_s",
 
         # camera configuration
@@ -134,11 +132,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # define magic numbers
         # todo: document these
-        self.pmt_sample_num = 30
         self.pmt_dark_threshold_counts = 15
         self.time_runtime_max_s = 480.
         self.time_aramp_pulse_s = 2.
         self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
+
+        self.pmt_sample_num = 100
+        self.pmt_flip_threshold_std = 2
+        self.cam_sample_num = 10
+        self.cam_flip_threshold_avg = 0.15
 
     def prepare_experiment(self):
         """
@@ -185,18 +187,14 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     '''
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
-        # todo: maybe use precompile for initialize_experiment?
         # set readout profile for beams and turn them on
         self.pump.readout()
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
-        delay_mu(25000)
 
-        # deterministically set flipper to camera
+        # deterministically set flipper to camera and synchronize timeline
         self.set_flipper_to_camera()
-
-        # synchronize timeline
         self.core.wait_until_mu(now_mu())
         self.core.break_realtime()
 
@@ -443,23 +441,109 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         Set the flipper to send light to the camera.
         """
+        ### PREPARE 397nm (BEAM AND APERTURE TO CHARACTERIZE SCATTER ###
+        # ensure aperture is open w/397nm off to ensure camera/PMT configuration is successful
+        self.core.break_realtime()
+        self.pump.beam.set_att(31.5 * dB)   # have to set att b/c readout.run() turns on beams
+        self.aperture.open_aperture()
+        sleep(2)    # add delay to ensure aperture closes successfully
+
+
+        ### check PMT and camera status ###
+        # get PMT and camera counts with aperture open
+        self.core.wait_until_mu(now_mu())
+        pmt_start_avg, pmt_start_std = self._burst_pmt()
+        cam_start_avg, cam_start_std = self._burst_cam()
+        print('\t\tpmt w/AP OPEN:', pmt_start_avg, '\t', pmt_start_std)
+        print('\t\tcam w/AP OPEN:', cam_start_avg, '\t', cam_start_std)
+
+        # get PMT and camera counts with aperture closed
+        self.core.wait_until_mu(now_mu())
+        self.aperture.close_aperture()
+        sleep(2)    # add delay to ensure aperture closes successfully
+        self.core.wait_until_mu(now_mu())
+        pmt_stop_avg, pmt_stop_std = self._burst_pmt()
+        cam_stop_avg, cam_stop_std = self._burst_cam()
+        print('\t\tpmt w/397 ON:', pmt_stop_avg, '\t', pmt_stop_std)
+        print('\t\tcam w/397 ON:', cam_stop_avg, '\t', cam_stop_std)
+
+        # return 397nm att to normal
+        self.core.break_realtime()
+        self.pump.beam.set_att_mu(self.pump.att_pump_mu)
+
+
+        ### DETERMINE FLIPPER STATUS AND FLIP ACCORDINGLY ###
+        # determine whether flipper set to camera or PMT based on ability to register 397nm on/off
+        #   above some threshold (determined as a multiple of the stdev)
+        flip_status_pmt = (
+                abs(pmt_start_avg - pmt_stop_avg) >
+                self.pmt_flip_threshold_std * min(pmt_start_std, pmt_stop_std)
+        )
+        flip_status_cam = (
+                abs(cam_start_avg - cam_stop_avg) >
+                self.cam_flip_threshold_avg * min(cam_start_avg, cam_stop_avg)
+        )
+        # tmp remove
+        print('\t\tval pmt:', abs(pmt_start_avg - pmt_stop_avg))
+        print('\t\tthreshold pmt:', self.pmt_flip_threshold_std * min(pmt_start_std, pmt_stop_std))
+        print('\t\tval cam:', abs(cam_start_avg - cam_stop_avg))
+        print('\t\tthreshold cam:', self.cam_flip_threshold_avg * min(cam_start_avg, cam_stop_avg))
+        print('\t\tflip status pmt:', flip_status_pmt)
+        print('\t\tflip status cam:', flip_status_cam)
+        # tmp remove
+
+        # flip flipper according to status
+        if flip_status_pmt and (not flip_status_cam):   # flipper set to PMT => flip to cam
+            self.flipper.flip()
+        elif (not flip_status_pmt) and flip_status_cam: # flipper already on cam => flip to PMT
+            pass
+        elif flip_status_pmt == flip_status_cam:        # error condition
+            raise ValueError("PROBLEM: unable to determine whether flipper set to camera or PMT.")
+
+    @kernel(flags={"fast-math"})
+    def _burst_pmt(self) -> TTuple([TFloat, TFloat]):
+        """
+        Record PMT counts in a burst.
+        :return: avg and std of the PMT counts (i.e. tuple(counts_avg, counts_std))
+        """
+        counts = [0] * self.pmt_sample_num  # store counts
+
         # store PMT count events
+        self.core.break_realtime()
         for i in range(self.pmt_sample_num):
             self.readout_subsequence.run()
             delay_mu(128)
-        delay_mu(25000)
+        self.core.break_realtime()
 
         # retrieve counts from PMT
-        counts = 0
         for i in range(self.pmt_sample_num):
-            counts += self.readout_subsequence.fetch_count()
+            counts[i] = self.readout_subsequence.fetch_count()
             delay_mu(128)
-        self.core.break_realtime()
 
-        # if PMT counts are below the dark count threshold flip again
-        if counts > (self.pmt_dark_threshold_counts * self.pmt_sample_num):
-            self.flipper.flip()
-        self.core.break_realtime()
+        # calculate count statistics - mean
+        counts_avg = 0.
+        for val in counts:
+            counts_avg += val
+        counts_avg /= self.pmt_sample_num
+
+        # calculate count statistics - stdev
+        counts_std = 0.
+        for val in counts:
+            counts_std += (val - counts_avg) ** 2
+        counts_std = np.sqrt(counts_std / (self.pmt_sample_num - 1))
+        return counts_avg, counts_std
+
+    @rpc
+    def _burst_cam(self) -> TTuple([TFloat, TFloat]):
+        """
+        Record camera counts in a burst.
+        :return: avg and std of the camera counts.
+        """
+        cam_vals = np.zeros(self.cam_sample_num)
+        for i in range(self.cam_sample_num):
+            cam_vals[i] = np.sum(self.camera.get_most_recent_image())
+
+        return np.mean(cam_vals), np.std(cam_vals)
 
     @rpc
     def check_termination(self) -> TNone:
