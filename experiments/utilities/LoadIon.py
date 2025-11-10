@@ -147,16 +147,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         '''
         HARDWARE VALUES
         '''
-        # store runtimes
-        self.start_time_s = 0.
-
-        # get DDS attenuations
-        self.att_397_mu =  self.get_parameter('att_pump_db', group='beams.att_db',
-                                               override=False, conversion_function=att_to_mu)
-        self.att_866_mu =  self.get_parameter('att_repump_cooling_db', group='beams.att_db',
-                                              override=False, conversion_function=att_to_mu)
-        self.att_854_mu =  self.get_parameter('att_repump_qubit_db', group='beams.att_db',
-                                              override=False, conversion_function=att_to_mu)
+        self.start_time_s = 0.  # store runtime to check timeout
 
         '''
         CAMERA SETUP
@@ -195,22 +186,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # todo: maybe use precompile for initialize_experiment?
-        # store attenuations to prevent overriding
-        self.pump.beam.cpld.get_att_mu()
-        self.core.break_realtime()
-
-        # set readout profile for beams
+        # set readout profile for beams and turn them on
         self.pump.readout()
-        self.pump.set_att_mu(self.att_397_mu)
-        self.repump_qubit.set_att_mu(self.att_854_mu)
-        delay_mu(10000)
-        self.repump_cooling.set_att_mu(self.att_866_mu)
-        delay_mu(8000)
-        # turn on lasers
         self.pump.on()
         self.repump_qubit.on()
         self.repump_cooling.on()
-        delay_mu(2000)
+        delay_mu(25000)
 
         # deterministically set flipper to camera
         self.set_flipper_to_camera()
