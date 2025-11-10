@@ -16,11 +16,7 @@ from skimage.transform import hough_circle, hough_circle_peaks
 # todo: save image after ion detected but not yet cleaned up
 # todo: save image after ion detected and after cleanup
 
-# todo: save image values to an artiq dataset so we can view via widget
-# todo: save image region parameters
 # todo: improve pmt/camera setting - currently check that PMT is dark, but also need to check that camera is bright
-
-# todo: ensure everything relevant is kern_inv
 
 
 class IonLoadAndAramp(LAXExperiment, Experiment):
@@ -30,14 +26,16 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
     Automatically load ions via resistive oven and eject excess via A-ramp.
     """
     name = 'Ion Load and Aramp'
-    BASE_PATH = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
     kernel_invariants = {
         # hardware values
 
-        "time_runtime_max_s", "start_time_s",
-        "IMAGE_HEIGHT", "IMAGE_WIDTH", "image_region", "data_path",
-        "time_aramp_pulse_s"
+        # magic numbers
+        "pmt_sample_num", "pmt_dark_threshold_counts",
+        "time_runtime_max_s", "start_time_s", "time_aramp_pulse_s",
+
+        # camera configuration
+        "image_region", "path_image_save", "data_path",
     }
 
     def build_experiment(self):
@@ -99,16 +97,22 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                               group='Camera',
                               tooltip="Set the flipper to the PMT after loading.\n"
                                       "Useful for pipelining experiment operation.")
-        self.setattr_argument('image_center_x', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument('image_center_x', NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
                               tooltip="Image center position (x).")
-        self.setattr_argument('image_center_y', NumberValue(default=400, min=1, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument('image_center_y', NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
                               tooltip="Image center position (y).")
-        self.setattr_argument('image_width_pixels', NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+        self.setattr_argument('image_width_pixels', NumberValue(default=350, min=100, max=450, step=50, precision=0, scale=1, unit="pixels"),
                               group='Camera',
-                              tooltip="Width of the total 512x512 image region on camera. Defined relative to the center (i.e. [256, 256]).")
-        self.setattr_argument('image_height_pixels',    NumberValue(default=400, min=100, max=512, step=50, scale=1, precision=0, unit="pixels"),
+                              tooltip="Square width of the total 512x512 image region on camera.\n"
+                                      "Defined relative to (image_center_x, image_center_y).\n"
+                                      "Note: too large an image width (~450 pixels) may contain scatter and confuse the analysis.")
+        self.setattr_argument('horizontal_binning', NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
+                              group='Camera',
+                              tooltip="Horizontal pixel bin size to set on camera.\n"
+                                      "Note: this is software binning, as opposed to hardware binning.")
+        self.setattr_argument('vertical_binning',   NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
                               group='Camera',
                               tooltip="Vertical pixel bin size to set on camera.\n"
                                       "Note: this is software binning, as opposed to hardware binning.")
@@ -128,43 +132,49 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.setattr_device('camera')
         self.setattr_device('flipper')
 
+        # define magic numbers
+        # todo: document these
+        self.pmt_sample_num = 30
+        self.pmt_dark_threshold_counts = 15
+        self.time_runtime_max_s = 480.
+        self.time_aramp_pulse_s = 2.
+        self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
+
     def prepare_experiment(self):
         """
-        Prepare experimental values and precompute/preallocate
-        to reduce kernel overheads.
+        Prepare experimental values and precompute/preallocate to reduce kernel overheads.
         """
         '''
         HARDWARE VALUES
         '''
-        # magic numbers
-        self.pmt_sample_num = 30
-        self.pmt_dark_threshold_counts = 15
-        self.time_runtime_max_s = 900.
-        self.start_time_s = np.int64(0)
-        self.time_aramp_pulse_s = 2.
+        # store runtimes
+        self.start_time_s = 0.
 
-        # set attenuations (per Josh's request)
-        # todo: get these from dataset manager
-        # todo: actually - maybe not necessary anymore
-        self.att_397_mu = att_to_mu(14 * dB)
-        self.att_854_mu = att_to_mu(14 * dB)
-        self.att_866_mu = att_to_mu(14 * dB)
-
+        # get DDS attenuations
+        self.att_397_mu =  self.get_parameter('att_pump_db', group='beams.att_db',
+                                               override=False, conversion_function=att_to_mu)
+        self.att_866_mu =  self.get_parameter('att_repump_cooling_db', group='beams.att_db',
+                                              override=False, conversion_function=att_to_mu)
+        self.att_854_mu =  self.get_parameter('att_repump_qubit_db', group='beams.att_db',
+                                              override=False, conversion_function=att_to_mu)
 
         '''
         CAMERA SETUP
         '''
-        # todo: process image x/y position
-        # todo: get image height and width from camera arguments (info_detector_dimensions)
-        self.IMAGE_HEIGHT = 512
-        self.IMAGE_WIDTH =  512
-        border_x, border_y = ((self.IMAGE_WIDTH - self.image_width_pixels) / 2,
-                              (self.IMAGE_HEIGHT - self.image_height_pixels) / 2)
-        start_x, start_y =  (int(border_x), int(border_y))
-        end_x, end_y =      (int(self.IMAGE_WIDTH - border_x) - 1,
-                             int(self.IMAGE_WIDTH - border_y) - 1)
+        # get image height and width from camera arguments (info_detector_dimensions)
+        IMAGE_WIDTH, IMAGE_HEIGHT = self.camera.detector_dimensions
+        # process specified image region in terms of width and position
+        start_x, start_y = (
+            max(1, self.image_center_x - self.image_width_pixels / 2),
+            max(1, self.image_center_y - self.image_width_pixels / 2)
+        )
+        end_x, end_y = (
+            min(IMAGE_WIDTH, self.image_center_x + self.image_width_pixels/2 - 1),
+            min(IMAGE_HEIGHT, self.image_center_y + self.image_width_pixels/2 - 1)
+        )
         self.image_region = (self.horizontal_binning, self.vertical_binning,
-                             start_x, end_x, start_y, end_y)
+                             int(start_x), int(end_x), int(start_y), int(end_y))
+        self.set_dataset("camera_image_region", self.image_region, broadcast=False)
 
 
         '''
@@ -174,7 +184,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # todo: migrate data storage to a dataset so we can re-process images later
         year_month =        datetime.today().strftime('%Y-%m')
         year_month_day =    datetime.today().strftime('%Y-%m-%d')
-        self.data_path = os.path.join(self.BASE_PATH, year_month, year_month_day)
+        self.data_path = os.path.join(self.path_image_save, year_month, year_month_day)
         # ensure data folder exists; create it if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
 
@@ -419,7 +429,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
-        data = np.reshape(image_arr, (self.image_width_pixels, self.image_height_pixels))
+        data = np.reshape(image_arr, (self.image_width_pixels, self.image_width_pixels))
         imsave(os.path.join(self.data_path, filepath1), data)
 
         # threshold & rescale data
