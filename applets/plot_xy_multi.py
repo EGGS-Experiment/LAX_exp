@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Forked from CampbellGroup @ UCLA: https://github.com/CampbellGroup/Yaax
+(which is in turn forked from DAX: https://gitlab.com/duke-artiq/dax-applets/-/blob/master/dax_applets/plot_xy_multi.py)
 """
 import pyqtgraph
 import numpy as np
