@@ -553,7 +553,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # set oscillator phases (accounting for oscillator update delays)
         # WARNING: use mean of osc freqs b/c bother to record waveform for each osc freq; result is
         #   that osc phases incur frequency-dependent error => ~0.1 turns @ 800 kHz relative osc freq
-        freq_osc_sweep_avg_hz = mean(self.freq_osc_sweep_khz_list) * kHz
+        freq_osc_sweep_avg_hz = mean(list(self.freq_osc_sweep_khz_list)) * kHz
         t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list + self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
