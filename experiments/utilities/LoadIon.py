@@ -155,7 +155,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         CAMERA SETUP
         '''
         # get image height and width from camera arguments (info_detector_dimensions)
-        IMAGE_WIDTH, IMAGE_HEIGHT = self.camera.detector_dimensions
+        IMAGE_WIDTH, IMAGE_HEIGHT = self.camera.acquire_detector_dimensions()
+
         # process specified image region in terms of width and position
         start_x, start_y = (
             max(1, self.image_center_x - self.image_width_pixels / 2),
