@@ -4,7 +4,15 @@ from numpy import array, int32, int64, ndarray
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXEnvironment
 
+# max waveforms recordable onto DMA with PhaserPulseShaper
 PULSESHAPER_MAX_WAVEFORMS = 201
+
+# relative delays between oscillators
+PHASER_OSC_DELAY_NS = [0, 40e-9, 80e-9, 80e-9, 120e-9]
+
+# indices of components inside an osc_val_block
+_IDX_OSC_AMPL = 0
+_IDX_OSC_PHAS = 1
 
 
 class PhaserPulseShaper(LAXEnvironment):
