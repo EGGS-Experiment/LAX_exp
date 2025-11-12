@@ -312,8 +312,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                       unit="us", scale=1, precision=5
                                                   ),
                               group="{}.psk".format(_argstr),
-                              tooltip="Delay time (in us) delay between PSK pulses. Used for ramsey-ing.\n"
-                                      "Note: enable_phase_shift_keying AND enable_psk_delay must be True.")
+                              tooltip="Delay time (in us) delay between PSK pulses. Used for ramsey-ing.")
 
     def prepare_experiment(self):
         """
@@ -377,9 +376,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         '''
         # collate waveform sweep parameters into a list for later batch compilation
         # todo: ensure delay times only in 320ns steps
-        if self.enable_phase_shift_keying and self.enable_psk_delay:
-            time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
-        else: time_psk_delay_us_list_dj = [0]
+        time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
 
         if self.enable_wav_scale: wav_osc_scale_list = list(self.wav_osc_scale_list)
         else: wav_osc_scale_list = [1.]
@@ -414,6 +411,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         if not all(0 <= fock_num <= 3 for fock_num in self.fock_num_overlap):
             raise ValueError("Invalid fock states in fock_num_overlap. Must be ints in [0, 3].")
 
+
         '''
         CHECK PHASER BASE OSC CONFIG
         '''
@@ -424,6 +422,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         elif sum(self.ampl_osc_frac_list) >= 100.:
             raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
         # todo: account for wav_osc_scale_list
+        # todo: check wav_osc_scale_list
 
         # check that phaser oscillator phase arrays are valid
         if ((not isinstance(self.phase_osc_turns_list, list)) or
@@ -452,20 +451,31 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
 
         '''
-        CHECK PHASER WAVEFORM CONFIG
+        CHECK WAVEFORM SCHEDULING/DESIGN
         '''
+        # todo: valid waveform schedules for sequence
+        # todo: sequence only positive numeric or "d"
+        # todo: all oscs have valid schedules
+        # todo: oscs only have list/tuple numeric 2D or "d"
+        # todo: everyone has "d" in same place
+        # todo: will probably have to parse lists here again
+        # todo: all osc schedule values are OK (in [0,1] for ampl and [-1,1] fpr phase)
+
         # check that PSK schedule is valid
         num_psk_blocks = len(self.phase_osc0_psk_turns)
-        psk_schedule_invalid = self.enable_phase_shift_keying and any([
+        psk_schedule_invalid = any(
             (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_psk_blocks)
             for psk_schedule in (
                 self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                 self.phase_osc2_psk_turns, self.phase_osc3_psk_turns
             )
-        ])
-        if psk_schedule_invalid:
-            raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
+        )
+        if psk_schedule_invalid: raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
 
+
+        '''
+        CHECK PHASER WAVEFORM SCANNING
+        '''
         # ensure that sweep targets are lists of appropriate length
         if not (isinstance(self.phase_sweep_arr, list) and (len(self.phase_sweep_arr) == self._num_phaser_oscs)):
             raise ValueError("Invalid phase_sweep_arr: {:}.\nphase_sweep_arr must be list of length {:d}.".format(
