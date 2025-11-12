@@ -16,10 +16,6 @@ from LAX_exp.system.objects.PhaserPulseShaper import (
     PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS, _IDX_OSC_AMPL, _IDX_OSC_PHAS
 )
 
-# todo: fix exp checks
-# todo: removed psk_delay and enable_phase_shift_keying
-# todo: remove time_heating_us
-
 
 class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
     """
@@ -45,7 +41,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         'profile_729_sb_readout', 'profile_729_SBC', 'profile_729_RAP', 'config_experiment_list',
         '_num_phaser_oscs', 'freq_readout_ftw_list',
 
-        # tmp
+        # fock state generation
         '_fock_gen_handle_names', '_fock_read_handle_names',
     }
 
@@ -216,13 +212,6 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                       "\trate (i.e. 40ns) times the number of oscillators in use.")
 
         # phaser - waveform - general
-        # self.setattr_argument("time_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-        #                       group="{}.wav".format(_argstr),
-        #                       tooltip="Total MAIN pulse time per phaser pulse.\n"
-        #                               "This time is split among all PSK blocks and does not include any PSK delays.\n"
-        #                               "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
-        #                               "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of\n"
-        #                               "\t1ms + 21 * (100us * 2) = 5.2ms.")
         self.setattr_argument("att_phaser_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.wav".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
@@ -272,37 +261,38 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
     def _build_arguments_sequence(self):
         """
-        Set specific arguments for PSK scheduling.
+        Set specific arguments for waveform sequence generation.
         """
-        _argstr = "SDR"  # create short string for argument grouping
+        _argstr = "SDR.sequence"  # create short string for argument grouping
 
         # phaser - composite waveform creation
-        # self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr),
-        #                       tooltip="Enable PSK-ing: break the main pulse into individual blocks with different phases.\n"
-        #                               "Number of PSKs is determined by number of phases in phase_osc<x>_psk_turns.\n"
-        #                               "All oscillator PSK schedules must have same length.")
+        #   tooltip="Total MAIN pulse time per phaser pulse.\n"
+        #           "This time is split among all PSK blocks and does not include any PSK delays.\n"
+        #           "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
+        #           "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of\n"
+        #           "\t1ms + 21 * (100us * 2) = 5.2ms.")
+        #   tooltip="Enable PSK-ing: break the main pulse into individual blocks with different phases.\n"
+        #           "Number of PSKs is determined by number of phases in phase_osc<x>_psk_turns.\n"
+        #           "All oscillator PSK schedules must have same length.")
+        #   tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
+        #           "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
+        #           "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
+        #           "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         # todo: update tooltips
         self.setattr_argument("seq_time_schedule_us", PYONValue([50., "d", 50.]),
-                              group="{}.psk".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="todo: document")
         self.setattr_argument("phase_osc0_psk_turns", PYONValue([[1., 0.], "d", [1, 0.25]]),
-                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc0.")
+                              group="{}".format(_argstr), tooltip="PSK phase schedule for osc0.")
         self.setattr_argument("phase_osc1_psk_turns", PYONValue([[1., 0.], "d", [1, -0.25]]),
-                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc1.")
+                              group="{}".format(_argstr), tooltip="PSK phase schedule for osc1.")
         self.setattr_argument("phase_osc2_psk_turns", PYONValue([[1., 0.], "d", [1, 0.]]),
-                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc2.")
+                              group="{}".format(_argstr), tooltip="PSK phase schedule for osc2.")
         self.setattr_argument("phase_osc3_psk_turns", PYONValue([[0., 0.], "d", [0., 0.]]),
-                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc3.")
+                              group="{}".format(_argstr), tooltip="PSK phase schedule for osc3.")
         self.setattr_argument("phase_osc4_psk_turns", PYONValue([[0., 0.], "d",[0., 0.]]),
-                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc4.")
+                              group="{}".format(_argstr), tooltip="PSK phase schedule for osc4.")
 
-        # phaser - waveform - PSK (i.e. ramsey-style) delay
-        # self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
-        #                       group="{}.psk".format(_argstr),
-        #                       tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-        #                               "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
-        #                               "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
-        #                               "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us_list", Scannable(
                                                       default=[
                                                           ExplicitScan([1000.]),
@@ -311,7 +301,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                       global_min=1, global_max=100000, global_step=1,
                                                       unit="us", scale=1, precision=5
                                                   ),
-                              group="{}.psk".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Delay time (in us) delay between PSK pulses. Used for ramsey-ing.")
 
     def prepare_experiment(self):
@@ -331,7 +321,6 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
 
         # configure readout method
         self.enable_RAP, self.enable_SBR = (False, False)  # default to false for both
-
         if not any(kw in self.readout_type for kw in ('RAP', 'SBR')):
             raise ValueError("Invalid readout type. Must be one of (SBR, RAP, RAP + SBR).")
 
@@ -377,15 +366,12 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # collate waveform sweep parameters into a list for later batch compilation
         # todo: ensure delay times only in 320ns steps
         time_psk_delay_us_list_dj = list(self.time_psk_delay_us_list)
-
         if self.enable_wav_scale: wav_osc_scale_list = list(self.wav_osc_scale_list)
         else: wav_osc_scale_list = [1.]
 
         # create waveform parameter sweep config (for use by _prepare_waveform)
         self._waveform_param_list = create_experiment_config(
-            self.phase_osc_sweep_turns_list,
-            time_psk_delay_us_list_dj,
-            wav_osc_scale_list,
+            self.phase_osc_sweep_turns_list, time_psk_delay_us_list_dj, wav_osc_scale_list,
             shuffle_config=False, config_type=float
         )
         waveform_num_list = arange(len(self._waveform_param_list))
@@ -421,8 +407,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             raise ValueError("Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
         elif sum(self.ampl_osc_frac_list) >= 100.:
             raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
-        # todo: account for wav_osc_scale_list
-        # todo: check wav_osc_scale_list
+        if not all(0 <= val <= 1 for val in self.wav_osc_scale_list):
+            raise ValueError("Invalid values in wav_osc_scale_list. Must be in [0, 1].")
 
         # check that phaser oscillator phase arrays are valid
         if ((not isinstance(self.phase_osc_turns_list, list)) or
@@ -439,8 +425,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         min_osc_freq_hz = (min(list(self.freq_osc_sweep_khz_list)) * kHz +
                            min(self.freq_osc_khz_list) * kHz +
                            (self.freq_global_offset_mhz * MHz))
-        if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
-            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
+        if (max_osc_freq_hz > 10. * MHz) or (min_osc_freq_hz < -10. * MHz):
+            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-10, 10] MHz.")
 
         # ensure phaser output frequency falls within valid DUC bandwidth
         phaser_output_freqs_hz = array(list(self.freq_phaser_carrier_mhz_list)) * MHz
@@ -453,24 +439,44 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         '''
         CHECK WAVEFORM SCHEDULING/DESIGN
         '''
-        # todo: valid waveform schedules for sequence
-        # todo: sequence only positive numeric or "d"
-        # todo: all oscs have valid schedules
-        # todo: oscs only have list/tuple numeric 2D or "d"
-        # todo: everyone has "d" in same place
-        # todo: will probably have to parse lists here again
-        # todo: all osc schedule values are OK (in [0,1] for ampl and [-1,1] fpr phase)
-
-        # check that PSK schedule is valid
-        num_psk_blocks = len(self.phase_osc0_psk_turns)
-        psk_schedule_invalid = any(
-            (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_psk_blocks)
+        # check that waveform schedules have correct length
+        num_sequence_blocks = len(self.seq_time_schedule_us)
+        sequence_length_invalid = any(
+            (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_sequence_blocks)
             for psk_schedule in (
                 self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
                 self.phase_osc2_psk_turns, self.phase_osc3_psk_turns
             )
         )
-        if psk_schedule_invalid: raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
+        if sequence_length_invalid: raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
+
+        # check master timing sequence valid: only positive numerics or "d" (for "delay")
+        if not all(
+                (isinstance(val, (int, float)) and (val > 0))
+                or (val == "d")
+                for val in self.seq_time_schedule_us
+        ): raise ValueError("Invalid seq_time_schedule_us: must contain only positive numerics or 'd'.")
+
+        # check osc wav sequence valid: only lists of [ampl_scale, phas_offset], or "d" (for "delay")
+        osc_seq_list = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                        self.phase_osc3_psk_turns)
+        for idx, osc_seq in enumerate(osc_seq_list):
+            if not all(
+                    (isinstance(val, (list, tuple)) and
+                    len(val) == 2 and
+                    all(isinstance(param, (int, float)) for param in val) and
+                    (0 <= val[_IDX_OSC_AMPL] <= 1) and (-1 <= val[_IDX_OSC_PHAS] <= 1))
+                    or (val == "d")
+                    for val in osc_seq): raise ValueError(
+                "Invalid sequence for phase_osc{:d}_psk_turns: "
+                "must contain only list([ampl_scale, phas_offset]} or 'd'.".format(idx))
+
+        # check all sequences specify delays identically (compare to master schedule)
+        idx_master_seq_list = [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
+        for idx, osc_seq in enumerate(osc_seq_list):
+            if idx_master_seq_list != [idx_d for idx_d, val in enumerate(osc_seq) if val == "d"]:
+                raise ValueError("Invalid sequence for phase_osc{:d}_psk_turns: "
+                                 "must contain only list([ampl_scale, phas_offset]} or 'd'.".format(idx))
 
 
         '''
@@ -493,8 +499,6 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                              "Reduce length of any of [phase_osc_sweep_turns_list, "
                              "time_psk_delay_us_list, wav_osc_scale_list].".format(
                 num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
-
-        # todo: check scaling aligns with pulse shaping
 
     def _prepare_waveform(self) -> TNone:
         """
@@ -696,6 +700,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # programmatically retrieve fock state handles
         # yes, i know it's not predeclared/slow/big overhead, but is better than declaring like 50
         #   kernel variables just to predeclare
+        # todo: use the dma handle type
         fock_gen_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
         fock_read_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
         for idx_fock in range(len(self.fock_num_overlap)):
@@ -708,7 +713,6 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         '''MAIN LOOP'''
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
-
                 '''
                 CONFIGURE
                 '''
@@ -792,8 +796,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                         )
 
                         # check termination more frequently in case reps are low
-                        if _loop_iter % 50 == 0:
-                            self.check_termination()
+                        if _loop_iter % 50 == 0: self.check_termination()
                         _loop_iter += 1
 
             # rescue ion as needed & check termination
