@@ -12,7 +12,13 @@ from LAX_exp.system.subsequences import (
 
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
-from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
+from LAX_exp.system.objects.PhaserPulseShaper import (
+    PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS, _IDX_OSC_AMPL, _IDX_OSC_PHAS
+)
+
+# todo: fix exp checks
+# todo: removed psk_delay and enable_phase_shift_keying
+# todo: remove time_heating_us
 
 
 class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
@@ -108,7 +114,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # build experiment arguments
         self._build_arguments_freq_phase()
         self._build_arguments_waveform()
-        self._build_arguments_PSK()
+        self._build_arguments_sequence()
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
@@ -130,14 +136,14 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                                                     ),
                               group="{}.freq".format(_argstr),
                               tooltip="Phaser output center frequency.\n"
-                                      "Note: actual center frequency depends on the devices.phaser.freq_center_mhz dataset argument, "
+                                      "Note: actual center frequency depends on the devices.phaser.freq_center_mhz dataset argument,\n"
                                       "which should be manually entered into the dataset manager by the user after "
                                       "configuring the TRF and NCO via e.g. the phaser_configure tool.\n"
                                       "Ensure all values are set correctly.")
         self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]),
                               group="{}.freq".format(_argstr),
                               tooltip="Defines how oscillator freqs should be scaled for values in freq_osc_sweep_khz_list.\n"
-                                      "Indices of freq_sweep_arr correspond to the oscillator number. "
+                                      "Indices of freq_sweep_arr correspond to the oscillator number.\n"
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
         self.setattr_argument("freq_osc_sweep_khz_list",    Scannable(
@@ -156,8 +162,8 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         # phaser - phase configuration
         self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]),
                               group="{}.phase".format(_argstr),
-                              tooltip="Defines how oscillator phases should be adjusted for each value in phase_osc_sweep_turns_list. "
-                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched. "
+                              tooltip="Defines how oscillator phases should be adjusted for each value in phase_osc_sweep_turns_list.\n"
+                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
         self.setattr_argument("phase_osc_sweep_turns_list", Scannable(
                                                                     default=[
@@ -206,17 +212,17 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
                               group='{}.shape'.format(_argstr),
                               tooltip="Sample rate used for pulse shaping.\n"
-                                      "This value is inexact and is fixed at multiples of the phaser oscillator update "
-                                      "rate (i.e. 40ns) times the number of oscillators in use.")
+                                      "This value is inexact and is fixed at multiples of the phaser oscillator update\n"
+                                      "\trate (i.e. 40ns) times the number of oscillators in use.")
 
         # phaser - waveform - general
-        self.setattr_argument("time_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
-                              group="{}.wav".format(_argstr),
-                              tooltip="Total MAIN pulse time per phaser pulse. "
-                                      "This time is split among all PSK blocks and does not include any PSK delays.\n"
-                                      "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
-                                      "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of "
-                                      "1ms + 21 * (100us * 2) = 5.2ms.")
+        # self.setattr_argument("time_heating_us",   NumberValue(default=1000, precision=2, step=500, min=0.04, max=100000000, unit="us", scale=1.),
+        #                       group="{}.wav".format(_argstr),
+        #                       tooltip="Total MAIN pulse time per phaser pulse.\n"
+        #                               "This time is split among all PSK blocks and does not include any PSK delays.\n"
+        #                               "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
+        #                               "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of\n"
+        #                               "\t1ms + 21 * (100us * 2) = 5.2ms.")
         self.setattr_argument("att_phaser_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
                               group="{}.wav".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
@@ -264,30 +270,39 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                                       "Enables the amplitude to be scanned when e.g. optimizing powers.\n"
                                       "Scaling factor is applied equally to BOTH phaser output channels.")
 
-    def _build_arguments_PSK(self):
+    def _build_arguments_sequence(self):
         """
         Set specific arguments for PSK scheduling.
         """
         _argstr = "SDR"  # create short string for argument grouping
 
-        # phaser - waveform - PSK (Phase-shift Keying)
-        self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr),
-                              tooltip="Enable PSK-ing: break the main pulse into individual blocks with different phases.\n"
-                                      "Number of PSKs is determined by number of phases in phase_osc<x>_psk_turns. "
-                                      "All oscillator PSK schedules must have same length.")
-        self.setattr_argument("phase_osc0_psk_turns", PYONValue([0., 0.5]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc0.")
-        self.setattr_argument("phase_osc1_psk_turns", PYONValue([0., 0.5]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc1.")
-        self.setattr_argument("phase_osc2_psk_turns", PYONValue([0., 0.]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc2.")
-        self.setattr_argument("phase_osc3_psk_turns", PYONValue([0., 0.]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc3.")
-        self.setattr_argument("phase_osc4_psk_turns", PYONValue([0., 0.]), group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc4.")
+        # phaser - composite waveform creation
+        # self.setattr_argument("enable_phase_shift_keying",  BooleanValue(default=False), group="{}.psk".format(_argstr),
+        #                       tooltip="Enable PSK-ing: break the main pulse into individual blocks with different phases.\n"
+        #                               "Number of PSKs is determined by number of phases in phase_osc<x>_psk_turns.\n"
+        #                               "All oscillator PSK schedules must have same length.")
+        # todo: update tooltips
+        self.setattr_argument("seq_time_schedule_us", PYONValue([50., "d", 50.]),
+                              group="{}.psk".format(_argstr),
+                              tooltip="todo: document")
+        self.setattr_argument("phase_osc0_psk_turns", PYONValue([[1., 0.], "d", [1, 0.25]]),
+                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc0.")
+        self.setattr_argument("phase_osc1_psk_turns", PYONValue([[1., 0.], "d", [1, -0.25]]),
+                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc1.")
+        self.setattr_argument("phase_osc2_psk_turns", PYONValue([[1., 0.], "d", [1, 0.]]),
+                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc2.")
+        self.setattr_argument("phase_osc3_psk_turns", PYONValue([[0., 0.], "d", [0., 0.]]),
+                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc3.")
+        self.setattr_argument("phase_osc4_psk_turns", PYONValue([[0., 0.], "d",[0., 0.]]),
+                              group="{}.psk".format(_argstr), tooltip="PSK phase schedule for osc4.")
 
         # phaser - waveform - PSK (i.e. ramsey-style) delay
-        self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
-                              group="{}.psk".format(_argstr),
-                              tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-                                      "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
-                                      "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
-                                      "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
+        # self.setattr_argument("enable_psk_delay", BooleanValue(default=False),
+        #                       group="{}.psk".format(_argstr),
+        #                       tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
+        #                               "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
+        #                               "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
+        #                               "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
         self.setattr_argument("time_psk_delay_us_list", Scannable(
                                                       default=[
                                                           ExplicitScan([1000.]),
@@ -481,61 +496,62 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
         '''
         # instantiate relevant global variables
         self.waveform_index_to_compiled_wav = list() # store compiled waveform values
-        # note: waveform_index_to_pulseshaper_id is NOT kernel_invariant b/c gets updated in phaser_record
+        # note: waveform_index_to_pulseshaper_id NOT kernel_invariant b/c updated in phaser_record
         self.waveform_index_to_pulseshaper_id = zeros(len(self._waveform_param_list), dtype=int32) # store waveform ID linked to DMA sequence
 
-        # calculate block timings and scale amplitudes for ramsey-ing
-        num_psk_blocks = len(self.phase_osc0_psk_turns)
-        if self.enable_phase_shift_keying:
 
-            # case: spin-echo style (PSK w/ramsey delay)
-            if self.enable_psk_delay:
-                # note: don't create block_time_list_us here b/c we need to scan ramsey delay time
-                block_ampl_scale_list = riffle([1] * num_psk_blocks, [0] * (num_psk_blocks - 1))
-
-            # case: PSK-style (PSK only, no ramsey delay)
-            else:
-                block_time_list_us = [self.time_heating_us / num_psk_blocks] * num_psk_blocks
-                block_ampl_scale_list = [1] * num_psk_blocks
-
-        # case: rabi-style (no PSK, no ramsey delay)
-        else:
-            block_time_list_us = [self.time_heating_us]
-            block_ampl_scale_list = [1]
+        # parse oscillator waveform schedule
+        _osc_times_blocks = [val if isinstance(val, (int, float)) else 0 for val in self.seq_time_schedule_us]
+        idx_delays_list =   [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
+        osc_ampls_list = [
+            [
+                osc_vals[_IDX_OSC_AMPL]
+                if isinstance(osc_vals, (list, tuple)) and all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+                else 0
+                for osc_vals in block
+            ]
+            for block in (
+                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+            )
+        ][:self._num_phaser_oscs]
+        osc_phas_list = [
+            [
+                osc_vals[_IDX_OSC_PHAS]
+                if isinstance(osc_vals, (list, tuple)) and all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+                else 0
+                for osc_vals in block
+            ]
+            for block in (
+                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
+            )
+        ][:self._num_phaser_oscs]
 
 
         '''
         DESIGN WAVEFORM SEQUENCE
         '''
-        # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = zeros((len(block_ampl_scale_list), self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)  # set oscillator amplitudes
-        # use block_ampl_scale_list to disable output (by setting amplitudes to zero) during delay blocks
-        _osc_vals_blocks[:, :, 0] *= array([block_ampl_scale_list]).transpose()
+        # create bare waveform block sequence
+        _osc_vals_blocks = zeros((len(_osc_times_blocks), self._num_phaser_oscs, 2), dtype=float)
 
-        # set oscillator phases and account for oscillator update delays
-        # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        freq_osc_sweep_avg_hz = mean(list(self.freq_osc_sweep_khz_list)) * kHz
+        # set osc ampls for sequence
+        _osc_vals_blocks[:, :, _IDX_OSC_AMPL] = array(self.ampl_osc_frac_list)  # set oscillator amplitudes
+        # apply ampl update schedule (note: amplitudes set to zero during delay blocks)
+        _osc_vals_blocks[:, :, _IDX_OSC_AMPL] *= array(osc_ampls_list).transpose()
+
+        # set oscillator phases (accounting for oscillator update delays)
+        # WARNING: use mean of osc freqs b/c bother to record waveform for each osc freq; result is
+        #   that osc phases incur frequency-dependent error => ~0.1 turns @ 800 kHz relative osc freq
+        freq_osc_sweep_avg_hz = mean(self.freq_osc_sweep_khz_list) * kHz
         t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         phase_osc_update_delay_turns_list = (
-                (self.freq_osc_base_hz_list +
-                 self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
+                (self.freq_osc_base_hz_list + self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
                 t_update_delay_s_list
         )
-        _osc_vals_blocks[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
-
-        # set PSK phase update schedule
-        if self.enable_phase_shift_keying:
-            if self.enable_psk_delay:
-                # if we have delays between PSK blocks, use ::2 since we want to only update non-delay blocks (and not delay blocks)
-                _osc_vals_blocks[::2, :, 1] += array([self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
-                                                      self.phase_osc2_psk_turns, self.phase_osc3_psk_turns,
-                                                      self.phase_osc4_psk_turns][:self._num_phaser_oscs]).transpose()
-            else:
-                # otherwise, apply PSK schedule to all blocks
-                _osc_vals_blocks[:, :, 1] += array([self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
-                                                    self.phase_osc2_psk_turns, self.phase_osc3_psk_turns,
-                                                    self.phase_osc4_psk_turns][:self._num_phaser_oscs]).transpose()
+        _osc_vals_blocks[:, :, _IDX_OSC_PHAS] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
+        # apply osc phase update schedule
+        _osc_vals_blocks[:, :, _IDX_OSC_PHAS] += array(osc_phas_list).transpose()
 
 
         '''
@@ -552,54 +568,41 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
             '''
             PREPARE LOCAL PARAMETER-SPECIFIC CONFIGS 
             '''
-            # create local working copy of block_time_list_us
-            # case: spin-echo style (PSK w/ramsey delay) - create block_time_list_us here
-            #   since the target delay time is a scannable we can only set here
-            if self.enable_phase_shift_keying and self.enable_psk_delay:
-                _block_time_list_us_local = riffle([self.time_heating_us / num_psk_blocks] * num_psk_blocks,
-                                                   [time_us_delay] * (num_psk_blocks - 1))
-            # case: all others - simply copy block_time_list_us
-            else: _block_time_list_us_local = np_copy(block_time_list_us)
-
-            # create local working copy of _osc_vals_blocks and update with waveform parameters
+            # create local copies of object and update with waveform parameters
             # note: no need to deep copy b/c it's filled w/immutables
+            _osc_times_blocks_local = np_copy(_osc_times_blocks)
             _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
-            _osc_vals_blocks_local[:, :, 1] += self.phase_sweep_arr * phase_sweep_turns # apply phase sweep
 
+            # update timing schedule with delays
+            for idx_delay in idx_delays_list: _osc_times_blocks_local[idx_delay] = time_us_delay
+            # update waveform with phase sweep
+            _osc_vals_blocks_local[:, :, _IDX_OSC_PHAS] += self.phase_sweep_arr * phase_sweep_turns
 
             # waveform sweep: scale waveform parameter according to target_wav_scale
             _time_pulse_shape_rolloff_local = self.time_pulse_shape_rolloff_us
             if self.enable_wav_scale:
-
                 # ensure valid wav_osc_scale_val for scaling
                 if 0 <= wav_osc_scale_val <= 1.:
 
                     # case - "Amplitude": scale all oscillator amplitues
                     if self.target_wav_scale == "Amplitude":
-                        _osc_vals_blocks_local[:, :, 0] *= wav_osc_scale_val
+                        _osc_vals_blocks_local[:, :, _IDX_OSC_AMPL] *= wav_osc_scale_val
 
                     # case - ("Time (Total)", "Time (Shape)"): scale pulse-shaped edges
                     if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Shape)')):
-                        _time_pulse_shape_rolloff_local *= wav_osc_scale_val    # scale pulse-shaped rolloff times
+                        # scale pulse-shaped rolloff times while ensuring nonzero rolloff times
+                        #   (to prevent divide_by_zero bug in SpinEchoWizardRDX)
+                        _time_pulse_shape_rolloff_local = min(_time_pulse_shape_rolloff_local * wav_osc_scale_val,
+                                                              self.phaser_eggs.t_sample_mu)
 
                     # case - ("Time (Total)", "Time (Main)"): scale main pulse time
                     if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Main)')):
-
-                        # case - spin-echo style: scale only non-delay blocks
-                        if self.enable_phase_shift_keying and self.enable_psk_delay:
-                            _block_time_list_us_local = [
-                                time_us * wav_osc_scale_val
-                                if i % 2 == 0 else time_us
-                                for i, time_us in enumerate(_block_time_list_us_local)
-                            ]
-
-                        # case - all other styles: scale all blocks
-                        else:
-                            _block_time_list_us_local = [
-                                time_us * wav_osc_scale_val
-                                for time_us in _block_time_list_us_local
-                            ]
-
+                        _osc_times_blocks_local = [
+                            t_us * wav_osc_scale_val
+                            if idx not in idx_delays_list
+                            else t_us
+                            for idx, t_us in enumerate(_osc_times_blocks_local)
+                        ]
                 else:
                     raise ValueError("Invalid wav_osc_scale_val - must be in [0., 1.].")
 
@@ -613,9 +616,9 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                 {
                     "oscillator_parameters": _osc_vals_blocks_local[_idx_block],
                     "config": {
-                        "time_us": _block_time_list_us_local[_idx_block],
+                        "time_us": _osc_times_blocks_local[_idx_block],
                         # don't pulse shape for delay blocks lmao
-                        "pulse_shaping": self.enable_pulse_shaping and (block_ampl_scale_list[_idx_block] != 0),
+                        "pulse_shaping": self.enable_pulse_shaping and (_idx_block not in idx_delays_list),
                         "pulse_shaping_config": {
                             "pulse_shape": self.type_pulse_shape,
                             "pulse_shape_rising": self.enable_pulse_shaping,
@@ -624,7 +627,7 @@ class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
                             "rolloff_time_us": _time_pulse_shape_rolloff_local
                         }
                     }
-                } for _idx_block in range(len(_block_time_list_us_local))
+                } for _idx_block in range(len(_osc_times_blocks_local))
             ]
             # compile waveform to numerical values and store in holder
             self.waveform_index_to_compiled_wav.append(
