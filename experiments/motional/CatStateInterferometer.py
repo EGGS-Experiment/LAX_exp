@@ -49,8 +49,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         # configs
         'profile_729_SBC', 'profile_729_readout', 'profile_729_readout',
-        'profile_729_cat1a', 'profile_729_cat1b','profile_729_cat2a' 'self.profile_729_cat2b',
-        'profile_729_pi_pulse_forward', 'self.profile_729_pi_pulse_backward',
+        'profile_729_cat1a', 'profile_729_cat1b','profile_729_cat2a', 'profile_729_cat2b',
+        'profile_729_pi_pulse_forward', 'profile_729_pi_pulse_backward',
         'att_reg_cat_interferometer', 'att_reg_readout_sbr', 'att_reg_readout_rap',
         'config_experiment_list',
     }
@@ -92,6 +92,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('phaser_eggs')
+        self.setattr_device('urukul1_ch2')
+        self.setattr_device('ttl1')
 
         # instantiate helper objects
         self.spinecho_wizard = SpinEchoWizardRDX(self)
@@ -180,7 +182,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               tooltip='Attenuation applied to the third rf tone applied to the 729 single pass AOM.',
                               group='default.dynamical_decoupling')
 
-        self.setattr_argument('phase_dynamical_decoupling_turns_list',
+        self.setattr_argument('phase_dynamical_decoupling_cat_turns_list',
                               Scannable(default=[
                                   ExplicitScan([0.]),
                                   RangeScan(0, 1, 11),
@@ -310,8 +312,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB-BSB'),
                               group="cat2.bichromatic",
                               tooltip="Phase update array for the singlepass DDSs during the 2nd bichromatic pulse.\n"
-                                      "This configures how phase_cat2_cat_turns_list are to be applied to the DDSs.")
-        self.setattr_argument("phase_cat2_cat_turns_list", Scannable(
+                                      "This configures how phase_cat2_turns_list are to be applied to the DDSs.")
+        self.setattr_argument("phase_cat2_turns_list", Scannable(
             default=[
                 ExplicitScan([0.]),
                 RangeScan(0, 1.0, 11, randomize=True),
@@ -547,19 +549,17 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         self.phase_dynamical_decoupling_pi_pulse_pow = self.qubit.singlepass0.turns_to_pow(
             self.phase_dynamical_decoupling_pi_pulse_turns)
-        self.phase_cat_shift_pow = self.qubit.singlepass0.turns_to_pow(
-            self.phase_cat_shift_turns)
         self.ampl_dynamical_decoupling_pi_asf = self.qubit.singlepass0.amplitude_to_asf(
             self.ampl_dynamical_decoupling_pi_pct / 100.)
 
         # create profile list for later use
         self.profiles = [self.profile_729_cat1a, self.profile_729_cat1b, self.profile_729_cat2a, self.profile_729_cat2b,
-                         self.profile_pi_pulse_forward, self.profile_729_pi_pulse_backward]
+                         self.profile_729_pi_pulse_forward, self.profile_729_pi_pulse_backward]
 
         # create placeholder arrays for later uses
-        self.phase_beams_pow_list = np.zeros((8, 4), dtype=int32)
-        self.freq_beams_ftw_list = np.zeros((8, 4), dtype=int32)
-        self.ampl_beams_asf_list = np.zeros((8, 4), dtype=int32)
+        self.phase_beams_pow_list = zeros((8, 4), dtype=int32)
+        self.freq_beams_ftw_list = zeros((8, 4), dtype=int32)
+        self.ampl_beams_asf_list = zeros((8, 4), dtype=int32)
 
     def _prepare_experiment_dynamical_decoupling(self):
         if self.enable_dynamical_decoupling:
@@ -570,6 +570,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             phase_dynamical_decoupling_cat_pow_list = array(
                 [self.qubit.singlepass0.turns_to_pow(phase_dynamical_decoupling_turns) for
                  phase_dynamical_decoupling_turns in self.phase_dynamical_decoupling_cat_turns_list])
+            self.phase_cat_shift_pow = self.qubit.singlepass0.turns_to_pow(
+                self.phase_cat_shift_turns)
         else:
             self.phase_cat_shift_pow = 0
             self.att_dynamical_decoupling_mu = self.qubit.att_singlepass0_default_mu
@@ -661,7 +663,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             time_cat2_cat_mu_list = [self.core.seconds_to_mu(time_us / 2 * us)
                                      for time_us in self.time_cat2_cat_us_list]
             phase_cat2_cat_pow_list = [self.qubit.singlepass0.turns_to_pow(phas_pow)
-                                       for phas_pow in self.phase_cat2_cat_turns_list]
+                                       for phas_pow in self.phase_cat2_turns_list]
         else:
             time_cat2_cat_mu_list = [0]
             phase_cat2_cat_pow_list = [0]
@@ -934,7 +936,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # predeclare variables ahead of time
-        time_start_mu = now_mu() & ~0x7
         ion_state = (-1, 0, int64(0))  # store ion state for adaptive readout
         herald_counter = 0  # store herald attempts
         _loop_iter = 0  # used to check_termination more frequently
@@ -966,9 +967,10 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 waveform_params = self._waveform_param_list[waveform_num]
                 phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
 
-                self.core.break_realtime()
-                self.update_profile_configuration()
-                self.core.break_realtime()
+
+                self.update_profile_configuration(freq_cat_center_ftw, freq_cat_secular_ftw,
+                                     phase_cat2_cat_pow,
+                                     phase_dynamical_decoupling_cat_pow)
 
                 # configure phaser
                 if self.enable_QVSA_pulse:
@@ -983,6 +985,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                          freq_update_list[3], freq_update_list[4]],
                         self.phase_global_ch1_turns  # global CH1 phase
                     )
+
 
                 '''
                 BEGIN MAIN SEQUENCE
@@ -1005,6 +1008,19 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.initialize_subsequence.run_dma()
                     self.sidebandcool_subsequence.run_dma()
 
+                    self.qubit.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
+                    self.qubit.io_update()
+
+
+                    self.qubit.set_cfr1()
+                    self.qubit.singlepass0.set_cfr1()
+                    self.qubit.singlepass1.set_cfr1()
+                    self.qubit.singlepass2.set_cfr1()
+                    self.qubit.io_update()
+
                     # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
                     time_start_mu = self.phaser_eggs.get_next_frame_mu()
                     # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
@@ -1012,22 +1028,33 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.phaser_eggs.phase_osc_clear()
                     # unimportant: clear DUC phase (b/c why not)
                     self.phaser_eggs.reset_duc_phase()
+                    self.setup_beam_profiles(time_start_mu)
+
+                    delay_mu(1000)
+                    self.urukul1_ch2.set_mu(freq_cat_center_ftw,
+                                            asf=self.ampl_doublepass_default_asf,
+                                            pow_=0, profile=0,
+                                            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
+                    delay_mu(1000)
+                    self.urukul1_ch2.set_att(8 * dB)
+                    self.urukul1_ch2.sw.on()
+                    delay_mu(1000)
 
                     '''
                     CAT #1
                     '''
                     # cat1 - bichromatic cat pulse
+                    # note: enable_dynamical_decoupling logic can be moved into pulse_cat,
+                    #   since it already does a enable_dynamical_decoupling check
                     with parallel:
                         with sequential:
-                            # note: enable_dynamical_decoupling logic can be moved into pulse_cat,
-                            #   since it already does a enable_dynamical_decoupling check
                             if self.enable_cat1_bichromatic:
                                 self.pulse_cat(self.profile_729_cat1a, self.time_cat1_bichromatic_mu)
                                 if self.enable_dynamical_decoupling:
                                     self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
-                                                                               time_start_mu)
-                                self.pulse_cat(self.profile_729_cat1b, self.time_cat1_bichromatic_mu)
-                            self.setup_phaser()
+                                                                               self.time_dynamical_decoupling_pi_pulse_mu)
+                                    self.pulse_cat(self.profile_729_cat1b, self.time_cat1_bichromatic_mu)
+                        self.setup_phaser()
 
                     # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
@@ -1060,7 +1087,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                         self.qubit.off()
                         if self.enable_dynamical_decoupling:
                             self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
-                                                                       time_start_mu)
+                            self.time_dynamical_decoupling_pi_pulse_mu)
                             self.qubit.on()
                         delay_mu(time_ramsey_delay_mu)
                         self.qubit.off()
@@ -1080,7 +1107,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
                         if self.enable_dynamical_decoupling:
                             self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
-                                                                       time_start_mu)
+                                                                       self.time_dynamical_decoupling_pi_pulse_mu,)
                             self.qubit.on()
                         self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
                         self.qubit.off()
@@ -1103,8 +1130,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 #   since it already does a enable_dynamical_decoupling check
                                 self.pulse_cat(self.profile_729_cat2a, time_cat2_cat_mu)
                                 if self.enable_dynamical_decoupling:
-                                    self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
-                                                                               time_start_mu)
+                                    self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_backward,
+                                                                               self.time_dynamical_decoupling_pi_pulse_mu,)
                                 self.pulse_cat(self.profile_729_cat2b, time_cat2_cat_mu)
 
                     # cat2 - force herald (to projectively disentangle spin/motion)
@@ -1131,6 +1158,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     # force break loop by default
                     break
 
+                delay_mu(8)
+                self.urukul1_ch2.sw.off()
+                delay_mu(8)
                 '''
                 READ OUT & STORE RESULTS
                 '''
@@ -1164,6 +1194,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     phase_dynamical_decoupling_cat_pow,
                                     waveform_params[0])
 
+
                 # check termination more frequently in case reps are low
                 if _loop_iter % 100 == 0:
                     self.check_termination()
@@ -1178,7 +1209,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
     HELPER FUNCTIONS
     '''
 
-    @kernel(flags={"fast-math"})
+    @kernel(flags={'fast-math'})
     def perform_dynamical_decoupling_pi_pulse(self, profile: TInt32, time_pi_pulse_mu: TInt64) -> TNone:
         """
         Perform pi pulse so refocusing spins after continuous dynamical decoupling
@@ -1187,19 +1218,16 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         """
 
         # set to pi pulse parameters
-        self.qubit.cpld.set_all_att_mu(self.att_reg_dynamical_decoupling_pi_pulse)
-        self.qubit.set_profile(profile)
-        self.qubit.io_update()
-
         self.qubit.singlepass0_on()
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
+        self.qubit.cpld.set_all_att_mu(self.att_reg_dynamical_decoupling_pi_pulse)
+        self.qubit.set_profile(profile)
+        at_mu(now_mu() & ~7)
+        self.qubit.io_update()
         self.qubit.on()
         delay_mu(time_pi_pulse_mu)
         self.qubit.off()
-
-        # set everything back
-        self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
 
     @kernel(flags={'fast-math'})
     def pulse_cat(self, profile: TInt32, time_pulse_mu: TInt64) -> TNone:
@@ -1208,10 +1236,11 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         :param profile: urukul profile with the proper settings
         :param time_pulse_mu: how long to apply the bichromatic interaction (which creates the cat state) for
         """
+        # set everything back
+        self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
         self.qubit.set_profile(profile)
+        at_mu(now_mu() & ~7)
         self.qubit.io_update()
-        # do we need to touch cfr1
-
         # turn on all beams
         self.qubit.singlepass1_on()
         self.qubit.singlepass2_on()
@@ -1239,37 +1268,40 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
         # set up relevant beam waveforms
-        for i in range(len(self.profiles)):
+        for profile in self.profiles:
             self.qubit.set_mu(
-                self.freq_beams_ftw_list[i][0], asf=self.ampl_beams_asf_list[i][0],
-                pow_=self.phase_beams_pow_list[i][0], profile=self.profiles[i],
-                phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+                self.freq_beams_ftw_list[profile][0], asf=self.ampl_beams_asf_list[profile][0],
+                pow_=self.phase_beams_pow_list[profile][0], profile=profile,
+                phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
             delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass0.set_mu(
-                self.freq_beams_ftw_list[i][1],
-                asf=self.ampl_beams_asf_list[i][1],
-                pow_=self.phase_beams_pow_list[i][1],
-                profile=self.profiles[i],
-                phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+                self.freq_beams_ftw_list[profile][1],
+                asf=self.ampl_beams_asf_list[profile][1],
+                pow_=self.phase_beams_pow_list[profile][1],
+                profile=profile,
+                phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
             delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass1.set_mu(
-                self.freq_beams_ftw_list[i][2],
-                asf=self.ampl_beams_asf_list[i][2],
-                pow_=self.phase_beams_pow_list[i][2],
-                profile=self.profiles[i],
-                phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+                self.freq_beams_ftw_list[profile][2],
+                asf=self.ampl_beams_asf_list[profile][2],
+                pow_=self.phase_beams_pow_list[profile][2],
+                profile=profile,
+                phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
-            delay_mu(self.urukul_setup_time_mu)
+
+            # print(self.qubit.pow_to_turns(self.phase_beams_pow_list[profile][2]))
+            # delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass2.set_mu(
-                self.freq_beams_ftw_list[i][3],
-                asf=self.ampl_beams_asf_list[i][3],
-                pow_=self.phase_beams_pow_list[i][3],
-                profile=self.profiles[i],
-                phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
+                self.freq_beams_ftw_list[profile][3],
+                asf=self.ampl_beams_asf_list[profile][3],
+                pow_=self.phase_beams_pow_list[profile][3],
+                profile=profile,
+                phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
             delay_mu(self.urukul_setup_time_mu)
+            delay_mu(100000)
 
     @kernel(flags={'fast-math'})
     def update_profile_configuration(self, freq_cat_center_ftw: TInt32, freq_cat_secular_ftw: TInt32,
@@ -1296,8 +1328,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             self.freq_beams_ftw_list[profile][0] = freq_cat_center_ftw
             self.phase_beams_pow_list[profile][0] = 0
 
-            self.freq_beams_ftw_list[profile][
-                1] = self.qubit.freq_singlepass0_default_ftw
+            self.freq_beams_ftw_list[profile][1] = self.qubit.freq_singlepass0_default_ftw
             self.freq_beams_ftw_list[profile][2] = self.qubit.freq_singlepass1_default_ftw - freq_cat_secular_ftw
             self.freq_beams_ftw_list[profile][3] = self.qubit.freq_singlepass2_default_ftw + freq_cat_secular_ftw
 
@@ -1305,13 +1336,13 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         for profile in [self.profile_729_cat1a, self.profile_729_cat1b, self.profile_729_cat2a, self.profile_729_cat2b]:
             self.ampl_beams_asf_list[profile][1] = self.ampl_dynamical_decoupling_asf
             self.ampl_beams_asf_list[profile][2] = self.ampls_cat_asf[0]
-            self.ampls_beams_asf_list[profile][3] = self.ampls_cat_asf[1]
+            self.ampl_beams_asf_list[profile][3] = self.ampls_cat_asf[1]
 
-        # set up values consistent across pi pulsr profiles
+        # set up values consistent across pi pulse profiles
         for profile in [self.profile_729_pi_pulse_forward, self.profile_729_pi_pulse_backward]:
             self.ampl_beams_asf_list[profile][1] = self.ampl_dynamical_decoupling_pi_asf
-            self.ampl_beams_asf_list[profile][2] = 0.01
-            self.ampl_beams_asf_list[profile][3] = 0.01
+            self.ampl_beams_asf_list[profile][2] = 0
+            self.ampl_beams_asf_list[profile][3] = 0
             self.phase_beams_pow_list[profile][2] = 0
             self.phase_beams_pow_list[profile][3] = 0
 
