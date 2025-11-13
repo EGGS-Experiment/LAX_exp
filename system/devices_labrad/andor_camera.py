@@ -26,6 +26,10 @@ class AndorCamera(LAXDevice):
         return self.camera.info_detector_dimensions()
 
     @rpc
+    def acquire_detector_dimensions(self):
+        return self.camera.info_detector_dimensions()
+
+    @rpc
     def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat=None) -> TNone:
         """
         Acquire a single image from the camera and then reset to previous setting
