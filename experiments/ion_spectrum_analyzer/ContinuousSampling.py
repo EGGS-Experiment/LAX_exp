@@ -268,10 +268,10 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self._counts_burst = zeros(self._burst_samples, dtype=int32)      # store burst counts
         self._times_start_burst = zeros(self._burst_samples, dtype=int64) # store burst start timestamps
         self._times_stop_burst = zeros(self._burst_samples, dtype=int64)  # store burst stop timestamps
-        self._sequence_dma_handle = (0, int64(0), int32(0), False)        # store sequence DMA handle
+        self._sequence_dma_handle = TYPE_DMA_HANDLE        # store sequence DMA handle
         
         self._t_start_mu = int64(0) # store timestamp of start of each shot
-        self._idx_burst_samples = list(range(self._burst_samples)) # hold iterators for each burst loop (hopefully reduces overhead)
+        self._idx_burst_samples = list(range(self._burst_samples)) # hold iterators for burst loop (hopefully reduces overhead)
         self._time_exp_shot_mu = int64(0)   # measure actual shot period (during DMA recording) to ensure user-specified sample period is viable
 
 

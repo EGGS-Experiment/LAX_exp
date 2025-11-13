@@ -13,9 +13,9 @@ from LAX_exp.system.subsequences import (
 from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.PhaserPulseShaper import (
-    PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS, _IDX_OSC_AMPL, _IDX_OSC_PHAS
+    PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS, PHASER_OSC_DELAYS_NS,
+    _IDX_OSC_AMPL, _IDX_OSC_PHAS
 )
-# todo: make everything scale based off of num phaser oscs
 
 
 class SuperDuperResolution(LAXExperiment, Experiment):
@@ -440,14 +440,14 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         '''
         CHECK WAVEFORM SCHEDULING/DESIGN
         '''
+        osc_seq_list = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                        self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
+
         # check that waveform schedules have correct length
         num_sequence_blocks = len(self.seq_time_schedule_us)
         sequence_length_invalid = any(
             (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_sequence_blocks)
-            for psk_schedule in (
-                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns,
-                self.phase_osc2_psk_turns, self.phase_osc3_psk_turns
-            )
+            for psk_schedule in osc_seq_list
         )
         if sequence_length_invalid: raise ValueError("Invalid PSK schedule: all PSK schedules must be of same length.")
 
@@ -460,7 +460,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         # check osc wav sequence valid: only lists of [ampl_scale, phas_offset], or "d" (for "delay")
         osc_seq_list = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                        self.phase_osc3_psk_turns)
+                        self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
         for idx, osc_seq in enumerate(osc_seq_list):
             if not all(
                     (isinstance(val, (list, tuple)) and
@@ -514,33 +514,27 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # note: waveform_index_to_pulseshaper_id NOT kernel_invariant b/c updated in phaser_record
         self.waveform_index_to_pulseshaper_id = zeros(len(self._waveform_param_list), dtype=int32) # store waveform ID linked to DMA sequence
 
-
         # parse oscillator waveform schedule
+        # todo: better document this section
         _osc_times_blocks = [val if isinstance(val, (int, float)) else 0 for val in self.seq_time_schedule_us]
         idx_delays_list =   [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
         osc_ampls_list = [
-            [
-                osc_vals[_IDX_OSC_AMPL]
-                if isinstance(osc_vals, (list, tuple)) and all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
-                else 0
-                for osc_vals in block
-            ]
-            for block in (
-                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
-            )
+            [osc_vals[_IDX_OSC_AMPL]
+             if isinstance(osc_vals, (list, tuple)) and
+                all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+             else 0
+             for osc_vals in block]
+            for block in (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                          self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
         ][:self._num_phaser_oscs]
         osc_phas_list = [
-            [
-                osc_vals[_IDX_OSC_PHAS]
-                if isinstance(osc_vals, (list, tuple)) and all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
-                else 0
-                for osc_vals in block
-            ]
-            for block in (
-                self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                self.phase_osc3_psk_turns, self.phase_osc4_psk_turns
-            )
+            [osc_vals[_IDX_OSC_PHAS]
+             if isinstance(osc_vals, (list, tuple)) and
+                all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+             else 0
+             for osc_vals in block]
+            for block in (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                          self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
         ][:self._num_phaser_oscs]
 
 
@@ -549,30 +543,30 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         '''
         # create bare waveform block sequence
         _osc_vals_blocks = zeros((len(_osc_times_blocks), self._num_phaser_oscs, 2), dtype=float)
-
-        # set osc ampls for sequence
-        _osc_vals_blocks[:, :, _IDX_OSC_AMPL] = array(self.ampl_osc_frac_list)  # set oscillator amplitudes
-        # apply ampl update schedule (note: amplitudes set to zero during delay blocks)
-        _osc_vals_blocks[:, :, _IDX_OSC_AMPL] *= array(osc_ampls_list).transpose()
+        # set osc ampls and apply update schedule for sequence (note: amplitudes set to zero during delay blocks)
+        _osc_vals_blocks[:, :, _IDX_OSC_AMPL] = (array(self.ampl_osc_frac_list)[:self._num_phaser_oscs] *
+                                                 array(osc_ampls_list).transpose())
 
         # set oscillator phases (accounting for oscillator update delays)
         # WARNING: use mean of osc freqs b/c bother to record waveform for each osc freq; result is
         #   that osc phases incur frequency-dependent error => ~0.1 turns @ 800 kHz relative osc freq
         freq_osc_sweep_avg_hz = mean(list(self.freq_osc_sweep_khz_list)) * kHz
-        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
         phase_osc_update_delay_turns_list = (
                 (self.freq_osc_base_hz_list + self.freq_sweep_arr * freq_osc_sweep_avg_hz) *
-                t_update_delay_s_list
+                array(PHASER_OSC_DELAYS_NS)[:self._num_phaser_oscs]
         )
-        _osc_vals_blocks[:, :, _IDX_OSC_PHAS] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
-        # apply osc phase update schedule
-        _osc_vals_blocks[:, :, _IDX_OSC_PHAS] += array(osc_phas_list).transpose()
+        # apply phase update schedule
+        _osc_vals_blocks[:, :, _IDX_OSC_PHAS] += (
+                array(self.phase_osc_turns_list)[:self._num_phaser_oscs] +  # actual base oscillator phases
+                phase_osc_update_delay_turns_list + # account for nonzero update delay between oscs
+                array(osc_phas_list).transpose()    # apply phase update schedule for specified sequence
+        )
 
 
         '''
         CREATE PARAMETER-SPECIFIC WAVEFORMS
         '''
-        # record phaser waveforms - one for each phase
+        # record phaser waveforms - one for each set of waveform parameters
         for waveform_params in self._waveform_param_list:
             # extract waveform params
             phase_sweep_turns = waveform_params[0]
@@ -583,17 +577,16 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             '''
             PREPARE LOCAL PARAMETER-SPECIFIC CONFIGS 
             '''
-            # create local copies of object and update with waveform parameters
-            # note: no need to deep copy b/c it's filled w/immutables
+            # create local copy & update w/params (note: no need to deepcopy b/c lists contain only immutables)
             _osc_times_blocks_local = np_copy(_osc_times_blocks)
             _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
 
-            # update timing schedule with delays
+            # update timing schedule w/ delays
             for idx_delay in idx_delays_list: _osc_times_blocks_local[idx_delay] = time_us_delay
-            # update waveform with phase sweep
+            # update waveform w/ phase sweep
             _osc_vals_blocks_local[:, :, _IDX_OSC_PHAS] += self.phase_sweep_arr * phase_sweep_turns
 
-            # waveform sweep: scale waveform parameter according to target_wav_scale
+            # apply waveform sweep: scale waveform parameter according to target_wav_scale
             _time_pulse_shape_rolloff_local = self.time_pulse_shape_rolloff_us
             if self.enable_wav_scale:
                 # ensure valid wav_osc_scale_val for scaling
@@ -701,9 +694,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # programmatically retrieve fock state handles
         # yes, i know it's not predeclared/slow/big overhead, but is better than declaring like 50
         #   kernel variables just to predeclare
-        # todo: use the dma handle type
-        fock_gen_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
-        fock_read_handles = [(0, int64(0), int32(0), False)] * len(self.fock_num_overlap)
+        fock_gen_handles = [TYPE_DMA_HANDLE] * len(self.fock_num_overlap)
+        fock_read_handles = [TYPE_DMA_HANDLE] * len(self.fock_num_overlap)
         for idx_fock in range(len(self.fock_num_overlap)):
             self.core.break_realtime()
             fock_gen_handles[idx_fock] = self.core_dma.get_handle(self._fock_gen_handle_names[idx_fock])
@@ -711,7 +703,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
             fock_read_handles[idx_fock] = self.core_dma.get_handle(self._fock_read_handle_names[idx_fock])
 
 
-        '''MAIN LOOP'''
+        ### MAIN LOOP ###
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
                 '''

@@ -8,7 +8,7 @@ from LAX_exp.base import LAXEnvironment
 PULSESHAPER_MAX_WAVEFORMS = 64
 
 # relative delays between oscillators
-PHASER_OSC_DELAY_NS = [0, 40e-9, 80e-9, 80e-9, 120e-9]
+PHASER_OSC_DELAYS_NS = [0, 40e-9, 80e-9, 80e-9, 120e-9]
 
 # indices of components inside an osc_val_block
 _IDX_OSC_AMPL = 0
