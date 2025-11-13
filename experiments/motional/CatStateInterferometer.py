@@ -936,7 +936,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         # predeclare variables ahead of time
-        time_start_mu = now_mu() & ~0x7
         ion_state = (-1, 0, int64(0))  # store ion state for adaptive readout
         herald_counter = 0  # store herald attempts
         _loop_iter = 0  # used to check_termination more frequently
@@ -1002,6 +1001,26 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.core.break_realtime()  # add slack for execution
                     delay_mu(125000)  # add even more slack lol
 
+                    '''
+                    INITIALIZE ION STATE
+                    '''
+                    # initialize ion in S-1/2 state & SBC to ground state
+                    self.initialize_subsequence.run_dma()
+                    self.sidebandcool_subsequence.run_dma()
+
+                    self.qubit.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
+                    self.qubit.io_update()
+
+
+                    self.qubit.set_cfr1()
+                    self.qubit.singlepass0.set_cfr1()
+                    self.qubit.singlepass1.set_cfr1()
+                    self.qubit.singlepass2.set_cfr1()
+                    self.qubit.io_update()
+
                     # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
                     time_start_mu = self.phaser_eggs.get_next_frame_mu()
                     # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
@@ -1011,31 +1030,15 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.phaser_eggs.reset_duc_phase()
                     self.setup_beam_profiles(time_start_mu)
 
-
                     delay_mu(1000)
                     self.urukul1_ch2.set_mu(freq_cat_center_ftw,
                                             asf=self.ampl_doublepass_default_asf,
                                             pow_=0, profile=0,
                                             phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
                     delay_mu(1000)
-                    self.urukul1_ch2.set_att(8*dB)
+                    self.urukul1_ch2.set_att(8 * dB)
                     self.urukul1_ch2.sw.on()
                     delay_mu(1000)
-
-                    '''
-                    INITIALIZE ION STATE
-                    '''
-                    at_mu(now_mu() & ~7)
-                    self.qubit.set_cfr1(phase_autoclear=1)
-                    at_mu(now_mu() & ~7)
-                    self.qubit.io_update()
-                    at_mu(now_mu() & ~7)
-                    self.qubit.set_cfr1()
-                    at_mu(now_mu() & ~7)
-                    self.qubit.io_update()
-                    # initialize ion in S-1/2 state & SBC to ground state
-                    self.initialize_subsequence.run_dma()
-                    self.sidebandcool_subsequence.run_dma()
 
                     '''
                     CAT #1
