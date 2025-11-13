@@ -17,9 +17,9 @@ from LAX_exp.system.objects.PhaserPulseShaper import (
 )
 
 
-class SuperDuperResolutionAmpl(LAXExperiment, Experiment):
+class SuperDuperResolution(LAXExperiment, Experiment):
     """
-    Experiment: Super Duper Resolution Ampl
+    Experiment: Super Duper Resolution
 
     Investigate the QVSA (motional Raman) effect using phaser.
     Supports lots of easily configurable parameter scanning for phaser.

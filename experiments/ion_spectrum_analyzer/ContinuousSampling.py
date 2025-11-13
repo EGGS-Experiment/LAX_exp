@@ -13,9 +13,9 @@ from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 # todo: add cat ampl
 
 
-class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
+class ContinuousSampling(LAXExperiment, Experiment):
     """
-    Experiment: Continuous Sampling Ampl RDX
+    Experiment: Continuous Sampling
 
     Synchronized/correlation spectroscopy using a dynamical-decoupling protocol w/QVSA
         for arbitrary frequency sensing.
@@ -23,7 +23,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
     Uses fock state-based quantum amplification (following https://www.nature.com/articles/s41467-019-10576-4)
         with only RAP-based primitives (to mitigate pulse errors).
     """
-    name = 'Continuous Sampling Ampl'
+    name = 'Continuous Sampling'
     kernel_invariants = {
         # hardware values
         'freq_osc_base_hz_list', 'freq_phaser_carrier_hz', 'att_phaser_mu', 'pulseshaper_vals',
@@ -155,7 +155,7 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
                               NumberValue(default=0., precision=5, step=0.05, min=-1.1, max=1.1, unit="turns", scale=1.),
                               group="{}.global".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC.\n"
-                                      "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden "
+                                      "Note: the devices.phaser.phas_ch1_inherent_turns dataset argument is overridden "
                                       "in this experiment.")
         self.setattr_argument("osc_num_target_list", PYONValue([]),
                               group="{}.global".format(_argstr),
@@ -394,11 +394,11 @@ class ContinuousSamplingAmplRDX(LAXExperiment, Experiment):
 
     def _prepare_waveform(self) -> TNone:
         """
-        Calculate waveforms and timings for the EGGS pulse.
+        Calculate waveforms and timings for the QVSA pulse.
         Uses SpinEchoWizardRDX and PhaserPulseShaper objects to simplify waveform compilation.
         """
         '''PREPARE WAVEFORM COMPILATION'''
-        # create holding structures for EGGS pulse waveforms
+        # create holding structures for QVSA pulse waveforms
         self.pulseshaper_vals = None  # store compiled waveforms from pulseshaper
         self.pulseshaper_id = int32(0)  # store waveform ID for pulseshaper
 
