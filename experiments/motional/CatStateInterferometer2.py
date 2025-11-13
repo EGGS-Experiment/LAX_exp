@@ -578,8 +578,6 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
 
         self.phase_dynamical_decoupling_pi_pulse_pow = self.qubit.singlepass0.turns_to_pow(
             self.phase_dynamical_decoupling_pi_pulse_turns)
-        self.phase_dynamical_decoupling_cat_shift_pow = self.qubit.singlepass0.turns_to_pow(
-            self.phase_dynamical_decoupling_cat_shift_turns)
         self.ampl_dynamical_decoupling_pi_asf = self.qubit.singlepass0.amplitude_to_asf(
             self.ampl_dynamical_decoupling_pi_pct / 100.)
 
@@ -598,8 +596,10 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
             freq_dynamical_decoupling_detuning_ftw_list = array(
                 [self.qubit.singlepass0.frequency_to_ftw(freq_dynamical_decoupling_detuning_khz * kHz) for
                  freq_dynamical_decoupling_detuning_khz in self.freq_dynamical_decoupling_detuning_khz_list])
-            self.phase_dynamical_decoupling_cat_shift_pow = 0
+            self.phase_dynamical_decoupling_cat_shift_pow = self.qubit.singlepass0.turns_to_pow(
+                self.phase_dynamical_decoupling_cat_shift_turns)
         else:
+            self.phase_dynamical_decoupling_cat_shift_pow = 0
             self.att_dynamical_decoupling_mu = self.qubit.att_singlepass0_default_mu
             phase_dynamical_decoupling_cat1_pow_list = array([0])
             phase_dynamical_decoupling_cat2_pow_list = array([0])
@@ -1003,7 +1003,7 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
                     self.phases_cat2_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * phase_cat2_cat_pow,
                 ]
 
-                offset_cat1_phases = [self.phases_pulse1_cat_pow[0] + self.phases_cat2_cat_update_dir[0]* self.phase_dynamical_decoupling_cat_shift_pow,
+                offset_cat1_phases = [self.phases_pulse1_cat_pow[0] + self.phases_cat2_cat_update_dir[0] * self.phase_dynamical_decoupling_cat_shift_pow,
                                       self.phases_pulse1_cat_pow[1] + self.phases_cat2_cat_update_dir[1] * self.phase_dynamical_decoupling_cat_shift_pow]
 
                 offset_cat2_phases = [cat4_phases[0] + self.phases_cat2_cat_update_dir[0]*self.phase_dynamical_decoupling_cat_shift_pow,
@@ -1089,7 +1089,7 @@ class CatStateInterferometer2(LAXExperiment, Experiment):
                                     self.set_cat_beams_phase(time_start_mu, freq_cat_secular_ftw,
                                                                offset_cat1_phases)
                                 self.pulse_cat(self.time_cat1_bichromatic_mu)
-                            self.setup_phaser()
+                        self.setup_phaser()
 
                     # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
