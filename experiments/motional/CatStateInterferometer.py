@@ -1025,16 +1025,17 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     '''
                     INITIALIZE ION STATE
                     '''
-                    # initialize ion in S-1/2 state & SBC to ground state
-                    self.initialize_subsequence.run_dma()
-                    self.sidebandcool_subsequence.run_dma()
-
                     at_mu(now_mu() & ~7)
                     self.qubit.set_cfr1(phase_autoclear=1)
+                    at_mu(now_mu() & ~7)
                     self.qubit.io_update()
                     at_mu(now_mu() & ~7)
                     self.qubit.set_cfr1()
+                    at_mu(now_mu() & ~7)
                     self.qubit.io_update()
+                    # initialize ion in S-1/2 state & SBC to ground state
+                    self.initialize_subsequence.run_dma()
+                    self.sidebandcool_subsequence.run_dma()
 
                     '''
                     CAT #1
@@ -1219,6 +1220,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.singlepass2_off()
         self.qubit.cpld.set_all_att_mu(self.att_reg_dynamical_decoupling_pi_pulse)
         self.qubit.set_profile(profile)
+        at_mu(now_mu() & ~7)
         self.qubit.io_update()
         self.qubit.on()
         delay_mu(time_pi_pulse_mu)
@@ -1234,6 +1236,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         # set everything back
         self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
         self.qubit.set_profile(profile)
+        at_mu(now_mu() & ~7)
         self.qubit.io_update()
         # turn on all beams
         self.qubit.singlepass1_on()
