@@ -11,7 +11,7 @@ class AndorCamera(LAXDevice):
     """
     name = "camera"
     kernel_invariants = {
-        "cxn", "camera", "detector_dimensions",
+        "cxn", "camera"
     }
 
     def prepare_device(self):
@@ -20,7 +20,10 @@ class AndorCamera(LAXDevice):
         self.camera = self.cxn.andor_server
 
         # retrieve camera info - tuple(dimensions_x, dimensions_y)
-        self.detector_dimensions = self.camera.info_detector_dimensions()
+
+    @rpc
+    def acquire_detector_dimensions(self):
+        return self.camera.info_detector_dimensions()
 
     @rpc
     def acquire_single_image(self, image_region=None, identify_exposure_time: TFloat=None) -> TNone:
