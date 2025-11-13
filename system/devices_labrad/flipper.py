@@ -16,6 +16,11 @@ class Flipper(LAXDevice):
     """
     name = "flipper"
 
+    kernel_invariants = {
+        "cxn", "labjack",
+        "wait_time", "time_flipper_trigger", "flipper_port_name",
+    }
+
     def prepare_device(self):
         # MAGIC NUMBERS
         self.wait_time = 1  # wait time in seconds

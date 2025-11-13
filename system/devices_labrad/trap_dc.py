@@ -13,6 +13,11 @@ class TrapDC(LAXDevice):
     High-level API functions for configuring trap voltages via LabRAD interface.
     """
     name = "trap_dc"
+    kernel_invariants = {
+        "cxn", "trap_dc",
+        "EAST_ENDCAP_CHANNEL", "WEST_ENDCAP_CHANNEL", "V_SHIM_CHANNEL",
+        "H_SHIM_CHANNEL", "ARAMP_1_CHANNEL", "ARAMP_2_CHANNEL",
+    }
 
     def prepare_device(self):
         # establish labrad client connections

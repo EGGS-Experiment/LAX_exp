@@ -11,6 +11,9 @@ class Oven(LAXDevice):
     High-level API functions for using the Oven
     """
     name = "oven"
+    kernel_invariants = {
+        "cxn", "oven", "ovenChannel",
+    }
 
     def prepare_device(self):
         # establish labrad connection
@@ -18,7 +21,7 @@ class Oven(LAXDevice):
         self.oven = self.cxn.gpp3060_server
 
         # MAGIC NUMBERS
-        self.ovenChannel = 1
+        self.ovenChannel = 1    # channel on the PSU used to power the Ca+ oven
 
     @rpc
     def toggle(self, status: TBool) -> TNone:
