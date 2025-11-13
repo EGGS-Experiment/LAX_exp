@@ -15,6 +15,7 @@ from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.PhaserPulseShaper import (
     PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS, _IDX_OSC_AMPL, _IDX_OSC_PHAS
 )
+# todo: make everything scale based off of num phaser oscs
 
 
 class SuperDuperResolution(LAXExperiment, Experiment):
@@ -25,7 +26,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
     Supports lots of easily configurable parameter scanning for phaser.
     Experiment name inspired by Sam Crary.
     """
-    name = 'Super Duper Resolution Ampl'
+    name = 'Super Duper Resolution'
     kernel_invariants = {
         # hardware values
         'att_phaser_mu', 'freq_global_offset_hz', 'freq_osc_base_hz_list',
@@ -60,7 +61,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                       "RAP + SBR: RAPs then SBRs (useful for e.g. fock overlap calibrations.")
 
         # todo: make this 5 and see if it's OK
-        self._num_phaser_oscs = 4   # number of phaser oscillators in use
+        self._num_phaser_oscs = 5   # number of phaser oscillators in use
 
         # allocate relevant beam profiles
         self.profile_729_sb_readout =   0
