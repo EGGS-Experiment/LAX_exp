@@ -1,8 +1,10 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
+from artiq.coredevice.ad9910 import AD9910
 
 from numpy import copy as np_copy
 from numpy import array, int32, int64, arange, zeros, mean
+
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -92,7 +94,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
         self.setattr_device('phaser_eggs')
-        self.setattr_device('urukul1_ch2')
         self.setattr_device('ttl1')
 
         # instantiate helper objects
@@ -516,7 +517,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         Prepare & precompute experimental values.
         """
         self._prepare_argument_checks()
-
         ### MAGIC NUMBERS ###
         self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us)  # post-heralding slack to fix RTIOUnderflows
         self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)  # add slack only if herald success
@@ -1014,7 +1014,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
                     self.qubit.io_update()
 
-
                     self.qubit.set_cfr1()
                     self.qubit.singlepass0.set_cfr1()
                     self.qubit.singlepass1.set_cfr1()
@@ -1028,17 +1027,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.phaser_eggs.phase_osc_clear()
                     # unimportant: clear DUC phase (b/c why not)
                     self.phaser_eggs.reset_duc_phase()
-                    self.setup_beam_profiles(time_start_mu)
 
-                    delay_mu(1000)
-                    self.urukul1_ch2.set_mu(freq_cat_center_ftw,
-                                            asf=self.ampl_doublepass_default_asf,
-                                            pow_=0, profile=0,
-                                            phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu)
-                    delay_mu(1000)
-                    self.urukul1_ch2.set_att(8 * dB)
-                    self.urukul1_ch2.sw.on()
-                    delay_mu(1000)
+                    self.setup_beam_profiles(time_start_mu)
 
                     '''
                     CAT #1
@@ -1053,7 +1043,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 if self.enable_dynamical_decoupling:
                                     self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
                                                                                self.time_dynamical_decoupling_pi_pulse_mu)
-                                    self.pulse_cat(self.profile_729_cat1b, self.time_cat1_bichromatic_mu)
+                                self.pulse_cat(self.profile_729_cat1b, self.time_cat1_bichromatic_mu)
                         self.setup_phaser()
 
                     # cat1 - force herald (to projectively disentangle spin/motion)
@@ -1158,9 +1148,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     # force break loop by default
                     break
 
-                delay_mu(8)
-                self.urukul1_ch2.sw.off()
-                delay_mu(8)
                 '''
                 READ OUT & STORE RESULTS
                 '''
@@ -1274,7 +1261,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 pow_=self.phase_beams_pow_list[profile][0], profile=profile,
                 phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
-            delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass0.set_mu(
                 self.freq_beams_ftw_list[profile][1],
                 asf=self.ampl_beams_asf_list[profile][1],
@@ -1282,17 +1268,13 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 profile=profile,
                 phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
-            delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass1.set_mu(
                 self.freq_beams_ftw_list[profile][2],
                 asf=self.ampl_beams_asf_list[profile][2],
                 pow_=self.phase_beams_pow_list[profile][2],
                 profile=profile,
-                phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+                phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
             )
-
-            # print(self.qubit.pow_to_turns(self.phase_beams_pow_list[profile][2]))
-            # delay_mu(self.urukul_setup_time_mu)
             self.qubit.singlepass2.set_mu(
                 self.freq_beams_ftw_list[profile][3],
                 asf=self.ampl_beams_asf_list[profile][3],
@@ -1300,8 +1282,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 profile=profile,
                 phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
-            delay_mu(self.urukul_setup_time_mu)
-            delay_mu(100000)
 
     @kernel(flags={'fast-math'})
     def update_profile_configuration(self, freq_cat_center_ftw: TInt32, freq_cat_secular_ftw: TInt32,
