@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+from pywin.Demos.cmdserver import flags
 
 
 class InitializeQubit(LAXSubsequence):
@@ -61,3 +62,13 @@ class InitializeQubit(LAXSubsequence):
 
         # 2025/03/27: ensure 854nm off
         self.repump_qubit.off()
+
+    @kernel(flags={'fast-math'})
+    def slack_rescue(self) -> TNone:
+
+        self.pump.rescue()
+
+        self.pump.on()
+        self.repump_qubit.on()
+        self.repump_cooling.on()
+        delay_mu(8)
