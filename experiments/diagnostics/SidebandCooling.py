@@ -8,6 +8,7 @@ from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
     InitializeQubit, Readout, RescueIon, SidebandCoolContinuousRAM, SidebandReadout
 )
+# todo: add pulse shaping
 
 
 class SidebandCooling(LAXExperiment, Experiment):

@@ -23,6 +23,7 @@ class QubitPulseShape(LAXSubsequence):
         "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshape_list", "ram_writer",
     }
 
+    # todo: remove pulse_shape build arg
     def build_subsequence(self, ram_profile: TInt32 = 0, ram_addr_start: TInt32 = 0x00,
                           num_samples: TInt32 = 100, ampl_max_pct: TFloat = 50.,
                           pulse_shape: TStr = "sine_squared"):
@@ -52,8 +53,11 @@ class QubitPulseShape(LAXSubsequence):
         """
         Prepare values for speedy evaluation.
         """
-        # sanitize inputs
-        self._prepare_argument_checks()
+        # todo: check/sanitize
+        # get relevant dataset arguments
+        self.pulse_shape = self.get_parameter('pulse_shape', group='sequences.pulse_shaping', override=False)
+
+        self._prepare_argument_checks() # sanitize inputs
 
         '''SPECFIY RAM PARAMETERS'''
         # prepare ram_writer (b/c only LAXExperiment classes call their own children)
