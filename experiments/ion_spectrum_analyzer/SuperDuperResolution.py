@@ -120,9 +120,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         """
         Set specific arguments for the phaser's frequency & phase.
         """
-        _argstr = "SDR"  # create short string for argument grouping
-
         # phaser - frequency configuration
+        _argstr = "SDR.freq"  # create short string for argument grouping
         self.setattr_argument("freq_phaser_carrier_mhz_list", Scannable(
                                                                         default=[
                                                                             ExplicitScan([86.]),
@@ -131,14 +130,14 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                         global_min=0.005, global_max=4800, global_step=1,
                                                                         unit="MHz", scale=1, precision=6
                                                                     ),
-                              group="{}.freq".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Phaser output center frequency.\n"
                                       "Note: actual center frequency depends on the devices.phaser.freq_center_mhz dataset argument,\n"
                                       "which should be manually entered into the dataset manager by the user after "
                                       "configuring the TRF and NCO via e.g. the phaser_configure tool.\n"
                                       "Ensure all values are set correctly.")
-        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0.]),
-                              group="{}.freq".format(_argstr),
+        self.setattr_argument("freq_sweep_arr", PYONValue([-1., 1., 0., 0., 0.]),
+                              group="{}".format(_argstr),
                               tooltip="Defines how oscillator freqs should be scaled for values in freq_osc_sweep_khz_list.\n"
                                       "Indices of freq_sweep_arr correspond to the oscillator number.\n"
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched.\n"
@@ -152,13 +151,14 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                     global_min=-10000, global_max=10000, global_step=10,
                                                                     unit="kHz", scale=1, precision=6
                                                                 ),
-                              group="{}.freq".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Frequency sweep applied via the phaser oscillators.\n"
                                       "Values for each oscillator are adjusted by the array in freq_sweep_arr.")
 
         # phaser - phase configuration
-        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0.]),
-                              group="{}.phase".format(_argstr),
+        _argstr = "SDR.phase"  # create short string for argument grouping
+        self.setattr_argument("phase_sweep_arr", PYONValue([1., 0., 0., 0., 0.]),
+                              group="{}".format(_argstr),
                               tooltip="Defines how oscillator phases should be adjusted for each value in phase_osc_sweep_turns_list.\n"
                                       "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
@@ -170,7 +170,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                     unit="turns", scale=1, precision=5
                                                                 ),
-                              group="{}.phase".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Phase sweep applied via the phaser oscillators.\n"
                                       "Values for each oscillator are adjusted by the array in phase_sweep_arr.")
         self.setattr_argument("phase_global_ch1_turns_list",  Scannable(
@@ -181,7 +181,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                                     global_min=0.0, global_max=1.0, global_step=1,
                                                                     unit="turns", scale=1, precision=5
                                                                 ),
-                              group="{}.phase".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Sets a global CH1 phase via the DUC.\n"
                                       "Note: the devices.phaser.phas_ch1_inherent_turns dataset argument is overridden "
                                       "in this experiment.")
@@ -190,62 +190,62 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         """
         Set specific arguments for the phaser waveform.
         """
-        _argstr = "SDR"  # create short string for argument grouping
-
         # phaser - waveform - pulse shaping
+        _argstr = "SDR.shape"  # create short string for argument grouping
         self.setattr_argument("enable_pulse_shaping",   BooleanValue(default=False),
-                              group='{}.shape'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Applies pulse shaping to the edges of the phaser pulse.\n"
                                       "Note: pulse shaping is applied to each constituent PSK block.")
         self.setattr_argument("type_pulse_shape",       EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
-                              group='{}.shape'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Pulse shape type to be used.")
         self.setattr_argument("time_pulse_shape_rolloff_us",    NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us", scale=1.),
-                              group='{}.shape'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Time constant of the pulse shape. This is used for both the pulse rollon AND rolloff.\n"
                                       "e.g. a 1ms main pulse time with 100us time_pulse_shape_rolloff_us will result in a 1ms + 2*100us = 1.2ms total pulse time.\n"
                                       "All constituent PSK blocks will have this pulse time applied.\n"
                                       "Note: DMA issues limit the total number of samples (i.e. time_pulse_shape_rolloff_us * freq_pulse_shape_sample_khz).")
         self.setattr_argument("freq_pulse_shape_sample_khz",    NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz", scale=1.),
-                              group='{}.shape'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Sample rate used for pulse shaping.\n"
                                       "This value is inexact and is fixed at multiples of the phaser oscillator update\n"
                                       "\trate (i.e. 40ns) times the number of oscillators in use.")
 
         # phaser - waveform - general
+        _argstr = "SDR.wav"  # create short string for argument grouping
         self.setattr_argument("att_phaser_db",    NumberValue(default=31.5, precision=1, step=0.5, min=0, max=31.5, unit="dB", scale=1.),
-                              group="{}.wav".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Phaser attenuation to be used for both CH0 and CH1.")
         self.setattr_argument("freq_global_offset_mhz", NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
-                              group="{}.wav".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Apply a frequency offset via the phaser oscillators to avoid any DUC/NCO/TRF output spurs.\n"
                                       "Range is limited by the phaser oscillator freq range, i.e. [-10, 10] MHz (includes the frequencies in freq_osc_khz_list).")
-        self.setattr_argument("freq_osc_khz_list",      PYONValue([-701.479, 701.479, 0., 0.]),
-                              group="{}.wav".format(_argstr),
+        self.setattr_argument("freq_osc_khz_list",      PYONValue([-701.479, 701.479, 0., 0., 0.]),
+                              group="{}".format(_argstr),
                               tooltip="Phaser oscillator frequencies.")
-        self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 10., 0.]),
-                              group="{}.wav".format(_argstr),
+        self.setattr_argument("ampl_osc_frac_list",     PYONValue([40., 40., 10., 0., 0.]),
+                              group="{}".format(_argstr),
                               tooltip="Phaser oscillator amplitudes. Applied to both CH0 and CH1.\n"
                                       "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in devices.phaser.ch1.ampl_ch1_osc_scale_arr.")
-        self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0.]),
-                              group="{}.wav".format(_argstr),
+        self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0., 0.]),
+                              group="{}".format(_argstr),
                               tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
         self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.5]),
-                              group="{}.wav".format(_argstr),
+                              group="{}".format(_argstr),
                               tooltip="Sets the relative CH1 phase via the phaser oscillators.")
 
-
         # phase - waveform - sweep
+        _argstr = "SDR.scale"  # create short string for argument grouping
         self.setattr_argument("enable_wav_scale",   BooleanValue(default=False),
-                              group='{}.wav_sweep'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Scale relevant waveform parameters (e.g. amplitude, time).")
         self.setattr_argument("target_wav_scale",   EnumerationValue(['Amplitude', 'Time (Total)', 'Time (Main)', 'Time (Shape)'], default='Amplitude'),
-                              group='{}.wav_sweep'.format(_argstr),
+                              group='{}'.format(_argstr),
                               tooltip="Select the waveform parameter to be scaled.\n"
                                       "Amplitude: scales the amplitudes of all oscillators.\n"
                                       "Time (Total): scales the total time (i.e. main pulse AND pulse-shaped edges).\n"
                                       "Time (Main): scales only the main pulse time (i.e. excludes the pulse-shaped edges).\n"
-                                      "Time (Shape): scales only the time constant for the pulse-shaped edges (i.e. excludes the main pulse).\n")
+                                      "Time (Shape): scales only the time constant for the pulse-shaped edges (i.e. excludes the main pulse).")
         self.setattr_argument("wav_osc_scale_list", Scannable(
                                                         default=[
                                                             ExplicitScan([1.]),
@@ -255,7 +255,8 @@ class SuperDuperResolution(LAXExperiment, Experiment):
                                                         global_min=0., global_max=1., global_step=0.05,
                                                         scale=1, precision=5
                                                     ),
-                              group="{}.wav_sweep".format(_argstr),
+                              group="{}".format(_argstr),
+                              # todo: correct this tooltip
                               tooltip="Waveform scaling factor applied to ampl_osc_frac_list.\n"
                                       "Enables the amplitude to be scanned when e.g. optimizing powers.\n"
                                       "Scaling factor is applied equally to BOTH phaser output channels.")
@@ -264,21 +265,13 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         """
         Set specific arguments for waveform sequence generation.
         """
-        _argstr = "SDR.sequence"  # create short string for argument grouping
+        # "All oscillator PSK schedules must have same length."
+        # "Add delays between pulses where oscillator amplitudes are set to 0.\n"
+        # "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
+        # "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay."
 
         # phaser - composite waveform creation
-        #   tooltip="Total MAIN pulse time per phaser pulse.\n"
-        #           "This time is split among all PSK blocks and does not include any PSK delays.\n"
-        #           "IMPORTANT NOTE: pulse shaping times are IN ADDITION to time_heating us, and ALL PSK blocks are pulse shaped.\n"
-        #           "e.g. 1ms time_heating_us with 21 PSKs and 100us time_pulse_shape_rolloff_us results in an actual pulse time of\n"
-        #           "\t1ms + 21 * (100us * 2) = 5.2ms.")
-        #   tooltip="Enable PSK-ing: break the main pulse into individual blocks with different phases.\n"
-        #           "Number of PSKs is determined by number of phases in phase_osc<x>_psk_turns.\n"
-        #           "All oscillator PSK schedules must have same length.")
-        #   tooltip="Add a delay between PSK pulses where oscillator amplitudes are set to 0. "
-        #           "Can be used to create e.g. a Ramsey or DD-type pulse sequence.\n"
-        #           "Requires enable_phase_shift_keying to be enabled; otherwise, does nothing.\n"
-        #           "Note: prepare/cleanup methods (e.g. set phaser atts, set ext switch) are not called for the delay.")
+        _argstr = "SDR.sequence"  # create short string for argument grouping
         # todo: update tooltips
         self.setattr_argument("seq_time_schedule_us", PYONValue([50., "d", 50.]),
                               group="{}".format(_argstr),
@@ -296,7 +289,7 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
         self.setattr_argument("time_psk_delay_us_list", Scannable(
                                                       default=[
-                                                          ExplicitScan([1000.]),
+                                                          ExplicitScan([200.]),
                                                           RangeScan(10, 1000, 20, randomize=True),
                                                       ],
                                                       global_min=1, global_max=100000, global_step=1,
@@ -514,10 +507,12 @@ class SuperDuperResolution(LAXExperiment, Experiment):
         # note: waveform_index_to_pulseshaper_id NOT kernel_invariant b/c updated in phaser_record
         self.waveform_index_to_pulseshaper_id = zeros(len(self._waveform_param_list), dtype=int32) # store waveform ID linked to DMA sequence
 
-        # parse oscillator waveform schedule
+        # parse master timing sequence
         # todo: better document this section
         _osc_times_blocks = [val if isinstance(val, (int, float)) else 0 for val in self.seq_time_schedule_us]
         idx_delays_list =   [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
+
+        # parse oscillator waveform sequence
         osc_ampls_list = [
             [osc_vals[_IDX_OSC_AMPL]
              if isinstance(osc_vals, (list, tuple)) and
@@ -588,31 +583,27 @@ class SuperDuperResolution(LAXExperiment, Experiment):
 
             # apply waveform sweep: scale waveform parameter according to target_wav_scale
             _time_pulse_shape_rolloff_local = self.time_pulse_shape_rolloff_us
-            if self.enable_wav_scale:
-                # ensure valid wav_osc_scale_val for scaling
-                if 0 <= wav_osc_scale_val <= 1.:
+            if self.enable_wav_scale and (0 <= wav_osc_scale_val <= 1.):
+                # case - "Amplitude": scale all oscillator amplitues
+                if self.target_wav_scale == "Amplitude":
+                    _osc_vals_blocks_local[:, :, _IDX_OSC_AMPL] *= wav_osc_scale_val
 
-                    # case - "Amplitude": scale all oscillator amplitues
-                    if self.target_wav_scale == "Amplitude":
-                        _osc_vals_blocks_local[:, :, _IDX_OSC_AMPL] *= wav_osc_scale_val
+                # case - ("Time (Total)", "Time (Shape)"): scale pulse-shaped edges
+                if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Shape)')):
+                    # scale pulse-shaped rolloff times while ensuring nonzero rolloff times
+                    #   (to prevent divide_by_zero bug in SpinEchoWizardRDX)
+                    _time_pulse_shape_rolloff_local = min(_time_pulse_shape_rolloff_local * wav_osc_scale_val,
+                                                          self.phaser_eggs.t_sample_mu)
 
-                    # case - ("Time (Total)", "Time (Shape)"): scale pulse-shaped edges
-                    if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Shape)')):
-                        # scale pulse-shaped rolloff times while ensuring nonzero rolloff times
-                        #   (to prevent divide_by_zero bug in SpinEchoWizardRDX)
-                        _time_pulse_shape_rolloff_local = min(_time_pulse_shape_rolloff_local * wav_osc_scale_val,
-                                                              self.phaser_eggs.t_sample_mu)
-
-                    # case - ("Time (Total)", "Time (Main)"): scale main pulse time
-                    if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Main)')):
-                        _osc_times_blocks_local = [
-                            t_us * wav_osc_scale_val
-                            if idx not in idx_delays_list
-                            else t_us
-                            for idx, t_us in enumerate(_osc_times_blocks_local)
-                        ]
-                else:
-                    raise ValueError("Invalid wav_osc_scale_val - must be in [0., 1.].")
+                # case - ("Time (Total)", "Time (Main)"): scale main pulse time
+                if any(kw == self.target_wav_scale for kw in ('Time (Total)', 'Time (Main)')):
+                    _osc_times_blocks_local = [
+                        t_us * wav_osc_scale_val
+                        if idx not in idx_delays_list
+                        else t_us
+                        for idx, t_us in enumerate(_osc_times_blocks_local)
+                    ]
+            elif not (0 <= wav_osc_scale_val <= 1.): raise ValueError("Invalid wav_osc_scale_val - must be in [0., 1.].")
 
 
             '''

@@ -416,9 +416,13 @@ class ContinuousSampling(LAXExperiment, Experiment):
         self.pulseshaper_vals = None  # store compiled waveforms from pulseshaper
         self.pulseshaper_id = int32(0)  # store waveform ID for pulseshaper
 
-        # parse oscillator waveform schedule
+        # parse master timing sequence
         _osc_times_blocks = [val if isinstance(val, (int, float)) else 0 for val in self.seq_time_schedule_us]
         idx_delays_list =   [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
+        # update master timing schedule with delay argument
+        for idx_delay in idx_delays_list: _osc_times_blocks[idx_delay] = self.time_psk_delay_us
+
+        # parse oscillator waveform sequence
         osc_ampls_list = [
             [osc_vals[_IDX_OSC_AMPL]
              if isinstance(osc_vals, (list, tuple)) and
