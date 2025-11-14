@@ -61,7 +61,7 @@ class SqueezeConfigurable(LAXSubsequence):
 
         # ensure phase_autoclear is enabled ahead of time
         self.dds_parametric.write32(_AD9910_REG_CFR1,
-                                    (1 << 16) | # select_sine_output
+                                    # (1 << 16) | # select_sine_output (note: removed for consistency)
                                     (1 << 13) | # phase_autoclear
                                     2
                                     )
@@ -96,16 +96,17 @@ class SqueezeConfigurable(LAXSubsequence):
         # self.ttl8.off()
 
         # unset phase_autoclear to keep output coherent
-        self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
+        # self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16) | 2) # note: removed 1 << 16 (select_sine_output) for consistency
+        self.dds_parametric.set_cfr1()
 
     @kernel(flags={"fast-math"})
     def antisqueeze(self) -> TNone:
         """
         todo: document
         """
-        # unset phase_autoclear to keep output coherent
-        # and ensure set_sine_output flag remains set
-        self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16) | 2)
+        # unset phase_autoclear to keep output coherent and ensure set_sine_output flag remains set
+        # self.dds_parametric.write32(_AD9910_REG_CFR1, (1 << 16) | 2) # note: removed 1 << 16 (select_sine_output) for consistency
+        self.dds_parametric.set_cfr1()
 
         # set blank profile to ensure switching is exact
         self.dds_parametric.set_profile(2)
