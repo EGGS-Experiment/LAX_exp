@@ -44,12 +44,18 @@ class Beam854(LAXDevice):
         self.core.break_realtime()
 
         # set relevant beam parameters
-        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf,
+                         profile=0, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
-        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf,
+                         profile=1, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
-        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf, profile=2, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.beam.set_mu(self.freq_repump_qubit_ftw, asf=self.ampl_repump_qubit_asf,
+                         profile=2, phase_mode=PHASE_MODE_CONTINUOUS)
         delay_mu(8000)
+
+        # set CFR2 for matched_latency_enable
+        self.beam.set_cfr2(matched_latency_enable=1)
 
         # set attenuation
         self.set_att_mu(self.att_repump_qubit_mu)

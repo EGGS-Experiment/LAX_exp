@@ -106,7 +106,7 @@ class Beam729(LAXDevice):
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         """
-        todo: document
+        Initialize all devices relevant to the 729nm.
         """
         # get CPLD attenuations so we don't override them
         self.cpld.get_att_mu()
@@ -119,6 +119,15 @@ class Beam729(LAXDevice):
         self.singlepass1.set_cfr1()
         self.singlepass2.set_cfr1()
         self.doublepass_inj.set_cfr1()
+        self.io_update()
+        delay_mu(25000)
+
+        # set matched_latency_enable on all relevant DDSs for consistency
+        self.set_cfr2(matched_latency_enable=1)
+        self.singlepass0.set_cfr2(matched_latency_enable=1)
+        self.singlepass1.set_cfr2(matched_latency_enable=1)
+        self.singlepass2.set_cfr2(matched_latency_enable=1)
+        self.doublepass_inj.set_cfr2(matched_latency_enable=1)
         self.io_update()
         delay_mu(25000)
 
@@ -163,7 +172,7 @@ class Beam729(LAXDevice):
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         """
-        todo: document
+        Restore all devices relevant to the 729nm back for normal operation.
         """
         # set up relevant AOMs to default values on ALL profiles
         # necessary b/c not all AOMs are configured/used for each experiment
