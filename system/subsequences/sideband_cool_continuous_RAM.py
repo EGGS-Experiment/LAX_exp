@@ -308,7 +308,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.qubit.write32(ad9910._AD9910_REG_CFR1,
                                    (1 << 31) |  # ram_enable
                                    (ad9910.RAM_DEST_FTW << 29) |  # ram_destination
-                                   (1 << 16) |  # select_sine_output
+                                   # (1 << 16) |  # select_sine_output (note: removed for consistency)
                                    (1 << 13) |  # phase_autoclear
                                    (1 << 9) | # osk_enable
                                    2 # sdio_input_only + msb_first
@@ -334,7 +334,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                 self.repump_qubit.write32(ad9910._AD9910_REG_CFR1,
                                           (1 << 31) |  # ram_enable
                                           (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
-                                          (1 << 16) |  # select_sine_output
+                                          # (1 << 16) |  # select_sine_output (note: removed for consistency)
                                           (1 << 13) |  # phase_autoclear
                                           2 # sdio_input_only + msb_first
                                           )

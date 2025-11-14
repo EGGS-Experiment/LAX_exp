@@ -100,7 +100,7 @@ class DDSDipole(LAXDevice):
 
         # enable matched latency and phase autoclearing
         self.dds.write32(_AD9910_REG_CFR1,
-                         (1 << 16) |    # select_sine_output
+                         # (1 << 16) |    # select_sine_output (note: removed for consistency)
                          (1 << 13) |    # phase_autoclear
                          2)             # default serial I/O configs
 
@@ -111,7 +111,7 @@ class DDSDipole(LAXDevice):
         """
         # ensure signal is output as a sine with 0 phase
         self.dds.write32(_AD9910_REG_CFR1,
-                         (1 << 16) |    # select_sine_output
+                         # (1 << 16) |    # select_sine_output (note: removed for consistency)
                          (1 << 13) |    # phase_autoclear
                          2)             # default serial I/O configs
 

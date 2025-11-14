@@ -82,7 +82,7 @@ class QubitPulseShape(LAXSubsequence):
         self._CFR1_RAM_CONFIG = int64(
             (1 << 31) | # ram_enable
             (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
-            (1 << 16) |  # select_sine_output
+            # (1 << 16) |  # select_sine_output (note: removed for consistency)
             2 # sdio_input_only + msb_first
         ) & 0xFFFFFFFF # ensure 32b only
 

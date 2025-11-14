@@ -136,6 +136,7 @@ class UrukulConfigure(EnvExperiment):
         # clear CFRs to default state
         self.dds.set_cfr1()
         self.dds.cpld.io_update.pulse_mu(8)
+        # todo: should we set matched_latency_enable = 1?
         self.dds.set_cfr2()
         self.dds.cpld.io_update.pulse_mu(8)
         delay_mu(10000)
