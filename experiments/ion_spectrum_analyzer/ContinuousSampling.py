@@ -360,32 +360,32 @@ class ContinuousSampling(LAXExperiment, Experiment):
         '''
         CHECK PHASER WAVEFORM CONFIG
         '''
-        osc_seq_list = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+        osc_seqs_all = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
                         self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
 
         # check that waveform schedules have correct length
         num_sequence_blocks = len(self.seq_time_schedule_us)
         sequence_length_invalid = any(
             (not isinstance(psk_schedule, list)) or (len(psk_schedule) != num_sequence_blocks)
-            for psk_schedule in osc_seq_list
+            for psk_schedule in osc_seqs_all
         )
         if sequence_length_invalid: raise ValueError("Invalid PSK schedule. All PSK schedules must be of same length.")
 
-        # check osc wav sequence valid: only lists of [ampl_scale, phas_offset], or "d" (for "delay")
-        for idx, osc_seq in enumerate(osc_seq_list):
+        # check that all osc wav sequences are valid
+        idx_master_seq_list = [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
+        for idx, osc_seq in enumerate(osc_seqs_all):
+            # check osc wav sequences contain only lists of [ampl_scale, phas_offset] or "d" (for "delay")
             if not all(
                     (isinstance(val, (list, tuple)) and
                     len(val) == 2 and
                     all(isinstance(param, (int, float)) for param in val) and
                     (0 <= val[_IDX_OSC_AMPL] <= 1) and (-1 <= val[_IDX_OSC_PHAS] <= 1))
                     or (val == "d")
-                    for val in osc_seq): raise ValueError(
-                "Invalid sequence for phase_osc{:d}_psk_turns: "
-                "must contain only list([ampl_scale, phas_offset]} or 'd'.".format(idx))
+                    for val in osc_seq
+            ): raise ValueError("Invalid sequence for phase_osc{:d}_psk_turns: "
+                                "must contain only list([ampl_scale, phas_offset]} or 'd'.".format(idx))
 
-        # check all sequences specify delays identically (compare to master schedule)
-        idx_master_seq_list = [idx for idx, val in enumerate(self.seq_time_schedule_us) if val == "d"]
-        for idx, osc_seq in enumerate(osc_seq_list):
+            # check all sequences specify delays identically (compare to master schedule)
             if idx_master_seq_list != [idx_d for idx_d, val in enumerate(osc_seq) if val == "d"]:
                 raise ValueError("Invalid sequence for phase_osc{:d}_psk_turns: "
                                  "must contain only list([ampl_scale, phas_offset]} or 'd'.".format(idx))
@@ -423,24 +423,18 @@ class ContinuousSampling(LAXExperiment, Experiment):
         for idx_delay in idx_delays_list: _osc_times_blocks[idx_delay] = self.time_psk_delay_us
 
         # parse oscillator waveform sequence
-        osc_ampls_list = [
-            [osc_vals[_IDX_OSC_AMPL]
-             if isinstance(osc_vals, (list, tuple)) and
-                all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
-             else 0
-             for osc_vals in block]
-            for block in (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                          self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
-        ][:self._num_phaser_oscs]
-        osc_phas_list = [
-            [osc_vals[_IDX_OSC_PHAS]
-             if isinstance(osc_vals, (list, tuple)) and
-                all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
-             else 0
-             for osc_vals in block]
-            for block in (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
-                          self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)
-        ][:self._num_phaser_oscs]
+        osc_seqs_all = (self.phase_osc0_psk_turns, self.phase_osc1_psk_turns, self.phase_osc2_psk_turns,
+                        self.phase_osc3_psk_turns, self.phase_osc4_psk_turns)[:self._num_phaser_oscs]
+        osc_ampls_list = [[osc_vals[_IDX_OSC_AMPL]
+                           if isinstance(osc_vals, (list, tuple)) and
+                              all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+                           else 0 for osc_vals in block]
+                          for block in osc_seqs_all]
+        osc_phas_list = [[osc_vals[_IDX_OSC_PHAS]
+                          if isinstance(osc_vals, (list, tuple)) and
+                             all(isinstance(osc_param, (int, float)) for osc_param in osc_vals)
+                          else 0 for osc_vals in block]
+                         for block in osc_seqs_all]
 
 
         '''
