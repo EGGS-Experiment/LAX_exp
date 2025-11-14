@@ -210,8 +210,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               tooltip="Pulse time for dynamical decoupling pi pulse.")
 
         self.setattr_argument("phase_dynamical_decoupling_pi_pulse_turns",
-                              NumberValue(default=0.25, precision=2, step=0.05, min=-1., max=1., scale=1,
-                                          unit='turns'),
+                             PYONValue([0.5, 0, 0.5, 0]),
                               group='default.dynamical_decoupling',
                               tooltip='phase of dynamical decoupling pi pulse offset from phase of \n'
                                       'continuous dynamical decoupling. \n'
@@ -530,6 +529,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
          phase_cat2_cat_pow_list, time_ramsey_delay_mu_list) = self._prepare_experiment_cat_general()
         freq_osc_sweep_hz_list, waveform_num_list = self._prepare_experiment_qvsa_general()
         self._prepare_experiment_qvsa_waveform()
+        self.num_dynamical_decoupling_pi_pulses = len(list(self.phase_dynamical_decoupling_pi_pulse_turns))
+
 
         # create experiment config
         self.config_experiment_list = create_experiment_config(
@@ -1073,22 +1074,29 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     RAMSEY DELAY
                     '''
                     if self.enable_ramsey_delay:
-                        if self.enable_dynamical_decoupling:
-                            self.qubit.on()
-                        delay_mu(time_ramsey_delay_mu)
-                        self.qubit.off()
-                        if self.enable_dynamical_decoupling:
-                            self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
-                            self.time_dynamical_decoupling_pi_pulse_mu)
-                            #reset attenuators for continuous DD
-                            self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
-                            # reset profile for continuous DD
-                            self.qubit.set_profile(self.profile_729_cat1b)
-                            at_mu(now_mu() & ~7)
-                            self.qubit.io_update()
-                            self.qubit.on()
-                        delay_mu(time_ramsey_delay_mu)
-                        self.qubit.off()
+                        for idx in range(self.num_dynamical_decoupling_pi_pulses):
+                            if self.enable_dynamical_decoupling:
+                                # reset attenuators for continuous DD
+                                self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+                                # reset profile for continuous DD
+                                self.qubit.set_profile(self.profile_729_cat1b)
+                                at_mu(now_mu() & ~7)
+                                self.qubit.io_update()
+                                self.qubit.on()
+                            delay_mu(time_ramsey_delay_mu)
+                            self.qubit.off()
+                            if self.enable_dynamical_decoupling:
+                                self.perform_dynamical_decoupling_pi_pulse(self.profile_729_pi_pulse_forward,
+                                self.time_dynamical_decoupling_pi_pulse_mu)
+
+                        # reset attenuators for continuous DD
+                        self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+                        # reset profile for continuous DD
+                        self.qubit.set_profile(self.profile_729_cat1b)
+                        at_mu(now_mu() & ~7)
+                        self.qubit.io_update()
+                        self.qubit.on()
+                    delay_mu(time_ramsey_delay_mu)
 
                     '''
                     QVSA PULSE
@@ -1219,6 +1227,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         """
 
         # set to pi pulse parameters
+        self.qubit.off()
         self.qubit.singlepass0_on()
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
