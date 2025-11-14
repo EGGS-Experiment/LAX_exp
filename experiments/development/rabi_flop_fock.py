@@ -64,8 +64,7 @@ class FockRabiFlopping(LAXExperiment, Experiment):
         # prepare sequences
         self.sbc_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
-            ram_addr_start_729=0, ram_addr_start_854=0,
-            num_samples=100
+            ram_addr_start_729=0, ram_addr_start_854=0, num_samples=100
         )
         self.pulseshape_subsequence = QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=502,

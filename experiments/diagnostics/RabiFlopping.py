@@ -71,7 +71,7 @@ class RabiFlopping(LAXExperiment, Experiment):
         )
         self.pulseshape_subsequence =   QubitPulseShape(
             self, ram_profile=self.profile_729_readout, ram_addr_start=502,
-            num_samples=200, ampl_max_pct=self.ampl_qubit_pct, pulse_shape="sine_squared"
+            num_samples=200, ampl_max_pct=self.ampl_qubit_pct
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.doppler_subsequence =      NoOperation(self)

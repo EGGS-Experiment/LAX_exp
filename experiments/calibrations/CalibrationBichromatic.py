@@ -96,7 +96,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         # subsequences - other
         self.pulseshape_subsequence =   QubitPulseShape(
             self, ram_profile=self.profile_729_target, ram_addr_start=300, num_samples=250,
-            ampl_max_pct=self.ampl_qubit_pct, pulse_shape="blackman"
+            ampl_max_pct=self.ampl_qubit_pct
         )
         self.initialize_subsequence =   InitializeQubit(self)
         self.doppler_subsequence =      NoOperation(self)
