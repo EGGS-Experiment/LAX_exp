@@ -3,17 +3,20 @@ from numpy import int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS, PHASE_MODE_ABSOLUTE
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM
-# todo: add pulse shaping
+from LAX_exp.system.subsequences import (
+    InitializeQubit, Readout, RescueIon, NoOperation, SidebandCoolContinuousRAM,
+    QubitPulseShape
+)
 # todo: add tooltips
 # todo: add processing
+# todo: test vigorously
 
 
 class RamseySpectroscopy(LAXExperiment, Experiment):
     """
     Experiment: Ramsey Spectroscopy
 
-    Measures ion fluorescence after conducting a Ramsey Spectroscopy sequence.
+    Conduct a ramsey spectroscopy experiment with optional spin-echoing and shaped pulses.
     """
     name = 'Ramsey Spectroscopy'
     kernel_invariants = {
@@ -23,10 +26,13 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
         # subsequences
         'cooling_subsequence', 'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence',
-        'sbc_subsequence',
+        'sbc_subsequence', 'pulseshape_subsequence',
 
         # configs
-        'profile_729_ramsey', 'config_experiment_list',
+        'profile_729_SBC', 'profile_729_ramsey', 'profile_729_shape', 'config_experiment_list',
+
+        # pulse shaping
+        '_config_ps_ramsey', '_config_ps_spinecho',
     }
 
     def build_experiment(self):
@@ -34,10 +40,12 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=40, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("cooling_type",   EnumerationValue(["Doppler", "SBC"], default="Doppler"))
+        self.setattr_argument("enable_pulseshaping", BooleanValue(default=False))
 
         # allocate profiles on 729nm for different subsequences
-        self.profile_729_SBC =      4
-        self.profile_729_ramsey =   7
+        self.profile_729_SBC =      1
+        self.profile_729_ramsey =   2
+        self.profile_729_shape =    3
 
         # get devices
         self.setattr_device('qubit')
@@ -108,13 +116,33 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.setattr_argument('time_spinecho_us', NumberValue(default=10., precision=2, step=0.5, min=1., max=10000., scale=1., unit="us"),
                               group="spinecho")
 
+        # tmp remove - fiducial dds
+        self.setattr_device('urukul1_ch2')
+        # tmp remove - fiducial dds
+
+        # note: have to initialize pulseshape last b/c it requires a build arg
+        self.pulseshape_subsequence =   QubitPulseShape(
+            self, ram_profile=self.profile_729_shape, ram_addr_start=202,
+            num_samples=200, ampl_max_pct=self.ampl_ramsey_pct,
+        )
+
     def prepare_experiment(self):
         """
         Prepare & precompute experimental values.
         """
+        '''
+        GENERAL SETUP
+        '''
         # choose correct cooling subsequence
         if self.cooling_type == "Doppler":  self.cooling_subsequence =  self.doppler_subsequence
         elif self.cooling_type == "SBC":    self.cooling_subsequence =  self.sbc_subsequence
+
+        # configure linetriggering
+        if self.enable_linetrigger:
+            time_linetrig_holdoff_mu_list = [self.core.seconds_to_mu(time_ms * ms)
+                                             for time_ms in self.time_linetrig_holdoff_ms_list]
+        else:   time_linetrig_holdoff_mu_list = [0]
+
 
         '''
         CONVERT VALUES TO MACHINE UNITS
@@ -131,12 +159,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         phase_ramsey_pow_list = [self.qubit.turns_to_pow(phas_turn)
                                  for phas_turn in list(self.phase_ramsey_turns_list)]
 
-        # configure linetriggering
-        if self.enable_linetrigger:
-            time_linetrig_holdoff_mu_list = [self.core.seconds_to_mu(time_ms * ms)
-                                             for time_ms in self.time_linetrig_holdoff_ms_list]
-        else:   time_linetrig_holdoff_mu_list = [0]
-
         # configure spinecho-ing
         self.ampl_spinecho_asf = self.qubit.amplitude_to_asf(self.ampl_spinecho_pct / 100.)
         self.time_spinecho_mu = self.core.seconds_to_mu(self.time_spinecho_us * us)
@@ -144,7 +166,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                                            for phas_turns in self.phas_spinecho_schedule_turns]
         self.num_spinecho_delays = len(self.phas_spinecho_schedule_pow) + 1
 
-        # ensure we can do enough spinechos in given delay
+        # ensure delay is sufficient for given number of spinechos
         t_min_inter_pulse_us = min(list(self.time_delay_us_list)) / len(list(self.phas_spinecho_schedule_turns))
         # note: the overhead is a coarse guess
         t_pulse_overhead_us = 2.58 + 0.08 + 0.05 + 0.05 # set_mu_tracking + ad9910_latency_matched + 2x switch_delay
@@ -152,6 +174,9 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
             raise ValueError("Invalid spinecho config. "
                              "Minimum inter-spinecho delay is less than the spinecho pulse time.")
 
+        # support pulseshaping
+        self._config_ps_ramsey =   self.pulseshape_subsequence.configure_time(self.time_pulse_mu)
+        self._config_ps_spinecho = self.pulseshape_subsequence.configure_time(self.time_spinecho_mu)
 
         ### CREATE EXPERIMENT CONFIG ###
         self.config_experiment_list = create_experiment_config(
@@ -175,6 +200,14 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.initialize_subsequence.record_dma()
         self.cooling_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+
+        # tmp remove - fiducial dds
+        self.urukul1_ch2.get_att_mu()
+        self.core.break_realtime()
+        self.urukul1_ch2.set_att_mu(self.att_ramsey_mu)
+        self.urukul1_ch2.set_profile(self.profile_729_ramsey)
+        self.urukul1_ch2.sw.on()
+        # tmp remove - fiducial dds
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -239,26 +272,46 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.qubit.io_update()
 
         # first pulse
-        self.qubit.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
-                          pow_=0x0,
-                          profile=self.profile_729_ramsey,
-                          phase_mode=PHASE_MODE_ABSOLUTE)
-        self.qubit.on()
-        delay_mu(self.time_pulse_mu)
-        self.qubit.off()
+        with parallel:
+            # tmp remove - fiducial dds
+            self.urukul1_ch2.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
+                              pow_=0x0,
+                              profile=self.profile_729_ramsey,
+                              phase_mode=PHASE_MODE_ABSOLUTE)
+            # tmp remove - fiducial dds
+
+            if self.enable_pulseshaping:
+                at_mu(now_mu() & ~0x7)
+                self.qubit.set_cfr1(phase_autoclear=1)  # clear phase deterministically
+                self.qubit.set_ftw(freq_ftw)
+                self.qubit.set_pow(0x0)
+                self.pulseshape_subsequence.run_from_config(self._config_ps_ramsey)
+                self.qubit.set_cfr1()  # disable phase_autoclear
+            else:
+                self.qubit.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
+                                  pow_=0x0,
+                                  profile=self.profile_729_ramsey,
+                                  phase_mode=PHASE_MODE_ABSOLUTE)
+                self.qubit.on()
+                delay_mu(self.time_pulse_mu)
+                self.qubit.off()
 
         # ramsey delay/spin-echo
-        if not self.enable_spinecho:    delay_mu(time_delay_mu)
-        else:   self.spin_echo(time_delay_mu, freq_ftw)
+        if not self.enable_spinecho: delay_mu(time_delay_mu)
+        else: self.spin_echo(time_delay_mu, freq_ftw)
 
         # second pulse
-        self.qubit.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
-                          pow_=phase_pow,
-                          profile=self.profile_729_ramsey,
-                          phase_mode=PHASE_MODE_CONTINUOUS)
-        self.qubit.on()
-        delay_mu(self.time_pulse_mu)
-        self.qubit.off()
+        if self.enable_pulseshaping:
+            self.qubit.set_pow(phase_pow)
+            self.pulseshape_subsequence.run_from_config(self._config_ps_ramsey)
+        else:
+            self.qubit.set_mu(freq_ftw, asf=self.ampl_ramsey_asf,
+                              pow_=0x0,
+                              profile=self.profile_729_ramsey,
+                              phase_mode=PHASE_MODE_ABSOLUTE)
+            self.qubit.on()
+            delay_mu(self.time_pulse_mu)
+            self.qubit.off()
 
     @kernel(flags={"fast-math"})
     def spin_echo(self, time_delay_mu: TInt64, freq_ftw: TInt32) -> TNone:
@@ -271,20 +324,27 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
 
         # schedule spin-echo pulsing
         for phas_pow in self.phas_spinecho_schedule_pow:
-            # configure beam while we wait
             with parallel:
-                self.qubit.set_mu(freq_ftw, asf=self.ampl_spinecho_asf,
-                                  pow_=phas_pow,
-                                  phase_mode=PHASE_MODE_CONTINUOUS,
-                                  profile=self.profile_729_ramsey)
+                # configure beam while we wait
+                if self.enable_pulseshaping:
+                    self.qubit.set_pow(phas_pow)
+                else:
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_spinecho_asf,
+                                      pow_=phas_pow,
+                                      phase_mode=PHASE_MODE_CONTINUOUS,
+                                      profile=self.profile_729_ramsey)
+
                 # note: delay MUST be the last command in the parallel block
                 #   so that timeline resumes AFTER delay
                 delay_mu(t_inter_pulse_mu)
 
             # fire pulse
-            self.qubit.on()
-            delay_mu(self.time_spinecho_mu)
-            self.qubit.off()
+            if self.enable_pulseshaping:
+                self.pulseshape_subsequence.run_from_config(self._config_ps_spinecho)
+            else:
+                self.qubit.on()
+                delay_mu(self.time_spinecho_mu)
+                self.qubit.off()
 
         # final delay
         delay_mu(t_inter_pulse_mu)
