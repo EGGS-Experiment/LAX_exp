@@ -1155,6 +1155,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 if herald_counter < self.max_herald_attempts:
                     # 729nm based readout (sideband ratio, rabi flopping)
                     if self.readout_config == 1:
+                        # delay_mu(100000)
+                        # print(self.qubit.ftw_to_frequency(freq_729_readout_ftw))
+                        # delay_mu(100000)
                         self.pulse_readout_sbr(time_729_readout_mu, freq_729_readout_ftw)
                     # RAP based readout
                     elif self.readout_config == 2:
