@@ -145,12 +145,13 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
         self.num_spinecho_delays = len(self.phas_spinecho_schedule_pow) + 1
 
         # ensure we can do enough spinechos in given delay
-        t_min_inter_pulse_us = min(list(self.time_delay_us_list)) / len(list(self.phas_spinecho_schedule_turns))
-        # note: the overhead is a coarse guess
-        t_pulse_overhead_us = 2.58 + 0.08 + 0.05 + 0.05 # set_mu_tracking + ad9910_latency_matched + 2x switch_delay
-        if t_min_inter_pulse_us < (self.time_spinecho_us + t_pulse_overhead_us):
-            raise ValueError("Invalid spinecho config. "
-                             "Minimum inter-spinecho delay is less than the spinecho pulse time.")
+        if self.enable_spinecho:
+            t_min_inter_pulse_us = min(list(self.time_delay_us_list)) / len(list(self.phas_spinecho_schedule_turns))
+            # note: the overhead is a coarse guess
+            t_pulse_overhead_us = 2.58 + 0.08 + 0.05 + 0.05 # set_mu_tracking + ad9910_latency_matched + 2x switch_delay
+            if t_min_inter_pulse_us < t_pulse_overhead_us:
+                raise ValueError("Invalid spinecho config. "
+                                 "Minimum inter-spinecho delay is less than the spinecho pulse time.")
 
 
         ### CREATE EXPERIMENT CONFIG ###
