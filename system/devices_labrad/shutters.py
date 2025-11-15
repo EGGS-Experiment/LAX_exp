@@ -12,6 +12,10 @@ class Shutters(LAXDevice):
     High-level API functions for using the shutters
     """
     name = "shutters"
+    kernel_invariants = {
+        "cxn", "labjack",
+        "port_name_377", "port_name_423",
+    }
 
     def prepare_device(self):
         # establish labrad client connections
