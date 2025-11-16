@@ -153,7 +153,6 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                 raise ValueError("Invalid spinecho config. "
                                  "Minimum inter-spinecho delay is less than the spinecho pulse time.")
 
-
         ### CREATE EXPERIMENT CONFIG ###
         self.config_experiment_list = create_experiment_config(
             time_delay_mu_list, freq_ramsey_ftw_list,
