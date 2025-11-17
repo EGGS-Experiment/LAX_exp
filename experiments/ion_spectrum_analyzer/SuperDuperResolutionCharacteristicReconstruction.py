@@ -553,9 +553,6 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 '''
                 MOTIONAL STATE PREPARATION
                 '''
-                # get current time
-                t_phaser_start_mu = now_mu()
-
                 # initialize ion in S-1/2 state & sideband cool to ground state
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
@@ -564,9 +561,10 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
                 self.qubit.set_profile(self.profile_729_target)
                 self.qubit.cpld.io_update.pulse_mu(8)
 
+                # get reference time for phase tracking
+                t_phaser_start_mu = self.phaser_eggs.get_next_frame_mu()
                 # apply superresolution interaction
-                if self.enable_phaser:
-                    t_phaser_start_mu = self.phaser_run(self.pulseshaper_id)
+                if self.enable_phaser: t_phaser_start_mu = self.phaser_run(self.pulseshaper_id)
 
 
                 '''
@@ -609,6 +607,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
     def phaser_run(self, waveform_id: TInt32) -> TInt64:
         """
         Run the main QVSA pulse together with supporting functionality.
+        Note: no need to clear osc phases b/c osc phase accumulators are kept cleared by phaser_stop.
         :param waveform_id: 32b ID of the waveform to run.
         :return: the start time of the phaser oscillator waveform (in machine units, 64b int).
             Useful for synchronizing device operation.
@@ -618,6 +617,7 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # EGGS - RUN
         # reset DUC phase to start DUC deterministically
+        # note: not that necessary since carrier phase not important
         self.phaser_eggs.reset_duc_phase()
         t_start_mu = self.phaser_eggs.get_next_frame_mu()
         at_mu(t_start_mu)
@@ -666,23 +666,17 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
             self.qubit.freq_singlepass0_default_ftw, asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
             profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
         )
-        self.qubit.singlepass1.set_mu(
-            self.qubit.freq_singlepass1_default_ftw, asf=self.qubit.ampl_singlepass1_default_asf, pow_=0,
-            profile=self.profile_729_target, phase_mode=ad9910.PHASE_MODE_TRACKING, ref_time_mu=time_start_mu
-        )
         self.qubit.cpld.set_all_att_mu(self.att_reg_sigmax)
 
         # run pulse
         self.qubit.singlepass0.sw.on()
-        # todo: should singlepass1 be off?
-        self.qubit.singlepass1.sw.on()
-        if is_real:
-            self.qubit.on()
-        else:
-            self.qubit.off()
+        delay_mu(8)
+        self.qubit.singlepass1.sw.off()
+        delay_mu(8)
+        if is_real: self.qubit.on()
+        else: self.qubit.off()
         delay_mu(self.time_sigmax_mu)
         self.qubit.off()
-        self.qubit.singlepass1.sw.off()
 
     @kernel(flags={"fast-math"})
     def pulse_bichromatic(self, time_start_mu: TInt64, time_pulse_mu: TInt64, phas_pow_list: TList(TInt32),
@@ -715,9 +709,12 @@ class SuperDuperResolutionCharacteristicReconstruction(LAXExperiment, Experiment
 
         # run bichromatic pulse
         self.qubit.singlepass0.sw.on()
+        delay_mu(8)
         self.qubit.singlepass1.sw.on()
+        delay_mu(8)
         self.qubit.on()
         delay_mu(time_pulse_mu)
         self.qubit.off()
+        delay_mu(8)
         self.qubit.singlepass1.sw.off()
 
