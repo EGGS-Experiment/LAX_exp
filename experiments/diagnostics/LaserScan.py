@@ -12,7 +12,7 @@ from sipyco import pyon
 
 class LaserScan(LAXExperiment, Experiment):
     """
-    Experiment: Laser Scan
+    Experiment: fLaser Scan
 
     Does a 729nm laser scan; resets the ion(s) every shot.
     Supports sine-squared pulse shaping.
