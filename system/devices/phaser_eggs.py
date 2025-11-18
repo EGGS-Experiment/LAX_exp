@@ -50,16 +50,15 @@ class PhaserEGGS(LAXDevice):
         # ensure delays are multiples of phaser frame period
         self.time_phaser_holdoff_mu = int64(round(self.time_phaser_holdoff_mu / self.t_frame_mu) * self.t_frame_mu)
 
+        # note: make all delays self.core.coarse_ref_period instead of 8ns
+        self.switch_delay_time_mu = int64(8)
+
     @kernel(flags={'fast-math'})
     def initialize_device(self) -> TNone:
         """
         Clear the DUC phase accumulators and sync the DAC.
         """
-        # ensure INT HOLD on RF servo is deactivated
-        self.int_hold.off()
-        # ensure EGGS amp switches are closed
-        self.ch0_amp_sw.off()
-        self.ch1_amp_sw.off()
+        self.amp_sws_off()
 
         # clear channel DUC phase accumulators
         at_mu(self.phaser.get_next_frame_mu())
@@ -204,12 +203,7 @@ class PhaserEGGS(LAXDevice):
         # add extra delay to ensure turn-on glitches are suppressed by switches
         delay_mu(self.t_setup_delay_mu - 16)  # 6 frame periods (minus coarse RTIO between switches)
 
-        # open phaser amp switches and activate integrator hold
-        self.ch0_amp_sw.on()
-        delay_mu(8)
-        self.ch1_amp_sw.on()
-        delay_mu(8)
-        self.int_hold.on()
+        self.amp_sws_on()
 
         # add holdoff delay to account for integrator hold, switch rise/fall times (25us for ZSW2-272VDHR+)
         delay_mu(self.time_phaser_holdoff_mu)
@@ -246,11 +240,7 @@ class PhaserEGGS(LAXDevice):
         # add delay for oscillator updates to account for pipeline latency
         delay_mu(self.t_setup_delay_mu - 16)  # 8 frame periods (minus coarse RTIO between switches)
         # stop phaser amp switches & deactivate integrator hold
-        self.ch0_amp_sw.off()
-        delay_mu(8)
-        self.ch1_amp_sw.off()
-        delay_mu(8)
-        self.int_hold.off()
+        self.amp_sws_off()
 
         # add delay time after EGGS pulse to allow RF servo to re-lock
         delay_mu(self.time_phaser_holdoff_mu)
@@ -313,6 +303,50 @@ class PhaserEGGS(LAXDevice):
             self.phaser.channel[0].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=0)
             self.phaser.channel[1].oscillator[4].set_amplitude_phase(amplitude=0., phase=0., clr=0)
             delay_mu(self.t_sample_mu)
+
+    @kernel(flags={'fast-math'})
+    def ch0_amp_sw_on(self) -> TNone:
+        self.ch0_amp_sw.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def ch0_amp_sw_off(self) -> TNone:
+        self.ch0_amp_sw.off()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def ch1_amp_sw_on(self) -> TNone:
+        self.ch1_amp_sw.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def ch1_amp_sw_off(self) -> TNone:
+        self.ch1_amp_sw.off()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def int_hold_off(self) -> TNone:
+        self.int_hold.off()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def int_hold_on(self) -> TNone:
+        self.int_hold.on()
+        delay_mu(self.switch_delay_time_mu)
+
+    @kernel(flags={'fast-math'})
+    def amp_sws_on(self) -> TNone:
+        self.ch0_amp_sw_on()
+        self.ch1_amp_sw_on()
+        self.int_hold_on()
+        delay_mu(self.time_phaser_holdoff_mu)
+
+    @kernel(flags={'fast-math'})
+    def amp_sws_off(self) -> TNone:
+        self.ch0_amp_sw_off()
+        self.ch1_amp_sw_off()
+        self.int_hold_off()
+        delay_mu(self.time_phaser_holdoff_mu)
 
 
     '''
