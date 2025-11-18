@@ -66,28 +66,28 @@ class Beam729(LAXDevice):
         self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False,
                                                  conversion_function=pct_to_asf)
 
-        for device in self.dds_devices:
-            setattr(self, f'freq_{device}_default_ftw',
-                    self.get_parameter(f'freq_729_{device}_mhz', group='beams.freq_mhz',
-                                       override=False,
-                                       conversion_function=hz_to_ftw, units=MHz))
-
-            setattr(self, f'ampl_{device}_default_asf',
-                    self.get_parameter(f'ampl_729_{device}_pct', group='beams.ampl_pct',
-                                       override=False, conversion_function=pct_to_asf))
-
-            setattr(self, f'att_{device}_default_mu', self.get_parameter(f'att_729_{device}_db', group='beams.att_db',
-                                                                         override=False, conversion_function=att_to_mu))
-
         self.device_list =  []
         self.freq_ftw_list = []
         self.ampl_asf_list =  []
         self.att_mu_list =  []
         for idx, device in enumerate(self.dds_devices):
+
+            freq_ftw = self.get_parameter(f'freq_729_{device}_mhz', group='beams.freq_mhz',
+                                       override=False,
+                                       conversion_function=hz_to_ftw, units=MHz)
+            ampl_asf = self.get_parameter(f'ampl_729_{device}_pct', group='beams.ampl_pct',
+                               override=False, conversion_function=pct_to_asf)
+            att_mu = self.get_parameter(f'att_729_{device}_db', group='beams.att_db',
+                               override=False, conversion_function=att_to_mu)
+
             self.device_list.append(getattr(self, device))
-            self.freq_ftw_list.append(getattr(self, f'freq_{device}_default_ftw'))
-            self.ampl_asf_list.append(getattr(self, f'ampl_{device}_default_asf'))
-            self.att_mu_list.append(getattr(self, f'att_{device}_default_mu'))
+            self.freq_ftw_list.append(freq_ftw)
+            self.ampl_asf_list.append(ampl_asf)
+            self.att_mu_list.append(att_mu)
+
+            setattr(self, f'freq_{device}_default_ftw', freq_ftw)
+            setattr(self, f'ampl_{device}_default_asf',ampl_asf)
+            setattr(self, f'att_{device}_default_mu', att_mu)
 
         # note: make all delays self.core.coarse_ref_period instead of 8ns
         self.switch_delay_time_mu = int64(8)
@@ -105,8 +105,6 @@ class Beam729(LAXDevice):
         device_att_db = {'singlepass0': 7 * dB, 'singlepass1': 7 * dB, 'singlepass2': 7 * dB, 'doublepass_inj': 6 * dB}
 
         for device in self.dds_devices:
-            device_attr = getattr(self, device)
-            freq_mhz = device_attr.ftw_to_frequency(getattr(self, f'freq_{device}_default_ftw')) / MHz
             ampl_pct = device_attr.asf_to_amplitude(getattr(self, f'ampl_{device}_default_asf')) * 100.
             att_db = mu_to_att(getattr(self, f'att_{device}_default_mu'))
 
@@ -130,12 +128,6 @@ class Beam729(LAXDevice):
         self.core.break_realtime()
 
         self.set_cfr1()
-        # ensure phase_autoclear disabled on all beams to prevent phase accumulator reset
-        for idx in range(len(self.device_list)):
-            device_attr = self.device_list[idx]
-            device_attr.set_cfr1()
-        self.io_update()
-        delay_mu(25000)
 
         # set matched_latency_enable on all relevant DDSs for consistency
         self.set_cfr2(matched_latency_enable=1)
@@ -150,15 +142,16 @@ class Beam729(LAXDevice):
         # necessary b/c not all AOMs are configured/used for each experiment
         for idx in range(len(self.device_list)):
             device_attr = self.device_list[idx]
-            freq_attr = self.freq_ftw_list[idx]
-            ampl_attr = self.ampl_asf_list[idx]
+            device_attr.set_cfr1()
             att_attr = self.att_mu_list[idx]
             device_attr.set_att_mu(att_attr)
             delay_mu(25000)
+            self.device_attr.cpld.io_update.pulse_mu(8)
             for i in range(8):
-                device_attr.set_mu(freq_attr, asf=ampl_attr,
+                device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
                                    profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 delay_mu(25000)
+
 
         # ensure events finish completion (since they're pretty heavy tbh)
         self.core.break_realtime()
@@ -190,13 +183,12 @@ class Beam729(LAXDevice):
         # necessary b/c not all AOMs are configured/used for each experiment
         for idx in range(len(self.device_list)):
             device_attr = self.device_list[idx]
-            freq_attr = self.freq_ftw_list[idx]
-            ampl_attr = self.ampl_asf_list[idx]
             att_attr = self.att_mu_list[idx]
             device_attr.set_att_mu(att_attr)
             delay_mu(25000)
             for i in range(8):
-                device_attr.set_mu(freq_attr, asf=ampl_attr, profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
+                                   profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 delay_mu(8000)
 
         self.singlepass0.sw.on()
