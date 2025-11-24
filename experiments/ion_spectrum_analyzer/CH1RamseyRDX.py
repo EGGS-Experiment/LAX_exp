@@ -121,8 +121,8 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
                                                             ), group="{}.freq".format(_argstr))
         self.setattr_argument("freq_sweep_arr", PYONValue([1., 0., 0., 0., 0.]),
                               group="{}.freq".format(_argstr),
-                              tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list."
-                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched."
+                              tooltip="Defines how oscillator freqs should be adjusted for each value in freq_superresolution_sweep_khz_list.\n"
+                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
         self.setattr_argument("freq_sweep_khz_list",    Scannable(
                                                             default=[
@@ -136,12 +136,12 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         # configurable phases
         self.setattr_argument("target_phase_sweep", EnumerationValue(['ch0+ch1', 'ch1'], default='ch0+ch1'),
                               group="{}.phase".format(_argstr),
-                              tooltip="Choose whether phase sweep is applied uniformly to oscillators on both channels,"
-                                      "or only oscillators on CH1."
+                              tooltip="Choose whether phase sweep is applied uniformly to oscillators on both channels, "
+                                      "or only oscillators on CH1.\n"
                                       "Phase sweep is applied to BOTH Ramsey stages.")
         self.setattr_argument("phase_sweep_arr", PYONValue([0., 0., 0., 0., 0.]), group="{}.phase".format(_argstr),
-                              tooltip="Defines how oscillator phases should be adjusted for each value in phase_sweep_turns_list."
-                                      "Depending on value of target_phase_sweep, this will be applied to both CH0 and CH1, or only CH1."
+                              tooltip="Defines how oscillator phases should be adjusted for each value in phase_sweep_turns_list.\n"
+                                      "Depending on value of target_phase_sweep, this will be applied to both CH0 and CH1, or only CH1.\n"
                                       "Must be a list of length {:d}.".format(self._num_phaser_oscs))
         self.setattr_argument("phase_sweep_turns_list", Scannable(
                                                             default=[
@@ -189,7 +189,7 @@ class CH1RamseyRDX(LAXExperiment, Experiment):
         self.setattr_argument("phase_osc_turns_list",   PYONValue([0., 0., 0., 0., 0.]), group="{}.wav".format(_argstr),
                               tooltip="Relative phases between each oscillator. Applies equally to CH0 and CH1.")
         self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0., 0., 0.]), group="{}.wav".format(_argstr),
-                              tooltip="Individual CH1 offsets for each oscillator. Obviously, applies only to CH1."
+                              tooltip="Individual CH1 offsets for each oscillator. Obviously, applies only to CH1.\n"
                                       "This is in addition to the CH1 global offset, as well as any CH1 sweeps.")
 
         # custom waveform specification - CH1 Ramsey-specific

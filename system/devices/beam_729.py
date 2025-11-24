@@ -146,7 +146,7 @@ class Beam729(LAXDevice):
             att_attr = self.att_mu_list[idx]
             device_attr.set_att_mu(att_attr)
             delay_mu(25000)
-            self.device_attr.cpld.io_update.pulse_mu(8)
+            device_attr.cpld.io_update.pulse_mu(8)
             for i in range(8):
                 device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
                                    profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
