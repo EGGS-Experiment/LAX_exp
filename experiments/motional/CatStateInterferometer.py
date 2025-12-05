@@ -71,6 +71,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                       "Note: readout pulses are NOT phase coherent with any bichromatic/sigma_x pulses.")
 
         # allocate relevant beam profiles
+        self.profile_729_RAP = 0
         self.profile_729_SBC = 1
         self.profile_729_readout = 2
         self.profile_729_cat1a = 3
@@ -111,7 +112,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         # # instantiate RAP here since it relies on experiment arguments
         self.rap_subsequence = QubitRAP(
-            self, ram_profile=self.profile_729_readout, ram_addr_start=202, num_samples=250,
+            self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
             ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
 
