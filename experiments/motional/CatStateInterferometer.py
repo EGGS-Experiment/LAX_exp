@@ -1102,14 +1102,14 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 at_mu((now_mu() + 8) & ~7)
                                 self.qubit.io_update()
 
-                    with parallel:
-                        delay_mu(time_ramsey_delay_mu)
-                        if self.enable_dynamical_decoupling:
-                            self.qubit.on()
-                            self.qubit.singlepass0_on()
-                            self.write_pi_pulse_phase(self.profile_729_pi_pulse,
-                                                      self.phase_dynamical_decoupling_pi_pulse_pow_list[-1])
-                        self.qubit.off()
+                        with parallel:
+                            delay_mu(time_ramsey_delay_mu)
+                            if self.enable_dynamical_decoupling:
+                                self.qubit.on()
+                                self.qubit.singlepass0_on()
+                                self.write_pi_pulse_phase(self.profile_729_pi_pulse,
+                                                          self.phase_dynamical_decoupling_pi_pulse_pow_list[-1])
+                            self.qubit.off()
 
                     '''
                     QVSA PULSE
