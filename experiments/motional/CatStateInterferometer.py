@@ -556,7 +556,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         # create profile list for later use
         self.profiles = [self.profile_729_cat1a, self.profile_729_cat1b, self.profile_729_cat2a, self.profile_729_cat2b,
-                         self.profile_729_pi_pulse, self.profile_729_readout, self.profile_729_SBC]
+                         self.profile_729_pi_pulse, self.profile_729_readout]
 
         # create placeholder arrays for later uses
         self.phase_beams_pow_list = zeros((8, 4), dtype=int32)
@@ -995,7 +995,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                         self.phase_global_ch1_turns  # global CH1 phase
                     )
 
-
                 '''
                 BEGIN MAIN SEQUENCE
                 '''
@@ -1372,6 +1371,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         :param phase_cat2_cat_pow: phase of the second cat pulse
         :param phase_dynamical_decoupling_cat_pow: phase of the dynamical decoupling tone
         """
+        self.phase_beams_pow_list[self.profile_729_pi_pulse][1] = (
+                self.phase_dynamical_decoupling_pi_pulse_pow_list[0] + phase_dynamical_decoupling_cat_pow)
 
         # prepare phase arrays for bichromatic
         cat4_phases = [
@@ -1483,7 +1484,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.singlepass2_off()
         self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
                                       asf=self.qubit.ampl_singlepass0_default_asf, pow_=0,
-                                      profile=self.profile_729_readout,
+                                      profile=self.profile_729_RAP,
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
         delay_mu(self.urukul_setup_time_mu)
         self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
