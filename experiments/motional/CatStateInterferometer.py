@@ -1349,12 +1349,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.phase_beams_pow_list[self.profile_729_cat1a][2] = self.phases_pulse1_cat_pow[0]
         self.phase_beams_pow_list[self.profile_729_cat1a][3] = self.phases_pulse1_cat_pow[1]
 
-        self.phase_beams_pow_list[self.profile_729_cat1b][2] = (self.phases_pulse1_cat_pow[0] +
-                                                                self.phases_cat2_cat_update_dir[
-                                                                    0] * self.phase_cat_shift_pow)
-        self.phase_beams_pow_list[self.profile_729_cat1b][3] = (self.phases_pulse1_cat_pow[1] +
-                                                                self.phases_cat2_cat_update_dir[
-                                                                    1] * self.phase_cat_shift_pow)
+        self.phase_beams_pow_list[self.profile_729_cat1b][2] = (self.phases_pulse1_cat_pow[0] + self.phase_cat_shift_pow)
+        self.phase_beams_pow_list[self.profile_729_cat1b][3] = (self.phases_pulse1_cat_pow[1] - self.phase_cat_shift_pow)
 
         self.phase_beams_pow_list[self.profile_729_pi_pulse][1] = self.phase_dynamical_decoupling_pi_pulse_pow_list[0]
 
@@ -1395,10 +1391,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.phase_beams_pow_list[self.profile_729_cat2a][2] = cat4_phases[0]
         self.phase_beams_pow_list[self.profile_729_cat2a][3] = cat4_phases[1]
         self.phase_beams_pow_list[self.profile_729_cat2b][1] = phase_dynamical_decoupling_cat_pow
-        self.phase_beams_pow_list[self.profile_729_cat2b][2] = cat4_phases[0] + self.phases_cat2_cat_update_dir[
-            0] * self.phase_cat_shift_pow
-        self.phase_beams_pow_list[self.profile_729_cat2b][3] = cat4_phases[1] + self.phases_cat2_cat_update_dir[
-            1] * self.phase_cat_shift_pow
+        self.phase_beams_pow_list[self.profile_729_cat2b][2] = cat4_phases[0] + self.phase_cat_shift_pow
+        self.phase_beams_pow_list[self.profile_729_cat2b][3] = cat4_phases[1] - self.phase_cat_shift_pow
 
     @kernel(flags={'fast-math'})
     def setup_phaser(self) -> TNone:
