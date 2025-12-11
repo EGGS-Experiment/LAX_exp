@@ -206,12 +206,12 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               group='default.dynamical_decoupling')
 
         self.setattr_argument("time_dynamical_decoupling_pi_pulse_us",
-                              NumberValue(default=50, precision=2, step=5, min=0.1, max=1000000, scale=1., unit="us"),
+                              NumberValue(default=2.2, precision=2, step=5, min=0.1, max=1000000, scale=1., unit="us"),
                               group='default.dynamical_decoupling',
                               tooltip="Pulse time for dynamical decoupling pi pulse.")
 
         self.setattr_argument("phase_dynamical_decoupling_pi_pulse_turns_list",
-                             PYONValue([0.5, 0, 0.5, 0]),
+                             PYONValue([0.25, -0.25, 0.25, 0.25, -0.25]),
                               group='default.dynamical_decoupling',
                               tooltip='phase of dynamical decoupling pi pulse offset from phase of \n'
                                       'continuous dynamical decoupling. \n'
@@ -1089,7 +1089,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     self.qubit.on()
                                     self.qubit.singlepass0_on()
                                     self.write_pi_pulse_phase(self.profile_729_pi_pulse,
-                                                              self.phase_dynamical_decoupling_pi_pulse_pow_list[idx + 1])
+                                                              self.phase_dynamical_decoupling_pi_pulse_pow_list[idx + 1]
+                                                              + phase_dynamical_decoupling_cat_pow)
                             self.qubit.off()
                             if self.enable_dynamical_decoupling:
                                 self.perform_dynamical_decoupling_pi_pulse()
@@ -1107,7 +1108,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 self.qubit.on()
                                 self.qubit.singlepass0_on()
                                 self.write_pi_pulse_phase(self.profile_729_pi_pulse,
-                                                          self.phase_dynamical_decoupling_pi_pulse_pow_list[-1])
+                                                          self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
+                                                          phase_dynamical_decoupling_cat_pow)
                             self.qubit.off()
 
                     '''
@@ -1124,7 +1126,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 self.qubit.off()
                                 self.phaser_oscs_off(clr=int32(0))
                                 self.write_pi_pulse_phase(self.profile_729_pi_pulse,
-                                                          self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1])
+                                                          self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1] +
+                                                          phase_dynamical_decoupling_cat_pow)
                             if self.enable_dynamical_decoupling:
                                 self.perform_dynamical_decoupling_pi_pulse()
                                 # reset attenuators for continuous DD
@@ -1139,7 +1142,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                             self.qubit.on()
                             self.qubit.singlepass0_on()
                             self.write_pi_pulse_phase(self.profile_729_pi_pulse,
-                                                      self.phase_dynamical_decoupling_pi_pulse_pow_list[-1])
+                                                      self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
+                                                      phase_dynamical_decoupling_cat_pow)
                         self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
                         self.qubit.off()
 
@@ -1351,8 +1355,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         self.phase_beams_pow_list[self.profile_729_cat1b][2] = (self.phases_pulse1_cat_pow[0] + self.phase_cat_shift_pow)
         self.phase_beams_pow_list[self.profile_729_cat1b][3] = (self.phases_pulse1_cat_pow[1] - self.phase_cat_shift_pow)
-
-        self.phase_beams_pow_list[self.profile_729_pi_pulse][1] = self.phase_dynamical_decoupling_pi_pulse_pow_list[0]
 
 
     @kernel(flags={'fast-math'})
