@@ -583,6 +583,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             self.phase_cat_shift_pow = self.qubit.singlepass0.turns_to_pow(
                 self.phase_cat_shift_turns)
             self.num_dynamical_decoupling_pi_pulses = len(list(self.phase_dynamical_decoupling_pi_pulse_turns_list)) - 2
+            print(self.num_dynamical_decoupling_pi_pulses)
         else:
             self.phase_cat_shift_pow = 0
             self.att_dynamical_decoupling_mu = self.qubit.att_singlepass0_default_mu
