@@ -15,7 +15,7 @@ class Tickle397(LAXExperiment, Experiment):
 
     # todo: document
     """
-    name = 'Tickle'
+    name = 'Tickle 397'
     kernel_invariants = {
         # hardware parameters
         "att_tickle_mu", "config_experiment_list",
@@ -101,7 +101,12 @@ class Tickle397(LAXExperiment, Experiment):
         time_tickle_mu_list =   [self.core.seconds_to_mu(time_us * us)
                                  for time_us in self.time_tickle_us_list]
 
+        # check input for serious booboos
+        if any(not (20 <= voltage_v <= 90) for voltage_v in self.pzt_397_voltage_v):
+            raise ValueError("Invalid fucking 397 pzt voltage you idiot - don't fucking damage it")
+
         # create an array of values for the experiment to sweep
+        self.pzt_397_voltage_v = array(list(self.pzt_397_voltage_v))
         self.config_experiment_list = create_experiment_config(
             freq_tickle_ftw_list, ampl_tickle_asf_list, time_tickle_mu_list,
             shuffle_config=True, config_type=int64
@@ -129,7 +134,7 @@ class Tickle397(LAXExperiment, Experiment):
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_experiment_list),
+        return (self.repetitions * len(self.config_experiment_list) * len(self.pzt_397_voltage_v),
                 6)
 
 
@@ -240,8 +245,8 @@ class Tickle397(LAXExperiment, Experiment):
     @rpc
     def _update_toptica(self, voltage_v: TFloat) -> TFloat:
         try:
-            # self.toptica.piezo_set(7, voltage_v)
-            print(voltage_v)
+            voltage_v = self.toptica.piezo_set(7, voltage_v)
+            # print(voltage_v)
         except Exception as e:
             voltage_v = -1
 
