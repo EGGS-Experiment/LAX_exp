@@ -162,7 +162,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
 
     '''
-    ANALYSIS
+    ANALYSIS2
     '''
     def analyze_experiment(self):
         """
