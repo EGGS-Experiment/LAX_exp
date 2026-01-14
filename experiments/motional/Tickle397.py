@@ -240,7 +240,7 @@ class Tickle397(LAXExperiment, Experiment):
 
 
     """
-    HELPERS
+    HELPERS2
     """
     @rpc
     def _update_toptica(self, voltage_v: TFloat) -> TFloat:
