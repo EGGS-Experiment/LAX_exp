@@ -58,7 +58,7 @@ class PlotWidget(pyqtgraph.PlotWidget):
         self.__logger = logging.getLogger(self.__class__.__name__)
 
         # clayton mod: add grid for happiness
-        self.plotItem.showGrid(x=True, y=True, alpha=1.0)
+        self.plotItem.showGrid(x=True, y=True, alpha=1)
 
 
     @property

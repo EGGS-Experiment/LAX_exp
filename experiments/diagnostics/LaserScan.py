@@ -182,7 +182,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # store results in dataset
                 self.rescue_subsequence.detect_death(counts)
-                self.update_results(freq_ftw, counts, time_holdoff_mu)
+                self.update_results(freq_ftw, counts, time_holdoft f_mu)
 
             # rescue ion as needed & support graceful termination
             self.core.break_realtime()
