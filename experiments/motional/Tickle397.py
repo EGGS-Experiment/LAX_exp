@@ -1,5 +1,6 @@
 from artiq.experiment import *
 from numpy import array, zeros, int32, int64
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, Readout, DopplerRecooling, RescueIon
@@ -32,6 +33,7 @@ class Tickle397(LAXExperiment, Experiment):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
         self.setattr_argument("wavemeter_chan", NumberValue(default=4, precision=0, step=1, min=1, max=16))
+        self.setattr_argument("toptica_laser_channel", NumberValue(default=7, precision=1, step=1, min=1, max=11))
         self.setattr_argument("pzt_397_voltage_v",  Scannable(
                                                             default=[
                                                                 ExplicitScan([71.01]),
@@ -78,10 +80,10 @@ class Tickle397(LAXExperiment, Experiment):
         self.setattr_device('dds_dipole')
 
         # subsequences
-        self.initialize_subsequence =               InitializeQubit(self)
-        self.readout_counts_subsequence =           Readout(self)
-        self.readout_timestamped_subsequence =      DopplerRecooling(self)
-        self.rescue_subsequence =                   RescueIon(self)
+        self.initialize_subsequence =           InitializeQubit(self)
+        self.readout_counts_subsequence =       Readout(self)
+        self.readout_timestamped_subsequence =  DopplerRecooling(self)
+        self.rescue_subsequence =               RescueIon(self)
 
     def prepare_experiment(self):
         # select desired readout method
@@ -124,6 +126,14 @@ class Tickle397(LAXExperiment, Experiment):
         self.cxn = labrad.connect(os.environ['LABRADHOST'], port=7682, tls_mode='off',
                                   username='', password='lab')
         self.toptica = self.cxn.toptica_server
+
+        # ensure target toptica channel exists
+        self.toptica_laser_channel = round(self.toptica_laser_channel)
+        try:
+            self.toptica.device_info(self.toptica_laser_channel)
+        except Exception:
+            raise ValueError("Error: unable to retrieve info about toptica laser channel ().".format(
+                self.toptica_laser_channel))
 
         # create synchronous connection to wavemeter labrad
         from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
@@ -175,7 +185,8 @@ class Tickle397(LAXExperiment, Experiment):
 
                     # configure tickle and qubit readout
                     self.core.break_realtime()
-                    self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf, profile=0)
+                    self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf, profile=0,
+                                           phase_mode=PHASE_MODE_CONTINUOUS)
                     delay_mu(8000)
 
                     '''INITIALIZE ION & EXCITE'''
@@ -245,8 +256,7 @@ class Tickle397(LAXExperiment, Experiment):
     @rpc
     def _update_toptica(self, voltage_v: TFloat) -> TFloat:
         try:
-            voltage_v = self.toptica.piezo_set(7, voltage_v)
-            # print(voltage_v)
+            voltage_v = self.toptica.piezo_set(self.toptica_laser_channel, voltage_v)
         except Exception as e:
             voltage_v = -1
 
