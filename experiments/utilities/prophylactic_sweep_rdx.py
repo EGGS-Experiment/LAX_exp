@@ -31,7 +31,7 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
         # modulation - general
         self.setattr_argument("repetitions",        NumberValue(default=5, precision=0, step=1, min=1, max=10000),
                               tooltip="Number of times to sweep through mod_freq_khz_list.")
-        self.setattr_argument("mod_time_ms",        NumberValue(default=20, precision=3, step=1, min=0.001, max=10000000, scale=1., unit="s"),
+        self.setattr_argument("mod_time_ms",        NumberValue(default=20, precision=3, step=1, min=0.001, max=10000000, scale=1., unit="ms"),
                               tooltip="Amount of time to apply prophylaxis at a given frequency.")
         self.setattr_argument("mod_freq_khz_list",  Scannable(
                                                             default=[
@@ -46,27 +46,27 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
                                       "(since scaling can be separately applied to the tickle and parametric DDSs.")
 
         # modulation - tickle config
-        self.setattr_argument("ampl_tickle_pct",    NumberValue(default=30, precision=3, step=5, min=0.01, max=100, unit="%"),
-                              group="{}.tickle".format(self.name),
+        self.setattr_argument("ampl_tickle_pct",    NumberValue(default=30, precision=3, step=5, min=0.01, max=100, scale=1., unit="%"),
+                              group="{}.tickle".format("spegra"),
                               tooltip="DDS amplitude to use for tickling.")
         self.setattr_argument("att_tickle_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5, scale=1., unit="dB"),
-                              group="{}.tickle".format(self.name),
+                              group="{}.tickle".format("spegra"),
                               tooltip="DDS attenuation to use for tickling.")
         self.setattr_argument("freq_tickle_scale",  NumberValue(default=1, precision=6, step=0.1, min=0., max=100., scale=1.),
-                              group="{}.tickle".format(self.name),
+                              group="{}.tickle".format("spegra"),
                               tooltip="Frequency scale for the tickle DDS.\n"
                                       "Scales all frequencies in mod_freq_khz_list by this value for the tickle DDS only.\n"
                                       "Useful when applying tickle AND parametric to get sharper excitation.")
 
         # modulation - parametric config
-        self.setattr_argument("ampl_parametric_pct",    NumberValue(default=30, precision=3, step=5, min=0.01, max=100, unit="%"),
-                              group="{}.parametric".format(self.name),
+        self.setattr_argument("ampl_parametric_pct",    NumberValue(default=30, precision=3, step=5, min=0.01, max=100, scale=1., unit="%"),
+                              group="{}.parametric".format("spegra"),
                               tooltip="DDS amplitude to use for parametric.")
         self.setattr_argument("att_parametric_db",      NumberValue(default=3, precision=1, step=0.5, min=0., max=31.5, scale=1., unit="dB"),
-                              group="{}.parametric".format(self.name),
+                              group="{}.parametric".format("spegra"),
                               tooltip="DDS attenuation to use for parametric.")
         self.setattr_argument("freq_parametric_scale",  NumberValue(default=2, precision=6, step=0.1, min=0., max=100., scale=1.),
-                              group="{}.parametric".format(self.name),
+                              group="{}.parametric".format("spegra"),
                               tooltip="Frequency scale for the parametric DDS.\n"
                                       "Scales all frequencies in mod_freq_khz_list by this value for the parametric DDS only.\n"
                                       "Useful when applying tickle AND parametric to get sharper excitation.")
@@ -80,8 +80,8 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
 
     def prepare_experiment(self):
         # convert DDS parameters to machine units
-        self.ampl_tickle_asf =  self.dds_tickle.amplitude_to_asf(self.ampl_tickle_pct / 100.)
-        self.att_tickle_mu =    self.dds_tickle.cpld.att_to_mu(self.att_tickle_db * dB)
+        self.ampl_tickle_asf =  self.dds_dipole.amplitude_to_asf(self.ampl_tickle_pct / 100.)
+        self.att_tickle_mu =    self.dds_dipole.cpld.att_to_mu(self.att_tickle_db * dB)
 
         self.ampl_parametric_asf =  self.dds_parametric.amplitude_to_asf(self.ampl_parametric_pct / 100.)
         self.att_parametric_mu =    self.dds_parametric.cpld.att_to_mu(self.att_parametric_db * dB)
@@ -95,7 +95,7 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.mod_freq_mu_list),
-                1)
+                2)
 
 
     """
@@ -106,8 +106,11 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
         self.dds_dipole.set_att_mu(self.att_tickle_mu)
         self.dds_parametric.set_att_mu(self.att_parametric_mu)
 
+        self.dds_dipole.set_profile(self.profile_tickle)
+        self.dds_parametric.set_profile(self.profile_parametric)
+
     @kernel(flags={"fast-math"})
-    def run(self) -> TNone:
+    def run_main(self) -> TNone:
         for i in range(self.repetitions):
             for j in range(len(self.mod_freq_mu_list)):
                 # get target freq
@@ -136,6 +139,6 @@ class ProphylacticSweepRDX(LAXExperiment, Experiment):
                 self.dds_parametric.off()
 
                 # clean up & periodically check termination
-                self.update_results(freq_mu)
+                self.update_results(freq_mu, freq_mu)
                 if j % 50 == 0: self.check_termination()
 

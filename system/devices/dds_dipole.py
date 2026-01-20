@@ -68,7 +68,7 @@ class DDSDipole(LAXDevice):
         # note: didn't bother parallel-ing this section since it's unimportant
         # enable RF switch onboard Urukul
         self.sw.on()
-        delay_mu(1)
+        delay_mu(8)
 
         # enable external RF switch
         self.rf_switch.on()
