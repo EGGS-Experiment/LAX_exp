@@ -132,7 +132,7 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         self.TIME_DC_SYNC_MS =          988     # holdoff period after we set a voltage to allow it to settle
         self.OPTIMA_LENGTH_FIT =        4       # number of prev optima to fit when guessing global opt
         self.MIN_VOLTAGE_SCAN_RANGE =   2       # minimum voltage range for a scan (to ensure we get sufficient excitation)
-        # self.INITIAL_MODE_VECTORS =     array([-1., 1.]) # initial guess for mode vectors [RF, EGGS]
+        self.INITIAL_MODE_VECTORS =     array([-0.5, 0.75]) # initial guess for mode vectors [RF, EGGS]
 
     def prepare_experiment(self):
         """
@@ -190,7 +190,9 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         self.set_dataset('global_optima', zeros((self.iterations * 2 + 1, 2), dtype=float))
         self.setattr_dataset('global_optima')
 
-        # create data structures to store all sweep results: (v_opt_ax_0, v_opt_ax_1, v_fit_err, slope_ampl_mag)
+        # create data structures to store all PROCESSED sweep results on both modes:
+        #   i.e. [(v_opt_ax_0_mode0, v_opt_ax_1_mode0, v_fit_err_mode0, slope_ampl_mag_mode0),
+        #           (v_opt_ax_0_mode1, v_opt_ax_1_mode1, v_fit_err_mode1, slope_ampl_mag_mode1)]
         # note: used by almost ALL functions
         self.set_dataset('sweep_results', zeros((self.iterations * 2, 2, 4), dtype=float))
         self.setattr_dataset('sweep_results')
@@ -212,8 +214,8 @@ class MicromotionCompensation(LAXExperiment, Experiment):
 
         # guess initial mode vectors
         # todo: improve & generalize
-        if self.freq_mode_0_khz < self.freq_mode_1_khz: self.INITIAL_MODE_VECTORS = array([-1., 1.]) # [RF, EGGS]
-        else:   self.INITIAL_MODE_VECTORS = array([1., -1.]) # [EGGS, RF]
+        if self.freq_mode_0_khz < self.freq_mode_1_khz: self.INITIAL_MODE_VECTORS = array([-0.5, 0.75]) # [RF, EGGS]
+        else:   self.INITIAL_MODE_VECTORS = array([0.75, -0.5]) # [EGGS, RF]
 
     @property
     def results_shape(self):
