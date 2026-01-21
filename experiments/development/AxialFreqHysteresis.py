@@ -4,7 +4,12 @@ from artiq.experiment import *
 from LAX_exp.analysis import *
 from LAX_exp.extensions import *
 import LAX_exp.experiments.diagnostics.LaserScan as LaserScan
-
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
+from skimage.transform import hough_circle, hough_circle_peaks
+from time import time, sleep
+from matplotlib.pyplot import imsave
+from datetime import datetime
+import os
 
 class AxialFreqHysteresis(LaserScan.LaserScan):
     """
@@ -40,8 +45,36 @@ class AxialFreqHysteresis(LaserScan.LaserScan):
                               group='voltage_scan',
                               tooltip='Number of voltage sweeps to perform when determining if there is hystersis')
 
+        # camera features for calibrating scaling of DC voltages
+        self.setattr_argument('image_center_x',
+                              NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
+                              group='Camera',
+                              tooltip="Image center position (x).")
+        self.setattr_argument('image_center_y',
+                              NumberValue(default=256, min=1, max=512, step=50, precision=0, scale=1, unit="pixels"),
+                              group='Camera',
+                              tooltip="Image center position (y).")
+        self.setattr_argument('image_width_pixels',
+                              NumberValue(default=350, min=100, max=450, step=50, precision=0, scale=1, unit="pixels"),
+                              group='Camera',
+                              tooltip="Square width of the total 512x512 image region on camera.\n"
+                                      "Defined relative to (image_center_x, image_center_y).\n"
+                                      "Note: too large an image width (~450 pixels) may contain scatter and confuse the analysis.")
+        self.setattr_argument('horizontal_binning',
+                              NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
+                              group='Camera',
+                              tooltip="Horizontal pixel bin size to set on camera.\n"
+                                      "Note: this is software binning, as opposed to hardware binning.")
+        self.setattr_argument('vertical_binning',
+                              NumberValue(default=1, min=1, max=5, step=1, precision=0, scale=1, unit="bins"),
+                              group='Camera',
+                              tooltip="Vertical pixel bin size to set on camera.\n"
+                                      "Note: this is software binning, as opposed to hardware binning.")
+
         # laser scan multi - arguments
-        self.setattr_argument('trap_dc')
+        self.setattr_device('trap_dc')
+        self.setattr_device('camera')
+        self.setattr_device('flipper')
 
     def prepare_experiment(self):
         super().prepare_experiment()
@@ -50,6 +83,39 @@ class AxialFreqHysteresis(LaserScan.LaserScan):
         self.east_endcap_voltage = self.trap_dc.get_east_endcap_voltage()
         self.dc_voltage_endcap_scan = list(self.dc_voltage_endcap_scan)
 
+        '''
+        CAMERA SETUP
+        '''
+        # get image height and width from camera arguments (info_detector_dimensions)
+        IMAGE_WIDTH, IMAGE_HEIGHT = self.camera.acquire_detector_dimensions()
+
+        # process specified image region in terms of width and position
+        start_x, start_y = (
+            max(1, self.image_center_x - self.image_width_pixels / 2),
+            max(1, self.image_center_y - self.image_width_pixels / 2)
+        )
+        end_x, end_y = (
+            min(IMAGE_WIDTH, self.image_center_x + self.image_width_pixels/2 - 1),
+            min(IMAGE_HEIGHT, self.image_center_y + self.image_width_pixels/2 - 1)
+        )
+        self.image_region = (self.horizontal_binning, self.vertical_binning,
+                             int(start_x), int(end_x), int(start_y), int(end_y))
+        self.set_dataset("camera_image_region", self.image_region, broadcast=False)
+
+        try:
+            '''SET UP CAMERA'''
+            # set camera region of interest and exposure time
+            self.camera.set_image_region(self.image_region)
+
+        except Exception as e:
+            print("Error during initialize_labrad_devices: {:}".format(repr(e)))
+
+        self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
+        year_month =        datetime.today().strftime('%Y-%m')
+        year_month_day =    datetime.today().strftime('%Y-%m-%d')
+        self.data_path = os.path.join(self.path_image_save, year_month, year_month_day)
+        os.makedirs(self.data_path, exist_ok=True)
+
     @property
     def results_shape(self):
         return (self.repetitions * self.num_voltage_sweeps * len(self.dc_voltage_endcap_scan) * len(self.config_experiment_list),
@@ -57,6 +123,12 @@ class AxialFreqHysteresis(LaserScan.LaserScan):
 
     @kernel(flags={'fast-math'})
     def run_main(self) -> TNone:
+
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.locate_ion()
+        self.core.break_realtime()
+
         for num in range(self.num_voltage_sweeps):
             for voltage in self.dc_voltage_endcap_scan:
 
@@ -71,7 +143,7 @@ class AxialFreqHysteresis(LaserScan.LaserScan):
                 self.core.break_realtime()
 
                 # let voltages settle
-                delay_mu(2e9)
+                delay_mu(np.int64(2e9))
 
                 for trial_num in range(self.repetitions):
                     for config_vals in self.config_experiment_list:
@@ -124,3 +196,45 @@ class AxialFreqHysteresis(LaserScan.LaserScan):
 
     def analyze_experiment(self):
         pass
+
+    def cleanup_experiment(self) -> TNone:
+
+        self.trap_dc.set_east_endcap_voltage(self.east_endcap_voltage)
+        self.trap_dc.set_west_endcap_voltage(self.west_endcap_voltage)
+
+
+    @rpc
+    def locate_ion(self) -> TNone:
+        """
+        Process image data from camera and extract location of ion
+        Returns:
+            TInt32: Number of ions in the trap
+        """
+
+        # get camera data and reshape into image
+        # self.camera.acquire_single_image()
+        image_arr = self.camera.get_most_recent_image()
+        data = np.reshape(image_arr, (self.image_width_pixels, self.image_width_pixels))
+        imsave(os.path.join(self.data_path, "hystersis.jpg"), data)
+
+        # threshold & rescale data
+        # todo: set 1000 as some parameter for min scatter value
+        data *= data > 1000
+        data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data))) * 255)
+        # use only upper 1% quantile of data
+        data *= data > np.quantile(data, 0.99)
+        imsave(os.path.join(self.data_path, "hystersis2.jpg"), data)
+
+        # extract ion positions
+        guess_radii = np.arange(1, 8)
+        circles = hough_circle(data, guess_radii)
+        accums, cxs, cys, radii = hough_circle_peaks(
+            circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
+
+        # create unique list of cx, cy coordinates
+        unique_locs = set(tuple(
+            (cx, cys[idx])
+            for idx, cx in enumerate(cxs)
+        ))
+
+        print(unique_locs)
