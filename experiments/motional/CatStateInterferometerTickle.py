@@ -10,26 +10,22 @@ from LAX_exp.system.subsequences import (
     RescueIon, QubitRAP
 )
 
-from LAX_exp.system.objects.SpinEchoWizardRDX import SpinEchoWizardRDX
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
-from LAX_exp.system.objects.PhaserPulseShaper import PhaserPulseShaper, PULSESHAPER_MAX_WAVEFORMS
+from LAX_exp.system.objects.dds_pulse_shape import DDSPulseShaper
 
 
-# todo: ensure phaser pulses are phase-tracking somehow
-
-class CatStateInterferometer(LAXExperiment, Experiment):
+class CatStateInterferometerTickle(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Interferometer
+    Experiment: Cat State Interferometer Tickle
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive readout to reduce timing overheads and extend available coherence times.
     """
-    name = 'Cat State Inteferometer'
+    name = 'Cat State Inteferometer Tickle'
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence',
-        'spinecho_wizard', 'pulse_shaper',
+        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence', 'dds_pulse_shaper',
 
         # hardware values - cat - default
         'ampl_doublepass_default_asf', 'time_herald_slack_mu', 'time_adapt_read_slack_mu', 'max_herald_attempts',
@@ -37,9 +33,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         # hardware values - cat - bichromatic
         'ampls_cat_asf', 'time_cat1_bichromatic_mu', 'phases_pulse1_cat_pow', 'phases_cat2_cat_update_dir',
 
-        # hardware values - QVSA
-        'att_phaser_mu', 'freq_phaser_carrier_hz', 'freq_osc_base_hz_list',
-        'waveform_index_to_compiled_wav', '_waveform_param_list', '_num_phaser_oscs',
+        # hardware values - tickle
+        'att_tickle_mu',
 
         # hardware values - readout
         'readout_config', 'ampl_729_readout_asf', 'freq_rap_center_ftw', 'freq_rap_dev_ftw', 'time_rap_mu',
@@ -50,7 +45,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         # configs
         'profile_729_SBC', 'profile_729_readout',
         'profile_729_cat1a', 'profile_729_cat1b','profile_729_cat2a', 'profile_729_cat2b',
-        'profile_729_pi_pulse',
+        'profile_729_pi_pulse', 'profile_tickle_RAM'
         'att_reg_cat_interferometer', 'att_reg_readout_sbr', 'att_reg_readout_rap',
         'config_experiment_list',
 
@@ -60,7 +55,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
     }
 
     def build_experiment(self):
-        self._num_phaser_oscs = 5  # number of phaser oscillators in use
 
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
@@ -80,6 +74,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.profile_729_cat2b = 6
         self.profile_729_pi_pulse = 7
 
+        # allocate profiles for dds tickle
+        self.profile_tickle_RAM = 0
+
         # get subsequences
         self.sidebandcool_subsequence = SidebandCoolContinuousRAM(
             self, profile_729=self.profile_729_SBC, profile_854=3,
@@ -94,20 +91,19 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.setattr_device('qubit')
         self.setattr_device('pump')
         self.setattr_device('repump_qubit')
-        self.setattr_device('phaser_eggs')
-        self.setattr_device('ttl1')
 
-        # instantiate helper objects
-        self.spinecho_wizard = SpinEchoWizardRDX(self)
+
+        #todo: create LAX device for tickle channel
+        self.setattr_device('urukul1_ch1')
+        self.setattr_device('ttl1')
 
         # set build arguments
         self._build_arguments_default()
         self._build_arguments_dynamical_decoupling()
         self._build_arguments_cat1()
         self._build_arguments_cat2()
-        self._build_arguments_qvsa_waveform()
-        self._build_arguments_qvsa_sweep()
-        self._build_arguments_qvsa_modulation()
+        self._build_arguments_tickle_waveform()
+        self._build_arguments_tickle_pulseshape()
         self._build_arguments_readout()
 
         # # instantiate RAP here since it relies on experiment arguments
@@ -381,142 +377,80 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               NumberValue(default=400., precision=3, min=1, max=1e7, step=1, unit="us", scale=1.),
                               group="read.RAP")
 
-    def _build_arguments_qvsa_sweep(self):
+    def _build_arguments_tickle_waveform(self):
         """
-        Build core sweep arguments for the QVSA pulse.
+        Build core sweep arguments for the tickle pulse.
         """
-        _argstr = "QVSA"  # string to use for arguments
+        _argstr = "tickle"  # string to use for arguments
 
         # waveform - parameter sweeps
-        self.setattr_argument("freq_osc_sweep_arr", PYONValue([-1., 1., 0., 0., 0.]),
-                              group="{}.sweep".format(_argstr),
-                              tooltip="Defines how oscillator freqs should be scaled for values in freq_osc_sweep_khz_list.\n"
-                                      "Indices of freq_osc_sweep_arr correspond to the oscillator number. "
-                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the freq value, and osc_1 by -1x the freq value, with the rest untouched.\n"
-                                      "Must be a list of length {:d}.".format(self._num_phaser_oscs))
-        self.setattr_argument("freq_osc_sweep_khz_list", Scannable(
+        self.setattr_argument("enable_tickle_pulse", BooleanValue(default=True),
+                              group='{}.waveform'.format(_argstr),
+                              tooltip="Enables the tickle pulse.")
+        self.setattr_argument("freq_tickle_mhz_list", Scannable(
             default=[
-                ExplicitScan([0.]),
-                CenterScan(0., 4, 0.1, randomize=True),
-                RangeScan(0., 100.0, 26, randomize=True),
+                ExplicitScan([1.2]),
+                CenterScan(1.2, 0.1, 0.001, randomize=True),
+                RangeScan(1.2, 1.3, 26, randomize=True),
             ],
-            global_min=-10000, global_max=10000, global_step=10,
-            unit="kHz", scale=1, precision=6
-        ),
-                              group="{}.sweep".format(_argstr),
-                              tooltip="Frequency sweep applied via the phaser oscillators.\n"
-                                      "Values for each oscillator are adjusted by the array in freq_osc_sweep_arr.")
+            global_min=1, global_max=400, global_step=0.001,
+            unit="MHz", scale=1, precision=6),
+                              group="{}.waveform".format(_argstr),
+                              tooltip="Frequency of tickle pulse (in MHz) applied via the urukul dds.")
 
-        # phaser - phase configuration
-        self.setattr_argument("phase_osc_sweep_arr", PYONValue([1., 0., 0., 0., 0.]),
-                              group="{}.sweep".format(_argstr),
-                              tooltip="Defines how oscillator phases should be adjusted for each value in phase_osc_sweep_turns_list. "
-                                      "e.g. [1, -1, 0, 0, 0] will adjust osc_0 by +1x the phase value, and osc_1 by -1x the phase value, with the rest untouched. "
-                                      "Must be a list of length {:d}.".format(self._num_phaser_oscs))
-        self.setattr_argument("phase_osc_sweep_turns_list", Scannable(
+        self.setattr_argument("phase_tickle_turns_list", Scannable(
             default=[
                 ExplicitScan([0.]),
                 RangeScan(0, 1.0, 26, randomize=True),
             ],
             global_min=0.0, global_max=1.0, global_step=1,
-            unit="turns", scale=1, precision=5
-        ),
-                              group="{}.sweep".format(_argstr),
-                              tooltip="Phase sweep applied via the phaser oscillators.\n"
-                                      "Values for each oscillator are adjusted by the array in phase_osc_sweep_arr.")
+            unit="turns", scale=1, precision=5),
+                              group="{}.waveform".format(_argstr),
+                              tooltip="Phase of tickle pulse (in turns) applied via the urukul dds.")
 
-    def _build_arguments_qvsa_waveform(self):
-        """
-        Build core waveform arguments for the QVSA pulse.
-        """
-        _argstr = "QVSA"  # string to use for arguments
+        self.setattr_argument("ampl_tickle_pct",
+                              NumberValue(default=50., precision=2, min=0., max=50., unit="%", scale=1.),
+                              group="{}.waveform".format(_argstr),
+                              tooltip='Amplitude of tickle pulse.')
 
-        # waveform - global config
-        self.setattr_argument("enable_QVSA_pulse", BooleanValue(default=True),
-                              group='{}.global'.format(_argstr),
-                              tooltip="Enables the QVSA pulse.")
-        self.setattr_argument("freq_phaser_carrier_mhz",
-                              NumberValue(default=86., precision=7, step=1, min=0.001, max=4800, unit="MHz", scale=1.),
-                              group="{}.global".format(_argstr),
-                              tooltip="Phaser output center frequency.\n"
-                                      "Note: actual center frequency depends on the devices.phaser.freq_center_mhz dataset argument, "
-                                      "which should be manually entered into the dataset manager by the user after "
-                                      "configuring the TRF and NCO via e.g. the phaser_configure tool.\n"
-                                      "Ensure all values are set correctly.")
-        self.setattr_argument("freq_global_offset_mhz",
-                              NumberValue(default=0., precision=6, step=1., min=-10., max=10., unit="MHz", scale=1.),
-                              group="{}.global".format(_argstr),
-                              tooltip="Apply a frequency offset via the phaser oscillators to avoid any DUC/NCO/TRF output spurs.\n"
-                                      "Range is limited by the phaser oscillator freq range, i.e. [-10, 10] MHz (includes the frequencies in freq_osc_khz_list).")
-        self.setattr_argument("phase_global_ch1_turns",
-                              NumberValue(default=0., precision=5, step=0.05, min=-1.1, max=1.1, unit="turns",
-                                          scale=1.),
-                              group="{}.global".format(_argstr),
-                              tooltip="Sets a global CH1 phase via the DUC.\n"
-                                      "Note: the eggs.phas_ch1_inherent_turns dataset argument is overridden "
-                                      "in this experiment.")
-
-        # waveform - custom specification
         self.setattr_argument("time_heating_us",
                               NumberValue(default=50, precision=2, step=500, min=0.04, max=10000000, unit="us",
                                           scale=1.),
                               group="{}.waveform".format(_argstr),
-                              tooltip="Time for the total pulse (excluding pulse shaping)."
-                                      "e.g. a time_heating_us of 1ms with 2 segments => a segment time of 500us.")
-        self.setattr_argument("freq_osc_khz_list", PYONValue([-702.687, 702.687, 0.000, 0., 0.]),
-                              group="{}.waveform".format(_argstr),
-                              tooltip="Phaser oscillator frequencies.")
-        self.setattr_argument("phase_osc_turns_list", PYONValue([0., 0., 0., 0., 0.]),
-                              group="{}.waveform".format(_argstr),
-                              tooltip="Relative phases between each phaser oscillator. Applied on both CH0 and CH1.")
-        self.setattr_argument("att_phaser_db",
+                              tooltip="Time for the total pulse (including pulse shape).")
+        self.setattr_argument("att_tickle_db",
                               NumberValue(default=25., precision=1, step=0.5, min=8., max=31.5, unit="dB", scale=1.),
                               group="{}.waveform".format(_argstr),
-                              tooltip="Phaser attenuation to be used for both CH0 and CH1.")
-        self.setattr_argument("ampl_osc_frac_list", PYONValue([40., 40., 15., 0., 0.]),
-                              group="{}.waveform".format(_argstr),
-                              tooltip="Phaser oscillator amplitudes. Applied to both CH0 and CH1.\n"
-                                      "Note: CH1 amplitudes will be scaled by the amplitude scaling factors in devices.phaser.ch1.ampl_ch1_osc_scale_arr.")
-        self.setattr_argument("phase_osc_ch1_offset_turns", PYONValue([0., 0., 0.5, 0.5, 0.5]),
-                              group="{}.waveform".format(_argstr),
-                              tooltip="Sets the relative CH1 phase via the phaser oscillators.")
+                              tooltip="Attenuation to be used for the urukul channel used for generating the tickle.")
 
-    def _build_arguments_qvsa_modulation(self):
+    def _build_arguments_tickle_pulseshape(self):
         """
-        Build core modulation arguments for the QVSA pulse.
+        Build core modulation arguments for the tickle pulse.
         """
-        _argstr = "QVSA"  # string to use for arguments
+        _argstr = "tickle"  # string to use for arguments
 
         # waveform - pulse shaping
         self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False),
                               group='{}.shape'.format(_argstr),
-                              tooltip="Applies pulse shaping to the edges of the phaser pulse.\n"
-                                      "Note: pulse shaping is applied to each constituent PSK block.")
+                              tooltip="Applies pulse shaping to the edges of the tickle pulse.")
         self.setattr_argument("type_pulse_shape",
                               EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
                               group='{}.shape'.format(_argstr),
                               tooltip="Pulse shape type to be used.")
-        self.setattr_argument("time_pulse_shape_rolloff_us",
-                              NumberValue(default=100, precision=1, step=100, min=0.2, max=100000, unit="us",
-                                          scale=1.),
-                              group='{}.shape'.format(_argstr),
-                              tooltip="Time constant of the pulse shape. This is used for both the pulse rollon AND rolloff.\n"
-                                      "e.g. a 1ms main pulse time with 100us time_pulse_shape_rolloff_us will result in a 1ms + 2*100us = 1.2ms total pulse time.\n"
-                                      "All constituent PSK blocks will have this pulse time applied.\n"
-                                      "Note: DMA issues limit the total number of samples (i.e. time_pulse_shape_rolloff_us * freq_pulse_shape_sample_khz).")
-        self.setattr_argument("freq_pulse_shape_sample_khz",
-                              NumberValue(default=500, precision=0, step=100, min=1, max=5000, unit="kHz",
-                                          scale=1.),
-                              group='{}.shape'.format(_argstr),
-                              tooltip="Sample rate used for pulse shaping.\n"
-                                      "This value is inexact and is fixed at multiples of the phaser oscillator update "
-                                      "rate (i.e. 40ns) times the number of oscillators in use.")
+
 
     def prepare_experiment(self):
         """
         Prepare & precompute experimental values.
         """
         self._prepare_argument_checks()
+
+        ### Build Pulse Shaper
+        self.dds_pulse_shaper = DDSPulseShaper(dds_target= self.urukul1_ch1,
+                                              ram_profile=self.profile_tickle_RAM,
+                                              ram_addr_start=202, num_samples=250,
+                                              ampl_max_pct=self.ampl_tickle_pct)
+
         ### MAGIC NUMBERS ###
         self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us)  # post-heralding slack to fix RTIOUnderflows
         self.time_herald_slack_mu = self.core.seconds_to_mu(150 * us)  # add slack only if herald success
@@ -528,8 +462,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         phase_dynamical_decoupling_cat_pow_list = self._prepare_experiment_dynamical_decoupling()
         (freq_cat_center_ftw_list, freq_cat_secular_ftw_list, time_cat2_cat_mu_list,
          phase_cat2_cat_pow_list, time_ramsey_delay_mu_list) = self._prepare_experiment_cat_general()
-        freq_osc_sweep_hz_list, waveform_num_list = self._prepare_experiment_qvsa_general()
-        self._prepare_experiment_qvsa_waveform()
+        freq_tickle_ftw_list, phase_tickle_pow_list = self._prepare_experiment_tickle()
 
 
         # create experiment config
@@ -540,8 +473,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             freq_729_readout_ftw_list, time_729_readout_mu_list,
             time_ramsey_delay_mu_list,
 
-            # QVSA sweeps
-            freq_osc_sweep_hz_list, waveform_num_list,
+            # tickle sweeps
+            freq_tickle_ftw_list, phase_tickle_pow_list,
 
             # dynamical decoupling sweeps
             phase_dynamical_decoupling_cat_pow_list,
@@ -562,12 +495,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.phase_beams_pow_list = zeros((8, 4), dtype=int32)
         self.freq_beams_ftw_list = zeros((8, 4), dtype=int32)
         self.ampl_beams_asf_list = zeros((8, 4), dtype=int32)
-        # schedule when to turn on phaser during experiment
-        phaser_setup_time_mu = self.time_cat1_bichromatic_mu - self.phaser_eggs.time_phaser_holdoff_mu - 1920
-        if phaser_setup_time_mu <= 0:
-            self.phaser_setup_time_mu = 8
-        else:
-            self.phaser_setup_time_mu = phaser_setup_time_mu
+        # schedule when to turn on tickle during experiment
 
         self.set_default_profile_configuration()
 
@@ -729,113 +657,23 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         return (freq_cat_center_ftw_list, freq_cat_secular_ftw_list, time_cat2_cat_mu_list,
                 phase_cat2_cat_pow_list, time_ramsey_delay_mu_list)
 
-    def _prepare_experiment_qvsa_general(self):
+    def _prepare_experiment_tickle(self):
         """
-        Prepare general experiment values for the QVSA pulse.
-        :return: tuple of (freq_osc_sweep_hz_list, waveform_num_list)
+        Prepare general experiment values for the tickle pulse.
+        :return: tuple of (freq_tickle_hz_list, phase_tickle_list)
         """
-        # set correct phase delays for field geometries (0.5 for osc_2 for dipole)
-        # note: sequence blocks stored as [block_num, osc_num] and store [ampl_pct, phase_turns]
-        #   e.g. self.sequence_blocks[2, 5, 0] gives ampl_pct of 5th osc in 2nd block
-        # note: create object here instead of build since phase_osc_ch1_offset_turns isn't well-defined until prepare
-        self.pulse_shaper = PhaserPulseShaper(self, array(self.phase_osc_ch1_offset_turns))
-
         # convert values to convenience units
-        self.att_phaser_mu = att_to_mu(self.att_phaser_db * dB)
-        self.freq_phaser_carrier_hz = (self.freq_phaser_carrier_mhz - self.freq_global_offset_mhz) * MHz
+        self.att_tickle_mu = att_to_mu(self.att_tickle_db * dB)
+        freq_tickle_ftw_list = [mhz_to_ftw(freq_tickle_mhz) for freq_tickle_mhz in self.freq_tickle_mhz_list]
+        phase_tickle_pow_list = [self.urukul1_ch1.turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
+        self.time_tickle_mu = us_to_mu(self.time_heating_us / (self.num_dynamical_decoupling_pi_pulses+1))
 
-        # format build arguments as numpy arrays with appropriate units
-        freq_osc_sweep_hz_list = array(list(self.freq_osc_sweep_khz_list)) * kHz
-        self.freq_osc_base_hz_list = array(self.freq_osc_khz_list) * kHz + self.freq_global_offset_mhz * MHz
-        self.freq_osc_sweep_arr = array(self.freq_osc_sweep_arr, dtype=float)
-        self.phase_osc_sweep_turns_list = list(self.phase_osc_sweep_turns_list)
-        self.phase_osc_sweep_arr = array(self.phase_osc_sweep_arr, dtype=float)
 
-        # create waveform parameter sweep config (for use by _prepare_experiment_qvsa_waveform)
-        self._waveform_param_list = create_experiment_config(
-            self.phase_osc_sweep_turns_list,
-            shuffle_config=False, config_type=float
-        )
-        waveform_num_list = arange(len(self._waveform_param_list))
-
-        # don't apply sweep if QVSA is disabled
-        if self.enable_QVSA_pulse:
-            return freq_osc_sweep_hz_list, waveform_num_list
+        # don't apply sweep if tickle is disabled
+        if self.enable_tickle_pulse:
+            return freq_tickle_ftw_list, phase_tickle_pow_list
         else:
             return [-1], [0]
-
-    def _prepare_experiment_qvsa_waveform(self) -> TNone:
-        """
-        Calculate waveforms and timings for the QVSA pulse.
-        Uses SpinEchoWizard and PhaserPulseShaper objects to simplify waveform compilation.
-        """
-        '''
-        PREPARE WAVEFORM COMPILATION
-        '''
-        self.waveform_index_to_compiled_wav = list()  # store compiled waveform values
-        # note: waveform_index_to_pulseshaper_id is NOT kernel_invariant b/c gets updated in phaser_record
-        self.waveform_index_to_pulseshaper_id = zeros(len(self._waveform_param_list),
-                                                      dtype=int32)  # store waveform ID linked to DMA sequence
-
-        # calculate block timings and scale amplitudes for ramsey-ing
-        num_blocks = 1
-        block_time_list_us = [self.time_heating_us / (self.num_dynamical_decoupling_pi_pulses+1)]
-        block_ampl_scale_list = [1]
-
-        '''
-        DESIGN WAVEFORM SEQUENCE
-        '''
-        # create bare waveform block sequence & set amplitudes
-        _osc_vals_blocks = zeros((num_blocks, self._num_phaser_oscs, 2), dtype=float)
-        _osc_vals_blocks[:, :, 0] = array(self.ampl_osc_frac_list)
-        _osc_vals_blocks[:, :, 0] *= array([block_ampl_scale_list]).transpose()
-
-        # set bsb phase and account for oscillator delay time
-        # note: use mean of osc freqs since I don't want to record a waveform for each osc freq
-        freq_osc_sweep_avg_hz = mean(list(self.freq_osc_sweep_khz_list)) * kHz
-        t_update_delay_s_list = array([0, 40e-9, 80e-9, 80e-9, 120e-9])[:self._num_phaser_oscs]
-        phase_osc_update_delay_turns_list = (
-                (self.freq_osc_base_hz_list +
-                 self.freq_osc_sweep_arr * freq_osc_sweep_avg_hz) *
-                t_update_delay_s_list)
-        _osc_vals_blocks[:, :, 1] += array(self.phase_osc_turns_list) + phase_osc_update_delay_turns_list
-
-        '''
-        COMPILE WAVEFORMS SPECIFIC TO EACH PARAMETER
-        '''
-        # record phaser waveforms - one for each phase
-        for waveform_params in self._waveform_param_list:
-            # extract waveform params
-            phase_sweep_turns = waveform_params[0]
-
-            # create local copy of _osc_vals_blocks and update with waveform parameters
-            # note: no need to deep copy b/c it's filled w/immutables
-            _osc_vals_blocks_local = np_copy(_osc_vals_blocks)
-            _osc_vals_blocks_local[:, :, 1] += self.phase_osc_sweep_arr * phase_sweep_turns  # apply phase sweep
-
-            # specify sequence as a list of blocks, where each block is a dict
-            # note: have to instantiate locally each loop b/c dicts aren't deep copied
-            _sequence_blocks_local = [
-                {
-                    "oscillator_parameters": _osc_vals_blocks_local[_idx_block],
-                    "config": {
-                        "time_us": block_time_list_us[_idx_block],
-                        # don't pulse shape for delay blocks lmao
-                        "pulse_shaping": self.enable_pulse_shaping and (block_ampl_scale_list[_idx_block] != 0),
-                        "pulse_shaping_config": {
-                            "pulse_shape": self.type_pulse_shape,
-                            "pulse_shape_rising": self.enable_pulse_shaping,
-                            "pulse_shape_falling": self.enable_pulse_shaping,
-                            "sample_rate_khz": self.freq_pulse_shape_sample_khz,
-                            "rolloff_time_us": self.time_pulse_shape_rolloff_us
-                        }
-                    }
-                } for _idx_block in range(num_blocks)
-            ]
-
-            # create QVSA waveform and store data in a holder
-            self.waveform_index_to_compiled_wav.append(
-                self.spinecho_wizard.compile_waveform(_sequence_blocks_local))
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -845,79 +683,12 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         '''
         BICHROMATIC/CAT CHECKS
         '''
-        # self.max_ampl_singlepass_pct, self.min_att_singlepass_db = (50., 0.)
-        #
-        # # ensure single pass values are safe and valid
-        # if any((ampl_pct > self.max_ampl_singlepass_pct or ampl_pct < 0.
-        #         for ampl_pct in self.ampl_singlepass_default_pct_list)):
-        #     raise ValueError(
-        #         "Singlepass amplitude outside valid range - [0., {:f}].".format(self.max_ampl_singlepass_pct))
-        #
-        # if any((att_db > 31.5 or att_db < self.min_att_singlepass_db
-        #         for att_db in self.att_singlepass_default_db_list)):
-        #     raise ValueError(
-        #         "Singlepass attenuation outside valid range - [{:.1f}, 31.5].".format(self.min_att_singlepass_db))
-
-        '''
-        CHECK PHASER BASE OSC CONFIG
-        '''
-        # check that phaser oscillator amplitude config is valid
-        if ((not isinstance(self.ampl_osc_frac_list, list)) or
-                (len(self.ampl_osc_frac_list) != self._num_phaser_oscs)):
-            raise ValueError(
-                "Error: phaser oscillator amplitude array must be list of length {:d}.".format(self._num_phaser_oscs))
-        elif sum(self.ampl_osc_frac_list) >= 100.:
-            raise ValueError("Error: phaser oscillator amplitudes must sum <100.")
-
-        # check that phaser oscillator phase arrays are valid
-        if ((not isinstance(self.phase_osc_turns_list, list)) or
-                (len(self.phase_osc_turns_list) != self._num_phaser_oscs)):
-            raise ValueError(
-                "Error: phaser oscillator phase array must be list of length {:d}.".format(self._num_phaser_oscs))
-
-        # check that phaser oscillator frequencies are valid
-        if ((not isinstance(self.freq_osc_khz_list, list)) or
-                (len(self.freq_osc_khz_list) != self._num_phaser_oscs)):
-            raise ValueError(
-                "Error: phaser oscillator frequency array must be list of length {:d}.".format(self._num_phaser_oscs))
-        max_osc_freq_hz = (max(list(self.freq_osc_sweep_khz_list)) * kHz +
-                           max(self.freq_osc_khz_list) * kHz +
-                           (self.freq_global_offset_mhz * MHz))
-        min_osc_freq_hz = (min(list(self.freq_osc_sweep_khz_list)) * kHz +
-                           min(self.freq_osc_khz_list) * kHz +
-                           (self.freq_global_offset_mhz * MHz))
-        if (max_osc_freq_hz > 12.5 * MHz) or (min_osc_freq_hz < -12.5 * MHz):
-            raise ValueError("Error: phaser oscillator frequencies outside valid range of [-12.5, 12.5] MHz.")
-
-        # ensure phaser output frequency falls within valid DUC bandwidth
-        phaser_carrier_freq_dev_hz = abs(self.phaser_eggs.freq_center_hz - self.freq_phaser_carrier_mhz * MHz)
-        if phaser_carrier_freq_dev_hz >= 300. * MHz:
-            raise ValueError("Invalid argument: output frequencies outside +/- 300 MHz phaser DUC bandwidth.")
-
-        '''
-        CHECK PHASER WAVEFORM CONFIG
-        '''
-        # ensure that sweep targets are lists of appropriate length
-        if not (isinstance(self.phase_osc_sweep_arr, list) and (
-                len(self.phase_osc_sweep_arr) == self._num_phaser_oscs)):
-            raise ValueError(
-                "Invalid phase_osc_sweep_arr: {:}.\nphase_osc_sweep_arr must be list of length {:d}.".format(
-                    self.phase_osc_sweep_arr, self._num_phaser_oscs))
-        if not (isinstance(self.freq_osc_sweep_arr, list) and (len(self.freq_osc_sweep_arr) == self._num_phaser_oscs)):
-            raise ValueError("Invalid freq_osc_sweep_arr: {:}.\nfreq_osc_sweep_arr must be list of length {:d}.".format(
-                self.freq_osc_sweep_arr, self._num_phaser_oscs))
-
-        # check that waveforms are not too many/not sweeping too hard
-        num_waveforms_to_record = (len(list(self.phase_osc_sweep_turns_list)))
-        if num_waveforms_to_record > PULSESHAPER_MAX_WAVEFORMS:
-            raise ValueError("Too many waveforms to record ({:d}) - must be fewer than {:d}.\n"
-                             "Reduce length of any of [phase_osc_sweep_turns_list].".format(
-                num_waveforms_to_record, PULSESHAPER_MAX_WAVEFORMS))
+        pass
 
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                11)
+                10)
 
     '''
     MAIN SEQUENCE
@@ -937,14 +708,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             self.rap_subsequence.configure(self.time_rap_mu, self.freq_rap_center_ftw, self.freq_rap_dev_ftw)
             delay_mu(50000)
 
-        # record phaser waveforms
-        self.phaser_record()
-
-        # set maximum attenuations for phaser outputs to prevent leakage during configuration
-        at_mu(self.phaser_eggs.get_next_frame_mu())
-        self.phaser_eggs.channel[0].set_att_mu(0x00)
-        delay_mu(self.phaser_eggs.t_sample_mu)
-        self.phaser_eggs.channel[1].set_att_mu(0x00)
+        # configure tickle
+        self.dds_pulse_shaper.sequence_initialize()
+        self.urukul1_ch1.set_att_mu(self.att_tickle_mu)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -952,7 +718,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         ion_state = (-1, 0, int64(0))  # store ion state for adaptive readout
         herald_counter = 0  # store herald attempts
         _loop_iter = 0  # used to check_termination more frequently
-        self.pulse_shaper.waveform_load()  # load phaser waveforms from DMA
 
         # MAIN LOOP
         for trial_num in range(self.repetitions):
@@ -968,33 +733,23 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 freq_729_readout_ftw = int32(config_vals[4])
                 time_729_readout_mu = int64(config_vals[5])
                 time_ramsey_delay_mu = int64(config_vals[6])
-                freq_sweep_hz = config_vals[7]
-                waveform_num = int32(config_vals[8])
+                freq_tickle_ftw = int32(config_vals[7])
+                phase_tickle_pow = int32(config_vals[8])
                 phase_dynamical_decoupling_cat_pow = int32(config_vals[9])
 
                 herald_counter = 0  # clear herald counter
-
-                # get corresponding waveform parameters and pulseshaper ID from the index
-                waveform_params = self._waveform_param_list[waveform_num]
-                phaser_waveform = self.waveform_index_to_pulseshaper_id[waveform_num]
 
                 self.update_profile_configuration(freq_cat_center_ftw, freq_cat_secular_ftw,
                                      phase_cat2_cat_pow,
                                      phase_dynamical_decoupling_cat_pow)
 
-                # configure phaser
-                if self.enable_QVSA_pulse:
-                    # create frequency update list for phaser oscs and set phaser frequencies
-                    freq_update_list = self.freq_osc_base_hz_list + (freq_sweep_hz * self.freq_osc_sweep_arr)
-                    # set phaser frequency/phases
+                # configure tickle
+                if self.enable_tickle_pulse:
+                    # set urukul frequency/phases
                     self.core.break_realtime()
-                    self.phaser_eggs.frequency_configure(
-                        self.freq_phaser_carrier_hz,  # carrier frequency (via DUC)
-                        # oscillator frequencies
-                        [freq_update_list[0], freq_update_list[1], freq_update_list[2],
-                         freq_update_list[3], freq_update_list[4]],
-                        self.phase_global_ch1_turns  # global CH1 phase
-                    )
+                    self.urukul1_ch1.set_mu(freq_tickle_ftw,
+                                            phase_tickle_pow)
+                    self.dds_pulse_shaper.configure_train(self.time_tickle_mu)
 
                 '''
                 BEGIN MAIN SEQUENCE
@@ -1025,13 +780,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
                     self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
 
-                    # synchronize start time to phaser's 320ns frame (which is multiple of coarse RTIO clk)
-                    time_start_mu = self.phaser_eggs.get_next_frame_mu()
-                    # most important: clear phaser osc HERE & NOW to ensure phase coherent w/ DDSs
-                    #   b/c DDSs are phase-tracked wrt time_start_mu
-                    self.phaser_eggs.phase_osc_clear()
-                    # unimportant: clear DUC phase (b/c why not)
-                    self.phaser_eggs.reset_duc_phase()
+                    # synchronize start time to urukul
+
 
                     # io_update clears phase of all channels to be cleared
                     self.qubit.io_update()
@@ -1056,7 +806,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                 if self.enable_dynamical_decoupling:
                                     self.perform_dynamical_decoupling_pi_pulse()
                                 self.pulse_cat(self.profile_729_cat1b, self.time_cat1_bichromatic_mu)
-                        self.setup_phaser()
 
                     # cat1 - force herald (to projectively disentangle spin/motion)
                     if self.enable_cat1_herald:
@@ -1112,18 +861,15 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                         self.qubit.off()
 
                     '''
-                    QVSA PULSE
+                    TICKLE PULSE
                     '''
-                    self.phaser_eggs.reset_duc_phase()
-                    if self.enable_QVSA_pulse:
+                    if self.enable_tickle_pulse:
                         for idx in range(self.num_dynamical_decoupling_pi_pulses):
                             if self.enable_dynamical_decoupling:
                                 self.qubit.on()
-                            self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
+                            self.dds_pulse_shaper.run_train_single()
                             with parallel:
-                                # turn off phaser oscillators but and DO NOT clear phase accumulator
                                 self.qubit.off()
-                                self.phaser_oscs_off(clr=int32(0))
                                 self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1] +
                                                           phase_dynamical_decoupling_cat_pow)
                             if self.enable_dynamical_decoupling:
@@ -1141,15 +887,14 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                             self.qubit.singlepass0_on()
                             self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
                                                       phase_dynamical_decoupling_cat_pow)
-                        self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
+                        self.dds_pulse_shaper.run_train_single()
                         self.qubit.off()
 
                     '''
                     CAT #2
                     '''
                     with parallel:
-                        # turn off phaser oscillators and clear phase accumulator
-                        self.phaser_eggs.phaser_stop()
+                        # turn off urukul
                         if self.enable_cat2_bichromatic:
                             with sequential:
                                 self.pulse_cat(self.profile_729_cat2a, time_cat2_cat_mu)
@@ -1201,6 +946,10 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     # return -1 so user knows booboo happened
                     counts_res = -1
 
+                # cleanup dds_pulse_shaper
+                # todo: do we need this???
+                self.dds_pulse_shaper.sequence_cleanup()
+
                 # store results
                 self.update_results(freq_cat_center_ftw,
                                     counts_res,
@@ -1211,8 +960,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     time_729_readout_mu,
                                     time_ramsey_delay_mu * (self.num_dynamical_decoupling_pi_pulses+1),
                                     freq_sweep_hz,
-                                    phase_dynamical_decoupling_cat_pow,
-                                    waveform_params[0])
+                                    phase_dynamical_decoupling_cat_pow)
 
 
                 # check termination more frequently in case reps are low
@@ -1391,47 +1139,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.phase_beams_pow_list[self.profile_729_cat2a][3] = cat4_phases[1]
         self.phase_beams_pow_list[self.profile_729_cat2b][1] = phase_dynamical_decoupling_cat_pow
         self.phase_beams_pow_list[self.profile_729_cat2b][2] = cat4_phases[0] + self.phase_cat_shift_pow
-        self.phase_beams_pow_list[self.profile_729_cat2b][3] = cat4_phases[1] - self.phase_cat_shift_pow
+        self.phase_beams_pow_list[self.profile_729_cat2b][3] = cat4_phases[1] - self.phase_cat_shift_po
 
-    @kernel(flags={'fast-math'})
-    def setup_phaser(self) -> TNone:
-        """
-        Configure the phase for use and scedule when to set it up
-        """
-        at_mu(now_mu() + self.phaser_setup_time_mu)
-        self.phaser_eggs.phaser_setup(self.att_phaser_mu, self.att_phaser_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_oscs_off(self, clr: TInt32) -> TNone:
-        """
-        Quickly turn off phaser oscillators
-        :param clr: indicates whether to clear the phaser oscillators (0 does not clear oscillator phases) and 1 clears oscillator phases
-        """
-        if clr != 0 and clr != 1:
-            raise ValueError("clr must be 0 or 1")
-        for i in range(4):
-            with parallel:
-                self.phaser_eggs.phaser.channel[0].oscillator[i].set_amplitude_phase(amplitude=0., phase=0., clr=clr)
-                self.phaser_eggs.phaser.channel[1].oscillator[i].set_amplitude_phase(amplitude=0., phase=0., clr=clr)
-                delay_mu(self.phaser_eggs.t_sample_mu)
-
-    @kernel(flags={"fast-math"})
-    def phaser_record(self) -> TNone:
-        """
-        Set up core phaser functionality and record the pulse-shaped waveforms.
-        Should be run during initialize_experiment.
-        """
-        # record phaser sequences onto DMA for each waveform parameter
-        for _wav_idx in range(len(self._waveform_param_list)):
-            # get waveform for given parameters
-            # note: use sync RPC to reduce significant overhead of direct data transfer
-            _wav_data_ampl, _wav_data_phas, _wav_data_time = self._get_compiled_waveform(_wav_idx)
-
-            # record phaser pulse sequence and save returned waveform ID
-            # note: no need to add slack b/c waveform_record does it for us
-            self.waveform_index_to_pulseshaper_id[_wav_idx] = self.pulse_shaper.waveform_record(
-                _wav_data_ampl, _wav_data_phas, _wav_data_time
-            )
 
     @kernel(flags={"fast-math"})
     def pulse_readout_sbr(self, time_pulse_mu: TInt64, freq_readout_ftw: TInt32) -> TNone:
@@ -1484,16 +1193,3 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         # run RAP readout pulse
         # run rap turns on qubit
         self.rap_subsequence.run_rap(self.time_rap_mu)
-
-    @rpc
-    def _get_compiled_waveform(self, wav_idx: TInt32) -> TTuple([TArray(TFloat, 2),
-                                                                 TArray(TFloat, 2),
-                                                                 TArray(TInt64, 1)]):
-        """
-        Return compiled waveform values.
-        By returning the large waveform arrays via RPC, we avoid all-at-once large data transfers,
-            speeding up experiment compilation and transfer to Kasli.
-        :param wav_idx: the index of the compiled waveform to retrieve.
-        :return: the compiled waveform corresponding to the waveform index.
-        """
-        return self.waveform_index_to_compiled_wav[wav_idx]
