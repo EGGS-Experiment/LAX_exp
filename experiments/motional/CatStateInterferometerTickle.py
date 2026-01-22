@@ -747,8 +747,9 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
                 if self.enable_tickle_pulse:
                     # set urukul frequency/phases
                     self.core.break_realtime()
-                    self.urukul1_ch1.set_mu(freq_tickle_ftw,
-                                            phase_tickle_pow)
+                    self.urukul1_ch2.set_mu(freq_tickle_ftw,
+                                            phase_tickle_pow,
+                                            profile=self.profile_tickle_RAM)
                     self.dds_pulse_shaper.configure_train(self.time_tickle_mu)
 
                 '''
