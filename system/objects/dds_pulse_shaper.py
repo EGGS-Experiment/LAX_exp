@@ -18,7 +18,7 @@ class DDSPulseShaper(HasEnvironment):
         "dds_target", "ram_writer",
 
         # waveform configs
-        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape", "_CFR1_RAM_CONFIG",
+        "ram_profile", "ram_addr_start", "num_samples", "ampl_max_pct", "pulse_shape",
 
         # RAM-related configs
         "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshape_list",
@@ -27,7 +27,9 @@ class DDSPulseShaper(HasEnvironment):
     def build(self, dds_target=None,
               ram_profile: TInt32=0, ram_addr_start: TInt32=0x00,
               num_samples: TInt32=100, ampl_max_pct: TFloat=50.,
-              pulse_shape: TStr="sine_squared"):
+              pulse_shape: TStr="sine_squared",
+              phase_autoclear = 0,
+              external_switch = None):
         """
         Defines the main interface for the sequence.
         :param dds_target: the DDS object to pulse shape with.
@@ -37,6 +39,7 @@ class DDSPulseShaper(HasEnvironment):
             Must result in a final RAM address <= 1023.
         :param ampl_max_pct: the max amplitude (in percentage of full scale) of the pulse shape.
         :param pulse_shape: the pulse shape to use.
+        :param phase_autoclear: bit to determine whether to clear phase accumulator on io_update
 
         """
         # set sequence parameters
@@ -48,13 +51,21 @@ class DDSPulseShaper(HasEnvironment):
 
         # get relevant devices
         self.dds_target = dds_target
+        self.external_switch = external_switch
         self.setattr_device("core")
         self.ram_writer = RAMWriter(self, dds_device=self.dds_target,
                                     dds_profile=self.ram_profile, block_size=50)
 
+        if external_switch is None:
+            self.has_external_switch = False
+        else:
+            self.has_external_switch = True
+
+        self.external_switch = external_switch
+
         ### finish build sequence ###
         self._validate_arguments()
-        self.sequence_prepare()
+        self.sequence_prepare(phase_autoclear)
 
 
     """
@@ -79,9 +90,11 @@ class DDSPulseShaper(HasEnvironment):
         elif not (0. < self.ampl_max_pct < 100.):
             raise ValueError("Invalid ampl_max_pct value ({:f}). Must be in range (0., 100.).".format(self.ampl_max_pct))
 
-    def sequence_prepare(self):
+    def sequence_prepare(self, phase_autoclear = 0):
         """
         Prepare & pre-compute relevant values for speedy compilation & kernel evaluation.
+
+        :param phase_autoclear: whether to clear phase accumulator on io_update
         """
         # prepare stuff to write to RAM as well as our personal RAMWriter object
         self.ram_writer.prepare()
@@ -107,18 +120,7 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1] # pre-reverse list b/c write_ram reverses it
 
-
-        '''
-        PREPARE CFR CONFIGURATION WORDS
-        '''
-        # CFR1: enable RAM mode and clear phase accumulator
-        # note: has to be int64 b/c numpy won't take it as int32
-        self._CFR1_RAM_CONFIG = int64(
-            (1 << 31) | # ram_enable
-            (ad9910.RAM_DEST_ASF << 29) |   # ram_destination
-            # (1 << 16) |  # select_sine_output (note: removed for consistency)
-            2 # sdio_input_only + msb_first
-        ) & 0xFFFFFFFF # ensure 32b only
+        self.set_cfr1_config(ram_enable=1, phase_autoclear=phase_autoclear)
 
 
     """
@@ -237,9 +239,13 @@ class DDSPulseShaper(HasEnvironment):
 
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        if self.has_external_switch:
+            self.external_switch.on()
         self.dds_target.sw.on()
         delay_mu(time_pulse_mu)
         self.dds_target.sw.off()
+        if self.has_external_switch:
+            self.external_switch.off()
 
 
         ##### CLEANUP #####
@@ -287,8 +293,7 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.cpld.io_update.pulse_mu(8)   # ensure profile is latched
 
         # enable RAM mode and leave primed
-        self.dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
-        self.dds_target.cpld.io_update.pulse_mu(8)  # ensure profile is latched
+        self.write_cfr1(enable_io_update=True)
 
         return self.time_pulse_mu
 
@@ -312,11 +317,44 @@ class DDSPulseShaper(HasEnvironment):
 
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        if self.has_external_switch:
+            self.external_switch.on()
         self.dds_target.sw.on()
         delay_mu(self.time_pulse_mu)
         self.dds_target.sw.off()
+        if self.has_external_switch:
+            self.external_switch.off()
 
         # note: we don't clean up (i.e. unset CFR1 or change profiles) b/c we want the
         #   phase accumulator to keep counting - this means that subsequent pulses will
         #   be phase-coherent (i.e. have a deterministic and well-defined phase relationship)
         #   to this pulse.
+
+
+    """
+    HELPER FUNCTIONS
+    """
+    @portable(flags={"fast-math"})
+    def set_cfr1_config(self, ram_enable: TInt32 = 1, phase_autoclear: TInt32 =0):
+        '''
+        PREPARE CFR CONFIGURATION WORDS
+
+        :param ram_enable: enable RAM mode
+        :param phase_autoclear: whether to clear phase accumulator on io_update
+        '''
+        # CFR1: enable RAM mode and clear phase accumulator
+        # note: has to be int64 b/c numpy won't take it as int32
+        self._CFR1_RAM_CONFIG = int64(
+            (ram_enable << 31) |  # ram_enable
+            (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
+            (phase_autoclear << 13) |
+            # (1 << 16) |  # select_sine_output (note: removed for consistency)
+            2  # sdio_input_only + msb_first
+        ) & 0xFFFFFFFF  # ensure 32b only
+
+    @kernel(flags={"fast-math"})
+    def write_cfr1(self, enable_io_update = False):
+        # enable RAM mode and leave primed
+        self.dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
+        if enable_io_update:
+            self.dds_target.cpld.io_update.pulse_mu(8)  # ensure profile is latched
