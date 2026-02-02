@@ -4,6 +4,7 @@ from numpy import int32, int64, linspace
 
 from LAX_exp.system.objects.RAMWriter import RAMWriter
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+from LAX_exp.base import LAXDevice
 
 
 class DDSPulseShaper(HasEnvironment):
@@ -57,11 +58,10 @@ class DDSPulseShaper(HasEnvironment):
                                     dds_profile=self.ram_profile, block_size=50)
 
         if external_switch is None:
-            self.has_external_switch = False
+            self.external_switch = self.DummyTTL()
         else:
-            self.has_external_switch = True
+            self.external_switch = external_switch
 
-        self.external_switch = external_switch
 
         ### finish build sequence ###
         self._validate_arguments()
@@ -239,13 +239,11 @@ class DDSPulseShaper(HasEnvironment):
 
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
-        if self.has_external_switch:
-            self.external_switch.on()
+        self.external_switch.on()
         self.dds_target.sw.on()
         delay_mu(time_pulse_mu)
         self.dds_target.sw.off()
-        if self.has_external_switch:
-            self.external_switch.off()
+        self.external_switch.off()
 
 
         ##### CLEANUP #####
@@ -314,16 +312,14 @@ class DDSPulseShaper(HasEnvironment):
         time_start_mu = now_mu() & ~7 # coarse align to SYNC_CLK for determinacy
         at_mu(time_start_mu)
         self.dds_target.cpld.io_update.pulse_mu(8) # fire pulse!
-
+        #
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
-        if self.has_external_switch:
-            self.external_switch.on()
+        self.external_switch.on()
         self.dds_target.sw.on()
         delay_mu(self.time_pulse_mu)
         self.dds_target.sw.off()
-        if self.has_external_switch:
-            self.external_switch.off()
+        self.external_switch.off()
 
         # note: we don't clean up (i.e. unset CFR1 or change profiles) b/c we want the
         #   phase accumulator to keep counting - this means that subsequent pulses will
@@ -358,3 +354,8 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
         if enable_io_update:
             self.dds_target.cpld.io_update.pulse_mu(8)  # ensure profile is latched
+
+    class DummyTTL:
+
+        def on(self):
+            pass
