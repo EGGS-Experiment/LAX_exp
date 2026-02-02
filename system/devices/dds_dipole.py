@@ -37,15 +37,10 @@ class DDSDipole(LAXDevice):
         # close rf switches to kill any modulation signal leakage
         self.sw.off()
 
-        # set up DDS to reinitialize phase each time we set waveform values
-        self.dds.set_phase_mode(PHASE_MODE_ABSOLUTE)
-
         # enable matched latency and phase autoclearing
-        self.dds.write32(_AD9910_REG_CFR1,
-                         (1 << 16) |    # select_sine_output
-                         (1 << 13) |    # phase_autoclear
-                         2)             # default serial I/O configs
-        self.dds.set_cfr2(matched_latency_enable=1)
+        self.set_cfr1()
+        self.set_cfr2(matched_latency_enable=1)
+        self.dds.cpld.io_update.pulse_mu(8)
 
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
@@ -79,7 +74,7 @@ class DDSDipole(LAXDevice):
         # note: didn't bother parallel-ing this section since it's unimportant
         # enable RF switch onboard Urukul
         self.sw.off()
-        delay_mu(1)
+        delay_mu(8)
 
         # enable external RF switch
         self.rf_switch.off()

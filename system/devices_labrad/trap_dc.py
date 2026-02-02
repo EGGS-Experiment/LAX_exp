@@ -175,6 +175,43 @@ class TrapDC(LAXDevice):
             raise Exception("voltage must be between 0V and 100V")
         self.trap_dc.voltage_fast(self.ARAMP_2_CHANNEL, voltage)
 
+    """
+    Get Voltages
+    """
+    @rpc
+    def get_east_endcap_voltage(self) -> TFloat:
+        """
+        Get east endcap voltage.
+        """
+        return self.trap_dc.voltage(self.EAST_ENDCAP_CHANNEL)
+
+    @rpc
+    def get_west_endcap_voltage(self) -> TFloat:
+        """
+        Get west endcap voltage.
+        """
+        return self.trap_dc.voltage(self.WEST_ENDCAP_CHANNEL)
+
+    @rpc
+    def get_h_shim_voltage(self) -> TFloat:
+        """
+        Get H Shim voltage.
+        """
+        return self.trap_dc.voltage(self.H_SHIM_CHANNEL)
+
+    @rpc
+    def get_v_shim_voltage(self) -> TFloat:
+        """
+        Get V Shim voltage.
+        """
+        return self.trap_dc.voltage(self.V_SHIM_CHANNEL)
+
+    @rpc
+    def get_aramp_voltage(self) -> TFloat:
+        """
+        Get A-Ramp voltage.
+        """
+        return self.trap_dc.voltage_fast(self.ARAMP_2_CHANNEL)
 
     """
     Ramp Voltages
