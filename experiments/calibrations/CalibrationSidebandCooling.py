@@ -416,9 +416,11 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         Run a single spin polarization pulse.
         """
         self.probe.on()
+        delay_mu(8)
         self.repump_cooling.on()
         delay_mu(self.initialize_subsequence.time_spinpol_mu)
         self.probe.off()
+        delay_mu(8)
         self.repump_cooling.off()
 
     @kernel(flags={"fast-math"})
@@ -438,8 +440,9 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         self.repump_qubit.cpld.io_update.pulse_mu(8)
 
         self.qubit.on()
+        delay_mu(8)
         self.repump_qubit.on()
-
+        delay_mu(8)
 
         '''SCHEDULE SBC'''
         for i in range(num_updates):
@@ -487,6 +490,7 @@ class CalibrationSidebandCooling(LAXExperiment, Experiment):
         '''CLEAN UP'''
         # turn off beams
         self.qubit.off()
+        delay_mu(8)
         self.repump_qubit.off()
 
     @kernel(flags={"fast-math"})

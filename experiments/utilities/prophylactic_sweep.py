@@ -1,6 +1,4 @@
-import numpy as np
 from artiq.experiment import *
-# todo: set kernel invariants
 
 
 class ProphylacticSweep(EnvExperiment):
@@ -10,6 +8,11 @@ class ProphylacticSweep(EnvExperiment):
     Apply a tickle on top of the RF rods as a prophylaxis against undesired
     mass species from being trapped.
     """
+    kernel_invariants = {
+        "mod_dds", "mod_dds_sw", "mod_dds_ampl_pct", "mod_dds_att_mu",
+        "mod_freq_mu_list", "mod_time_mu", "time_cooling_holdoff_mu",
+        "_num_loops",
+    }
 
     def build(self):
         # get core devices
@@ -38,10 +41,8 @@ class ProphylacticSweep(EnvExperiment):
         self.mod_dds_att_mu =   self.mod_dds.cpld.att_to_mu(self.mod_att_db * dB)
 
         # timing/iteration
-        self.mod_freq_mu_list = np.array([
-                                    self.mod_dds.frequency_to_ftw(freq_khz * kHz)
-                                    for freq_khz in self.mod_freq_khz_list
-                                ])
+        self.mod_freq_mu_list = [self.mod_dds.frequency_to_ftw(freq_khz * kHz)
+                                 for freq_khz in self.mod_freq_khz_list]
         self.mod_time_mu = self.core.seconds_to_mu(self.mod_time_total_s / (len(self.mod_freq_mu_list) * self.repetitions))
         self.time_cooling_holdoff_mu = self.core.seconds_to_mu(3 * ms)
 
@@ -50,7 +51,7 @@ class ProphylacticSweep(EnvExperiment):
 
 
     @kernel(flags={"fast-math"})
-    def run(self):
+    def run(self) -> TNone:
         # reset core device
         self.core.wait_until_mu(now_mu())
         self.core.reset()
@@ -72,15 +73,11 @@ class ProphylacticSweep(EnvExperiment):
                 # add holdoff period for recooling the ion
                 delay_mu(self.time_cooling_holdoff_mu)
 
-                # set modulation frequency and tickle
+                # set modulation frequency and tickle for target time
                 self.mod_dds.set_mu(freq_mu, asf=self.mod_dds_ampl_pct)
                 self.mod_dds.sw.on()
                 self.mod_dds_sw.on()
-
-                # apply prophylaxis for given time
                 delay_mu(self.mod_time_mu)
-
-                # turn off output
                 self.mod_dds.sw.off()
 
                 # update progress bar
@@ -97,7 +94,7 @@ class ProphylacticSweep(EnvExperiment):
 
 
     @kernel(flags={"fast-math"})
-    def prepareDevices(self):
+    def prepareDevices(self) -> TNone:
         """
         Prepare devices for the experiment.
         """
@@ -107,7 +104,7 @@ class ProphylacticSweep(EnvExperiment):
         delay_mu(10000)
 
     @kernel(flags={"fast-math"})
-    def cleanupDevices(self):
+    def cleanupDevices(self) -> TNone:
         """
         Clean up devices.
         """

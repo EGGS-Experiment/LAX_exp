@@ -2,30 +2,47 @@ from artiq.experiment import *
 from numpy import array, zeros, int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
-from LAX_exp.extensions import *
-from LAX_exp.base import LAXExperiment
+from LAX_exp.language import *
 from LAX_exp.system.subsequences import InitializeQubit, Readout, DopplerRecooling, RescueIon
 
+import os
+import labrad
+from socket import gethostname
 
-class Tickle(LAXExperiment, Experiment):
+
+class Tickle397(LAXExperiment, Experiment):
     """
-    Experiment: Tickle
+    Experiment: Tickle 397
 
     # todo: document
     """
-    name = 'Tickle'
+    name = 'Tickle 397'
     kernel_invariants = {
         # hardware parameters
-        "att_tickle_mu", "config_experiment_list", "profile_tickle",
+        "att_tickle_mu", "config_experiment_list",
+
+        # labrad
+        "cxn_wm", "wm",
 
         # subsequences
         'initialize_subsequence', 'readout_counts_subsequence', 'readout_timestamped_subsequence',
-        'rescue_subsequence'
+        'rescue_subsequence',
     }
 
     def build_experiment(self):
         # core arguments
         self.setattr_argument("repetitions",    NumberValue(default=50, precision=0, step=1, min=1, max=100000))
+        self.setattr_argument("wavemeter_chan", NumberValue(default=4, precision=0, step=1, min=1, max=16))
+        self.setattr_argument("toptica_laser_channel", NumberValue(default=7, precision=1, step=1, min=1, max=11))
+        self.setattr_argument("pzt_397_voltage_v",  Scannable(
+                                                            default=[
+                                                                ExplicitScan([71.01]),
+                                                                RangeScan(68, 71, 100, randomize=True),
+                                                            ],
+                                                            global_min=10, global_max=100, global_step=1,
+                                                            unit="V", scale=1, precision=3
+                                                        ))
+
 
         # readout configuration
         self.setattr_argument("readout_type",   EnumerationValue(['Counts', 'Timestamped'], default='Timestamped'), group=self.name)
@@ -62,9 +79,6 @@ class Tickle(LAXExperiment, Experiment):
         self.setattr_device('dds_parametric')
         self.setattr_device('dds_dipole')
 
-        # assign DDS profiles
-        self.profile_tickle = 0
-
         # subsequences
         self.initialize_subsequence =           InitializeQubit(self)
         self.readout_counts_subsequence =       Readout(self)
@@ -77,11 +91,11 @@ class Tickle(LAXExperiment, Experiment):
         elif self.readout_type == 'Timestamped':    self.readout_subsequence = self.readout_timestamped_subsequence
 
         # select desired tickle subsequence based on input arguments
-        if self.tickle_source == 'Parametric':  self.dds_tickle = self.dds_parametric
-        elif self.tickle_source == 'Dipole':    self.dds_tickle = self.dds_dipole
+        if self.tickle_source == 'Parametric':      self.dds_tickle = self.dds_parametric
+        elif self.tickle_source == 'Dipole':        self.dds_tickle = self.dds_dipole
 
         # convert tickle parameters to machine units
-        self.att_tickle_mu =        att_to_mu(self.att_tickle_db * dB)
+        self.att_tickle_mu =    att_to_mu(self.att_tickle_db * dB)
         freq_tickle_ftw_list =  [self.dds_tickle.frequency_to_ftw(freq_khz * kHz)
                                  for freq_khz in self.freq_tickle_khz_list]
         ampl_tickle_asf_list =  [self.dds_tickle.amplitude_to_asf(ampl_pct / 100.)
@@ -89,24 +103,49 @@ class Tickle(LAXExperiment, Experiment):
         time_tickle_mu_list =   [self.core.seconds_to_mu(time_us * us)
                                  for time_us in self.time_tickle_us_list]
 
+        # check input for serious booboos
+        if any(not (20 <= voltage_v <= 90) for voltage_v in self.pzt_397_voltage_v):
+            raise ValueError("Invalid fucking 397 pzt voltage you idiot - don't fucking damage it")
+
         # create an array of values for the experiment to sweep
-        # (i.e. tickle frequency, tickle time, readout FTW)
+        self.pzt_397_voltage_v = array(list(self.pzt_397_voltage_v))
         self.config_experiment_list = create_experiment_config(
             freq_tickle_ftw_list, ampl_tickle_asf_list, time_tickle_mu_list,
             shuffle_config=True, config_type=int64
         )
 
-        # configure timestamped counts for doppler recooling
+        # tmp remove
         if self.readout_type == 'Timestamped':
             self.readout_subsequence = self.readout_timestamped_subsequence
             self.set_dataset('timestamped_counts', zeros((self.repetitions * len(self.config_experiment_list),
-                                                          self.readout_subsequence.num_counts), dtype=int64))
+                                                             self.readout_subsequence.num_counts), dtype=int64))
             self.setattr_dataset('timestamped_counts')
+        # tmp remove
+
+        # connect to labrad - EGGS
+        self.cxn = labrad.connect(os.environ['LABRADHOST'], port=7682, tls_mode='off',
+                                  username='', password='lab')
+        self.toptica = self.cxn.toptica_server
+
+        # ensure target toptica channel exists
+        self.toptica_laser_channel = round(self.toptica_laser_channel)
+        try:
+            self.toptica.device_info(self.toptica_laser_channel)
+        except Exception:
+            raise ValueError("Error: unable to retrieve info about toptica laser channel ().".format(
+                self.toptica_laser_channel))
+
+        # create synchronous connection to wavemeter labrad
+        from EGGS_labrad.config.multiplexerclient_config import multiplexer_config
+        self.cxn_wm = labrad.connect(multiplexer_config.ip,
+                                     name="{:s}_({:s})".format("ARTIQ_EXP", gethostname()),
+                                     username="", password=os.environ['LABRADPASSWORD'])
+        self.wm = self.cxn_wm.multiplexerserver
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.config_experiment_list),
-                4)
+        return (self.repetitions * len(self.config_experiment_list) * len(self.pzt_397_voltage_v),
+                6)
 
 
     """
@@ -115,7 +154,7 @@ class Tickle(LAXExperiment, Experiment):
     @kernel(flags={"fast-math"})
     def initialize_experiment(self) -> TNone:
         # ensure DMA sequences use profile 0
-        self.dds_tickle.set_profile(self.profile_tickle)
+        self.dds_tickle.set_profile(0)
         self.dds_tickle.set_att_mu(self.att_tickle_mu)
         delay_mu(10000)
 
@@ -124,46 +163,60 @@ class Tickle(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
-        for trial_num in range(self.repetitions):
-            for config_vals in self.config_experiment_list:
-
-                '''CONFIGURE'''
-                # extract values from config list
-                freq_tickle_ftw =   int32(config_vals[0])
-                ampl_tickle_asf =   int32(config_vals[1])
-                time_tickle_mu =    config_vals[2]
-
-                # configure tickle and qubit readout
-                self.core.break_realtime()
-                self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf,
-                                       profile=self.profile_tickle,
-                                       phase_mode=PHASE_MODE_CONTINUOUS)
-                delay_mu(8000)
-
-                '''INITIALIZE ION & EXCITE'''
-                # initialize ion
-                self.initialize_subsequence.run_dma()
-
-                # tickle
-                self.dds_tickle.on()
-                delay_mu(time_tickle_mu)
-                self.dds_tickle.off()
-
-                '''READ OUT AND RECORD RESULTS'''
-                # read out results and clean up loop
-                self.readout_subsequence.run()
-                self.rescue_subsequence.resuscitate()
-                self.update_results(
-                    freq_tickle_ftw,
-                    self.readout_subsequence.fetch_count(),
-                    ampl_tickle_asf,
-                    time_tickle_mu
-                )
-
-            # rescue ion as needed & support graceful termination
+        for voltage_v in self.pzt_397_voltage_v:
+            # update toptica voltage
+            voltage_v2 = self._update_toptica(voltage_v)
             self.core.break_realtime()
-            self.rescue_subsequence.run(trial_num)
-            self.check_termination()
+            self.core.wait_until_mu(now_mu())
+            self.core.break_realtime()
+            delay_mu(10000000)
+
+            for trial_num in range(self.repetitions):
+                # get wavemeter frequency - only once per repetition
+                wm_freq = self._record_wavemeter()
+
+                for config_vals in self.config_experiment_list:
+
+                    '''CONFIGURE'''
+                    # extract values from config list
+                    freq_tickle_ftw =   int32(config_vals[0])
+                    ampl_tickle_asf =   int32(config_vals[1])
+                    time_tickle_mu =    config_vals[2]
+
+                    # configure tickle and qubit readout
+                    self.core.break_realtime()
+                    self.dds_tickle.set_mu(freq_tickle_ftw, asf=ampl_tickle_asf, profile=0,
+                                           phase_mode=PHASE_MODE_CONTINUOUS)
+                    delay_mu(8000)
+
+                    '''INITIALIZE ION & EXCITE'''
+                    # initialize ion
+                    self.initialize_subsequence.run_dma()
+
+                    # tickle
+                    self.dds_tickle.on()
+                    delay_mu(time_tickle_mu)
+                    self.dds_tickle.off()
+
+                    '''READ OUT AND RECORD RESULTS'''
+                    # read out results and clean up loop
+                    self.readout_subsequence.run()
+                    self.rescue_subsequence.resuscitate()
+
+                    # update dataset
+                    self.update_results(
+                        freq_tickle_ftw,
+                        self.readout_subsequence.fetch_count(),
+                        ampl_tickle_asf,
+                        time_tickle_mu,
+                        voltage_v2,
+                        wm_freq
+                    )
+
+                # rescue ion as needed & support graceful termination
+                self.core.break_realtime()
+                self.rescue_subsequence.run(trial_num)
+                self.check_termination()
 
     @rpc(flags={"async"})
     def update_results(self, *args) -> TNone:
@@ -189,11 +242,37 @@ class Tickle(LAXExperiment, Experiment):
             self._counts_iter += 1
 
             # monitor completion status
-            self.set_dataset('management.dynamic.completion_pct', round(self._result_iter * self._completion_iter_to_pct, 3),
+            self.set_dataset('management.dynamic.completion_pct',
+                             round(self._result_iter * self._completion_iter_to_pct, 3),
                              broadcast=True, persist=True, archive=False)
 
         # increment result iterator
         self._result_iter += 1
+
+
+    """
+    HELPERS
+    """
+    @rpc
+    def _update_toptica(self, voltage_v: TFloat) -> TFloat:
+        try:
+            voltage_v = self.toptica.piezo_set(self.toptica_laser_channel, voltage_v)
+        except Exception as e:
+            voltage_v = -1
+
+        return voltage_v
+
+    @rpc
+    def _record_wavemeter(self) -> TFloat:
+        """
+        Attempt to retrieve wavemeter freq for target channel.
+        """
+        try:
+            freq_thz = self.wm.get_frequency(self.wavemeter_chan)
+        except Exception as e:
+            freq_thz = -1
+
+        return freq_thz
 
     def analyze(self):
         pass

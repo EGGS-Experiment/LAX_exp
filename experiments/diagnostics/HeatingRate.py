@@ -147,13 +147,11 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
                 # clean up loop & update dataset
                 self.rescue_subsequence.resuscitate()
-                counts = self.readout_subsequence.fetch_count()
-                self.update_results(freq_readout_ftw, counts, time_heating_delay_mu)
-
-                # check ion status
-                self.core.break_realtime()
                 self.initialize_subsequence.slack_rescue()
+
+                counts = self.readout_subsequence.fetch_count()
                 self.rescue_subsequence.detect_death(counts)
+                self.update_results(freq_readout_ftw, counts, time_heating_delay_mu)
 
             # rescue ion & support graceful termination
             self.core.break_realtime()
@@ -162,7 +160,7 @@ class HeatingRate(SidebandCooling.SidebandCooling):
 
 
     '''
-    ANALYSIS
+    ANALYSIS2
     '''
     def analyze_experiment(self):
         """

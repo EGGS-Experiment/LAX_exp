@@ -1120,12 +1120,15 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                             if self.enable_dynamical_decoupling:
                                 self.qubit.on()
                             self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
+
                             with parallel:
                                 # turn off phaser oscillators but and DO NOT clear phase accumulator
                                 self.qubit.off()
                                 self.phaser_oscs_off(clr=int32(0))
-                                self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1] +
-                                                          phase_dynamical_decoupling_cat_pow)
+                                self.write_pi_pulse_phase(
+                                    self.phase_dynamical_decoupling_pi_pulse_pow_list[idx + 1] +
+                                    phase_dynamical_decoupling_cat_pow)
+
                             if self.enable_dynamical_decoupling:
                                 self.perform_dynamical_decoupling_pi_pulse()
                                 # reset attenuators for continuous DD
@@ -1141,6 +1144,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                             self.qubit.singlepass0_on()
                             self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
                                                       phase_dynamical_decoupling_cat_pow)
+
                         self.pulse_shaper.waveform_playback(phaser_waveform)  # fire recorded phaser pulse from DMA
                         self.qubit.off()
 
