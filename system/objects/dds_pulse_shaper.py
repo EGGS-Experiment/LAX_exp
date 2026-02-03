@@ -1,10 +1,9 @@
 from artiq.experiment import *
-from artiq.coredevice import ad9910
+from artiq.coredevice import ad9910, ttl
 from numpy import int32, int64, linspace
 
 from LAX_exp.system.objects.RAMWriter import RAMWriter
 from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
-from LAX_exp.base import LAXDevice
 
 
 class DDSPulseShaper(HasEnvironment):
@@ -29,8 +28,8 @@ class DDSPulseShaper(HasEnvironment):
               ram_profile: TInt32=0, ram_addr_start: TInt32=0x00,
               num_samples: TInt32=100, ampl_max_pct: TFloat=50.,
               pulse_shape: TStr="sine_squared",
-              phase_autoclear = 0,
-              external_switch = None):
+              phase_autoclear: TInt32 = 0,
+              external_switch: ttl.TTLOut = None):
         """
         Defines the main interface for the sequence.
         :param dds_target: the DDS object to pulse shape with.
@@ -52,16 +51,17 @@ class DDSPulseShaper(HasEnvironment):
 
         # get relevant devices
         self.dds_target = dds_target
-        self.external_switch = external_switch
         self.setattr_device("core")
         self.ram_writer = RAMWriter(self, dds_device=self.dds_target,
                                     dds_profile=self.ram_profile, block_size=50)
 
+
         if external_switch is None:
             self.external_switch = self.DummyTTL()
-        else:
+        elif isinstance(external_switch, ttl.TTLOut):
             self.external_switch = external_switch
-
+        else:
+            raise TypeError("if specified the external_switch must be an instance of TTLOut.")
 
         ### finish build sequence ###
         self._validate_arguments()
@@ -120,7 +120,15 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshape_list)
         self.ampl_asf_pulseshape_list = self.ampl_asf_pulseshape_list[::-1] # pre-reverse list b/c write_ram reverses it
 
-        self.set_cfr1_config(ram_enable=1, phase_autoclear=phase_autoclear)
+        # CFR1: enable RAM mode and clear phase accumulator
+        # note: has to be int64 b/c numpy won't take it as int32
+        self._CFR1_RAM_CONFIG = int64(
+            (1 << 31) |  # ram_enable
+            (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
+            (phase_autoclear << 13) |
+            # (1 << 16) |  # select_sine_output (note: removed for consistency)
+            2  # sdio_input_only + msb_first
+        ) & 0xFFFFFFFF  # ensure 32b only
 
 
     """
@@ -158,6 +166,7 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.set_asf(0x00)
         self.dds_target.set_pow(0x00)
         self.core.break_realtime()
+
 
     @kernel(flags={"fast-math"})
     def sequence_cleanup(self) -> TNone:
@@ -245,7 +254,6 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.sw.off()
         self.external_switch.off()
 
-
         ##### CLEANUP #####
         # disable RAM and DRG
         self.dds_target.set_cfr1(ram_enable=0)
@@ -291,7 +299,8 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_target.cpld.io_update.pulse_mu(8)   # ensure profile is latched
 
         # enable RAM mode and leave primed
-        self.write_cfr1(enable_io_update=True)
+        self.dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
+        self.dds_target.cpld.io_update.pulse_mu(8)  # ensure profile is latched
 
         return self.time_pulse_mu
 
@@ -330,32 +339,14 @@ class DDSPulseShaper(HasEnvironment):
     """
     HELPER FUNCTIONS
     """
-    @portable(flags={"fast-math"})
-    def set_cfr1_config(self, ram_enable: TInt32 = 1, phase_autoclear: TInt32 =0):
-        '''
-        PREPARE CFR CONFIGURATION WORDS
-
-        :param ram_enable: enable RAM mode
-        :param phase_autoclear: whether to clear phase accumulator on io_update
-        '''
-        # CFR1: enable RAM mode and clear phase accumulator
-        # note: has to be int64 b/c numpy won't take it as int32
-        self._CFR1_RAM_CONFIG = int64(
-            (ram_enable << 31) |  # ram_enable
-            (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
-            (phase_autoclear << 13) |
-            # (1 << 16) |  # select_sine_output (note: removed for consistency)
-            2  # sdio_input_only + msb_first
-        ) & 0xFFFFFFFF  # ensure 32b only
-
-    @kernel(flags={"fast-math"})
-    def write_cfr1(self, enable_io_update = False):
-        # enable RAM mode and leave primed
-        self.dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._CFR1_RAM_CONFIG))
-        if enable_io_update:
-            self.dds_target.cpld.io_update.pulse_mu(8)  # ensure profile is latched
 
     class DummyTTL:
+        """
+        Dummy class so artiq does not get throw an error for a None -type object if no external switch is specified
+        """
 
         def on(self):
+            pass
+
+        def off(self):
             pass
