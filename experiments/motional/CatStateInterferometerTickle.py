@@ -413,7 +413,7 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
                               tooltip="Phase of tickle pulse (in turns) applied via the urukul dds.")
 
         self.setattr_argument("ampl_tickle_pct",
-                              NumberValue(default=50., precision=2, min=0., max=99.99, unit="%", scale=1.),
+                              NumberValue(default=99.99, precision=2, min=0., max=99.99, unit="%", scale=1.),
                               group="{}.waveform".format(_argstr),
                               tooltip='Amplitude of tickle pulse.')
 
