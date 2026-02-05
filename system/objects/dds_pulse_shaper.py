@@ -305,7 +305,7 @@ class DDSPulseShaper(HasEnvironment):
         return self.time_pulse_mu
 
     @kernel(flags={"fast-math"})
-    def run_train_single(self, phas_pow: TInt32=-1) -> TNone:
+    def run_train_single(self, phas_pow: TInt32=-1, toggle_switches: TBool = True) -> TNone:
         """
         Fire shaped pulse via RAM modulation functionality.
         This function uses timing values computed by configure_fixed() and assumes that
@@ -325,9 +325,11 @@ class DDSPulseShaper(HasEnvironment):
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + 416 + 63 - 140 - 244)
         self.external_switch.on()
-        self.dds_target.sw.on()
+        if toggle_switches:
+            self.dds_target.sw.on()
         delay_mu(self.time_pulse_mu)
-        self.dds_target.sw.off()
+        if toggle_switches:
+            self.dds_target.sw.off()
         self.external_switch.off()
 
         # note: we don't clean up (i.e. unset CFR1 or change profiles) b/c we want the
