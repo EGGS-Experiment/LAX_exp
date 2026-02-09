@@ -117,6 +117,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # relevant devices - sinara
         self.setattr_device('pump')
+        self.setattr_device('probe')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('scheduler')
@@ -191,6 +192,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # set readout profile for beams and turn them on
         self.pump.readout()
         self.pump.on()
+        self.probe.off()
         self.repump_qubit.on()
         self.repump_cooling.on()
 
