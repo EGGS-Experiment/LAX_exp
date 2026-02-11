@@ -1,5 +1,4 @@
-from email.policy import default
-from turtledemo.sorting_animate import randomize
+from numpy import array, int32, int64, arange, zeros, mean
 
 from artiq.experiment import *
 
@@ -19,7 +18,9 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
 
     def build_experiment(self):
         self.setattr_argument('repetitions', NumberValue(default=50, min=1, max=1000000, step=1, precision=0))
-        self.setattr_argument('urukul_channel', EnumerationValue(['singlepass0', 'singlepass1', 'singlepass2']))
+        self.setattr_argument('urukul_channel', EnumerationValue(['singlepass0', 'singlepass1', 'singlepass2']),
+                              tooltip=f'Singlepass channel used to apply the tone to the dds \n'
+                                      f'All other singlepass pass channels will be turned off/switches closed')
 
         # singlepass params
         self.setattr_argument('freq_singlepass_MHz_list', Scannable(default=[
@@ -28,17 +29,20 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
                             RangeScan(115., 125., 100)]
                             ,
                             global_min=100.,global_max=150., global_step=0.1,
-                            precision=3, scale=1,  unit='MHz'), group = 'singlepass_params')
+                            precision=3, scale=1,  unit='MHz'), group = 'singlepass_params',
+                              tooltip='Frequency in MHz of the dds tone applied')
 
         self.setattr_argument('ampl_singlepass_pct', NumberValue(default=50., max=100., min=0.01,
-                                                                           step=5, precision=2, scale=1., unit='%'), group = 'singlepass_params')
+                                                                           step=5, precision=2, scale=1., unit='%'),
+                              group = 'singlepass_params',
+                              tooltip='Ampltiude in percentage of the dds tone applied')
 
         self.setattr_argument('att_singlepass_dB', NumberValue(default=8., min=5., max=31., scale=1,
                                                               step=0.5, precision=1, unit='dB'), group = 'singlepass_params')
 
 
         self.setattr_argument("time_pulse_us",
-                              NumberValue(default=100, precision=2, step=1, min=0.04, max=10000000, unit="us",
+                              NumberValue(default=100, precision=2, step=1, min=100, max=10000000, unit="us",
                                           scale=1.),
                               group="singlepass_params")
 
@@ -49,19 +53,20 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
         self.setattr_argument('sampler_gain', EnumerationValue(['1x', '10x', '100x', '1000x']),
                               group='sampler_params')
 
-        self.setattr_argument('sample_rate_kHz', NumberValue(default=100., min=1., max=1000, step=1, precision=1, scale=1.,
+        self.setattr_argument('sample_rate_kHz', NumberValue(default=100., min=0.01, max=1000, step=1, precision=1, scale=1.,
                                                              unit='kHz'),
                               group='sampler_params')
 
-        self.setattr_device('sampler0')
+        self.adc = self.get_device('sampler0')
         self.setattr_device('qubit')
 
     def prepare_experiment(self):
         self.ampl_singlepass_asf = self.qubit.amplitude_to_asf(self.ampl_singlepass_pct/100.)
         self.att_singlepass_mu = att_to_mu(self.att_singlepass_dB * dB)
 
-        self.freq_singlepass_ftw_list = [self.qubit.frequency_to_ftw(freq_singlepass_MHz*MHz) for
-                                        freq_singlepass_MHz in self.freq_singlepass_MHz_list]
+
+        self.freq_singlepass_ftw_list = array([self.qubit.frequency_to_ftw(freq_singlepass_MHz*MHz) for
+                                        freq_singlepass_MHz in list(self.freq_singlepass_MHz_list)], dtype=int32)
 
         if self.urukul_channel == 'singlepass0':
             self.urukul_device = self.qubit.singlepass0
@@ -85,18 +90,16 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
         else:
             raise ValueError('Unknown sampler_gain, must be 1x, 10x, 100x, or 1000x')
 
-        time_sampler_delay_s = self.time_pulse_us*us / (self.time_pulse_us*us * self.sample_rate_kHz*kHz) - 3*us
+        time_sampler_delay_s = 1 / (self.sample_rate_kHz*kHz)
+        self.num_samples = int(self.time_pulse_us*us * self.sample_rate_kHz*kHz)
 
-        if time_sampler_delay_s <= 0:
-            self.time_sampler_delay_mu = self.core.seconds_to_mu(0)
-        else:
-            self.time_sampler_delay_mu = self.core.seconds_to_mu(time_sampler_delay_s)
+        self.time_sampler_delay_mu = self.core.seconds_to_mu(time_sampler_delay_s)
 
 
 
     @property
     def results_shape(self):
-        return (self.repetitions * len(self.freq_singlepass_ftw_list), 2
+        return (self.repetitions * self.num_samples * len(self.freq_singlepass_ftw_list), 3
                 )
 
     @kernel(flags={'fast-math'})
@@ -105,11 +108,11 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
         delay_mu(125000)
 
         # initialize sampler
-        self.sampler0.init()
+        self.adc.init()
 
-        self.sampler0.set_gain_mu(self.sampler_channel, self.sampler_gain_setting)
+        self.adc.set_gain_mu(self.sampler_channel, self.sampler_gain_setting)
 
-        self.urukul_device.cpld.set_profile(7)
+        self.urukul_device.cpld.set_profile(self.profile)
         self.urukul_device.cpld.io_update.pulse_mu(8)
 
         self.urukul_device.set_att_mu(self.att_singlepass_mu)
@@ -118,29 +121,41 @@ class BichromaticCalibrationPhotodiode(LAXExperiment, Experiment):
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
 
+
     @kernel(flags={'fast-math'})
     def run_main(self) -> TNone:
         self.core.break_realtime()
         delay_mu(125000)
-        for trial_num in range(self.repetitions):
-            for freq_ftw in self.freq_singlepass_ftw_list:
+
+        data = [0]*8
+        delay_mu(10000)
+
+        for freq_ftw in self.freq_singlepass_ftw_list:
+            self.core.break_realtime()
+            delay_mu(125000)
+            self.urukul_device.set_mu(ftw=freq_ftw, asf=self.ampl_singlepass_asf,
+                                      profile=self.profile)
+            for trial_num in range(self.repetitions):
+                self.urukul_device.sw.on()
+                for sample in range(self.num_samples):
+
+                    self.adc.sample_mu(data)
+                    delay_mu(self.time_sampler_delay_mu)
+                    self.update_results(freq_ftw,
+                                        data[self.sampler_channel],
+                                        sample)
+
+                self.urukul_device.sw.off()
+                self.check_termination()
                 self.core.break_realtime()
 
-                data = [0.0]*8
-                self.urukul_device.set_mu(ftw=freq_ftw, asf=self.ampl_singlepass_asf,
-                                          profile=self.profile)
-                self.sampler0.sample(data)
-                delay_mu(self.time_sampler_delay_mu)
-
-                self.update_results(freq_ftw,
-                                    data[self.sampler_channel])
-
-            self.check_termination()
-
+        self.core.break_realtime()
 
     def analyze_experiment(self):
 
-        data = self.get_dataset('results')
-        freqs = data[:,0]
-        voltages = adc_mu_to_volt(data[:,1], gain=self.sampler_gain_setting)
-        print(voltages)
+        # data = self.get_dataset('results')
+        # freqs = data[:,0]
+        # voltages = adc_mu_to_volt(data[:,1], gain=self.sampler_gain_setting)
+        # print(voltages)
+
+        pass
