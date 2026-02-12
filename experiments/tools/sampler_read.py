@@ -44,7 +44,7 @@ class SamplerReadFast(EnvExperiment):
         self.channel_list =     list(self.channel_gain_dict.keys())
         self.channel_iter =     list(range(len(self.channel_gain_dict)))
         self.gain_list_mu =     [int(np.log10(gain_mu)) for gain_mu in self.channel_gain_dict.values()]
-        self.adc_mu_to_v_list = np.array([20 / (2**15 * gain_mu) for gain_mu in self.channel_gain_dict.values()])
+        self.adc_mu_to_v_list = np.array([20 / ((1 << 16) * gain_mu) for gain_mu in self.channel_gain_dict.values()])
 
         # ADC
         self.adc = self.get_device("sampler0")
