@@ -54,6 +54,8 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                               group="beam.qubit")
 
         # singlepass beam parameters
+        self.setattr_argument("urukul_channel", EnumerationValue(['singlepass0', 'singlepass1','singlepass2']),
+                              group='beam.singlepass')
         self.setattr_argument("freq_singlepass_center_mhz", NumberValue(default=120.339, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
                               group="beam.singlepass")
         self.setattr_argument("att_singlepass_db",     NumberValue(default=7., precision=1, step=0.5, min=2., max=31.5, unit="dB", scale=1.),
@@ -82,11 +84,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
         self.setattr_argument("time_rabi_us_list",      Scannable(
                                                             default=[
-                                                                RangeScan(1, 25, 10, randomize=True),
+                                                                RangeScan(0.01, 25, 10, randomize=True),
                                                                 ExplicitScan([6.05]),
                                                                 CenterScan(3.05, 5., 0.1, randomize=True),
                                                             ],
-                                                            global_min=1, global_max=100000, global_step=1,
+                                                            global_min=0.01, global_max=100000, global_step=1,
                                                             unit="us", scale=1, precision=5
                                                         ), group="scan.time")
 
@@ -119,8 +121,15 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
         # beam parameters - singlepass0 (inj lock)
-        self.att_singlepass0_mu =   att_to_mu(self.att_singlepass_db * dB)
-        ampl_singlepass_asf_list =  [self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
+        if self.urukul_channel == "singlepass0":
+            self.singlepass_channel = self.qubit.singlepass0
+        elif self.urukul_channel == "singlepass1":
+            self.singlepass_channel = self.qubit.singlepass1
+        elif self.urukul_channel == "singlepass2":
+            self.singlepass_channel = self.qubit.singlepass2
+
+        self.att_singlepass_mu =   att_to_mu(self.att_singlepass_db * dB)
+        ampl_singlepass_asf_list =  [self.singlepass_channel.amplitude_to_asf(ampl_pct / 100.)
                                      for ampl_pct in self.ampl_singlepass_pct_list]
 
         # create frequency config to equalize output at ion
@@ -172,6 +181,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
+        # set all singlepass switches off
+        self.qubit.singlepass0_off()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
+
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
         for trial_num in range(self.repetitions):
@@ -193,7 +207,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                     delay_mu(50000)
 
                 # set 729nm frequencies
-                self.qubit.singlepass0.set_mu(freq_singlepass_ftw, asf=ampl_singlepass_asf,
+                self.singlepass_channel.set_mu(freq_singlepass_ftw, asf=ampl_singlepass_asf,
                                               profile=self.profile_729_target,
                                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 if self.enable_pulseshaping:
@@ -202,14 +216,21 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                     self.qubit.set_mu(freq_qubit_ftw, asf=self.ampl_qubit_asf,
                                       profile=self.profile_729_target,
                                       phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+
                 delay_mu(10000)
 
 
                 '''INITIALIZE'''
                 # initialize ion in S-1/2 state and cool
+                # ensure singlepass 0 is on for sbc
+                self.qubit.singlepass0_on()
                 self.initialize_subsequence.run_dma()
                 self.cooling_subsequence.run_dma()
-
+                self.qubit.singlepass0_off()
+                # turn back on the one we want - set attenuation here as it seems like sbc messes with it 
+                self.singlepass_channel.set_att_mu(self.att_singlepass_mu)
+                self.singlepass_channel.sw.on()
+                delay_mu(8)
 
                 '''MAIN PULSE'''
                 # add delay to ensure each shot takes same time
