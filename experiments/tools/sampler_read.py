@@ -1,11 +1,14 @@
 import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.sampler import adc_mu_to_volt
+
+
+from LAX_exp.language import *
 # todo: create a slower, vibes-based sampler read exp
 # todo: implement progress bar
 
 
-class SamplerReadFast(EnvExperiment):
+class SamplerReadFast(LAXExperiment, EnvExperiment):
     """
     Tool: Sampler Read Fast
 
@@ -13,12 +16,15 @@ class SamplerReadFast(EnvExperiment):
     Warning: due to timing concerns, this experiment CAN NOT be cancelled after submission
         without loss of data.
     """
+
+    name = "Sampler Read Fast"
+
     kernel_invariants = {
         'adc', 'time_delay_mu', 'repetitions',
         'channel_list', 'channel_iter', 'gain_list_mu', 'adc_mu_to_v_list',
     }
 
-    def build(self):
+    def build_experiment(self):
         # devices
         self.setattr_device('core')
 
@@ -39,7 +45,7 @@ class SamplerReadFast(EnvExperiment):
                                       "and termination CANNOT be requested.\n"
                                       "If possible, a long run should be broken up into multiple smaller runs.")
 
-    def prepare(self):
+    def prepare_experiment(self):
         # general
         self.channel_list =     list(self.channel_gain_dict.keys())
         self.channel_iter =     list(range(len(self.channel_gain_dict)))
@@ -54,15 +60,19 @@ class SamplerReadFast(EnvExperiment):
         self.repetitions = np.int32(self.time_total_s * self.sample_rate_hz)
 
         # datasets
-        self.set_dataset('results', np.zeros([self.repetitions, len(self.channel_list)]))
-        self.setattr_dataset('results')
+        # self.set_dataset('results', np.zeros([self.repetitions, len(self.channel_list)]))
+        # self.setattr_dataset('results')
 
-        # save parameters
-        self.set_dataset('sample_rate_hz', self.sample_rate_hz)
-        self.set_dataset('time_total_s', self.time_total_s)
+        # # save parameters
+        # self.set_dataset('sample_rate_hz', self.sample_rate_hz)
+        # self.set_dataset('time_total_s', self.time_total_s)
+
+    @property
+    def results_shape(self):
+        return (self.repetitions, len(self.channel_list)+1)
 
     @kernel(flags={"fast-math"})
-    def run(self) -> TNone:
+    def run_main(self) -> TNone:
         self.core.reset()
 
         # set ADC channel gains
@@ -82,6 +92,8 @@ class SamplerReadFast(EnvExperiment):
                     self.adc.sample_mu(sampler_buffer)
                     self.update_dataset(i, sampler_buffer)
 
+
+
         # ensure events finish submission before experiment completion
         self.core.break_realtime()
         self.core.wait_until_mu(now_mu())
@@ -94,13 +106,13 @@ class SamplerReadFast(EnvExperiment):
         :param volts_mu_arr: list of voltage readings from the ADC (in mu)
         """
         data = np.array(volts_mu_arr)[self.channel_list] * self.adc_mu_to_v_list
-        self.mutate_dataset("results", i, data)
+        self.update_results(i, *data)
 
-    def analyze(self):
+    def analyze_experiment(self):
         # print out statistics of results
-        print('\tResults:')
+        data = self.get_dataset('results')
         for i in self.channel_iter:
             print('\t\tCH{:d}:\t{:.3f} +/- {:.3f} mV'.format(self.channel_list[i],
-                                                             np.mean(self.results[:, i]) * 1000,
-                                                             np.std(self.results[:, i]) * 1000))
+                                                             np.mean(data[:, i+1]) * 1000,
+                                                             np.std(data[:, i+1]) * 1000))
 
