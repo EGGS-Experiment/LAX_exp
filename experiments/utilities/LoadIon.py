@@ -246,7 +246,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("\tINITIALIZE - FINISH")
 
     @rpc
-    def cleanup_devices(self) -> TNone:
+    def cleanup_devices(self, aramping=False) -> TNone:
         """
         Set all devices to states as if ion was loaded.
         All but trap electrodes set to original state --- trap electrodes set to final trapping potential.
@@ -281,7 +281,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # note: do this last to keep ion happy during voltage adjustments
         self.aperture.close_aperture()
 
-        if self.set_to_pmt_after_loading: self.flipper.flip()
+        if self.set_to_pmt_after_loading and not aramping: self.flipper.flip()
         print("\tCLEANUP - FINISH")
 
 
@@ -307,7 +307,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
                 # eject excess ions via A-ramping (if enabled)
                 elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
-                    self.cleanup_devices()
+                    self.cleanup_devices(aramping=True)
                     num_ions = self.aramp_ions()
 
                 # otherwise, simply stop execution
