@@ -58,7 +58,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                               group='beam.singlepass')
         self.setattr_argument("freq_singlepass_center_mhz", NumberValue(default=120.339, precision=6, step=1, min=50., max=400., unit="MHz", scale=1.),
                               group="beam.singlepass")
-        self.setattr_argument("att_singlepass_db",     NumberValue(default=7., precision=1, step=0.5, min=2., max=31.5, unit="dB", scale=1.),
+        self.setattr_argument("att_singlepass_db",     NumberValue(default=7., precision=1, step=0.5, min=5., max=31.5, unit="dB", scale=1.),
                               group="beam.singlepass")
         self.setattr_argument("freq_singlepass_sweep_khz_list",  Scannable(
                                                             default=[
@@ -79,6 +79,17 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                                             global_min=1, global_max=70, global_step=5,
                                                             unit="%", scale=1, precision=3
                                                         ), group="beam.singlepass")
+
+        # auxilary beam
+        self.setattr_argument("auxilary_urukul_channel", EnumerationValue(['singlepass0', 'singlepass1', 'singlepass2',
+                                                                           'none'], default='none'),
+                              group='beam.auxilary_singlepass')
+        self.setattr_argument("freq_auxilary_singlepass_offset_mhz", NumberValue(1., min=-5, max=5,
+                                                                                 step=0.1, precision=4, unit='MHz', scale=1.),
+                              group='beam.auxilary_singlepass')
+        self.setattr_argument("att_auxilary_singlepass_db",
+                              NumberValue(default=11., precision=1, step=0.5, min=11., max=31.5, unit="dB", scale=1.),
+                              group="beam.auxilary_singlepass")
 
         # scan parameters - time
         self.setattr_argument("equalize_delays",        BooleanValue(default=False), group="scan.time")
@@ -120,7 +131,7 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_qubit_mu =         att_to_mu(self.att_qubit_db * dB)
 
-        # beam parameters - singlepass0 (inj lock)
+        # beam parameters
         if self.urukul_channel == "singlepass0":
             self.singlepass_channel = self.qubit.singlepass0
         elif self.urukul_channel == "singlepass1":
@@ -132,13 +143,29 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
         ampl_singlepass_asf_list =  [self.singlepass_channel.amplitude_to_asf(ampl_pct / 100.)
                                      for ampl_pct in self.ampl_singlepass_pct_list]
 
+        # auxilary_beam_parameters
+        if self.auxilary_urukul_channel == "singlepass0":
+            self.auxilary_singlepass_channel = self.qubit.singlepass0
+        elif self.auxilary_urukul_channel == "singlepass1":
+            self.auxilary_singlepass_channel = self.qubit.singlepass1
+        elif self.auxilary_urukul_channel == "singlepass2":
+            self.auxilary_singlepass_channel = self.qubit.singlepass2
+        elif self.auxilary_singlepass_channel == "none":
+            pass
+
+        self.att_auxilary_singlepass_mu =   att_to_mu(self.att_auxilary_singlepass_db * dB)
+        ampl_auxilary_singlepass_asf_list =  [self.singlepass_channel.amplitude_to_asf(ampl_pct / 100.)
+                                     for ampl_pct in self.ampl_singlepass_pct_list]
+
         # create frequency config to equalize output at ion
         freq_singlepass_config_ftw_list = array([
             [
                 # note: singlepass DDS controls SLS single-pass => 1.0x
                 self.qubit.frequency_to_ftw(self.freq_singlepass_center_mhz * MHz + freq_khz * kHz),
+                self.qubit.frequency_to_ftw((self.freq_singlepass_center_mhz + self.freq_auxilary_singlepass_offset_mhz)* MHz + freq_khz * kHz),
                 # note: qubit DDS controls double-pass => 0.5x
                 self.qubit.frequency_to_ftw(self.freq_qubit_mhz * MHz - 0.5 * (freq_khz * kHz))
+
             ]
             for freq_khz in self.freq_singlepass_sweep_khz_list
         ])
@@ -163,6 +190,17 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
             time_rabiflop_mu_list,
             config_type=int64, shuffle_config=True
         )
+
+        self._check_auxilary_arguments()
+
+    def _check_auxilary_arguments(self):
+
+        if self.auxilary_singlepass_channel == self.singlepass_channel:
+            raise ValueError("The auxilary channel cannot be the same as the calibrating channel")
+
+        if self.att_singlepass_db < 11. and self.auxilary_singlepass_channel != 'none':
+            raise ValueError('Cannot use a second channel if the calibrating channel is not attenuated by 11dB or more')
+
 
     @property
     def results_shape(self):
@@ -195,10 +233,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 '''PREPARE & CONFIGURE'''
                 # extract values from config list
                 freq_singlepass_ftw =   int32(config_vals[0])
-                freq_qubit_ftw =        int32(config_vals[1])
-                ampl_singlepass_asf =   int32(config_vals[2])
-                time_equalize_mu =      config_vals[3]
-                time_pulse_mu =         config_vals[4]
+                freq_auxilary_singlepass_ftw = int32(config_vals[1])
+                freq_qubit_ftw =        int32(config_vals[2])
+                ampl_singlepass_asf =   int32(config_vals[3])
+                time_equalize_mu =      config_vals[4]
+                time_pulse_mu =         config_vals[5]
 
                 # configure pulse times
                 self.core.break_realtime()
@@ -210,6 +249,12 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 self.singlepass_channel.set_mu(freq_singlepass_ftw, asf=ampl_singlepass_asf,
                                               profile=self.profile_729_target,
                                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+
+                # set auxilary channel frequencies
+                self.auxilary_singlepass_channel.set_mu(freq_auxilary_singlepass_ftw, asf=ampl_singlepass_asf,
+                                               profile=self.profile_729_target,
+                                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+
                 if self.enable_pulseshaping:
                     self.qubit.set_ftw(freq_qubit_ftw)
                 else:
@@ -227,8 +272,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
                 self.cooling_subsequence.run_dma()
                 self.qubit.singlepass0_off()
-                # turn back on the one we want - set attenuation here as it seems like sbc messes with it 
+                # turn back on the one we want - set attenuation here as it seems like sbc messes with it
+                self.auxilary_singlepass_channel.set_att_mu(self.att_auxilary_singlepass_mu)
                 self.singlepass_channel.set_att_mu(self.att_singlepass_mu)
+                self.auxilary_singlepass_channel.sw.on()
+                delay_mu(8)
                 self.singlepass_channel.sw.on()
                 delay_mu(8)
 
@@ -246,6 +294,11 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                     delay_mu(time_pulse_mu)
                     self.qubit.off()
 
+                self.auxilary_singlepass_channel.sw.off()
+                delay_mu(8)
+                self.singlepass_channel.sw.off()
+                delay_mu(8)
+
 
                 '''READOUT & STORE RESULTS'''
                 # read out & clean up loop
@@ -261,6 +314,9 @@ class CalibrationBichromatic(LAXExperiment, Experiment):
                                     freq_singlepass_ftw,
                                     time_pulse_mu,
                                     ampl_singlepass_asf)
+
+                self.core.break_realtime()
+                self.check_termination()
 
             # rescue ion as needed & support graceful termination
             self.core.break_realtime()
