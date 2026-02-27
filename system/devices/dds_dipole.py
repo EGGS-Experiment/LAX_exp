@@ -15,7 +15,6 @@ class DDSDipole(LAXDevice):
     name = "dds_dipole"
     core_device = ('dds', 'urukul1_ch2')
     devices = {
-        'rf_switch': 'ttl15'
     }
     kernel_invariants = {
         "cpld", "sw",
