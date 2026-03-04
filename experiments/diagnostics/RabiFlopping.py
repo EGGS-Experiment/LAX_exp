@@ -60,6 +60,11 @@ class RabiFlopping(LAXExperiment, Experiment):
                               tooltip="Shape the rabiflop pulse to reduce spectral leakage. "
                                       "Uses a Hann (sine-squared) envelope.")
 
+        self.setattr_argument('enable_servo_relock', BooleanValue(default=False), group='servo_relock')
+        self.setattr_argument('time_servo_relock_us', NumberValue(default=2000, precision=3, step=1, min=1,
+                                                                  max=10000, scale=1., unit='us'),
+                              group='servo_relock')
+
         # allocate relevant beam profiles
         self.profile_729_readout =  0
         self.profile_729_SBC =      1
@@ -103,6 +108,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         ])
         # turn off delay equalization based on input
         if not self.equalize_delays: self.time_rabiflop_mu_list[:, 0] = int64(8)
+
+        self.time_servo_relock_mu = self.core.seconds_to_mu(self.time_servo_relock_us*us)
 
     @property
     def results_shape(self):
@@ -152,6 +159,11 @@ class RabiFlopping(LAXExperiment, Experiment):
                 if self.enable_linetrigger:
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
+                """
+                RELOCK INTENSITY SERVO
+                """
+                if self.enable_servo_relock:
+                    self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
 
                 '''
                 RUN SHOT
@@ -188,6 +200,7 @@ class RabiFlopping(LAXExperiment, Experiment):
             self.core.break_realtime()
             self.rescue_subsequence.run(trial_num)
             self.check_termination()
+
 
 
     '''
