@@ -452,7 +452,7 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
                                               ampl_max_pct=self.ampl_tickle_pct,
                                                pulse_shape=self.type_pulse_shape,
                                                phase_autoclear = 1,
-                                               external_switch = self.dds_dipole.rf_switch)
+                                               external_switch = None)
 
         ### MAGIC NUMBERS ###
         self.time_adapt_read_slack_mu = self.core.seconds_to_mu(20 * us)  # post-heralding slack to fix RTIOUnderflows
