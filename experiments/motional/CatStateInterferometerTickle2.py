@@ -69,6 +69,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         self.profile_729_cat1b = 4
         self.profile_729_cat2a = 5
         self.profile_729_cat2b = 6
+        self.profile_729_dummy = 7
 
         # allocate profiles for dds tickle
         self.profile_tickle_RAM = 0
@@ -91,7 +92,6 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
 
         #todo: create LAX device for tickle channel
         self.setattr_device('dds_dipole')
-        self.setattr_device('ttl1')
 
         # set build arguments
         self._build_arguments_default()
@@ -108,6 +108,8 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
             self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
             ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
+
+        self.setattr_device('ttl8')
 
     def _build_arguments_default(self):
         """
@@ -466,7 +468,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         # create profile list for later use
         self.profiles = [self.profile_729_cat1a, self.profile_729_cat1b,
                          self.profile_729_cat2a, self.profile_729_cat2b,
-                         self.profile_729_readout]
+                         self.profile_729_readout, self.profile_729_dummy]
 
         # create placeholder arrays for later uses
         self.phase_beams_pow_list = zeros((8, 4), dtype=int32)
@@ -476,6 +478,10 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
 
         # set timing for intensity servo between shots
         self.time_servo_relock_mu = self.core.seconds_to_mu(self.time_servo_relock_us * us)
+
+
+        self.off_res_freq = self.qubit.frequency_to_ftw(119.769*MHz)
+        self.off_res_qubit_freq = self.qubit.frequency_to_ftw(101.351 * MHz)
 
         self.set_default_profile_configuration()
 
@@ -636,7 +642,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         self.att_tickle_mu = att_to_mu(self.att_tickle_db * dB)
         self.freq_tickle_secular_ftw = hz_to_ftw(self.freq_tickle_secular_khz*kHz)
         freq_tickle_detuning_ftw_list = [hz_to_ftw(freq_tickle_detuning_khz*kHz) for freq_tickle_detuning_khz in self.freq_tickle_detuning_khz_list]
-        phase_tickle_pow_list = [self.dds_dipole.turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
+        phase_tickle_pow_list = [self.dds_pulse_shaper.dds_target.turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
         self.time_tickle_mu = us_to_mu(self.time_heating_us)
         self.time_tickle_dd_phase_flip_mu = us_to_mu(self.time_heating_us/2)
 
@@ -682,7 +688,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
 
         # configure tickle
         self.dds_pulse_shaper.sequence_initialize()
-        self.dds_dipole.set_att_mu(self.att_tickle_mu)
+        self.dds_pulse_shaper.dds_target.set_att_mu(self.att_tickle_mu)
         self.dds_pulse_shaper.dds_target.sw.off()
         delay_mu(8)
 
@@ -748,6 +754,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
 
                     # set cfr1 so we clear phases of all urukul0 channels on next io_update
                     self.qubit.off()
+                    # self.qubit.singlepass0_off()
                     self.setup_beam_profiles()
                     self.qubit.set_cfr1(phase_autoclear=1)
                     self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
@@ -757,15 +764,12 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                     # set tickle frequency/phases and ensure off to prevent leakage
                     self.dds_pulse_shaper.dds_target.set_ftw(self.freq_tickle_secular_ftw + freq_tickle_detuning_ftw)
                     self.dds_pulse_shaper.dds_target.set_pow(phase_tickle_pow)
-                    self.dds_dipole.off()
 
                     # set up config of shaped pulses to be fired for tickling
                     # also sets up phase autoclear
                     self.dds_pulse_shaper.configure_train(self.time_tickle_mu)
-                    with parallel:
-                        # clear phases of 729 and tickle urukul channels at the SAME TIME
-                        self.dds_dipole.cpld.io_update.pulse_mu(8)
-                        self.qubit.io_update()
+                    self.dds_pulse_shaper.dds_target.cpld.io_update.pulse_mu(8)
+                    self.qubit.io_update()
                     # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
                     self.dds_pulse_shaper.dds_target.set_cfr1(ram_enable=1, phase_autoclear=0,
                                                               ram_destination=ad9910.RAM_DEST_ASF)
@@ -819,6 +823,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                             self.qubit.cpld.set_profile(self.profile_729_cat1b)
                             at_mu((now_mu() + 8) & ~7)
                             self.qubit.io_update()
+                            delay_mu(1000)
                             self.qubit.on()
                             self.qubit.singlepass0_on()
                         delay_mu(time_ramsey_delay_mu)
@@ -826,6 +831,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                             self.qubit.cpld.set_profile(self.profile_729_cat1a)
                             at_mu((now_mu() + 8) & ~7)
                             self.qubit.io_update()
+                            delay_mu(1000)
                             self.qubit.on()
                             self.qubit.singlepass0_on()
                         delay_mu(time_ramsey_delay_mu)
@@ -833,26 +839,57 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                     '''
                     TICKLE PULSE
                     '''
+                    self.qubit.singlepass1_off()
+                    self.qubit.singlepass2_off()
+                    # self.qubit.singlepass0.set_mu(ftw=self.off_res_freq, asf=self.ampl_dynamical_decoupling_asf,
+                    #                               pow_=0, profile=self.profile_729_cat1b,
+                    #                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+                    #                               )
+                    # self.qubit.singlepass0.set_mu(ftw=self.off_res_freq, asf=self.ampl_dynamical_decoupling_asf,
+                    #                               pow_=0, profile=self.profile_729_cat1a,
+                    #                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+                    #                               )
+                    # self.qubit.set_mu(ftw=self.off_res_qubit_freq, asf=self.ampl_dynamical_decoupling_asf,
+                    #                               pow_=0, profile=self.profile_729_cat1b,
+                    #                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+                    #                               )
+                    # self.qubit.set_mu(ftw=self.off_res_qubit_freq, asf=self.ampl_dynamical_decoupling_asf,
+                    #                               pow_=0, profile=self.profile_729_cat1a,
+                    #                               phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+                    #                               )
                     if self.enable_tickle_pulse:
                         if self.enable_dynamical_decoupling:
+                            self.qubit.singlepass0_on()
                             self.qubit.off()
                             self.qubit.cpld.set_profile(self.profile_729_cat1b)
                             at_mu((now_mu() + 8) & ~7)
                             self.qubit.io_update()
                             self.qubit.on()
-                            self.qubit.singlepass0_on()
+                        self.ttl8.on()
                         with parallel:
                             self.dds_pulse_shaper.run_train_single()
                             if self.enable_dynamical_decoupling:
                                 # see time to set profile
-                                delay_mu(self.time_tickle_dd_phase_flip_mu)
+                                delay_mu(self.time_tickle_dd_phase_flip_mu - 245)
                                 self.qubit.off()
                                 self.qubit.cpld.set_profile(self.profile_729_cat1a)
                                 at_mu((now_mu() + 8) & ~7)
                                 self.qubit.io_update()
                                 self.qubit.on()
+                        self.ttl8.off()
 
-                    self.qubit.off()
+                        self.qubit.off()
+
+                            # at_mu(time_now_mu + 95)
+                            # self.qubit.on()
+                            # at_mu((time_now_mu + 95 + self.time_tickle_dd_phase_flip_mu - 500) & ~7)
+                            # self.qubit.off()
+                            # self.qubit.cpld.set_profile(self.profile_729_cat1a)
+                            # # at_mu((time_now_mu + 95 + self.time_tickle_dd_phase_flip_mu - 500 - 220) & ~7)
+                            # self.qubit.io_update()
+                            # delay_mu(1000)
+                            # self.qubit.on()
+                            # delay_mu(self.time_tickle_dd_phase_flip_mu - 500 - 440)
 
                     '''
                     CAT #2
@@ -907,7 +944,6 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                     counts_res = -1
 
                 # cleanup dds_pulse_shaper
-                # todo: do we need this???
                 self.dds_pulse_shaper.sequence_cleanup()
 
 
@@ -947,6 +983,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         self.qubit.set_profile(profile1)
         at_mu((now_mu() + 8) & ~7)
         self.qubit.io_update()
+        delay_mu(1000)
         # turn on all beams
         self.qubit.singlepass1_on()
         self.qubit.singlepass2_on()
@@ -961,6 +998,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
             self.qubit.set_profile(profile2)
             at_mu((now_mu() + 8) & ~7)
             self.qubit.io_update()
+            delay_mu(1000)
             self.qubit.on()
         delay_mu(time_pulse_mu)
 

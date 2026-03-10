@@ -52,9 +52,12 @@ class RabiFlopping(LAXExperiment, Experiment):
                               group=self.name)
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
                               group=self.name)
+        self.setattr_argument('att_singlepass0_db', NumberValue(default=5, precision=1, step=0.5, min=5, max=31.5, scale=1., unit='dB'),
+                              group=self.name)
         self.setattr_argument("equalize_delays", BooleanValue(default=False),
                               group=self.name,
                               tooltip="Adds a dummy delay to each rabi pulse to equalize the time taken for each shot.")
+
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False),
                               group=self.name,
                               tooltip="Shape the rabiflop pulse to reduce spectral leakage. "
@@ -99,6 +102,10 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.freq_rabiflop_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
         self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
+        self.att_singlepass0_mu = att_to_mu(self.att_singlepass0_db*dB)
+
+        self.att_default_singlepass0_mu = self.get_parameter('att_729_singlepass0_db', group='beams.att_db',
+                                                                       override=False, conversion_function=att_to_mu)
 
         # create timing list such that all shots have same length
         max_time_us = max(list(self.time_rabi_us_list))
@@ -159,6 +166,8 @@ class RabiFlopping(LAXExperiment, Experiment):
                 if self.enable_linetrigger:
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
+                self.qubit.singlepass0.set_att_mu(self.att_singlepass0_mu)
+
                 """
                 RELOCK INTENSITY SERVO
                 """
@@ -175,6 +184,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # prepare qubit beam for readout
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_readout_mu)
+                self.qubit.singlepass0.set_att_mu(self.att_singlepass0_mu)
 
                 # add delay to equalize shot time
                 delay_mu(time_rabi_pair_mu[0])

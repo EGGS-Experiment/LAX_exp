@@ -866,32 +866,57 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
                     '''
                     TICKLE PULSE
                     '''
-                    if self.enable_tickle_pulse:
-                        for idx in range(self.num_dynamical_decoupling_pi_pulses):
-                            if self.enable_dynamical_decoupling:
-                                self.qubit.on()
-                            self.dds_pulse_shaper.run_train_single()
-                            with parallel:
-                                self.qubit.off()
-                                self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1] +
-                                                          phase_dynamical_decoupling_cat_pow)
-                            if self.enable_dynamical_decoupling:
-                                self.perform_dynamical_decoupling_pi_pulse()
-                                # reset attenuators for continuous DD
-                                self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
-                                # reset profile for continuous DD
-                                self.qubit.set_profile(self.profile_729_cat1b)
-                                # align to a future clock cycle
-                                at_mu((now_mu() + 8) & ~7)
-                                self.qubit.io_update()
+                    # if self.enable_tickle_pulse:
+                    #     for idx in range(self.num_dynamical_decoupling_pi_pulses):
+                    #         if self.enable_dynamical_decoupling:
+                    #             self.qubit.on()
+                    #         self.dds_pulse_shaper.run_train_single()
+                    #         with parallel:
+                    #             self.qubit.off()
+                    #             self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[idx+1] +
+                    #                                       phase_dynamical_decoupling_cat_pow)
+                    #         if self.enable_dynamical_decoupling:
+                    #             self.perform_dynamical_decoupling_pi_pulse()
+                    #             # reset attenuators for continuous DD
+                    #             self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+                    #             # reset profile for continuous DD
+                    #             self.qubit.set_profile(self.profile_729_cat1b)
+                    #             # align to a future clock cycle
+                    #             at_mu((now_mu() + 8) & ~7)
+                    #             self.qubit.io_update()
+                    #
+                    #     if self.enable_dynamical_decoupling:
+                    #         self.qubit.on()
+                    #         self.qubit.singlepass0_on()
+                    #         self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
+                    #                                   phase_dynamical_decoupling_cat_pow)
+                    #     self.dds_pulse_shaper.run_train_single()
+                    #     self.qubit.off()
 
+                    if self.enable_tickle_pulse:
                         if self.enable_dynamical_decoupling:
                             self.qubit.on()
-                            self.qubit.singlepass0_on()
+                        with parallel:
+                            self.dds_pulse_shaper.run_train_single()
+                            for idx in range(self.num_dynamical_decoupling_pi_pulses):
+                                delay_mu(self.time_dynamical_decoupling_pi_pulse_mu - 500 - 1100 - 250)
+                                self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[idx + 1] +
+                                                          phase_dynamical_decoupling_cat_pow)
+                                self.qubit.off()
+                                if self.enable_dynamical_decoupling:
+                                    self.perform_dynamical_decoupling_pi_pulse()
+                                    # reset attenuators for continuous DD
+                                    self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+                                    # reset profile for continuous DD
+                                    self.qubit.set_profile(self.profile_729_cat1b)
+                                    # align to a future clock cycle
+                                    at_mu((now_mu() + 8) & ~7)
+                                    self.qubit.io_update()
+                                    self.qubit.on()
+
+                        if self.enable_dynamical_decoupling:
                             self.write_pi_pulse_phase(self.phase_dynamical_decoupling_pi_pulse_pow_list[-1] +
                                                       phase_dynamical_decoupling_cat_pow)
-                        self.dds_pulse_shaper.run_train_single()
-                        self.qubit.off()
 
                     '''
                     CAT #2
