@@ -101,12 +101,18 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
         self._build_arguments_tickle_waveform()
         self._build_arguments_tickle_pulseshape()
         self._build_arguments_readout()
+        self._build_arguments_intensity_servo()
 
         # # instantiate RAP here since it relies on experiment arguments
         self.rap_subsequence = QubitRAP(
             self, ram_profile=self.profile_729_RAP, ram_addr_start=202, num_samples=250,
             ampl_max_pct=self.ampl_rap_pct, pulse_shape="blackman"
         )
+    def _build_arguments_intensity_servo(self):
+        self.setattr_argument('enable_servo_relock', BooleanValue(default=False), group='servo_relock')
+        self.setattr_argument('time_servo_relock_us', NumberValue(default=2000, precision=3, step=1, min=1,
+                                                                  max=10000, scale=1., unit='us'),
+                              group='servo_relock')
 
     def _build_arguments_default(self):
         """
@@ -467,6 +473,8 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
          phase_cat2_cat_pow_list, time_ramsey_delay_mu_list) = self._prepare_experiment_cat_general()
         freq_tickle_detuning_ftw_list, phase_tickle_pow_list = self._prepare_experiment_tickle()
 
+        self.time_servo_relock_mu = self.core.seconds_to_mu(self.time_servo_relock_us * us)
+
 
         # create experiment config
         self.config_experiment_list = create_experiment_config(
@@ -760,6 +768,11 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
 
                     self.core.break_realtime()  # add slack for execution
                     delay_mu(125000)  # add even more slack lol
+
+                    """
+                    Relock Intensity Servo
+                    """
+                    self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
 
                     '''
                     INITIALIZE ION STATE

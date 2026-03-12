@@ -16,11 +16,12 @@ class Beam729(LAXDevice):
     name = "qubit"
     core_device = ('beam', 'urukul0_ch0')
     devices = {
-        'rf_switch':        'ttl14',
-        'singlepass0':      'urukul0_ch1',
-        'singlepass1':      'urukul0_ch2',
-        'singlepass2':      'urukul0_ch3',
-        'doublepass_inj':   'urukul1_ch3',
+        'rf_switch': 'ttl14',
+        'intensity_servo_hold': 'ttl15',
+        'singlepass0': 'urukul0_ch1',
+        'singlepass1': 'urukul0_ch2',
+        'singlepass2': 'urukul0_ch3',
+        'doublepass_inj': 'urukul1_ch3',
     }
 
     kernel_invariants = {
@@ -61,24 +62,25 @@ class Beam729(LAXDevice):
         self.dds_devices = ['singlepass0', 'singlepass1', 'singlepass2', 'doublepass_inj']
 
         # get main DDS (chamber doublepass) parameters
-        self.freq_qubit_ftw = self.get_parameter('freq_qubit_mhz', group='beams.freq_mhz', override=False,
+        self.freq_qubit_ftw = self.get_parameter('freq_729_qubit_mhz', group='beams.freq_mhz', override=False,
                                                  conversion_function=hz_to_ftw, units=MHz)
-        self.ampl_qubit_asf = self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=False,
+        self.ampl_qubit_asf = self.get_parameter('ampl_729_qubit_pct', group='beams.ampl_pct', override=False,
                                                  conversion_function=pct_to_asf)
+        self.att_qubit_mu = self.get_parameter('att_729_qubit_db', group='beams.att_db', override=False,
+                                               conversion_function=att_to_mu)
 
-        self.device_list =  []
+        self.device_list = []
         self.freq_ftw_list = []
-        self.ampl_asf_list =  []
-        self.att_mu_list =  []
+        self.ampl_asf_list = []
+        self.att_mu_list = []
         for idx, device in enumerate(self.dds_devices):
-
             freq_ftw = self.get_parameter(f'freq_729_{device}_mhz', group='beams.freq_mhz',
-                                       override=False,
-                                       conversion_function=hz_to_ftw, units=MHz)
+                                          override=False,
+                                          conversion_function=hz_to_ftw, units=MHz)
             ampl_asf = self.get_parameter(f'ampl_729_{device}_pct', group='beams.ampl_pct',
-                               override=False, conversion_function=pct_to_asf)
+                                          override=False, conversion_function=pct_to_asf)
             att_mu = self.get_parameter(f'att_729_{device}_db', group='beams.att_db',
-                               override=False, conversion_function=att_to_mu)
+                                        override=False, conversion_function=att_to_mu)
 
             self.device_list.append(getattr(self, device))
             self.freq_ftw_list.append(freq_ftw)
@@ -86,7 +88,7 @@ class Beam729(LAXDevice):
             self.att_mu_list.append(att_mu)
 
             setattr(self, f'freq_{device}_default_ftw', freq_ftw)
-            setattr(self, f'ampl_{device}_default_asf',ampl_asf)
+            setattr(self, f'ampl_{device}_default_asf', ampl_asf)
             setattr(self, f'att_{device}_default_mu', att_mu)
 
         # note: make all delays self.core.coarse_ref_period instead of 8ns
@@ -127,6 +129,9 @@ class Beam729(LAXDevice):
         self.doublepass_inj.cpld.get_att_mu()
         self.core.break_realtime()
 
+        # turn off intensity servo (turning OFF TTL turns integrator hold ON)
+        self.intensity_servo_hold.off()
+
         self.set_cfr1()
 
         # set matched_latency_enable on all relevant DDSs for consistency
@@ -138,6 +143,55 @@ class Beam729(LAXDevice):
         self.io_update()
         delay_mu(25000)
 
+        # set AOMs for normal output/operation
+        # self.set_default_values()
+        for idx in range(len(self.device_list)):
+            device_attr = self.device_list[idx]
+            device_attr.set_cfr1()
+            att_attr = self.att_mu_list[idx]
+            device_attr.set_att_mu(att_attr)
+            delay_mu(25000)
+            device_attr.cpld.io_update.pulse_mu(8)
+            for i in range(8):
+                device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
+                                   profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+                delay_mu(8000)
+
+        # set qubit for normal output/operation
+        self.set_cfr1()
+        self.set_att_mu(self.att_qubit_mu)
+        self.io_update()
+        delay_mu(25000)
+        for i in range(8):
+            self.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf,
+                            profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(8000)
+
+        # ensure events finish completion (since they're pretty heavy tbh)
+        self.core.break_realtime()
+        self.core.wait_until_mu(now_mu())
+        self.core.break_realtime()
+        delay_mu(500000)  # 500 us
+
+        self.singlepass0.sw.on()
+        delay_mu(8)
+        self.singlepass1.sw.off()
+        delay_mu(8)
+        self.singlepass2.sw.off()
+        delay_mu(8)
+        self.doublepass_inj.sw.on()
+        delay_mu(8)
+        # turn off doublepass on table
+        self.off()
+        delay_mu(25000)
+
+    @kernel(flags={"fast-math"})
+    def cleanup_device(self) -> TNone:
+        """
+        Restore all devices relevant to the 729nm back for normal operation.
+
+        NOTE BENE: this resets all profile values on the urukuls associated with the 729
+        """
         # set up relevant AOMs to default values on ALL profiles
         # necessary b/c not all AOMs are configured/used for each experiment
         for idx in range(len(self.device_list)):
@@ -150,61 +204,37 @@ class Beam729(LAXDevice):
             for i in range(8):
                 device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
                                    profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
-                delay_mu(25000)
-
-
-        # ensure events finish completion (since they're pretty heavy tbh)
-        self.core.break_realtime()
-        self.core.wait_until_mu(now_mu())
-        self.core.break_realtime()
-        delay_mu(500000) # 500 us
-
-        # set AOMs for normal output/operation
-        self.singlepass0.set_att_mu(self.att_singlepass0_default_mu)
-        self.singlepass1.set_att_mu(self.att_singlepass1_default_mu)
-        self.singlepass2.set_att_mu(self.att_singlepass2_default_mu)
-        self.doublepass_inj.set_att_mu(self.att_doublepass_inj_default_mu)
-        delay_mu(25000)
-        self.singlepass0.sw.on()
-        delay_mu(8)
-        self.singlepass1.sw.off()
-        delay_mu(8)
-        self.singlepass2.sw.off()
-        delay_mu(8)
-        self.doublepass_inj.sw.on()
-        delay_mu(25000)
-
-    @kernel(flags={"fast-math"})
-    def cleanup_device(self) -> TNone:
-        """
-        Restore all devices relevant to the 729nm back for normal operation.
-        """
-        # set up relevant AOMs to default values on ALL profiles
-        # necessary b/c not all AOMs are configured/used for each experiment
-        for idx in range(len(self.device_list)):
-            device_attr = self.device_list[idx]
-            att_attr = self.att_mu_list[idx]
-            device_attr.set_att_mu(att_attr)
-            delay_mu(25000)
-            for i in range(8):
-                device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
-                                   profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
                 delay_mu(8000)
 
-        self.singlepass0.sw.on()
-        delay_mu(8)
-        self.singlepass1.sw.off()
-        delay_mu(8)
-        self.singlepass2.sw.off()
-        self.doublepass_inj.sw.on()
+        # configure qubit
+        self.set_cfr1()
+        self.set_att_mu(self.att_qubit_mu)
+        self.io_update()
         delay_mu(25000)
+        for i in range(8):
+            self.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf,
+                               profile=i, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(8000)
 
         # return to default profile on CPLD (this is the default profile used by user/GUIs)
         self.set_profile(DEFAULT_PROFILE)
         self.io_update()
-        self.sw.off()  # note: only turn off DDS int sw - leave ext sw OK for user
         delay_mu(10000)
 
+        self.singlepass0.sw.on()
+        delay_mu(8)
+        self.singlepass1.sw.off()
+        delay_mu(8)
+        self.singlepass2.sw.off()
+        delay_mu(8)
+        self.doublepass_inj.sw.on()
+        delay_mu(8)
+        # turn on doublepass on table for intensity servo
+        self.on()
+        delay_mu(25000)
+
+        # turn back on intensity servo (turning TTL high turns off integrator hold)
+        self.intensity_servo_hold.on()
 
     '''
     HARDWARE METHODS
@@ -284,3 +314,61 @@ class Beam729(LAXDevice):
             flag is set in CFR1.
         """
         self.cpld.io_update.pulse_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def relock_intensity_servo(self, time_relock_mu: TInt64) -> TNone:
+        """
+        Relock 729 intensity with default values
+
+        NOTE BENE: this resets profile values on profile 7 for the urukuls associated with the 729
+
+       :param t_relock_mu: time spent on servo to relock
+        """
+
+        # set up relevant AOMs to default values on DEFAULT profile
+        # necessary b/c not all AOMs are configured/used for each experiment
+        for idx in range(len(self.device_list)):
+            device_attr = self.device_list[idx]
+            device_attr.set_cfr1()
+            att_attr = self.att_mu_list[idx]
+            device_attr.set_att_mu(att_attr)
+            delay_mu(8000)
+            device_attr.cpld.io_update.pulse_mu(8)
+            device_attr.set_mu(self.freq_ftw_list[idx], asf=self.ampl_asf_list[idx],
+                                   profile=DEFAULT_PROFILE, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+            delay_mu(8000)
+
+        # reset default attenuation for qubit
+        self.set_cfr1()
+        self.set_att_mu(self.att_qubit_mu)
+        delay_mu(8000)
+        self.io_update()
+        self.set_mu(self.freq_qubit_ftw, asf=self.ampl_qubit_asf,
+                        profile=DEFAULT_PROFILE, phase_mode=ad9910.PHASE_MODE_CONTINUOUS)
+        delay_mu(8000)
+
+        # return to default profile on CPLD (this is the default profile used by user/GUIs)
+        self.set_profile(DEFAULT_PROFILE)
+        self.io_update()
+        delay_mu(8000)
+
+        # configure all switches
+        self.singlepass0.sw.on()
+        delay_mu(8)
+        self.singlepass1.sw.off()
+        delay_mu(8)
+        self.singlepass2.sw.off()
+        delay_mu(8)
+        self.doublepass_inj.sw.on()
+        delay_mu(8)
+        # need to turn on doublepass on table for intensity servo
+        self.on()
+        delay_mu(8000)
+
+        # let intensity servo relock (turning TTL high turns off integrator hold)
+        self.intensity_servo_hold.on()
+        delay_mu(time_relock_mu)
+        self.intensity_servo_hold.off()
+        self.off()
+        delay_mu(8)
+
