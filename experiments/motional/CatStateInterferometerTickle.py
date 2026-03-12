@@ -772,7 +772,8 @@ class CatStateInterferometerTickle(LAXExperiment, Experiment):
                     """
                     Relock Intensity Servo
                     """
-                    self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
+                    if self.enable_servo_relock:
+                        self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
 
                     '''
                     INITIALIZE ION STATE
