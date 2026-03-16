@@ -345,8 +345,10 @@ class DDSPulseShaper(HasEnvironment):
         Dummy class so artiq does not get throw an error for a None -type object if no external switch is specified
         """
 
+        @kernel(flags={"fast-math"})
         def on(self):
-            pass
+            delay_mu(8)
 
+        @kernel(flags={"fast-math"})
         def off(self):
-            pass
+            delay_mu(8)

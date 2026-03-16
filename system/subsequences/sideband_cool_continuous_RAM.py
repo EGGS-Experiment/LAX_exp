@@ -85,7 +85,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sequences.sbc.base', override=False)
 
         # waveform & timing parameters
-        self.ampl_qubit_asf =           self.get_parameter('ampl_qubit_pct', group='beams.ampl_pct', override=True,
+        self.ampl_qubit_asf =           self.get_parameter('ampl_729_qubit_pct', group='beams.ampl_pct', override=True,
                                                            conversion_function=pct_to_asf)
         self.time_repump_qubit_mu =     self.get_parameter('time_repump_qubit_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
