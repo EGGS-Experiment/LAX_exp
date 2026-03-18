@@ -117,6 +117,7 @@ class MicromotionCompensation(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('dds_parametric')
         self.setattr_device('trap_dc')
+        self.setattr_device('qubit')
 
         # get relevant subsequences
         self.parametric_subsequence =   ParametricExcite(self)

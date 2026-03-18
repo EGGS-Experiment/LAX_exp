@@ -35,7 +35,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
 
         self.setattr_argument('reps', NumberValue(default=50, min=10, max=1e6,
-                                                  step = 1, scale=, precision=0), tooltip='Number of shots to run')
+                                                  step = 1, scale=1, precision=0), tooltip='Number of shots to run')
 
         self._build_arguements_ms()
         self._build_arguements_parity()
@@ -81,10 +81,10 @@ class MolmerSorensen(LAXExperiment, Experiment):
                               group = _name,tooltip='detuning from carrier'
                               )
 
-        self.setattr_argument("ampl_ms_pct", PYONValue([50., 50.]), group='default.cat',
+        self.setattr_argument("ampls_ms_pct", PYONValue([50., 50.]), group='default.ms',
                               tooltip="DDS amplitudes for the singlepass DDSs during the bichromatic pulses.\n"
                                       "Should be a list of [rsb_ampl_pct, bsb_ampl_pct], which are applied to [singlepass1, singlepass2].")
-        self.setattr_argument("atts_ms_db", PYONValue([11., 11.]), group='default.cat',
+        self.setattr_argument("atts_ms_db", PYONValue([11., 11.]), group='default.ms',
                               tooltip="DDS attenuations for the singlepass DDSs during the bichromatic pulses.\n"
                                       "Should be a list of [rsb_att_db, bsb_att_db], which are applied to [singlepass1, singlepass2].")
 
@@ -130,20 +130,22 @@ class MolmerSorensen(LAXExperiment, Experiment):
         '''
         Convert MS arguments
         '''
-        self.time_gate_mu_list = [self.core.seconds_to_mu(time_gate_us*us) for time_gate_us in
+        time_gate_mu_list = [self.core.seconds_to_mu(time_gate_us*us) for time_gate_us in
                                   self.time_gate_us_list]
         self.freq_carrier_ms_mu = self.qubit.frequency_to_ftw(self.freq_carrier_ms_MHz * MHz)
-        self.freq_detuning_ms_mu_list = [self.qubit.frequency_to_ftw(detuning_khz*kHz) for detuning_kHz in
+        freq_detuning_ms_mu_list = [self.qubit.frequency_to_ftw(detuning_khz*kHz) for detuning_kHz in
                                     self.freq_detuning_ms_khz_list]
-        self.ampl_ms_asf = self.qubit.amplitude_to_asf(self.ampl_ms_pct)
+        self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_pct / 100.)
+                                    for ampl_pct in self.ampls_ms_pct])
+        self.ampl_qubit_ms_asf = self.qubit.amplitude_to_asf(8.0)
 
 
         '''
         Convert Parity Arguments
         '''
 
-        self.time_parity_pulse_us = self.core.seconds_to_mu(self.time_parity_pulse_us*us)
-        self.phase_parity_pulse_pow_list = [self.qubit.turns_to_pow(phase_parity_pulse)
+        self.time_parity_pulse_mu = self.core.seconds_to_mu(self.time_parity_pulse_us*us)
+        phase_parity_pulse_pow_list = [self.qubit.turns_to_pow(phase_parity_pulse)
                                             for phase_parity_pulse in self.phase_parity_pulse_turns_list]
         self.ampl_parity_pulse_asf = self.qubit.amplitude_to_asf(self.ampl_parity_pulse_pct/100.)
 
@@ -162,20 +164,189 @@ class MolmerSorensen(LAXExperiment, Experiment):
         )
 
         # attenuation register - parity
-        self.att_reg_cat_interferometer = 0x00000000 | (
+        self.att_reg_parity = 0x00000000 | (
                 (att_to_mu(self.att_doublepass_default_db * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (att_to_mu(self.att_parity_pulse_db) << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (att_to_mu(31.5*dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
                 (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
+        self.config_experiment_list = create_experiment_config(
+           time_gate_mu_list,
+            freq_detuning_ms_mu_list,
+            phase_parity_pulse_pow_list,
+
+            config_type=float, shuffle_config=True
+        )
+
+    @property
+    def results_shape(self):
+        return (self.repetitions * len(self.config_experiment_list),
+                3)
 
 
+    @kernel(flags={'fast_math'})
     def initialize_experiment(self) -> TNone:
 
+        self.initialize_subsequence.record_dma()
+        self.sidebandcool_subsequence.record_dma()
+        self.readout_subsequence.record_dma()
+        self.core.break_realtime()
+
+    @kernel(flags={'fast_math'})
     def run_main(self) -> TNone:
+        for trial_num in range(self.repetitions):
+            for config_vals in self.config_experiment_list:
+                time_gate_ms_mu = int64(config_vals[0])
+                freq_detuning_ms_mu = int32(config_vals[1])
+                phase_parity_pulse_pow = int32(config_vals[2])
+
+                self.core.break_realtime()  # add slack for execution
+                delay_mu(125000)  # add even more slack lol
+
+                self.setup_ms_tones()
+                self.setup_parity_tones()
+
+                '''
+                Relock Intensity Servo
+                '''
+                if self.enable_servo_relock:
+                    self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
+
+                '''
+                INITIALIZE ION STATE
+                '''
+                # initialize ion in S-1/2 state & SBC to ground state
+                self.initialize_subsequence.run_dma()
+                self.sidebandcool_subsequence.run_dma()
+
+                # set cfr1 so we clear phases of all urukul0 channels on next io_update
+                self.qubit.off()
+                self.qubit.cpld.set_all_att_mu(self.att_reg_ms)
+                # self.qubit.singlepass0_off()
+                self.setup_beam_profiles()
+                self.qubit.set_cfr1(phase_autoclear=1)
+                self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
+                self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
+
+                # pulse to clear phase accumulator
+                self.qubit.io_update()
+                # reset cfr1 so we no longer clear phases on io_update
+                self.qubit.set_cfr1()
+                self.qubit.singlepass0.set_cfr1()
+                self.qubit.singlepass1.set_cfr1()
+                self.qubit.singlepass2.set_cfr1()
+
+                self.qubit.io_update()
+
+                """
+                RUN MS GATE
+                """
+                self.qubit.cpld.set_all_att_mu(self.att_reg_ms)
+                self.qubit.set_profile(self.profile_729_ms)
+                at_mu((now_mu() + 8) & ~7)
+                self.qubit.io_update()
+                delay_mu(2000)
+
+                with parallel:
+                    self.qubit.on()
+                    self.qubit.singlepass1_on()
+                    self.qubit.singlepass2_on()
+
+                delay_mu(time_gate_ms_mu)
+
+                with parallel:
+                    self.qubit.off()
+                    self.qubit.singlepass1_off()
+                    self.qubit.singlepass2_off()
+
+
+                """
+                RUN PARITY PULSE
+                """
+                self.qubit.cpld.set_all_att_mu(self.att_reg_parity)
+                self.qubit.set_profile(self.profile_729_parity)
+                at_mu((now_mu() + 8) & ~7)
+                self.qubit.io_update()
+                delay_mu(2000)
+
+                with parallel:
+                    self.qubit.on()
+                    self.qubit.singlepass0_on()
+
+                delay_mu(self.time_parity_pulse_mu)
+
+                with parallel:
+                    self.qubit.off()
+                    self.qubit.singlepass1_off()
+                    self.qubit.singlepass2_off()
+
+                # read out fluorescence & clean up loop
+                self.readout_subsequence.run_dma()
+                counts_res = self.readout_subsequence.fetch_count()
+
+                self.update_results(
+                    time_gate_ms_mu,
+                    counts_res,
+                    phase_parity_pulse_pow,
+                    freq_detuning_ms_mu
+                )
+
+
+
+
+    @kernel(flags={'fast_math'})
+    def setup_ms_tones(self, freq_detuning_mu):
+        # ensure all beams are off
+        self.qubit.off()
+        self.qubit.singlepass0_off()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
+
+        self.qubit.set_mu(
+            self.freq_carrier_ms_mu, asf=self.ampl_qubit_ms_asf,
+            pow_=0, profile=self.profile_729_ms,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+        )
+        self.qubit.singlepass1.set_mu(
+            self.qubit.singlepass1.freq_singlepass1_default_ftw - freq_detuning_mu,
+            asf=self.ampl_qubit_ms_asf[0],
+            pow_=0,
+            profile=self.profile_729_ms,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+        )
+        self.qubit.singlepass2.set_mu(
+            self.qubit.singlepass2.freq_singlepass2_default_ftw + freq_detuning_mu,
+            asf=self.ampl_qubit_ms_asf[1],
+            pow_=0,
+            profile=self.profile_729_ms,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+        )
+
+    def setup_parity_tones(self, phase_parity_pulse_pow):
+        # ensure all beams are off
+        self.qubit.off()
+        self.qubit.singlepass0_off()
+        self.qubit.singlepass1_off()
+        self.qubit.singlepass2_off()
+
+        self.qubit.set_mu(
+            self.freq_carrier_ms_mu, asf=self.qubit.ampl_qubit_asf,
+            pow_=0, profile=self.profile_729_parity,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+        )
+        self.qubit.singlepass0.set_mu(
+            self.qubit.singlepass0,
+            asf=self.ampl_parity_pulse_asf,
+            pow_=phase_parity_pulse_pow,
+            profile=self.profile_729_parity,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+        )
+
 
     def analyze_experiment(self) -> TNone:
+        pass
 
 
 
