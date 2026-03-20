@@ -314,16 +314,6 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                    2 # sdio_input_only + msb_first
                                    )
 
-
-                # ensure singlepasses are set up correctly
-                self.qubit.singlepass0.set_att_mu(self.qubit.att_singlepass0_default_mu)
-                self.qubit.singlepass1.set_att_mu(self.qubit.att_singlepass1_default_mu)
-                self.qubit.singlepass2.set_att_mu(self.qubit.att_singlepass2_default_mu)
-
-                self.qubit.singlepass0_on()
-                self.qubit.singlepass1_off()
-                self.qubit.singlepass2_off()
-
             # prepare beams for SBC - 854nm
             with sequential:
                 # set SBC waveform
