@@ -60,6 +60,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         # management
         self.setattr_device("scheduler")
         self.setattr_device("ccb")
+        self.setattr_device("qubit")
 
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)

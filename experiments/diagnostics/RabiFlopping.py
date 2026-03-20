@@ -30,9 +30,10 @@ class RabiFlopping(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # core arguments
-        self.setattr_argument("repetitions", NumberValue(default=80, precision=0, step=1, min=1, max=10000))
+        self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=10000))
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
                               tooltip="Trigger the beginning of each shot from the AC line.")
+
         self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC"], default="SBC"),
                               tooltip="Select the cooling type to use.")
 
@@ -45,21 +46,33 @@ class RabiFlopping(LAXExperiment, Experiment):
                                                     ],
                                                     global_min=0.01, global_max=100000, global_step=1,
                                                     unit="us", scale=1, precision=3
-                                                ), group=self.name)
+                                                ), group=self.name + ".parameters")
+
+        # doublepass args
         self.setattr_argument("freq_rabiflop_mhz", NumberValue(default=101.0968, precision=6, step=1, min=50., max=400., scale=1., unit='MHz'),
-                              group=self.name)
+                              group=self.name + ".parameters")
+
         self.setattr_argument("ampl_qubit_pct", NumberValue(default=50, precision=3, step=5, min=1, max=50, scale=1., unit='%'),
-                              group=self.name)
+                              group=self.name + ".doublepass")
+
         self.setattr_argument("att_readout_db", NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit='dB'),
-                              group=self.name)
-        self.setattr_argument('att_singlepass0_db', NumberValue(default=5, precision=1, step=0.5, min=5, max=31.5, scale=1., unit='dB'),
-                              group=self.name)
+                              group=self.name + ".doublepass")
+
+        # singlepass args
+        self.setattr_argument('singlepass_channel', EnumerationValue(["singlepass0", "singlepass1", "singlepass2"] , default="singlepass0"),
+                              group = self.name + ".singlepass")
+        self.setattr_argument('att_singlepass_db', NumberValue(default=5, precision=1, step=0.5, min=5, max=31.5, scale=1., unit='dB'),
+                              group=self.name + ".singlepass")
+        self.setattr_argument('ampl_singlepass_pct', NumberValue(default=50., precision=3, step=5, min=0.01, max=50., scale=1., unit='%'),
+                              group=self.name + ".singlepass")
+
+        # auxilary arguements
         self.setattr_argument("equalize_delays", BooleanValue(default=False),
-                              group=self.name,
+                              group=self.name + ".auxilary",
                               tooltip="Adds a dummy delay to each rabi pulse to equalize the time taken for each shot.")
 
         self.setattr_argument("enable_pulseshaping", BooleanValue(default=False),
-                              group=self.name,
+                              group=self.name + ".auxilary",
                               tooltip="Shape the rabiflop pulse to reduce spectral leakage. "
                                       "Uses a Hann (sine-squared) envelope.")
 
@@ -98,14 +111,24 @@ class RabiFlopping(LAXExperiment, Experiment):
         if self.cooling_type == "Doppler":  self.cooling_subsequence = self.doppler_subsequence
         elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
 
+        if self.singlepass_channel == "singlepass0":
+            self.singlepass_device = self.qubit.singlepass0
+            self.singlepass_freq_ftw = self.qubit.freq_singlepass0_default_ftw
+        elif self.singlepass_channel == "singlepass1":
+            self.singlepass_device = self.qubit.singlepass1
+            self.singlepass_freq_ftw = self.qubit.freq_singlepass1_default_ftw
+        else:
+            self.singlepass_device = self.qubit.singlepass2
+            self.singlepass_freq_ftw = self.qubit.freq_singlepass2_default_ftw
+
         # convert input arguments to machine units
         self.freq_rabiflop_ftw =    self.qubit.frequency_to_ftw(self.freq_rabiflop_mhz * MHz)
         self.ampl_qubit_asf =       self.qubit.amplitude_to_asf(self.ampl_qubit_pct / 100.)
-        self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
-        self.att_singlepass0_mu = att_to_mu(self.att_singlepass0_db*dB)
+        self.ampl_singlepass_asf = self.qubit.amplitude_to_asf(self.ampl_singlepass_pct / 100.)
 
-        self.att_default_singlepass0_mu = self.get_parameter('att_729_singlepass0_db', group='beams.att_db',
-                                                                       override=False, conversion_function=att_to_mu)
+
+        self.att_readout_mu =       att_to_mu(self.att_readout_db * dB)
+        self.att_singlepass_mu = att_to_mu(self.att_singlepass_db*dB)
 
         # create timing list such that all shots have same length
         max_time_us = max(list(self.time_rabi_us_list))
@@ -117,6 +140,10 @@ class RabiFlopping(LAXExperiment, Experiment):
         if not self.equalize_delays: self.time_rabiflop_mu_list[:, 0] = int64(8)
 
         self.time_servo_relock_mu = self.core.seconds_to_mu(self.time_servo_relock_us*us)
+
+
+        self._default_singlepass_att_mu = att_to_mu(31.5*dB)
+        self._default_singlepass_ampl_asf = self.qubit.amplitude_to_asf(0.01/100.)
 
     @property
     def results_shape(self):
@@ -135,12 +162,22 @@ class RabiFlopping(LAXExperiment, Experiment):
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
 
+        # set all singlepasses to lowest amplitude
+        self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw, asf=self._default_singlepass_ampl_asf,
+                                          profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw, asf=self._default_singlepass_ampl_asf,
+                                          profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw, asf=self._default_singlepass_ampl_asf,
+                                          profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+
         # set qubit readout waveform
         if self.enable_pulseshaping:
             self.qubit.set_ftw(self.freq_rabiflop_ftw)
         else:
             self.qubit.set_mu(self.freq_rabiflop_ftw, asf=self.ampl_qubit_asf,
                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+        self.singlepass_device.set_mu(self.singlepass_freq_ftw, asf=self.ampl_singlepass_asf,
+                                          profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
@@ -166,8 +203,6 @@ class RabiFlopping(LAXExperiment, Experiment):
                 if self.enable_linetrigger:
                     self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
 
-                self.qubit.singlepass0.set_att_mu(self.att_singlepass0_mu)
-
                 """
                 RELOCK INTENSITY SERVO
                 """
@@ -184,7 +219,38 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # prepare qubit beam for readout
                 self.qubit.set_profile(self.profile_729_readout)
                 self.qubit.set_att_mu(self.att_readout_mu)
-                self.qubit.singlepass0.set_att_mu(self.att_singlepass0_mu)
+
+                # set all singlepasses to max att
+                self.qubit.singlepass0.set_att_mu(self._default_singlepass_att_mu)
+                self.qubit.singlepass1.set_att_mu(self._default_singlepass_att_mu)
+                self.qubit.singlepass2.set_att_mu(self._default_singlepass_att_mu)
+
+                # turn opn correct singlepass
+                self.singlepass_device.set_att_mu(self.att_singlepass_mu)
+
+
+                # # set all singlepasses to lowest amplitude
+                # self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
+                #                               asf=self._default_singlepass_ampl_asf,
+                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                # self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
+                #                               asf=self._default_singlepass_ampl_asf,
+                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                # self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
+                #                               asf=self._default_singlepass_ampl_asf,
+                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                #
+                # self.singlepass_device.set_mu(self.singlepass_freq_ftw, asf=self.ampl_singlepass_asf,
+                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+
+                # turn off all singlepasses but the one we want to use
+                self.qubit.singlepass0_off()
+                self.qubit.singlepass1_off()
+                self.qubit.singlepass2_off()
+
+                # turn on desired singlepass
+                self.singlepass_device.sw.on()
+                delay_mu(8)
 
                 # add delay to equalize shot time
                 delay_mu(time_rabi_pair_mu[0])
@@ -195,6 +261,15 @@ class RabiFlopping(LAXExperiment, Experiment):
                     self.qubit.on()
                     delay_mu(time_rabi_actual_mu)
                     self.qubit.off()
+
+                # reset all attenuators for normal operation
+                self.qubit.singlepass0.set_att_mu(self.qubit.att_singlepass0_default_mu)
+                self.qubit.singlepass1.set_att_mu(self.qubit.att_singlepass1_default_mu)
+                self.qubit.singlepass2.set_att_mu(self.qubit.att_singlepass2_default_mu)
+
+                self.qubit.singlepass0_on()
+                self.qubit.singlepass1_off()
+                self.qubit.singlepass2_off()
 
                 # do readout & clean up loop
                 self.readout_subsequence.run_dma()
