@@ -64,20 +64,12 @@ class DDSDipole(LAXDevice):
         self.sw.on()
         delay_mu(8)
 
-        # enable external RF switch
-        self.rf_switch.on()
-        delay_mu(20000)
-
     @kernel(flags={"fast-math"})
     def off(self) -> TNone:
         # note: didn't bother parallel-ing this section since it's unimportant
         # enable RF switch onboard Urukul
         self.sw.off()
         delay_mu(8)
-
-        # enable external RF switch
-        self.rf_switch.off()
-        delay_mu(20000)
 
     @kernel(flags={"fast-math"})
     def set_profile(self, profile_num: TInt32) -> TNone:
