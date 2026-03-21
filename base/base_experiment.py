@@ -61,6 +61,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         self.setattr_device("scheduler")
         self.setattr_device("ccb")
 
+        # lasers needing to be set for all experiments (or turned off by default)
+        self.setattr_device('qubit')
+
         # set looping iterators for the _update_results method
         setattr(self, '_result_iter', 0)
         setattr(self, '_counts_iter', 0)

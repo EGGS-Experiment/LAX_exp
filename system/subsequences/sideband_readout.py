@@ -48,6 +48,7 @@ class SidebandReadout(LAXSubsequence):
                                                                 ), group=self.name)
         self.setattr_argument("ampl_sideband_readout_pct",      NumberValue(default=50, precision=3, step=10, min=1, max=50., scale=1., unit="%"), group=self.name)
         self.setattr_argument("att_sideband_readout_db",        NumberValue(default=8, precision=1, step=0.5, min=8, max=31.5, scale=1., unit="dB"), group=self.name)
+        self.setattr_argument("att_singlepass0_sideband_readout_db",        NumberValue(default=5, precision=1, step=0.5, min=5, max=31.5, scale=1., unit="dB"), group=self.name)
         self.setattr_argument("time_sideband_readout_us",       NumberValue(default=26.11, precision=5, step=1, min=1, max=10000, scale=1., unit="us"), group=self.name)
 
         # get relevant devices
@@ -57,6 +58,7 @@ class SidebandReadout(LAXSubsequence):
         # prepare readout waveform values
         self.ampl_sideband_readout_asf =        self.qubit.amplitude_to_asf(self.ampl_sideband_readout_pct / 100.)
         self.att_sideband_readout_mu =          att_to_mu(self.att_sideband_readout_db * dB)
+        self.att_singlepass0_sideband_readout_mu = att_to_mu(self.att_singlepass0_sideband_readout_db * dB)
         self.time_sideband_readout_mu =         self.core.seconds_to_mu(self.time_sideband_readout_us * us)
 
         # combine readout frequencies WITHOUT shuffling them
@@ -69,6 +71,7 @@ class SidebandReadout(LAXSubsequence):
         # set readout waveform for qubit
         self.qubit.set_profile(self.profile_dds)
         self.qubit.set_att_mu(self.att_sideband_readout_mu)
+        self.qubit.singlepass0.set_att_mu(self.att_singlepass0_sideband_readout_mu)
 
         # population transfer pulse
         self.qubit.on()
@@ -80,6 +83,7 @@ class SidebandReadout(LAXSubsequence):
         # set readout waveform for qubit
         self.qubit.set_profile(self.profile_dds)
         self.qubit.set_att_mu(self.att_sideband_readout_mu)
+        self.qubit.singlepass0.set_att_mu(self.att_sideband_readout_mu)
 
         # population transfer pulse
         self.qubit.on()
