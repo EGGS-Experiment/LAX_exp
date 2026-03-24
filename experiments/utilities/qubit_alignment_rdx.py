@@ -118,10 +118,10 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
         state_y_arr[0] = 0
 
         # prepare datasets for storing counts
-        self.set_dataset('temp.qubit_align.counts_x', state_x_arr, broadcast=True, persist=False, archive=False)
+        self.set_dataset('temp.qubit_align.counts_x', state_x_arr, broadcast=True, persist=True, archive=False)
         for i in range(self.num_times):
             self.set_dataset('temp.qubit_align.counts_y_{:d}'.format(i), state_y_arr,
-                             broadcast=True, persist=False, archive=False)
+                             broadcast=True, persist=True, archive=False)
             # initialize plotting applet
             stra = '${artiq_applet}' + (
                 'plot_xy temp.qubit_align.counts_y_{:d}'
