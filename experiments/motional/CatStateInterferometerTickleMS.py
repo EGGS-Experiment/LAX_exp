@@ -1281,7 +1281,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
 
         # set up values for ms gate
         self.freq_beams_ftw_list[self.profile_729_ms][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw - freq_ms_gate_secular_detuning_ftw
-        self.freq_beams_ftw_list[self.profile_729_ms][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_cat_secular_detuning_ftw
+        self.freq_beams_ftw_list[self.profile_729_ms][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_ms_gate_secular_detuning_ftw
 
         self.phase_beams_pow_list[self.profile_729_ms][1] = phase_ms_dynamical_decoupling_pow
         self.phase_beams_pow_list[self.profile_729_ms][2] = ms_phases[0]
