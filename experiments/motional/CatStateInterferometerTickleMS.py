@@ -612,14 +612,12 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         elif self.target_ms_phase == 'RSB+BSB':
             self.phase_ms_update_dir = array([1, 1], dtype=int32)
 
-
         self.att_reg_ms_gate = 0x00000000 | (
-                (att_to_mu(self.qubit.att_qubit_mu * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_ms_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
-
         return (time_ms_gate_mu_list, freq_ms_gate_secular_detuning_khz_list, phase_ms_pow_list,
                 phase_ms_dynamical_decoupling_pow_list)
 
@@ -745,7 +743,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         '''
         # attenuation register - bichromatic: main doublepass set to specified experiment argument value
         self.att_reg_cat_interferometer = 0x00000000 | (
-                (att_to_mu(self.qubit.att_qubit_mu * dB) << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
                 (att_to_mu(self.atts_cat_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
@@ -1109,8 +1107,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         self.qubit.singlepass1_on()
         self.qubit.singlepass2_on()
         if self.enable_dynamical_decoupling:
-            self.set_carrier_phase(phase_dd_pow,
-                                   profile=profile)
+            self.set_carrier_phase(phase_dd_pow, profile=profile)
             self.qubit.singlepass0_on()
             # correct time to account (and ensure it is non-negative) for call to set_mu to change dd phase
             # minimium CAT time with DD is ~1.3us, i.e time for DD phase shift
@@ -1126,11 +1123,9 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         delay_mu(time_pulse_mu)
         if self.enable_dynamical_decoupling:
             self.qubit.singlepass0_off()
-            self.set_carrier_phase(phase_dd_pow - self.phase_dd_phase_shift_pow,
-                                   profile=profile)
+            self.set_carrier_phase(phase_dd_pow - self.phase_dd_phase_shift_pow, profile=profile)
             self.qubit.singlepass0_on()
         delay_mu(time_pulse_mu)
-
 
         # turn off all beams except singlepass 0 to prevent thermal fluctuations on the singlepass
         self.qubit.off()
@@ -1182,8 +1177,10 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         # set up relevant beam waveforms
         for profile in self.profiles:
             self.qubit.set_mu(
-                self.freq_beams_ftw_list[profile][0], asf=self.ampl_beams_asf_list[profile][0],
-                pow_=self.phase_beams_pow_list[profile][0], profile=profile,
+                self.freq_beams_ftw_list[profile][0],
+                asf=self.ampl_beams_asf_list[profile][0],
+                pow_=self.phase_beams_pow_list[profile][0],
+                profile=profile,
                 phase_mode=ad9910.PHASE_MODE_CONTINUOUS
             )
             self.qubit.singlepass0.set_mu(
