@@ -154,6 +154,11 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                               tooltip="Carrier frequency of the ion.\n"
                                       "Note: this is applied via the main doublepass DDS.\n")
 
+        self.setattr_argument('freq_cat_carrier_detuning_khz', NumberValue(default=0,
+                                                              min=-10, max=10, step=1,
+                                                              scale=1, precision=6),
+                              group=_argstr, tooltip="Detuning frequency of the ion during resonant catting\n")
+
     def _build_arguments_ms_gate(self):
         """
         Build arguments for ms gate beam parameters.
@@ -280,8 +285,8 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                              tooltip="Single-sided detuning frequency for the bichromatic pulses, applied via singlepass DDSs.\n"
                                      "The singlepass1 DDS is treated as the RSB, and will thus have its frequency DECREASED by this amount.\n"
                                      "Similarly, the singlepass2 DDS is treated as the BSB, and will thus have its frequency INCREASED by this amount.\n"
-                                     "i.e. frequencies for [singlepass1, singlepass2] is set as [beams.freq_mhz.freq_singlepass1_mhz - freq_secular_khz - freq_cat_detuning_khz, "
-                                     "beams.freq_mhz.freq_singlepass2_mhz + freq_secular_khz + freq_cat_detuning_khz].")
+                                     "i.e. frequencies for [singlepass1, singlepass2] is set as [beams.freq_mhz.freq_singlepass1_mhz - freq_secular_khz + freq_cat_carrier_detuning_khz, "
+                                     "beams.freq_mhz.freq_singlepass2_mhz + freq_secular_khz + freq_cat_carrier_detuning_khz].")
 
         self.setattr_argument('phase_cat_dynamical_decoupling_turns_list',
                               Scannable(default=[
@@ -566,6 +571,8 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
 
         freq_carrier_ftw_list = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
                                           for freq_mhz in self.freq_carrier_mhz_list])
+
+        self.freq_cat_carrier_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_cat_carrier_detuning_khz*kHz)
 
         return freq_carrier_ftw_list
 
@@ -1275,8 +1282,8 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
 
         # set up values consistent across cats
         for profile in [self.profile_729_cat1, self.profile_729_cat2]:
-            self.freq_beams_ftw_list[profile][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw - freq_cat_secular_detuning_ftw
-            self.freq_beams_ftw_list[profile][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_cat_secular_detuning_ftw
+            self.freq_beams_ftw_list[profile][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw - freq_cat_secular_detuning_ftw + self.freq_cat_carrier_detuning_ftw
+            self.freq_beams_ftw_list[profile][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_cat_secular_detuning_ftw + self.freq_cat_carrier_detuning_ftw
 
 
         # set up values for ms gate
