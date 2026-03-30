@@ -312,7 +312,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
                 # otherwise, simply stop execution
                 elif (not self.enable_aramp) and (num_ions > self.desired_num_of_ions):
-                    print("\tTOO MANY IONS LOADED - STOPPING HERE.")
+                    print("\tTOO MANY IONS ED - STOPPING HERE.")
                     break
 
             print("\tLOADING COMPLETE - CLEANING UP.")
@@ -345,6 +345,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         while True:
             # extract number of ions on camera
             num_ions = self.process_image('pre_aramp_original.png', 'pre_aramp_manipulated.png')
+            # num_ions = 0
 
             # check if we've reached a stop condition (e.g. max_time reached, termination_requested)
             if (time() - self.start_time_s) > self.time_runtime_max_s:
@@ -412,15 +413,21 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # get camera data and reshape into image
         image_arr = self.camera.get_most_recent_image()
         data = np.reshape(image_arr, (self.image_width_pixels, self.image_width_pixels))
-        imsave(os.path.join(self.data_path, filepath1), data)
+        try:
+            imsave(os.path.join(self.data_path, filepath1), data)
+        except PermissionError:
+            print("Unable to save image - permission error")
 
         # threshold & rescale data
         # todo: set 1000 as some parameter for min scatter value
         data *= data > 1000
-        data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data))) * 255)
+        data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
         # use only upper 1% quantile of data
         data *= data > np.quantile(data, 0.99)
-        imsave(os.path.join(self.data_path, filepath2), data)
+        try:
+            imsave(os.path.join(self.data_path, filepath2), data)
+        except PermissionError:
+            print("Unable to save image - permission error")
 
         # extract ion positions
         guess_radii = np.arange(1, 8)
