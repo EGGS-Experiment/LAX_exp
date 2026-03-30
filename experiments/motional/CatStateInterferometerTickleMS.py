@@ -584,7 +584,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         """
 
         if self.enable_ms_gate:
-            time_ms_gate_mu_list = [self.core.seconds_to_mu(time_ms_gate_us*us) for time_ms_gate_us in self.time_ms_gate_us_list]
+            time_ms_gate_mu_list = [self.core.seconds_to_mu(time_ms_gate_us/2*us) for time_ms_gate_us in self.time_ms_gate_us_list]
             freq_ms_gate_secular_detuning_khz_list = [self.qubit.frequency_to_ftw(ms_gate_secular_detuning_khz*kHz)
                                                   for ms_gate_secular_detuning_khz in self.freq_ms_secular_detuning_khz_list]
             phase_ms_pow_list = array(
@@ -1079,7 +1079,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                                     phase_tickle_pow,
                                     phase_cat_dynamical_decoupling_pow,
                                     phase_ms_dynamical_decoupling_pow,
-                                    time_ms_gate_mu,
+                                    time_ms_gate_mu << 1, # shift bits over to left to account for halving we did for DD
                                     freq_ms_gate_secular_detuning_ftw,
                                     phase_ms_pow,
                                     phase_parity_pow)
