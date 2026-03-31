@@ -711,7 +711,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         '''
 
         if self.enable_dynamical_decoupling and (self.enable_cat1_bichromatic or self.enable_cat2_bichromatic
-                                                or self.enable_ramsey_delay or self.enable_tickle):
+                                                or self.enable_ramsey_delay or self.enable_tickle_pulse):
             phase_cat_dynamical_decoupling_pow_list = array(
             [self.qubit.singlepass0.turns_to_pow(phase_dynamical_decoupling_turns) for
              phase_dynamical_decoupling_turns in self.phase_cat_dynamical_decoupling_turns_list])
