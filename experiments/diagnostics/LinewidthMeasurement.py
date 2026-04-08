@@ -251,9 +251,9 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                             'y': results_plotting_y,
                             'fit_x': fit_x,
                             'fit_y': fit_y,
-                            'subplot_titles': f'Laser Scan',
+                            'subplot_titles': f'Linewidth Measurement',
                             'subplot_x_labels': 'AOM Frequency (MHz)',
-                            'subplot_y_labels': 'Counts',
+                            'subplot_y_labels': 'Signal',
                             'rid': self.scheduler.rid,
                             }
 

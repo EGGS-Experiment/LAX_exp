@@ -1,49 +1,17 @@
 import numpy as np
 
+from PyQt5.QtCore import Qt
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-
-from PyQt5.QtCore import Qt
 
 from sipyco import pyon
 from artiq.applets.simple import TitleApplet
 from LAX_exp.applets.widget import QMainWindow
 
 matplotlib.use('Qt5Agg')
-
-
-class MplCanvas(FigureCanvasQTAgg):
-
-    def __init__(self, parent=None, nsubplots=1):
-        # self.fig, self.axes = plt.subplots(nsubplots)
-        self.axes = []
-        self.fig = plt.figure()
-        rows = nsubplots // 2 + 1
-        if rows - 1:
-            cols = 2
-        else:
-            cols = 1
-
-        for axis in range(nsubplots):
-            if nsubplots % 2 != 0 and axis == nsubplots - 1:
-                self.axes.append(plt.subplot2grid(shape=(rows, cols), loc=(axis // 2, axis % 2), colspan=2))
-            else:
-                self.axes.append(plt.subplot2grid(shape=(rows, cols), loc=(axis//2, axis%2), colspan=1))
-
-
-        self.axes = np.array(self.axes)
-
-        plt.ion()
-        plt.tight_layout()
-        self.fig.tight_layout()
-        self.fig.clf()
-        self.fig.clear()
-        for ax in self.axes:
-            ax.cla()
-            ax.remove()
-        super().__init__(self.fig)
-
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QApplication
 
 class MatplotlibPlot(QMainWindow):
     """
@@ -61,7 +29,8 @@ class MatplotlibPlot(QMainWindow):
         # Call super
         super().__init__(args, req, **kwargs)
         # create matplotlib canvas to insert plots into
-        self.sc = MplCanvas(self, nsubplots=args.num_subplots)
+        self.figure = Figure(figsize=(12,9))
+        self.sc = FigureCanvasQTAgg(self.figure)
 
         # instantiate lists of boxes and points for later events
         self.data_points_list = []
@@ -70,17 +39,26 @@ class MatplotlibPlot(QMainWindow):
         self.box_clicked = None
 
         # connect canvas to button press events
-        self.sc.fig.canvas.mpl_connect('button_press_event', self.mouse_event)
-        # if args.x_label is not None:
-        #     self.sc.fig.supxlabel(args.x_label, fontsize=14)
-        # if args.y_label is not None:
-        #     self.sc.fig.supylabel(args.y_label, fontsize=14)
+        self.sc.figure.canvas.mpl_connect('button_press_event', self.mouse_event)
         if args.title is not None:
-            self.sc.fig.suptitle(args.title, fontsize=18)
+            self.sc.figure.suptitle(args.title, fontsize=18)
 
         # default keys for dictionary passed to applet
         self.default_keys = ['x', 'y', 'errors', 'fit_x', 'fit_y', 'subplot_x_labels', 'subplot_y_labels',
                              'subplot_titles', 'ylims', 'rid']
+
+        self.axes = self.create_axes(args.num_subplots)
+
+    def create_axes(self, nsubplots=1):
+        rows = nsubplots // 2
+        rows = max(rows, 1)
+        cols = nsubplots // rows + nsubplots % rows
+        cols = max(cols, 1)
+
+        axes = self.sc.figure.subplots(rows, cols)
+        if not isinstance(axes, list) and not isinstance(axes, np.ndarray):
+            axes = np.array([axes])
+        return axes
 
     def update_applet(self, args):
         """
@@ -89,12 +67,15 @@ class MatplotlibPlot(QMainWindow):
         Args:
             args (dict): Dictionary of arguments
         """
+        # clear old data
+        # self.figure = Figure(figsize=(12,9))
+        for ax in self.axes.flatten():
+            ax.cla()
+
+        # connect canvas to button press events
+        self.sc.figure.canvas.mpl_connect('button_press_event', self.mouse_event)
 
         # extract data from dictionary
-
-        self.sc.fig.clf()
-        self.sc.axes.cla()
-
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary
@@ -108,6 +89,7 @@ class MatplotlibPlot(QMainWindow):
         titles = np.array(self.get_from_dict(results, 'subplot_titles', None))
         ylims = np.array(self.get_from_dict(results, 'ylims', None))
         rid = np.array(self.get_from_dict(results, 'rid', None))
+
 
         # inform user of unused keys and data
         unused_keys = [key for key in results.keys() if key not in self.default_keys]
@@ -159,7 +141,6 @@ class MatplotlibPlot(QMainWindow):
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
-
             # enumerate through the datasets in y
             for ind, y in enumerate(ys):
                 # if a multidimensional array grab the necessary dataset or if one-dimensional just return the variable
@@ -175,8 +156,10 @@ class MatplotlibPlot(QMainWindow):
                 self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim, ind, rid=rid)
 
         # set the matplotlib plot in the Qt widget and show the widget
+        plt.tight_layout()
+        self.sc.figure.tight_layout()
         self.setCentralWidget(self.sc)
-        self.show()
+        self.sc.draw_idle()
 
     """PLOTTING FUNCTIONS"""
 
@@ -214,42 +197,36 @@ class MatplotlibPlot(QMainWindow):
         else:
             fit_x = None
 
-        if not isinstance(self.sc.axes, np.ndarray):
-            self.sc.axes = np.array([self.sc.axes])
-
-        for ax in self.sc.axes:
-            ax.cla()
-
         # get features of the plot legend
-        handles, labels = self.sc.axes[ind].get_legend_handles_labels()
+        handles, labels = self.axes[ind].get_legend_handles_labels()
 
         # only plot if a new experiment is run
         if labels == [] or (rid not in np.int32(np.array(labels))):
-            data_points = self.sc.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
-                                              markersize = 2)
+            data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
+                                              markersize = 6)
             self.data_points_list.append(data_points)
 
         # plot fit to data and set titles and labels
         if fit_y is not None and fit_x is not None:
-            fit_lines = self.sc.axes[ind].plot(fit_x, fit_y)
+            fit_lines = self.axes[ind].plot(fit_x, fit_y)
             self.fit_lines.append(fit_lines)
         if title is not None:
-            self.sc.axes[ind].set_title(title)
+            self.axes[ind].set_title(title)
         if x_label is not None:
-            self.sc.axes[ind].set_xlabel(x_label)
+            self.axes[ind].set_xlabel(x_label)
         if y_label is not None:
-            self.sc.axes[ind].set_ylabel(y_label)
+            self.axes[ind].set_ylabel(y_label)
         if ylim is not None:
-            self.sc.axes[ind].set_ylim(np.min(ylim), np.max(ylim))
+            self.axes[ind].set_ylim(np.min(ylim), np.max(ylim))
 
         # style plot
-        self.sc.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
-        self.sc.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
+        self.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
+        self.axes[ind].ticklabel_format(axis='y', style='plain', useOffset=False)
         # set xticks by removing Nones from list
         x_filtered = [x_ele for x_ele in x if x_ele is not None]
-        self.sc.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 5),3))
-        self.sc.axes[ind].legend()
-        self.sc.axes[ind].grid(True)
+        # self.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 5),3))
+        self.axes[ind].legend()
+        self.axes[ind].grid(True)
 
     """VERIFICATION AND HELPER FUNCTIONS"""
 
@@ -315,11 +292,11 @@ class MatplotlibPlot(QMainWindow):
         Args:
             event (Event): event recording a mouse click
         """
+
         # if click was on a text box already created then record and don't create new text box
         box_clicked = [box_clicked for box_clicked in self.boxes if box_clicked.contains(event)[0]]
         if len(box_clicked) > 0:
             self.box_clicked = box_clicked[0]
-
         # if data point was clicked create text box and record
         else:
             self.box_clicked = None
@@ -329,7 +306,8 @@ class MatplotlibPlot(QMainWindow):
                                                               f"x: {event.xdata:.4f} \ny: {event.ydata:.4f}",
                                                               fontsize=12,
                                                               bbox={'facecolor': 'white', 'pad': 4,
-                                                                    'edgecolor': 'black'}))
+                                                                    'edgecolor': 'black',
+                                                                    'alpha': 1}))
 
             # check fit lines
             else:
@@ -341,7 +319,10 @@ class MatplotlibPlot(QMainWindow):
                                                                   f"x: {event.xdata:.4f} \ny: {event.ydata:.4f}",
                                                                   fontsize=12,
                                                                   bbox={'facecolor': 'white', 'pad': 4,
-                                                                        'edgecolor': 'black'}))
+                                                                        'edgecolor': 'black',
+                                                                        'alpha': 1}))
+
+        self.sc.draw_idle()
 
     def keyPressEvent(self, event):
         """
@@ -357,6 +338,8 @@ class MatplotlibPlot(QMainWindow):
             if self.box_clicked is not None:
                 self.box_clicked.remove()
                 self.box_clicked = None
+
+        self.sc.draw_idle()
 
 
 def main():

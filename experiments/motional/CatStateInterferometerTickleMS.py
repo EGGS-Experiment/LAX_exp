@@ -710,6 +710,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS - DD PHASE
         '''
 
+
         if self.enable_dynamical_decoupling and (self.enable_cat1_bichromatic or self.enable_cat2_bichromatic
                                                 or self.enable_ramsey_delay or self.enable_tickle_pulse):
             phase_cat_dynamical_decoupling_pow_list = array(
