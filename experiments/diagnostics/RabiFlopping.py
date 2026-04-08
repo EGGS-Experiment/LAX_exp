@@ -306,8 +306,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         threshold_list = findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
             probability_vals[where(counts_arr > threshold_val)] += 1.
-        # normalize probabilities and convert from D-state probability to S-state probability
-        results_tmp[:, 1] = 1. - probability_vals / len(threshold_list)
+        # normalize probabilities and convert from S-state probability to D-state probability
+        results_tmp[:, 1] = 1.- probability_vals / len(threshold_list)
         # process dataset into x, y, with y being averaged probability
         results_tmp = groupBy(results_tmp, column_num=0, reduce_func=mean)
         results_tmp = array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
@@ -351,7 +351,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'fit_y': fit_y,
                             'subplot_titles': f'Rabi Flopping',
                             'subplot_x_labels': 'Time (us)',
-                            'subplot_y_labels': 'S State Population',
+                            'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,}
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
