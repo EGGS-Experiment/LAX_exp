@@ -602,10 +602,12 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
             phase_ms_pow_list = [0]
             phase_ms_dynamical_decoupling_pow_list = [0]
 
-        if self.enable_dynamical_decoupling:
+        if self.enable_dynamical_decoupling and self.enable_ms_gate:
             phase_ms_dynamical_decoupling_pow_list = array(
                 [self.qubit.singlepass0.turns_to_pow(phase_dynamical_decoupling_turns) for
                  phase_dynamical_decoupling_turns in self.phase_ms_dynamical_decoupling_turns_list])
+        else:
+            phase_ms_dynamical_decoupling_pow_list = [0]
 
         self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_ms_pct/100.) for ampl_ms_pct in self.ampls_ms_pct])
 
