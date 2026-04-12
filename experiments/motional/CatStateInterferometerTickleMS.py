@@ -24,7 +24,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence', 'dds_pulse_shaper',
+        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence', 'dds_pulse_shaper_tickle',
 
         # ion parameters
         'freq_secular_ftw',
@@ -497,11 +497,11 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
             pulse_shape = self.type_pulse_shape
         else:
             pulse_shape = 'square'
-        self.dds_pulse_shaper = DDSPulseShaper(self, dds_target= self.dds_dipole.dds,
+        self.dds_pulse_shaper_tickle = DDSPulseShaper(self, dds_targets= self.dds_dipole.dds,
                                               ram_profile=self.profile_tickle_RAM,
                                               ram_addr_start=202, num_samples=250,
-                                              ampl_max_pct=self.ampl_tickle_pct,
-                                               pulse_shape=pulse_shape,
+                                              ampl_max_pcts=self.ampl_tickle_pct,
+                                               pulse_shapes=pulse_shape,
                                                phase_autoclear = 1)
 
         ### MAGIC NUMBERS ###
@@ -778,9 +778,9 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         """
         # convert values to convenience units
         self.att_tickle_mu = att_to_mu(self.att_tickle_db * dB)
-        freq_tickle_detuning_ftw_list = [self.dds_pulse_shaper.dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
+        freq_tickle_detuning_ftw_list = [self.dds_pulse_shaper_tickle.dds_targets[0].frequency_to_ftw(freq_tickle_detuning_khz*kHz)
                                          for freq_tickle_detuning_khz in self.freq_tickle_detuning_khz_list]
-        phase_tickle_pow_list = [self.dds_pulse_shaper.dds_target.turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
+        phase_tickle_pow_list = [self.dds_pulse_shaper_tickle.dds_targets[0].turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
         self.time_tickle_mu = self.core.seconds_to_mu(self.time_heating_us * us)
         self.time_tickle_dd_phase_flip_mu = self.core.seconds_to_mu(self.time_heating_us * us/2)
 
@@ -824,9 +824,9 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
             delay_mu(50000)
 
         # configure tickle
-        self.dds_pulse_shaper.sequence_initialize()
-        self.dds_pulse_shaper.dds_target.set_att_mu(self.att_tickle_mu)
-        self.dds_pulse_shaper.dds_target.sw.off()
+        self.dds_pulse_shaper_tickle.sequence_initialize()
+        self.dds_pulse_shaper_tickle.dds_targets[0].set_att_mu(self.att_tickle_mu)
+        self.dds_pulse_shaper_tickle.dds_targets[0].sw.off()
         delay_mu(8)
 
     @kernel(flags={"fast-math"})
@@ -904,19 +904,19 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                     self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
 
                     # set tickle frequency/phases
-                    self.dds_pulse_shaper.dds_target.set_ftw(self.freq_secular_ftw + freq_tickle_detuning_ftw)
-                    self.dds_pulse_shaper.dds_target.set_pow(phase_tickle_pow)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_ftw(self.freq_secular_ftw + freq_tickle_detuning_ftw)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_pow(phase_tickle_pow)
 
                     # set up config of shaped pulses to be fired for tickling
                     # also sets up phase autoclear
-                    self.dds_pulse_shaper.configure_train(self.time_tickle_mu)
+                    self.dds_pulse_shaper_tickle.configure_train_all_dds([self.time_tickle_mu])
                     with parallel:
-                        self.dds_pulse_shaper.dds_target.cpld.io_update.pulse_mu(8)
+                        self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
                         self.qubit.io_update()
                     # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
-                    self.dds_pulse_shaper.dds_target.set_cfr1(ram_enable=1, phase_autoclear=0,
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
                                                               ram_destination=ad9910.RAM_DEST_ASF)
-                    self.dds_pulse_shaper.dds_target.cpld.io_update.pulse_mu(8)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
 
                     # reset cfr1 so we no longer clear phases on io_update
                     self.qubit.set_cfr1()
@@ -1011,7 +1011,7 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                             self.qubit.singlepass0_on()
                             self.qubit.on()
                         with parallel:
-                            self.dds_pulse_shaper.run_train_single()
+                            self.dds_pulse_shaper_tickle.run_train_all_dds()
                             if self.enable_dynamical_decoupling:
                                 # see time to set profile
                                 delay_mu(time_dd_phase_flip_mu)
@@ -1069,8 +1069,8 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                     # return -1 so user knows booboo happened
                     counts_res = -1
 
-                # cleanup dds_pulse_shaper
-                self.dds_pulse_shaper.sequence_cleanup()
+                # cleanup dds_pulse_shaper_tickle
+                self.dds_pulse_shaper_tickle.sequence_cleanup()
 
                 # store results
                 self.update_results(freq_carrier_ftw,
