@@ -27,12 +27,13 @@ class DDSPulseShaper(HasEnvironment):
         "ram_addr_stop", "time_pulse_mu_to_ram_step", "ampl_asf_pulseshapes_list",
     }
 
-    def build(self, dds_targets: ad9910.AD9910 =None,
+    def build(self, dds_target: ad9910.AD9910  = None,
               ram_profile: TInt32=0, ram_addr_start: TInt32=0x00,
-              num_samples: TInt32=100, ampl_max_pcts:  TFloat =50.,
-              pulse_shapes:  TStr= "sine_squared",
+              num_samples: TInt32=100, ampl_max_pct:  TFloat =50.,
+              pulse_shape:  TStr= "sine_squared",
+              pulse_configuration = 'all',
               phase_autoclear:  TInt32 = 0,
-              external_switches: ttl.TTLOut = None):
+              external_switch: ttl.TTLOut = None):
         """
         Defines interface for pulse shaping multiple ddses on a single urukul board (share a CPLD)
         :param dds_targets: DDS objects to pulse shape with.
@@ -51,12 +52,13 @@ class DDSPulseShaper(HasEnvironment):
         self.ram_profile =      ram_profile
         self.ram_addr_start =   ram_addr_start
         self.num_samples =      num_samples
-        self.ampl_max_pcts =     ampl_max_pcts
-        self.pulse_shapes =      pulse_shapes
-        self.external_switches = external_switches
+        self.ampl_max_pcts =     ampl_max_pct
+        self.pulse_shapes =      pulse_shape
+        self.external_switches = external_switch
+        self.pulse_configuration = pulse_configuration
 
         # get relevant devices
-        self.dds_targets = dds_targets
+        self.dds_targets = dds_target
         self.setattr_device("core")
 
         self._validate_arguments()
@@ -75,8 +77,8 @@ class DDSPulseShaper(HasEnvironment):
         ### finish build sequence ###
         self.sequence_prepare(phase_autoclear, 0)
 
-    # add auxilary dds target
 
+    # add auxilary dds target
     def add_dds_target(self,
                        dds_target: ad9910.AD9910 = None,
                        ampl_max_pct: TFloat = 50.,
@@ -164,6 +166,10 @@ class DDSPulseShaper(HasEnvironment):
                 pass
             elif not isinstance(self.external_switches[switch_idx], ttl.TTLOut):
                 raise TypeError("the specified the external_switch must be an instance of TTLOut.")
+            
+        if self.pulse_configuration not in ['all', 'rising', 'falling']:
+            raise ValueError('Need to configure the pulse properly')
+
 
     def sequence_prepare(self, phase_autoclear: TInt32, dds_targets_idx: TInt32) -> TNone:
         """
@@ -181,6 +187,11 @@ class DDSPulseShaper(HasEnvironment):
         self.time_pulse_mu_to_ram_step = ((dds_target.sysclk_per_mu / 4) /
                                           self.num_samples) # SYNC_CLK period is 4x AD9910's SYSCLK
 
+        self.ram_firing_delay = int64(95)
+        self.bit_shift_ram_enable = 31
+        self.bit_shift_ram_dest = 29
+        self.bit_shift_phase_autoclear = 13
+
 
         '''
         CALCULATE WAVEFORM
@@ -188,30 +199,39 @@ class DDSPulseShaper(HasEnvironment):
         # calculate pulse shape, then normalize and rescale to max amplitude
         # note: ensure max x_val is double the rolloff since PulseShaper does rising edge only
         x_vals = linspace(0., 200., self.num_samples)
-        wav_y_vals = available_pulse_shapes[self.pulse_shapes[dds_targets_idx]](x_vals, 100)
-        wav_y_vals *= (self.ampl_max_pcts[dds_targets_idx] / 100.) / max(wav_y_vals)
+        
+        if self.pulse_configuration == 'all':
+            samples_roll = int32(self.num_samples // 2)
+        elif self.pulse_configuration == 'rising' or 'falling':
+            samples_roll = int32(self.num_samples)
+            
+        wav_y_vals = available_pulse_shapes[self.pulse_shapes[dds_targets_idx]](x_vals, samples_roll)
+        wav_y_vals *= (self.ampl_max_pcts[dds_targets_idx] / samples_roll) / max(wav_y_vals)
 
         # create array to store amplitude waveform in ASF (but formatted as a RAM word)
         self.ampl_asf_pulseshapes_list_temp = [int32(0)] * self.num_samples
         dds_target.amplitude_to_ram(wav_y_vals, self.ampl_asf_pulseshapes_list_temp)
-        self.ampl_asf_pulseshapes_list[dds_targets_idx] = self.ampl_asf_pulseshapes_list_temp[::-1] # pre-reverse list b/c write_ram reverses it
+        if self.pulse_configuration == 'rising' or self.pulse_configuration == 'all':
+            self.ampl_asf_pulseshapes_list[dds_targets_idx] = self.ampl_asf_pulseshapes_list_temp # pre-reverse list b/c write_ram reverses it
+        else:
+            self.ampl_asf_pulseshapes_list[dds_targets_idx] = self.ampl_asf_pulseshapes_list_temp[::-1]  # pre-reverse list b/c write_ram reverses it
 
         # CFR1: enable RAM mode and clear phase accumulator
         # note: has to be int64 b/c numpy won't take it as int32
         if len(self.dds_targets) == 1:
             self._cfr1_ram_configs = [int64(
-                (1 << 31) |  # ram_enable
-                (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
-                (phase_autoclear << 13) |
+                (1 << self.bit_shift_ram_enable) |  # ram_enable
+                (ad9910.RAM_DEST_ASF << self.bit_shift_ram_dest) |  # ram_destination
+                (phase_autoclear << self.bit_shift_phase_autoclear) |
                 # (1 << 16) |  # select_sine_output (note: removed for consistency)
                 2  # sdio_input_only + msb_first
             ) & 0xFFFFFFFF  # ensure 32b only
             ]
         else:
             self._cfr1_ram_configs += [int64(
-                (1 << 31) |  # ram_enable
-                (ad9910.RAM_DEST_ASF << 29) |  # ram_destination
-                (phase_autoclear << 13) |
+                (1 << self.bit_shift_ram_enable) |  # ram_enable
+                (ad9910.RAM_DEST_ASF << self.bit_shift_ram_dest) |  # ram_destination
+                (phase_autoclear << self.bit_shift_phase_autoclear) |
                 # (1 << 16) |  # select_sine_output (note: removed for consistency)
                 2  # sdio_input_only + msb_first
             ) & 0xFFFFFFFF # ensure 32b only
@@ -358,7 +378,7 @@ class DDSPulseShaper(HasEnvironment):
         dds_target.cpld.io_update.pulse_mu(8)
 
         # open and close switch to synchronize with RAM pulse
-        at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        at_mu(time_start_mu + self.ram_firing_delay)
         self.external_switches[dds_targets_idx].on()
         dds_target.sw.on()
         delay_mu(time_pulse_mu)
@@ -452,9 +472,9 @@ class DDSPulseShaper(HasEnvironment):
         time_start_mu = now_mu() & ~7 # coarse align to SYNC_CLK for determinacy
         at_mu(time_start_mu)
         dds_target.cpld.io_update.pulse_mu(8) # fire pulse!
-        #
+
         # open and close switch to synchronize with RAM pulse
-        at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        at_mu(time_start_mu + self.ram_firing_delay)
         dds_target.sw.on()
         delay_mu(self.time_pulse_mu_list[dds_targets_idx])
         dds_target.sw.off()
@@ -482,13 +502,13 @@ class DDSPulseShaper(HasEnvironment):
         dds_target[dds_targets_idxs[0]].cpld.io_update.pulse_mu(8)  # fire pulse!
         #
         # open and close switch to synchronize with RAM pulse
-        at_mu(time_start_mu + 416 + 63 - 140 - 244)
+        at_mu(time_start_mu + self.ram_firing_delay)
         for dds_targets_idx in range(len(self.dds_targets)):
             # open and close switch to synchronize with RAM pulse
             self.external_switches[dds_targets_idx].on()
             self.dds_targets[dds_targets_idx].sw.on()
         for dds_targets_idx in range(len(self.dds_targets)):
-            at_mu(time_start_mu + 416 + 63 - 140 - 244 + self.time_pulse_mu_list[dds_targets_idx])
+            at_mu(time_start_mu + self.ram_firing_delay+ self.time_pulse_mu_list[dds_targets_idx])
             self.dds_targets[dds_targets_idx].sw.off()
             self.external_switches[dds_targets_idx].off()
 
@@ -511,14 +531,12 @@ class DDSPulseShaper(HasEnvironment):
         self.dds_targets[0].cpld.io_update.pulse_mu(8)  # fire pulse!
         for dds_targets_idx in range(len(self.dds_targets)):
             # open and close switch to synchronize with RAM pulse
-            at_mu(time_start_mu + 416 + 63 - 140 - 244)
+            at_mu(time_start_mu + self.ram_firing_delay)
             self.dds_targets[dds_targets_idx].sw.on()
             self.external_switches[dds_targets_idx].on()
         for dds_targets_idx in range(len(self.dds_targets)):
-            at_mu(time_start_mu + 416 + 63 - 140 - 244 + self.time_pulse_mu_list[dds_targets_idx])
+            at_mu(time_start_mu + self.ram_firing_delay + self.time_pulse_mu_list[dds_targets_idx])
             self.dds_targets[dds_targets_idx].sw.off()
-
-        self.dds_targets[0].cpld.io_update.pulse_mu(8)
 
     """
     HELPER FUNCTIONS
