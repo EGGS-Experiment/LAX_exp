@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 from artiq.coredevice import urukul
+from common.lib.servers.Pulser.pulse_sequences.pulse_sequences_config import dds729DP
 
 from numpy import array, int32, int64
 
@@ -10,17 +11,16 @@ from LAX_exp.system.subsequences import (
     RescueIon,
 )
 from LAX_exp.extensions import *
-from LAX_exp.system.objects.dds_pulse_shaper import DDSPulseShaper
-from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
+from LAX_exp.system.objects.dds_ramper import DDSRamper
 
 
-class MolmerSorensen(LAXExperiment, Experiment):
+class MolmerSorensenDRG(LAXExperiment, Experiment):
     """
-    Experiment: Molmer Sorensen Gate
+    Experiment: Molmer Sorensen Gate DRG
 
 
     """
-    name = 'Molmer Sorensen Gate'
+    name = 'Molmer Sorensen Gate Drg'
 
     kernel_invariants = {
         # subsequences & objects
@@ -53,6 +53,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
                               tooltip="Trigger the beginning of each shot from the AC line.")
 
+        self._build_arguemnts_ion_parameters()
         self._build_arguments_ms()
         self._build_arguments_parity()
         self._build_arguments_dynamical_decoupling()
@@ -69,31 +70,52 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.readout_subsequence = Readout(self)
         self.rescue_subsequence = RescueIon(self)
 
+    def _build_arguemnts_ion_parameters(self):
+        _argstr = 'ion_parameters'
+
+
+        self.setattr_argument('freq_carrier_mhz', NumberValue(default=100.3,
+                                                            min=90., max=110,
+                                                            step=0.01, unit="MHz",
+                                                            precision=4, scale=1),
+                      group=_argstr, tooltip='carrier frequency in MHz'
+                      )
+
+
+        self.setattr_argument('freq_secular_khz', NumberValue(default=710,
+                                                           min=500., max=2000,
+                                                           step=0.01, unit="kHz",
+                                                           precision=4, scale=1),
+                      group=_argstr, tooltip='secular frequency in kHz'
+                      )
+
+
     def _build_arguments_ms(self):
 
         _argstr = 'ms'
 
         self.setattr_argument('time_gate_us_list', Scannable(default=[ExplicitScan([50]),
                                                                       RangeScan(1, 100, 100)],
-                                                             global_min=1, global_max=1e6,
+                                                             global_min=6.5, global_max=1e6,
                                                              global_step=0.01, unit="us",
                                                              precision=4, scale=1),
-                              group=_argstr, tooltip='time to apply birchromatic interaction for'
+                              group=_argstr, tooltip='flat time to apply birchromatic interaction for'
                               )
 
-        self.setattr_argument('freq_carrier_ms_mhz', NumberValue(default=101.3,
-                                                                 min=2., max=110,
-                                                                 step=0.01, unit="MHz",
+        self.setattr_argument('freq_carrier_detuning_ms_khz_list', Scannable(default=[ExplicitScan([0.0]),
+                                                               RangeScan(-1, 1, 100)],
+                                                                 global_min=-200., global_max=200,
+                                                                 global_step=0.01, unit="kHz",
                                                                  precision=4, scale=1),
-                              group=_argstr, tooltip='carrier frequency in MHz'
+                              group=_argstr, tooltip='detuning from carrier frequency in kHz'
                               )
 
-        self.setattr_argument('freq_detuning_ms_khz_list', Scannable(default=[ExplicitScan([40]),
+        self.setattr_argument('freq_secular_detuning_ms_khz_list', Scannable(default=[ExplicitScan([40]),
                                                                               RangeScan(0.01, 100, 100)],
                                                                      global_min=0.01, global_max=1e6,
                                                                      global_step=0.01, unit="kHz",
                                                                      precision=4, scale=1),
-                              group=_argstr, tooltip='detuning from carrier'
+                              group=_argstr, tooltip='detuning from secular in kHz'
                               )
 
         self.setattr_argument("ampls_ms_pct", PYONValue([50., 50.]), group=_argstr,
@@ -102,15 +124,6 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.setattr_argument("atts_ms_db", PYONValue([11., 11.]), group=_argstr,
                               tooltip="DDS attenuations for the singlepass DDSs during the bichromatic pulses.\n"
                                       "Should be a list of [rsb_att_db, bsb_att_db], which are applied to [singlepass1, singlepass2].")
-
-        # waveform - pulse shaping
-        self.setattr_argument("enable_pulse_shaping", BooleanValue(default=False),
-                              group=_argstr,
-                              tooltip="Applies pulse shaping to the edges of the ms pulse.")
-        self.setattr_argument("type_pulse_shape",
-                              EnumerationValue(list(available_pulse_shapes.keys()), default='sine_squared'),
-                              group=_argstr,
-                              tooltip="Pulse shape type to be used.")
 
     def _build_arguments_dynamical_decoupling(self):
         _argstr = 'dynamical_decoupling'
@@ -144,10 +157,13 @@ class MolmerSorensen(LAXExperiment, Experiment):
                               tooltip='Enable parity analysis pulse after applying the MS gate',
                               group=_argstr)
 
-        self.setattr_argument('time_parity_pulse_us',
-                              NumberValue(default=2, min=0.01, max=1e6,
-                                          step=0.01, scale=1, precision=4, unit='us'),
-                              tooltip='', group=_argstr)
+        self.setattr_argument('time_parity_pulse_us_list', Scannable(default=[ExplicitScan([1.4]),
+                                                                      RangeScan(1, 100, 100)],
+                                                             global_min=0.01, global_max=1e6,
+                                                             global_step=0.01, unit="us",
+                                                             precision=4, scale=1),
+                              group=_argstr, tooltip='parity pulse time'
+                              )
 
         self.setattr_argument('phase_parity_pulse_turns_list',
                               Scannable(default=[
@@ -178,67 +194,53 @@ class MolmerSorensen(LAXExperiment, Experiment):
     def prepare_experiment(self):
         '''
         Prepare all necessary functions
+
         '''
+        '''
+        Convert ion parameters
+        '''
+        self.freq_carrier_ftw = self.qubit.frequency_to_ftw(self.freq_carrier_mhz * MHz)
+        self.freq_secular_ftw = self.qubit.frequency_to_ftw(self.freq_secular_khz * kHz)
 
         '''
         Convert MS arguments
         '''
         time_gate_mu_list = [self.core.seconds_to_mu(time_gate_us * us) for time_gate_us in
                              self.time_gate_us_list]
-        self.freq_carrier_ms_mu = self.qubit.frequency_to_ftw(self.freq_carrier_ms_mhz * MHz)
-        freq_detuning_ms_mu_list = [self.qubit.frequency_to_ftw(detuning_khz * kHz) for detuning_khz in
-                                    self.freq_detuning_ms_khz_list]
+
+        # divide by two as it goes to the doublepass
+        freq_carrier_detuning_ms_ftw_list = [self.qubit.frequency_to_ftw(freq_carrier_detuning_ms_khz/2 * kHz) for freq_carrier_detuning_ms_khz in
+                                   self.freq_carrier_detuning_ms_khz_list]
+        freq_secular_detuning_ms_ftw_list = [self.qubit.frequency_to_ftw(freq_secular_detuning_ms_khz * kHz) for freq_secular_detuning_ms_khz in
+                                    self.freq_secular_detuning_ms_khz_list]
         self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_pct / 100.)
                                    for ampl_pct in self.ampls_ms_pct])
         self.time_servo_relock_mu = self.core.seconds_to_mu(self.time_servo_relock_us * us)
 
         ### Build Pulse Shaper
-        if self.enable_pulse_shaping:
-            pulse_shape = self.type_pulse_shape
-        else:
-            pulse_shape = 'square'
-        self.dds_pulse_shaper_ms = DDSPulseShaper(self, dds_targets=self.qubit.beam,
-                                                  ram_profile=self.profile_729_ms,
-                                                  ram_addr_start=502, num_samples=200,
-                                                  ampl_max_pcts=self.qubit.asf_to_amplitude(
-                                                      self.qubit.ampl_qubit_asf) * 100,
-                                                  pulse_shapes='square',
-                                                  phase_autoclear=1)
+        self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                        num_samples = 100,
+                                       ramp_dest=2,
+                                       data_high=self.ampls_ms_pct[0] / 100.,
+                                       data_low=0)
 
-        # if self.enable_dynamical_decoupling:
-        #     self.dds_pulse_shaper_ms.add_dds_target(self.qubit.singlepass0,
-        #                                             ampl_max_pct=self.ampl_dynamical_decoupling_pct,
-        #                                             pulse_shape='square',
-        #                                             phase_autoclear=1,
-        #                                             )
-        # else:
-        #     self.dds_pulse_shaper_ms.add_dds_target(self.qubit.singlepass0,
-        #                                             ampl_max_pct=0.01,
-        #                                             pulse_shape='square',
-        #                                             phase_autoclear=1,
-        #                                             )
-
-        self.dds_pulse_shaper_ms.add_dds_target(self.qubit.singlepass1,
-                                                ampl_max_pct=self.ampls_ms_pct[0],
-                                                pulse_shape=pulse_shape,
-                                                phase_autoclear=1,
-                                                )
-        self.dds_pulse_shaper_ms.add_dds_target(self.qubit.singlepass2,
-                                                ampl_max_pct=self.ampls_ms_pct[1],
-                                                pulse_shape=pulse_shape,
-                                                phase_autoclear=1,
-                                                )
+        self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
+                                          ramp_dest=2,
+                                          data_high=self.ampls_ms_pct[1] / 100.,
+                                          data_low=0)
 
         '''
         Convert Parity Arguments
         '''
-
-        self.time_parity_pulse_mu = self.core.seconds_to_mu(self.time_parity_pulse_us * us)
         if self.enable_parity_pulse:
             phase_parity_pulse_pow_list = [self.qubit.turns_to_pow(phase_parity_pulse)
                                            for phase_parity_pulse in self.phase_parity_pulse_turns_list]
+
+            time_parity_pulse_mu_list = [self.core.seconds_to_mu(time_parity_pulse_us * us) for time_parity_pulse_us
+                                         in self.time_parity_pulse_us_list]
         else:
             phase_parity_pulse_pow_list = [0]
+            time_parity_pulse_mu_list = [0]
         self.ampl_parity_pulse_asf = self.qubit.amplitude_to_asf(self.ampl_parity_pulse_pct / 100.)
 
         '''
@@ -251,7 +253,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
             phase_dynamical_decoupling_pow_list = [0]
         self.ampl_dynamical_decoupling_asf = self.qubit.amplitude_to_asf(self.ampl_dynamical_decoupling_pct / 100.)
         self.phase_dd_phase_shift_pow = self.qubit.turns_to_pow(0.5)
-        self.urukul_dd_reset_time = int64(1600)  # half the time for urukul to implement set_mu for DD phase shifting
+        self.time_urukul_reset_mu = int64(1250)  # half the time for urukul to implement set_mu for DD phase shifting
 
         '''
         Prepare Attenuation Register
@@ -282,15 +284,13 @@ class MolmerSorensen(LAXExperiment, Experiment):
                 (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
         )
 
-        # cpld arguments
-        self.cpld_config_mask_nu = 13
-        self.cpld_config_mask_nu_bit_shift = 13
-
         self.config_experiment_list = create_experiment_config(
             time_gate_mu_list,
-            freq_detuning_ms_mu_list,
+            freq_secular_detuning_ms_ftw_list,
             phase_parity_pulse_pow_list,
             phase_dynamical_decoupling_pow_list,
+            freq_carrier_detuning_ms_ftw_list,
+            time_parity_pulse_mu_list,
 
             config_type=float, shuffle_config=True
         )
@@ -298,7 +298,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                5)
+                7)
 
     @kernel(flags={'fast_math'})
     def initialize_experiment(self) -> TNone:
@@ -308,7 +308,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.core.break_realtime()
 
         # initialize pulse shaper
-        self.dds_pulse_shaper_ms.sequence_initialize()
+        self.dds_ramper_ms.sequence_initialize()
         delay_mu(50000)
 
 
@@ -318,9 +318,11 @@ class MolmerSorensen(LAXExperiment, Experiment):
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
                 time_gate_ms_mu = int64(config_vals[0])
-                freq_detuning_ms_mu = int32(config_vals[1])
+                freq_secular_detuning_ms_ftw = int32(config_vals[1])
                 phase_parity_pulse_pow = int32(config_vals[2])
                 phase_dynamical_decoupling_pow = int32(config_vals[3])
+                freq_carrier_detuning_ms_ftw = int32(config_vals[4])
+                time_parity_pulse_mu = int64(config_vals[5])
 
                 self.core.break_realtime()  # add slack for execution
                 delay_mu(125000)  # add even more slack lol
@@ -348,102 +350,80 @@ class MolmerSorensen(LAXExperiment, Experiment):
                 self.qubit.singlepass2_off()
                 self.qubit.cpld.set_all_att_mu(self.att_reg_ms)
 
+                self.setup_ms_tones(freq_carrier_detuning_ms_ftw, freq_secular_detuning_ms_ftw,
+                                    phase_dynamical_decoupling_pow)
+
                 # setup ms tones
-                self.dds_pulse_shaper_ms.dds_targets[0].set_ftw(self.freq_carrier_ms_mu)
-                self.dds_pulse_shaper_ms.dds_targets[0].set_pow(0)
-
-                # self.dds_pulse_shaper_ms.dds_targets[1].set_ftw(
-                #     self.qubit.freq_singlepass0_default_ftw)
-                # self.dds_pulse_shaper_ms.dds_targets[1].set_pow(phase_dynamical_decoupling_pow)
-
-                self.dds_pulse_shaper_ms.dds_targets[1].cfg_drctl
-
-                self.dds_pulse_shaper_ms.dds_targets[1].set_ftw(
-                    self.qubit.freq_singlepass1_default_ftw - freq_detuning_ms_mu)
-                self.dds_pulse_shaper_ms.dds_targets[1].set_pow(0)
-
-                self.dds_pulse_shaper_ms.dds_targets[2].set_ftw(
-                    self.qubit.freq_singlepass2_default_ftw + freq_detuning_ms_mu)
-                self.dds_pulse_shaper_ms.dds_targets[2].set_pow(0)
-
                 if self.enable_parity_pulse:
                     self.setup_parity_tones(phase_parity_pulse_pow)
 
 
-
-                time_actual_mu_list = self.dds_pulse_shaper_ms.configure_train_all_dds([time_gate_ms_mu,
-                                                                                        ])
-                if time_actual_mu_list[0] - self.urukul_dd_reset_time - self.dds_pulse_shaper_ms.ram_firing_delay < 8:
-                    time_gate_dd_mu = 8
-                else:
-                    time_gate_dd_mu = (time_actual_mu_list[0] - self.urukul_dd_reset_time - self.dds_pulse_shaper_ms.ram_firing_delay) >> 1
-
-                self.qubit.singlepass0.set_mu(
-                    self.qubit.freq_singlepass0_default_ftw,
-                    asf=self.ampl_parity_pulse_asf,
-                    pow_=phase_dynamical_decoupling_pow,
-                    profile=self.profile_729_ms,
-                    phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
-                )
-                self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
-
                 # # # pulse to clear phase accumulator
+                self.dds_ramper_ms.clear_phase_accumulator_all_dds()
+                self.qubit.set_cfr1(phase_autoclear=1)
+                self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                at_mu((now_mu() + 8) & ~7) # synchronize to clock
                 self.qubit.io_update()
                 # reset cfr1 so we no longer clear phases on io_update
-                self.dds_pulse_shaper_ms.dds_targets[0].set_cfr1(ram_enable=1,
-                                                                 phase_autoclear=0,
-                                                                 ram_destination=ad9910.RAM_DEST_ASF)
-                self.qubit.singlepass0.set_cfr1()
-                self.dds_pulse_shaper_ms.dds_targets[1].set_cfr1(ram_enable=1,
-                                                                 phase_autoclear=0,
-                                                                 ram_destination=ad9910.RAM_DEST_ASF)
-                self.dds_pulse_shaper_ms.dds_targets[2].set_cfr1(ram_enable=1,
-                                                                 phase_autoclear=0,
-                                                                 ram_destination=ad9910.RAM_DEST_ASF)
+                self.dds_ramper_ms.reset_cfr1_all_dds()
+                self.qubit.set_cfr1(phase_autoclear=0)
+                self.qubit.singlepass0.set_cfr1(phase_autoclear=0)
                 self.qubit.io_update()
+                delay_mu(1000)
 
                 # ensure we are on the right profile
                 self.qubit.set_profile(self.profile_729_ms)
-                cpld_config = self.qubit.cpld.cfg_reg
-                cpld_config_block_io_update = cpld_config | (self.cpld_config_mask_nu << self.cpld_config_mask_nu_bit_shift)
-                delay_mu(5000)
+                self.dds_ramper_ms.configure_ramp_all_dds(1)
+
+                if self.enable_dynamical_decoupling:
+                    # scope says this should be 1328 ns - investigate
+                    time_gate_dd_mu = (time_gate_ms_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay) >> 1
+                    if time_gate_dd_mu < 0:
+                        time_gate_dd_mu = 8
+                else:
+                    time_gate_dd_mu = (time_gate_ms_mu - self.dds_ramper_ms.ramp_firing_delay) >> 1
 
                 """
                 RUN MS GATE
                 """
                 self.ttl8.on()
-                # make sure external switch is open
-                # self.qubit.rf_switch.off()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
-                with parallel:
-                    self.dds_pulse_shaper_ms.run_train_all_dds()
-                    if self.enable_dynamical_decoupling:
-                        # see time to set profile
-                        delay_mu(self.dds_pulse_shaper_ms.ram_firing_delay)
-                        self.qubit.singlepass0_on()
-                        delay_mu(time_gate_dd_mu)
-                        self.qubit.singlepass0_off()
-                        self.qubit.cpld.cfg_write(cpld_config_block_io_update)
-                        self.qubit.singlepass0.set_mu(
+
+                '''RISING PORITION OF PULSE'''
+                self.qubit.on()
+                # start ramp-up when coarse aligned to SYNC_CLK for determinacy
+                self.dds_ramper_ms.run_ramp_all_dds()
+                delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+
+                '''FLAT TOP PORITION OF PULSE'''
+                if self.enable_dynamical_decoupling:
+                    delay_mu(self.dds_ramper_ms.ramp_firing_delay)
+                    self.qubit.singlepass0_on()
+                delay_mu(time_gate_dd_mu)
+                if self.enable_dynamical_decoupling:
+                    self.qubit.singlepass0_off()
+                    self.qubit.singlepass0.set_mu(
                             self.qubit.freq_singlepass0_default_ftw,
                             asf=self.ampl_parity_pulse_asf,
                             pow_=phase_dynamical_decoupling_pow + self.phase_dd_phase_shift_pow,
                             profile=self.profile_729_ms,
                             phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
-                        )
-                        self.qubit.singlepass0_on()
-                        delay_mu(time_gate_dd_mu)
-                        self.qubit.singlepass0_off()
-                # make sure external switch is closed
-                self.qubit.rf_switch.on()
-                delay_mu(TIME_ZASWA2_SWITCH_DELAY_MU)
-                self.qubit.cpld.cfg_write(cpld_config)
+                    )
+                    self.qubit.singlepass0_on()
+                with parallel:
+                    # this must go after set_mu because set_mu calls io_update
+                    delay_mu(time_gate_dd_mu)
+                    self.dds_ramper_ms.configure_falling_ramp_all_dds()
+
+                '''FALLING EDGE OF PULSE'''
+                self.qubit.singlepass0_off()
+                self.dds_ramper_ms.run_ramp_all_dds()
+                delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+                self.dds_ramper_ms.switch_off_all_dds()
+                self.qubit.off()
                 self.ttl8.off()
 
-                # ensure ram enabled
-                for dds_target in self.dds_pulse_shaper_ms.dds_targets:
-                    dds_target.set_cfr1(ram_enable=0,
-                                        phase_autoclear=0)
+                '''ENSURE ALL CFR REGISTERS ARE RESET TO NORMAL VALUES FOR SINGLE TONE OPERATION'''
+                self.dds_ramper_ms.reset_cfrs_all_dds()
 
                 """
                 RUN PARITY PULSE
@@ -453,12 +433,12 @@ class MolmerSorensen(LAXExperiment, Experiment):
                     self.qubit.set_profile(self.profile_729_parity)
                     at_mu((now_mu() + 8) & ~7)
                     self.qubit.io_update()
-                    delay_mu(2000)
+                    # delay_mu(2000)
 
                     self.qubit.on()
                     self.qubit.singlepass0_on()
 
-                    delay_mu(self.time_parity_pulse_mu)
+                    delay_mu(time_parity_pulse_mu)
 
                     self.qubit.off()
                     self.qubit.singlepass0_off()
@@ -468,18 +448,22 @@ class MolmerSorensen(LAXExperiment, Experiment):
                 counts_res = self.readout_subsequence.fetch_count()
 
                 self.update_results(
-                    time_actual_mu_list[0],
+                    time_gate_ms_mu,
                     counts_res,
                     phase_parity_pulse_pow,
-                    freq_detuning_ms_mu,
-                    phase_dynamical_decoupling_pow
+                    freq_secular_detuning_ms_ftw,
+                    phase_dynamical_decoupling_pow,
+                    freq_carrier_detuning_ms_ftw << 1,
+                    time_parity_pulse_mu
                 )
 
-                self.dds_pulse_shaper_ms.sequence_cleanup()
+                # self.dds_ramper_ms.sequence_cleanup()
                 self.check_termination()
 
     @kernel(flags={'fast_math'})
-    def setup_ms_tones(self, freq_detuning_mu) -> TNone:
+    def setup_ms_tones(self, freq_carrier_detuning_ms_ftw: TInt32,
+                       freq_secular_detuning_ftw: TInt32,
+                       phase_dynamical_decoupling_pow: TInt32) -> TNone:
         # ensure all beams are off
         self.qubit.off()
         self.qubit.singlepass0_off()
@@ -487,19 +471,26 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.qubit.singlepass2_off()
 
         self.qubit.set_mu(
-            self.freq_carrier_ms_mu, asf=self.qubit.ampl_qubit_asf,
+            self.freq_carrier_ftw + freq_carrier_detuning_ms_ftw,  asf=self.qubit.ampl_qubit_asf,
             pow_=0, profile=self.profile_729_ms,
             phase_mode=ad9910.PHASE_MODE_CONTINUOUS
         )
+        self.qubit.singlepass0.set_mu(
+            self.qubit.freq_singlepass0_default_ftw,
+            asf=self.ampl_parity_pulse_asf,
+            pow_=phase_dynamical_decoupling_pow,
+            profile=self.profile_729_ms,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+        )
         self.qubit.singlepass1.set_mu(
-            self.qubit.freq_singlepass1_default_ftw - freq_detuning_mu,
+            self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw - freq_secular_detuning_ftw,
             asf=self.ampls_ms_asf[0],
             pow_=0,
             profile=self.profile_729_ms,
             phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
         )
         self.qubit.singlepass2.set_mu(
-            self.qubit.freq_singlepass2_default_ftw + freq_detuning_mu,
+            self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_secular_detuning_ftw,
             asf=self.ampls_ms_asf[1],
             pow_=0,
             profile=self.profile_729_ms,
@@ -507,7 +498,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
         )
 
     @kernel(flags={'fast_math'})
-    def setup_parity_tones(self, phase_parity_pulse_pow) -> TNone:
+    def setup_parity_tones(self, phase_parity_pulse_pow: TInt32) -> TNone:
         # ensure all beams are off
         self.qubit.off()
         self.qubit.singlepass0_off()
@@ -515,7 +506,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
         self.qubit.singlepass2_off()
 
         self.qubit.set_mu(
-            self.freq_carrier_ms_mu, asf=self.qubit.ampl_qubit_asf,
+            self.freq_carrier_ftw, asf=self.qubit.ampl_qubit_asf,
             pow_=0, profile=self.profile_729_parity,
             phase_mode=ad9910.PHASE_MODE_CONTINUOUS
         )
