@@ -35,7 +35,7 @@ class DDSRamper(HasEnvironment):
               data_high: TFloat = 0,
               data_low: TFloat = 0,
               external_switches: ttl.TTLOut = None,
-              ramp_time_us: TFloat = 2):
+              ramp_time_us: TFloat = 3):
         """
         Interface for using the digital ramp across multiple channels
 

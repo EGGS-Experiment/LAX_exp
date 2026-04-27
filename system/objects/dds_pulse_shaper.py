@@ -59,6 +59,10 @@ class DDSPulseShaper(HasEnvironment):
 
         # get relevant devices
         self.dds_targets = dds_target
+
+        # set as the primary target and for backward compatibility
+        self.dds_target = dds_target
+
         self.setattr_device("core")
 
         self._validate_arguments()
@@ -442,6 +446,7 @@ class DDSPulseShaper(HasEnvironment):
         """
 
         """
+
         if len(time_mu_list) == 1:
             time_mu_list_temp = time_mu_list * len(self.dds_targets)
         elif len(time_mu_list) !=  len(self.dds_targets):
@@ -453,6 +458,13 @@ class DDSPulseShaper(HasEnvironment):
             self.time_pulse_mu_list[dds_targets_idx] = self.configure_train_single_dds(dds_targets_idx, time_mu_list_temp[dds_targets_idx])
 
         return self.time_pulse_mu_list
+
+    @kernel(flags={"fast-math"})
+    def configure_train(self, time_mu: TInt64) -> TInt64:
+        """
+        For Legacy Code - configures the primary DDS for pulse shapers
+        """
+        return self.configure_train_single_dds(dds_targets_idx=0, time_mu=time_mu)
 
 
     @kernel(flags={"fast-math"})
@@ -537,6 +549,13 @@ class DDSPulseShaper(HasEnvironment):
         for dds_targets_idx in range(len(self.dds_targets)):
             at_mu(time_start_mu + self.ram_firing_delay + self.time_pulse_mu_list[dds_targets_idx])
             self.dds_targets[dds_targets_idx].sw.off()
+
+    @kernel(flags={"fast-math"})
+    def run_train_single(self):
+        """
+        Legacy Code - runs the primary DDS used for pulse shaper
+        """
+        self.run_train_single_dds(0)
 
     """
     HELPER FUNCTIONS
