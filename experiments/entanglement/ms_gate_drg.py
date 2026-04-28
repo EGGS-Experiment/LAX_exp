@@ -359,7 +359,7 @@ class MolmerSorensenDRG(LAXExperiment, Experiment):
 
 
                 # # # pulse to clear phase accumulator
-                self.dds_ramper_ms.clear_phase_accumulator_all_dds()
+                self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
                 self.qubit.set_cfr1(phase_autoclear=1)
                 self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
                 at_mu((now_mu() + 8) & ~7) # synchronize to clock

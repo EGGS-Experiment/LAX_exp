@@ -92,7 +92,7 @@ class DDSRamper(HasEnvironment):
     # add auxilary dds target
     def add_dds_target(self,
                        dds_target: ad9910.AD9910 = None,
-                       ramp_dest: TInt32 =2,
+                       ramp_dest: TInt32 = 2,
                        data_high: TFloat = 0,
                        data_low: TFloat = 0,
                        phase_autoclear: TInt32 = 0,
@@ -465,7 +465,7 @@ class DDSRamper(HasEnvironment):
             delay_mu(8)
 
     @kernel(flags={"fast-math"})
-    def clear_phase_accumulator_all_dds(self):
+    def set_autoclear_phase_accumulator_all_dds(self):
         """
         Clear the dds phase accumulator for all DDSes in this interface
         """
