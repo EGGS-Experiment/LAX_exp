@@ -13,6 +13,7 @@ class ImagingAlignment(LAXExperiment, Experiment):
     Read PMT counts over time with cooling repump on/off to compare signal/background.
     """
     name = 'Imaging Alignment'
+
     kernel_invariants = {
         # conversions, counters etc.
         "repetitions", "_iter_signal", "_iter_background",
