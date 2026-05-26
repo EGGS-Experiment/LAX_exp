@@ -1,0 +1,58 @@
+{
+  "history": [
+    {
+      "created_at": 0.0,
+      "metadata": {},
+      "name": "sideband",
+      "reason": "missing",
+      "valid": true,
+      "values": {
+        "blue_sideband_freq_hz": 82001000.0,
+        "call_index": 1,
+        "pi_time_s": 2.5e-05,
+        "red_sideband_freq_hz": 80001000.0
+      }
+    },
+    {
+      "created_at": 60.0,
+      "metadata": {},
+      "name": "sideband",
+      "reason": "run_count",
+      "valid": true,
+      "values": {
+        "blue_sideband_freq_hz": 82002000.0,
+        "call_index": 2,
+        "pi_time_s": 2.5e-05,
+        "red_sideband_freq_hz": 80002000.0
+      }
+    },
+    {
+      "created_at": 60.0,
+      "metadata": {},
+      "name": "sideband",
+      "reason": "after_error",
+      "valid": true,
+      "values": {
+        "blue_sideband_freq_hz": 82003000.0,
+        "call_index": 3,
+        "pi_time_s": 2.5e-05,
+        "red_sideband_freq_hz": 80003000.0
+      }
+    }
+  ],
+  "latest": {
+    "sideband": {
+      "created_at": 60.0,
+      "metadata": {},
+      "name": "sideband",
+      "reason": "after_error",
+      "valid": true,
+      "values": {
+        "blue_sideband_freq_hz": 82003000.0,
+        "call_index": 3,
+        "pi_time_s": 2.5e-05,
+        "red_sideband_freq_hz": 80003000.0
+      }
+    }
+  }
+}
