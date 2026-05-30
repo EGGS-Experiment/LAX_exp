@@ -775,7 +775,8 @@ class LAXExperiment(LAXEnvironment, ABC):
             # store temperature values in holding dict
             sys_vals_temp = {"temp_vals_k":  array(list(temp_vals_k))}
         except Exception as e:
-            print("Warning: unable to retrieve and store temperature values in dataset.")
+            # print("Warning: unable to retrieve and store temperature values in dataset.")
+            pass
 
         return sys_vals_temp
 
