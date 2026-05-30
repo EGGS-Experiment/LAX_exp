@@ -1180,8 +1180,6 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
         self.qubit.io_update()
 
         if self.enable_dynamical_decoupling:
-            # self.set_carrier_phase(phase_dd_pow, profile=profile,
-            #                        phase_track=True, ref_time_mu=ref_time_mu)
             # correct time to account (and ensure it is non-negative) for call to set_mu to change dd phase
             # minimium CAT time with DD is ~1.3us, i.e time for DD phase shift
             if time_pulse_mu - self.time_urukul_reset_mu < 8:
@@ -1355,48 +1353,6 @@ class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
                 phase_mode=phase_mode,
                 ref_time_mu=ref_time_mu
         )
-
-
-    # @kernel(flags={"fast-math"})
-    # def setup_beam_profiles(self) -> TNone:
-    #     """
-    #     Configure parameters for relevant profiles on urukul
-    #     """
-    #     # ensure all beams are off
-    #     self.qubit.off()
-    #     self.qubit.singlepass0_off()
-    #     self.qubit.singlepass1_off()
-    #     self.qubit.singlepass2_off()
-    #     # set up relevant beam waveforms
-    #     for index in self.indics:
-    #         self.qubit.set_mu(
-    #             self.freq_beams_ftw_list[profile][0],
-    #             asf=self.ampl_beams_asf_list[profile][0],
-    #             pow_=self.phase_beams_pow_list[profile][0],
-    #             profile=profile,
-    #             phase_mode=ad9910.PHASE_MODE_CONTINUOUS
-    #         )
-    #         self.qubit.singlepass0.set_mu(
-    #             self.freq_beams_ftw_list[profile][1],
-    #             asf=self.ampl_beams_asf_list[profile][1],
-    #             pow_=self.phase_beams_pow_list[profile][1],
-    #             profile=profile,
-    #             phase_mode=ad9910.PHASE_MODE_CONTINUOUS
-    #         )
-    #         self.qubit.singlepass1.set_mu(
-    #             self.freq_beams_ftw_list[profile][2],
-    #             asf=self.ampl_beams_asf_list[profile][2],
-    #             pow_=self.phase_beams_pow_list[profile][2],
-    #             profile=profile,
-    #             phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
-    #         )
-    #         self.qubit.singlepass2.set_mu(
-    #             self.freq_beams_ftw_list[profile][3],
-    #             asf=self.ampl_beams_asf_list[profile][3],
-    #             pow_=self.phase_beams_pow_list[profile][3],
-    #             profile=profile,
-    #             phase_mode=ad9910.PHASE_MODE_CONTINUOUS
-    #         )
 
     @rpc
     def set_default_configuration(self):
