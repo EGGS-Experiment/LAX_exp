@@ -211,7 +211,7 @@ class TrapDC(LAXDevice):
         """
         Get A-Ramp voltage.
         """
-        return self.trap_dc.voltage_fast(self.ARAMP_2_CHANNEL)
+        return self.trap_dc.voltage(self.ARAMP_2_CHANNEL)
 
     """
     Ramp Voltages

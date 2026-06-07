@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_TRACKING
 
+from math import ceil
 from numpy import int32, int64, array, zeros
 
 from LAX_exp.language import *
@@ -260,7 +261,7 @@ class ContinuousSampling(LAXExperiment, Experiment):
         BURST DMA PREPARATION
         '''
         ### for convenience/speed, rigidly group shots into a "burst" ###
-        self._num_bursts = round(self.num_samples / self._burst_samples)    # for convenience, ensure num_samples is integer multiple of bursts
+        self._num_bursts = ceil(self.num_samples / self._burst_samples)    # for convenience, ensure num_samples is integer multiple of bursts
         self.num_samples = self._num_bursts * self._burst_samples # NOTE: REDEFINITION of the num_samples argument
         
         ### protected variables for coredevice use ###

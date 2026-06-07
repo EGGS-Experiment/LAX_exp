@@ -324,7 +324,6 @@ class Beam729(LAXDevice):
 
        :param t_relock_mu: time spent on servo to relock
         """
-
         # set up relevant AOMs to default values on DEFAULT profile
         # necessary b/c not all AOMs are configured/used for each experiment
         for idx in range(len(self.device_list)):
