@@ -64,7 +64,6 @@ class MatplotlibPlot(QMainWindow):
         rows = max(rows, 1)
         cols = nsubplots // rows + nsubplots % rows
         cols = max(cols, 1)
-        print(projection_3d)
 
         if not projection_3d:
             axes = self.sc.figure.subplots(rows, cols)

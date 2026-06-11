@@ -269,7 +269,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us*us)
 
         # attenuation register - readout (RAP): singlepasses set to default
-        att_reg_readout_rap = 0x00000000 | (
+        self.att_reg_readout_rap = 0x00000000 | (
                 (self.att_rap_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
                 (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
@@ -300,7 +300,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list) * len(self.h_shim_voltage_list) * len(self.v_shim_voltage_list),
-                5)
+                4)
 
     '''
     MAIN SEQUENCE
@@ -342,7 +342,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         PREPARE & CONFIGURE
                         '''
                         # extract values from config list
-                        freq_tickle_detuning_ftw = int32(config_vals[1])
+                        freq_tickle_detuning_ftw = int32(config_vals[0])
 
                         '''
                         BEGIN MAIN SEQUENCE
@@ -372,7 +372,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
 
                         # set up config of shaped pulses to be fired for tickling
                         # also sets up phase autoclear
-                        self.dds_pulse_shaper.configure_train(time_tickle_mu)
+                        self.dds_pulse_shaper.configure_train(self.time_tickle_mu)
                         self.dds_pulse_shaper.dds_target.cpld.io_update.pulse_mu(8)
                         # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
                         self.dds_pulse_shaper.dds_target.set_cfr1(ram_enable=1, phase_autoclear=0,
@@ -384,7 +384,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         TICKLE PULSE
                         '''
                         self.dds_pulse_shaper.run_train_single()
-                        delay_mu(time_tickle_mu)
+                        delay_mu(self.time_tickle_mu)
 
                         '''
                         READ OUT & STORE RESULTS
@@ -426,7 +426,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         # find right sec freq
-        self.rap_subsequence.configure(self.time_rap_mu, self.freq_carrier_ftw - (self.sec_freq_ftw >> 1),
+        self.rap_subsequence.configure(self.time_rap_mu, self.freq_carrier_ftw - (self.freq_secular_ftw >> 1),
                                                  self.rap_freq_dev_ftw)
         delay_mu(50000)
 
@@ -461,10 +461,8 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         # get number of detuning points and their uniques values
         num_freq_points = len(unique(tickle_detunings))
         unique_tickle_freqs = sort(unique(tickle_detunings))
-        unique_sec_freqs = sort(unique(sec_freqs))
         unique_h_shim_voltages = sort(unique(h_shim_voltages))
         unique_v_shim_voltages = sort(unique(v_shim_voltages))
-        num_sec_freqs = len(unique_sec_freqs)
 
         reps = self.repetitions
 
