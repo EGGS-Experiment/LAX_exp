@@ -75,17 +75,17 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self._build_arguments_rap()
         self._build_arguments_intensity_servo()
 
-        self.rap_subsequences = []
-        self.att_reg_readout_rap_list = []
-
     def _build_arguments_ion_parameters(self):
         """
         Build arguments for ion frequencies
         """
         _argstr = "ion_parameters"
 
-        self.setattr_argument("freq_secular_khz_list",
-                             PYONValue([710]),
+        self.setattr_argument("freq_secular_khz",
+                             NumberValue(default=710,
+                                         min=60., max=2500,
+                                         step=1, unit="kHz",
+                                         scale=1, precision=3),
                              group=_argstr,
                              tooltip="Secular frequency used for tickle pulse (in kHz) applied via the urukul dds.")
 
@@ -126,18 +126,27 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
     def _build_arguments_rap(self):
         _argstr = 'rap'
 
-        self.setattr_argument("att_rap_db_list",
-                             PYONValue([8]),
+        self.setattr_argument("att_rap_db",
+                             NumberValue(default=8,
+                                         min=8, max=31.5,
+                                         step=0.5, scale=1,
+                                         precision=1, unit="dB"),
                              group=_argstr,
                              tooltip="rap att.")
 
-        self.setattr_argument("freq_rap_dev_khz_list",
-                             PYONValue([72]),
+        self.setattr_argument("freq_rap_dev_khz",
+                              NumberValue(default=72,
+                                          min=10, max=300,
+                                          step=0.1, scale=1,
+                                          precision=2, unit="kHz"),
                              group=_argstr,
                              tooltip="rap att.")
 
-        self.setattr_argument("time_rap_us_list",
-                             PYONValue([1000]),
+        self.setattr_argument("time_rap_us",
+                              NumberValue(default=1000,
+                                          min=50, max=5000,
+                                          step=0.1, scale=1,
+                                          precision=3, unit="us"),
                              group=_argstr,
                              tooltip="rap att.")
 
@@ -148,17 +157,32 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         _argstr = "tickle"  # string to use for arguments
 
         # waveform - parameter sweeps
-        self.setattr_argument("att_tickle_db_list",
-                              PYONValue([25]),
+        self.setattr_argument("att_tickle_db",
+                              NumberValue(
+                                  default=25.,
+                                  min=5., max=31.5,
+                                  step=0.5, scale=1,
+                                  unit='dB', precision=1,
+                              ),
                               group=_argstr,
                               tooltip="Attenuation to be used for the urukul channel used for generating the tickle.")
-        self.setattr_argument("ampl_tickle_pct_list",
-                              PYONValue([50,]),
+        self.setattr_argument("ampl_tickle_pct",
+                              NumberValue(
+                                  default=50.,
+                                  min=0.01, max=50,
+                                  step=0.5, scale=1,
+                                  unit='%', precision=3,
+                              ),
                               group=_argstr,
                               tooltip='Amplitude of tickle pulse.')
 
-        self.setattr_argument("time_tickle_us_list",
-                              PYONValue([1000]),
+        self.setattr_argument("time_tickle_us",
+                              NumberValue(
+                                  default=1000.,
+                                  min=2., max=100000.,
+                                  step=0.5, scale=1,
+                                  unit='us', precision=3,
+                              ),
                               group=_argstr,
                               tooltip="Time for the total pulse (including pulse shape).")
 
@@ -199,14 +223,14 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self.dds_pulse_shaper = DDSPulseShaper(self, dds_target= self.dds_dipole.dds,
                                               ram_profile=self.profile_tickle_RAM,
                                               ram_addr_start=202, num_samples=250,
-                                              ampl_max_pct=self.ampl_tickle_pct_list[0],
+                                              ampl_max_pct=self.ampl_tickle_pct,
                                                pulse_shape=self.type_pulse_shape,
                                                phase_autoclear = 1)
 
         # run component preparation
         self._prepare_experiment_readout()
 
-        freq_secular_ftw_list = self._prepare_experiment_ion_parameters()
+        self._prepare_experiment_ion_parameters()
         freq_tickle_detuning_ftw_list = self._prepare_experiment_tickle()
 
         self.h_shim_initial_voltage = self.trap_dc.get_h_shim_voltage()
@@ -219,7 +243,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self.config_experiment_list = create_experiment_config(
 
             # tickle sweeps
-            freq_secular_ftw_list, freq_tickle_detuning_ftw_list,
+            freq_tickle_detuning_ftw_list,
 
             config_type=float, shuffle_config=True
         )
@@ -230,57 +254,45 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
     def _prepare_experiment_ion_parameters(self):
         """
         Prepare general ion parameters
-        :return: list of carrier frequencies for cat and MS
         """
-        self.freq_secular_ftw_list = [self.qubit.frequency_to_ftw(freq_secular_khz*kHz)
-                                      for freq_secular_khz in self.freq_secular_khz_list]
-        freq_secular_ftw_list = list(self.freq_secular_ftw_list)
+        self.freq_secular_ftw = self.qubit.frequency_to_ftw(self.freq_secular_khz*kHz)
 
         self.freq_carrier_ftw = self.qubit.frequency_to_ftw(self.freq_carrier_mhz * MHz)
-
-        return freq_secular_ftw_list
 
     def _prepare_experiment_readout(self):
         """
         Prepare experiment values for state readout.
         """
 
-        self.att_rap_mu = [att_to_mu(att_rap_db*dB) for att_rap_db in self.att_rap_db_list]
-        self.rap_freq_dev_ftw_list = [self.qubit.frequency_to_ftw(freq_rap_dev_khz*kHz)
-                                      for freq_rap_dev_khz in self.freq_rap_dev_khz_list]
-        self.time_rap_mu_list = [self.core.seconds_to_mu(time_rap_us*us)
-                                      for time_rap_us in self.time_rap_us_list]
+        self.att_rap_mu = att_to_mu(self.att_rap_db*dB)
+        self.rap_freq_dev_ftw= self.qubit.frequency_to_ftw(self.freq_rap_dev_khz*kHz)
+        self.time_rap_mu = self.core.seconds_to_mu(self.time_rap_us*us)
 
+        # attenuation register - readout (RAP): singlepasses set to default
+        att_reg_readout_rap = 0x00000000 | (
+                (self.att_rap_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
+        )
 
-        for idx, rap_profile in enumerate(self.freq_secular_khz_list):
+        self.rap_subsequence = QubitRAP(
+            self, ram_profile=1, ram_addr_start=202, num_samples=250,
+            ampl_max_pct=50, pulse_shape="blackman"
+        )
 
-            # attenuation register - readout (RAP): singlepasses set to default
-            att_reg_readout_rap = 0x00000000 | (
-                    (self.att_rap_mu[idx] << ((self.qubit.beam.chip_select - 4) * 8)) |
-                    (self.qubit.att_singlepass0_default_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
-                    (self.qubit.att_singlepass1_default_mu << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                    (self.qubit.att_singlepass2_default_mu << ((self.qubit.singlepass2.chip_select - 4) * 8))
-            )
-
-            self.rap_subsequences.append(QubitRAP(
-                self, ram_profile=idx+1, ram_addr_start=202, num_samples=250,
-                ampl_max_pct=50, pulse_shape="blackman"
-            ))
-
-            self.att_reg_readout_rap_list.append(att_reg_readout_rap)
 
     def _prepare_experiment_tickle(self):
         """
         Prepare general experiment values for the tickle pulse.
-        :return: tuple of (freq_tickle_detuning_hz_list)
+        :return: tuple of (freq_tickle_detuning_hz_)
         """
         # convert values to convenience units
-        self.att_tickle_mu_list = [att_to_mu(att_tickle_db * dB) for att_tickle_db in self.att_tickle_db_list]
+        self.att_tickle_mu = att_to_mu(self.att_tickle_db * dB)
         freq_tickle_detuning_ftw_list = [self.dds_pulse_shaper.dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
                                          for freq_tickle_detuning_khz in self.freq_tickle_detuning_khz_list]
 
-        self.time_tickle_mu_list = [self.core.seconds_to_mu(time_heating_us * us) for
-                                time_heating_us in self.time_tickle_us_list]
+        self.time_tickle_mu = self.core.seconds_to_mu(self.time_tickle_us * us)
 
         return freq_tickle_detuning_ftw_list
 
@@ -301,6 +313,12 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self.sidebandcool_subsequence.record_dma()
         self.readout_subsequence.record_dma()
         self.core.break_realtime()
+        self.dds_pulse_shaper.dds_target.sw.off()
+
+        # configure tickle
+        self.dds_pulse_shaper.set_ampl_max_pct(self.ampl_tickle_pct)
+        self.dds_pulse_shaper.sequence_initialize()
+        self.dds_pulse_shaper.dds_target.set_att_mu(self.att_tickle_mu)
         self.dds_pulse_shaper.dds_target.sw.off()
         self.qubit.off()
 
@@ -324,7 +342,6 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         PREPARE & CONFIGURE
                         '''
                         # extract values from config list
-                        freq_secular_ftw = int32(config_vals[0])
                         freq_tickle_detuning_ftw = int32(config_vals[1])
 
                         '''
@@ -332,20 +349,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         '''
                         self.core.break_realtime()  # add slack for execution
                         delay_mu(125000)  # add even more slack lol
-                        time_tickle_mu = 0
 
-                        for idx in range(len(self.freq_secular_ftw_list)):
-                            if freq_secular_ftw == self.freq_secular_ftw_list[idx]:
-
-                                time_tickle_mu = self.time_tickle_mu_list[idx]
-
-                                # configure tickle
-                                self.dds_pulse_shaper.set_ampl_max_pct(self.ampl_tickle_pct_list[idx])
-                                self.dds_pulse_shaper.sequence_initialize()
-                                self.dds_pulse_shaper.dds_target.set_att_mu(self.att_tickle_mu_list[idx])
-                                self.dds_pulse_shaper.dds_target.sw.off()
-                                delay_mu(5000)
-                                break
 
                         '''
                         Relock Intensity Servo
@@ -363,7 +367,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         delay_mu(8)
 
                         # set tickle frequency/phases
-                        self.dds_pulse_shaper.dds_target.set_ftw(freq_secular_ftw + freq_tickle_detuning_ftw)
+                        self.dds_pulse_shaper.dds_target.set_ftw(self.freq_secular_ftw + freq_tickle_detuning_ftw)
                         self.dds_pulse_shaper.dds_target.set_pow(0)
 
                         # set up config of shaped pulses to be fired for tickling
@@ -385,7 +389,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         '''
                         READ OUT & STORE RESULTS
                         '''
-                        self.pulse_readout_rap(freq_secular_ftw)
+                        self.pulse_readout_rap(self.freq_secular_ftw)
 
                         # read out fluorescence & clean up loop
                         self.readout_subsequence.run_dma()
@@ -395,9 +399,8 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                         self.dds_pulse_shaper.sequence_cleanup()
 
                         # store results
-                        self.update_results(freq_secular_ftw,
+                        self.update_results(freq_tickle_detuning_ftw,
                                             counts_res,
-                                            freq_tickle_detuning_ftw,
                                             h_shim_voltage,
                                             v_shim_voltage
                                     )
@@ -423,25 +426,18 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         """
         # set up relevant beam waveforms
         # find right sec freq
-        rap_idx = 0
-        for idx in range(len(self.freq_secular_ftw_list)):
-            if sec_freq_ftw == self.freq_secular_ftw_list[idx]:
-                rap_idx = idx
-                break
-
-        sec_freq_ftw = self.freq_secular_ftw_list[rap_idx]
-        self.rap_subsequences[rap_idx].configure(self.time_rap_mu_list[rap_idx], self.freq_carrier_ftw - (sec_freq_ftw >> 1),
-                                                 self.rap_freq_dev_ftw_list[rap_idx])
+        self.rap_subsequence.configure(self.time_rap_mu, self.freq_carrier_ftw - (self.sec_freq_ftw >> 1),
+                                                 self.rap_freq_dev_ftw)
         delay_mu(50000)
 
         self.qubit.off()
         self.qubit.singlepass0_on()
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
-        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap_list[rap_idx])
+        self.qubit.cpld.set_all_att_mu(self.att_reg_readout_rap)
         # run RAP readout pulse
         # run RAP turns on qubit
-        self.rap_subsequences[rap_idx].run_rap(self.time_rap_mu_list[rap_idx])
+        self.rap_subsequence.run_rap(self.time_rap_mu)
 
     def analyze_experiment(self):
         """
@@ -457,11 +453,10 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         data = array(self.results)
 
         # grab relevant data
-        sec_freqs = ftw_to_frequency_khz(data[:, 0])
         counts_arr = array(data[:, 1])
-        tickle_detunings = ftw_to_frequency_khz(data[:, 2])
-        h_shim_voltages = data[:, 3]
-        v_shim_voltages = data[:, 4]
+        tickle_detunings = ftw_to_frequency_khz(data[:, 0])
+        h_shim_voltages = data[:, 2]
+        v_shim_voltages = data[:, 3]
 
         # get number of detuning points and their uniques values
         num_freq_points = len(unique(tickle_detunings))
