@@ -32,6 +32,7 @@ class MatplotlibPlot(QMainWindow):
         self.figure = Figure(figsize=(12,9))
         self.sc = FigureCanvasQTAgg(self.figure)
 
+
         # instantiate lists of boxes and points for later events
         self.data_points_list = []
         self.fit_lines = []
@@ -44,18 +45,31 @@ class MatplotlibPlot(QMainWindow):
             self.sc.figure.suptitle(args.title, fontsize=18)
 
         # default keys for dictionary passed to applet
-        self.default_keys = ['x', 'y', 'errors', 'fit_x', 'fit_y', 'subplot_x_labels', 'subplot_y_labels',
+        self.default_keys = ['x', 'y', 'z', 'errors', 'fit_x', 'fit_y', 'fit_z', 'subplot_x_labels', 'subplot_y_labels',
                              'subplot_titles', 'ylims', 'rid']
 
-        self.axes = self.create_axes(args.num_subplots)
 
-    def create_axes(self, nsubplots=1):
+
+        if args.projection_3d is None:
+            projection_3d = False
+        elif args.projection_3d == "True":
+            projection_3d = True
+        else:
+            projection_3d = False
+
+        self.axes = self.create_axes(args.num_subplots, projection_3d)
+
+    def create_axes(self, nsubplots=1, projection_3d = False):
         rows = nsubplots // 2
         rows = max(rows, 1)
         cols = nsubplots // rows + nsubplots % rows
         cols = max(cols, 1)
+        print(projection_3d)
 
-        axes = self.sc.figure.subplots(rows, cols)
+        if not projection_3d:
+            axes = self.sc.figure.subplots(rows, cols)
+        else:
+            axes = self.sc.figure.subplots(rows, cols, subplot_kw = {'projection': "3d"})
         if not isinstance(axes, list) and not isinstance(axes, np.ndarray):
             axes = np.array([axes])
         return axes
@@ -79,17 +93,18 @@ class MatplotlibPlot(QMainWindow):
         results = pyon.decode(self.get_dataset(args.results))
 
         # parse dictionary
-        ys = np.array(self.get_from_dict(results, 'y', None), dtype=object)
-        xs = np.array(self.get_from_dict(results, 'x', None))
-        errors = np.array(self.get_from_dict(results, 'errors', None))
-        fit_xs = np.array(self.get_from_dict(results, 'fit_x', None))
-        fit_ys = np.array(self.get_from_dict(results, 'fit_y', None))
-        x_labels = np.array(self.get_from_dict(results, 'subplot_x_labels', None))
-        y_labels = np.array(self.get_from_dict(results, 'subplot_y_labels', None))
-        titles = np.array(self.get_from_dict(results, 'subplot_titles', None))
-        ylims = np.array(self.get_from_dict(results, 'ylims', None))
-        rid = np.array(self.get_from_dict(results, 'rid', None))
-
+        ys = self.get_from_dict(results, 'y', None)
+        xs = self.get_from_dict(results, 'x', None)
+        zs = self.get_from_dict(results, 'z', None)
+        errors = self.get_from_dict(results, 'errors', None)
+        fit_xs = self.get_from_dict(results, 'fit_x', None)
+        fit_ys = self.get_from_dict(results, 'fit_y', None)
+        fit_zs = self.get_from_dict(results, 'fit_z', None)
+        x_labels = self.get_from_dict(results, 'subplot_x_labels', None)
+        y_labels = self.get_from_dict(results, 'subplot_y_labels', None)
+        titles = self.get_from_dict(results, 'subplot_titles', None)
+        ylims = self.get_from_dict(results, 'ylims', None)
+        rid = self.get_from_dict(results, 'rid', None)
 
         # inform user of unused keys and data
         unused_keys = [key for key in results.keys() if key not in self.default_keys]
@@ -98,10 +113,17 @@ class MatplotlibPlot(QMainWindow):
             self.logger.warning(f'The keys used are: {self.default_keys}')
 
         # determine number of datasets there are
-        if len(ys.shape) == 1:
-            num_datasets = 1
+        if zs is None:
+            if len(ys.shape) == 1:
+                num_datasets = 1
+            else:
+                num_datasets = ys.shape[0]
         else:
-            num_datasets = ys.shape[0]
+            if len(zs.shape) == 2:
+                num_datasets = 1
+            else:
+                num_datasets = zs.shape[0]
+
 
         # ensure number of datasets is equal to number of subplots
         if num_datasets != args.num_subplots:
@@ -137,7 +159,7 @@ class MatplotlibPlot(QMainWindow):
                     raise ValueError("There can only be a single y limit for a single subplot")
 
             self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(),
-                      titles.item(), ylim = ylims, rid=rid)
+                      titles.item(), ylim = ylims, rid=rid, z=zs, fit_z=fit_zs)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -163,7 +185,8 @@ class MatplotlibPlot(QMainWindow):
 
     """PLOTTING FUNCTIONS"""
 
-    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ylim = None, ind=0, rid=None):
+    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ylim = None, ind=0, rid=None,
+             z=None, fit_z = None):
         """
         Plot the data in a matplotlib subplots
 
@@ -201,14 +224,23 @@ class MatplotlibPlot(QMainWindow):
         handles, labels = self.axes[ind].get_legend_handles_labels()
 
         # only plot if a new experiment is run
-        if labels == [] or (rid not in np.int32(np.array(labels))):
-            data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
-                                              markersize = 6)
-            self.data_points_list.append(data_points)
+        if z is None:
+            if labels == [] or (rid not in np.int32(np.array(labels))):
+                data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
+                                                  markersize = 6)
+                self.data_points_list.append(data_points)
+        elif z is not None:
+            if labels == [] or (rid not in np.int32(np.array(labels))):
+                data_points = self.axes[ind].scatter(x, y, z, marker="o", label=rid)
+                self.data_points_list.append(data_points)
+
 
         # plot fit to data and set titles and labels
-        if fit_y is not None and fit_x is not None:
+        if fit_y is not None and fit_x is not None and fit_z is None:
             fit_lines = self.axes[ind].plot(fit_x, fit_y)
+            self.fit_lines.append(fit_lines)
+        elif fit_y is not None and fit_x is not None and fit_z is not None:
+            fit_lines = self.axes[ind].plot_wireframe(fit_x, fit_y, fit_z)
             self.fit_lines.append(fit_lines)
         if title is not None:
             self.axes[ind].set_title(title)
@@ -232,7 +264,7 @@ class MatplotlibPlot(QMainWindow):
 
     def get_from_dict(self, d, key, default=None):
         if key in list(d.keys()):
-            return d[key]
+            return np.array(d[key])
         else:
             return default
 
@@ -350,6 +382,7 @@ def main():
     applet.argparser.add_argument("--x-label", type=str, default="", required=False)
     applet.argparser.add_argument("--y-label", type=str, default="", required=False)
     applet.argparser.add_argument("--num-subplots", type=int, default=1, required=False)
+    applet.argparser.add_argument("--projection_3d", type=str, default=False, required=False)
 
     # get datasets
     applet.add_dataset("results", "dictionary of experimental results")

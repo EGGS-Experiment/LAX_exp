@@ -1,5 +1,3 @@
-from cmath import isnan
-
 from artiq.experiment import *
 from artiq.coredevice import ad9910, ttl
 from numpy import int32, int64, linspace
@@ -120,8 +118,10 @@ class DDSPulseShaper(HasEnvironment):
                 or isinstance(self.dds_targets, LAXDevice)):
             self.dds_targets = [self.dds_targets]
 
-        if not isinstance(self.ampl_max_pcts, list) and (isinstance(self.ampl_max_pcts, float)
-                or isinstance(self.ampl_max_pcts, int32)):
+
+
+        if not (isinstance(self.ampl_max_pcts, list) and (isinstance(self.ampl_max_pcts, float)
+                or isinstance(self.ampl_max_pcts, int32) or isinstance(self.ampl_max_pcts, int))):
             self.ampl_max_pcts = [self.ampl_max_pcts]
 
         if not isinstance(self.pulse_shapes, list) and isinstance(self.pulse_shapes, str):
