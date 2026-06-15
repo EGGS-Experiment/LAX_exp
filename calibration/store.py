@@ -15,6 +15,19 @@ class DatasetJsonCalibrationStore:
     The dataset target can be either:
         - an ARTIQ EnvExperiment object with set_dataset()
         - a normal Python dict for virtual testing
+    - dataset_target: Any object that supports set_dataset(key, value) or dict-like item assignment
+    - json_path: Path to the JSON file where calibration records will be saved
+    - dataset_prefix: Prefix for dataset keys (default: "calibration")
+    - persist=True
+        Store the dataset in the ARTIQ master's on-disk dataset database.
+        This makes the value survive across experiments and master restarts.
+        ARTIQ says persist also implies broadcast.
+        Use `persist=True` when you want later experiments to reuse the value:
+
+    - archive=True
+        Save this dataset into the current experiment run's local result file,
+        usually the HDF5 result file for that run.
+        Use `archive=True` when you want the calibration value copied into the result file of the current run.
     """
 
     def __init__(
