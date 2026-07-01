@@ -341,9 +341,12 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                               group='{}.waveform'.format(_argstr),
                               tooltip="Enables the tickle pulse.")
 
-        self.setattr_argument("freq_tickle_secular_khz", NumberValue(
-            default=710,
-            min=500, max=3000, step=0.001,
+        self.setattr_argument("freq_tickle_secular_khz_list", Scannable(default=[
+            ExplicitScan([710]),
+                         CenterScan(710, 10, 0.1, randomize=True),
+                         RangeScan(700, 720, 26, randomize=True),
+        ],
+            global_min=500, global_max=3000, global_step=0.001,
             unit="kHz", scale=1, precision=6),
                               group="{}.waveform".format(_argstr),
                               tooltip="Secular frequency used for tickle pulse (in kHz) applied via the urukul dds.")
@@ -441,7 +444,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         (freq_cat_center_ftw_list, freq_cat_secular_ftw_list, time_cat2_cat_mu_list,
          phase_cat2_cat_pow_list, time_ramsey_delay_mu_list) = self._prepare_experiment_cat_general()
 
-        freq_tickle_detuning_ftw_list, phase_tickle_pow_list = self._prepare_experiment_tickle()
+        freq_tickle_detuning_ftw_list, phase_tickle_pow_list, freq_tickle_secular_ftw_list = self._prepare_experiment_tickle()
 
 
         # create experiment config
@@ -453,7 +456,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
             time_ramsey_delay_mu_list,
 
             # tickle sweeps
-            freq_tickle_detuning_ftw_list, phase_tickle_pow_list,
+            freq_tickle_detuning_ftw_list, phase_tickle_pow_list,freq_tickle_secular_ftw_list,
 
             # dynamical decoupling sweeps
             phase_dynamical_decoupling_cat_pow_list,
@@ -634,7 +637,8 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
         """
         # convert values to convenience units
         self.att_tickle_mu = att_to_mu(self.att_tickle_db * dB)
-        self.freq_tickle_secular_ftw = self.dds_pulse_shaper.dds_target.frequency_to_ftw(self.freq_tickle_secular_khz*kHz)
+        self.freq_tickle_secular_ftw_list = [self.dds_pulse_shaper.dds_target.frequency_to_ftw(freq_tickle_secular_khz*kHz)
+                                             for freq_tickle_secular_khz in self.freq_tickle_secular_khz_list]
         freq_tickle_detuning_ftw_list = [self.dds_pulse_shaper.dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
                                          for freq_tickle_detuning_khz in self.freq_tickle_detuning_khz_list]
         phase_tickle_pow_list = [self.dds_pulse_shaper.dds_target.turns_to_pow(phase_tickle_turns) for phase_tickle_turns in self.phase_tickle_turns_list]
@@ -644,9 +648,9 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
 
         # don't apply sweep if tickle is disabled
         if self.enable_tickle_pulse:
-            return freq_tickle_detuning_ftw_list, phase_tickle_pow_list
+            return freq_tickle_detuning_ftw_list, phase_tickle_pow_list, freq_tickle_secular_ftw_list
         else:
-            return [-1], [0]
+            return [-1], [0], [-1]
 
     def _prepare_argument_checks(self) -> TNone:
         """
@@ -709,7 +713,8 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                 time_ramsey_delay_mu = int64(config_vals[6])
                 freq_tickle_detuning_ftw = int32(config_vals[7])
                 phase_tickle_pow = int32(config_vals[8])
-                phase_dynamical_decoupling_cat_pow = int32(config_vals[9])
+                freq_secular_detuning_ftw = int32(config_vals[9])
+                phase_dynamical_decoupling_cat_pow = int32(config_vals[10])
 
                 herald_counter = 0  # clear herald counter
 
@@ -755,7 +760,7 @@ class CatStateInterferometerTickle2(LAXExperiment, Experiment):
                     self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
 
                     # set tickle frequency/phases
-                    self.dds_pulse_shaper.dds_target.set_ftw(self.freq_tickle_secular_ftw + freq_tickle_detuning_ftw)
+                    self.dds_pulse_shaper.dds_target.set_ftw(freq_tickle_secular_ftw + freq_tickle_detuning_ftw)
                     self.dds_pulse_shaper.dds_target.set_pow(phase_tickle_pow)
 
                     # set up config of shaped pulses to be fired for tickling

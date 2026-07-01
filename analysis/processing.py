@@ -7,7 +7,8 @@ __all__ = [
     'findThresholdScikit', 'findThresholdPeaks',
     'groupBy', 'groupBy2',
     'processFluorescence2D', 'extract_ratios', 'extract_sidebands_freqs', 'convert_ratios_to_coherent_phonons',
-    'convert_ratios_to_squeezed_phonons', 'process_laser_scan_results'
+    'convert_ratios_to_squeezed_phonons', 'process_laser_scan_results',
+    'alpha_to_nbar', 'phonon_conversion'
 ]
 
 import numpy as np
@@ -22,6 +23,7 @@ from LAX_exp.extensions.conversions import *
 
 # from scipy.stats import iqr
 # from skimage.filters import threshold_otsu, threshold_yen, threshold_isodata, threshold_triangle
+from scipy.special import laguerre
 
 
 '''
@@ -403,6 +405,11 @@ def prob_bsb_squeeze(r):
     n = 2*np.arange(0, 35)
     return 1 - 1 / 2 * np.sum((1+np.cos(np.pi * np.sqrt(n + 1))) * squeeze_state_population(r,n/2))
 
+def alpha_to_nbar(alpha):
+    return alpha**2
+
+def phonon_conversion(alpha):
+    return 1-np.exp(-alpha**2)*(laguerre(0)(alpha**2))**2
 
 """
 Laser Scan Functionality

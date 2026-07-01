@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 from numpy import int32, int64, arange
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
 from LAX_exp.system.objects.RAMWriter import RAMWriter
@@ -396,6 +397,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # run polish SBC
         if self.enable_polish:
             self.polish_cool()
+        else:
+            self.qubit.off()
 
         # repump qubit after sideband cooling
         delay_mu(32) # prevents sequence errors
@@ -407,6 +410,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         # add final spinpol
         # note: don't remove - verified this is v important for hi-fidelity state prep (2025/09/18)
         self.spin_polarize()
+        # ensure qubit is off
+        self.qubit.off()
 
     @kernel(flags={"fast-math"})
     def spin_polarize(self) -> TNone:

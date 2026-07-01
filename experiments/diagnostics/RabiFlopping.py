@@ -102,6 +102,8 @@ class RabiFlopping(LAXExperiment, Experiment):
         # get devices
         self.setattr_device('qubit')
         self.setattr_device('trigger_line')
+        self.setattr_device('repump_qubit')
+        self.setattr_device('repump_cooling')
 
     def prepare_experiment(self):
         """
@@ -215,6 +217,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
                 self.cooling_subsequence.run_dma()
+                # self.qubit.off()
 
                 # prepare qubit beam for readout
                 self.qubit.set_profile(self.profile_729_readout)
@@ -230,18 +233,18 @@ class RabiFlopping(LAXExperiment, Experiment):
 
 
                 # # set all singlepasses to lowest amplitude
-                # self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
-                #                               asf=self._default_singlepass_ampl_asf,
-                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                # self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
-                #                               asf=self._default_singlepass_ampl_asf,
-                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                # self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
-                #                               asf=self._default_singlepass_ampl_asf,
-                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
-                #
-                # self.singlepass_device.set_mu(self.singlepass_freq_ftw, asf=self.ampl_singlepass_asf,
-                #                               profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                self.qubit.singlepass0.set_mu(self.qubit.freq_singlepass0_default_ftw,
+                                             asf=self._default_singlepass_ampl_asf,
+                                              profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                self.qubit.singlepass1.set_mu(self.qubit.freq_singlepass1_default_ftw,
+                                              asf=self._default_singlepass_ampl_asf,
+                                              profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+                self.qubit.singlepass2.set_mu(self.qubit.freq_singlepass2_default_ftw,
+                                              asf=self._default_singlepass_ampl_asf,
+                                              profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
+
+                self.singlepass_device.set_mu(self.singlepass_freq_ftw, asf=self.ampl_singlepass_asf,
+                                              profile=self.profile_729_readout, phase_mode=PHASE_MODE_CONTINUOUS)
 
                 # turn off all singlepasses but the one we want to use
                 self.qubit.singlepass0_off()
