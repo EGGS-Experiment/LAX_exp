@@ -355,10 +355,12 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'rid': self.scheduler.rid,}
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
-        # create applet
-        self.ccb.issue("create_applet", f"Data Plotting",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_rabi_flopping'
-                       ' --num-subplots 1',
-                       group = ['plotting', 'diagnostics'])
+        self.create_matplotlib_applet(
+            plotting_results,
+            name=f'Rabi Flopping',
+            group=['plotting', 'diagnostics'],
+            num_subplots=1
+        )
+
         return results_tmp
 

@@ -12,6 +12,7 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt5.QtWidgets import QVBoxLayout, QWidget, QApplication
+from sipyco.pc_rpc import Client
 
 class MatplotlibPlot(QMainWindow):
     """
@@ -32,6 +33,20 @@ class MatplotlibPlot(QMainWindow):
         self.figure = Figure(figsize=(12,9))
         self.sc = FigureCanvasQTAgg(self.figure)
 
+        # instantiate clients to talk to dataset manager and master dashboard
+        self.dataset_key = args.results
+        self.dataset_db = Client(
+            args.server,
+            args.port_control,
+            target_name = "dataset_db")
+        self.ccb = Client(
+            args.server,
+            args.port_control,
+            target_name="master_management"
+        )
+
+        self.applet_name = args.applet_name
+        self.applet_group = args.applet_group
 
         # instantiate lists of boxes and points for later events
         self.data_points_list = []
@@ -372,6 +387,35 @@ class MatplotlibPlot(QMainWindow):
 
         self.sc.draw_idle()
 
+    def closeEvent(self, event):
+        """
+        Delete this applet's run-specific plotting dataset when the window closes.
+        """
+        dataset_key = getattr(self, "dataset_key", None)
+
+        try:
+            if dataset_key is not None and '.rid_' in dataset_key:
+                # delete temporary dataset
+                self.dataset_db.delete(dataset_key)
+                self.dataset_db.close_rpc()
+        except Exception as e:
+            self.logger.warning("Dataset cleanup failed: %s", repr(e))
+
+        try:
+            # get applet name and group while remove starting and trailing backslashes
+            applet_name  = getattr(self, "applet_name", None).strip('\\')
+            applet_group = getattr(self, "applet_group", None)
+
+            if applet_name is not None:
+                # remove applet instance from applet list once window is closed
+                self.ccb.ccb_issue("delete_applet", applet_name, group=applet_group)
+                self.ccb.close_rpc()
+
+        except Exception as e:
+            self.logger.warning(" Applet cleanup failed: %s", repr(e))
+
+        super().closeEvent(event)
+
 
 def main():
     # Create applet object
@@ -382,6 +426,12 @@ def main():
     applet.argparser.add_argument("--y-label", type=str, default="", required=False)
     applet.argparser.add_argument("--num-subplots", type=int, default=1, required=False)
     applet.argparser.add_argument("--projection_3d", type=str, default=False, required=False)
+    applet.argparser.add_argument("--applet-name", type=str, default=None)
+    applet.argparser.add_argument(
+        "--applet-group",
+        nargs="*",
+        default=None
+    )
 
     # get datasets
     applet.add_dataset("results", "dictionary of experimental results")
