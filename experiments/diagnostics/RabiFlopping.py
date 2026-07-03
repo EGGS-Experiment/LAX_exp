@@ -1,3 +1,4 @@
+import numpy as np
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
@@ -340,9 +341,26 @@ class RabiFlopping(LAXExperiment, Experiment):
             print("\tResults - Rabi Flopping:")
             print("\t\tPeriod (us):\t{:.2f} +/- {:.2f}".format(fit_period_us, fit_period_err_us))
 
+            flop_ampl = fit_params[0]
+            flop_ampl_err = fit_err[0]
+
+            time_dec_us = 1/(fit_params[1]/1.e6)
+            time_dec_err_us = (fit_err[1]/1.e6)/(fit_params[1]/1.e6)**2
+
+            rabi_rate = fit_params[2]/(2*np.pi*kHz)
+            rabi_rate_err = fit_err[2]/ (2*np.pi*kHz)
+
+            newline = "\n"
+            textbox_str = (rf'$\mathrm{{A}} = {flop_ampl:.2f} \pm {flop_ampl_err:.3f}$ {newline}'
+                            rf'$\mathrm{{t_{{dec}}}} = {time_dec_us:.2f} \pm {time_dec_err_us:.2f}$ {newline}'
+                rf'$\Omega = 2\pi ({rabi_rate:.1f} \pm {rabi_rate_err:.1f})\ \mathrm{{kHz}}$');
+
         except Exception as e:
             print("\tUnable to Find Fit for Rabi Flopping")
             fit_y = [None]*len(fit_x)
+
+            textbox_str = r'$2\pi\ \mathrm{N/A}$'
+
 
         # format dictionary for applet plotting
         plotting_results = {'x': results_plotting_x * 1e6,
@@ -352,7 +370,8 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'subplot_titles': f'Rabi Flopping',
                             'subplot_x_labels': 'Time (us)',
                             'subplot_y_labels': 'D State Population',
-                            'rid': self.scheduler.rid,}
+                            'rid': self.scheduler.rid,
+                            'textbox_str': textbox_str}
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
         self.create_matplotlib_applet(

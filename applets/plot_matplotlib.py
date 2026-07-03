@@ -121,7 +121,6 @@ class MatplotlibPlot(QMainWindow):
         ylims = self.get_from_dict(results, 'ylims', None)
         rid = self.get_from_dict(results, 'rid', None)
         textbox_str = self.get_from_dict(results,'textbox_str', None)
-        print(f" 1: {textbox_str}")
 
         # determine number of datasets there are
         if zs is None:
