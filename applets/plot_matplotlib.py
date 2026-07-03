@@ -13,6 +13,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt5.QtWidgets import QVBoxLayout, QWidget, QApplication
 from sipyco.pc_rpc import Client
+from PyQt5.QtCore import Qt, QTimer
 
 class MatplotlibPlot(QMainWindow):
     """
@@ -30,8 +31,10 @@ class MatplotlibPlot(QMainWindow):
         # Call super
         super().__init__(args, req, **kwargs)
         # create matplotlib canvas to insert plots into
-        self.figure = Figure(figsize=(12,9))
+        self.figure = Figure(figsize=(6, 8), constrained_layout=True)
         self.sc = FigureCanvasQTAgg(self.figure)
+
+        self.setCentralWidget(self.sc)
 
         # instantiate clients to talk to dataset manager and master dashboard
         self.dataset_key = args.results
@@ -62,8 +65,6 @@ class MatplotlibPlot(QMainWindow):
         # default keys for dictionary passed to applet
         self.default_keys = ['x', 'y', 'z', 'errors', 'fit_x', 'fit_y', 'fit_z', 'subplot_x_labels', 'subplot_y_labels',
                              'subplot_titles', 'ylims', 'rid']
-
-
 
         if args.projection_3d is None:
             projection_3d = False
@@ -96,12 +97,11 @@ class MatplotlibPlot(QMainWindow):
             args (dict): Dictionary of arguments
         """
         # clear old data
-        # self.figure = Figure(figsize=(12,9))
         for ax in self.axes.flatten():
             ax.cla()
 
-        # connect canvas to button press events
-        self.sc.figure.canvas.mpl_connect('button_press_event', self.mouse_event)
+        # # connect canvas to button press events
+        # self.sc.figure.canvas.mpl_connect('button_press_event', self.mouse_event)
 
         # extract data from dictionary
         results = pyon.decode(self.get_dataset(args.results))
@@ -116,15 +116,12 @@ class MatplotlibPlot(QMainWindow):
         fit_zs = self.get_from_dict(results, 'fit_z', None)
         x_labels = self.get_from_dict(results, 'subplot_x_labels', None)
         y_labels = self.get_from_dict(results, 'subplot_y_labels', None)
+        z_labels = self.get_from_dict(results, 'subplot_z_labels', None)
         titles = self.get_from_dict(results, 'subplot_titles', None)
         ylims = self.get_from_dict(results, 'ylims', None)
         rid = self.get_from_dict(results, 'rid', None)
-
-        # inform user of unused keys and data
-        unused_keys = [key for key in results.keys() if key not in self.default_keys]
-        for key in unused_keys:
-            self.logger.warning(f'Key {key} is listed in results dictionary for plotting, but is unused')
-            self.logger.warning(f'The keys used are: {self.default_keys}')
+        textbox_str = self.get_from_dict(results,'textbox_str', None)
+        print(f" 1: {textbox_str}")
 
         # determine number of datasets there are
         if zs is None:
@@ -164,6 +161,10 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(y_labels.shape) > 1:
                     raise ValueError("There can only be a single y label for a single subplot")
 
+            if z_labels is not None and len(z_labels.shape) != 0:
+                if np.max(z_labels.shape) > 1:
+                    raise ValueError("There can only be a single z label for a single subplot")
+
             if titles is not None and len(titles.shape) != 0:
                 if np.max(titles.shape) > 1:
                     raise ValueError("There can only be a single title for a single subplot")
@@ -172,8 +173,11 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(ylims.shape) > 1:
                     raise ValueError("There can only be a single y limit for a single subplot")
 
-            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(),
-                      titles.item(), ylim = ylims, rid=rid, z=zs, fit_z=fit_zs)
+            if z_labels is not None:
+                z_labels = z_labels.item()
+            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), z_labels,
+                      titles.item(), ylim = ylims, rid=rid, z=zs, fit_z=fit_zs,
+                      textbox_str=textbox_str)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -186,21 +190,23 @@ class MatplotlibPlot(QMainWindow):
                 fit_y = self.get_plot_element(fit_ys, ind)
                 x_label = self.get_plot_element(x_labels, ind)
                 y_label = self.get_plot_element(y_labels, ind)
+                z_label = self.get_plot_element(z_label, ind)
                 title = self.get_plot_element(titles, ind)
                 ylim = self.get_plot_element(ylims, ind)
+                textbox_str = self.get_plot_element(textbox_str, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim, ind, rid=rid)
+                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim, ind, rid=rid,
+                          textbox_str=textbox_str)
 
         # set the matplotlib plot in the Qt widget and show the widget
-        plt.tight_layout()
-        self.sc.figure.tight_layout()
-        self.setCentralWidget(self.sc)
+        self.sc.figure.set_constrained_layout(True)
         self.sc.draw_idle()
 
     """PLOTTING FUNCTIONS"""
 
-    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", title="", ylim = None, ind=0, rid=None,
-             z=None, fit_z = None):
+    def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", z_label = "",
+             title="", ylim = None, ind=0, rid=None,
+             z=None, fit_z = None, textbox_str = None):
         """
         Plot the data in a matplotlib subplots
 
@@ -212,10 +218,12 @@ class MatplotlibPlot(QMainWindow):
             fit_y : the fit for the data
             x_label : label for the x-axis of the subplot
             y_label : label for the y-axis of the subplot
+            z_label: label for the z-axis of the subplot
             title : title for the subplot
             ind: index (location) of the subplot in the matplotlib figure
             rid: run number of experiment
             ylim: y limits
+            textbox_str: text to write to figure
         """
 
         # verify the variables are of the correct type
@@ -258,12 +266,25 @@ class MatplotlibPlot(QMainWindow):
             self.fit_lines.append(fit_lines)
         if title is not None:
             self.axes[ind].set_title(title)
-        if x_label is not None:
+        if x_label is not None and hasattr(self.axes[ind], "set_xlabel"):
             self.axes[ind].set_xlabel(x_label)
-        if y_label is not None:
+        if y_label is not None and hasattr(self.axes[ind], "set_ylabel"):
             self.axes[ind].set_ylabel(y_label)
+        if z_label is not None and hasattr(self.axes[ind], "set_zlabel"):
+            self.axes[ind].set_zlabel(z_label)
         if ylim is not None:
             self.axes[ind].set_ylim(np.min(ylim), np.max(ylim))
+        if hasattr(self.axes[ind], 'text'):
+            # Define the text box properties
+            box_properties = dict(
+                boxstyle='round',
+                facecolor='wheat',  # Inside color of the box
+                edgecolor='black',  # Border color
+                alpha=0.75,  # Transparency (0 = invisible, 1 = solid)
+                pad=0.25  # Space between the text and the box border
+            )
+            self.axes[ind].text(0.05,0.95, textbox_str, fontsize = 16,transform=self.axes[ind].transAxes, va='top', ha='left',
+                                bbox=box_properties)
 
         # style plot
         self.axes[ind].ticklabel_format(axis='x', style='plain', useOffset=False)
@@ -401,19 +422,6 @@ class MatplotlibPlot(QMainWindow):
         except Exception as e:
             self.logger.warning("Dataset cleanup failed: %s", repr(e))
 
-        try:
-            # get applet name and group while remove starting and trailing backslashes
-            applet_name  = getattr(self, "applet_name", None).strip('\\')
-            applet_group = getattr(self, "applet_group", None)
-
-            if applet_name is not None:
-                # remove applet instance from applet list once window is closed
-                self.ccb.ccb_issue("delete_applet", applet_name, group=applet_group)
-                self.ccb.close_rpc()
-
-        except Exception as e:
-            self.logger.warning(" Applet cleanup failed: %s", repr(e))
-
         super().closeEvent(event)
 
 
@@ -433,12 +441,14 @@ def main():
         default=None
     )
 
+    applet.argparser.add_argument("--big-applet", action="store_true")
+    applet.argparser.add_argument("--delete-on-close", action="store_true")
+
     # get datasets
     applet.add_dataset("results", "dictionary of experimental results")
 
     # run applet
     applet.run()
-
 
 if __name__ == "__main__":
     main()

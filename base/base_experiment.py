@@ -661,7 +661,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         rid = self.scheduler.rid
         applet_name = name or self.name or type(self).__name__
-        dataset_name = dataset_base or applet_name\
+        dataset_name = dataset_base or applet_name
         # check if character is alphanumeric, if it is lowercase it and if it is not replace with underline
         dataset_slug = ''.join(
             char.lower() if char.isalnum() else '_'
@@ -688,6 +688,8 @@ class LAXExperiment(LAXEnvironment, ABC):
             ' --num-subplots {:d}'
             ' --applet-name "\{:s}\"'
             ' --applet-group {:s}'
+            ' --big-applet'
+            ' --delete-on-close'
         ).format(dataset_key, num_subplots, applet_name, group_args)
 
         if projection_3d:

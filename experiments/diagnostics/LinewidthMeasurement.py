@@ -242,9 +242,23 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
             fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
 
+            linecenter_gaussian_mhz = fit_gaussian_params[2]
+            linecenter_gaussian_mhz_err = fit_gaussian_err[2]
+
+            linewidth_gaussian_mhz = fit_gaussian_fwmh_mhz
+            linewidth_gaussian_mhz_err = fit_gaussian_fwmh_mhz_err
         except Exception as e:
             print("\tUnable to Find Optimal Fit for Linewidth Measurement")
             fit_y = [None]*len(fit_x)
+
+            linecenter_gaussian_mhz = 'N\\A'
+            linecenter_gaussian_mhz_err = 'N\\A'
+
+            linewidth_gaussian_mhz = 'N\\A'
+            linewidth_gaussian_mhz_err = 'N\\A'
+
+        textbox_str = (f'Linecenter: {np.round(linecenter_gaussian_mhz,2)} {chr(177)} {np.round(linecenter_gaussian_mhz_err,2)} MHz \n'
+                       f'Linewidth {np.round(linewidth_gaussian_mhz,2)} {chr(177)} {np.round(linewidth_gaussian_mhz_err,2)} MHz')
 
         # format dictionary for applet plotting
         plotting_results = {'x': results_plotting_x,
@@ -255,14 +269,11 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                             'subplot_x_labels': 'AOM Frequency (MHz)',
                             'subplot_y_labels': 'Signal',
                             'rid': self.scheduler.rid,
+                            'textbox_str': textbox_str,
                             }
 
-        self.set_dataset('temp.plotting.results_linewidth', pyon.encode(plotting_results), broadcast=True)
-
-        # create applet
-        self.ccb.issue("create_applet", f"Data Plotting",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_linewidth'
-                       ' --num-subplots 1',
-                       group=['plotting','diagnostics'])
+        self.create_matplotlib_applet(plotting_results,
+                                      name=f';Linewidth Measurement',
+                                      group = ['plotting', 'diagnostics'])
 
         return res_final
