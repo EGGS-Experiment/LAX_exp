@@ -584,7 +584,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
 
         # convert state vals to phonons from rsb rap
         phonons = interp(dark_probability , phonon_conversions, nbars)
-        return unique_detuning_khz, phonons
+            return unique_detuning_khz, phonons
 
     def _fit_plot_tickle_scan(self, unique_detuning_khz: Iterable[float], phonons: Iterable[float],
                               h_voltage: float, v_voltage: float, loop_iter: int):

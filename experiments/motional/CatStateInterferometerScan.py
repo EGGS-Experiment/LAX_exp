@@ -1,8 +1,12 @@
+import numpy as np
+from LAX_exp.analysis.artiq_conversions import ftw_to_frequency_khz
+from LAX_exp.analysis.processing import findThresholdScikit
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
 from numpy import array, int32, int64, zeros
 from numpy import shape as array_shape
+from scipy.optimize import curve_fit
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -15,14 +19,15 @@ from LAX_exp.system.objects.dds_pulse_shaper import DDSPulseShaper
 from LAX_exp.system.objects.dds_ramper import DDSRamper
 
 
-class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
+
+class CatStateInterferometerScan(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Interferometer Allen Dev
+    Experiment: Cat State Interferometer Scam
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive readout to reduce timing overheads and extend available coherence times.
     """
-    name = 'Cat State Inteferometer Allen Dev'
+    name = 'Cat State Inteferometer Scan'
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
@@ -249,8 +254,14 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                               group=_argstr,
                               tooltip="Phase of tickle pulse (in turns) applied via the urukul dds.")
 
-        self.setattr_argument("freq_tickle_detunings_mode_khz_list",
-                              PYONValue([[-1,1], [-1,1]]),
+        self.setattr_argument("freq_tickle_detunings_mode_khz_list", Scannable(
+                              default=[
+                                  ExplicitScan([0]),
+                                  CenterScan(0, 4, 0.1, randomize=True),
+                                  RangeScan(-10, 10, 50, randomize=True),
+                              ],
+                              global_max = 2000, global_min = -2000,
+                                global_step=0.01, precision=3, scale=1.0),
                               group=_argstr,
                               tooltip="Detuning from secular frequency of tickle pulse (in kHz) applied via the urukul dds.")
 
@@ -311,23 +322,21 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         self._prepare_experiment_cat_default()
         self._prepare_experiment_cat_modes()
         self._prepare_experiment_tickle_default()
-        self._prepare_experiment_tickle_modes()
+        freq_detuning_tickle_ftw_list = self._prepare_experiment_tickle_modes()
         self._prepare_experiment_ion_parameters()
         self._prepare_experiment_ms_gate()
 
         self.phase_dd_phase_shift_pow = self.qubit.turns_to_pow(0.5)
 
-        num_detunings = array_shape(self.freq_tickle_detunings_mode_khz_list)[1]
         num_secular_freqs = len(self.freq_secular_khz_list)
 
         secular_freq_idx_list = range(num_secular_freqs)
-        detuning_idx_list = range(num_detunings)
 
         # create experiment config
         self.config_experiment_list = create_experiment_config(
             # tickle sweeps
             secular_freq_idx_list,
-            detuning_idx_list,
+            freq_detuning_tickle_ftw_list,
             config_type=float, shuffle_config=True
         )
 
@@ -478,12 +487,11 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         for idx in range(len(self.phase_tickle_turns))])
 
 
-        self.freq_tickle_detuning_ftw_list = zeros(array_shape(self.freq_tickle_detunings_mode_khz_list))
+        freq_tickle_detuning_ftw_list = [
+        self.dds_pulse_shaper_tickle_list[0].dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
+        for freq_tickle_detuning_khz in self.freq_tickle_detunings_mode_khz_list]
 
-        for idx in range(len(self.freq_tickle_detunings_mode_khz_list)):
-            modes_detunings_ftw = [self.dds_pulse_shaper_tickle_list[idx].dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
-                                         for freq_tickle_detuning_khz in self.freq_tickle_detunings_mode_khz_list[idx]]
-            self.freq_tickle_detuning_ftw_list[idx,:] = modes_detunings_ftw
+        return freq_tickle_detuning_ftw_list
 
 
     def _prepare_argument_checks(self) -> TNone:
@@ -510,13 +518,6 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                              'the tickle pulses for each mode\n'
                              'Please check the "freq_secular_khz_list", "att_tickle_modes_db", '
                              '"ampl_tickle_modes_pct", and "phase_tickle_turns"parameters.')
-
-        if array_shape(self.freq_tickle_detunings_mode_khz_list)[0] != array_shape(self.ampl_tickle_modes_pct)[0]:
-            raise ValueError('Must provide the same number of secular frequency detuning sets as '
-                             'secular frequencies, amplitudes, and attenuations for '
-                             'the tickle pulses for each mode\n'
-                             'Please check the "freq_tickle_detunings_mode_khz_list" parameter')
-
 
     @property
     def results_shape(self):
@@ -553,10 +554,9 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 '''
                 # extract values from config list
                 idx_freq_secular = int32(config_vals[0])
-                idx_freq_tickle_detuning = int32(config_vals[1])
+                freq_tickle_detuning_ftw = int32(config_vals[1])
 
                 freq_secular_ftw = int32(self.freq_secular_ftw_list[idx_freq_secular])
-                freq_tickle_detuning_ftw = int32(self.freq_tickle_detuning_ftw_list[idx_freq_secular][idx_freq_tickle_detuning])
 
                 self.update_configuration(idx_freq_secular)
                 '''
@@ -956,3 +956,179 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
 
             self.freq_beams_ftw_list[index][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw_list[secular_freq_idx]
             self.freq_beams_ftw_list[index][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw_list[secular_freq_idx]
+
+
+    def analyze_experiment(self):
+        results, num_states = self._process_results()
+
+        try:
+            fit_funcs = self._get_fit_funcs(num_states)
+        except NotImplementedError as e:
+            print("Unable to find fit funcs")
+            fit_funcs = None
+
+        for secular_idx in results.keys():
+            detuning_list = []
+            population_list = []
+            fit_x_list = []
+            fit_y_list = []
+
+            for state in range(num_states):
+                secular = results[secular_idx]['secular']
+                detunings =  results[secular_idx]['detuning']
+                detuning_list.append(detunings)
+                populations = results[secular_idx]['populations'][:, state]
+                population_list.append(populations)
+
+                fit_x = np.linspace(np.min(detunings), np.max(detunings), 1000)
+                fit_x_list.append(fit_x)
+
+                try:
+                    popt, pcov = curve_fit(fit_funcs[state], detunings, populations)
+                    fit_y = fit_funcs[state](fit_x, *popt)
+                    fit_y_list.append(fit_y)
+                except Exception as e:
+                    fit_y_list.append([None] *len(fit_x))
+                    print("Unable to fit functions")
+
+            # format dictionary for applet plotting
+            plotting_results = {'x': detuning_list,
+                                'y': population_list,
+                                'fit_x': fit_x_list,
+                                'fit_y': fit_y_list,
+                                'subplot_titles': f'Cat Linescan {secular:.2f}',
+                                'subplot_x_labels': 'Tickle Detuning (kHz)',
+                                'subplot_y_labels': 'State Population',
+                                'rid': self.scheduler.rid,
+                                'ylims': [[0, 1], [0, 1]],
+                                'legend_labels': self._make_legend_labels(num_states)
+                                }
+
+            self.create_matplotlib_applet(plotting_results,
+                                          name=f'Cat State Interferometer {secular:.2f}',
+                                          group=['plotting', 'motional'],
+                                          num_subplots=1)
+
+    def _make_legend_labels(self, num_states):
+        num_ions = num_states - 1
+        return ["d" * (num_ions - i) + "b" * i for i in range(num_states)]
+
+
+    def _process_results(self):
+        # get results
+        results_tmp = array(self.results)
+        secular_arr = ftw_to_frequency_khz(array(results_tmp[:,0]))
+        counts_arr = array(results_tmp[:, 1])
+        detuning_arr = ftw_to_frequency_khz(array(results_tmp[:, 2]))
+
+        secular_vals = np.unique(secular_arr)
+        detuning_vals = np.unique(detuning_arr)
+
+        # calculate fluorescence detection threshold
+        threshold_list = np.sort(findThresholdScikit(counts_arr))
+        num_states = len(threshold_list) + 1
+
+        results_storer = {}
+
+        for sec_idx, sec in enumerate(secular_vals):
+            mask = secular_arr==sec
+
+            detuning_subset = detuning_arr[mask]
+            counts_subset = counts_arr[mask]
+
+            count_states = np.digitize(counts_subset, threshold_list)
+
+            # group all shots by identical detuning
+            detunings, detuning_idx = np.unique(detuning_subset, return_inverse=True)
+            population_vals = np.zeros((len(np.unique(detunings)), num_states))
+
+            for det_idx in range(len(detunings)):
+                det_mask = det_idx == detuning_idx
+                for state in range(num_states):
+                    population_vals[det_idx, state] = np.mean(count_states[det_mask] == state)
+
+            results_storer[sec_idx] = {
+                "secular": sec,
+                "detuning": detunings,
+                "populations": population_vals,
+            }
+
+        return results_storer, num_states
+
+    def _get_fit_funcs(self, num_states):
+        if num_states == 2:
+            fit_funcs = self._get_single_ion_cat_lineshape()
+        elif num_states == 3 and not self.enable_ms_gate:
+            fit_funcs = self._get_unentangled_two_ion_cat_lineshape()
+        elif num_states == 3 and self.enable_ms_gate:
+            fit_funcs = self._get_entangled_two_ion_cat_lineshape()
+        else:
+            raise NotImplementedError
+        return fit_funcs
+
+
+    def _get_single_ion_cat_lineshape(self):
+        return [self._fit_func_single_ion_d, self._fit_func_single_ion_b]
+
+    def _fit_func_single_ion_b(self, delta, d, alpha, t,t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
+
+    def _fit_func_single_ion_d(self, delta, d, alpha, t,t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
+
+    def _get_unentangled_two_ion_cat_lineshape(self):
+        return [self._fit_func_unentangled_two_ion_dd, self._fit_func_unentangled_two_ion_bd,
+        self._fit_func_unentangled_two_ion_bb]
+
+    def _fit_func_unentangled_two_ion_bb(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 4 + d
+
+    def _fit_func_unentangled_two_ion_dd(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 4 + d
+
+    def _fit_func_unentangled_two_ion_bd(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        fit_bb = (1 - 2 * d) * np.cos(mass_spec_phi) ** 4 + d
+        fit_dd =(1 - 2 * d) * np.sin(mass_spec_phi) ** 4 + d
+        return 1 - fit_bb - fit_dd
+
+    def _get_entangled_two_ion_cat_lineshape(self):
+        return [self._fit_func_entangled_two_ion_dd, self._fit_func_entangled_two_ion_bd,
+                self._fit_func_entangled_two_ion_bb]
+
+    def _fit_func_entangled_two_ion_bb(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
+
+    def _fit_func_entangled_two_ion_dd(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
+
+    def _fit_func_entangled_two_ion_bd(self, delta, d, alpha, t, t0, delta_0, phi):
+        delta_shift = 2 * np.pi * (delta - delta_0)
+        x = delta_shift * t / 2
+        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
+        fit_bb = (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
+        fit_dd = (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
+        return 1 - fit_bb - fit_dd
+
+
+

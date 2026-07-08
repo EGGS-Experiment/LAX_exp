@@ -64,7 +64,7 @@ class MatplotlibPlot(QMainWindow):
 
         # default keys for dictionary passed to applet
         self.default_keys = ['x', 'y', 'z', 'errors', 'fit_x', 'fit_y', 'fit_z', 'subplot_x_labels', 'subplot_y_labels',
-                             'subplot_titles', 'ylims', 'rid']
+                             'subplot_titles', 'ylims', 'rid', 'legend_labels']
 
         if args.projection_3d is None:
             projection_3d = False
@@ -120,6 +120,7 @@ class MatplotlibPlot(QMainWindow):
         titles = self.get_from_dict(results, 'subplot_titles', None)
         ylims = self.get_from_dict(results, 'ylims', None)
         rid = self.get_from_dict(results, 'rid', None)
+        legend_labels = self.get_from_dict(results, 'legend_labels', None)
         textbox_str = self.get_from_dict(results,'textbox_str', None)
 
         # determine number of datasets there are
@@ -161,6 +162,7 @@ class MatplotlibPlot(QMainWindow):
                     raise ValueError("There can only be a single y label for a single subplot")
 
             if z_labels is not None and len(z_labels.shape) != 0:
+                z_labels = z_labels.item()
                 if np.max(z_labels.shape) > 1:
                     raise ValueError("There can only be a single z label for a single subplot")
 
@@ -172,11 +174,9 @@ class MatplotlibPlot(QMainWindow):
                 if np.max(ylims.shape) > 1:
                     raise ValueError("There can only be a single y limit for a single subplot")
 
-            if z_labels is not None:
-                z_labels = z_labels.item()
             self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), z_labels,
                       titles.item(), ylim = ylims, rid=rid, z=zs, fit_z=fit_zs,
-                      textbox_str=textbox_str)
+                      textbox_str=textbox_str, legend_labels = legend_labels)
 
         # check if the variables are multi_dimensional that all variables have the same shape
         elif num_datasets >= 2:
@@ -189,13 +189,14 @@ class MatplotlibPlot(QMainWindow):
                 fit_y = self.get_plot_element(fit_ys, ind)
                 x_label = self.get_plot_element(x_labels, ind)
                 y_label = self.get_plot_element(y_labels, ind)
-                z_label = self.get_plot_element(z_label, ind)
+                z_label = self.get_plot_element(z_labels, ind)
                 title = self.get_plot_element(titles, ind)
                 ylim = self.get_plot_element(ylims, ind)
                 textbox_str = self.get_plot_element(textbox_str, ind)
+                legend_label = self.get_plot_element(legend_labels, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim, ind, rid=rid,
-                          textbox_str=textbox_str)
+                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim =ylim, ind = ind, rid=rid,
+                          textbox_str=textbox_str, legend_label = legend_label)
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.sc.figure.set_constrained_layout(True)
@@ -205,7 +206,8 @@ class MatplotlibPlot(QMainWindow):
 
     def plot(self, x, y, error, fit_x, fit_y, x_label="", y_label="", z_label = "",
              title="", ylim = None, ind=0, rid=None,
-             z=None, fit_z = None, textbox_str = None):
+             z=None, fit_z = None, textbox_str = None,
+             legend_label = None):
         """
         Plot the data in a matplotlib subplots
 
@@ -247,7 +249,7 @@ class MatplotlibPlot(QMainWindow):
         # only plot if a new experiment is run
         if z is None:
             if labels == [] or (rid not in np.int32(np.array(labels))):
-                data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=rid,
+                data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=legend_label,
                                                   markersize = 6)
                 self.data_points_list.append(data_points)
         elif z is not None:
@@ -264,7 +266,9 @@ class MatplotlibPlot(QMainWindow):
             fit_lines = self.axes[ind].plot_wireframe(fit_x, fit_y, fit_z)
             self.fit_lines.append(fit_lines)
         if title is not None:
-            self.axes[ind].set_title(title)
+            self.axes[ind].set_title(f"{title} - {rid}")
+        else:
+            self.axes[ind].set_title(f"{rid}")
         if x_label is not None and hasattr(self.axes[ind], "set_xlabel"):
             self.axes[ind].set_xlabel(x_label)
         if y_label is not None and hasattr(self.axes[ind], "set_ylabel"):
@@ -273,7 +277,7 @@ class MatplotlibPlot(QMainWindow):
             self.axes[ind].set_zlabel(z_label)
         if ylim is not None:
             self.axes[ind].set_ylim(np.min(ylim), np.max(ylim))
-        if hasattr(self.axes[ind], 'text'):
+        if hasattr(self.axes[ind], 'text') and textbox_str is not None:
             # Define the text box properties
             box_properties = dict(
                 boxstyle='round',

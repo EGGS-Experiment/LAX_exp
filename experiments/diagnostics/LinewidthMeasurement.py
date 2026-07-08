@@ -172,9 +172,44 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
     def analyze_experiment(self):
         """
         Process resultant spectrum and attempt to fit.
+
+        Returns:
+            res_final (np.array): background_subtracted counts
         """
         '''COLLATE DATA'''
-        # create data structures for processing
+        res_signal, res_bgr, res_final = self._process_results()
+
+        '''FIT DATA'''
+        fit_x, fit_y, textbox_str = self._fit_results(res_final)
+
+        # format dictionary for applet plotting
+        plotting_results = {'x': results_plotting_x,
+                            'y': results_plotting_y,
+                            'fit_x': fit_x,
+                            'fit_y': fit_y,
+                            'subplot_titles': f'Linewidth Measurement',
+                            'subplot_x_labels': 'AOM Frequency (MHz)',
+                            'subplot_y_labels': 'Signal',
+                            'rid': self.scheduler.rid,
+                            'textbox_str': textbox_str,
+                            }
+
+        self.create_matplotlib_applet(plotting_results,
+                                      name=f';Linewidth Measurement',
+                                      group = ['plotting', 'diagnostics'])
+
+        return res_final
+
+    def _process_results(self):
+        """
+        Process the raw results and convert to useable data
+
+        Returns:
+            A tuple containing:
+                - res_signal (np.array): photon counts with 866 on
+                - res_bgr (np.array): background counts with 866 off
+                - res_final (np.array): final counts (i.e. signal - background)
+        """
         results_tmp = np.array(self.results)[:, :3]
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz
         results_tmp[:, 0] *= 1.e3 / 0xFFFFFFFF
@@ -199,20 +234,34 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         self.set_dataset('res_signal', res_signal)
         self.set_dataset('res_bgr', res_bgr)
 
-        '''FIT DATA'''
+        return res_signal, res_bgr, res_final
+
+
+    def _fit_results(self, res_final):
+        """
+        Fit the linewidth curve with various lineshapes
+
+        Args:
+            res_final (np.array): results
+
+        Returns:
+            A tuple containing:
+                - fit_x (np.array): x values used for fitting
+                - fit_y (np.array): y values used for fitting
+                - textbox_str (string): texted used for textbox in applet plotting
+        """
         results_plotting_x = res_final[:, 0]
         results_plotting_y = res_final[:, 1]
-        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), len(results_plotting_x)*10)
+        fit_x = np.linspace(np.min(results_plotting_x), np.max(results_plotting_x), len(results_plotting_x) * 10)
         try:
-            # fit gaussian, lorentzian, and voigt profiles
-            # todo: fit voigt profile
+            # fit gaussian and lorentzianprofiles
             fitter_gauss = fitGaussian()
             fitter_lorentzian = fitLorentzian()
             fit_gaussian_params, fit_gaussian_err = fitter_gauss.fit(res_final[:, :2])
             fit_lorentzian_params, fit_lorentzian_err = fitter_lorentzian.fit(res_final[:, :2])
-            # fit_voigt_params, fit_voigt_err =               fitVoigt(res_final[:, :2])
             fit_gaussian_fwmh_mhz = np.abs(2 * (2. * fit_gaussian_params[1]) ** -0.5)
-            fit_gaussian_fwmh_mhz_err = np.abs(fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
+            fit_gaussian_fwmh_mhz_err = np.abs(
+                fit_gaussian_fwmh_mhz * (0.5 * fit_gaussian_err[1] / fit_gaussian_params[1]))
 
             # save results to dataset manager for dynamic experiments
             res_dj = [fit_gaussian_params, fit_gaussian_err]
@@ -225,8 +274,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             self.set_dataset('fit_gaussian_err', fit_gaussian_err)
             self.set_dataset('fit_lorentzian_params', fit_lorentzian_params)
             self.set_dataset('fit_lorentzian_err', fit_lorentzian_err)
-            # self.set_dataset('fit_voigt_params',            fit_voigt_params)
-            # # self.set_dataset('fit_voigt_err',               fit_voigt_err)
 
             '''PRINT RESULTS'''
             # print out fitted parameters
@@ -237,9 +284,6 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             print("\t\tLorentzian Fit:")
             print("\t\t\tLinecenter:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[2], fit_lorentzian_err[2]))
             print("\t\t\tFWHM:\t {:.2f} +/- {:.2f} MHz".format(fit_lorentzian_params[1], fit_lorentzian_err[1]))
-            # print("\t\tVoigt Fit:")
-            # print("\t\t\tLinecenter:\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_params[2], fit_gaussian_err[2]))
-            # print("\t\t\tFWHM:\t\t {:.3f} +/- {:.3f} MHz".format(fit_gaussian_fwmh_mhz, fit_gaussian_fwmh_mhz_err))
             fit_y = fitter_gauss.fit_func(fit_x, *fit_gaussian_params)
 
             linecenter_gaussian_mhz = fit_gaussian_params[2]
@@ -247,9 +291,13 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
 
             linewidth_gaussian_mhz = fit_gaussian_fwmh_mhz
             linewidth_gaussian_mhz_err = fit_gaussian_fwmh_mhz_err
+
+            textbox_str = (
+                rf'Linecenter: {linecenter_gaussian_mhz:.2f)} \pm {linecenter_gaussian_mhz_err:.2f} \mathrm{MHz} \n'
+                rf'Linewidth {linewidth_gaussian_mhz,:.2f)} \pm {linewidth_gaussian_mhz_err:.2f} \mathrm{MHz}')
         except Exception as e:
             print("\tUnable to Find Optimal Fit for Linewidth Measurement")
-            fit_y = [None]*len(fit_x)
+            fit_y = [None] * len(fit_x)
 
             linecenter_gaussian_mhz = 'N\\A'
             linecenter_gaussian_mhz_err = 'N\\A'
@@ -257,23 +305,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             linewidth_gaussian_mhz = 'N\\A'
             linewidth_gaussian_mhz_err = 'N\\A'
 
-        textbox_str = (f'Linecenter: {np.round(linecenter_gaussian_mhz,2)} {chr(177)} {np.round(linecenter_gaussian_mhz_err,2)} MHz \n'
-                       f'Linewidth {np.round(linewidth_gaussian_mhz,2)} {chr(177)} {np.round(linewidth_gaussian_mhz_err,2)} MHz')
+            textbox_str = (
+                rf'Linecenter: \mathrm{N / A} \n'
+                rf'Linewidth \mathrm{N / A}')
 
-        # format dictionary for applet plotting
-        plotting_results = {'x': results_plotting_x,
-                            'y': results_plotting_y,
-                            'fit_x': fit_x,
-                            'fit_y': fit_y,
-                            'subplot_titles': f'Linewidth Measurement',
-                            'subplot_x_labels': 'AOM Frequency (MHz)',
-                            'subplot_y_labels': 'Signal',
-                            'rid': self.scheduler.rid,
-                            'textbox_str': textbox_str,
-                            }
-
-        self.create_matplotlib_applet(plotting_results,
-                                      name=f';Linewidth Measurement',
-                                      group = ['plotting', 'diagnostics'])
-
-        return res_final
+        return fit_x, fit_y, textbox_str

@@ -16,14 +16,14 @@ from LAX_exp.system.objects.dds_ramper import DDSRamper
 
 
 
-class CatStateInterferometerTickleMS(LAXExperiment, Experiment):
+class CatStateInterferometer(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Interferometer Tickle MS
+    Experiment: Cat State Interferometer
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive readout to reduce timing overheads and extend available coherence times.
     """
-    name = 'Cat State Inteferometer Tickle MS'
+    name = 'Cat State Inteferometer'
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',

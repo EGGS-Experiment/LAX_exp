@@ -214,6 +214,11 @@ class LaserScan(LAXExperiment, Experiment):
         else:
             print("\tWarning: Could not detect peaks.")
 
+
+        textbox_str = 'Laser Scan Results:'
+        for peak_freq, peak_prob in peak_vals:
+            textbox_str +=f'\n{peak_freq:.4f} MHz'
+
         # get results
         results_plotting = array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
@@ -225,15 +230,11 @@ class LaserScan(LAXExperiment, Experiment):
                             'subplot_x_labels': 'AOM. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
+                            'textbox_str': textbox_str
                             }
 
-
-        self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
-
-        # create applet
-        self.ccb.issue("create_applet", f"Data Plotting",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
-                       ' --num-subplots 1',
-                       group=["plotting", "diagnostics"])
+        self.create_matplotlib_applet(plotting_results,
+                                      name=f'Laser Scan',
+                                      group = ['plotting', 'diagnostics'])
 
         return results_tmp

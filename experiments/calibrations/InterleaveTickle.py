@@ -168,6 +168,7 @@ class SecFreqDriftTracker(LAXExperiment, Experiment):
                                               ram_addr_start=202, num_samples=250,
                                               ampl_max_pct=self.ampl_tickle_pct_list[0],
                                                pulse_shape=self.type_pulse_shape,
+                                               pulse_shape=self.type_pulse_shape,
                                                phase_autoclear = 1)
 
         # run component preparation

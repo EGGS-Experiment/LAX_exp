@@ -296,6 +296,34 @@ class RabiFlopping(LAXExperiment, Experiment):
         """
         Fit rabi flopping data with an exponentially damped sine curve.
         """
+
+        results_tmp = self._process_results()
+        results_plotting_x, results_plotting_y = array(results_tmp).transpose()
+        fit_x, fit_y, textbox_str = self._fit_results(results_tmp)
+
+
+        # format dictionary for applet plotting
+        plotting_results = {'x': results_plotting_x * 1e6,
+                            'y': results_plotting_y,
+                            'fit_x': fit_x * 1e6,
+                            'fit_y': fit_y,
+                            'subplot_titles': f'Rabi Flopping',
+                            'subplot_x_labels': 'Time (us)',
+                            'subplot_y_labels': 'D State Population',
+                            'rid': self.scheduler.rid,
+                            'textbox_str': textbox_str}
+        self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
+
+        self.create_matplotlib_applet(
+            plotting_results,
+            name=f'Rabi Flopping',
+            group=['plotting', 'diagnostics'],
+            num_subplots=1
+        )
+
+        return results_tmp
+
+    def _process_results(self):
         # get results
         results_tmp = array(self.results)
         probability_vals = zeros(len(results_tmp))
@@ -313,6 +341,9 @@ class RabiFlopping(LAXExperiment, Experiment):
         results_tmp = groupBy(results_tmp, column_num=0, reduce_func=mean)
         results_tmp = array([list(results_tmp.keys()), list(results_tmp.values())]).transpose()
 
+        return results_tmp
+
+    def _fit_results(self, results_tmp):
         # fit rabi flopping using damped harmonic oscillator
         results_plotting_x, results_plotting_y = array(results_tmp).transpose()
         fit_x = linspace(min(results_plotting_x), max(results_plotting_x), 1000)
@@ -344,42 +375,22 @@ class RabiFlopping(LAXExperiment, Experiment):
             flop_ampl = fit_params[0]
             flop_ampl_err = fit_err[0]
 
-            time_dec_us = 1/(fit_params[1]/1.e6)
-            time_dec_err_us = (fit_err[1]/1.e6)/(fit_params[1]/1.e6)**2
+            time_dec_us = 1 / (fit_params[1] / 1.e6)
+            time_dec_err_us = (fit_err[1] / 1.e6) / (fit_params[1] / 1.e6) ** 2
 
-            rabi_rate = fit_params[2]/(2*np.pi*kHz)
-            rabi_rate_err = fit_err[2]/ (2*np.pi*kHz)
+            rabi_rate = fit_params[2] / (2 * np.pi * kHz)
+            rabi_rate_err = fit_err[2] / (2 * np.pi * kHz)
 
             newline = "\n"
             textbox_str = (rf'$\mathrm{{A}} = {flop_ampl:.2f} \pm {flop_ampl_err:.3f}$ {newline}'
-                            rf'$\mathrm{{t_{{dec}}}} = {time_dec_us:.2f} \pm {time_dec_err_us:.2f}$ {newline}'
-                rf'$\Omega = 2\pi ({rabi_rate:.1f} \pm {rabi_rate_err:.1f})\ \mathrm{{kHz}}$');
+                           rf'$\mathrm{{t_{{dec}}}} = {time_dec_us:.2f} \pm {time_dec_err_us:.2f}$ {newline}'
+                           rf'$\Omega = 2\pi ({rabi_rate:.1f} \pm {rabi_rate_err:.1f})\ \mathrm{{kHz}}$');
 
         except Exception as e:
             print("\tUnable to Find Fit for Rabi Flopping")
-            fit_y = [None]*len(fit_x)
+            fit_y = [None] * len(fit_x)
 
             textbox_str = r'$2\pi\ \mathrm{N/A}$'
 
-
-        # format dictionary for applet plotting
-        plotting_results = {'x': results_plotting_x * 1e6,
-                            'y': results_plotting_y,
-                            'fit_x': fit_x * 1e6,
-                            'fit_y': fit_y,
-                            'subplot_titles': f'Rabi Flopping',
-                            'subplot_x_labels': 'Time (us)',
-                            'subplot_y_labels': 'D State Population',
-                            'rid': self.scheduler.rid,
-                            'textbox_str': textbox_str}
-        self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
-
-        self.create_matplotlib_applet(
-            plotting_results,
-            name=f'Rabi Flopping',
-            group=['plotting', 'diagnostics'],
-            num_subplots=1
-        )
-
-        return results_tmp
+        return fit_x, fit_y, textbox_str
 
