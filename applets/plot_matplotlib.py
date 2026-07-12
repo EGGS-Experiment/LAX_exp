@@ -90,6 +90,7 @@ class MatplotlibPlot(QMainWindow):
         return axes
 
     def update_applet(self, args):
+
         """
         Process run everytime dataset is modified and produces and updates the plot
 
@@ -121,7 +122,7 @@ class MatplotlibPlot(QMainWindow):
         ylims = self.get_from_dict(results, 'ylims', None)
         rid = self.get_from_dict(results, 'rid', None)
         legend_labels = self.get_from_dict(results, 'legend_labels', None)
-        textbox_str = self.get_from_dict(results,'textbox_str', None)
+        textbox_strs = self.get_from_dict(results,'textbox_strs', None)
 
         # determine number of datasets there are
         if zs is None:
@@ -137,66 +138,75 @@ class MatplotlibPlot(QMainWindow):
 
 
         # ensure number of datasets is equal to number of subplots
-        if num_datasets != args.num_subplots:
-            raise ValueError("Number of datasets does not match number of subplots")
+        if args.num_subplots not in (1, num_datasets):
+            raise ValueError(
+                "num_subplots must be either 1 or equal to the number of datasets"
+            )
 
-        if num_datasets == 1:
-            # ensure all variables are the same size as x or are NoneType
-            if xs is not None and len(xs.shape) != 0:
-                if len(xs) != len(ys):
-                    raise ValueError("x must have the same length as y")
+        if args.num_subplots == 1:
+            ax_ind = 0
+            if len(ys.shape) == 1:
+                self.plot(
+                    xs, ys, errors, fit_xs, fit_ys,
+                    x_label = x_labels,
+                    y_label=y_labels,
+                    title=titles,
+                    ylim=ylims,
+                    ind=ax_ind,
+                    rid=rid,
+                    legend_label=legend_labels,
+                )
+            else:
 
-            if errors is not None and len(errors.shape) != 0:
-                if len(errors) != len(ys):
-                    raise ValueError("error must have the same length as y")
+                for ind, y in enumerate(ys):
+                    x = self.get_plot_element(xs, ind)
+                    error = self.get_plot_element(errors, ind)
+                    fit_x = self.get_plot_element(fit_xs, ind)
+                    fit_y = self.get_plot_element(fit_ys, ind)
+                    legend_label = self.get_plot_element(legend_labels, ind)
+                    textbox_str = self.get_plot_element(textbox_strs, ind)
 
-            if fit_xs is not None and len(fit_xs.shape) != 0:
-                if len(fit_xs) != len(fit_ys):
-                    raise ValueError("fit_x must have the same length as fit_y")
+                    x_label = x_labels.item() if x_labels is not None and x_labels.shape == () else x_labels
+                    y_label = y_labels.item() if y_labels is not None and y_labels.shape == () else y_labels
+                    title = titles.item() if titles is not None and titles.shape == () else titles
+                    ylim = ylims
 
-            if x_labels is not None and len(x_labels.shape) != 0:
-                if np.max(x_labels.shape) > 1:
-                    raise ValueError("There can only be a single x label for a single subplot")
-            if y_labels is not None and len(y_labels.shape) != 0:
-                if np.max(y_labels.shape) > 1:
-                    raise ValueError("There can only be a single y label for a single subplot")
+                    self.plot(
+                        x, y, error, fit_x, fit_y,
+                        x_label = x_label,
+                        y_label=y_label,
+                        title=title,
+                        ylim=ylim,
+                        ind=ax_ind,
+                        rid=rid,
+                        legend_label=legend_label,
+                        textbox_str = textbox_str
+                    )
 
-            if z_labels is not None and len(z_labels.shape) != 0:
-                z_labels = z_labels.item()
-                if np.max(z_labels.shape) > 1:
-                    raise ValueError("There can only be a single z label for a single subplot")
-
-            if titles is not None and len(titles.shape) != 0:
-                if np.max(titles.shape) > 1:
-                    raise ValueError("There can only be a single title for a single subplot")
-
-            if ylims is not None and len(ylims.shape) != 0:
-                if np.max(ylims.shape) > 1:
-                    raise ValueError("There can only be a single y limit for a single subplot")
-
-            self.plot(xs, ys, errors, fit_xs, fit_ys, x_labels.item(), y_labels.item(), z_labels,
-                      titles.item(), ylim = ylims, rid=rid, z=zs, fit_z=fit_zs,
-                      textbox_str=textbox_str, legend_labels = legend_labels)
-
-        # check if the variables are multi_dimensional that all variables have the same shape
-        elif num_datasets >= 2:
-            # enumerate through the datasets in y
+        else:
             for ind, y in enumerate(ys):
-                # if a multidimensional array grab the necessary dataset or if one-dimensional just return the variable
                 x = self.get_plot_element(xs, ind)
                 error = self.get_plot_element(errors, ind)
                 fit_x = self.get_plot_element(fit_xs, ind)
                 fit_y = self.get_plot_element(fit_ys, ind)
                 x_label = self.get_plot_element(x_labels, ind)
                 y_label = self.get_plot_element(y_labels, ind)
-                z_label = self.get_plot_element(z_labels, ind)
                 title = self.get_plot_element(titles, ind)
                 ylim = self.get_plot_element(ylims, ind)
-                textbox_str = self.get_plot_element(textbox_str, ind)
                 legend_label = self.get_plot_element(legend_labels, ind)
+                textbox_str = self.get_plot_element(textbox_strs, ind)
 
-                self.plot(x, y, error, fit_x, fit_y, x_label, y_label, title, ylim =ylim, ind = ind, rid=rid,
-                          textbox_str=textbox_str, legend_label = legend_label)
+                self.plot(
+                    x, y, error, fit_x, fit_y,
+                    x_label=x_label,
+                    y_label =y_label,
+                    title = title,
+                    ylim=ylim,
+                    ind=ind,
+                    rid=rid,
+                    legend_label=legend_label,
+                    textbox_str = textbox_str
+                )
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.sc.figure.set_constrained_layout(True)
@@ -248,27 +258,41 @@ class MatplotlibPlot(QMainWindow):
 
         # only plot if a new experiment is run
         if z is None:
-            if labels == [] or (rid not in np.int32(np.array(labels))):
-                data_points = self.axes[ind].errorbar(x, y, error, marker="o", linestyle="-", label=legend_label,
+            x_list = [x]
+            y_list = [y]
+            error_list = [error]
+            for data_ind, xx in enumerate(x_list):
+                data_points = self.axes[ind].errorbar(xx, y_list[data_ind], error_list[data_ind], marker="o", linestyle="-", label=legend_label,
                                                   markersize = 6)
                 self.data_points_list.append(data_points)
         elif z is not None:
-            if labels == [] or (rid not in np.int32(np.array(labels))):
-                data_points = self.axes[ind].scatter(x, y, z, marker="o", label=rid)
+            x_list = [x]
+            y_list = [y]
+            z_list = [z]
+            for data_ind, xx in enumerate(x_list):
+                data_points = self.axes[ind].scatter(xx, y_list[data_ind], z_list[data_ind], marker="o", label=rid)
                 self.data_points_list.append(data_points)
 
 
         # plot fit to data and set titles and labels
         if fit_y is not None and fit_x is not None and fit_z is None:
-            fit_lines = self.axes[ind].plot(fit_x, fit_y)
-            self.fit_lines.append(fit_lines)
+            fit_x_list = [fit_x]
+            fit_y_list = [fit_y]
+            for fit_ind, f_x in enumerate(fit_x_list):
+                fit_lines = self.axes[ind].plot(f_x, fit_y_list[fit_ind])
+                self.fit_lines.append(fit_lines)
         elif fit_y is not None and fit_x is not None and fit_z is not None:
-            fit_lines = self.axes[ind].plot_wireframe(fit_x, fit_y, fit_z)
-            self.fit_lines.append(fit_lines)
+            fit_x_list = [fit_x]
+            fit_y_list = [fit_y]
+            fit_z_list = [fit_z]
+            for fit_ind, f_x in enumerate(fit_x_list):
+                fit_lines = self.axes[ind].plot_wireframe(f_x, fit_y_list[fit_ind], fit_z_list[fit_ind])
+                self.fit_lines.append(fit_lines)
         if title is not None:
-            self.axes[ind].set_title(f"{title} - {rid}")
+            self.axes[ind].set_title(f"{title} \n "
+                                     f"RID: {rid}")
         else:
-            self.axes[ind].set_title(f"{rid}")
+            self.axes[ind].set_title(f"RID: {rid}")
         if x_label is not None and hasattr(self.axes[ind], "set_xlabel"):
             self.axes[ind].set_xlabel(x_label)
         if y_label is not None and hasattr(self.axes[ind], "set_ylabel"):
@@ -295,7 +319,8 @@ class MatplotlibPlot(QMainWindow):
         # set xticks by removing Nones from list
         x_filtered = [x_ele for x_ele in x if x_ele is not None]
         # self.axes[ind].set_xticks(np.round(np.linspace(np.min(x_filtered), np.max(x_filtered), 5),3))
-        self.axes[ind].legend()
+        if legend_label is not None:
+            self.axes[ind].legend()
         self.axes[ind].grid(True)
 
     """VERIFICATION AND HELPER FUNCTIONS"""
@@ -411,6 +436,7 @@ class MatplotlibPlot(QMainWindow):
 
         self.sc.draw_idle()
 
+
     def closeEvent(self, event):
         """
         Delete this applet's run-specific plotting dataset when the window closes.
@@ -424,8 +450,6 @@ class MatplotlibPlot(QMainWindow):
                 self.dataset_db.close_rpc()
         except Exception as e:
             self.logger.warning("Dataset cleanup failed: %s", repr(e))
-
-        super().closeEvent(event)
 
 
 def main():

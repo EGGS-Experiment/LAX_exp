@@ -83,4 +83,3 @@ class LaserScanMulti(LaserScan.LaserScan):
 
         # call parent prepare_experiment
         super().prepare_experiment()
-

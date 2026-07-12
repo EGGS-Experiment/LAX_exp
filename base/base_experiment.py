@@ -687,7 +687,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             '$python -m LAX_exp.applets.plot_matplotlib {:s}'
             ' --num-subplots {:d}'
             ' --applet-name "\{:s}\"'
-            ' --applet-group {:s}'
+            ' {:s}'
             ' --big-applet'
             ' --delete-on-close'
         ).format(dataset_key, num_subplots, applet_name, group_args)

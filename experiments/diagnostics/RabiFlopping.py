@@ -311,7 +311,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                             'subplot_x_labels': 'Time (us)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
-                            'textbox_str': textbox_str}
+                            'textbox_strs': [textbox_str]}
         self.set_dataset('temp.plotting.results_rabi_flopping', pyon.encode(plotting_results), broadcast=True)
 
         self.create_matplotlib_applet(

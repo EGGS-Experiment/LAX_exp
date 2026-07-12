@@ -323,13 +323,22 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         secular_freq_idx_list = range(num_secular_freqs)
         detuning_idx_list = range(num_detunings)
 
-        # create experiment config
-        self.config_experiment_list = create_experiment_config(
-            # tickle sweeps
-            secular_freq_idx_list,
-            detuning_idx_list,
-            config_type=float, shuffle_config=True
-        )
+        # # create experiment config
+        # self.config_experiment_list = create_experiment_config(
+        #     # tickle sweeps
+        #     secular_freq_idx_list,
+        #     detuning_idx_list,
+        #     config_type=float, shuffle_config=True
+        # )
+
+        # determininstic pairing of secular frequencies and detunings for uniform sample time
+        config_list = []
+
+        for det_idx in detuning_idx_list:
+            for sec_idx in secular_freq_idx_list:
+                config_list.append([sec_idx, det_idx])
+
+        self.config_experiment_list = array(config_list)
 
         # create index list for later use
         self.indices = [self.index_729_cat1, self.index_729_cat2, self.index_729_ms]

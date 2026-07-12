@@ -137,7 +137,7 @@ class SidebandCooling(LAXExperiment, Experiment):
                             'subplot_titles': ['RSB', 'BSB'],
                             'rid': self.scheduler.rid,
                             'ylims': [[0,1], [0,1]],
-                            'textbox_str': [textbox_str, '']
+                            'textbox_strs': [textbox_str, '']
                             }
 
         self.create_matplotlib_applet(plotting_results,

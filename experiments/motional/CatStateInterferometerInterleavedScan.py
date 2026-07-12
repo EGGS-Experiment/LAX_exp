@@ -18,11 +18,12 @@ from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.dds_pulse_shaper import DDSPulseShaper
 from LAX_exp.system.objects.dds_ramper import DDSRamper
 
+from LAX_exp.analysis.anaylyzers.cat_inferometer_analyzer import CatInterferometerAnalyzer
 
 
-class CatStateInterferometerScan(LAXExperiment, Experiment):
+class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Interferometer Scam
+    Experiment: Cat State Interferometer Scan
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive readout to reduce timing overheads and extend available coherence times.
@@ -376,39 +377,62 @@ class CatStateInterferometerScan(LAXExperiment, Experiment):
         """
         Build Pulse Shaper
         """
-        self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
-                                       num_samples=200, # number of points in the ramp
-                                       ramp_dest=2, # amplitude ramp
-                                       data_high=self.ampls_ms_pct[0] / 100., # max value of the ramp
-                                       data_low=0) # min value of the ramp
 
-        self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
-                                          ramp_dest=2, # ampltiude ramp
-                                          data_high=self.ampls_ms_pct[1] / 100., # max value of the ramp
-                                          data_low=0) # min value of the ramp
+        if self.enable_ms_gate:
+            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                           num_samples=200, # number of points in the ramp
+                                           ramp_dest=2, # amplitude ramp
+                                           data_high=self.ampls_ms_pct[0] / 100., # max value of the ramp
+                                           data_low=0) # min value of the ramp
 
-        self.time_ms_gate_mu = self.core.seconds_to_mu(self.time_ms_gate_us/2*us)
-        self.freq_ms_mode_ftw = self.qubit.frequency_to_ftw(self.freq_ms_mode_khz * kHz)
-        self.freq_ms_gate_secular_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_ms_secular_detuning_khz * kHz)
-        self.phase_ms_pow = array(
-            [self.qubit.turns_to_pow(phase_ms_turns) for phase_ms_turns in self.phase_ms_turns])
-        self.phase_ms_dynamical_decoupling_pow_list = self.qubit.singlepass0.turns_to_pow(
-            self.phase_ms_dynamical_decoupling_turns)
+            self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
+                                              ramp_dest=2, # ampltiude ramp
+                                              data_high=self.ampls_ms_pct[1] / 100., # max value of the ramp
+                                              data_low=0) # min value of the ramp
+
+            self.time_ms_gate_mu = self.core.seconds_to_mu(self.time_ms_gate_us/2*us)
+            self.freq_ms_mode_ftw = self.qubit.frequency_to_ftw(self.freq_ms_mode_khz * kHz)
+            self.freq_ms_gate_secular_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_ms_secular_detuning_khz * kHz)
+            self.phase_ms_pow = array(
+                [self.qubit.turns_to_pow(phase_ms_turns) for phase_ms_turns in self.phase_ms_turns])
+
+            self.phase_ms_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_ms_dynamical_decoupling_turns)
+
+            self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_ms_pct/100.) for ampl_ms_pct in self.ampls_ms_pct])
+
+            self.att_reg_ms_gate = 0x00000000 | (
+                    (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
+                    (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                    (att_to_mu(self.atts_ms_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                    (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
+            )
 
 
-        self.phase_ms_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_ms_dynamical_decoupling_turns)
+        else:
+            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                           num_samples=200, # number of points in the ramp
+                                           ramp_dest=2, # amplitude ramp
+                                           data_high=0,
+                                           data_low=0) # min value of the ramp
 
-        self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_ms_pct/100.) for ampl_ms_pct in self.ampls_ms_pct])
+            self.time_ms_gate_mu = 0
+            self.freq_ms_mode_ftw =0
+            self.freq_ms_gate_secular_detuning_ftw = 0
+            self.phase_ms_pow = array(
+                [0., 0.])
+            self.ampls_ms_asf = array([0,0])
+
+            self.phase_ms_dynamical_decoupling_pow = 0
 
 
-        self.phase_ms_update_dir = array([1, 1], dtype=int32)
+            self.att_reg_ms_gate = 0x00000000 | (
+                    (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
+                    (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                    (att_to_mu(31.5 * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                    (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
+            )
 
-        self.att_reg_ms_gate = 0x00000000 | (
-                (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
-                (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_ms_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
-        )
+        self.phase_ms_update_dir = array([1, -1], dtype=int32)
 
     def _prepare_experiment_dynamical_decoupling(self):
         """
@@ -434,7 +458,7 @@ class CatStateInterferometerScan(LAXExperiment, Experiment):
         self.phase_cat_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_cat_dynamical_decoupling_turns)
 
         # specify phase update array based on user arguments
-        self.phase_cat_update_dir = array([1, -1], dtype=int32)
+        self.phase_cat_update_dir = array([1, 1], dtype=int32)
 
 
     def _prepare_experiment_cat_modes(self):
@@ -557,6 +581,9 @@ class CatStateInterferometerScan(LAXExperiment, Experiment):
                 freq_tickle_detuning_ftw = int32(config_vals[1])
 
                 freq_secular_ftw = int32(self.freq_secular_ftw_list[idx_freq_secular])
+
+                # print(freq_secular_ftw)
+                self.core.break_realtime()
 
                 self.update_configuration(idx_freq_secular)
                 '''
@@ -959,176 +986,97 @@ class CatStateInterferometerScan(LAXExperiment, Experiment):
 
 
     def analyze_experiment(self):
-        results, num_states = self._process_results()
+        results_tmp = array(self.results)
+        cat_interferometer_analyzer = CatInterferometerAnalyzer()
+        raw_data, fitting_results, num_states = cat_interferometer_analyzer.analyze_interferometer_experiment(
+            results_tmp,
+            detuning_idx=2,
+            time_tickle_us=self.time_tickle_us,
+            enable_ms_gate=self.enable_ms_gate,
+            time_cat_bichromatic_us=self.time_cat_bichromatic_us,
+            time_ms_gate_us=self.time_ms_gate_us,
+            secular_idx = 0,
+            use_secular = True
+        )
 
-        try:
-            fit_funcs = self._get_fit_funcs(num_states)
-        except NotImplementedError as e:
-            print("Unable to find fit funcs")
-            fit_funcs = None
+        for sec_idx in raw_data.keys():
 
-        for secular_idx in results.keys():
-            detuning_list = []
-            population_list = []
-            fit_x_list = []
-            fit_y_list = []
+            raw_data_entry = raw_data[sec_idx]
+            fitting_results_entry = fitting_results[sec_idx]
 
-            for state in range(num_states):
-                secular = results[secular_idx]['secular']
-                detunings =  results[secular_idx]['detuning']
-                detuning_list.append(detunings)
-                populations = results[secular_idx]['populations'][:, state]
-                population_list.append(populations)
+            # format returned values
+            detuning_list = raw_data_entry['x']
+            population_vals = raw_data_entry['y']
+            population_errs = raw_data_entry['yerr']
+            legend_labels = raw_data_entry['legend_labels']
+            secular = raw_data_entry['secular']
 
-                fit_x = np.linspace(np.min(detunings), np.max(detunings), 1000)
-                fit_x_list.append(fit_x)
+            fit_x_list = fitting_results_entry['fit_x']
+            fit_y_list = fitting_results_entry['fit_y']
+            popt = fitting_results_entry['popt']
+            pcov = fitting_results_entry['pcov']
 
-                try:
-                    popt, pcov = curve_fit(fit_funcs[state], detunings, populations)
-                    fit_y = fit_funcs[state](fit_x, *popt)
-                    fit_y_list.append(fit_y)
-                except Exception as e:
-                    fit_y_list.append([None] *len(fit_x))
-                    print("Unable to fit functions")
+            # format string for textbox
+            contrast_loss = popt[0]
+            alpha = popt[1]
+            detuning = popt[4]
+            phi = popt[5]
+            newline = '\n'
 
-            # format dictionary for applet plotting
+            textbox_str_cat_int = (rf'$\alpha * \gamma$ : {alpha:.2f} {newline}'
+                           rf'd: {contrast_loss:.2f} {newline}'
+                           rf'$\phi$ : {phi:.2f}')
+
+            # format string for fisher information
+            fisher_info = fit_y_list[-1]
+            fit_x = fit_x_list[0, :]
+            idx_positive_detunings = np.where(fit_x > 0)[0]
+            positive_fit_detunings = fit_x[idx_positive_detunings]
+            idx_negative_detunings = np.where(fit_x < 0)[0]
+            negative_fit_detunings = fit_x[idx_negative_detunings]
+            fisher_info_positive_detunings = fisher_info[idx_positive_detunings]
+            best_fisher_info_positive_detunings = np.max(fisher_info_positive_detunings)
+            best_positive_detuning = positive_fit_detunings[
+                np.argmax(fisher_info_positive_detunings)
+            ]
+
+            fisher_info_negative_detunings = fisher_info[idx_negative_detunings]
+            best_fisher_info_negative_detunings = np.max(fisher_info_negative_detunings)
+            best_negative_detuning = negative_fit_detunings[
+                np.argmax(fisher_info_negative_detunings)
+            ]
+
+            print((f'For negative detunings the FI has a maximum value of '
+                   f'{best_fisher_info_negative_detunings:.2f} at '
+                   f'{best_negative_detuning:.2f} kHz \n'
+                   f'For positive detunings the FI has a maximum value of '
+                   f'{best_fisher_info_positive_detunings:.2f} at '
+                   f'{best_positive_detuning:.2f} kHz \n'))
+
+            textbox_str_fi = (f'Neg. Det. FI: '
+                              f'{best_fisher_info_negative_detunings:.2f} at '
+                              f'{best_negative_detuning:.2f} kHz \n'
+                              f'Pos. Det. FI: '
+                              f'{best_fisher_info_positive_detunings:.2f} at '
+                              f'{best_positive_detuning:.2f} kHz \n')
+
             plotting_results = {'x': detuning_list,
-                                'y': population_list,
+                                'y': population_vals,
+                                'error': population_errs,
                                 'fit_x': fit_x_list,
                                 'fit_y': fit_y_list,
-                                'subplot_titles': f'Cat Linescan {secular:.2f}',
+                                'legend_labels': legend_labels,
+                                'subplot_titles': f'Cat Int. \n'
+                                                  f' Sec: {secular:.2f} kHz',
                                 'subplot_x_labels': 'Tickle Detuning (kHz)',
-                                'subplot_y_labels': 'State Population',
+                                'subplot_y_labels': ['State Population', 'State Poulation', 'FI'],
                                 'rid': self.scheduler.rid,
-                                'ylims': [[0, 1], [0, 1]],
-                                'legend_labels': self._make_legend_labels(num_states)
+                                 'textbox_strs': [textbox_str_cat_int] + [None] * (num_states -1) + [textbox_str_fi],
                                 }
 
             self.create_matplotlib_applet(plotting_results,
-                                          name=f'Cat State Interferometer {secular:.2f}',
+                                          name=f'Cat Interferometer - Sec: {secular:.2f} kHz',
                                           group=['plotting', 'motional'],
-                                          num_subplots=1)
-
-    def _make_legend_labels(self, num_states):
-        num_ions = num_states - 1
-        return ["d" * (num_ions - i) + "b" * i for i in range(num_states)]
-
-
-    def _process_results(self):
-        # get results
-        results_tmp = array(self.results)
-        secular_arr = ftw_to_frequency_khz(array(results_tmp[:,0]))
-        counts_arr = array(results_tmp[:, 1])
-        detuning_arr = ftw_to_frequency_khz(array(results_tmp[:, 2]))
-
-        secular_vals = np.unique(secular_arr)
-        detuning_vals = np.unique(detuning_arr)
-
-        # calculate fluorescence detection threshold
-        threshold_list = np.sort(findThresholdScikit(counts_arr))
-        num_states = len(threshold_list) + 1
-
-        results_storer = {}
-
-        for sec_idx, sec in enumerate(secular_vals):
-            mask = secular_arr==sec
-
-            detuning_subset = detuning_arr[mask]
-            counts_subset = counts_arr[mask]
-
-            count_states = np.digitize(counts_subset, threshold_list)
-
-            # group all shots by identical detuning
-            detunings, detuning_idx = np.unique(detuning_subset, return_inverse=True)
-            population_vals = np.zeros((len(np.unique(detunings)), num_states))
-
-            for det_idx in range(len(detunings)):
-                det_mask = det_idx == detuning_idx
-                for state in range(num_states):
-                    population_vals[det_idx, state] = np.mean(count_states[det_mask] == state)
-
-            results_storer[sec_idx] = {
-                "secular": sec,
-                "detuning": detunings,
-                "populations": population_vals,
-            }
-
-        return results_storer, num_states
-
-    def _get_fit_funcs(self, num_states):
-        if num_states == 2:
-            fit_funcs = self._get_single_ion_cat_lineshape()
-        elif num_states == 3 and not self.enable_ms_gate:
-            fit_funcs = self._get_unentangled_two_ion_cat_lineshape()
-        elif num_states == 3 and self.enable_ms_gate:
-            fit_funcs = self._get_entangled_two_ion_cat_lineshape()
-        else:
-            raise NotImplementedError
-        return fit_funcs
-
-
-    def _get_single_ion_cat_lineshape(self):
-        return [self._fit_func_single_ion_d, self._fit_func_single_ion_b]
-
-    def _fit_func_single_ion_b(self, delta, d, alpha, t,t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
-
-    def _fit_func_single_ion_d(self, delta, d, alpha, t,t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
-
-    def _get_unentangled_two_ion_cat_lineshape(self):
-        return [self._fit_func_unentangled_two_ion_dd, self._fit_func_unentangled_two_ion_bd,
-        self._fit_func_unentangled_two_ion_bb]
-
-    def _fit_func_unentangled_two_ion_bb(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 4 + d
-
-    def _fit_func_unentangled_two_ion_dd(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 4 + d
-
-    def _fit_func_unentangled_two_ion_bd(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 2 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        fit_bb = (1 - 2 * d) * np.cos(mass_spec_phi) ** 4 + d
-        fit_dd =(1 - 2 * d) * np.sin(mass_spec_phi) ** 4 + d
-        return 1 - fit_bb - fit_dd
-
-    def _get_entangled_two_ion_cat_lineshape(self):
-        return [self._fit_func_entangled_two_ion_dd, self._fit_func_entangled_two_ion_bd,
-                self._fit_func_entangled_two_ion_bb]
-
-    def _fit_func_entangled_two_ion_bb(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
-
-    def _fit_func_entangled_two_ion_dd(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        return (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
-
-    def _fit_func_entangled_two_ion_bd(self, delta, d, alpha, t, t0, delta_0, phi):
-        delta_shift = 2 * np.pi * (delta - delta_0)
-        x = delta_shift * t / 2
-        mass_spec_phi = 4 * alpha * np.sin(x) / (x + 1e-12) * np.sin(x + delta_shift * t0 - phi)
-        fit_bb = (1 - 2 * d) * np.cos(mass_spec_phi) ** 2 + d
-        fit_dd = (1 - 2 * d) * np.sin(mass_spec_phi) ** 2 + d
-        return 1 - fit_bb - fit_dd
-
+                                          num_subplots=num_states + 1)
 
 

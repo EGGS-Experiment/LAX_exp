@@ -191,7 +191,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                             'subplot_x_labels': 'AOM Frequency (MHz)',
                             'subplot_y_labels': 'Signal',
                             'rid': self.scheduler.rid,
-                            'textbox_str': textbox_str,
+                            'textbox_strs': [textbox_str],
                             }
 
         self.create_matplotlib_applet(plotting_results,

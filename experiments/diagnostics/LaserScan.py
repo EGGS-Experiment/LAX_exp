@@ -128,7 +128,7 @@ class LaserScan(LAXExperiment, Experiment):
         delay_mu(10000)
 
         # record subsequences onto DMA
-        self.initialize_subsequence.record_dma()
+        # self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
         # set up qubit pulse
@@ -139,6 +139,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
+
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
@@ -164,7 +165,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 ### MAIN SHOT ###
                 # initialize ion in S-1/2 state
-                self.initialize_subsequence.run_dma()
+                self.initialize_subsequence.initialize_with_collison_check()
 
                 # fire spectroscopy pulse
                 if self.enable_pulseshaping:
@@ -230,11 +231,11 @@ class LaserScan(LAXExperiment, Experiment):
                             'subplot_x_labels': 'AOM. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
-                            'textbox_str': textbox_str
+                            'textbox_strs': [textbox_str]
                             }
 
         self.create_matplotlib_applet(plotting_results,
                                       name=f'Laser Scan',
-                                      group = ['plotting', 'diagnostics'])
+                                      group = ['plotting', 'diagnostics'],)
 
         return results_tmp
