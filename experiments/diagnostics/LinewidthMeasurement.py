@@ -294,9 +294,11 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             linewidth_gaussian_mhz = fit_gaussian_fwmh_mhz
             linewidth_gaussian_mhz_err = fit_gaussian_fwmh_mhz_err
 
+            newline = '\n'
             textbox_str = (
-                rf'Linecenter: {linecenter_gaussian_mhz:.2f)} \pm {linecenter_gaussian_mhz_err:.2f} \mathrm{MHz} \n'
-                rf'Linewidth {linewidth_gaussian_mhz,:.2f)} \pm {linewidth_gaussian_mhz_err:.2f} \mathrm{MHz}')
+                rf'Linecenter: ${linecenter_gaussian_mhz:.2f} \pm {linecenter_gaussian_mhz_err:.2f} \mathrm{{MHz}}$ {newline}'
+                rf'Linewidth: ${linewidth_gaussian_mhz:.2f} \pm {linewidth_gaussian_mhz_err:.2f} \mathrm{{MHz}}$')
+
         except Exception as e:
             print("\tUnable to Find Optimal Fit for Linewidth Measurement")
             fit_y = [None] * len(fit_x)
