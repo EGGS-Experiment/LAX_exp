@@ -181,9 +181,9 @@ class SidebandCooling(LAXExperiment, Experiment):
             fit_bsb_err_mhz = float(fit_err_bsb[1]) / 2.
 
             newline = '\n'
-            textbox_str = (rf'$\overline{{n}} = {phonon_n:.2f} \pm {phonon_err:.2f}$ {newline}'
-                           rf'$\mathrm{{RSB}}: {fit_rsb_mhz:.2f} \pm {fit_rsb_err_mhz:.2f} \mathrm{{MHz}}${newline}'
-                           rf'$\mathrm{{BSB}}: {fit_bsb_mhz:.2f} \pm {fit_bsb_err_mhz:.2f} \mathrm{{MHz}}${newline}')
+            textbox_str = (rf'$\overline{{n}} = {phonon_n:.2f} \pm {phonon_err:.4f}$ {newline}'
+                           rf'$\mathrm{{RSB}}: {fit_rsb_mhz:.4f} \pm {fit_rsb_err_mhz:.4f} \mathrm{{MHz}}${newline}'
+                           rf'$\mathrm{{BSB}}: {fit_bsb_mhz:.4f} \pm {fit_bsb_err_mhz:.4f} \mathrm{{MHz}}${newline}')
 
             # save results to hdf5 as a dataset
             self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
