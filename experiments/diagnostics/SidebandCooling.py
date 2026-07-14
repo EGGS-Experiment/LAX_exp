@@ -112,18 +112,13 @@ class SidebandCooling(LAXExperiment, Experiment):
         """
         # create data structures for processing
         results_tmp =       np.array(self.results)
-        probability_vals =  np.zeros(len(results_tmp))
-        counts_arr =        np.array(results_tmp[:, 1])
-        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
-        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
-        results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
 
         results_rsb, results_bsb = self._process_results(results_tmp)
+        time_readout_us =   self.sidebandreadout_subsequence.time_sideband_readout_us
         # split results into x and y and red and blue sideband
         results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
         results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
-        fit_x_rsb, fit_x_bsb, fit_y_bsb, fit_y_bsb, textbox_str = self._fit_results(self,
-                                                                                    results_rsb,
+        fit_x_rsb, fit_x_bsb, fit_y_rsb, fit_y_bsb, textbox_str = self._fit_results(results_rsb,
                                                                                     results_bsb,
                                                                                     time_readout_us)
 
@@ -208,9 +203,14 @@ class SidebandCooling(LAXExperiment, Experiment):
             fit_y_rsb = [None]*len(fit_x_rsb)
             fit_y_bsb = [None]*len(fit_x_bsb)
 
-        return fit_x_rsb, fit_x_bsb, fit_y_bsb, fit_y_bsb, textbox_str
+        return fit_x_rsb, fit_x_bsb, fit_y_rsb, fit_y_bsb, textbox_str
 
     def _process_results(self, results_tmp):
+
+        probability_vals =  np.zeros(len(results_tmp))
+        counts_arr =        np.array(results_tmp[:, 1])
+        # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
+        results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
         # calculate fluorescence detection threshold
         threshold_list = findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:

@@ -160,7 +160,8 @@ class MatplotlibPlot(QMainWindow):
                     ylim=ylims,
                     ind=ax_ind,
                     rid=rid,
-                    legend_label=legend_labels
+                    legend_label=legend_labels,
+                    textbox_str = textbox_strs[0]
                 )
 
             elif len(ys.shape) == 1:
@@ -177,6 +178,7 @@ class MatplotlibPlot(QMainWindow):
                     ind=ax_ind,
                     rid=rid,
                     legend_label=legend_labels,
+                    textbox_str = textbox_strs[0]
                 )
             else:
                 for ind, y in enumerate(ys):
