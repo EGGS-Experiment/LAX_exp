@@ -826,7 +826,6 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         self.qubit.on()
         self.dds_ramper_ms.run_ramp_all_dds()
         delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
-        self.dds_ramper_ms.run_ramp_all_dds()
 
         '''FLAT TOP PORITION OF PULSE'''
         if self.enable_dynamical_decoupling:

@@ -120,7 +120,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.setattr_device('dds_dipole')
         self.setattr_device('trigger_line')
 
-
         # set build arguments
         self._build_arguments_ion_parameters()
         self._build_arguments_dynamical_decoupling()
@@ -990,7 +989,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     Parity Pulse
                     '''
                     if self.enable_parity_pulse:
-                        self.pulse_parity(phase_parity_pow)
+                        self.pulse_parity(phase_parity_pow,
+                                          phase_track = True)
 
                     '''
                     CAT #1
@@ -1151,7 +1151,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     phase_ms_pow,
                                     phase_parity_pow)
 
-
                 # check termination more frequently in case reps are low
                 if _loop_iter % 100 == 0:
                     self.check_termination()
@@ -1159,7 +1158,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
             # rescue ion as needed & support graceful termination
             self.check_termination()
-
 
     @kernel(flags={'fast-math'})
     def pulse_bichromatic(self, index: TInt32,
@@ -1235,7 +1233,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.on()
         self.dds_ramper_ms.run_ramp_all_dds()
         delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
-        self.dds_ramper_ms.run_ramp_all_dds()
 
         '''FLAT TOP PORITION OF PULSE'''
         if self.enable_dynamical_decoupling:
@@ -1263,7 +1260,12 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.dds_ramper_ms.reset_cfrs_all_dds()
 
     @kernel(flags={'fast-math'})
-    def pulse_parity(self, phase_parity_pulse_pow) -> TNone:
+    def pulse_parity(self, phase_parity_pulse_pow,
+                     phase_track = False) -> TNone:
+        if phase_track == False:
+            phase_mode = ad9910.PHASE_MODE_CONTINUOUS
+        else:
+            phase_mode = ad9910.PHASE_MODE_TRACKING
         self.qubit.cpld.set_all_att_mu(self.att_reg_parity_pulse)
         # self.qubit.set_profile(self.profile_729_parity)
         self.qubit.set_mu(
@@ -1271,7 +1273,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             asf=self.qubit.ampl_singlepass0_default_asf,
             pow_=phase_parity_pulse_pow,
             profile=self.profile_729_bichromatic,
-            phase_mode=ad9910.PHASE_MODE_CONTINUOUS,
+            phase_mode=phase_mode,
         )
         at_mu((now_mu() + 8) & ~7)
         self.qubit.io_update()
