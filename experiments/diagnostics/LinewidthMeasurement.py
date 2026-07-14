@@ -183,6 +183,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
         fit_x, fit_y, textbox_str = self._fit_results(res_final)
 
         # format dictionary for applet plotting
+        results_plotting_x = res_final[:, 0]
+        results_plotting_y = res_final[:, 1]
         plotting_results = {'x': results_plotting_x,
                             'y': results_plotting_y,
                             'fit_x': fit_x,
@@ -306,7 +308,7 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
             linewidth_gaussian_mhz_err = 'N\\A'
 
             textbox_str = (
-                rf'Linecenter: \mathrm{N / A} \n'
-                rf'Linewidth \mathrm{N / A}')
+                rf'Linecenter: {linecenter_gaussian_mhz}\n'
+                rf'Linewidth {linewidth_gaussian_mhz}')
 
         return fit_x, fit_y, textbox_str
