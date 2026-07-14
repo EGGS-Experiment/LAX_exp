@@ -118,6 +118,99 @@ class SidebandCooling(LAXExperiment, Experiment):
         # convert x-axis (frequency) from frequency tuning word (FTW) to MHz (in absolute frequency)
         results_tmp[:, 0] *= 2.e3 / 0xFFFFFFFF
 
+        results_rsb, results_bsb = self._process_results(results_tmp)
+        # split results into x and y and red and blue sideband
+        results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
+        results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
+        fit_x_rsb, fit_x_bsb, fit_y_bsb, fit_y_bsb, textbox_str = self._fit_results(self,
+                                                                                    results_rsb,
+                                                                                    results_bsb,
+                                                                                    time_readout_us)
+
+        # format dictionary for applet plotting
+        plotting_results = {'x': [results_plotting_x_rsb / 2., results_plotting_x_bsb / 2.],
+                            'y': [results_plotting_y_rsb, results_plotting_y_bsb],
+                            'fit_x': [fit_x_rsb / 2., fit_x_bsb / 2.],
+                            'fit_y': [fit_y_rsb, fit_y_bsb],
+                            'subplot_x_labels': 'AOM Freq (MHz)',
+                            'subplot_y_labels': 'D State Population',
+                            'subplot_titles': ['RSB', 'BSB'],
+                            'rid': self.scheduler.rid,
+                            'ylims': [[0,1], [0,1]],
+                            'textbox_strs': [textbox_str, '']
+                            }
+
+        self.create_matplotlib_applet(plotting_results,
+                                      name=f'Sideband Cooling',
+                                      group = ['plotting', 'diagnostics'],
+                                      num_subplots=2)
+
+        self.set_dataset('temp.sidebandcooling.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
+        return results_tmp
+
+    def _fit_results(self, results_rsb, results_bsb, time_readout_us):
+
+        # split results into x and y and red and blue sideband
+        results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
+        results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
+
+        # format arrays for fitting
+        fit_x_rsb = np.linspace(np.min(results_plotting_x_rsb), np.max(results_plotting_x_rsb), 1000)
+        fit_x_bsb = np.linspace(np.min(results_plotting_x_bsb), np.max(results_plotting_x_bsb), 1000)
+
+        try:
+            # attempt to fit sinc profile
+            fitter = fitSinc()
+            fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_readout_us)
+            fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_readout_us)
+            fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
+            fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
+
+            # process fit parameters to give values of interest
+            sinc_max = lambda a, t: np.sin(np.pi * t * a) ** 2.
+            phonon_n = (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
+                        (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(
+                            sinc_max(fit_params_rsb[0], time_readout_us))))
+            phonon_err = phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0]) ** 2. +
+                                     (fit_err_rsb[0] ** 2. + fit_err_bsb[0] ** 2.) / (
+                                                 abs(fit_params_bsb[0]) - abs(fit_params_rsb[0])) ** 2.
+                                     ) ** 0.5
+
+            # save results to dataset manager for dynamic experiments
+            res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
+
+            # extract fit
+            fit_rsb_mhz = float(fit_params_rsb[1]) / 2.
+            fit_rsb_err_mhz = float(fit_err_rsb[1]) / 2.
+            fit_bsb_mhz = float(fit_params_bsb[1]) / 2.
+            fit_bsb_err_mhz = float(fit_err_bsb[1]) / 2.
+
+            newline = '\n'
+            textbox_str = (rf'$\overline{{n}} = {phonon_n:.2f} \pm {phonon_err:.2f}$ {newline}'
+                           rf'$\mathrm{{RSB}}: {fit_rsb_mhz:.2f} \pm {fit_rsb_err_mhz:.2f} \mathrm{{MHz}}${newline}'
+                           rf'$\mathrm{{BSB}}: {fit_bsb_mhz:.2f} \pm {fit_bsb_err_mhz:.2f} \mathrm{{MHz}}${newline}')
+
+            # save results to hdf5 as a dataset
+            self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
+            self.set_dataset('fit_params_rsb', fit_params_rsb)
+            self.set_dataset('fit_params_bsb', fit_params_bsb)
+            self.set_dataset('fit_err_rsb', fit_err_rsb)
+            self.set_dataset('fit_err_bsb', fit_err_bsb)
+            # print out fitted parameters
+            print("\tResults - Sideband Cooling:")
+            print("\t\tn: {:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
+            print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
+            print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
+
+
+        except Exception as e:
+            # fill array with Nones to avoid fit if fit can't be found
+            fit_y_rsb = [None]*len(fit_x_rsb)
+            fit_y_bsb = [None]*len(fit_x_bsb)
+
+        return fit_x_rsb, fit_x_bsb, fit_y_bsb, fit_y_bsb, textbox_str
+
+    def _process_results(self, results_tmp):
         # calculate fluorescence detection threshold
         threshold_list = findThresholdScikit(results_tmp[:, 1])
         for threshold_val in threshold_list:
@@ -135,70 +228,7 @@ class SidebandCooling(LAXExperiment, Experiment):
         split = lambda arr, cond: [arr[cond], arr[~cond]]
         results_rsb, results_bsb =      split(results_tmp, results_tmp[:, 0] < guess_carrier_mhz)
 
-        # split results into x and y and red and blue sideband
-        results_plotting_x_rsb, results_plotting_y_rsb = np.array(results_rsb).transpose()
-        results_plotting_x_bsb, results_plotting_y_bsb = np.array(results_bsb).transpose()
-
-        # format arrays for fitting
-        fit_x_rsb = np.linspace(np.min(results_plotting_x_rsb), np.max(results_plotting_x_rsb), 1000)
-        fit_x_bsb = np.linspace(np.min(results_plotting_x_bsb), np.max(results_plotting_x_bsb), 1000)
-
-        try:
-            # attempt to fit sinc profile
-            fitter = fitSinc()
-            fit_params_rsb, fit_err_rsb = fitter.fit(results_rsb, time_readout_us)
-            fit_params_bsb, fit_err_bsb = fitter.fit(results_bsb, time_readout_us)
-            fit_y_rsb = fitter.fit_func(fit_x_rsb, *fit_params_rsb)
-            fit_y_bsb = fitter.fit_func(fit_x_bsb, *fit_params_bsb)
-        except Exception as e:
-            # fill array with Nones to avoid fit if fit can't be found
-            fit_y_rsb = [None]*len(fit_x_rsb)
-            fit_y_bsb = [None]*len(fit_x_bsb)
-
-        # process fit parameters to give values of interest
-        sinc_max =  lambda a, t: np.sin(np.pi * t * a)**2.
-        # phonon_n =                      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
-        phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
-                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
-        phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +
-                                    (fit_err_rsb[0]**2. + fit_err_bsb[0]**2.) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))**2.
-                                    )**0.5
-
-        # format dictionary for applet plotting
-        plotting_results = {'x': [results_plotting_x_rsb / 2., results_plotting_x_bsb / 2.],
-                            'y': [results_plotting_y_rsb, results_plotting_y_bsb],
-                            'fit_x': [fit_x_rsb / 2., fit_x_bsb / 2.],
-                            'fit_y': [fit_y_rsb, fit_y_bsb],
-                            'subplot_x_labels': 'AOM Freq (MHz)',
-                            'subplot_y_labels': 'D State Population',
-                            'subplot_titles': ['RSB', 'BSB'],
-                            'rid': self.scheduler.rid,
-                            'ylims': [[0,1], [0,1]]
-                            }
-
-        self.set_dataset('temp.plotting.results_sideband_cooling', pyon.encode(plotting_results), broadcast=True)
-
-        # create applet
-        self.ccb.issue("create_applet", f"Data Plotting",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_sideband_cooling'
-                       ' --num-subplots 2',
-                       group=['plotting', 'diagnostics'])
-
-        # save results to dataset manager for dynamic experiments
-        res_dj = [[phonon_n, phonon_err], [fit_params_rsb, fit_err_rsb], [fit_params_bsb, fit_err_bsb]]
-        self.set_dataset('temp.sidebandcooling.results', res_dj, broadcast=True, persist=False, archive=False)
-        self.set_dataset('temp.sidebandcooling.rid', self.scheduler.rid, broadcast=True, persist=False, archive=False)
-        # save results to hdf5 as a dataset
-        self.set_dataset('fit_params_rsb',  fit_params_rsb)
-        self.set_dataset('fit_params_bsb',  fit_params_bsb)
-        self.set_dataset('fit_err_rsb',     fit_err_rsb)
-        self.set_dataset('fit_err_bsb',     fit_err_bsb)
-        # print out fitted parameters
-        print("\tResults - Sideband Cooling:")
-        print("\t\tn: {:.3f} +/- {:.3f}".format(phonon_n, phonon_err))
-        print("\t\tRSB: {:.4f} +/- {:.5f}".format(float(fit_params_rsb[1]) / 2., float(fit_err_rsb[1]) / 2.))
-        print("\t\tBSB: {:.4f} +/- {:.5f}".format(float(fit_params_bsb[1]) / 2., float(fit_err_bsb[1]) / 2.))
-        return results_tmp
+        return results_rsb, results_bsb
 
     def _extract_phonon(self, dataset, time_fit_us):
         """
@@ -219,7 +249,6 @@ class SidebandCooling(LAXExperiment, Experiment):
 
         # process fit parameters to give values of interest
         sinc_max = lambda a, t: np.sin(np.pi*t*a)**2.
-        # phonon_n =      abs(fit_params_rsb[0]) / (abs(fit_params_bsb[0]) - abs(fit_params_rsb[0]))
         phonon_n =      (abs(sinc_max(fit_params_rsb[0], time_readout_us)) /
                         (abs(sinc_max(fit_params_bsb[0], time_readout_us)) - abs(sinc_max(fit_params_rsb[0], time_readout_us))))
         phonon_err =    phonon_n * ((fit_err_rsb[0] / fit_params_rsb[0])**2. +

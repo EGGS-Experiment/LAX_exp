@@ -15,6 +15,7 @@ logger = logging.getLogger("artiq.master.experiments")
 
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 from LAX_exp.base.manager_wrappers import _write_to_group
+from sipyco import pyon
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -650,6 +651,60 @@ class LAXExperiment(LAXEnvironment, ABC):
             except Exception as e:
                 print("Warning: unable to create and save file in LAX format: {}".format(repr(e)))
 
+    def create_matplotlib_applet(self, plotting_results, name=None, dataset_base=None,
+                                 group=None, num_subplots=1, projection_3d=False):
+        """
+        Create a run-specific Matplotlib plotting applet.
+
+        Each applet watches a unique temporary dataset keyed by RID, so new
+        experiment analyses do not overwrite old plot windows.
+        """
+        rid = self.scheduler.rid
+        applet_name = name or self.name or type(self).__name__
+        dataset_name = dataset_base or applet_name
+        # check if character is alphanumeric, if it is lowercase it and if it is not replace with underline
+        dataset_slug = ''.join(
+            char.lower() if char.isalnum() else '_'
+            for char in dataset_name
+        ).strip('_')
+
+        # format strs for creating applet
+        dataset_key = 'temp.plotting.{:s}.rid_{:09d}'.format(dataset_slug, rid)
+        last_dataset_key = 'temp.plotting.{:s}'.format(dataset_slug)
+        applet_name = '{:s} #{:09d}'.format(applet_name, rid)
+
+        # format results and store
+        plotting_results = dict(plotting_results)
+        plotting_results.setdefault('rid', rid)
+        self.set_dataset(dataset_key, pyon.encode(plotting_results),
+                         broadcast=True, persist=False, archive=False)
+
+        group_args = ""
+        if group is not None:
+            group_args = " --applet-group " + " ".join(group)
+
+        ccb_command = (
+            '$python -m LAX_exp.applets.plot_matplotlib {:s}'
+            ' --num-subplots {:d}'
+            ' --applet-name "\{:s}\"'
+            ' {:s}'
+            ' --big-applet'
+            ' --delete-on-close'
+        ).format(dataset_key, num_subplots, applet_name, group_args)
+
+        if projection_3d:
+            ccb_command += ' --projection_3d True'
+
+        # issue command to dashboard to create applet
+        self.ccb.issue(
+            'create_applet',
+            applet_name,
+            ccb_command,
+            group=group or ['plotting']
+        )
+
+        return dataset_key
+
     def _save_labrad(self):
         """
         Extract system parameters from LabRAD and format for saving with the experiment results.
@@ -775,7 +830,8 @@ class LAXExperiment(LAXEnvironment, ABC):
             # store temperature values in holding dict
             sys_vals_temp = {"temp_vals_k":  array(list(temp_vals_k))}
         except Exception as e:
-            print("Warning: unable to retrieve and store temperature values in dataset.")
+            # print("Warning: unable to retrieve and store temperature values in dataset.")
+            pass
 
         return sys_vals_temp
 
