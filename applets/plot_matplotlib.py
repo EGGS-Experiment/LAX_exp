@@ -145,10 +145,32 @@ class MatplotlibPlot(QMainWindow):
 
         if args.num_subplots == 1:
             ax_ind = 0
-            if len(ys.shape) == 1:
+            if zs is not None:
                 self.plot(
-                    xs, ys, errors, fit_xs, fit_ys,
+                    xs,
+                    ys,
+                    errors,
+                    fit_xs,
+                    fit_ys,
+                    z = zs,
+                    fit_z = fit_zs,
                     x_label = x_labels,
+                    y_label=y_labels,
+                    title=titles,
+                    ylim=ylims,
+                    ind=ax_ind,
+                    rid=rid,
+                    legend_label=legend_labels
+                )
+
+            elif len(ys.shape) == 1:
+                self.plot(
+                    xs,
+                    ys,
+                    errors,
+                    fit_xs,
+                    fit_ys,
+                    x_label=x_labels,
                     y_label=y_labels,
                     title=titles,
                     ylim=ylims,
@@ -157,7 +179,6 @@ class MatplotlibPlot(QMainWindow):
                     legend_label=legend_labels,
                 )
             else:
-
                 for ind, y in enumerate(ys):
                     x = self.get_plot_element(xs, ind)
                     error = self.get_plot_element(errors, ind)
@@ -172,7 +193,11 @@ class MatplotlibPlot(QMainWindow):
                     ylim = ylims
 
                     self.plot(
-                        x, y, error, fit_x, fit_y,
+                        x,
+                        y,
+                        error,
+                        fit_x,
+                        fit_y,
                         x_label = x_label,
                         y_label=y_label,
                         title=title,
@@ -197,7 +222,11 @@ class MatplotlibPlot(QMainWindow):
                 textbox_str = self.get_plot_element(textbox_strs, ind)
 
                 self.plot(
-                    x, y, error, fit_x, fit_y,
+                    x,
+                    y,
+                    error,
+                    fit_x,
+                    fit_y,
                     x_label=x_label,
                     y_label =y_label,
                     title = title,

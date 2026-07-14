@@ -520,17 +520,12 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         issue_final_plot = True
 
         if len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) == 1:
-            self._format_one_dim_plotting_results(unique_v_shim_voltages, sec_freq_detuning, plot_xlabel = 'V Shim Voltage (V)')
+            plotting_results = self._format_one_dim_plotting_results(unique_v_shim_voltages, sec_freq_detuning, plot_xlabel = 'V Shim Voltage (V)')
             projection_3d = False
 
         elif len(unique_v_shim_voltages) == 1 and len(unique_h_shim_voltages) > 1:
-            self._format_one_dim_plotting_results(unique_h_shim_voltages, sec_freq_detuning, plot_xlabel = 'H Shim Voltage (V)')
+            plotting_results = self._format_one_dim_plotting_results(unique_h_shim_voltages, sec_freq_detuning, plot_xlabel = 'H Shim Voltage (V)')
             projection_3d = False
-            self.create_matplotlib_applet(plotting_results,
-                                          name=f'Shim Calibration',
-                                          group=['plotting', 'diagnostics', 'mixed_species'],
-                                          projection_3d=projection_3d)
-
 
         elif len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) > 1:
             plotting_results = self._plot_shim_calibration(unique_h_shim_voltages, unique_v_shim_voltages, sec_freq_detuning)
@@ -584,7 +579,7 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
 
         # convert state vals to phonons from rsb rap
         phonons = interp(dark_probability , phonon_conversions, nbars)
-            return unique_detuning_khz, phonons
+        return unique_detuning_khz, phonons
 
     def _fit_plot_tickle_scan(self, unique_detuning_khz: Iterable[float], phonons: Iterable[float],
                               h_voltage: float, v_voltage: float, loop_iter: int):
@@ -733,5 +728,3 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
                                 'rid': self.scheduler.rid}
 
         return plotting_results
-
-
