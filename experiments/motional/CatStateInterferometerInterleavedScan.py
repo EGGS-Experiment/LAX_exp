@@ -1,8 +1,12 @@
+import numpy as np
+from LAX_exp.analysis.artiq_conversions import ftw_to_frequency_khz
+from LAX_exp.analysis.processing import findThresholdScikit
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
 from numpy import array, int32, int64, zeros
 from numpy import shape as array_shape
+from scipy.optimize import curve_fit
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
@@ -14,15 +18,17 @@ from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.dds_pulse_shaper import DDSPulseShaper
 from LAX_exp.system.objects.dds_ramper import DDSRamper
 
+from LAX_exp.analysis.anaylyzers.cat_inferometer_analyzer import CatInterferometerAnalyzer
 
-class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
+
+class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
     """
-    Experiment: Cat State Interferometer Allen Dev
+    Experiment: Cat State Interferometer Scan
 
     Create and characterize cat states with projective state preparation.
     Uses adaptive readout to reduce timing overheads and extend available coherence times.
     """
-    name = 'Cat State Inteferometer Allen Dev'
+    name = 'Cat State Inteferometer Scan'
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
@@ -249,8 +255,14 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                               group=_argstr,
                               tooltip="Phase of tickle pulse (in turns) applied via the urukul dds.")
 
-        self.setattr_argument("freq_tickle_detunings_mode_khz_list",
-                              PYONValue([[-1,1], [-1,1]]),
+        self.setattr_argument("freq_tickle_detunings_mode_khz_list", Scannable(
+                              default=[
+                                  ExplicitScan([0]),
+                                  CenterScan(0, 4, 0.1, randomize=True),
+                                  RangeScan(-10, 10, 50, randomize=True),
+                              ],
+                              global_max = 2000, global_min = -2000,
+                                global_step=0.01, precision=3, scale=1.0),
                               group=_argstr,
                               tooltip="Detuning from secular frequency of tickle pulse (in kHz) applied via the urukul dds.")
 
@@ -311,34 +323,23 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         self._prepare_experiment_cat_default()
         self._prepare_experiment_cat_modes()
         self._prepare_experiment_tickle_default()
-        self._prepare_experiment_tickle_modes()
+        freq_detuning_tickle_ftw_list = self._prepare_experiment_tickle_modes()
         self._prepare_experiment_ion_parameters()
         self._prepare_experiment_ms_gate()
 
         self.phase_dd_phase_shift_pow = self.qubit.turns_to_pow(0.5)
 
-        num_detunings = array_shape(self.freq_tickle_detunings_mode_khz_list)[1]
         num_secular_freqs = len(self.freq_secular_khz_list)
 
         secular_freq_idx_list = range(num_secular_freqs)
-        detuning_idx_list = range(num_detunings)
 
-        # # create experiment config
-        # self.config_experiment_list = create_experiment_config(
-        #     # tickle sweeps
-        #     secular_freq_idx_list,
-        #     detuning_idx_list,
-        #     config_type=float, shuffle_config=True
-        # )
-
-        # determininstic pairing of secular frequencies and detunings for uniform sample time
-        config_list = []
-
-        for det_idx in detuning_idx_list:
-            for sec_idx in secular_freq_idx_list:
-                config_list.append([sec_idx, det_idx])
-
-        self.config_experiment_list = array(config_list)
+        # create experiment config
+        self.config_experiment_list = create_experiment_config(
+            # tickle sweeps
+            secular_freq_idx_list,
+            freq_detuning_tickle_ftw_list,
+            config_type=float, shuffle_config=True
+        )
 
         # create index list for later use
         self.indices = [self.index_729_cat1, self.index_729_cat2, self.index_729_ms]
@@ -376,39 +377,62 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         """
         Build Pulse Shaper
         """
-        self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
-                                       num_samples=200, # number of points in the ramp
-                                       ramp_dest=2, # amplitude ramp
-                                       data_high=self.ampls_ms_pct[0] / 100., # max value of the ramp
-                                       data_low=0) # min value of the ramp
 
-        self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
-                                          ramp_dest=2, # ampltiude ramp
-                                          data_high=self.ampls_ms_pct[1] / 100., # max value of the ramp
-                                          data_low=0) # min value of the ramp
+        if self.enable_ms_gate:
+            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                           num_samples=200, # number of points in the ramp
+                                           ramp_dest=2, # amplitude ramp
+                                           data_high=self.ampls_ms_pct[0] / 100., # max value of the ramp
+                                           data_low=0) # min value of the ramp
 
-        self.time_ms_gate_mu = self.core.seconds_to_mu(self.time_ms_gate_us/2*us)
-        self.freq_ms_mode_ftw = self.qubit.frequency_to_ftw(self.freq_ms_mode_khz * kHz)
-        self.freq_ms_gate_secular_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_ms_secular_detuning_khz * kHz)
-        self.phase_ms_pow = array(
-            [self.qubit.turns_to_pow(phase_ms_turns) for phase_ms_turns in self.phase_ms_turns])
-        self.phase_ms_dynamical_decoupling_pow_list = self.qubit.singlepass0.turns_to_pow(
-            self.phase_ms_dynamical_decoupling_turns)
+            self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
+                                              ramp_dest=2, # ampltiude ramp
+                                              data_high=self.ampls_ms_pct[1] / 100., # max value of the ramp
+                                              data_low=0) # min value of the ramp
+
+            self.time_ms_gate_mu = self.core.seconds_to_mu(self.time_ms_gate_us/2*us)
+            self.freq_ms_mode_ftw = self.qubit.frequency_to_ftw(self.freq_ms_mode_khz * kHz)
+            self.freq_ms_gate_secular_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_ms_secular_detuning_khz * kHz)
+            self.phase_ms_pow = array(
+                [self.qubit.turns_to_pow(phase_ms_turns) for phase_ms_turns in self.phase_ms_turns])
+
+            self.phase_ms_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_ms_dynamical_decoupling_turns)
+
+            self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_ms_pct/100.) for ampl_ms_pct in self.ampls_ms_pct])
+
+            self.att_reg_ms_gate = 0x00000000 | (
+                    (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
+                    (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                    (att_to_mu(self.atts_ms_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                    (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
+            )
 
 
-        self.phase_ms_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_ms_dynamical_decoupling_turns)
+        else:
+            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                           num_samples=200, # number of points in the ramp
+                                           ramp_dest=2, # amplitude ramp
+                                           data_high=0,
+                                           data_low=0) # min value of the ramp
 
-        self.ampls_ms_asf = array([self.qubit.amplitude_to_asf(ampl_ms_pct/100.) for ampl_ms_pct in self.ampls_ms_pct])
+            self.time_ms_gate_mu = 0
+            self.freq_ms_mode_ftw =0
+            self.freq_ms_gate_secular_detuning_ftw = 0
+            self.phase_ms_pow = array(
+                [0., 0.])
+            self.ampls_ms_asf = array([0,0])
+
+            self.phase_ms_dynamical_decoupling_pow = 0
 
 
-        self.phase_ms_update_dir = array([1, 1], dtype=int32)
+            self.att_reg_ms_gate = 0x00000000 | (
+                    (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
+                    (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
+                    (att_to_mu(31.5 * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
+                    (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
+            )
 
-        self.att_reg_ms_gate = 0x00000000 | (
-                (self.qubit.att_qubit_mu << ((self.qubit.beam.chip_select - 4) * 8)) |
-                (self.att_dynamical_decoupling_mu << ((self.qubit.singlepass0.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_ms_db[0] * dB) << ((self.qubit.singlepass1.chip_select - 4) * 8)) |
-                (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
-        )
+        self.phase_ms_update_dir = array([1, -1], dtype=int32)
 
     def _prepare_experiment_dynamical_decoupling(self):
         """
@@ -434,7 +458,7 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         self.phase_cat_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_cat_dynamical_decoupling_turns)
 
         # specify phase update array based on user arguments
-        self.phase_cat_update_dir = array([1, -1], dtype=int32)
+        self.phase_cat_update_dir = array([1, 1], dtype=int32)
 
 
     def _prepare_experiment_cat_modes(self):
@@ -487,12 +511,11 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         for idx in range(len(self.phase_tickle_turns))])
 
 
-        self.freq_tickle_detuning_ftw_list = zeros(array_shape(self.freq_tickle_detunings_mode_khz_list))
+        freq_tickle_detuning_ftw_list = [
+        self.dds_pulse_shaper_tickle_list[0].dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
+        for freq_tickle_detuning_khz in self.freq_tickle_detunings_mode_khz_list]
 
-        for idx in range(len(self.freq_tickle_detunings_mode_khz_list)):
-            modes_detunings_ftw = [self.dds_pulse_shaper_tickle_list[idx].dds_target.frequency_to_ftw(freq_tickle_detuning_khz*kHz)
-                                         for freq_tickle_detuning_khz in self.freq_tickle_detunings_mode_khz_list[idx]]
-            self.freq_tickle_detuning_ftw_list[idx,:] = modes_detunings_ftw
+        return freq_tickle_detuning_ftw_list
 
 
     def _prepare_argument_checks(self) -> TNone:
@@ -519,13 +542,6 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                              'the tickle pulses for each mode\n'
                              'Please check the "freq_secular_khz_list", "att_tickle_modes_db", '
                              '"ampl_tickle_modes_pct", and "phase_tickle_turns"parameters.')
-
-        if array_shape(self.freq_tickle_detunings_mode_khz_list)[0] != array_shape(self.ampl_tickle_modes_pct)[0]:
-            raise ValueError('Must provide the same number of secular frequency detuning sets as '
-                             'secular frequencies, amplitudes, and attenuations for '
-                             'the tickle pulses for each mode\n'
-                             'Please check the "freq_tickle_detunings_mode_khz_list" parameter')
-
 
     @property
     def results_shape(self):
@@ -562,10 +578,12 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 '''
                 # extract values from config list
                 idx_freq_secular = int32(config_vals[0])
-                idx_freq_tickle_detuning = int32(config_vals[1])
+                freq_tickle_detuning_ftw = int32(config_vals[1])
 
                 freq_secular_ftw = int32(self.freq_secular_ftw_list[idx_freq_secular])
-                freq_tickle_detuning_ftw = int32(self.freq_tickle_detuning_ftw_list[idx_freq_secular][idx_freq_tickle_detuning])
+
+                # print(freq_secular_ftw)
+                self.core.break_realtime()
 
                 self.update_configuration(idx_freq_secular)
                 '''
@@ -965,3 +983,100 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
 
             self.freq_beams_ftw_list[index][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw_list[secular_freq_idx]
             self.freq_beams_ftw_list[index][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw_list[secular_freq_idx]
+
+
+    def analyze_experiment(self):
+        results_tmp = array(self.results)
+        cat_interferometer_analyzer = CatInterferometerAnalyzer()
+        raw_data, fitting_results, num_states = cat_interferometer_analyzer.analyze_interferometer_experiment(
+            results_tmp,
+            detuning_idx=2,
+            time_tickle_us=self.time_tickle_us,
+            enable_ms_gate=self.enable_ms_gate,
+            time_cat_bichromatic_us=self.time_cat_bichromatic_us,
+            time_ms_gate_us=self.time_ms_gate_us,
+            secular_idx = 0,
+            use_secular = True
+        )
+
+        for sec_idx in raw_data.keys():
+
+            raw_data_entry = raw_data[sec_idx]
+            fitting_results_entry = fitting_results[sec_idx]
+
+            # format returned values
+            detuning_list = raw_data_entry['x']
+            population_vals = raw_data_entry['y']
+            population_errs = raw_data_entry['yerr']
+            legend_labels = raw_data_entry['legend_labels']
+            secular = raw_data_entry['secular']
+
+            fit_x_list = fitting_results_entry['fit_x']
+            fit_y_list = fitting_results_entry['fit_y']
+            popt = fitting_results_entry['popt']
+            pcov = fitting_results_entry['pcov']
+
+            # format string for textbox
+            contrast_loss = popt[0]
+            alpha = popt[1]
+            detuning = popt[4]
+            phi = popt[5]
+            newline = '\n'
+
+            textbox_str_cat_int = (rf'$\alpha * \gamma$ : {alpha:.2f} {newline}'
+                           rf'd: {contrast_loss:.2f} {newline}'
+                           rf'$\phi$ : {phi:.2f}')
+
+            # format string for fisher information
+            fisher_info = fit_y_list[-1]
+            fit_x = fit_x_list[0, :]
+            idx_positive_detunings = np.where(fit_x > 0)[0]
+            positive_fit_detunings = fit_x[idx_positive_detunings]
+            idx_negative_detunings = np.where(fit_x < 0)[0]
+            negative_fit_detunings = fit_x[idx_negative_detunings]
+            fisher_info_positive_detunings = fisher_info[idx_positive_detunings]
+            best_fisher_info_positive_detunings = np.max(fisher_info_positive_detunings)
+            best_positive_detuning = positive_fit_detunings[
+                np.argmax(fisher_info_positive_detunings)
+            ]
+
+            fisher_info_negative_detunings = fisher_info[idx_negative_detunings]
+            best_fisher_info_negative_detunings = np.max(fisher_info_negative_detunings)
+            best_negative_detuning = negative_fit_detunings[
+                np.argmax(fisher_info_negative_detunings)
+            ]
+
+            print((f'For negative detunings the FI has a maximum value of '
+                   f'{best_fisher_info_negative_detunings:.2f} at '
+                   f'{best_negative_detuning:.2f} kHz \n'
+                   f'For positive detunings the FI has a maximum value of '
+                   f'{best_fisher_info_positive_detunings:.2f} at '
+                   f'{best_positive_detuning:.2f} kHz \n'))
+
+            textbox_str_fi = (f'Neg. Det. FI: '
+                              f'{best_fisher_info_negative_detunings:.2f} at '
+                              f'{best_negative_detuning:.2f} kHz \n'
+                              f'Pos. Det. FI: '
+                              f'{best_fisher_info_positive_detunings:.2f} at '
+                              f'{best_positive_detuning:.2f} kHz \n')
+
+            plotting_results = {'x': detuning_list,
+                                'y': population_vals,
+                                'error': population_errs,
+                                'fit_x': fit_x_list,
+                                'fit_y': fit_y_list,
+                                'legend_labels': legend_labels,
+                                'subplot_titles': f'Cat Int. \n'
+                                                  f' Sec: {secular:.2f} kHz',
+                                'subplot_x_labels': 'Tickle Detuning (kHz)',
+                                'subplot_y_labels': ['State Population', 'State Poulation', 'FI'],
+                                'rid': self.scheduler.rid,
+                                 'textbox_strs': [textbox_str_cat_int] + [None] * (num_states -1) + [textbox_str_fi],
+                                }
+
+            self.create_matplotlib_applet(plotting_results,
+                                          name=f'Cat Interferometer - Sec: {secular:.2f} kHz',
+                                          group=['plotting', 'motional'],
+                                          num_subplots=num_states + 1)
+
+

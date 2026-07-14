@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import QMainWindow
 
 # Initialize logging infrastructure
 logging.basicConfig(level=logging.WARNING)
+from PyQt5.QtCore import QSize
 
 
 class NoDefault:
@@ -233,4 +234,10 @@ class QMainWindow(QMainWindow):
                 raise SkipUpdateException
             else:
                 return default
+
+    def sizeHint(self):
+        return QSize(800, 850)
+
+    def minimumSizeHint(self):
+        return QSize(650, 700)
 

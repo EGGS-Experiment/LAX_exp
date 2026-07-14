@@ -88,7 +88,7 @@ class RamseySpectroscopy(LAXExperiment, Experiment):
                                                             ), group='linetrigger')
 
         # ramsey pulse parameters
-        self.setattr_argument('time_pulse_us', NumberValue(default=10., precision=2, step=0.5, min=1., max=10000., scale=1., unit="us"),
+        self.setattr_argument('time_pulse_us', NumberValue(default=2., precision=2, step=0.5, min=0.1, max=10000., scale=1., unit="us"),
                               group="ramsey.pulse")
         self.setattr_argument('ampl_ramsey_pct', NumberValue(default=50., precision=2, step=5., min=0., max=50., scale=1., unit="%"),
                               group="ramsey.pulse")

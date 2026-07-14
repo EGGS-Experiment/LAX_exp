@@ -48,6 +48,7 @@ class LAXSubsequence(LAXEnvironment, ABC):
         # get core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
+        self.setattr_device("scheduler")
 
         # store arguments passed during init for later processing
         self._build_arguments = kwargs
@@ -166,3 +167,25 @@ class LAXSubsequence(LAXEnvironment, ABC):
         Note: don't cleanup devices here, since an LAXExperiment will call cleanup_device by itself.
         """
         pass
+
+    @rpc
+    def cancel_all_experiments(self):
+        """
+        Terminate all experiments in our pipeline.
+        To be used in emergency situations (e.g. wavemeter unlocked) where we need to halt all activity.
+        """
+        # get scheduler itinerary
+        sched = self.scheduler.get_status()
+
+        # get all experiments in our pipeline
+        rid_list = [
+            rid
+            for rid, exp_dict in sched.items()
+            if (rid != self.scheduler.rid) and (exp_dict['pipeline'] == self.scheduler.pipeline_name)
+               and (exp_dict['status'] != "running")
+        ]
+        rid_list.reverse()
+
+        # delete remaining experiments
+        for rid in rid_list:
+            self.scheduler.delete(rid)

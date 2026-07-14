@@ -26,6 +26,8 @@ def square(time_arr, time_rolloff, kwargs={}):
 '''
 Cosine-sum windows
 '''
+
+'''Sine-Squared Windows'''
 def sine_squared(time_arr, time_rolloff, kwargs={}):
     """
     Sine-squared pulse shape (rising edge only).
@@ -37,6 +39,9 @@ def sine_squared(time_arr, time_rolloff, kwargs={}):
     # calculate sine squared window
     return np.sin(x_vals_readjusted) ** 2.
 
+'''
+Blackman Window
+'''
 def blackman(time_arr, time_rolloff, kwargs={}):
     """
     Approximate blackman pulse shape (rising edge only).
@@ -51,6 +56,9 @@ def blackman(time_arr, time_rolloff, kwargs={}):
             0.08 * np.cos(4. * x_vals_readjusted)
     )
 
+'''
+Nuttall Window
+'''
 def nuttall(time_arr, time_rolloff, kwargs={}):
     """
     Nuttall window (continuous first derivative) (rising edge only).
@@ -66,6 +74,9 @@ def nuttall(time_arr, time_rolloff, kwargs={}):
             -0.012604 * np.cos(6. * x_vals_readjusted)
     )
 
+'''
+Generalized Cosine
+'''
 def generalized_cosine(time_arr, time_rolloff, kwargs={}):
     """
     Generalized cosine window (rising edge only).
@@ -113,49 +124,28 @@ def gaussian(time_arr, time_rolloff, kwargs={}):
     # calculate gaussian window
     return np.exp(-0.5 * (x_vals_readjusted) ** 2.)
 
+
 def error_function(time_arr, time_rolloff, kwargs={}):
     """
     Error-function pulse shape (rising edge only).
     """
     # rescale x-axis to the rolloff-time (rising edge only)
-    scale_factor_x = (2. * np.pi) / time_rolloff
+    scale_factor_x = (1. * np.pi) / time_rolloff
     x_vals_readjusted = (scale_factor_x * time_arr) - np.pi
     # calculate erf window
     return np.array([(1. + math.erf(x_val)) / 2. for x_val in x_vals_readjusted])
 
 
-'''
-Sinc-type windows
-'''
-def flat_top(time_arr, time_rolloff, kwargs={}):
-    """
-    Flat top window (rising edge only).
-    # todo: actually implement
-    """
-    # rescale x-axis to the rolloff-time (rising edge only)
-    scale_factor_x = (np.pi / 2.) / time_rolloff
-    x_vals_readjusted = scale_factor_x * time_arr
-    # calculate window
-    return (
-            0.42 -
-            0.5 * np.cos(2. * x_vals_readjusted) +
-            0.08 * np.cos(4. * x_vals_readjusted)
-    )
-
-
 available_pulse_shapes = {
     "square": square,
-
     "hann": sine_squared,
     "sine_squared": sine_squared,
     "blackman": blackman,
     "nuttall": nuttall,
     "generalized_cosine": generalized_cosine,
-
     "gaussian": gaussian,
     "error_function": error_function,
 
-    "flat_top": flat_top
 }
 
 

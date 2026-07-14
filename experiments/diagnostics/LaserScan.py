@@ -128,7 +128,7 @@ class LaserScan(LAXExperiment, Experiment):
         delay_mu(10000)
 
         # record subsequences onto DMA
-        self.initialize_subsequence.record_dma()
+        # self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
         # set up qubit pulse
@@ -139,6 +139,7 @@ class LaserScan(LAXExperiment, Experiment):
 
     @kernel(flags={"fast-math"})
     def run_main(self) -> TNone:
+
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
 
@@ -164,7 +165,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 ### MAIN SHOT ###
                 # initialize ion in S-1/2 state
-                self.initialize_subsequence.run_dma()
+                self.initialize_subsequence.initialize_with_collison_check()
 
                 # fire spectroscopy pulse
                 if self.enable_pulseshaping:
@@ -214,6 +215,11 @@ class LaserScan(LAXExperiment, Experiment):
         else:
             print("\tWarning: Could not detect peaks.")
 
+
+        textbox_str = 'Laser Scan Results:'
+        for peak_freq, peak_prob in peak_vals:
+            textbox_str +=f'\n{peak_freq:.4f} MHz'
+
         # get results
         results_plotting = array(results_tmp)
         results_plotting_x, results_plotting_y = results_plotting.transpose()
@@ -225,15 +231,11 @@ class LaserScan(LAXExperiment, Experiment):
                             'subplot_x_labels': 'AOM. Freq (MHz)',
                             'subplot_y_labels': 'D State Population',
                             'rid': self.scheduler.rid,
+                            'textbox_strs': [textbox_str]
                             }
 
-
-        self.set_dataset('temp.plotting.results_laserscan', pyon.encode(plotting_results), broadcast=True)
-
-        # create applet
-        self.ccb.issue("create_applet", f"Data Plotting",
-                       '$python -m LAX_exp.applets.plot_matplotlib temp.plotting.results_laserscan'
-                       ' --num-subplots 1',
-                       group=["plotting", "diagnostics"])
+        self.create_matplotlib_applet(plotting_results,
+                                      name=f'Laser Scan',
+                                      group = ['plotting', 'diagnostics'],)
 
         return results_tmp
