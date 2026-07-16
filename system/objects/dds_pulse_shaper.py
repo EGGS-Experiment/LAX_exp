@@ -526,7 +526,7 @@ class DDSPulseShaper(HasEnvironment):
 
 
     @kernel(flags={"fast-math"})
-    def run_train_all_dds(self) -> TNone:
+    def run_train_all_dds(self) -> TInt64:
         """
         Fire shaped pulse via RAM modulation functionality.
         This function uses timing values computed by configure_fixed() and assumes that
@@ -549,6 +549,8 @@ class DDSPulseShaper(HasEnvironment):
         for dds_targets_idx in range(len(self.dds_targets)):
             at_mu(time_start_mu + self.ram_firing_delay + self.time_pulse_mu_list[dds_targets_idx])
             self.dds_targets[dds_targets_idx].sw.off()
+
+        return time_start_mu + self.ram_firing_delay
 
     @kernel(flags={"fast-math"})
     def run_train_single(self):

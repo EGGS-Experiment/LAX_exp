@@ -323,14 +323,6 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         secular_freq_idx_list = range(num_secular_freqs)
         detuning_idx_list = range(num_detunings)
 
-        # # create experiment config
-        # self.config_experiment_list = create_experiment_config(
-        #     # tickle sweeps
-        #     secular_freq_idx_list,
-        #     detuning_idx_list,
-        #     config_type=float, shuffle_config=True
-        # )
-
         # determininstic pairing of secular frequencies and detunings for uniform sample time
         config_list = []
 
@@ -530,7 +522,7 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                3)
+                5)
 
     '''
     MAIN SEQUENCE
@@ -686,8 +678,10 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 if self.enable_dynamical_decoupling:
                     self.set_carrier_phase(self.phase_cat_dynamical_decoupling_pow - self.phase_dd_phase_shift_pow,
                                            phase_track=True, ref_time_mu=ref_time_mu)
+
                 with parallel:
-                    dds_pulse_shaper_tickle.run_train_all_dds()
+                    # run tickle sequence and clock when we start tickle sequence
+                    time_tickle_start_mu = dds_pulse_shaper_tickle.run_train_all_dds()
                     if self.enable_dynamical_decoupling:
                         # see time to set profile
                         delay_mu(dds_pulse_shaper_tickle.ram_firing_delay)
@@ -722,10 +716,15 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 # cleanup dds_pulse_shaper_tickle
                 dds_pulse_shaper_tickle.sequence_cleanup()
 
+                # calculate the time between clearing the phase accumulators and firing the tickle pulse
+                time_delay_mu = time_tickle_start_mu + self.dds_ramper_ms.ramp_firing_delay - ref_time_mu
+
                 # store results
                 self.update_results(freq_secular_ftw,
                                     counts_res,
-                                    freq_tickle_detuning_ftw)
+                                    freq_tickle_detuning_ftw,
+                                    time_actual_tickle_list_mu[0],
+                                    time_delay_mu)
 
 
                 # check termination more frequently in case reps are low

@@ -546,7 +546,7 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                3)
+                5)
 
     '''
     MAIN SEQUENCE
@@ -631,7 +631,6 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
 
                 # set tickle frequency/phases
-
                 dds_pulse_shaper_tickle.dds_target.set_ftw(freq_secular_ftw + freq_tickle_detuning_ftw)
                 dds_pulse_shaper_tickle.dds_target.set_pow(self.phase_tickle_pow_list[idx_freq_secular])
                 dds_pulse_shaper_tickle.dds_target.set_att_mu(self.att_tickle_mu_list[idx_freq_secular])
@@ -704,8 +703,10 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 if self.enable_dynamical_decoupling:
                     self.set_carrier_phase(self.phase_cat_dynamical_decoupling_pow - self.phase_dd_phase_shift_pow,
                                            phase_track=True, ref_time_mu=ref_time_mu)
+
                 with parallel:
-                    dds_pulse_shaper_tickle.run_train_all_dds()
+                    # run and clock when we start tickle sequence
+                    time_tickle_start_mu = dds_pulse_shaper_tickle.run_train_all_dds()
                     if self.enable_dynamical_decoupling:
                         # see time to set profile
                         delay_mu(dds_pulse_shaper_tickle.ram_firing_delay)
@@ -740,10 +741,16 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 # cleanup dds_pulse_shaper_tickle
                 dds_pulse_shaper_tickle.sequence_cleanup()
 
+                # calculate time between clearing phase accumulators and tickle firing
+                time_delay_mu = time_tickle_start_mu + self.dds_ramper_ms.ramp_firing_delay - ref_time_mu
+
                 # store results
                 self.update_results(freq_secular_ftw,
                                     counts_res,
-                                    freq_tickle_detuning_ftw)
+                                    freq_tickle_detuning_ftw,
+                                    time_actual_tickle_list_mu[0], # duration of tickle pulse
+                                    time_delay_mu # time between clearning phase accumulators and tickle pulse firing
+                                    )
 
 
                 # check termination more frequently in case reps are low
@@ -985,97 +992,98 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
 
 
     def analyze_experiment(self):
-        results_tmp = array(self.results)
-        cat_interferometer_analyzer = CatInterferometerAnalyzer()
-        raw_data, fitting_results, num_states = cat_interferometer_analyzer.analyze_interferometer_experiment(
-            results_tmp,
-            detuning_idx=2,
-            time_tickle_us=self.time_tickle_us,
-            enable_ms_gate=self.enable_ms_gate,
-            time_cat_bichromatic_us=self.time_cat_bichromatic_us,
-            time_ms_gate_us=self.time_ms_gate_us,
-            secular_idx = 0,
-            use_secular = True
-        )
-
-        for sec_idx in raw_data.keys():
-
-            raw_data_entry = raw_data[sec_idx]
-            fitting_results_entry = fitting_results[sec_idx]
-
-            # format returned values
-            detuning_list = raw_data_entry['x']
-            population_vals = raw_data_entry['y']
-            population_errs = raw_data_entry['yerr']
-            legend_labels = raw_data_entry['legend_labels']
-            secular = raw_data_entry['secular']
-
-            fit_x_list = fitting_results_entry['fit_x']
-            fit_y_list = fitting_results_entry['fit_y']
-            popt = fitting_results_entry['popt']
-            pcov = fitting_results_entry['pcov']
-
-            # format string for textbox
-            contrast_loss = popt[0]
-            alpha = popt[1]
-            detuning = popt[4]
-            phi = popt[5]
-            newline = '\n'
-
-            textbox_str_cat_int = (rf'$\alpha * \gamma$ : {alpha:.2f} {newline}'
-                           rf'd: {contrast_loss:.2f} {newline}'
-                           rf'$\phi$ : {phi:.2f}')
-
-            # format string for fisher information
-            fisher_info = fit_y_list[-1]
-            fit_x = fit_x_list[0, :]
-            idx_positive_detunings = np.where(fit_x > 0)[0]
-            positive_fit_detunings = fit_x[idx_positive_detunings]
-            idx_negative_detunings = np.where(fit_x < 0)[0]
-            negative_fit_detunings = fit_x[idx_negative_detunings]
-            fisher_info_positive_detunings = fisher_info[idx_positive_detunings]
-            best_fisher_info_positive_detunings = np.max(fisher_info_positive_detunings)
-            best_positive_detuning = positive_fit_detunings[
-                np.argmax(fisher_info_positive_detunings)
-            ]
-
-            fisher_info_negative_detunings = fisher_info[idx_negative_detunings]
-            best_fisher_info_negative_detunings = np.max(fisher_info_negative_detunings)
-            best_negative_detuning = negative_fit_detunings[
-                np.argmax(fisher_info_negative_detunings)
-            ]
-
-            print((f'For negative detunings the FI has a maximum value of '
-                   f'{best_fisher_info_negative_detunings:.2f} at '
-                   f'{best_negative_detuning:.2f} kHz \n'
-                   f'For positive detunings the FI has a maximum value of '
-                   f'{best_fisher_info_positive_detunings:.2f} at '
-                   f'{best_positive_detuning:.2f} kHz \n'))
-
-            textbox_str_fi = (f'Neg. Det. FI: '
-                              f'{best_fisher_info_negative_detunings:.2f} at '
-                              f'{best_negative_detuning:.2f} kHz \n'
-                              f'Pos. Det. FI: '
-                              f'{best_fisher_info_positive_detunings:.2f} at '
-                              f'{best_positive_detuning:.2f} kHz \n')
-
-            plotting_results = {'x': detuning_list,
-                                'y': population_vals,
-                                'error': population_errs,
-                                'fit_x': fit_x_list,
-                                'fit_y': fit_y_list,
-                                'legend_labels': legend_labels,
-                                'subplot_titles': f'Cat Int. \n'
-                                                  f' Sec: {secular:.2f} kHz',
-                                'subplot_x_labels': 'Tickle Detuning (kHz)',
-                                'subplot_y_labels': ['State Population', 'State Poulation', 'FI'],
-                                'rid': self.scheduler.rid,
-                                 'textbox_strs': [textbox_str_cat_int] + [None] * (num_states -1) + [textbox_str_fi],
-                                }
-
-            self.create_matplotlib_applet(plotting_results,
-                                          name=f'Cat Interferometer - Sec: {secular:.2f} kHz',
-                                          group=['plotting', 'motional'],
-                                          num_subplots=num_states + 1)
-
-
+        pass
+        # results_tmp = array(self.results)
+        # cat_interferometer_analyzer = CatInterferometerAnalyzer()
+        # raw_data, fitting_results, num_states = cat_interferometer_analyzer.analyze_interferometer_experiment(
+        #     results_tmp,
+        #     detuning_idx=2,
+        #     time_tickle_us=self.time_tickle_us,
+        #     enable_ms_gate=self.enable_ms_gate,
+        #     time_cat_bichromatic_us=self.time_cat_bichromatic_us,
+        #     time_ms_gate_us=self.time_ms_gate_us,
+        #     secular_idx = 0,
+        #     use_secular = True
+        # )
+        #
+        # for sec_idx in raw_data.keys():
+        #
+        #     raw_data_entry = raw_data[sec_idx]
+        #     fitting_results_entry = fitting_results[sec_idx]
+        #
+        #     # format returned values
+        #     detuning_list = raw_data_entry['x']
+        #     population_vals = raw_data_entry['y']
+        #     population_errs = raw_data_entry['yerr']
+        #     legend_labels = raw_data_entry['legend_labels']
+        #     secular = raw_data_entry['secular']
+        #
+        #     fit_x_list = fitting_results_entry['fit_x']
+        #     fit_y_list = fitting_results_entry['fit_y']
+        #     popt = fitting_results_entry['popt']
+        #     pcov = fitting_results_entry['pcov']
+        #
+        #     # format string for textbox
+        #     contrast_loss = popt[0]
+        #     alpha = popt[1]
+        #     detuning = popt[4]
+        #     phi = popt[5]
+        #     newline = '\n'
+        #
+        #     textbox_str_cat_int = (rf'$\alpha * \gamma$ : {alpha:.2f} {newline}'
+        #                    rf'd: {contrast_loss:.2f} {newline}'
+        #                    rf'$\phi$ : {phi:.2f}')
+        #
+        #     # format string for fisher information
+        #     fisher_info = fit_y_list[-1]
+        #     fit_x = fit_x_list[0, :]
+        #     idx_positive_detunings = np.where(fit_x > 0)[0]
+        #     positive_fit_detunings = fit_x[idx_positive_detunings]
+        #     idx_negative_detunings = np.where(fit_x < 0)[0]
+        #     negative_fit_detunings = fit_x[idx_negative_detunings]
+        #     fisher_info_positive_detunings = fisher_info[idx_positive_detunings]
+        #     best_fisher_info_positive_detunings = np.max(fisher_info_positive_detunings)
+        #     best_positive_detuning = positive_fit_detunings[
+        #         np.argmax(fisher_info_positive_detunings)
+        #     ]
+        #
+        #     fisher_info_negative_detunings = fisher_info[idx_negative_detunings]
+        #     best_fisher_info_negative_detunings = np.max(fisher_info_negative_detunings)
+        #     best_negative_detuning = negative_fit_detunings[
+        #         np.argmax(fisher_info_negative_detunings)
+        #     ]
+        #
+        #     print((f'For negative detunings the FI has a maximum value of '
+        #            f'{best_fisher_info_negative_detunings:.2f} at '
+        #            f'{best_negative_detuning:.2f} kHz \n'
+        #            f'For positive detunings the FI has a maximum value of '
+        #            f'{best_fisher_info_positive_detunings:.2f} at '
+        #            f'{best_positive_detuning:.2f} kHz \n'))
+        #
+        #     textbox_str_fi = (f'Neg. Det. FI: '
+        #                       f'{best_fisher_info_negative_detunings:.2f} at '
+        #                       f'{best_negative_detuning:.2f} kHz \n'
+        #                       f'Pos. Det. FI: '
+        #                       f'{best_fisher_info_positive_detunings:.2f} at '
+        #                       f'{best_positive_detuning:.2f} kHz \n')
+        #
+        #     plotting_results = {'x': detuning_list,
+        #                         'y': population_vals,
+        #                         'error': population_errs,
+        #                         'fit_x': fit_x_list,
+        #                         'fit_y': fit_y_list,
+        #                         'legend_labels': legend_labels,
+        #                         'subplot_titles': f'Cat Int. \n'
+        #                                           f' Sec: {secular:.2f} kHz',
+        #                         'subplot_x_labels': 'Tickle Detuning (kHz)',
+        #                         'subplot_y_labels': ['State Population', 'State Poulation', 'FI'],
+        #                         'rid': self.scheduler.rid,
+        #                          'textbox_strs': [textbox_str_cat_int] + [None] * (num_states -1) + [textbox_str_fi],
+        #                         }
+        #
+        #     self.create_matplotlib_applet(plotting_results,
+        #                                   name=f'Cat Interferometer - Sec: {secular:.2f} kHz',
+        #                                   group=['plotting', 'motional'],
+        #                                   num_subplots=num_states + 1)
+        #
+        #

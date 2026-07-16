@@ -183,6 +183,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # ensure data folder exists; create it if it doesn't exist
         os.makedirs(self.data_path, exist_ok=True)
 
+        self.rest_time_mu = self.core.seconds_to_mu(5)
+
 
     '''
     INITIALIZATION & CLEANUP
@@ -304,6 +306,13 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 if num_ions < self.desired_num_of_ions:
                     self.initialize_labrad_devices()
                     num_ions = self.load_ion()
+
+                    # wait to see if other ions are loaded also
+                    if num_ions == self.desired_num_of_ions:
+                        self.cleanup_devices(aramping=False)
+                        delay_mu(self.rest_time_mu)
+                        num_ions = self.load_ion()
+
 
                 # eject excess ions via A-ramping (if enabled)
                 elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
