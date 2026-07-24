@@ -640,6 +640,13 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 self.dds_ramper_ms.reset_cfr1_all_dds()
                 self.qubit.io_update()
 
+                # setup carrier beam
+                self.setup_carrier_beam(
+                    phase_track=True,
+                    ref_time_mu=ref_time_mu,
+
+                )
+
                 '''
                 MS Gate
                 '''
@@ -717,7 +724,7 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
                 dds_pulse_shaper_tickle.sequence_cleanup()
 
                 # calculate the time between clearing the phase accumulators and firing the tickle pulse
-                time_delay_mu = time_tickle_start_mu + self.dds_ramper_ms.ramp_firing_delay - ref_time_mu
+                time_delay_mu = time_tickle_start_mu - ref_time_mu
 
                 # store results
                 self.update_results(freq_secular_ftw,
@@ -855,6 +862,27 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
         )
 
     @kernel(flags={"fast-math"})
+    def setup_carrier_beam(self,
+                            phase_track: TBool = False,
+                            ref_time_mu: TInt64 = 0
+                            ):
+        # ensure all beam is off
+        self.qubit.off()
+        # set up relevant beam waveforms
+        if phase_track == False:
+            phase_mode = ad9910.PHASE_MODE_CONTINUOUS
+        else:
+            phase_mode = ad9910.PHASE_MODE_TRACKING
+        self.qubit.set_mu(
+            self.freq_carrier_ftw,
+            asf=self.qubit.ampl_qubit_asf,
+            pow_=0,
+            profile=self.profile_729_bichromatic,
+            phase_mode=phase_mode,
+            ref_time_mu=ref_time_mu
+        )
+
+    @kernel(flags={"fast-math"})
     def setup_beam_profile(self,
                            index: TInt32,
                            phase_track: TBool = False,
@@ -872,14 +900,14 @@ class CatStateInterferometerAllenDev(LAXExperiment, Experiment):
             phase_mode = ad9910.PHASE_MODE_CONTINUOUS
         else:
             phase_mode = ad9910.PHASE_MODE_TRACKING
-        self.qubit.set_mu(
-            self.freq_beams_ftw_list[index][0],
-            asf=self.ampl_beams_asf_list[index][0],
-            pow_=self.phase_beams_pow_list[index][0],
-            profile=self.profile_729_bichromatic,
-            phase_mode=phase_mode,
-            ref_time_mu=ref_time_mu
-        )
+        # self.qubit.set_mu(
+        #     self.freq_beams_ftw_list[index][0],
+        #     asf=self.ampl_beams_asf_list[index][0],
+        #     pow_=self.phase_beams_pow_list[index][0],
+        #     profile=self.profile_729_bichromatic,
+        #     phase_mode=phase_mode,
+        #     ref_time_mu=ref_time_mu
+        # )
         self.qubit.singlepass0.set_mu(
             self.freq_beams_ftw_list[index][1],
             asf=self.ampl_beams_asf_list[index][1],

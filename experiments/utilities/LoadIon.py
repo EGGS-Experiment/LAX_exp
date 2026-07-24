@@ -429,10 +429,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # threshold & rescale data
         # todo: set 1000 as some parameter for min scatter value
-        data *= data > 1000
+        data *= data > 750
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
         # use only upper 1% quantile of data
-        data *= data > np.quantile(data, 0.99)
+        data *= data > np.quantile(data, 0.95)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
         except PermissionError:
@@ -444,6 +444,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         accums, cxs, cys, radii = hough_circle_peaks(
             circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
 
+        # print(accums, cxs, cys, radii)
+        print(cxs)
         # create unique list of cx, cy coordinates
         unique_locs = set(tuple(
             (cx, cys[idx])
