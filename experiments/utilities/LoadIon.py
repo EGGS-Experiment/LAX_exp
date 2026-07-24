@@ -361,7 +361,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             if num_ions >= self.desired_num_of_ions:
                 ion_spottings += 1
                 # ensure camera sees ion in 3 consecutive images to prevent singular false positive
-                if ion_spottings >= 3:
+                if ion_spottings >= 5:
                     print("\t\t{:d} ION(s) LOADED".format(num_ions))
                     return num_ions
             else:   ion_spottings = 0  # reset if image analysis shows no ions in trap
@@ -427,7 +427,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         data *= data > 750
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
         # use only upper 1% quantile of data
-        data *= data > np.quantile(data, 0.95)
+        data *= data > np.quantile(data, 0.97)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
         except PermissionError:
