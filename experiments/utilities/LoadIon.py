@@ -307,11 +307,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                     self.initialize_labrad_devices()
                     num_ions = self.load_ion()
 
-                    # wait to see if other ions are loaded also
-                    if num_ions == self.desired_num_of_ions:
-                        self.cleanup_devices(aramping=False)
-                        num_ions = self.load_ion()
-
 
                 # eject excess ions via A-ramping (if enabled)
                 elif self.enable_aramp and (num_ions > self.desired_num_of_ions):
