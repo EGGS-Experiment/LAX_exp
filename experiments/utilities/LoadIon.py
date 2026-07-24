@@ -243,6 +243,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         except Exception as e:
             print("Error during initialize_labrad_devices: {:}".format(repr(e)))
             self.cleanup_devices()
+            raise NotImplementedError('Issue initialized cleanup devices. Cleaning up.')
 
         finally:
             print("\tINITIALIZE - FINISH")
@@ -399,7 +400,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                 return num_ions
 
         self.aperture.close_aperture()
-        return 0
+        return num_ions
 
     @rpc
     def process_image(self, filepath1: TStr="original.png", filepath2: TStr="manipulated.png") -> TInt32:
@@ -459,7 +460,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.pump.beam.set_att(31.5 * dB)   # have to set att b/c readout.run() turns on beams
         self.aperture.open_aperture()
-        sleep(2)    # add delay to ensure aperture closes successfully
+        dely_mu(self.core.seconds_to_mu(2))
 
 
         ### check PMT and camera status ###
