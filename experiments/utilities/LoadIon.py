@@ -444,8 +444,6 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         accums, cxs, cys, radii = hough_circle_peaks(
             circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
 
-        # print(accums, cxs, cys, radii)
-        print(cxs)
         # create unique list of cx, cy coordinates
         unique_locs = set(tuple(
             (cx, cys[idx])
