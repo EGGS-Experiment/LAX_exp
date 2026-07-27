@@ -884,7 +884,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 phase_ms_pow = int32(config_vals[10])
                 phase_parity_pow = int32(config_vals[11])
 
-
                 herald_counter = 0  # clear herald counter
                 # initialize variable and set as -1 so user will know error occurred and variable was not set properly
                 time_tickle_start_mu  = int64(-1)
@@ -907,8 +906,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 '''
                 BEGIN MAIN SEQUENCE
                 '''
-
-
                 while True:
                     # check heralding OK (otherwise execution is blocked)
                     if herald_counter >= self.max_herald_attempts:
@@ -927,7 +924,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                             time_ms_gate_dd_mu = 8
                     else:
                         time_ms_gate_dd_mu = time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
-                    
+
+
                     """
                     Wait for Line Trigger
                     """
@@ -939,6 +937,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     '''
                     if self.enable_servo_relock:
                         self.qubit.relock_intensity_servo(self.time_servo_relock_mu)
+
 
                     '''
                     INITIALIZE ION STATE
@@ -957,7 +956,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     # set up config of shaped pulses to be fired for tickling, also sets up phase autoclear
                     time_actual_tickle_list_mu = self.dds_pulse_shaper_tickle.configure_train_all_dds([self.time_tickle_mu])
                     time_actual_tickle_mu = time_actual_tickle_list_mu[0]
-
 
                     # set correct profile
                     self.qubit.set_profile(self.profile_729_bichromatic)
@@ -995,12 +993,14 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                                phase_track=True,
                                                ref_time_mu=ref_time_mu)
 
+
                     '''
                     Parity Pulse
                     '''
                     if self.enable_parity_pulse:
-                        self.pulse_parity(phase_parity_pow,
-                                          phase_track = True)
+                        self.pulse_parity(freq_carrier_ftw,
+                                          phase_parity_pow,
+                                          phase_track = False)
 
                     '''
                     CAT #1
@@ -1128,7 +1128,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
                     # force break loop by default
                     break
-
                 '''
                 READ OUT & STORE RESULTS
                 '''
@@ -1154,10 +1153,10 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                         and time_tickle_start_mu >= 0):
                     # calculate time between clearing phase accumulators and tickle firing (only when tickle is fired)
                     time_delay_mu = (time_tickle_start_mu
-                                     + self.dds_ramper_ms.ramp_firing_delay
                                      - ref_time_mu)
 
-
+                # shift bits to account for halving we did for DD and ramp time on both sides of pulse
+                time_ms_gate_mu = (time_ms_gate_mu + self.dds_ramper_ms.drg_time_actual_mu_list[0]) << 1
 
                 # store results
                 self.update_results(freq_carrier_ftw,
@@ -1169,7 +1168,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     phase_tickle_pow,
                                     phase_cat_dynamical_decoupling_pow,
                                     phase_ms_dynamical_decoupling_pow,
-                                    time_ms_gate_mu << 1, # shift bits over to left to account for halving we did for DD
+                                    time_ms_gate_mu,
                                     freq_ms_gate_secular_detuning_ftw,
                                     phase_ms_pow,
                                     phase_parity_pow,
@@ -1258,7 +1257,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         '''RISING PORITION OF PULSE'''
         self.qubit.on()
         self.dds_ramper_ms.run_ramp_all_dds()
-        delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+        delay_mu(self.dds_ramper_ms.drg_time_actual_mu_list[0])
 
         '''FLAT TOP PORITION OF PULSE'''
         if self.enable_dynamical_decoupling:
@@ -1267,8 +1266,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         delay_mu(time_ms_gate_dd_mu)
         if self.enable_dynamical_decoupling:
             self.qubit.singlepass0_off()
-            self.set_carrier_phase(phase_dynamical_decoupling_pow,
-                                   phase_track=True, ref_time_mu=ref_time_mu)
+            self.set_carrier_phase(phase_dynamical_decoupling_pow + self.phase_dd_phase_shift_pow,
+                                   phase_track=True,
+                                   ref_time_mu=ref_time_mu)
             self.qubit.singlepass0_on()
         with parallel:
             # this must go after set_mu because set_mu calls io_update
@@ -1278,7 +1278,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         '''FALLING EDGE OF PULSE'''
         self.qubit.singlepass0_off()
         self.dds_ramper_ms.run_ramp_all_dds()
-        delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+        delay_mu(self.dds_ramper_ms.drg_time_actual_mu_list[0])
         self.dds_ramper_ms.switch_off_all_dds()
         self.qubit.off()
 
@@ -1286,23 +1286,29 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.dds_ramper_ms.reset_cfrs_all_dds()
 
     @kernel(flags={'fast-math'})
-    def pulse_parity(self, phase_parity_pulse_pow,
+    def pulse_parity(self,
+                     freq_carrier_ftw: TInt32,
+                     phase_parity_pulse_pow,
                      phase_track = False) -> TNone:
         if phase_track == False:
             phase_mode = ad9910.PHASE_MODE_CONTINUOUS
         else:
             phase_mode = ad9910.PHASE_MODE_TRACKING
         self.qubit.cpld.set_all_att_mu(self.att_reg_parity_pulse)
-        # self.qubit.set_profile(self.profile_729_parity)
         self.qubit.set_mu(
+            freq_carrier_ftw,
+            asf=self.qubit.ampl_qubit_asf,
+            pow_=0,
+            profile=self.profile_729_bichromatic,
+            phase_mode=ad9910.PHASE_MODE_CONTINUOUS
+        )
+        self.qubit.singlepass0.set_mu(
             self.qubit.freq_singlepass0_default_ftw,
             asf=self.qubit.ampl_singlepass0_default_asf,
             pow_=phase_parity_pulse_pow,
             profile=self.profile_729_bichromatic,
             phase_mode=phase_mode,
         )
-        at_mu((now_mu() + 8) & ~7)
-        self.qubit.io_update()
 
         self.qubit.on()
         self.qubit.singlepass0_on()
@@ -1372,9 +1378,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 profile=self.profile_729_bichromatic,
                 phase_mode=phase_mode,
                 ref_time_mu=ref_time_mu
-
             )
-
         self.qubit.singlepass2.set_mu(
                 self.freq_beams_ftw_list[index][3],
                 asf=self.ampl_beams_asf_list[index][3],
@@ -1440,8 +1444,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         # prepare phase arrays for bichromatic
         cat4_phases = [
-            self.phase_cat_update_dir[0] * phase_cat2_cat_pow,
-            self.phase_cat_update_dir[1] * phase_cat2_cat_pow,
+            self.phases_pulse1_cat_pow[0] + self.phase_cat_update_dir[0] * phase_cat2_cat_pow,
+            self.phases_pulse1_cat_pow[1] + self.phase_cat_update_dir[1] * phase_cat2_cat_pow
         ]
 
         ms_phases = [
