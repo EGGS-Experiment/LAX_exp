@@ -917,6 +917,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     self.core.break_realtime()  # add slack for execution
                     delay_mu(125000)  # add even more slack lol
 
+                    time_ms_gate_mu = time_ms_gate_mu - (self.dds_ramper_ms.drg_time_actual_mu_list[0] << 1)
                     # calculate for ms gate timing
                     if self.enable_dynamical_decoupling:
                         time_ms_gate_dd_mu = time_ms_gate_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
