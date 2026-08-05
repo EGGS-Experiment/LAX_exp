@@ -1191,7 +1191,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     freq_tickle_detuning_ftw,
                                     phase_tickle_pow,
                                     phase_cat_dynamical_decoupling_pow,
-                                    phase_ms_dynamical_decouplin            g_pow,
+                                    phase_ms_dynamical_decoupling_pow,
                                     time_ms_gate_mu,
                                     freq_ms_gate_secular_detuning_ftw,
                                     phase_ms_pow,
