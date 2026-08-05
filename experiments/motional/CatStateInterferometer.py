@@ -1,7 +1,6 @@
 from artiq.experiment import *
 from artiq.coredevice import ad9910
 
-
 from numpy import array, int32, int64, zeros
 import numpy as np
 
@@ -15,8 +14,8 @@ from LAX_exp.system.objects.PulseShaper import available_pulse_shapes
 from LAX_exp.system.objects.dds_pulse_shaper import DDSPulseShaper
 from LAX_exp.system.objects.dds_ramper import DDSRamper
 
-from LAX_exp.analysis.anaylyzers.cat_inferometer_analyzer import CatInterferometerAnalyzer
-from LAX_exp.analysis.anaylyzers.tickle_analyzer import TickleAnalyzer
+# from LAX_exp.analysis.anaylyzers.cat_inferometer_analyzer import CatInterferometerAnalyzer
+# from LAX_exp.analysis.anaylyzers.tickle_analyzer import TickleAnalyzer
 
 class CatStateInterferometer(LAXExperiment, Experiment):
     """
