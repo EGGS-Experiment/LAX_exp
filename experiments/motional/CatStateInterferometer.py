@@ -195,9 +195,9 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.setattr_argument("time_ms_gate_us_list", Scannable(
             default=[
                 ExplicitScan([50.]),
-                RangeScan(0, 500, 50, randomize=True),
+                RangeScan(6, 500, 50, randomize=True),
             ],
-            global_min=1, global_max=10000, global_step=1,
+            global_min=6, global_max=10000, global_step=1,
             unit="us", scale=1, precision=5
         ),
                               group=_argstr,
@@ -558,7 +558,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
             config_type=float, shuffle_config=True
         )
-        
+
         """
         Build Pulse Shaper
         """
@@ -852,7 +852,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.dds_pulse_shaper_tickle.dds_targets[0].set_att_mu(self.att_tickle_mu)
         self.dds_pulse_shaper_tickle.dds_targets[0].sw.off()
         delay_mu(8)
-        
+
         # initialize ramper
         self.dds_ramper_ms.sequence_initialize()
         delay_mu(50000)
@@ -904,6 +904,20 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                                 phase_parity_pulse_pow=phase_parity_pow)
 
                 '''
+                Calculate MS time
+                '''
+                time_ms_gate_mu = time_ms_gate_mu - self.dds_ramper_ms.drg_time_actual_mu_list[0]
+                if time_ms_gate_mu < 0:
+                    time_ms_gate_mu = 8
+                # calculate for ms gate timing
+                if self.enable_dynamical_decoupling:
+                    time_ms_gate_dd_mu = time_ms_gate_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
+                    if time_ms_gate_dd_mu < 0:
+                        time_ms_gate_dd_mu = 8
+                else:
+                    time_ms_gate_dd_mu = time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
+
+                '''
                 BEGIN MAIN SEQUENCE
                 '''
                 while True:
@@ -916,16 +930,6 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
                     self.core.break_realtime()  # add slack for execution
                     delay_mu(125000)  # add even more slack lol
-
-                    time_ms_gate_mu = time_ms_gate_mu - (self.dds_ramper_ms.drg_time_actual_mu_list[0] << 1)
-                    # calculate for ms gate timing
-                    if self.enable_dynamical_decoupling:
-                        time_ms_gate_dd_mu = time_ms_gate_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
-                        if time_ms_gate_dd_mu < 0:
-                            time_ms_gate_dd_mu = 8
-                    else:
-                        time_ms_gate_dd_mu = time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
-
 
                     """
                     Wait for Line Trigger
@@ -950,49 +954,37 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     # ensure laser is off
                     self.qubit.off()
 
-                    # set tickle frequency/phases
-                    self.dds_pulse_shaper_tickle.dds_targets[0].set_ftw(
-                        self.freq_secular_ftw + freq_tickle_detuning_ftw)
-                    self.dds_pulse_shaper_tickle.dds_targets[0].set_pow(phase_tickle_pow)
-                    # set up config of shaped pulses to be fired for tickling, also sets up phase autoclear
-                    time_actual_tickle_list_mu = self.dds_pulse_shaper_tickle.configure_train_all_dds([self.time_tickle_mu])
-                    time_actual_tickle_mu = time_actual_tickle_list_mu[0]
-
                     # set correct profile
                     self.qubit.set_profile(self.profile_729_bichromatic)
-
-                    # self.setup_beam_profiles()
-                    # set cfr1 so we clear phases of all urukul0 channels on next io_update
-                    self.qubit.set_cfr1(phase_autoclear=1)
-                    self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
-                    self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
-
-                    ref_time_mu = (now_mu() + 8) & ~7
-                    at_mu(ref_time_mu)
-                    self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
-                    at_mu(ref_time_mu)
-                    self.qubit.io_update()
-                    # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
-                    self.dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
-                                                              ram_destination=ad9910.RAM_DEST_ASF)
-                    self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
-
-                    # reset cfr1 so we no longer clear phases on io_update
-                    self.qubit.set_cfr1()
-                    self.qubit.singlepass0.set_cfr1()
-                    self.dds_ramper_ms.reset_cfr1_all_dds()
-                    self.qubit.io_update()
 
                     '''
                     MS Gate
                     '''
                     if self.enable_ms_gate:
+
+                        self.qubit.set_cfr1(phase_autoclear=1)
+                        self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                        self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
+                        self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
+
+                        ref_time_ms_mu = (now_mu() + 8) & ~7
+                        at_mu(ref_time_ms_mu)
+                        self.qubit.io_update()
+
+                        # reset cfr1 so we no longer clear phases on io_update
+                        self.qubit.set_cfr1()
+                        self.qubit.singlepass0.set_cfr1()
+                        self.qubit.singlepass1.set_cfr1()
+                        self.qubit.singlepass2.set_cfr1()
+                        self.qubit.io_update()
+
                         self.qubit.cpld.set_all_att_mu(self.att_reg_ms_gate)
+                        # ref_time_ms_mu = self.clear_qubit_phase_accumulators()
                         self.pulse_ms(self.index_729_ms,
                                       time_ms_gate_dd_mu,
                                                phase_ms_dynamical_decoupling_pow,
                                                phase_track=True,
-                                               ref_time_mu=ref_time_mu)
+                                               ref_time_ms_mu=ref_time_ms_mu)
 
 
                     '''
@@ -1003,10 +995,41 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                           phase_parity_pow,
                                           phase_track = False)
 
+                    # set tickle frequency/phases
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_ftw(
+                        self.freq_secular_ftw + freq_tickle_detuning_ftw)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_pow(phase_tickle_pow)
+                    # set up config of shaped pulses to be fired for tickling, also sets up phase autoclear
+                    time_actual_tickle_list_mu = self.dds_pulse_shaper_tickle.configure_train_all_dds(
+                        [self.time_tickle_mu])
+                    time_actual_tickle_mu = time_actual_tickle_list_mu[0]
+
+                    self.qubit.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
+                    self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
+
+                    ref_time_mu = (now_mu() + 8) & ~7
+                    at_mu(ref_time_mu)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+                    at_mu(ref_time_mu)
+                    self.qubit.io_update()
+                    # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
+                    self.dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
+                                                                         ram_destination=ad9910.RAM_DEST_ASF)
+                    self.dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+
+                    # reset cfr1 so we no longer clear phases on io_update
+                    self.qubit.set_cfr1()
+                    self.qubit.singlepass0.set_cfr1()
+                    self.qubit.singlepass1.set_cfr1()
+                    self.qubit.singlepass2.set_cfr1()
+                    self.qubit.io_update()
+                    self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+
                     '''
                     CAT #1
                     '''
-                    self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
                     # cat1 - bichromatic cat pulse
                     if self.enable_cat1_bichromatic:
                         self.pulse_bichromatic(self.index_729_cat1,
@@ -1067,7 +1090,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                     if self.enable_tickle_pulse:
                         # ensure we do not have a negative tickle time when DDing
                         # with DD minimuim tickle time is ~1.3us, i.e time it takes to switch DD phase
-                        time_tickle_mu = time_actual_tickle_list_mu[0] >> 1
+                        time_tickle_mu = time_actual_tickle_mu >> 1
                         if self.enable_dynamical_decoupling:
                             time_tickle_dd_mu = time_tickle_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
                             if time_tickle_dd_mu < 0:
@@ -1168,7 +1191,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                                     freq_tickle_detuning_ftw,
                                     phase_tickle_pow,
                                     phase_cat_dynamical_decoupling_pow,
-                                    phase_ms_dynamical_decoupling_pow,
+                                    phase_ms_dynamical_decouplin            g_pow,
                                     time_ms_gate_mu,
                                     freq_ms_gate_secular_detuning_ftw,
                                     phase_ms_pow,
@@ -1234,13 +1257,13 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.singlepass1_off()
         self.qubit.singlepass2_off()
         self.qubit.singlepass0_on()
-        
+
     @kernel(flags={'fast-math'})
     def pulse_ms(self,
                  index,
                  time_ms_gate_dd_mu: TInt64,
                  phase_dynamical_decoupling_pow: TInt32,
-                 ref_time_mu: TInt64,
+                 ref_time_ms_mu: TInt64,
                  phase_track=True):
         if phase_track == False:
             phase_mode = ad9910.PHASE_MODE_CONTINUOUS
@@ -1252,7 +1275,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         self.qubit.off()
         self.setup_beam_profile(index,
                                 phase_track,
-                                ref_time_mu)
+                                ref_time_ms_mu)
         self.dds_ramper_ms.configure_ramp_all_dds(1)
 
         '''RISING PORITION OF PULSE'''
@@ -1269,7 +1292,7 @@ class CatStateInterferometer(LAXExperiment, Experiment):
             self.qubit.singlepass0_off()
             self.set_carrier_phase(phase_dynamical_decoupling_pow + self.phase_dd_phase_shift_pow,
                                    phase_track=True,
-                                   ref_time_mu=ref_time_mu)
+                                   ref_time_mu=ref_time_ms_mu)
             self.qubit.singlepass0_on()
         with parallel:
             # this must go after set_mu because set_mu calls io_update
@@ -1388,6 +1411,64 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                 phase_mode=phase_mode,
                 ref_time_mu=ref_time_mu
         )
+
+    @kernel(flags={"fast-math"})
+    def clear_tickle_qubit_phase_accumulators(self,
+                                              dds_pulse_shaper_tickle,
+                                              freq_tickle_detuning_ftw,
+                                              phase_tickle_pow):
+        # set cfr1 so we clear phases of all urukul0 channels on next io_update
+        # tickle dds has already had phase autoclear flag set high in drg setup
+
+        # set tickle frequency/phases
+        self.dds_pulse_shaper_tickle.dds_targets[0].set_ftw(
+            self.freq_secular_ftw + freq_tickle_detuning_ftw)
+        self.dds_pulse_shaper_tickle.dds_targets[0].set_pow(phase_tickle_pow)
+        # set up config of shaped pulses to be fired for tickling, also sets up phase autoclear
+        time_actual_tickle_list_mu = self.dds_pulse_shaper_tickle.configure_train_all_dds(
+            [self.time_tickle_mu])
+        time_actual_tickle_mu = time_actual_tickle_list_mu[0]
+
+        self.qubit.set_cfr1(phase_autoclear=1)
+        self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+        self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
+
+        ref_time_mu = (now_mu() + 8) & ~7
+        at_mu(ref_time_mu)
+        dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+        at_mu(ref_time_mu)
+        self.qubit.io_update()
+        # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
+        dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
+                                                             ram_destination=ad9910.RAM_DEST_ASF)
+        dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+
+        # reset cfr1 so we no longer clear phases on io_update
+        self.qubit.set_cfr1()
+        self.qubit.singlepass0.set_cfr1()
+        self.dds_ramper_ms.reset_cfr1_all_dds()
+        self.qubit.io_update()
+
+        return ref_time_mu, time_actual_tickle_mu
+
+    @kernel(flags={"fast-math"})
+    def clear_qubit_phase_accumulators(self) -> TInt64:
+        # set cfr1 so we clear phases of all urukul0 channels on next io_update
+        self.qubit.set_cfr1(phase_autoclear=1)
+        self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+        self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
+
+        ref_time_ms_mu = (now_mu() + 8) & ~7
+        at_mu(ref_time_ms_mu)
+        self.qubit.io_update()
+
+        # reset cfr1 so we no longer clear phases on io_update
+        self.qubit.set_cfr1()
+        self.qubit.singlepass0.set_cfr1()
+        self.dds_ramper_ms.reset_cfr1_all_dds()
+        self.qubit.io_update()
+
+        return ref_time_ms_mu
 
     @rpc
     def set_default_configuration(self):

@@ -167,8 +167,17 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                                      "i.e. frequencies for [singlepass1, singlepass2] is set as [beams.freq_mhz.freq_singlepass1_mhz - freq_secular_khz - freq_ms_secular_detuning, "
                                      "beams.freq_mhz.freq_singlepass2_mhz + freq_secular_khz + freq_ms_secular_detuning].")
 
-        self.setattr_argument("phase_ms_turns", PYONValue([0., 0.]), group=_argstr,
+        self.setattr_argument("phase_ms_turns",
+                              NumberValue(default=0., unit='turns',
+                                          min=0., max=2., step=0.1, precision=3, scale=1.0),
+                              group=_argstr,
                               tooltip="Phase sweep values applied to the singlepass DDSs during the ms gate.\n")
+
+        self.setattr_argument("target_ms_phase",
+                              EnumerationValue(['RSB', 'BSB', 'RSB-BSB', 'RSB+BSB'], default='RSB+BSB'),
+                              group=_argstr,
+                              tooltip="Phase update array for the singlepass DDSs during the ms gate.\n"
+                                      "This configures how phase_ms_turns_list are to be applied to the DDSs.")
 
         self.setattr_argument('phase_ms_dynamical_decoupling_turns',
                               NumberValue(default=0., unit='turns',
@@ -378,23 +387,24 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         Build Pulse Shaper
         """
 
-        if self.enable_ms_gate:
-            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
-                                           num_samples=200, # number of points in the ramp
-                                           ramp_dest=2, # amplitude ramp
-                                           data_high=self.ampls_ms_pct[0] / 100., # max value of the ramp
-                                           data_low=0) # min value of the ramp
+        # object only used for CFR/phase methods when MS is off and enable_ms logic ensures no MS pulse is emitted if not requested
+        self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
+                                       num_samples=200,  # number of points in the ramp
+                                       ramp_dest=2,  # amplitude ramp
+                                       data_high=self.ampls_ms_pct[0] / 100.,  # max value of the ramp
+                                       data_low=0)  # min value of the ramp
 
-            self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
-                                              ramp_dest=2, # ampltiude ramp
-                                              data_high=self.ampls_ms_pct[1] / 100., # max value of the ramp
-                                              data_low=0) # min value of the ramp
+        self.dds_ramper_ms.add_dds_target(self.qubit.singlepass2,
+                                          ramp_dest=2,  # ampltiude ramp
+                                          data_high=self.ampls_ms_pct[1] / 100.,  # max value of the ramp
+                                          data_low=0)  # min value of the ramp
+
+        if self.enable_ms_gate:
 
             self.time_ms_gate_mu = self.core.seconds_to_mu(self.time_ms_gate_us/2*us)
             self.freq_ms_mode_ftw = self.qubit.frequency_to_ftw(self.freq_ms_mode_khz * kHz)
             self.freq_ms_gate_secular_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_ms_secular_detuning_khz * kHz)
-            self.phase_ms_pow = array(
-                [self.qubit.turns_to_pow(phase_ms_turns) for phase_ms_turns in self.phase_ms_turns])
+            self.phase_ms_pow = self.qubit.turns_to_pow(self.phase_ms_turns)
 
             self.phase_ms_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_ms_dynamical_decoupling_turns)
 
@@ -407,19 +417,11 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                     (att_to_mu(self.atts_ms_db[1] * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
             )
 
-
         else:
-            self.dds_ramper_ms = DDSRamper(self, self.qubit.singlepass1,
-                                           num_samples=200, # number of points in the ramp
-                                           ramp_dest=2, # amplitude ramp
-                                           data_high=0,
-                                           data_low=0) # min value of the ramp
-
             self.time_ms_gate_mu = 0
             self.freq_ms_mode_ftw =0
             self.freq_ms_gate_secular_detuning_ftw = 0
-            self.phase_ms_pow = array(
-                [0., 0.])
+            self.phase_ms_pow = 0
             self.ampls_ms_asf = array([0,0])
 
             self.phase_ms_dynamical_decoupling_pow = 0
@@ -432,7 +434,15 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                     (att_to_mu(31.5 * dB) << ((self.qubit.singlepass2.chip_select - 4) * 8))
             )
 
-        self.phase_ms_update_dir = array([1, -1], dtype=int32)
+        # specify phase update array based on user arguments
+        if self.target_ms_phase == 'RSB':
+            self.phase_ms_update_dir = array([1, 0], dtype=int32)
+        elif self.target_ms_phase == 'BSB':
+            self.phase_ms_update_dir = array([0, 1], dtype=int32)
+        elif self.target_ms_phase == 'RSB-BSB':
+            self.phase_ms_update_dir = array([1, -1], dtype=int32)
+        elif self.target_ms_phase == 'RSB+BSB':
+            self.phase_ms_update_dir = array([1, 1], dtype=int32)
 
     def _prepare_experiment_dynamical_decoupling(self):
         """
@@ -579,10 +589,8 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 # extract values from config list
                 idx_freq_secular = int32(config_vals[0])
                 freq_tickle_detuning_ftw = int32(config_vals[1])
-
                 freq_secular_ftw = int32(self.freq_secular_ftw_list[idx_freq_secular])
 
-                # print(freq_secular_ftw)
                 self.core.break_realtime()
 
                 self.update_configuration(idx_freq_secular)
@@ -597,12 +605,15 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 delay_mu(125000)  # add even more slack lol
 
                 # calculate for ms gate timing
+                time_ms_gate_mu = self.time_ms_gate_mu - self.dds_ramper_ms.drg_time_actual_mu_list[0]
+                if time_ms_gate_mu < 0:
+                    time_ms_gate_mu = 8
                 if self.enable_dynamical_decoupling:
-                    time_ms_gate_dd_mu = self.time_ms_gate_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
+                    time_ms_gate_dd_mu = time_ms_gate_mu - self.time_urukul_reset_mu - self.dds_ramper_ms.ramp_firing_delay
                     if time_ms_gate_dd_mu < 0:
                         time_ms_gate_dd_mu = 8
                 else:
-                    time_ms_gate_dd_mu = self.time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
+                    time_ms_gate_dd_mu = time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
 
                 """
                 Wait for Line Trigger
@@ -623,12 +634,8 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 self.initialize_subsequence.run_dma()
                 self.sidebandcool_subsequence.run_dma()
 
-                # set cfr1 so we clear phases of all urukul0 channels on next io_update
+                # ensure carrier is off
                 self.qubit.off()
-                self.qubit.set_cfr1(phase_autoclear=1)
-                self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
-                self.qubit.singlepass1.set_cfr1(phase_autoclear=1)
-                self.qubit.singlepass2.set_cfr1(phase_autoclear=1)
 
                 # set tickle frequency/phases
                 dds_pulse_shaper_tickle.dds_target.set_ftw(freq_secular_ftw + freq_tickle_detuning_ftw)
@@ -644,32 +651,18 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 # set correct profile
                 self.qubit.set_profile(self.profile_729_bichromatic)
 
-                # set cfr1 so we clear phases of all urukul0 channels on next io_update
-                self.qubit.set_cfr1(phase_autoclear=1)
-                self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
-                self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
-
-                ref_time_mu = (now_mu() + 8) & ~7
-                at_mu(ref_time_mu)
-                dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
-                at_mu(ref_time_mu)
-                self.qubit.io_update()
-                # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
-                dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
-                                                                     ram_destination=ad9910.RAM_DEST_ASF)
-                dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
-
-                # reset cfr1 so we no longer clear phases on io_update
-                self.qubit.set_cfr1()
-                self.qubit.singlepass0.set_cfr1()
-                self.dds_ramper_ms.reset_cfr1_all_dds()
-                self.qubit.io_update()
+                # setup carrier beam
+                self.setup_carrier_beam(
+                    phase_track=False,
+                )
 
                 '''
                 MS Gate
                 '''
+                # setup carrier beam
                 if self.enable_ms_gate:
                     self.qubit.cpld.set_all_att_mu(self.att_reg_ms_gate)
+                    ref_time_mu = self.clear_qubit_phase_accumulators()
                     self.pulse_ms(self.index_729_ms,
                                 time_ms_gate_dd_mu,
                                 phase_track=True,
@@ -679,6 +672,9 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 CAT #1
                 '''
                 self.qubit.cpld.set_all_att_mu(self.atts_cat_reg_mu_list[idx_freq_secular])
+                ref_time_mu = self.clear_tickle_qubit_phase_accumulators(
+                    dds_pulse_shaper_tickle
+                )
                 # cat1 - bichromatic cat pulse
                 self.pulse_bichromatic(self.index_729_cat1,
                                        self.time_cat_bichromatic_mu,
@@ -703,6 +699,7 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 if self.enable_dynamical_decoupling:
                     self.set_carrier_phase(self.phase_cat_dynamical_decoupling_pow - self.phase_dd_phase_shift_pow,
                                            phase_track=True, ref_time_mu=ref_time_mu)
+
 
                 with parallel:
                     # run and clock when we start tickle sequence
@@ -742,7 +739,7 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                 dds_pulse_shaper_tickle.sequence_cleanup()
 
                 # calculate time between clearing phase accumulators and tickle firing
-                time_delay_mu = time_tickle_start_mu + self.dds_ramper_ms.ramp_firing_delay - ref_time_mu
+                time_delay_mu = time_tickle_start_mu - ref_time_mu
 
                 # store results
                 self.update_results(freq_secular_ftw,
@@ -832,7 +829,7 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         '''RISING PORITION OF PULSE'''
         self.qubit.on()
         self.dds_ramper_ms.run_ramp_all_dds()
-        delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+        delay_mu(self.dds_ramper_ms.drg_time_actual_mu_list[0])
 
         '''FLAT TOP PORITION OF PULSE'''
         if self.enable_dynamical_decoupling:
@@ -852,12 +849,60 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         '''FALLING EDGE OF PULSE'''
         self.qubit.singlepass0_off()
         self.dds_ramper_ms.run_ramp_all_dds()
-        delay_mu(self.dds_ramper_ms.drg_time_ramp_mu[0])
+        delay_mu(self.dds_ramper_ms.drg_time_actual_mu_list[0])
         self.dds_ramper_ms.switch_off_all_dds()
         self.qubit.off()
 
         '''ENSURE ALL CFR REGISTERS ARE RESET TO NORMAL VALUES FOR SINGLE TONE OPERATION'''
         self.dds_ramper_ms.reset_cfrs_all_dds()
+
+    @kernel(flags={"fast-math"})
+    def clear_tickle_qubit_phase_accumulators(self,
+                                              dds_pulse_shaper_tickle) -> TInt64:
+        # set cfr1 so we clear phases of all urukul0 channels on next io_update
+        # tickle dds has already had phase autoclear flag set high in drg setup
+        self.qubit.set_cfr1(phase_autoclear=1)
+        self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+        self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
+
+        ref_time_mu = (now_mu() + 8) & ~7
+        at_mu(ref_time_mu)
+        dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+        at_mu(ref_time_mu)
+        self.qubit.io_update()
+        # for ururuk channel used for tickling keep RAM enabled but ensure we don't clear phase on io_update
+        dds_pulse_shaper_tickle.dds_targets[0].set_cfr1(ram_enable=1, phase_autoclear=0,
+                                                             ram_destination=ad9910.RAM_DEST_ASF)
+        dds_pulse_shaper_tickle.dds_targets[0].cpld.io_update.pulse_mu(8)
+
+        # reset cfr1 so we no longer clear phases on io_update
+        self.qubit.set_cfr1()
+        self.qubit.singlepass0.set_cfr1()
+        self.dds_ramper_ms.reset_cfr1_all_dds()
+        self.qubit.io_update()
+
+        return ref_time_mu
+
+    @kernel(flags={"fast-math"})
+    def clear_qubit_phase_accumulators(self) -> TInt64:
+        # set cfr1 so we clear phases of all urukul0 channels on next io_update
+        # tickle dds has already had phase autoclear flag set high in drg setup
+        self.qubit.set_cfr1(phase_autoclear=1)
+        self.qubit.singlepass0.set_cfr1(phase_autoclear=1)
+        self.dds_ramper_ms.set_autoclear_phase_accumulator_all_dds()
+
+        ref_time_mu = (now_mu() + 8) & ~7
+        at_mu(ref_time_mu)
+        self.qubit.io_update()
+
+        # reset cfr1 so we no longer clear phases on io_update
+        self.qubit.set_cfr1()
+        self.qubit.singlepass0.set_cfr1()
+
+        self.dds_ramper_ms.reset_cfr1_all_dds()
+        self.qubit.io_update()
+
+        return ref_time_mu
 
     @kernel(flags={"fast-math"})
     def set_carrier_phase(self, phase_dd_pow_: TInt32,
@@ -881,6 +926,27 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         )
 
     @kernel(flags={"fast-math"})
+    def setup_carrier_beam(self,
+                            phase_track: TBool = False,
+                            ref_time_mu: TInt64 = 0
+                            ):
+        # ensure all beam is off
+        self.qubit.off()
+        # set up relevant beam waveforms
+        if phase_track == False:
+            phase_mode = ad9910.PHASE_MODE_CONTINUOUS
+        else:
+            phase_mode = ad9910.PHASE_MODE_TRACKING
+        self.qubit.set_mu(
+            self.freq_carrier_ftw,
+            asf=self.qubit.ampl_qubit_asf,
+            pow_=0,
+            profile=self.profile_729_bichromatic,
+            phase_mode=phase_mode,
+            ref_time_mu=ref_time_mu
+        )
+
+    @kernel(flags={"fast-math"})
     def setup_beam_profile(self,
                            index: TInt32,
                            phase_track: TBool = False,
@@ -898,14 +964,14 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
             phase_mode = ad9910.PHASE_MODE_CONTINUOUS
         else:
             phase_mode = ad9910.PHASE_MODE_TRACKING
-        self.qubit.set_mu(
-            self.freq_beams_ftw_list[index][0],
-            asf=self.ampl_beams_asf_list[index][0],
-            pow_=self.phase_beams_pow_list[index][0],
-            profile=self.profile_729_bichromatic,
-            phase_mode=phase_mode,
-            ref_time_mu=ref_time_mu
-        )
+        # self.qubit.set_mu(
+        #     self.freq_beams_ftw_list[index][0],
+        #     asf=self.ampl_beams_asf_list[index][0],
+        #     pow_=self.phase_beams_pow_list[index][0],
+        #     profile=self.profile_729_bichromatic,
+        #     phase_mode=phase_mode,
+        #     ref_time_mu=ref_time_mu
+        # )
         self.qubit.singlepass0.set_mu(
             self.freq_beams_ftw_list[index][1],
             asf=self.ampl_beams_asf_list[index][1],
@@ -968,8 +1034,8 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         self.ampl_beams_asf_list[self.index_729_ms][3] = self.ampls_ms_asf[1]
 
         ms_phases = [
-            self.phase_ms_pow[0],
-            self.phase_ms_pow[1],
+            self.phase_ms_update_dir[0] * self.phase_ms_pow,
+            self.phase_ms_update_dir[1] * self.phase_ms_pow,
         ]
 
         # set up values for ms gate
@@ -977,8 +1043,8 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         self.freq_beams_ftw_list[self.index_729_ms][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_ms_mode_ftw + self.freq_ms_gate_secular_detuning_ftw
 
         self.phase_beams_pow_list[self.index_729_ms][1] = self.phase_ms_dynamical_decoupling_pow
-        self.phase_beams_pow_list[self.index_729_ms][2] = self.phase_ms_pow[0]
-        self.phase_beams_pow_list[self.index_729_ms][3] = self.phase_ms_pow[1]
+        self.phase_beams_pow_list[self.index_729_ms][2] = ms_phases[0]
+        self.phase_beams_pow_list[self.index_729_ms][3] = ms_phases[1]
 
     @kernel(flags={"fast-math"})
     def update_configuration(self, secular_freq_idx):

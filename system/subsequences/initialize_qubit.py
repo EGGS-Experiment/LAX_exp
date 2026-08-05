@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXSubsequence
+from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 class InitializeQubit(LAXSubsequence):
     """
@@ -29,11 +30,40 @@ class InitializeQubit(LAXSubsequence):
         self.time_repump_qubit_mu =     self.get_parameter('time_repump_qubit_us', group='timing', override=True,
                                                            conversion_function=seconds_to_mu, units=us)
         self.time_doppler_cooling_mu =  self.get_parameter('time_doppler_cooling_us', group='timing', override=True,
-                                                           conversion_function=seconds_to_mu, units=us)\
+                                                           conversion_function=seconds_to_mu, units=us)
 
         self.aperture_open_time_mu = self.core.seconds_to_mu(5)
         self.aperture_close_time_mu = self.core.seconds_to_mu(1)
         self.doppler_cooling_counts_threshold = 0.5
+
+        # stage 1 arguments
+        self.ampl_stage1_cooling_asf = self.get_parameter('ampl_pump_cooling_pct',
+                                                          group='sequences.doopler_cooling.stage1',
+                                                          override=False, conversion_function=pct_to_asf)
+
+        self.freq_stage1_cooling_ftw = self.get_parameter('freq_pump_cooling_mhz', group='sequences.doopler_cooling.stage1',
+                                                   override=False, conversion_function=hz_to_ftw, units=MHz)
+
+        self.time_stage1_doppler_cooling_mu =  self.get_parameter('time_cooling_us',
+                                                                  group='sequences.doopler_cooling.stage1',
+                                                                  override=True,
+                                                                  conversion_function=seconds_to_mu,
+                                                                  units=us)
+
+        # stage 2 arguements
+        self.ampl_stage2_cooling_asf = self.get_parameter('ampl_pump_cooling_pct',
+                                                          group='sequences.doopler_cooling.stage2',
+                                                          override=False, conversion_function=pct_to_asf)
+
+        self.freq_stage2_cooling_ftw = self.get_parameter('freq_pump_cooling_mhz', group='sequences.doopler_cooling.stage2',
+                                                   override=False, conversion_function=hz_to_ftw, units=MHz)
+
+        self.time_stage2_doppler_cooling_mu =  self.get_parameter('time_cooling_us',
+                                                                  group='sequences.doopler_cooling.stage2',
+                                                                  override=True,
+                                                                  conversion_function=seconds_to_mu,
+                                                                  units=us)
+
 
     @kernel(flags={"fast-math"})
     def run(self, detect_collision: TBool = False) -> TNone:
@@ -41,6 +71,60 @@ class InitializeQubit(LAXSubsequence):
         Quench ion from D-5/2, doppler, then run spinpol.
         Typical stateprep sequence sans SBC.
         """
+        # ensure 397nm spinpol beam is off before starting
+        # self.probe.off()
+        #
+        # # set cooling waveform
+        # self.pump.cooling()
+        #
+        # # enable cooling repump (866nm)
+        # # 2025/03/27: evidently we don't turn 866nm off - should we?
+        # self.repump_cooling.on()
+        #
+        # # repump pulse
+        # self.repump_qubit.on()
+        # delay_mu(self.time_repump_qubit_mu)
+        # # 2025/03/27: why bother turning off BEFORE doppler?
+        # # should leave on instead b/c 397 has 393 component, which can scatter into D-5/2
+        # # self.repump_qubit.off()
+        #
+        # # doppler cooling
+        # self.pump.on()
+        # delay_mu(self.time_doppler_cooling_mu)
+        # self.pump.off()
+        #
+        # # spin polarization
+        # self.probe.on()
+        # delay_mu(self.time_spinpol_mu)
+        # self.probe.off()
+        # # 2025/03/27: ensure 854nm off
+        # self.repump_qubit.off()
+
+        self.stage_cooling(
+            freq_pump_ftw=self.freq_stage1_cooling_ftw,
+            ampl_pump_asf=self.ampl_stage1_cooling_asf,
+            time_cool_mu=self.time_stage1_doppler_cooling_mu
+        )
+
+        self.stage_cooling(
+            freq_pump_ftw=self.freq_stage2_cooling_ftw,
+            ampl_pump_asf=self.ampl_stage2_cooling_asf,
+            time_cool_mu=self.time_stage2_doppler_cooling_mu
+        )
+
+        # spin polarization
+        self.probe.on()
+        delay_mu(self.time_spinpol_mu)
+        self.probe.off()
+        # 2025/03/27: ensure 854nm off
+        self.repump_qubit.off()
+
+    @kernel(flags={"fast-math"})
+    def stage_cooling(self,
+                      freq_pump_ftw: TInt32,
+                      ampl_pump_asf: TInt32,
+                      time_cool_mu: TInt64 ):
+
         # ensure 397nm spinpol beam is off before starting
         self.probe.off()
 
@@ -58,17 +142,18 @@ class InitializeQubit(LAXSubsequence):
         # should leave on instead b/c 397 has 393 component, which can scatter into D-5/2
         # self.repump_qubit.off()
 
+        self.pump.set_mu(
+            ftw=freq_pump_ftw,
+            asf = ampl_pump_asf,
+            profile=self.pump.profile_cooling,
+            phase_mode=PHASE_MODE_CONTINUOUS
+        )
+
         # doppler cooling
         self.pump.on()
-        delay_mu(self.time_doppler_cooling_mu)
+        delay_mu(time_cool_mu)
         self.pump.off()
 
-        # spin polarization
-        self.probe.on()
-        delay_mu(self.time_spinpol_mu)
-        self.probe.off()
-        # 2025/03/27: ensure 854nm off
-        self.repump_qubit.off()
 
     @kernel(flags={"fast-math"})
     def initialize_with_collison_check(self):

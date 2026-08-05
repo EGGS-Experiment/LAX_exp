@@ -120,11 +120,10 @@ class DDSPulseShaper(HasEnvironment):
 
 
 
-        if not (isinstance(self.ampl_max_pcts, list) and (isinstance(self.ampl_max_pcts, float)
-                or isinstance(self.ampl_max_pcts, int32) or isinstance(self.ampl_max_pcts, int))):
+        if not isinstance(self.ampl_max_pcts, list):
             self.ampl_max_pcts = [self.ampl_max_pcts]
 
-        if not isinstance(self.pulse_shapes, list) and isinstance(self.pulse_shapes, str):
+        if not isinstance(self.pulse_shapes, list):
                 self.pulse_shapes = [self.pulse_shapes]
 
         if not isinstance(self.external_switches, list):
@@ -135,11 +134,11 @@ class DDSPulseShaper(HasEnvironment):
 
         # if only one pulse shape given and there are multiple dds targets assume we want to use the same pulse shape for all dds targets
         if len(self.pulse_shapes) == 1 and len(self.dds_targets) > 1:
-            self.pulse_shapes = [self.pulse_shapes] * len(self.dds_targets)
+            self.pulse_shapes = self.pulse_shapes * len(self.dds_targets)
 
         # if only one ampl max pct given and there are multiple dds targets assume we want to use the same max amplitude
         if len(self.ampl_max_pcts) == 1 and len(self.dds_targets) > 1:
-            self.ampl_max_pcts = [self.ampl_max_pcts] * len(self.ampl_max_pcts)
+            self.ampl_max_pcts = self.ampl_max_pcts * len(self.dds_targets)
 
 
         if not (len(self.dds_targets) == len(self.ampl_max_pcts) == len(self.pulse_shapes) == len(self.external_switches)):
@@ -206,7 +205,7 @@ class DDSPulseShaper(HasEnvironment):
         
         if self.pulse_configuration == 'all':
             samples_roll = int32(self.num_samples // 2)
-        elif self.pulse_configuration == 'rising' or 'falling':
+        elif self.pulse_configuration in ['rising', 'falling']:
             samples_roll = int32(self.num_samples)
             
         wav_y_vals = available_pulse_shapes[self.pulse_shapes[dds_targets_idx]](x_vals, samples_roll)
@@ -459,6 +458,23 @@ class DDSPulseShaper(HasEnvironment):
 
         return self.time_pulse_mu_list
 
+
+    @kernel(flags={"fast-math"})
+    def configure_cfr1_single_dds(self, dds_targets_idx):
+        """
+        """
+        dds_target = self.dds_targets[dds_targets_idx]
+        dds_target.write32(ad9910._AD9910_REG_CFR1, int32(self._cfr1_ram_configs[dds_targets_idx]))
+
+    @kernel(flags={"fast-math"})
+    def configure_cfr1_all_dds(self):
+        """
+
+        """
+        for dds_targets_idx in range(len(self.dds_targets)):
+            self.configure_cfr1_single_dds(dds_targets_idx)
+
+
     @kernel(flags={"fast-math"})
     def configure_train(self, time_mu: TInt64) -> TInt64:
         """
@@ -511,8 +527,8 @@ class DDSPulseShaper(HasEnvironment):
 
         time_start_mu = now_mu() & ~7  # coarse align to SYNC_CLK for determinacy
         at_mu(time_start_mu)
-        dds_target[dds_targets_idxs[0]].cpld.io_update.pulse_mu(8)  # fire pulse!
-        #
+        self.dds_targets[dds_targets_idxs[0]].cpld.io_update.pulse_mu(8)  # fire pulse!
+
         # open and close switch to synchronize with RAM pulse
         at_mu(time_start_mu + self.ram_firing_delay)
         for dds_targets_idx in range(len(self.dds_targets)):

@@ -220,7 +220,7 @@ class DDSRamper(HasEnvironment):
         self.drg_data_low_mu_list[dds_targets_idx] = data_low_mu
         self.drg_step_mu_list[dds_targets_idx] = drg_step_mu
         self.drg_time_interval_mu_list[dds_targets_idx] = round(drg_time_interval)
-        self.drg_time_actual_mu_list[dds_targets_idx] = int64(drg_time_interval * self.num_samples)
+        self.drg_time_actual_mu_list[dds_targets_idx] = int64(4*drg_time_interval * self.num_samples)
 
         if self.drg_ramp_dests[dds_targets_idx] == DRG_DEST_FTW:
             self._drg_reg_ramp_bit_shift_list[dds_targets_idx] = 0
