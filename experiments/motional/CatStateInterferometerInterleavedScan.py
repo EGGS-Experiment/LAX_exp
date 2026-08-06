@@ -544,6 +544,11 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
                              'the cat pulses for each mode\n'
                              'Please check the "ampls_cat_mode_pct" and "atts_cat_mode_db" parameters.')
 
+        if array_shape(self.ampls_cat_mode_pct)[0] != array_shape(self.freq_secular_khz_list)[0]:
+            raise ValueError('Must provide the same number of cat pulse parameter sets as secular frequencies\n'
+                             'Please check the "ampls_cat_mode_pct", "atts_cat_mode_db", and '
+                             '"freq_secular_khz_list" parameters.')
+
         if (array_shape(self.freq_secular_khz_list) != array_shape(self.att_tickle_modes_db)
             or array_shape(self.att_tickle_modes_db) != array_shape(self.ampl_tickle_modes_pct)
             or array_shape(self.ampl_tickle_modes_pct)!= array_shape(self.phase_tickle_turns)):

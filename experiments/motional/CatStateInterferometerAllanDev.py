@@ -519,6 +519,11 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                              'the cat pulses for each mode\n'
                              'Please check the "ampls_cat_mode_pct" and "atts_cat_mode_db" parameters.')
 
+        if array_shape(self.ampls_cat_mode_pct)[0] != array_shape(self.freq_secular_khz_list)[0]:
+            raise ValueError('Must provide the same number of cat pulse parameter sets as secular frequencies\n'
+                             'Please check the "ampls_cat_mode_pct", "atts_cat_mode_db", and '
+                             '"freq_secular_khz_list" parameters.')
+
         if (array_shape(self.freq_secular_khz_list) != array_shape(self.att_tickle_modes_db)
             or array_shape(self.att_tickle_modes_db) != array_shape(self.ampl_tickle_modes_pct)
             or array_shape(self.ampl_tickle_modes_pct)!= array_shape(self.phase_tickle_turns)):
@@ -528,11 +533,20 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                              'Please check the "freq_secular_khz_list", "att_tickle_modes_db", '
                              '"ampl_tickle_modes_pct", and "phase_tickle_turns"parameters.')
 
-        if array_shape(self.freq_tickle_detunings_mode_khz_list)[0] != array_shape(self.ampl_tickle_modes_pct)[0]:
+        if len(self.freq_tickle_detunings_mode_khz_list) != len(self.ampl_tickle_modes_pct):
             raise ValueError('Must provide the same number of secular frequency detuning sets as '
                              'secular frequencies, amplitudes, and attenuations for '
                              'the tickle pulses for each mode\n'
                              'Please check the "freq_tickle_detunings_mode_khz_list" parameter')
+
+        if len(self.freq_tickle_detunings_mode_khz_list) == 0:
+            raise ValueError('Must provide at least one tickle detuning set in '
+                             'freq_tickle_detunings_mode_khz_list.')
+
+        num_detunings = len(self.freq_tickle_detunings_mode_khz_list[0])
+        if any(len(detuning_list) != num_detunings for detuning_list in self.freq_tickle_detunings_mode_khz_list):
+            raise ValueError('Must provide freq_tickle_detunings_mode_khz_list as a rectangular 2D list, '
+                             'with one detuning list for each secular frequency.')
 
 
     @property
