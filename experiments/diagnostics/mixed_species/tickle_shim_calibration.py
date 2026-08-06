@@ -470,78 +470,84 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         Analyze data and determine optimal voltages to operate at
         """
 
-        # get data
-        data = array(self.results)
+        pass
 
-        # grab relevant data
-        counts_arr = array(data[:, 1])
-        tickle_detunings = ftw_to_frequency_khz(data[:, 0])
-        h_shim_voltages = array(data[:, 2])
-        v_shim_voltages = array(data[:, 3])
+        # # get data
+        # data = array(self.results)
+        #
+        # # grab relevant data
+        # counts_arr = array(data[:, 1])
+        # tickle_detunings = ftw_to_frequency_khz(data[:, 0])
+        # h_shim_voltages = array(data[:, 2])
+        # v_shim_voltages = array(data[:, 3])
+        #
+        # # get number of detuning points and their uniques values
+        # num_freq_points = len(unique(tickle_detunings))
+        # unique_tickle_freqs = sort(unique(tickle_detunings))
+        # unique_h_shim_voltages = sort(unique(h_shim_voltages))
+        # unique_v_shim_voltages = sort(unique(v_shim_voltages))
+        #
+        # reps = self.repetitions
+        #
+        # # get the lowest threshold to determine when all ions when dark
+        # threshold_list = array(findThresholdScikit(counts_arr, 60))
+        # dark_state_threshold = min(threshold_list)
+        #
+        # # setup storage arrays for fitted secular frequency at a given h shim voltage and v shim voltage
+        # secular_detuning_opt = np.zeros((len(unique_h_shim_voltages), len(unique_v_shim_voltages)))
+        # secular_detuning_err = np.zeros((len(unique_h_shim_voltages), len(unique_v_shim_voltages)))
+        #
+        # # loop through all h shim and v shim voltages values
+        # for i, unique_h_shim_voltage in enumerate(unique_h_shim_voltages):
+        #     for j, unique_v_shim_voltage in enumerate(unique_v_shim_voltages):
+        #
+        #         loop_iter = i*len(unique_v_shim_voltages) + j
+        #
+        #         mask = (
+        #                 (v_shim_voltages == unique_v_shim_voltage)
+        #                 & (h_shim_voltages == unique_h_shim_voltage)
+        #         )
+        #
+        #         unique_detuning_khz, phonons = self._get_processed_data(counts_arr, tickle_detunings, mask, dark_state_threshold)
+        #
+        #
+        #         # add fitted parameters to storage arrays
+        #         opt_detuning, opt_detuning_err = self._fit_plot_tickle_scan(unique_detuning_khz,
+        #                                                                     phonons,
+        #                                                                     unique_h_shim_voltage,
+        #                                                                     unique_v_shim_voltage,
+        #                                                                     loop_iter)
+        #         secular_detuning_opt[i, j] = opt_detuning
+        #         secular_detuning_err[i, j] = opt_detuning_err
+        #
+        # # subtract mean value of secular frequency to focus on offset (nanmean ignores nans)
+        # sec_freq_detuning = array(secular_detuning_opt) - np.nanmean(secular_detuning_opt)
+        # issue_final_plot = True
+        #
+        # if len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) == 1:
+        #     plotting_results = self._format_one_dim_plotting_results(unique_v_shim_voltages, sec_freq_detuning, plot_xlabel = 'V Shim Voltage (V)')
+        #     projection_3d = False
+        #
+        # elif len(unique_v_shim_voltages) == 1 and len(unique_h_shim_voltages) > 1:
+        #     plotting_results = self._format_one_dim_plotting_results(unique_h_shim_voltages, sec_freq_detuning, plot_xlabel = 'H Shim Voltage (V)')
+        #     projection_3d = False
+        #
+        # elif len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) > 1:
+        #     plotting_results = self._plot_shim_calibration(unique_h_shim_voltages, unique_v_shim_voltages, sec_freq_detuning)
+        #     projection_3d = True
+        # else:
+        #     issue_final_plot = False
+        #
+        # if issue_final_plot:
+        #     self.create_matplotlib_applet(plotting_results,
+        #                               name=f'Shim Calibration',
+        #                               group=['plotting', 'diagnostics', 'mixed_species'],
+        #                               projection_3d=projection_3d)
+        #
+        # return data
 
-        # get number of detuning points and their uniques values
-        num_freq_points = len(unique(tickle_detunings))
-        unique_tickle_freqs = sort(unique(tickle_detunings))
-        unique_h_shim_voltages = sort(unique(h_shim_voltages))
-        unique_v_shim_voltages = sort(unique(v_shim_voltages))
-
-        reps = self.repetitions
-
-        # get the lowest threshold to determine when all ions when dark
-        threshold_list = array(findThresholdScikit(counts_arr, 60))
-        dark_state_threshold = min(threshold_list)
-
-        # setup storage arrays for fitted secular frequency at a given h shim voltage and v shim voltage
-        secular_detuning_opt = np.zeros((len(unique_h_shim_voltages), len(unique_v_shim_voltages)))
-        secular_detuning_err = np.zeros((len(unique_h_shim_voltages), len(unique_v_shim_voltages)))
-
-        # loop through all h shim and v shim voltages values
-        for i, unique_h_shim_voltage in enumerate(unique_h_shim_voltages):
-            for j, unique_v_shim_voltage in enumerate(unique_v_shim_voltages):
-
-                loop_iter = i*len(unique_v_shim_voltages) + j
-
-                mask = (
-                        (v_shim_voltages == unique_v_shim_voltage)
-                        & (h_shim_voltages == unique_h_shim_voltage)
-                )
-
-                unique_detuning_khz, phonons = self._get_processed_data(counts_arr, tickle_detunings, mask, dark_state_threshold)
-
-
-                # add fitted parameters to storage arrays
-                opt_detuning, opt_detuning_err = self._fit_plot_tickle_scan(unique_detuning_khz, phonons,
-                                                                            unique_h_shim_voltage, unique_v_shim_voltage, loop_iter)
-                secular_detuning_opt[i, j] = opt_detuning
-                secular_detuning_err[i, j] = opt_detuning_err
-
-        # subtract mean value of secular frequency to focus on offset (nanmean ignores nans)
-        sec_freq_detuning = array(secular_detuning_opt) - np.nanmean(secular_detuning_opt)
-        issue_final_plot = True
-
-        if len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) == 1:
-            plotting_results = self._format_one_dim_plotting_results(unique_v_shim_voltages, sec_freq_detuning, plot_xlabel = 'V Shim Voltage (V)')
-            projection_3d = False
-
-        elif len(unique_v_shim_voltages) == 1 and len(unique_h_shim_voltages) > 1:
-            plotting_results = self._format_one_dim_plotting_results(unique_h_shim_voltages, sec_freq_detuning, plot_xlabel = 'H Shim Voltage (V)')
-            projection_3d = False
-
-        elif len(unique_v_shim_voltages) > 1 and len(unique_h_shim_voltages) > 1:
-            plotting_results = self._plot_shim_calibration(unique_h_shim_voltages, unique_v_shim_voltages, sec_freq_detuning)
-            projection_3d = True
-        else:
-            issue_final_plot = False
-
-        if issue_final_plot:
-            self.create_matplotlib_applet(plotting_results,
-                                      name=f'Shim Calibration',
-                                      group=['plotting', 'diagnostics', 'mixed_species'],
-                                      projection_3d=projection_3d)
-
-        return data
-
-    def _get_processed_data(self, counts_arr: Iterable[int], tickle_detunings: Iterable[float],
+    def _get_processed_data(self, counts_arr: Iterable[int],
+                            tickle_detunings: Iterable[float],
                             mask, threshold: float):
         """
         Extract and process the data for a given horizontal shim voltage and vertical shim voltage configuration
