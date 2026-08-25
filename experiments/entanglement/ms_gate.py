@@ -197,7 +197,7 @@ class MolmerSorensen(LAXExperiment, Experiment):
             pulse_shape = self.type_pulse_shape
         else:
             pulse_shape = 'square'
-        self.dds_pulse_shaper_ms = DDSPulseShaper(self, dds_targets=self.qubit.beam,
+        self.dds_pulse_shaper_ms = DDSPulseShaper(self, dds_target=self.qubit.beam,
                                                   ram_profile=self.profile_729_ms,
                                                   ram_addr_start=502, num_samples=200,
                                                   ampl_max_pcts=self.qubit.asf_to_amplitude(

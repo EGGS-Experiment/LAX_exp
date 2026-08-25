@@ -230,7 +230,8 @@ class LinewidthMeasurement(LAXExperiment, Experiment):
                                     axis=-1)
         # process results into final form
         res_final = res_signal.copy()
-        res_final[:, 2] -= res_bgr[:, 2]
+        res_final[:, 1] = res_signal[:, 1] - res_bgr[:, 1]
+        res_final[:, 2] = np.sqrt(res_signal[:, 2] ** 2 + res_bgr[:, 2] ** 2)
 
         # save processed results to hdf5 as a dataset
         self.set_dataset('res_signal', res_signal)

@@ -230,11 +230,11 @@ class fitGaussian:
     """
 
     # regular old gaussian
-    def fit_func(self, x, a, b, mu):
+    def fit_func(self, x, a, b, mu, c=0):
         """
         todo: document arguments
         """
-        return a * np.exp(-b * (x - mu) ** 2.)
+        return a * np.exp(-b * (x - mu) ** 2.) + c
 
     def fit(self, data):
         # separate data into x and y
@@ -248,7 +248,8 @@ class fitGaussian:
         gamma0 = np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
         b0 = np.log(2) / gamma0 ** 2.
         # create array of initial guess parameters
-        param_guess = np.array([a0, b0, mu0])
+        c0 = np.min(data_y)
+        param_guess = np.array([a0, b0, mu0, c0])
 
         # fit and convert covariance matrix to error (1 stdev)
         param_fit, param_cov = curve_fit(self.fit_func, data_x, data_y, param_guess)
@@ -268,11 +269,11 @@ class fitLorentzian:
     """
 
     # regular old lorentzian
-    def fit_func(self, x, a, b, mu):
+    def fit_func(self, x, a, b, mu, c= 0):
         """
         todo: document arguments
         """
-        return a / ((x - mu) ** 2. + (b) ** 2.)
+        return a / ((x - mu) ** 2. + (b) ** 2.) + c
 
     def fit(self, data):
         # separate data into x and y
@@ -285,7 +286,8 @@ class fitLorentzian:
         # get b0 by numerically guessing FWHM
         b0 = np.abs(data_x[np.argmin(np.abs(data_y - 0.5 * a0))] - mu0)
         # create array of initial guess parameters
-        param_guess = np.array([a0, b0, mu0])
+        c0 = np.min(data_y)
+        param_guess = np.array([a0, b0, mu0, c0])
 
         # fit and convert covariance matrix to error (1 stdev)
         param_fit, param_cov = curve_fit(self.fit_func, data_x, data_y, param_guess)

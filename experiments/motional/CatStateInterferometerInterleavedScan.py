@@ -467,8 +467,8 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         '''CONVERT VALUES TO MACHINE UNITS - DD PHASE'''
         self.phase_cat_dynamical_decoupling_pow = self.qubit.singlepass0.turns_to_pow(self.phase_cat_dynamical_decoupling_turns)
 
-        # specify phase update array based on user arguments
-        self.phase_cat_update_dir = array([1, 1], dtype=int32)
+        # specify phase update array
+        self.phase_cat_update_dir = array([1, -1], dtype=int32)
 
 
     def _prepare_experiment_cat_modes(self):
