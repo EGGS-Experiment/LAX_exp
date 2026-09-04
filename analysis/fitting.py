@@ -28,11 +28,12 @@ class fitDampedOscillator:
     """
 
     # use damped harmonic oscillator for simplicity
-    def fit_func(self, x, a, b, c):
+    def fit_func(self, x, a, b, c, d=0, x0=0):
         """
         todo: document arguments
         """
-        return 0.5 * (1. - a * np.exp(-b * x) * np.cos(c * x))
+        d = 0.5 * (1. - a) * d
+        return 0.5 * (1. - a * np.exp(-b * (x-x0)) * np.cos(c * (x-x0))) + d
 
     def fit(self, data):
         # separate data into x and y
@@ -47,7 +48,7 @@ class fitDampedOscillator:
         # get position of next peak and use to find decay constant
         points_margin = int(np.round(max_ind0 * 1.5))
         if points_margin < len(data):
-            max_ind1 = np.argmax(data_y[points_margin])
+            max_ind1 = np.argmax(data_y[points_margin:])
             t1, a1 = data[points_margin + max_ind1]
         else:
             t1 = t0 * 3
@@ -57,10 +58,18 @@ class fitDampedOscillator:
         a_guess = np.abs(1. - 2. * a0)
         b_guess = 0.5 * np.log(a1 / a0) / (t0 - t1)
         c_guess = np.pi / t0
-        param_guess = np.array([a_guess, b_guess, c_guess])
+
+        center_guess = 0.5 * (np.max(data_y) + np.min(data_y))
+        d_guess = center_guess - 0.5
+
+        param_guess = np.array([a_guess, b_guess, c_guess, d_guess, 0])
+
+        bounds = ([0.,0.,0.,-1, 0.], [1., np.inf, np.inf, 1, np.inf])
 
         # fit and convert covariance matrix to error (1 stdev)
-        param_fit, param_cov = curve_fit(self.fit_func, data_x, data_y, param_guess)
+        param_fit, param_cov = curve_fit(self.fit_func, data_x, data_y, param_guess,
+                                         bounds=bounds)
+
         param_err = np.sqrt(np.diag(param_cov))
         return param_fit, param_err
 

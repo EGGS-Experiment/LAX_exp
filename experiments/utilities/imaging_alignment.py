@@ -21,6 +21,9 @@ class ImagingAlignment(LAXExperiment, Experiment):
         # timing
         "time_slack_us", "time_per_point_s", "time_per_point_mu", "time_slack_mu", "time_sample_mu",
 
+        # beam
+
+
         # other hardware values
         "freq_readout_ftw", "ampl_readout_asf"
     }
@@ -31,6 +34,9 @@ class ImagingAlignment(LAXExperiment, Experiment):
         """
         # general
         self.setattr_argument('time_total_s', NumberValue(default=800, precision=0, step=100, min=5, max=100000, scale=1., unit="s"))
+
+        # beam choice
+        self.setattr_argument('aligment_beam', EnumerationValue(['spinpol', 'cooling']))
 
         # sampling
         self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, precision=0, step=10, min=1, max=100),
@@ -46,8 +52,10 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.setattr_argument("ampl_readout_pct",   NumberValue(default=46., precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
                               group='readout')
 
+
         # relevant devices
         self.setattr_device('pump')
+        self.setattr_device('probe')
         self.setattr_device('repump_cooling')
         self.setattr_device('repump_qubit')
         self.setattr_device('pmt')
@@ -64,14 +72,23 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.time_sample_mu =       self.core.seconds_to_mu(self.time_sample_us * us)
         self.time_per_point_mu =    self.core.seconds_to_mu(self.time_per_point_s)
 
-        self.freq_readout_ftw = self.pump.frequency_to_ftw(self.freq_readout_mhz * MHz)
-        self.ampl_readout_asf = self.pump.amplitude_to_asf(self.ampl_readout_pct / 100.)
-
         # calculate number of repetitions
         self.repetitions =      round(self.time_total_s / self.core.mu_to_seconds(self.time_per_point_mu))
         # predeclare loop iterators to reduce overhead
         self._iter_signal =     arange(self.signal_samples_per_point)
         self._iter_background = arange(self.background_samples_per_point)
+
+        if self.aligment_beam == 'spinpol':
+            self.beam = self.probe
+            self.beam_profile = 0
+        elif self.aligment_beam == 'cooling':
+            self.beam = self.pump
+            self.beam_profile =  self.pump.profile_readout
+        else:
+            raise NotImplementedError
+
+        self.freq_readout_ftw = self.beam.frequency_to_ftw(self.freq_readout_mhz * MHz)
+        self.ampl_readout_asf = self.beam.amplitude_to_asf(self.ampl_readout_pct / 100.)
 
     @rpc
     def initialize_plotting(self) -> TNone:
@@ -123,12 +140,16 @@ class ImagingAlignment(LAXExperiment, Experiment):
         self.initialize_plotting()
         self.core.break_realtime()
 
+        self.probe.off()
+        self.pump.off()
+
         # configure beams
-        self.pump.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf,
-                         profile=self.pump.profile_readout,
+        self.beam.set_mu(self.freq_readout_ftw, asf=self.ampl_readout_asf,
+                         profile=self.beam_profile,
                          phase_mode=PHASE_MODE_CONTINUOUS)
-        self.pump.readout()
-        self.pump.on()
+        self.beam.cpld.set_profile(self.beam_profile)
+        self.beam.cpld.io_update.pulse_mu(8)
+        self.beam.on()
         self.repump_qubit.on()
 
         # record alignment sequence - signal

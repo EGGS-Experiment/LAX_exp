@@ -34,7 +34,7 @@ class CatInterferometerAnalyzer:
                                                      use_secular = use_secular)
 
         try:
-            fit_funcs = self._get_fit_funcs(num_states)
+            fit_funcs = self._get_fit_funcs(num_states, enable_ms_gate)
         except NotImplementedError as e:
             print("Unable to find fit funcs")
             fit_funcs = None
@@ -322,12 +322,12 @@ class CatInterferometerAnalyzer:
         return data_storer, num_states
 
 
-    def _get_fit_funcs(self, num_states):
+    def _get_fit_funcs(self, num_states, enable_ms_gate):
         if num_states == 2:
             fit_funcs = get_single_ion_cat_lineshape()
-        elif num_states == 3 and not self.enable_ms_gate:
+        elif num_states == 3 and not enable_ms_gate:
             fit_funcs = get_unentangled_two_ion_cat_lineshape()
-        elif num_states == 3 and self.enable_ms_gate:
+        elif num_states == 3 and enable_ms_gate:
             fit_funcs = get_entangled_two_ion_cat_lineshape()
         else:
             raise NotImplementedError

@@ -565,6 +565,7 @@ class DDSPulseShaper(HasEnvironment):
         for dds_targets_idx in range(len(self.dds_targets)):
             at_mu(time_start_mu + self.ram_firing_delay + self.time_pulse_mu_list[dds_targets_idx])
             self.dds_targets[dds_targets_idx].sw.off()
+            self.external_switches[dds_targets_idx].off()
 
         return time_start_mu + self.ram_firing_delay
 
