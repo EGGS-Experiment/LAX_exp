@@ -218,7 +218,7 @@ class RabiFlopping(LAXExperiment, Experiment):
                 # initialize ion in S-1/2 state & sideband cool
                 self.initialize_subsequence.run_dma()
                 self.cooling_subsequence.run_dma()
-                # self.qubit.off()
+                self.qubit.off()
 
                 # prepare qubit beam for readout
                 self.qubit.set_profile(self.profile_729_readout)
@@ -386,7 +386,7 @@ class RabiFlopping(LAXExperiment, Experiment):
 
             newline = "\n"
             textbox_str = (rf'$\mathrm{{A}} = {flop_ampl:.2f} \pm {flop_ampl_err:.3f}$ {newline}'
-                           rf'$\mathrm{{t_{{dec}}}} = {time_dec_us:.2f} \pm {time_dec_err_us:.2f}$ {newline}'
+                           rf'$\mathrm{{t_{{dec}}}} = {time_dec_us:.2e} \pm {time_dec_err_us:.2e}$ {newline}'
                            rf'$\Omega = 2\pi ({rabi_rate:.1f} \pm {rabi_rate_err:.1f})\ \mathrm{{kHz}}$');
 
         except Exception as e:
