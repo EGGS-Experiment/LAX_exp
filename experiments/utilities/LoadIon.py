@@ -76,7 +76,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                                                         RangeScan(16, 17.5, 20, randomize=False),
                                                                         ExplicitScan([19, 20, 21, 22, 23, 24]),
                                                                     ],
-                                                                    global_min=0.0, global_max=30.0, global_step=1,
+                                                                    global_min=0.0, global_max=40.0, global_step=1,
                                                                     unit="V", scale=1, precision=2
                                                                 ),
                               group='A-Ramp',
