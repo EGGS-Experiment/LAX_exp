@@ -177,6 +177,13 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               group=_argstr,
                               tooltip="Enables application of the ms gate before catting.")
 
+        self.setattr_argument("freq_ms_khz", NumberValue(
+            default=710,
+            min=500, max=3000, step=0.001,
+            unit="kHz", scale=1, precision=6),
+                              group=_argstr,
+                              tooltip="Secular frequency (in kHz) of the ion")
+
         # ms gate - pulse parameters
         self.setattr_argument("ampls_ms_pct", PYONValue([50., 50.]), group=_argstr,
                               tooltip="DDS amplitudes for the singlepass DDSs during the ms gate.\n"
@@ -605,6 +612,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
         :return: tuple of ms gate time, detunings from secular frequency, and ms beam phases
         """
+
+        self.freq_ms_ftw = self.qubit.frequency_to_ftw(self.freq_ms_khz*kHz)
 
         if self.enable_ms_gate:
             time_ms_gate_mu_list = [self.core.seconds_to_mu(time_ms_gate_us/2*us) for time_ms_gate_us in self.time_ms_gate_us_list]
@@ -1503,8 +1512,8 @@ class CatStateInterferometer(LAXExperiment, Experiment):
 
 
         # set up values for ms gate
-        self.freq_beams_ftw_list[self.index_729_ms][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw - freq_ms_gate_secular_detuning_ftw
-        self.freq_beams_ftw_list[self.index_729_ms][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw + freq_ms_gate_secular_detuning_ftw
+        self.freq_beams_ftw_list[self.index_729_ms][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_ms_ftw - freq_ms_gate_secular_detuning_ftw
+        self.freq_beams_ftw_list[self.index_729_ms][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_ms_ftw + freq_ms_gate_secular_detuning_ftw
 
         self.phase_beams_pow_list[self.index_729_ms][1] = phase_ms_dynamical_decoupling_pow
         self.phase_beams_pow_list[self.index_729_ms][2] = ms_phases[0]
