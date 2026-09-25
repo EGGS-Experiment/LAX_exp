@@ -33,23 +33,61 @@ class ImagingAlignment(LAXExperiment, Experiment):
         Set devices and arguments for the experiment.
         """
         # general
-        self.setattr_argument('time_total_s', NumberValue(default=800, precision=0, step=100, min=5, max=100000, scale=1., unit="s"))
+        self.setattr_argument('time_total_s', NumberValue(default=800,
+                                                          precision=0,
+                                                          step=100, min=5,
+                                                          max=100000,
+                                                          scale=1.,
+                                                          unit="s"))
 
         # beam choice
-        self.setattr_argument('aligment_beam', EnumerationValue(['spinpol', 'cooling']))
+        self.setattr_argument('aligment_beam',
+                              EnumerationValue(['cooling',
+                                                'spinpol']))
 
         # sampling
-        self.setattr_argument('signal_samples_per_point',       NumberValue(default=48, precision=0, step=10, min=1, max=100),
+        self.setattr_argument('signal_samples_per_point',
+                              NumberValue(default=48,
+                              precision=0,
+                              step=10,
+                              min=1,
+                              max=100),
                               group='sampling')
-        self.setattr_argument('background_samples_per_point',   NumberValue(default=5, precision=0, step=2, min=1, max=100),
+        self.setattr_argument('background_samples_per_point',
+                              NumberValue(default=5,
+                              precision=0,
+                              step=2,
+                              min=1,
+                              max=100),
                               group='sampling')
 
         # readout
-        self.setattr_argument('time_sample_us',     NumberValue(default=3000, precision=1, step=500, min=100, max=100000, scale=1., unit="us"),
+        self.setattr_argument('time_sample_us',
+                              NumberValue(default=3000,
+                              precision=1,
+                              step=500,
+                              min=100,
+                              max=100000,
+                              scale=1.,
+                              unit="us"),
+                             group='readout')
+
+        self.setattr_argument("freq_readout_mhz",
+                              NumberValue(default=102.,
+                              precision=6, step=1,
+                              min=1, max=500,
+                              scale=1.,
+                              unit='MHz'),
                               group='readout')
-        self.setattr_argument("freq_readout_mhz",   NumberValue(default=102., precision=6, step=1, min=1, max=500, scale=1., unit='MHz'),
-                              group='readout')
-        self.setattr_argument("ampl_readout_pct",   NumberValue(default=46., precision=2, step=5, min=0.01, max=50, scale=1., unit='%'),
+
+        self.setattr_argument("ampl_readout_pct",
+                              NumberValue(default=46.,
+                              precision=2,
+                              step=5,
+                              min=0.01,
+                              max=50,
+                              scale=1.,
+                              unit='%'),
                               group='readout')
 
 

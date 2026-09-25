@@ -133,7 +133,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # define magic numbers
         # todo: document these
-        self.pmt_dark_threshold_counts = 15
+        self.pmt_dark_threshold_counts = 5
         self.time_runtime_max_s = 480.
         self.time_aramp_pulse_s = 2.
         self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
@@ -141,7 +141,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.pmt_sample_num = 100
         self.pmt_flip_threshold_std = 2
         self.cam_sample_num = 10
-        self.cam_flip_threshold_avg = 0.15
+        self.cam_flip_threshold_avg = 0.12
 
     def prepare_experiment(self):
         """
@@ -460,7 +460,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.pump.beam.set_att(31.5 * dB)   # have to set att b/c readout.run() turns on beams
         self.aperture.open_aperture()
-        delay_mu(self.core.seconds_to_mu(2))
+        delay_mu(self.core.seconds_to_mu(3))
 
 
         ### check PMT and camera status ###
@@ -553,8 +553,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         Record camera counts in a burst.
         :return: avg and std of the camera counts.
         """
+
+        # discard transitional image
+        self.camera.wait_for_acquisition()
+        self.camera.get_most_recent_image()
+
+        self.camera.get_most_recent_image()
         cam_vals = np.zeros(self.cam_sample_num)
         for i in range(self.cam_sample_num):
+            self.camera.wait_for_acquisition()
             cam_vals[i] = np.sum(self.camera.get_most_recent_image())
 
         return np.mean(cam_vals), np.std(cam_vals)
