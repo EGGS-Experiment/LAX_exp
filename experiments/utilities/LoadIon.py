@@ -141,7 +141,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.pmt_sample_num = 100
         self.pmt_flip_threshold_std = 2
         self.cam_sample_num = 10
-        self.cam_flip_threshold_avg = 0.12
+        self.cam_flip_threshold_avg = 0.1
 
     def prepare_experiment(self):
         """
