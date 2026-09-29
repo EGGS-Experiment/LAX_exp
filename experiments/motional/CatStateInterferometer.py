@@ -151,17 +151,17 @@ class CatStateInterferometer(LAXExperiment, Experiment):
                               group=_argstr,
                               tooltip="Secular frequency (in kHz) of the ion")
 
-        self.setattr_argument("freq_carrier_mhz_list", Scannable(
-            default=[
-                ExplicitScan([101.075]),
-                CenterScan(101.075, 0.01, 0.0001, randomize=True),
-                RangeScan(101.075, 101.1018, 50, randomize=True),
-            ],
-            global_min=60., global_max=400, global_step=1,
-            unit="MHz", scale=1, precision=6
-        ), group=_argstr,
-                              tooltip="Carrier frequency of the ion.\n"
-                                      "Note: this is applied via the main doublepass DDS.\n")
+        # self.setattr_argument("freq_carrier_mhz_list", Scannable(
+        #     default=[
+        #         ExplicitScan([101.075]),
+        #         CenterScan(101.075, 0.01, 0.0001, randomize=True),
+        #         RangeScan(101.075, 101.1018, 50, randomize=True),
+        #     ],
+        #     global_min=60., global_max=400, global_step=1,
+        #     unit="MHz", scale=1, precision=6
+        # ), group=_argstr,
+        #                       tooltip="Carrier frequency of the ion.\n"
+        #                               "Note: this is applied via the main doublepass DDS.\n")
 
         self.setattr_argument('freq_cat_carrier_detuning_khz', NumberValue(default=0,
                                                               min=-10, max=10, step=1,
@@ -599,8 +599,10 @@ class CatStateInterferometer(LAXExperiment, Experiment):
         """
         self.freq_secular_ftw = self.qubit.frequency_to_ftw(self.freq_secular_khz*kHz)
 
-        freq_carrier_ftw_list = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
-                                          for freq_mhz in self.freq_carrier_mhz_list])
+        # freq_carrier_ftw_list = array([self.qubit.frequency_to_ftw(freq_mhz * MHz)
+        #                                   for freq_mhz in self.freq_carrier_mhz_list])
+        self.ion_carrier_mhz = self.get_parameter('ion_carrier_mhz', group='ion_parameters', override=False)
+        freq_carrier_ftw_list = array([self.qubit.frequency_to_ftw(self.ion_carrier_mhz * MHz)])
 
         self.freq_cat_carrier_detuning_ftw = self.qubit.frequency_to_ftw(self.freq_cat_carrier_detuning_khz*kHz)
 

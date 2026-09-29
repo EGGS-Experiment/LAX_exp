@@ -112,12 +112,12 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         """
         _argstr = "ion_parameters"
 
-        self.setattr_argument("freq_carrier_mhz", NumberValue(
-            default=100.4,
-            min=60., max=400, step=1,
-            unit="MHz", scale=1, precision=6
-        ), group=_argstr,tooltip="Carrier frequency of the ion.\n"
-                                      "Note: this is applied via the main doublepass DDS.\n")
+        # self.setattr_argument("freq_carrier_mhz", NumberValue(
+        #     default=100.4,
+        #     min=60., max=400, step=1,
+        #     unit="MHz", scale=1, precision=6
+        # ), group=_argstr,tooltip="Carrier frequency of the ion.\n"
+        #                               "Note: this is applied via the main doublepass DDS.\n")
 
         self.setattr_argument("freq_secular_khz_list", PYONValue([700, 1700]),
                              group=_argstr,
@@ -370,7 +370,11 @@ class CatStateInterferometerInterleavedScan(LAXExperiment, Experiment):
         Prepare general ion parameters
         :return: list of carrier frequencies for cat and MS
         """
-        self.freq_carrier_ftw = self.qubit.frequency_to_ftw(self.freq_carrier_mhz * MHz)
+
+        # self.freq_carrier_ftw = self.qubit.frequency_to_ftw(self.freq_carrier_mhz * MHz)
+
+        ion_carrier_mhz = self.get_parameter('ion_carrier_mhz', group='ion_parameters', override=False)
+        self.freq_carrier_ftw = self.qubit.frequency_to_ftw(ion_carrier_mhz * MHz)
 
         self.freq_secular_ftw_list = array([self.dds_pulse_shaper_tickle_list[idx].dds_target.frequency_to_ftw(self.freq_secular_khz_list[idx]*kHz)
          for  idx in range(len(self.freq_secular_khz_list))])
