@@ -162,6 +162,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         '''
         self._prepare_compile_code()
 
+        self.start_time = time.time()
+
     def _prepare_compile_code(self):
         """
         Collate relevant experiment code and compile via _kernel_from_string.
@@ -593,7 +595,6 @@ class LAXExperiment(LAXEnvironment, ABC):
                              broadcast=True, persist=True, archive=False)
 
             if (self._result_iter % shots_per_write)== 0 and store_results_periodically:
-                self.dataset_mgr.write_hdf5(f)
                 writing_start_time = time.time()
                 try:
                     expid = self.scheduler.expid
@@ -611,8 +612,6 @@ class LAXExperiment(LAXEnvironment, ABC):
                     print('Could write results')
 
                 writing_end_time = time.time()
-                print(writing_end_time -  writing_start_time)
-
 
         # increment result iterator
         self._result_iter += 1
@@ -656,6 +655,8 @@ class LAXExperiment(LAXEnvironment, ABC):
 
                 # write data
                 with h5py.File(filename, "w") as f:
+
+                    self.dataset_mgr.write_hdf5(f)
 
                     # save expid separately to allow dashboard to run from hdf5 file
                     # note: expid has already been converted to hdf5-savable form in main artiq package
