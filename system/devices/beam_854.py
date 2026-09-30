@@ -4,6 +4,8 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
 
+from numpy import int32, int64
+
 
 class Beam854(LAXDevice):
     """
@@ -37,6 +39,8 @@ class Beam854(LAXDevice):
         self.ampl_repump_qubit_asf = self.get_parameter('ampl_repump_qubit_pct', group='beams.ampl_pct',
                                                         override=False, conversion_function=pct_to_asf)
 
+        self.time_delay_cleanup_mu = int64(0)
+
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # get CPLD attenuations so we don't override them
@@ -60,8 +64,12 @@ class Beam854(LAXDevice):
         # set attenuation
         self.set_att_mu(self.att_repump_qubit_mu)
 
+        self.time_delay_cleanup_mu = self.core.seconds_to_mu(50e-3)
+
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
+        # wait a long time to make sure all scheduled events are flushed
+        delay_mu(self.time_delay_cleanup_mu)
         self.on()
 
     @kernel(flags={"fast-math"})

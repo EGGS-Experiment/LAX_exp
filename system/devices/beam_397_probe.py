@@ -4,6 +4,8 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
 
+from numpy import int32, int64
+
 
 class Beam397Probe(LAXDevice):
     """
@@ -41,6 +43,8 @@ class Beam397Probe(LAXDevice):
         self.ampl_rescue_asf =  self.get_parameter('ampl_probe_rescue_pct', group='beams.ampl_pct',
                                                    override=False, conversion_function=pct_to_asf)
 
+        self.time_delay_cleanup_mu = int64(0)
+
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # get CPLD attenuations so we don't override them
@@ -60,9 +64,12 @@ class Beam397Probe(LAXDevice):
         # set attenuation
         self.set_att_mu(self.att_probe_mu)
 
+        self.time_delay_cleanup_mu = self.core.seconds_to_mu(50e-3)
+
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
-        self.core.break_realtime() # note: necessary for RTIOUnderflow??? 2025/09/22
+        # wait a long time to flush out events
+        delay_mu(self.time_delay_cleanup_mu)
         self.sw.off()
         delay_mu(5000)
 

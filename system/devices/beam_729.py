@@ -94,6 +94,9 @@ class Beam729(LAXDevice):
         # note: make all delays self.core.coarse_ref_period instead of 8ns
         self.switch_delay_time_mu = int64(8)
 
+        # holder variable
+        self.time_delay_cleanup_mu = int64(0)
+
     def _check_device_values(self):
         """
         Check device parameters for validity.
@@ -185,6 +188,8 @@ class Beam729(LAXDevice):
         self.off()
         delay_mu(25000)
 
+        self.time_delay_cleanup_mu = self.core.seconds_to_mu(50e-3)
+
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         """
@@ -192,6 +197,10 @@ class Beam729(LAXDevice):
 
         NOTE BENE: this resets all profile values on the urukuls associated with the 729
         """
+
+        # add long delay to make sure events are flushed from scheduler beforehand
+        delay_mu(self.time_delay_cleanup_mu)
+
         # set up relevant AOMs to default values on ALL profiles
         # necessary b/c not all AOMs are configured/used for each experiment
         for idx in range(len(self.device_list)):

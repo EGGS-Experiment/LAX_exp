@@ -58,8 +58,7 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
 
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=50, precision=0, step=1, min=1, max=100000))
-        self.setattr_argument("enable_linetrigger", BooleanValue(default=False),
-                              tooltip="Trigger the beginning of each shot from the AC line.")
+
 
         # allocate relevant beam profiles
         self.profile_729_RAP = 0
@@ -89,6 +88,7 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
         self.setattr_device('repump_qubit')
         self.setattr_device('dds_dipole')
         self.setattr_device('trigger_line')
+        self.setattr_device('scheduler')
 
         # set build arguments
         self._build_arguments_ion_parameters()
@@ -556,7 +556,7 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
-                5)
+                6)
 
     '''
     MAIN SEQUENCE
@@ -580,12 +580,17 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
         # # predeclare variables ahead of time
         _loop_iter = 0  # used to check_termination more frequently
 
+        # 100us for adding slack when needed
+        delay_slack_adder_mu = self.core.seconds_to_mu(100e-6)
+
         # MAIN LOOP
         for trial_num in range(self.repetitions):
             for config_vals in self.config_experiment_list:
                 '''
                 PREPARE & CONFIGURE
                 '''
+
+                shot_start_time_mu = now_mu()
                 # extract values from config list
                 idx_freq_secular = int32(config_vals[0])
                 idx_freq_tickle_detuning = int32(config_vals[1])
@@ -597,12 +602,11 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                 '''
                 BEGIN MAIN SEQUENCE
                 '''
-                self.core.break_realtime()
+                delay_mu(delay_slack_adder_mu)
                 dds_pulse_shaper_tickle = self.dds_pulse_shaper_tickle_list[idx_freq_secular]
                 dds_pulse_shaper_tickle.sequence_initialize()
 
-                self.core.break_realtime()  # add slack for execution
-                delay_mu(125000)  # add even more slack lol
+                delay_mu(delay_slack_adder_mu)  # add even more slack lol
 
                 # calculate for ms gate timing
                 time_ms_gate_mu = self.time_ms_gate_mu - self.dds_ramper_ms.drg_time_actual_mu_list[0]
@@ -614,13 +618,6 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                         time_ms_gate_dd_mu = 8
                 else:
                     time_ms_gate_dd_mu = time_ms_gate_mu - (self.dds_ramper_ms.ramp_firing_delay >> 1)
-
-                """
-                Wait for Line Trigger
-                """
-                if self.enable_linetrigger:
-                    self.trigger_line.trigger(self.trigger_line.time_timeout_mu, self.trigger_line.time_holdoff_mu)
-
                 '''
                 Relock Intensity Servo
                 '''
@@ -746,21 +743,23 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                 # calculate the time between clearing the phase accumulators and firing the tickle pulse
                 time_delay_mu = time_tickle_start_mu - ref_time_mu
 
+                # compute shot time
+                shot_end_time_mu = now_mu()
+                shot_time_total_mu = shot_end_time_mu - shot_start_time_mu
+
                 # store results
                 self.update_results(freq_secular_ftw,
                                     counts_res,
                                     freq_tickle_detuning_ftw,
                                     time_actual_tickle_list_mu[0],
-                                    time_delay_mu)
-
+                                    time_delay_mu,
+                                    shot_time_total_mu,
+                                    store_results_periodically=True)
 
                 # check termination more frequently in case reps are low
                 if _loop_iter % 100 == 0:
-                    self.check_termination()
+                    self.check_async_termination_requested()
                 _loop_iter += 1
-
-            # rescue ion as needed & support graceful termination
-            self.check_termination()
 
     @kernel(flags={'fast-math'})
     def pulse_bichromatic(self, index: TInt32,
@@ -1060,3 +1059,14 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
 
             self.freq_beams_ftw_list[index][2] = self.qubit.freq_singlepass1_default_ftw - self.freq_secular_ftw_list[secular_freq_idx]
             self.freq_beams_ftw_list[index][3] = self.qubit.freq_singlepass2_default_ftw + self.freq_secular_ftw_list[secular_freq_idx]
+
+    @rpc(flags={"async"})
+    def check_async_termination_requested(self):
+        """
+        Check whether termination of the experiment has been requested.
+        """
+        if self.scheduler.check_termination() or self._termination_status_labrad:
+            if self._termination_status_labrad:
+                print("Critical experiment failure. Stopping experiment & cancelling all experiments.")
+                self.cancel_all_experiments()
+            raise TerminationRequested

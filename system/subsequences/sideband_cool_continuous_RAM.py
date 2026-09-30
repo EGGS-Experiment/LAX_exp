@@ -84,6 +84,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
                                                    conversion_function=att_to_mu, units=dB)
         sbc_cycles_cont =       self.get_parameter('sbc_cycles_cont', group='sequences.sbc.base', override=False)
         self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sequences.sbc.base', override=False)
+        self.ion_carrier_mhz = self.get_parameter('ion_carrier_mhz', group='ion_parameters', override=False)
 
         # waveform & timing parameters
         self.ampl_qubit_asf =           self.get_parameter('ampl_729_qubit_pct', group='beams.ampl_pct', override=True,
@@ -136,7 +137,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_writer_854.prepare()
 
         # create 729nm waveform array - frequency values
-        mode_freqs_hz = tuple(freq_mhz * MHz for freq_mhz in self.sbc_config_list.keys())
+        mode_freqs_hz = tuple((self.ion_carrier_mhz - freq_mhz / 2) * MHz for freq_mhz in self.sbc_config_list.keys())
         vals_freq_hz = sum(tuple([mode_freqs_hz[i]]*num_steps for i, num_steps in enumerate(mode_time_steps)), [])
         self.ram_waveform_729_ftw_list = [int32(0)] * self.num_samples # stores RAM data in machine units
         self.qubit.frequency_to_ram(vals_freq_hz[::-1], self.ram_waveform_729_ftw_list) # pre-reverse list b/c write_ram reverses it

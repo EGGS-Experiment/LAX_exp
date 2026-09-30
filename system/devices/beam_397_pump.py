@@ -5,6 +5,8 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 from LAX_exp.extensions import *
 from LAX_exp.base import LAXDevice
 
+from numpy import int32, int64
+
 
 class Beam397Pump(LAXDevice):
     """
@@ -59,6 +61,9 @@ class Beam397Pump(LAXDevice):
         self.ampl_rescue_asf =  self.get_parameter('ampl_pump_rescue_pct', group='beams.ampl_pct',
                                                    override=False, conversion_function=pct_to_asf)
 
+        # holder variable
+        self.time_delay_cleanup_mu = int64(0)
+
     @kernel(flags={"fast-math"})
     def initialize_device(self) -> TNone:
         # get CPLD attenuations so we don't override them
@@ -78,9 +83,13 @@ class Beam397Pump(LAXDevice):
         # set attenuation
         self.set_att_mu(self.att_pump_mu)
 
+        self.time_delay_cleanup_mu = self.core.seconds_to_mu(50e-3)
+
     @kernel(flags={"fast-math"})
     def cleanup_device(self) -> TNone:
         # set default profile on CPLD
+        # add long delay to let anything finish running
+        delay_mu(self.time_delay_cleanup_mu)
         self.set_profile(DEFAULT_PROFILE)
         self.on()
         delay_mu(8000)

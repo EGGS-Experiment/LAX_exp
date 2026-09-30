@@ -253,7 +253,7 @@ class DDSPulseShaper(HasEnvironment):
 
         NOTE BENE: this function pulses the CPLD io_update and will affect other dds on the chip
         """
-        self.core.break_realtime()
+        delay_mu(125000) # deterministic delay for allan dev experiments
         dds_target = self.dds_targets[dds_targets_idx]
 
         # disable RAM mode & set matched latencies
@@ -279,7 +279,7 @@ class DDSPulseShaper(HasEnvironment):
         # # clear ASF and POW registers
         dds_target.set_asf(0x00)
         dds_target.set_pow(0x00)
-        self.core.break_realtime()
+        delay_mu(125000) # deterministic delay for allan dev experiments
 
     @kernel(flags={"fast-math"})
     def sequence_initialize(self):
@@ -296,7 +296,7 @@ class DDSPulseShaper(HasEnvironment):
         Leaves DDS card (specific to this sequence) in a safe state.
         Should be called when the parent experiment completes the main experiment sequence and finishes.
         """
-        self.core.break_realtime()
+        delay_mu(125000)  # deterministic delay for allan dev experiments
         dds_target = self.dds_targets[dds_targets_idx]
 
         # stop output & clear registers
@@ -310,7 +310,7 @@ class DDSPulseShaper(HasEnvironment):
         dds_target.set_cfr1(ram_enable=0)
         dds_target.cpld.io_update.pulse_mu(8)
         delay_mu(256)   # add extra slack to avoid RTIO collisions
-        self.core.break_realtime()
+        delay_mu(125000) # deterministic delay for allan dev experiments
 
     @kernel(flags={"fast-math"})
     def sequence_cleanup(self) -> TNone:

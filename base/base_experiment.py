@@ -16,6 +16,8 @@ logger = logging.getLogger("artiq.master.experiments")
 from LAX_exp.base import LAXEnvironment, LAXDevice, LAXSequence, LAXSubsequence
 from LAX_exp.base.manager_wrappers import _write_to_group
 from sipyco import pyon
+from artiq import __version__ as artiq_version
+import time
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -98,6 +100,8 @@ class LAXExperiment(LAXEnvironment, ABC):
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants
 
+        self.dataset_mgr = self._LAXEnvironment__dataset_mgr
+
         # store arguments in dataset manager
         self._save_arguments()
 
@@ -152,7 +156,6 @@ class LAXExperiment(LAXEnvironment, ABC):
         monitor_status = self.get_dataset('management.safe_mode', default=False)
         if monitor_status:
             self.labrad_subscribe()
-
 
         '''
         COMPILE FIXED KERNEL_FROM_STRING SEQUENCES
@@ -565,7 +568,9 @@ class LAXExperiment(LAXEnvironment, ABC):
     '''
 
     @rpc(flags={"async"})
-    def update_results(self, *args) -> TNone:
+    def update_results(self, *args,
+                       store_results_periodically=False,
+                       shots_per_write = 500) -> TNone:
         """
         Records data from the main sequence in the experiment dataset.
 
@@ -587,6 +592,28 @@ class LAXExperiment(LAXEnvironment, ABC):
                              round(self._result_iter * self._completion_iter_to_pct, 3),
                              broadcast=True, persist=True, archive=False)
 
+            if (self._result_iter % shots_per_write)== 0 and store_results_periodically:
+                self.dataset_mgr.write_hdf5(f)
+                writing_start_time = time.time()
+                try:
+                    expid = self.scheduler.expid
+                    current_time = time.time()
+                    exp_params = {
+                        "artiq_version": artiq_version,
+                        "rid": self.scheduler.rid,
+                        "start_time": self.start_time,
+                        "run_time": self.start_time - current_time,
+                        "repo_rev": expid.get("repo_rev", ""),
+                        "expid": pyon.encode(expid)
+                    }
+                    self.write_results(exp_params)
+                except IndexError as e:
+                    print('Could write results')
+
+                writing_end_time = time.time()
+                print(writing_end_time -  writing_start_time)
+
+
         # increment result iterator
         self._result_iter += 1
 
@@ -600,6 +627,7 @@ class LAXExperiment(LAXEnvironment, ABC):
         """
         return (1, 1)
 
+    @rpc(flags={"async"})
     def write_results(self, exp_params):
         """
         Write arguments, datasets, and parameters in a well-structured format
@@ -629,9 +657,6 @@ class LAXExperiment(LAXEnvironment, ABC):
                 # write data
                 with h5py.File(filename, "w") as f:
 
-                    # save data from experiment via the dataset manager of the LAXExperiment
-                    self._LAXEnvironment__dataset_mgr.write_hdf5(f)
-
                     # save expid separately to allow dashboard to run from hdf5 file
                     # note: expid has already been converted to hdf5-savable form in main artiq package
                     f["expid"] = expid
@@ -646,7 +671,6 @@ class LAXExperiment(LAXEnvironment, ABC):
                     system_group = f.create_group("system")
                     for k, v in sys_params.items():
                         _write_to_group(system_group.attrs, k, v)
-
             # catch any errors
             except Exception as e:
                 print("Warning: unable to create and save file in LAX format: {}".format(repr(e)))
