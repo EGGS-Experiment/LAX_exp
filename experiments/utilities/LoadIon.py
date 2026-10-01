@@ -460,7 +460,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.core.break_realtime()
         self.pump.beam.set_att(31.5 * dB)   # have to set att b/c readout.run() turns on beams
         self.aperture.open_aperture()
-        delay_mu(self.core.seconds_to_mu(3))
+        delay_mu(self.core.seconds_to_mu(3.))
 
 
         ### check PMT and camera status ###

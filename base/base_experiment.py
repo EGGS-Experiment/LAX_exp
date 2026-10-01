@@ -594,24 +594,21 @@ class LAXExperiment(LAXEnvironment, ABC):
                              round(self._result_iter * self._completion_iter_to_pct, 3),
                              broadcast=True, persist=True, archive=False)
 
-            if (self._result_iter % shots_per_write)== 0 and store_results_periodically:
-                writing_start_time = time.time()
-                try:
-                    expid = self.scheduler.expid
-                    current_time = time.time()
-                    exp_params = {
-                        "artiq_version": artiq_version,
-                        "rid": self.scheduler.rid,
-                        "start_time": self.start_time,
-                        "run_time": self.start_time - current_time,
-                        "repo_rev": expid.get("repo_rev", ""),
-                        "expid": pyon.encode(expid)
-                    }
-                    self.write_results(exp_params)
-                except IndexError as e:
-                    print('Could write results')
-
-                writing_end_time = time.time()
+        if (self._result_iter % shots_per_write)== 0 and store_results_periodically:
+            try:
+                expid = self.scheduler.expid
+                current_time = time.time()
+                exp_params = {
+                    "artiq_version": artiq_version,
+                    "rid": self.scheduler.rid,
+                    "start_time": self.start_time,
+                    "run_time": self.start_time - current_time,
+                    "repo_rev": expid.get("repo_rev", ""),
+                    "expid": pyon.encode(expid)
+                }
+                self.write_results(exp_params)
+            except IndexError as e:
+                print('Could write results')
 
         # increment result iterator
         self._result_iter += 1
@@ -636,6 +633,9 @@ class LAXExperiment(LAXEnvironment, ABC):
         rid =           exp_params["rid"]
         start_time =    localtime(exp_params["start_time"])
         expid =         exp_params["expid"]
+        run_time = exp_params["run_time"]
+
+        self.set_dataset('time_run', run_time)
 
         # save to all relevant directories - these are retrieved & stored in "prepare"
         for save_dir in self.save_dir_list:

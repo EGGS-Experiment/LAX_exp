@@ -118,8 +118,6 @@ class DDSPulseShaper(HasEnvironment):
                 or isinstance(self.dds_targets, LAXDevice)):
             self.dds_targets = [self.dds_targets]
 
-
-
         if not isinstance(self.ampl_max_pcts, list):
             self.ampl_max_pcts = [self.ampl_max_pcts]
 
