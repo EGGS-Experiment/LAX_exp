@@ -356,6 +356,9 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
         self.phase_cat2_offset = self.qubit.turns_to_pow(0.5)
         self.set_default_configuration()
 
+        self.shot_duration_rtio_mu_list = zeros(len(self.config_experiment_list) * self.repetitions,
+                                                dtype=int64)
+
 
     def _prepare_experiment_ion_parameters(self):
         """
@@ -591,6 +594,7 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                 '''
 
                 shot_start_time_mu = now_mu()
+                shot_start_time_rtio_mu = self.core.get_rtio_counter_mu()
                 # extract values from config list
                 idx_freq_secular = int32(config_vals[0])
                 idx_freq_tickle_detuning = int32(config_vals[1])
@@ -759,7 +763,14 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                 # check termination more frequently in case reps are low
                 if _loop_iter % 100 == 0:
                     self.check_async_termination_requested()
+
+
+                shot_end_time_rtio_mu = self.core.get_rtio_counter_mu()
+                shot_duration_rtio_mu = shot_end_time_rtio_mu - shot_start_time_rtio_mu
+                self.shot_duration_rtio_mu_list[_loop_iter] = shot_duration_rtio_mu
+
                 _loop_iter += 1
+
 
     @kernel(flags={'fast-math'})
     def pulse_bichromatic(self, index: TInt32,
@@ -1070,3 +1081,7 @@ class CatStateInterferometerAllanDev(LAXExperiment, Experiment):
                 print("Critical experiment failure. Stopping experiment & cancelling all experiments.")
                 self.cancel_all_experiments()
             raise TerminationRequested
+
+    def analyze_experiment(self):
+        self.set_dataset('shot_duration_rtio_time_mu_list',
+                         self.shot_duration_rtio_mu_list)

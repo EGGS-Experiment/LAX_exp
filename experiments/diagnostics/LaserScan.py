@@ -128,7 +128,7 @@ class LaserScan(LAXExperiment, Experiment):
         delay_mu(10000)
 
         # record subsequences onto DMA
-        # self.initialize_subsequence.record_dma()
+        self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
 
         # set up qubit pulse
@@ -165,7 +165,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 ### MAIN SHOT ###
                 # initialize ion in S-1/2 state
-                self.initialize_subsequence.initialize_with_collison_check()
+                self.initialize_subsequence.run_dma()
 
                 # fire spectroscopy pulse
                 if self.enable_pulseshaping:
