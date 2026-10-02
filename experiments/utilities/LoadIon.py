@@ -38,7 +38,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
     def build_experiment(self):
         # general arguments
-        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=10, precision=0, step=1),
+        self.setattr_argument('desired_num_of_ions', NumberValue(default=1, min=1, max=25, precision=0, step=1),
                               tooltip="Number of ions to load.\n"
                                       "Ion number is determined by camera image recognition.")
 
@@ -423,10 +423,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("Unable to save image - permission error")
 
         # threshold & rescale data
-        # todo: set 1000 as some parameter for min scatter value
+        # todo: set 750 as some parameter for min scatter value
         data *= data > 750
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
-        # use only upper 1% quantile of data
+        # use only upper 3% quantile of data
         data *= data > np.quantile(data, 0.97)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
