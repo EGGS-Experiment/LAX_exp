@@ -217,7 +217,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             # set camera region of interest and exposure time
             # Configure everything while acquisition is stopped.
             self.camera.stop_acquisition()
-            self.camera.image_region_set(self.image_region)
+            self.camera.set_image_region(self.image_region)
             self.camera.set_mode_shutter("Open")
             self.camera.set_mode_acquisition("Run till abort")
             self.camera.start_acquisition()

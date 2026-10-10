@@ -64,7 +64,7 @@ class AndorCamera(LAXDevice):
         if identify_exposure_time is not None:
             self.set_exposure_time(identify_exposure_time)
         if image_region is not None:
-            self.camera.set_image_region(*image_region)
+            self.camera.image_region_set(*image_region)
 
         self.camera.mode_shutter("Open")
         self.camera.mode_acquisition("Run till abort")

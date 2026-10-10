@@ -153,19 +153,19 @@ class QuickWarmup(LAXExperiment, Experiment):
         temp_diode_D_kelvin = results[:, 4]
         pressure_ion_pump_mbar = results[:,5]
         mbar_to_torr = 0.7500062
-        pressure_ion_pump_mtorr = (pressure_ion_pump_mbar * mbar_to_torr) / 1e3
 
 
-        self.set_dataset('pressure_max_ion_pump_mtorr', np.max(pressure_ion_pump_mtorr))
+        self.set_dataset('pressure_max_ion_pump_mbar', np.max(pressure_ion_pump_mbar))
 
         # format dictionary for applet plotting
         ion_pump_plotting_results = {'x': time_s,
-                            'y': pressure_ion_pump_mtorr,
+                            'y': pressure_ion_pump_mbar,
                             'subplot_titles': f'Ion Pump Pressure',
                             'subplot_x_labels': 'Time (s)',
-                            'subplot_y_labels': 'Ion Pump Pressure (mTorr)',
+                            'subplot_y_labels': 'Ion Pump Pressure (mbar)',
                             'rid': self.scheduler.rid,
-                             'textbox_strs': [None],
+                            'textbox_strs': [None],
+                            'y_scale': 'log'
                             }
 
         self.create_matplotlib_applet(ion_pump_plotting_results,

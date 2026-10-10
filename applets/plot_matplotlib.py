@@ -63,8 +63,9 @@ class MatplotlibPlot(QMainWindow):
             self.sc.figure.suptitle(args.title, fontsize=18)
 
         # default keys for dictionary passed to applet
-        self.default_keys = ['x', 'y', 'z', 'errors', 'fit_x', 'fit_y', 'fit_z', 'subplot_x_labels', 'subplot_y_labels',
-                             'subplot_titles', 'ylims', 'rid', 'legend_labels']
+        self.default_keys = ['x', 'y', 'z', 'errors', 'fit_x', 'fit_y',
+                             'fit_z', 'subplot_x_labels', 'subplot_y_labels',
+                             'subplot_titles', 'ylims', 'rid', 'legend_labels', 'y_scale']
 
         if args.projection_3d is None:
             projection_3d = False
@@ -123,6 +124,7 @@ class MatplotlibPlot(QMainWindow):
         rid = self.get_from_dict(results, 'rid', None)
         legend_labels = self.get_from_dict(results, 'legend_labels', None)
         textbox_strs = self.get_from_dict(results,'textbox_strs', None)
+        y_scale = self.get_from_dict(results, 'y_scale', None)
 
         # determine number of datasets there are
         if zs is None:
@@ -223,6 +225,7 @@ class MatplotlibPlot(QMainWindow):
                 legend_label = self.get_plot_element(legend_labels, ind)
                 textbox_str = self.get_plot_element(textbox_strs, ind)
 
+
                 self.plot(
                     x,
                     y,
@@ -238,6 +241,16 @@ class MatplotlibPlot(QMainWindow):
                     legend_label=legend_label,
                     textbox_str = textbox_str
                 )
+
+        if y_scale is not None:
+            if args.num_subplots == 1:
+                scale = y_scale.item() if y_scale.shape == () else y_scale[0]
+                self.axes[0].set_yscale(scale)
+            else:
+                for ind, ax in enumerate(self.axes):
+                    scale = self.get_plot_element(y_scale, ind)
+                    if scale is not None:
+                        ax.set_yscale(scale)
 
         # set the matplotlib plot in the Qt widget and show the widget
         self.sc.figure.set_constrained_layout(True)
