@@ -20,8 +20,6 @@ class TrapDC(LAXDevice):
     }
 
     def prepare_device(self):
-        # establish labrad client connections
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.trap_dc = self.cxn.dc_server
 
         # get relevant DC channels

@@ -28,6 +28,13 @@ class LAXEnvironment(HasEnvironment, ABC):
         self._set_arguments = dict()
         self._build_arguments = dict()
 
+        # Share the root experiment's LabRAD connection with child LAX objects.
+        if isinstance(managers_or_parent, LAXEnvironment):
+            self.cxn = managers_or_parent.cxn
+        else:
+            self.cxn = None
+
+
         # correctly extract manager objects
         device_mgr, dataset_mgr, argument_mgr, scheduler_defaults = (None, None, None, None)
         if isinstance(managers_or_parent, tuple):

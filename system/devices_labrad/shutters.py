@@ -18,8 +18,6 @@ class Shutters(LAXDevice):
     }
 
     def prepare_device(self):
-        # establish labrad client connections
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.labjack = self.cxn.labjack_server
 
         # MAGIC NUMBERS

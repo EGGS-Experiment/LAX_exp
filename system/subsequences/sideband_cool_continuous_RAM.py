@@ -6,7 +6,6 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 from LAX_exp.language import *
 from LAX_exp.system.objects.RAMWriter import RAMWriter
 
-
 class SidebandCoolContinuousRAM(LAXSubsequence):
     """
     Subsequence: Sideband Cool - Continuous (RAM)
@@ -86,6 +85,8 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.sbc_config_list =  self.get_parameter('sbc_config_list', group='sequences.sbc.base', override=False)
         self.ion_carrier_mhz = self.get_parameter('ion_carrier_mhz', group='ion_parameters', override=False)
 
+        self.ion_carrier_ftw = self.qubit.frequency_to_ftw(self.ion_carrier_mhz * MHz)
+
         # waveform & timing parameters
         self.ampl_qubit_asf =           self.get_parameter('ampl_729_qubit_pct', group='beams.ampl_pct', override=True,
                                                            conversion_function=pct_to_asf)
@@ -96,8 +97,14 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
 
         # polish SBC configuration parameters
         self.enable_polish =            self.get_parameter('enable_sbc_polish', group='sequences.sbc.polish', override=False)
-        self.freq_polish_ftw =          self.get_parameter('freq_polish_mhz', group='sequences.sbc.polish', override=False,
+
+        # get sideband value and use carrier to convert to AOM frequency
+        self.freq_sideband_polish_ftw =          self.get_parameter('freq_polish_mhz', group='sequences.sbc.polish', override=False,
                                                            conversion_function=hz_to_ftw, units=MHz)
+        # divide sideband value by 2 because the frequency goes to a double pass AOM
+        self.freq_polish_ftw = self.ion_carrier_ftw  - (self.freq_sideband_polish_ftw >> 1)
+
+
         self.ampl_polish_asf =          self.get_parameter('ampl_polish_pct', group='sequences.sbc.polish', override=False,
                                                            conversion_function=pct_to_asf)
         self.ampl_quench_polish_asf =   self.get_parameter('ampl_quench_polish_pct', group='sequences.sbc.polish', override=False,
@@ -137,6 +144,7 @@ class SidebandCoolContinuousRAM(LAXSubsequence):
         self.ram_writer_854.prepare()
 
         # create 729nm waveform array - frequency values
+        # divide sideband frequency by 2 because it goes to adouble pass AOM
         mode_freqs_hz = tuple((self.ion_carrier_mhz - freq_mhz / 2) * MHz for freq_mhz in self.sbc_config_list.keys())
         vals_freq_hz = sum(tuple([mode_freqs_hz[i]]*num_steps for i, num_steps in enumerate(mode_time_steps)), [])
         self.ram_waveform_729_ftw_list = [int32(0)] * self.num_samples # stores RAM data in machine units

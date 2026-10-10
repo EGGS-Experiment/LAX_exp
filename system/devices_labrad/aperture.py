@@ -17,7 +17,6 @@ class Aperture(LAXDevice):
     }
 
     def prepare_device(self):
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.aperture = self.cxn.elliptec_server
 
         self.position_close = 2888  # aperture position for "closed" state

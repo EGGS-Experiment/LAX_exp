@@ -128,8 +128,12 @@ class Beam729(LAXDevice):
         Initialize all devices relevant to the 729nm.
         """
         # get CPLD attenuations so we don't override them
+        self.core.break_realtime()
         self.cpld.get_att_mu()
+
+        self.core.break_realtime()
         self.doublepass_inj.cpld.get_att_mu()
+
         self.core.break_realtime()
 
         # turn off intensity servo (turning OFF TTL turns integrator hold ON)

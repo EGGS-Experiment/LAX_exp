@@ -27,8 +27,6 @@ class Wavemeter(LAXDevice):
             '866nm': (13, '345.999945', (0, 3), True, 7, [-4, 4]),
         }
 
-        # create labrad connections
-        self.cxn = labrad.connect(self.ip, port=7682, tls_mode='off', username='', password='lab')
         self.wavemeter = self.cxn.multiplexerserver
 
     @rpc

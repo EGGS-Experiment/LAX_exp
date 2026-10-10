@@ -4,7 +4,7 @@ from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, QubitPulseShape, SidebandCoolContinuousRAM, NoOperation, ReadoutAdaptive
+    InitializeQubit, QubitPulseShape, SidebandCoolContinuousRAM, NoOperation, ReadoutAdaptive, Readout
 )
 from LAX_exp.system.objects.MeanFilter import MeanFilter
 # todo: finish implementing changes
@@ -70,7 +70,8 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
             ampl_max_pct=self.ampl_qubit_pct,
         )
         self.initialize_subsequence =   InitializeQubit(self)
-        self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
+        # self.readout_subsequence =      ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
+        self.readout_subsequence = Readout(self)
         self.doppler_subsequence =      NoOperation(self)
 
         # relevant devices
@@ -184,10 +185,14 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
 
         # MAIN LOOP
         for num_rep in range(self.repetitions):
+            d_state_prob = 0.
 
             # burst readout
-            for _ in range(self.samples_per_point):
+            d_state_probs = [0.] * self.samples_per_point
+            for idx in range(self.samples_per_point):
                 self.core.break_realtime()
+
+                ion_states = [int32(0)] * self.num_times
 
                 # loop over target times
                 for idx_time in range(self.num_times):
@@ -208,15 +213,30 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
                         self.qubit.off()
 
                     # determine ion state & store results
-                    ion_state = self.readout_subsequence.run()
+                    self.readout_subsequence.run()
+                    counts_res = self.readout_subsequence.fetch_count()
+
                     if ion_state[0] != -1:  # only store determinate results (indeterminate is -1)
                         self._filter_arr[idx_time].update_single(1 - ion_state[0]) # convert to D-state probability
+
+
+                    if counts_res < 35:
+                        ion_states[idx_time] = 1
+                    else:
+                        ion_states[idx_time] = 0
+
+                d_state_prob = 0.
+                for counts in ion_states:
+                    d_state_prob += counts
+                d_state_prob /= self.num_times
+
 
             # update dataset & clean up
             for idx_time in range(self.num_times):
                 self.update_results(num_rep * (self.samples_per_point * self._time_exp_shot_s),
                                     idx_time,
-                                    self._filter_arr[idx_time].get_current() / self.samples_per_point)
+                                    # self._filter_arr[idx_time].get_current() / self.samples_per_point)
+                                    dstate_probability=d_state_prob)
             self.check_termination()    # check termination
 
     @rpc(flags={"async"})

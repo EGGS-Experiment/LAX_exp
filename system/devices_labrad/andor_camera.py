@@ -15,8 +15,6 @@ class AndorCamera(LAXDevice):
     }
 
     def prepare_device(self):
-        # create labrad connection
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.camera = self.cxn.andor_server
 
         # retrieve camera info - tuple(dimensions_x, dimensions_y)
@@ -95,6 +93,16 @@ class AndorCamera(LAXDevice):
         """
         self.camera.acquisition_wait()
 
+
+    def get_buffer_size(self) -> TInt64:
+        """
+        Get the maximum number of images that the circular buffer can store
+        based on the current settings.
+        Returns:
+            int: the maximum number of images that can be stored.
+        """
+        return self.camera.buffer_size()
+
     @rpc
     def get_most_recent_image(self) -> TArray(TInt32, 1):
         """
@@ -102,6 +110,19 @@ class AndorCamera(LAXDevice):
         :return: TArray(TFloat): the most recent image the camera took
         """
         return self.camera.acquire_image_recent()
+
+    @rpc
+    def get_oldest_image(self,
+                         notify_other_listeners: TBool = True) -> TArray(TInt32, 1):
+        """
+        Retrieve most oldest image camera took
+        :return: TArray(TFloat): the most oldest image the camera took
+        """
+        return self.camera.acquire_image_oldest(notify_other_listeners)
+
+    @rpc
+    def get_oldest_images(self, num_images: TInt32):
+        return self.camera.acquire_images_oldest(num_images)
 
     @rpc
     def get_all_acquired_images(self) -> TArray(TFloat, 1):
@@ -113,14 +134,14 @@ class AndorCamera(LAXDevice):
         return self.camera.acquire_data()
 
     @rpc
-    def set_exposure_time(self, exposure_time: TFloat) -> TNone:
+    def set_exposure_time(self,
+                          exposure_time: TFloat) -> TNone:
         """
         Set exposure time (in seconds) for image acquisition
         :param exposure_time: the exposure time (in seconds) to set.
         """
-        self.stop_acquisition()
+
         self.camera.setup_exposure_time(exposure_time)
-        self.start_acquisition()
 
     @rpc
     def get_exposure_time(self) -> TFloat:
@@ -131,20 +152,46 @@ class AndorCamera(LAXDevice):
         return self.camera.setup_exposure_time()
 
     @rpc
-    def set_image_region(self, image_region: TTuple) -> TNone:
-        """
-        Set image region
-        :return: tuple(horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
-        """
-        self.stop_acquisition()
-        self.camera.image_region_set(*image_region)
-        self.start_acquisition()
-
-    @rpc
     def get_image_region(self) -> TTuple:
         """
         Get image region
         :return: tuple(horizontal bin, vertical bin, start x, stop x, start y, stop y) coordinates of image
         """
         return self.camera.image_region_get()
+
+
+    @rpc
+    def set_image_region(self, image_region: TTuple) -> TNone:
+        self.camera.image_region_set(*image_region)
+
+    @rpc
+    def set_mode_shutter(self,
+                         shutter_state):
+
+        if shutter_state not in ['Open', 'Close', 'Auto']:
+            raise ValueError('shutter state must be Open/Close/Auto')
+
+        else:
+            self.camera.mode_shutter(shutter_state)
+
+    @rpc
+    def set_mode_acquisition(self,
+                         acquisition_state):
+
+        if acquisition_state not in ['Single Scan', 'Accumulate', 'Kinetics', 'Fast Kinetics', 'Run till abort']:
+            raise ValueError('acquistion state must be one of Single Scan/Accumulate/Kinetics/Fast Kinetics/Run till abort')
+
+        else:
+            self.camera.mode_acquisition(acquisition_state)
+
+    @rpc
+    def buffer_new_images(self) -> TTuple([TInt32, TInt32]):
+        """
+        Get the total number of new images in the buffer.
+        Returns:
+            (int, int): the indices of the first and last new image, respectively.
+        """
+        return self.camera.buffer_new_images()
+
+
 

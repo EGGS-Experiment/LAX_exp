@@ -44,6 +44,25 @@ device_db_ext = {
         "class": "Flipper"
     },
 
+    # cryovac devices
+    "f70_compressor": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.cryovac.f70_compressor",
+        "class": "F70Compressor"
+    },
+
+    "ion_pump": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.cryovac.ion_pump",
+        "class": "IonPump"
+    },
+
+    "lakeshore": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.cryovac.lakeshore",
+        "class": "Lakeshore"
+    },
+
     #########################
     # Sinara Hardware Devices
     #########################

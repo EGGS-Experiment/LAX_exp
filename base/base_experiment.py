@@ -18,6 +18,9 @@ from LAX_exp.base.manager_wrappers import _write_to_group
 from sipyco import pyon
 from artiq import __version__ as artiq_version
 import time
+import labrad
+from os import environ
+import logging
 
 
 class LAXExperiment(LAXEnvironment, ABC):
@@ -56,6 +59,10 @@ class LAXExperiment(LAXEnvironment, ABC):
         Gets/sets instance attributes, devices, and process build arguments.
         Called before build_experiment.
         """
+
+        # create one labrad connection to be shared
+        self.cxn = None
+
         # core devices
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -102,6 +109,17 @@ class LAXExperiment(LAXEnvironment, ABC):
 
         self.dataset_mgr = self._LAXEnvironment__dataset_mgr
 
+        self.cxn = labrad.connect(
+            environ['LABRADHOST'],
+            port=7682,
+            tls_mode='off',
+            username='',
+            password='lab')
+
+        for child in self.children:
+            if hasattr(child, "cxn"):
+                child.cxn = self.cxn
+
         # store arguments in dataset manager
         self._save_arguments()
 
@@ -146,6 +164,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             print(repr(e))
         # set save_dir_list as an instance attribute
         self.save_dir_list = save_dir_list
+        self.experiment_time_store_succesfully = False
         self.kernel_invariants.add("save_dir_list")
 
 
@@ -532,6 +551,7 @@ class LAXExperiment(LAXEnvironment, ABC):
             time_exprun = time_global_stop - self.time_global_start
             self.set_dataset('time_run', time_exprun)
             print('\tRun Time:\t{:.2f}'.format(time_exprun))
+            self.experiment_time_store_succesfully = True
         except Exception as e:
             pass
 
@@ -633,9 +653,16 @@ class LAXExperiment(LAXEnvironment, ABC):
         rid =           exp_params["rid"]
         start_time =    localtime(exp_params["start_time"])
         expid =         exp_params["expid"]
-        run_time = exp_params["run_time"]
 
-        self.set_dataset('time_run', run_time)
+        if not  self.experiment_time_store_succesfully:
+            time_global_stop = datetime.timestamp(datetime.now())
+
+            if hasattr(self, "time_global_start"):
+                time_exprun = time_global_stop - self.time_global_start
+            else:
+                time_exprun = np.nan
+
+            self.set_dataset('time_run', time_exprun)
 
         # save to all relevant directories - these are retrieved & stored in "prepare"
         for save_dir in self.save_dir_list:

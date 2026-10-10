@@ -28,7 +28,6 @@ class Flipper(LAXDevice):
         self.flipper_port_name = "EIO7"
 
         # create labrad connections
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.labjack = self.cxn.labjack_server
 
         # todo: document

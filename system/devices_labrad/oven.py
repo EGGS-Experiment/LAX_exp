@@ -17,7 +17,6 @@ class Oven(LAXDevice):
 
     def prepare_device(self):
         # establish labrad connection
-        self.cxn = labrad.connect(environ['LABRADHOST'], port=7682, tls_mode='off', username='', password='lab')
         self.oven = self.cxn.gpp3060_server
 
         # MAGIC NUMBERS

@@ -33,7 +33,7 @@ class fitDampedOscillator:
         todo: document arguments
         """
         d = 0.5 * (1. - a) * d
-        return 0.5 * (1. - a * np.exp(-b * (x-x0)) * np.cos(c * (x-x0))) + d
+        return 0.5 * (1. - a * np.exp(-b * (x-x0)) * np.cos(c * (x-x0) /2)) + d
 
     def fit(self, data):
         # separate data into x and y
@@ -57,7 +57,7 @@ class fitDampedOscillator:
         # create array of initial guess parameters
         a_guess = np.abs(1. - 2. * a0)
         b_guess = 0.5 * np.log(a1 / a0) / (t0 - t1)
-        c_guess = np.pi / t0
+        c_guess = 2*np.pi / t0
 
         center_guess = 0.5 * (np.max(data_y) + np.min(data_y))
         d_guess = center_guess - 0.5

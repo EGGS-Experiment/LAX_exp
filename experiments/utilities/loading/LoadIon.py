@@ -134,8 +134,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # define magic numbers
         # todo: document these
         self.pmt_dark_threshold_counts = 5
-        self.time_runtime_max_s = 480.
+        self.time_runtime_max_s = 600.
         self.time_aramp_pulse_s = 2.
+        self.time_after_aramp_s = 4.
         self.path_image_save = r"\\eric.physics.ucla.edu\groups\motion\Data"
 
         self.pmt_sample_num = 100
@@ -214,7 +215,12 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         try:
             '''SET UP CAMERA'''
             # set camera region of interest and exposure time
-            self.camera.set_image_region(self.image_region)
+            # Configure everything while acquisition is stopped.
+            self.camera.stop_acquisition()
+            self.camera.image_region_set(self.image_region)
+            self.camera.set_mode_shutter("Open")
+            self.camera.set_mode_acquisition("Run till abort")
+            self.camera.start_acquisition()
 
             '''SET UP TRAP'''
             # set endcaps to loading voltages
@@ -353,7 +359,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
             # check if we've reached a stop condition (e.g. max_time reached, termination_requested)
             if (time() - self.start_time_s) > self.time_runtime_max_s:
-                print("\tPROBLEM: TOOK OVER 15 MIN TO LOAD - ENDING PROGRAM")
+                print("\tPROBLEM: TOOK OVER 10 MIN TO LOAD - ENDING PROGRAM")
                 return -1
             else:   self.check_termination()
 
@@ -391,7 +397,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             self.trap_dc.set_aramp_voltage(aramp_voltage)
             sleep(self.time_aramp_pulse_s)
             self.trap_dc.set_aramp_voltage(self.end_aramp_voltage)
-            sleep(self.time_aramp_pulse_s)
+            sleep(self.time_after_aramp_s)
 
             # get number of ions
             num_ions = self.process_image('post_aramp_original.png', 'post_aramp_manipulated.png')
