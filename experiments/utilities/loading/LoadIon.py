@@ -187,7 +187,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.rest_time_mu = self.core.seconds_to_mu(5)
 
         self.pump_ftw = self.pump.frequency_to_ftw(90*MHz)
-        self.pump_asf = self.pump,amplitude_to_asf(20. / 100.)
+        self.pump_asf = self.pump.amplitude_to_asf(20. / 100.)
 
     '''
     INITIALIZATION & CLEANUP
