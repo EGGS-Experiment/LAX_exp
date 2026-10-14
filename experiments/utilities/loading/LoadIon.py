@@ -43,25 +43,25 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
                                       "Ion number is determined by camera image recognition.")
 
         # starting trap arguments
-        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=16, precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('start_east_endcap_voltage',  NumberValue(default=17, precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='Start Trap Params',
                               tooltip="East endcap voltage to use for loading.\n"
                                       "Lower voltages reduce the trap depth, making it easier to load.\n"
                                       "However, too low a trap depth is unstable, hindering loading.")
-        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=35., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('start_west_endcap_voltage',  NumberValue(default=20., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='Start Trap Params',
                               tooltip="West endcap voltage to use for loading.\n"
                                       "Lower voltages reduce the trap depth, making it easier to load.\n"
                                       "However, too low a trap depth is unstable, hindering loading.")
 
         # ending trap arguments
-        self.setattr_argument('end_east_endcap_voltage',    NumberValue(default=177., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('end_east_endcap_voltage',    NumberValue(default=220., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='End Trap Params')
-        self.setattr_argument('end_west_endcap_voltage',    NumberValue(default=353., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
+        self.setattr_argument('end_west_endcap_voltage',    NumberValue(default=320., precision=1, step=0.1, min=0., max=400., scale=1., unit="V"),
                               group='End Trap Params')
         self.setattr_argument('end_v_shim_voltage',         NumberValue(default=62.8, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                               group='End Trap Params')
-        self.setattr_argument('end_h_shim_voltage',         NumberValue(default=78.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
+        self.setattr_argument('end_h_shim_voltage',         NumberValue(default=28.3, precision=1, step=0.1, min=0., max=150., scale=1., unit="V"),
                               group='End Trap Params')
         self.setattr_argument('end_aramp_voltage',          NumberValue(default=2.8, precision=1, step=0.1, min=0., max=50., scale=1., unit="V"),
                               group='End Trap Params')
@@ -433,10 +433,10 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         # threshold & rescale data
         # todo: set 750 as some parameter for min scatter value
-        data *= data > 750
+        data *= data > 500
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
-        # use only upper 3% quantile of data
-        data *= data > np.quantile(data, 0.97)
+        # use only upper 8% of data
+        data *= data > np.quantile(data, 0.92)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
         except PermissionError:
@@ -446,7 +446,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
         accums, cxs, cys, radii = hough_circle_peaks(
-            circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.95)
+            circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.9)
 
         # create unique list of cx, cy coordinates
         unique_locs = set(tuple(
