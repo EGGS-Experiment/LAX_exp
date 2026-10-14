@@ -496,7 +496,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.pump.set_mu(
             ftw = self.pump_ftw,
             asf = self.pump_asf,
-            profile = self.pump.readout_profile,
+            profile = self.pump.profile_readout,
         )
 
         ### DETERMINE FLIPPER STATUS AND FLIP ACCORDINGLY ###
