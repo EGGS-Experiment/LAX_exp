@@ -38,12 +38,13 @@ class QuickWarmup(LAXExperiment, Experiment):
         self.setattr_device('f70_compressor')
         self.setattr_device('ion_pump')
         self.setattr_device('lakeshore')
+        self.setattr_device('flowmeter')
 
 
     @property
     def results_shape(self):
         return (self.repetitions_quick_warmup + self.repetitions_record_after_warmup,
-                6)
+                7)
 
     def prepare_experiment(self):
         """
@@ -60,7 +61,6 @@ class QuickWarmup(LAXExperiment, Experiment):
 
     def initialize_experiment(self) -> TNone:
         f70_status = self.f70_compressor.get_status()
-        print(f70_status)
 
     @rpc
     def cleanup_devices(self) -> TNone:
@@ -114,11 +114,20 @@ class QuickWarmup(LAXExperiment, Experiment):
         temp_diodes_kelvin = self.lakeshore.get_temperature()
 
         time_start_recording = time()
+
+        # get temperature readings from lakeshore
         temp_diode_A_kelvin = temp_diodes_kelvin[0]
         temp_diode_B_kelvin = temp_diodes_kelvin[1]
         temp_diode_C_kelvin = temp_diodes_kelvin[2]
         temp_diode_D_kelvin = temp_diodes_kelvin[3]
+
+        # get pressure from ion pump
         pressure_ion_pump_mbar = self.ion_pump.get_pressure()
+
+        # get flow readings from flowmeter
+        flow_lpm = self.flowmeter.get_flow_lpm()
+
+
         time_end_recording = time()
         time_latency_s = time_end_recording - time_start_recording
         sleep(1. - time_latency_s)
@@ -130,6 +139,7 @@ class QuickWarmup(LAXExperiment, Experiment):
             temp_diode_C_kelvin,
             temp_diode_D_kelvin,
             pressure_ion_pump_mbar,
+            flow_lpm
         )
 
     @rpc
@@ -152,9 +162,10 @@ class QuickWarmup(LAXExperiment, Experiment):
         temp_diode_C_kelvin = results[:,3]
         temp_diode_D_kelvin = results[:, 4]
         pressure_ion_pump_mbar = results[:,5]
-        mbar_to_torr = 0.7500062
+        flow_lpm = results[:, 6]
 
 
+        # ion pump plotting
         self.set_dataset('pressure_max_ion_pump_mbar', np.max(pressure_ion_pump_mbar))
 
         # format dictionary for applet plotting
@@ -199,6 +210,25 @@ class QuickWarmup(LAXExperiment, Experiment):
 
         self.create_matplotlib_applet(lakeshore_plotting_results,
                                       name=f'Lakeshore Temperature Quick Warmup',
+                                      group = ['plotting', 'utilities', 'cryovac'],)
+
+
+
+
+        # format dictionary for flowmeter
+
+
+        flowmeter_plotting_results = {'x': time_s,
+                            'y': flow_lpm,
+                            'subplot_titles': f'Flowmeter Readings',
+                            'subplot_x_labels': 'Time (s)',
+                            'subplot_y_labels': 'Flow (lpm)',
+                            'rid': self.scheduler.rid,
+                             'textbox_strs': [None],
+                            }
+
+        self.create_matplotlib_applet(flowmeter_plotting_results,
+                                      name=f'Flowmeter Quick Warmup',
                                       group = ['plotting', 'utilities', 'cryovac'],)
 
         return results

@@ -75,3 +75,9 @@ class Beam866(LAXDevice):
     def off(self) -> TNone:
         self.sw.off()
         delay_mu(8)
+
+    @kernel(flags={"fast-math"})
+    def set_profile(self,
+                     profile: TInt32) -> TNone:
+        self.cpld.set_profile(profile)
+        self.cpld.io_update.pulse_mu(8)

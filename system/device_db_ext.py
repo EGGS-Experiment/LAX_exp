@@ -63,6 +63,12 @@ device_db_ext = {
         "class": "Lakeshore"
     },
 
+    "flowmeter": {
+        "type": "local",
+        "module": "LAX_exp.system.devices_labrad.cryovac.flowmeter",
+        "class": "Flowmeter"
+    },
+
     #########################
     # Sinara Hardware Devices
     #########################

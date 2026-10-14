@@ -115,6 +115,25 @@ class CollisionDetection(LAXExperiment, Experiment):
                                           max=31.5, scale=1., unit='dB'),
                               group=group_name_397)
 
+
+        group_name_866 = '866_parameters'
+        self.setattr_argument("freq_repump_cooling_mhz", NumberValue(100,
+                                                           min=60, max=200, step=0.01,
+                                                          unit="MHz", scale=1, precision=6
+                                                    ),
+                                                    group=group_name_866)
+
+        self.setattr_argument("ampl_repump_cooling_pct",
+                              NumberValue(default=18., precision=3, step=5,
+                                          min=11, max=50, scale=1., unit='%'),
+                              group=group_name_866)
+
+        self.setattr_argument("att_repump_cooling_db",
+                              NumberValue(default=14., precision=1, step=0.5, min=11.,
+                                          max=31.5, scale=1., unit='dB'),
+                              group=group_name_866)
+
+
         # imaging parameters
         group_name_cam = 'Camera'
         self.setattr_argument('time_exposure_s',
@@ -175,6 +194,11 @@ class CollisionDetection(LAXExperiment, Experiment):
         self.att_collision_pump_db = 14
         self.ampl_collision_pump_pct = 18.
 
+        # parameters for 866 collision event - leave hardcoded for now
+        self.freq_collision_repump_cooling_mhz = 110
+        self.att_collision_repump_cooling_db = 14
+        self.ampl_collision_repump_cooling_pct = 35.
+
     def prepare_experiment(self):
         """
         Prepare experimental values and precompute/preallocate to reduce kernel overheads.
@@ -214,6 +238,8 @@ class CollisionDetection(LAXExperiment, Experiment):
         self.rest_time_mu = self.core.seconds_to_mu(5)
 
         ### CONVERT LASER VALUES TO MACHINE UNITS ###
+
+        # 397 conversions
         self.freq_pump_ftw = self.pump.frequency_to_ftw(self.freq_pump_mhz*MHz)
         self.ampl_pump_asf = self.pump.amplitude_to_asf(self.ampl_pump_pct / 100.)
         self.att_pump_mu = att_to_mu(self.att_pump_db * dB)
@@ -221,6 +247,15 @@ class CollisionDetection(LAXExperiment, Experiment):
         self.freq_collision_pump_ftw = self.pump.frequency_to_ftw(self.freq_collision_pump_mhz*MHz)
         self.ampl_collison_pump_asf = self.pump.amplitude_to_asf(self.ampl_collision_pump_pct / 100.)
         self.att_collision_pump_mu = att_to_mu(self.att_collision_pump_db * dB)
+
+        # 866 conversions
+        self.freq_repump_cooling_ftw = self.pump.frequency_to_ftw(self.freq_repump_cooling_mhz*MHz)
+        self.ampl_repump_cooling_asf = self.pump.amplitude_to_asf(self.ampl_repump_cooling_pct / 100.)
+        self.att_repump_cooling_mu = att_to_mu(self.att_repump_cooling_db * dB)
+
+        self.freq_collision_repump_cooling_ftw = self.pump.frequency_to_ftw(self.freq_collision_repump_cooling_mhz*MHz)
+        self.ampl_collison_repump_cooling_asf = self.pump.amplitude_to_asf(self.ampl_collision_repump_cooling_pct / 100.)
+        self.att_collision_repump_cooling_mu = att_to_mu(self.att_collision_repump_cooling_db * dB)
 
         self.time_recrystallization_mu = self.core.seconds_to_mu(self.time_recrystallization_s)
 
@@ -256,6 +291,15 @@ class CollisionDetection(LAXExperiment, Experiment):
             ftw = self.freq_pump_ftw,
             asf = self.ampl_pump_asf,
             profile = self.pump.profile_readout
+        )
+
+        # set repump to normal operating parameters
+        self.repump_cooling.set_profile(0)
+        self.repump_cooling.set_att_mu(self.att_repump_cooling_mu)
+        self.repump_cooling.set_mu(
+            ftw = self.freq_repump_cooling_ftw,
+            asf = self.ampl_repump_cooling_asf,
+            profile = 0
         )
 
         self.initialize_labrad_devices()
@@ -452,13 +496,20 @@ class CollisionDetection(LAXExperiment, Experiment):
             self.begin_recovery_recording()
             self.core.break_realtime()
 
-            # set pump to collision parameters
+            # set pump and repump to collision parameters
             self.pump.set_mu(
                 ftw = self.freq_collision_pump_ftw,
                 asf = self.ampl_collison_pump_asf,
                 profile=self.pump.profile_readout
             )
             self.pump.set_att_mu(self.att_collision_pump_mu)
+
+            self.repump_cooling.set_mu(
+                ftw = self.freq_collision_repump_cooling_ftw,
+                asf = self.ampl_collison_repump_cooling_asf,
+                profile=0
+            )
+            self.repump_cooling.set_att_mu(self.att_collision_repump_cooling_mu)
 
             # open aperture
             self.aperture.open_aperture()
@@ -490,6 +541,13 @@ class CollisionDetection(LAXExperiment, Experiment):
                 profile=self.pump.profile_readout
             )
             self.pump.set_att_mu(self.att_pump_mu)
+
+            self.repump_cooling.set_mu(
+                ftw=self.freq_repump_cooling_ftw,
+                asf = self.ampl_repump_cooling_asf,
+                profile=0
+            )
+            self.repump_cooling.set_att_mu(self.att_repump_cooling_mu)
 
             # close aperture and wait for timeline to catch up
             self.core.wait_until_mu(now_mu())

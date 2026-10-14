@@ -186,6 +186,8 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
 
         self.rest_time_mu = self.core.seconds_to_mu(5)
 
+        self.pump_ftw = self.pump.frequency_to_ftw(90*MHz)
+        self.pump_asf = self.pump,amplitude_to_asf(20. / 100.)
 
     '''
     INITIALIZATION & CLEANUP
@@ -304,6 +306,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         """
         num_ions = 0    # run loading loop until we load desired_num_of_ions
         self.start_time_s = time()  # get start time so we know if we exceed max time
+
 
         try:
             while (num_ions != self.desired_num_of_ions) and (num_ions != -1):
@@ -490,7 +493,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         # return 397nm att to normal
         self.core.break_realtime()
         self.pump.beam.set_att_mu(self.pump.att_pump_mu)
-
+        self.pump.set_mu(
+            ftw = self.pump_ftw,
+            asf = self.pump_asf,
+            profile = self.pump.readout_profile,
+        )
 
         ### DETERMINE FLIPPER STATUS AND FLIP ACCORDINGLY ###
         # determine whether flipper set to camera or PMT based on ability to register 397nm on/off
