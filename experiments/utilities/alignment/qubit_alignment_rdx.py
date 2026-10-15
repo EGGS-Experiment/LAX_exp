@@ -181,14 +181,12 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
     def run_main(self):
         # retrieve DMA handles for qubit alignment
         _handle_alignment = self.core_dma.get_handle('_QUBIT_ALIGNMENT')
-        ion_state = (-1, 0, int64(0))   # stores ion state as (state, counts, elapsed_time_mu)
 
         # MAIN LOOP
         for num_rep in range(self.repetitions):
-            d_state_prob = 0.
 
             # burst readout
-            d_state_probs = [0.] * self.samples_per_point
+            d_state_probs = [0.] * self.num_times
             for idx in range(self.samples_per_point):
                 self.core.break_realtime()
 
@@ -216,19 +214,13 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
                     self.readout_subsequence.run()
                     counts_res = self.readout_subsequence.fetch_count()
 
-                    if ion_state[0] != -1:  # only store determinate results (indeterminate is -1)
-                        self._filter_arr[idx_time].update_single(1 - ion_state[0]) # convert to D-state probability
-
-
                     if counts_res < 35:
                         ion_states[idx_time] = 1
                     else:
                         ion_states[idx_time] = 0
 
-                d_state_prob = 0.
-                for counts in ion_states:
-                    d_state_prob += counts
-                d_state_prob /= self.num_times
+                for idx_time in range(self.num_times):
+                    d_state_probs[idx_time] += ion_states[idx_time]
 
 
             # update dataset & clean up
@@ -236,7 +228,7 @@ class QubitAlignmentRDX(LAXExperiment, Experiment):
                 self.update_results(num_rep * (self.samples_per_point * self._time_exp_shot_s),
                                     idx_time,
                                     # self._filter_arr[idx_time].get_current() / self.samples_per_point)
-                                    dstate_probability=d_state_prob)
+                                    dstate_probability=d_state_probs[idx_time] / self.samples_per_point)
             self.check_termination()    # check termination
 
     @rpc(flags={"async"})
