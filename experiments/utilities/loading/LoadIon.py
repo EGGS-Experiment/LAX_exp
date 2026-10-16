@@ -189,6 +189,9 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.pump_ftw = self.pump.frequency_to_ftw(90*MHz)
         self.pump_asf = self.pump.amplitude_to_asf(20. / 100.)
 
+        self.repump_cooling_ftw = self.pump.frequency_to_ftw(110*MHz)
+        self.repump_cooling_asf = self.pump.amplitude_to_asf(35.5 / 100.)
+
     '''
     INITIALIZATION & CLEANUP
     '''
@@ -200,6 +203,15 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         self.probe.off()
         self.repump_qubit.on()
         self.repump_cooling.on()
+
+
+        # set repump cooling laser to be values that will crystallize chain
+        self.repump_cooling.set_profile(0)
+        self.repump_cooling.set_mu(
+            ftw = self.repump_cooling_ftw,
+            asf = self.repump_cooling_asf,
+            profile = 0
+        )
 
         # deterministically set flipper to camera and synchronize timeline
         self.set_flipper_to_camera()
@@ -432,11 +444,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("Unable to save image - permission error")
 
         # threshold & rescale data
-        # todo: set 750 as some parameter for min scatter value
-        data *= data > 500
+        # todo: set 400 as some parameter for min scatter value
+        data *= data > 400
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
         # use only upper 8% of data
-        data *= data > np.quantile(data, 0.92)
+        data *= data > np.quantile(data, 0.85)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
         except PermissionError:
@@ -453,6 +465,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             (cx, cys[idx])
             for idx, cx in enumerate(cxs)
         ))
+
         return len(unique_locs)
 
 
