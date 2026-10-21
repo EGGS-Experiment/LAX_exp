@@ -3,7 +3,7 @@ from numpy import array, int32, int64
 from artiq.coredevice.ad9910 import PHASE_MODE_CONTINUOUS
 
 from LAX_exp.language import *
-from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon
+from LAX_exp.system.subsequences import InitializeQubit, QubitPulseShape, Readout, RescueIon, SidebandCoolContinuousRAM, NoOperation
 
 from sipyco import pyon
 # todo: tooltips
@@ -23,15 +23,20 @@ class LaserScan(LAXExperiment, Experiment):
 
         # subsequences
         'initialize_subsequence', 'readout_subsequence', 'rescue_subsequence', 'pulseshape_subsequence',
+        'cooling_subsequence', 'no_operation_subsequence',
 
         # configs
-        'profile_729_readout', 'config_experiment_list',
+        'profile_729_readout', 'config_experiment_list', 'profile_729_SBC'
     }
 
     def build_experiment(self):
         ### SETUP ###
         # core arguments
         self.setattr_argument("repetitions", NumberValue(default=7, precision=0, step=1, min=1, max=100000))
+
+        self.setattr_argument("cooling_type", EnumerationValue(["Doppler", "SBC"], default="SBC"),
+                              tooltip="Select the cooling type to use.")
+
 
         # relevant devices
         self.setattr_device('qubit')
@@ -82,6 +87,17 @@ class LaserScan(LAXExperiment, Experiment):
         self.readout_subsequence =      Readout(self)
         self.rescue_subsequence =       RescueIon(self)
 
+        # allocate relevant beam profiles
+        self.profile_729_readout =  0
+        self.profile_729_SBC =      1
+        # prepare sequences
+        self.sbc_subsequence =  SidebandCoolContinuousRAM(
+            self, profile_729=self.profile_729_SBC, profile_854=3,
+            ram_addr_start_729=501, ram_addr_start_854=0, num_samples=200
+        )
+
+        self.no_operation_subsequence = NoOperation(self)
+
     def prepare_experiment(self):
         """
         Prepare & precompute experimental values.
@@ -110,6 +126,10 @@ class LaserScan(LAXExperiment, Experiment):
             shuffle_config=True, config_type=int64
         )
 
+        # choose correct cooling subsequence
+        if self.cooling_type == "Doppler":  self.cooling_subsequence = self.no_operation_subsequence
+        elif self.cooling_type == "SBC":    self.cooling_subsequence = self.sbc_subsequence
+
     @property
     def results_shape(self):
         return (self.repetitions * len(self.config_experiment_list),
@@ -130,6 +150,7 @@ class LaserScan(LAXExperiment, Experiment):
         # record subsequences onto DMA
         self.initialize_subsequence.record_dma()
         self.readout_subsequence.record_dma()
+        self.cooling_subsequence.record_dma()
 
         # set up qubit pulse
         if self.enable_pulseshaping:
@@ -150,12 +171,7 @@ class LaserScan(LAXExperiment, Experiment):
 
                 # prepare relevant beams
                 self.core.break_realtime()
-                if self.enable_pulseshaping:
-                    self.qubit.set_ftw(freq_ftw)
-                else:
-                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf,
-                                      profile=self.profile_729_readout,
-                                      phase_mode=PHASE_MODE_CONTINUOUS)
+
                 delay_mu(10000)
 
                 # wait for linetrigger
@@ -166,14 +182,23 @@ class LaserScan(LAXExperiment, Experiment):
                 ### MAIN SHOT ###
                 # initialize ion in S-1/2 state
                 self.initialize_subsequence.run_dma()
+                self.cooling_subsequence.run_dma()
+
+                self.qubit.set_profile(self.profile_729_readout)
+                self.qubit.set_att_mu(self.att_qubit_mu)
 
                 # fire spectroscopy pulse
                 if self.enable_pulseshaping:
+                    self.qubit.set_ftw(freq_ftw)
                     self.pulseshape_subsequence.run()
                 else:
+                    self.qubit.set_mu(freq_ftw, asf=self.ampl_qubit_asf,
+                                      profile=self.profile_729_readout,
+                                      phase_mode=PHASE_MODE_CONTINUOUS)
                     self.qubit.on()
                     delay_mu(self.time_qubit_mu)
                     self.qubit.off()
+
 
                 # read out counts & clean up loop
                 self.readout_subsequence.run_dma()
