@@ -444,11 +444,11 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
             print("Unable to save image - permission error")
 
         # threshold & rescale data
-        # todo: set 400 as some parameter for min scatter value
-        data *= data > 400
+        # todo: set 450 as some parameter for min scatter value
+        data *= data > 450
         data = np.uint8(((data - np.min(data)) / (np.max(data) - np.min(data) + 1e-10)) * 255)
         # use only upper 8% of data
-        data *= data > np.quantile(data, 0.85)
+        data *= data > np.quantile(data, 0.88)
         try:
             imsave(os.path.join(self.data_path, filepath2), data)
         except PermissionError:
@@ -458,7 +458,7 @@ class IonLoadAndAramp(LAXExperiment, Experiment):
         guess_radii = np.arange(1, 8)
         circles = hough_circle(data, guess_radii)
         accums, cxs, cys, radii = hough_circle_peaks(
-            circles, guess_radii, min_xdistance=1, min_ydistance=1, threshold=0.9)
+            circles, guess_radii, min_xdistance=3, min_ydistance=3, threshold=0.9)
 
         # create unique list of cx, cy coordinates
         unique_locs = set(tuple(
