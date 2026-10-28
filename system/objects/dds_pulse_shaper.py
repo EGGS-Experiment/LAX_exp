@@ -590,6 +590,6 @@ class DDSPulseShaper(HasEnvironment):
         @kernel(flags={"fast-math"})
         def off(self):
             delay_mu(8)
-
-    def set_ampl_max_pct(self, ampl_max_pct):
-        self.ampl_max_pct = ampl_max_pct
+    #
+    # def set_ampl_max_pct(self, ampl_max_pct):
+    #     self.ampl_max_pct = ampl_max_pct

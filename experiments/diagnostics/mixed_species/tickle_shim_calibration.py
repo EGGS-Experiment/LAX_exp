@@ -334,7 +334,6 @@ class MixedSpeciesStrayFieldCalibration(LAXExperiment, Experiment):
         self.dds_pulse_shaper.dds_target.sw.off()
 
         # configure tickle
-        self.dds_pulse_shaper.set_ampl_max_pct(self.ampl_tickle_pct)
         self.dds_pulse_shaper.sequence_initialize()
         self.dds_pulse_shaper.dds_target.set_att_mu(self.att_tickle_mu)
         self.dds_pulse_shaper.dds_target.sw.off()

@@ -270,6 +270,7 @@ class CollisionDetection(LAXExperiment, Experiment):
         self.aperture_movement_wait_mu = self.core.seconds_to_mu(self.aperture_movement_wait_s)
 
         self.succesful_recovery_attempts = 0
+        self.collision_counter = 0
         self.recording_start_s = 0
 
     '''
@@ -437,8 +438,9 @@ class CollisionDetection(LAXExperiment, Experiment):
 
                 if mean_cam_vals < cam_threshold:
                     # detected collision
+                    self.collision_counter += 1
                     print('\tCOLLISION DETECTED. '
-                          '\n\tCOLLISION NUMBER: ', self.succesful_recovery_attempts+1,
+                          '\n\tCOLLISION NUMBER: ', self.collision_counter,
                           '\n\tCAMERA COUNTS: ', mean_cam_vals)
                     crystallization_success = self.crystallize_chain_after_collision(
                         camera_threshold=cam_threshold,
