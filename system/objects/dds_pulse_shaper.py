@@ -199,15 +199,15 @@ class DDSPulseShaper(HasEnvironment):
         '''
         # calculate pulse shape, then normalize and rescale to max amplitude
         # note: ensure max x_val is double the rolloff since PulseShaper does rising edge only
-        x_vals = linspace(0., 200., self.num_samples)
+        x_vals = linspace(0., self.num_samples-1., self.num_samples)
         
         if self.pulse_configuration == 'all':
-            samples_roll = int32(self.num_samples // 2)
+            samples_roll = (self.num_samples - 1.)/ 2.0
         elif self.pulse_configuration in ['rising', 'falling']:
-            samples_roll = int32(self.num_samples)
+            samples_roll = self.num_samples - 1.
             
         wav_y_vals = available_pulse_shapes[self.pulse_shapes[dds_targets_idx]](x_vals, samples_roll)
-        wav_y_vals *= (self.ampl_max_pcts[dds_targets_idx] / samples_roll) / max(wav_y_vals)
+        wav_y_vals *= (self.ampl_max_pcts[dds_targets_idx] / 100.) / max(wav_y_vals)
 
         # create array to store amplitude waveform in ASF (but formatted as a RAM word)
         self.ampl_asf_pulseshapes_list_temp = [int32(0)] * self.num_samples
