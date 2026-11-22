@@ -130,7 +130,7 @@ class QuickWarmup(LAXExperiment, Experiment):
 
         time_end_recording = time()
         time_latency_s = time_end_recording - time_start_recording
-        sleep(1. - time_latency_s)
+        sleep(max(0., 1. - time_latency_s))
 
         self.update_results(
             time_s,
