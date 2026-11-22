@@ -6,7 +6,7 @@ import numpy as np
 
 from LAX_exp.language import *
 from LAX_exp.system.subsequences import (
-    InitializeQubit, SidebandCoolContinuousRAM, Readout, ReadoutAdaptive,
+    InitializeQubit, SidebandCoolContinuousRAM, Readout,
     RescueIon, QubitRAP
 )
 
@@ -26,7 +26,7 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
     kernel_invariants = {
         # subsequences & objects
         'initialize_subsequence', 'sidebandcool_subsequence', 'readout_subsequence',
-        'readout_adaptive_subsequence', 'rescue_subsequence', 'rap_subsequence', 'dds_pulse_shaper_tickle',
+        'rescue_subsequence', 'rap_subsequence', 'dds_pulse_shaper_tickle',
 
         # ion parameters
         'freq_secular_ftw',
@@ -86,7 +86,6 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         )
         self.initialize_subsequence = InitializeQubit(self)
         self.readout_subsequence = Readout(self)
-        self.readout_adaptive_subsequence = ReadoutAdaptive(self, time_bin_us=10, error_threshold=1e-2)
         self.rescue_subsequence = RescueIon(self)
 
         # relevant devices
@@ -204,6 +203,8 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         Build arguments for carrier pulses
         """
         _argstr = 'carrier_pulse'
+        self.setattr_argument("enable_carrier_pulse", BooleanValue(default=False),
+                              tooltip="perform carrier pulse.", group = _argstr)
         self.setattr_argument("time_carrier_pulse_us",
                               NumberValue(default=2, precision=2, step=5, min=0.1, max=10000000, scale=1., unit="us"),
                               group=_argstr,
@@ -232,6 +233,8 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         """
         # cat 1 config
         _argstr = "cat1"
+        self.setattr_argument("enable_cat1", BooleanValue(default=False),
+                              tooltip="perform cat1 pulse.", group=_argstr)
         self.setattr_argument("phases_pulse1_cat_turns", PYONValue([0., 0.]), group=_argstr,
                               tooltip="Relative phases for the singlepass DDSs during the 1st bichromatic pulse.\n"
                                       "Should be a list of [rsb_phase_turns, bsb_phase_turns].\n"
@@ -368,7 +371,7 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
 
 
         self.phase_dd_phase_shift_pow = self.qubit.turns_to_pow(0.5)
-        self.carrier_phase_shift_pow = self.qubit.turns_to_pow(0.25) # goes to double pass so gets doubled
+        self.carrier_phase_shift_pow = self.qubit.turns_to_pow(0.5) # goes to double pass so gets doubled
 
 
         # create experiment config
@@ -458,8 +461,11 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         CONVERT VALUES TO MACHINE UNITS - BICHROMATIC/CAT DEFAULTS
         '''
         # defaults - main doublepass (near chamber)
-        freq_cat_secular_detuning_ftw_list = array([self.qubit.singlepass0.frequency_to_ftw(freq_khz * kHz)
+        if self.enable_cat1:
+            freq_cat_secular_detuning_ftw_list = array([self.qubit.singlepass0.frequency_to_ftw(freq_khz * kHz)
                                            for freq_khz in self.freq_cat_secular_detuning_khz_list])
+        else:
+            freq_cat_secular_detuning_ftw_list = [0]
         self.ampls_cat_asf = array([self.qubit.singlepass0.amplitude_to_asf(ampl_pct / 100.)
                                     for ampl_pct in self.ampls_cat_pct])
         self.time_cat_bichromatic_mu = self.core.seconds_to_mu(self.time_cat_bichromatic_us/2 * us)
@@ -510,9 +516,14 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         self.time_carrier_pulse_mu = self.core.seconds_to_mu(self.time_carrier_pulse_us * us)
         self.ampl_carrier_pulse_asf = self.qubit.amplitude_to_asf(self.ampl_carrier_pct / 100.)
 
-        phase_carrier_pow_list = array(
-            [self.qubit.turns_to_pow(carrier_pulse_turns) for
-            carrier_pulse_turns in self.phase_carrier_turns_list])
+        if self.enable_carrier_pulse:
+            phase_carrier_pow_list = array(
+                [self.qubit.turns_to_pow(carrier_pulse_turns) for
+                carrier_pulse_turns in self.phase_carrier_turns_list])
+        else:
+            phase_carrier_pow_list = array([
+                0
+            ])
 
         # attenuation register - carrier pulse
         self.att_reg_carrier_pulse = 0x00000000 | (
@@ -664,29 +675,31 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
                 ref_time_mu = self.clear_tickle_qubit_phase_accumulators(
                     self.dds_pulse_shaper_tickle
                 )
-                
-                # carrier pulse
-                self.pulse_carrier(
-                    freq_carrier_ftw,
-                    phase_carrier_pulse_pow,
-                    self.time_carrier_pulse_mu,
-                    phase_track=True,
-                    ref_time_mu = ref_time_mu
-                )
+
+                if self.enable_carrier_pulse:
+                    # carrier pulse
+                    self.pulse_carrier(
+                        freq_carrier_ftw,
+                        phase_carrier_pulse_pow,
+                        self.time_carrier_pulse_mu,
+                        phase_track=True,
+                        ref_time_mu = ref_time_mu
+                    )
 
                 '''
                 CAT #1
                 '''
-                # cat1 - bichromatic cat pulse
-                self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
-                # set correct profile
-                self.qubit.set_profile(self.profile_729_bichromatic)
-                self.pulse_bichromatic(self.index_729_cat1,
-                               self.time_cat_bichromatic_mu,
-                               phase_cat_dynamical_decoupling_pow,
-                               phase_track=True,
-                               ref_time_mu = ref_time_mu
-                                )
+                if self.enable_cat1:
+                    # cat1 - bichromatic cat pulse
+                    self.qubit.cpld.set_all_att_mu(self.att_reg_cat_interferometer)
+                    # set correct profile
+                    self.qubit.set_profile(self.profile_729_bichromatic)
+                    self.pulse_bichromatic(self.index_729_cat1,
+                                   self.time_cat_bichromatic_mu,
+                                   phase_cat_dynamical_decoupling_pow,
+                                   phase_track=True,
+                                   ref_time_mu = ref_time_mu
+                                    )
 
                 '''
                 TICKLE PULSE
@@ -723,15 +736,15 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
                             self.qubit.singlepass0_on()
                     self.qubit.off()
 
-
-                # carrier pulse
-                self.pulse_carrier(
-                    freq_carrier_ftw,
-                    phase_carrier_pulse_pow + self.carrier_phase_shift_pow,
-                    self.time_carrier_pulse_mu,
-                    phase_track=True,
-                    ref_time_mu = ref_time_mu
-                )
+                if self.enable_carrier_pulse:
+                    # carrier pulse
+                    self.pulse_carrier(
+                        freq_carrier_ftw,
+                        phase_carrier_pulse_pow + self.carrier_phase_shift_pow,
+                        self.time_carrier_pulse_mu,
+                        phase_track=True,
+                        ref_time_mu = ref_time_mu
+                    )
 
                 '''
                 READ OUT & STORE RESULTS
@@ -852,7 +865,7 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         self.qubit.set_mu(
                 freq_carrier_ftw,
                 asf=self.ampl_carrier_pulse_asf,
-                pow_=phase_pow,
+                pow_=0,
                 profile=self.profile_729_carrier,
                 phase_mode=phase_mode,
                 ref_time_mu=ref_time_mu
@@ -860,7 +873,7 @@ class TicklePhaseCalibration(LAXExperiment, Experiment):
         self.qubit.singlepass0.set_mu(
                 self.qubit.freq_singlepass0_default_ftw,
                 asf=self.qubit.ampl_singlepass0_default_asf,
-                pow_=0.,
+                pow_=phase_pow,
                 profile=self.profile_729_carrier,
                 phase_mode=phase_mode,
                 ref_time_mu=ref_time_mu
